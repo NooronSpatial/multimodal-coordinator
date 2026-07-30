@@ -23,9 +23,31 @@ public final class AudioRingProducer: Sendable {
     /// Ring capacity in frames (rounded up to a power of two).
     public var capacity: Int { storage.capacity }
 
-    /// HOT PATH — will be safe to call from the real-time audio thread.
+    /// HOT PATH — safe to call from the real-time audio thread.
+    ///
+    /// Copies `samples` into the ring and publishes them by moving `head`.
+    /// Obeys the iron laws: no locks, no allocation, no waiting — only a
+    /// bounds check, one or two memory copies, and one atomic store.
+    /// If the chunk is larger than the whole ring (should never happen with
+    /// real audio chunks; asserted in debug), only its newest part is kept.
     public func write(_ samples: UnsafeBufferPointer<Float>) {
-        // red stub: does nothing
+        guard let base = samples.baseAddress, samples.count > 0 else { return }
+        assert(samples.count <= storage.capacity,
+               "audio chunk larger than the whole ring — capacity is misconfigured")
+        let n = min(samples.count, storage.capacity)
+        let source = base + (samples.count - n)          // newest part wins
+
+        // Producer owns `head`; relaxed load of our own counter is fine.
+        let h = storage.head.load(ordering: .relaxed)
+        let start = h & storage.mask
+        let firstPart = min(n, storage.capacity - start)
+        (storage.slab + start).update(from: source, count: firstPart)
+        if n > firstPart {                               // wrap around the seam
+            storage.slab.update(from: source + firstPart, count: n - firstPart)
+        }
+        // Publish: "the bytes are ready." Anyone who acquires `head` after
+        // this store is guaranteed to see the copied samples.
+        storage.head.store(h + n, ordering: .releasing)
     }
 }
 
@@ -54,9 +76,59 @@ public final class AudioRingConsumer: Sendable {
 
     /// COOL PATH — the pump's read. Fills `destination` with the oldest
     /// still-valid frames, skipping (and counting) anything overwritten.
+    ///
+    /// The overrun story: the producer NEVER waits and never touches `tail` —
+    /// if the reader falls behind, the producer simply writes over the oldest
+    /// frames. This read therefore (1) clamps its start to the newest
+    /// ring-full of data, counting everything it had to skip as dropped, and
+    /// (2) VALIDATES after copying: if the producer lapped us during the
+    /// copy, the copied bytes are suspect — they are counted as dropped and
+    /// the read retries once from a fresh position. The buffer may drop, but
+    /// it may never lie.
     public func read(into destination: UnsafeMutableBufferPointer<Float>) -> ReadResult {
-        // red stub: reads nothing
-        ReadResult(framesRead: 0, framesDropped: 0)
+        guard let dst = destination.baseAddress, destination.count > 0 else {
+            return ReadResult(framesRead: 0, framesDropped: 0)
+        }
+        var totalDroppedNow = 0
+        for _ in 0..<2 {                                  // one honest retry, never a spin
+            // Acquire pairs with the producer's release: after this load we
+            // are guaranteed to see every byte published up to `h`.
+            let h = storage.head.load(ordering: .acquiring)
+            var start = storage.tail
+            if h - start > storage.capacity {             // we were lapped while idle
+                let lost = (h - storage.capacity) - start
+                totalDroppedNow += lost
+                start = h - storage.capacity
+            }
+            let available = h - start
+            if available == 0 {
+                storage.tail = start
+                break
+            }
+            let n = min(available, destination.count)
+            let s = start & storage.mask
+            let firstPart = min(n, storage.capacity - s)
+            dst.update(from: storage.slab + s, count: firstPart)
+            if n > firstPart {                            // wrap around the seam
+                (dst + firstPart).update(from: storage.slab, count: n - firstPart)
+            }
+            // Validate: did the producer lap into what we just copied?
+            let h2 = storage.head.load(ordering: .acquiring)
+            if h2 - start <= storage.capacity {           // clean copy
+                storage.tail = start + n
+                if totalDroppedNow > 0 {
+                    storage.dropped.wrappingAdd(totalDroppedNow, ordering: .relaxed)
+                }
+                return ReadResult(framesRead: n, framesDropped: totalDroppedNow)
+            }
+            // Torn copy: treat it as dropped and retry once from fresh data.
+            totalDroppedNow += n
+            storage.tail = start + n
+        }
+        if totalDroppedNow > 0 {
+            storage.dropped.wrappingAdd(totalDroppedNow, ordering: .relaxed)
+        }
+        return ReadResult(framesRead: 0, framesDropped: totalDroppedNow)
     }
 }
 

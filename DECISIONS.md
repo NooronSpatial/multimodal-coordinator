@@ -103,3 +103,32 @@ This is a portfolio project: public from the first commit, clean history,
 no reuse of private hiring-task code — the seams are rebuilt fresh, from
 understanding. Module name `MultiModalKit`; the future engine type keeps the
 name `MultiModalCoordinator` (module ≠ type name, learned the hard way).
+
+---
+
+## D-007 — Ring implementation refinements (found while building 1a)
+
+**1. Only ONE value crosses the thread boundary.** D-002 planned atomic head
+AND tail. The build found a simpler truth: the producer never needs to read
+`tail` — it always writes, overrun or not. So `tail` became a plain,
+consumer-owned variable, and `head` is the single atomic handshake between
+the worlds. Simpler to reason about, simpler to defend.
+
+**2. Overruns are handled by clamp + validate-after-copy.** The reader clamps
+its start to the newest ring-full (counting skipped frames as dropped),
+copies, then re-reads `head`: if the producer lapped into the copied region
+during the copy, those bytes are suspect — counted as dropped, one retry
+from fresh data, never a spin. The buffer may drop, but it may never lie.
+
+**3. The one `@unchecked Sendable` in the package: `RingStorage`.** The
+compiler cannot prove a lock-free SPSC contract — no compiler can. The safety
+argument is ours, written down: one producer moves `head`, one consumer moves
+`tail`, the slab is raw memory published by a release-store and observed by
+an acquire-load, and the two handles are created exactly once as a pair.
+Everything else in the package stays compiler-checked.
+
+**4. Noncopyable handles were considered and rejected — for now.** Making the
+producer/consumer `~Copyable` would enforce "exactly one of each" at compile
+time — but Swift tuples cannot hold noncopyable values yet, which breaks the
+natural pair-returning API. Classes with a documented contract won; the
+noncopyable upgrade is a tracked idea for later.

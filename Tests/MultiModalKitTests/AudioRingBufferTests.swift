@@ -72,10 +72,16 @@ import Testing
 
     @Test func droppedFramesAccumulateAcrossOverruns() {
         let (producer, consumer) = AudioRing.create(minimumCapacity: 4)
-        write(producer, [1, 2, 3, 4, 5, 6])             // drops 2
-        _ = read(consumer, max: 4)
-        write(producer, [7, 8, 9, 10, 11, 12])          // drops 2 again
-        _ = read(consumer, max: 4)
+        write(producer, [1, 2, 3, 4])                   // full
+        write(producer, [5, 6])                         // laps the 2 oldest
+        let first = read(consumer, max: 4)
+        #expect(first.values == [3, 4, 5, 6])
+        #expect(first.result.framesDropped == 2)
+        write(producer, [7, 8, 9, 10])                  // full again
+        write(producer, [11, 12])                       // laps 2 more
+        let second = read(consumer, max: 4)
+        #expect(second.values == [9, 10, 11, 12])
+        #expect(second.result.framesDropped == 2)
         #expect(consumer.totalDropped == 4)
     }
 
