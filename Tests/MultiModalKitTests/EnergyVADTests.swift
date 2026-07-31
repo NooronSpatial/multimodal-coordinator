@@ -26,8 +26,11 @@ import Testing
     }
 
     @Test func exactThresholdCountsAsLoud() {
-        var vad = EnergyVAD(config: config)
-        #expect(vad.process(chunk(0.02)) == .speechStarted)   // >= threshold, not >
+        // Float lesson: 0.02 has no exact binary form — its RMS rounds a hair
+        // below itself. 0.25 is a power of two, so 0.25² = 0.0625, mean and
+        // square root stay EXACT, and rms == threshold is truly testable.
+        var vad = EnergyVAD(config: .init(threshold: 0.25, hangoverFrames: 300))
+        #expect(vad.process(chunk(0.25)) == .speechStarted)   // >= threshold, not >
     }
 
     @Test func shortGapInsideHangoverKeepsSpeaking() {
