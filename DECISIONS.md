@@ -132,3 +132,98 @@ producer/consumer `~Copyable` would enforce "exactly one of each" at compile
 time — but Swift tuples cannot hold noncopyable values yet, which breaks the
 natural pair-returning API. Classes with a documented contract won; the
 noncopyable upgrade is a tracked idea for later.
+
+---
+
+## D-008 — Events leave the pump through a multicast, not a single stream (A)
+
+**Decision:** the pump publishes to a `Broadcast<AudioEvent>` — many
+listeners, each with its own stream, all seeing the same sequence.
+
+**Rejected — one `AsyncStream`, single consumer.** Cheapest option, and it
+matches the ring's own one-reader shape. Rejected because the terminal demo
+and a future conductor want to watch the same audio at the same time, and
+splitting later would change the public seam.
+
+**Rejected — a provider protocol returning one stream.** Same cost, nicer
+name, still only one listener.
+
+**The price, stated openly:** multicast needs a `Mutex`-guarded component and
+a per-listener buffer policy. That brings back the two lock rules — never
+hold the lock across a suspension point, never resume a continuation while
+holding it — and the buffer question answered in D-012.
+
+---
+
+## D-009 — A segment is chunks plus a pre-roll (B)
+
+**Decision:** while speech is on, audio is published chunk by chunk; and at
+`speechStarted` the pump first publishes the last **2 chunks (40 ms)** it was
+already holding.
+
+**Why:** a loudness VAD can only know speech began *after* the first loud
+chunk. Without a pre-roll the first syllable is cut — the difference between
+a demo and something a speech recogniser can actually use.
+
+**Rejected — one big segment at `speechEnded`.** Simple, but nothing can be
+streamed and memory grows with the length of the utterance.
+
+**Rejected — plain chunk-by-chunk.** Cheapest, but it throws away the start
+of every word. The fixed-size pre-roll buffer costs a few kilobytes.
+
+---
+
+## D-010 — Dropped frames are an event, not a counter (C)
+
+**Decision:** when the ring reports skipped frames, the pump publishes
+`dropped(frames:at:)` at that exact point in the sequence.
+
+**Why:** the ring already counts exactly (D-004). Putting the loss in the
+timeline shows *when* the machine fell behind — a counter only shows that it
+did, somewhere. Honesty stays visible instead of hiding in a getter.
+
+**Rejected — a pollable counter.** Less code, less truth.
+
+---
+
+## D-011 — Time comes from sample arithmetic, never from a clock (D)
+
+**Decision:** every event carries an `AudioTime` computed as
+`framesConsumed / sampleRate`.
+
+**Why:** it is the audio's own time, not the scheduler's. It makes
+capture-to-`speechStarted` latency an exact, reproducible number in tests
+instead of a measurement that shifts with machine load — and it keeps the
+package's rule intact: components stay clockless, time lives with the caller.
+
+**Rejected — a timestamp ring parallel to the audio.** More crossing state,
+more to get wrong, and it would measure delivery rather than sound.
+
+**Rejected — timestamping when the pump reads the chunk.** That measures the
+poll rhythm, not when the sound actually happened.
+
+---
+
+## D-012 — Listener buffers are bounded, drop-oldest, and counted; events never replay
+
+Two rulings that D-008 forced into the open.
+
+**1. Bounded, drop-oldest, honest.** Each listener gets its own buffer of a
+fixed size (64 events). When a listener reads too slowly and the buffer is
+full, the **oldest** event is dropped and that listener's own `droppedEvents`
+counter goes up. The pump is never blocked by a slow listener, memory can
+never grow without limit, and the loss is counted instead of hidden — the
+same philosophy as the ring buffer's dropped-frame counting (D-004).
+
+*Rejected — unbounded buffers.* Simpler, and exactly the weakness found in
+the hiring-task `Broadcast`: one listener that stops reading grows memory
+forever. Building the fixed version here is the whole point.
+
+**2. No replay for events.** A listener that subscribes late receives what
+happens **from now on**. The hiring-task `Broadcast` replays the last value,
+which is right for *state* ("you are speaking") — but these are events,
+moments in time. Replaying `speechStarted` to a listener that arrived ten
+seconds later would be a lie about when the sound happened.
+
+*Deferred, not rejected:* if a UI later needs "am I speaking right now", that
+is a separate **state** stream, and a state stream may replay.
