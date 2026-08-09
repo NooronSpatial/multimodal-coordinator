@@ -102,10 +102,21 @@ with CI green.
 
 # SPEC DELTA — Milestone 1c: the pump, the events, the latency
 
-> Status: **APPROVED 2026-08-05** (rulings A3/B3/C1/D1 + Q1/Q2, logged as
-> D-008…D-012). Phase 1 above is approved and partly delivered (ring ✅,
-> capture ✅, ManualClock ✅, EnergyVAD ✅); this delta makes the remaining
-> criteria concrete.
+> Status: **DELIVERED 2026-08-08.** Approved 2026-08-05 (rulings A3/B3/C1/D1
+> + Q1/Q2 → D-008…D-012; event semantics → D-013; the stop race → D-014).
+> All of Phase 1 is now built: ring ✅, capture ✅, ManualClock ✅,
+> EnergyVAD ✅, pump ✅, events ✅, live demo ✅ — 42 tests green, 20
+> consecutive full runs with zero failures. AC-16 ("every started task
+> terminates") is proven by the `sleeperCount == 0` assertions after `stop()`.
+>
+> Found and fixed while building this milestone: a rare read that could return
+> a mix of old and in-flight frames (D-015). D-007's "only ONE value crosses
+> the boundary" is corrected there, not edited away.
+>
+> **Open for a later phase (found in a live run, not yet ruled):** the 300 ms
+> hangover is delivered as part of each utterance, so a short phrase is mostly
+> trailing silence. Options for the fork: trim the tail before publishing, or
+> keep it and let the consumer decide. Not ruled — recorded.
 
 ## 7. What 1c builds
 
