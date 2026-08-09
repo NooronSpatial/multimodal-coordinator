@@ -1,3 +1,5 @@
+import MultiModalKit
+
 /// A scripted stand-in for the microphone (SPEC AC-7).
 ///
 /// Tests drive it by hand: `emit(_:)` plays the role of the hardware

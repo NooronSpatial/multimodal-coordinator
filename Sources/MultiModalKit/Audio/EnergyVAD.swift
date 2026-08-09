@@ -14,7 +14,7 @@
 /// Granularity: the verdict is per CHUNK (one RMS per call). With ~10 ms
 /// chunks that is plenty for turn-taking; per-sample precision belongs to a
 /// smarter VAD in a later phase (documented in D-008).
-public struct EnergyVAD: Sendable {
+public struct EnergyVAD: VoiceActivityDetecting {
     public struct Config: Sendable {
         /// RMS level a chunk must reach to count as loud. Normal speech on
         /// a laptop microphone lands well above 0.02; room noise below it.
@@ -28,10 +28,8 @@ public struct EnergyVAD: Sendable {
         }
     }
 
-    public enum Transition: Sendable, Equatable {
-        case speechStarted
-        case speechEnded
-    }
+    /// The transition type now lives at the seam (D-022).
+    public typealias Transition = SpeechTransition
 
     private let config: Config
     private var isSpeaking = false
@@ -43,7 +41,7 @@ public struct EnergyVAD: Sendable {
 
     /// Judge one chunk. Returns a transition when the state flips,
     /// nil when nothing changes. At most one transition per chunk.
-    public mutating func process(_ chunk: UnsafeBufferPointer<Float>) -> Transition? {
+    public mutating func process(_ chunk: UnsafeBufferPointer<Float>) -> SpeechTransition? {
         guard let base = chunk.baseAddress, chunk.count > 0 else { return nil }
 
         var sumOfSquares: Float = 0

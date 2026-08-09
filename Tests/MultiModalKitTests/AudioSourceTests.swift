@@ -1,4 +1,5 @@
 import MultiModalKit
+import MultiModalKitTesting
 import Testing
 
 /// SPEC AC-7 — the capture seam, exercised with the scripted fake.

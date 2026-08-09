@@ -11,17 +11,22 @@ let package = Package(
     ],
     products: [
         .library(name: "MultiModalKit", targets: ["MultiModalKit"]),
+        // The gift, separated (D-022): deterministic fakes for consumers'
+        // own tests — ManualClock, FakeMicrophone, ScriptedTranscriber —
+        // without shipping a single test double inside the core product.
+        .library(name: "MultiModalKitTesting", targets: ["MultiModalKitTesting"]),
         .executable(name: "audio-demo", targets: ["AudioDemo"]),
     ],
     targets: [
         .target(name: "MultiModalKit"),
+        .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
         .executableTarget(
             name: "AudioDemo",
             dependencies: ["MultiModalKit"]
         ),
         .testTarget(
             name: "MultiModalKitTests",
-            dependencies: ["MultiModalKit"]
+            dependencies: ["MultiModalKit", "MultiModalKitTesting"]
         ),
     ]
 )
