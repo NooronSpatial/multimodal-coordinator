@@ -100,12 +100,17 @@ struct BroadcastTests {
         #expect(await Self.collect(late.events) == [])
     }
 
-    @Test("Two listeners are counted while they exist")
-    func listenersAreCounted() {
+    @Test("Listeners are counted while they exist, and forgotten when their stream dies")
+    func listenersAreCountedWhileTheyLive() {
         let broadcast = Broadcast<Int>()
         #expect(broadcast.listenerCount == 0)
-        _ = broadcast.listen()
-        _ = broadcast.listen()
-        #expect(broadcast.listenerCount == 2)
+
+        // The handles must be HELD: a listener whose stream is released is a
+        // dead listener, and the broadcast forgets it on the spot.
+        let first = broadcast.listen()
+        let second = broadcast.listen()
+        withExtendedLifetime((first, second)) {
+            #expect(broadcast.listenerCount == 2)
+        }
     }
 }

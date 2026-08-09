@@ -227,3 +227,32 @@ seconds later would be a lie about when the sound happened.
 
 *Deferred, not rejected:* if a UI later needs "am I speaking right now", that
 is a separate **state** stream, and a state stream may replay.
+
+---
+
+## D-013 — Event semantics: four small rulings hidden inside the red tests
+
+Writing the expected sequences forced four choices. They are decisions, not
+details, so they are written down.
+
+**1. `speechStarted` comes BEFORE the pre-roll chunks it explains** — even
+though those chunks carry earlier moments. A listener should learn *that*
+speech began before audio arrives; the timestamps still tell the truth about
+when each piece of sound happened. *Rejected:* pre-roll first, which keeps
+moments monotonic but delivers audio nobody has been told to expect.
+
+**2. `speechEnded` carries the moment the DECISION was made** — the end of the
+chunk that spent the hangover — not the moment the sound actually stopped.
+*Rejected:* stamping the start of the first quiet chunk, which would pretend
+we knew the future; at that moment the pause could still have been a breath
+between two words.
+
+**3. The quiet tail inside the hangover is published as audio.** Those chunks
+belong to the utterance, and a speech recogniser wants the trailing silence.
+*Rejected:* holding them back, which saves a few kilobytes and damages the
+thing the audio is for.
+
+**4. `dropped` is stamped where the gap BEGINS**, not where recovery happens —
+it points at the hole. A gap also clears the carried partial chunk: those
+leftover frames are no longer next to what follows, and pretending otherwise
+would splice two moments that never touched.
