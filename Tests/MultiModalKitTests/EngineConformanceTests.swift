@@ -113,3 +113,28 @@ struct AppleSpeechEngineConformanceTests {
         try await EngineConformanceKit.verifyCancelEndsWithoutAFinal(engine)
     }
 }
+
+#if canImport(MultiModalKitWhisper)
+import MultiModalKitWhisper
+
+/// The kit, applied to the WHISPER engine — gated on the model being on disk
+/// (WhisperKit's hub folder), so CI skips honestly. On a machine with the
+/// model this runs the real CoreML pipeline: expect seconds, not
+/// milliseconds — first inference compiles the graphs.
+@Suite(.timeLimit(.minutes(4)), .serialized)
+struct WhisperEngineConformanceTests {
+    @Test("one final, then silence, then the stream ends (model required; skips if absent)")
+    func oneFinal() async throws {
+        let engine = WhisperEngine()
+        guard await engine.modelInstalled() else { return }
+        try await EngineConformanceKit.verifyOneFinalAndTermination(engine)
+    }
+
+    @Test("cancel ends the stream without a final (model required; skips if absent)")
+    func cancelWithoutFinal() async throws {
+        let engine = WhisperEngine()
+        guard await engine.modelInstalled() else { return }
+        try await EngineConformanceKit.verifyCancelEndsWithoutAFinal(engine)
+    }
+}
+#endif
