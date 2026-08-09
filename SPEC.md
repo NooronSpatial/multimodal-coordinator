@@ -201,9 +201,19 @@ state stream, and that one may replay.
 
 # SPEC — Phase 2: speech becomes text, on the device
 
-> Status: **APPROVED 2026-08-09.** Rulings: F1 = **B + D** (Apple's engine in
-> the core, a Whisper-class engine as an optional product), F2–F7 as
-> recommended, plus the tiered dependency policy — logged as D-016…D-020.
+> Status: **MILESTONE 2a DELIVERED 2026-08-09.** Seam + capabilities (AC-21,
+> AC-35), session with the utterance ticket (AC-23…AC-32), scripted engine,
+> conformance kit (AC-36), Apple engine adapter, iOS demo (verified live on
+> an iPhone: model downloaded, utterances transcribed) and the terminal demo.
+> 54 tests in 9 suites. Session semantics ruled in D-021. Field findings
+> applied: per-app asset reservation, input gain, VAD threshold, pre-roll,
+> partial cadence. **Remaining for Phase 2: milestone 2b** — the
+> Whisper-class engine module (D-016 tier 2) and the measured bake-off; its
+> motivation is now field data (accent robustness).
+>
+> Original approval: rulings F1 = **B + D** (Apple's engine in the core, a
+> Whisper-class engine as an optional product), F2–F7 as recommended, plus
+> the tiered dependency policy — logged as D-016…D-020.
 > Phase 1 is delivered: sound reaches Swift concurrency as clean utterance
 > events. Phase 2 turns those utterances into words, still without a server.
 >

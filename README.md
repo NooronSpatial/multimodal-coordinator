@@ -3,8 +3,11 @@
 A coordination library for on-device AI streaming, built in public — phase by
 phase, every design decision logged, every claim checkable in the tests.
 
-**Phase 1 (nearly complete):** real microphone → lock-free ring buffer → voice
+**Phase 1 (complete):** real microphone → lock-free ring buffer → voice
 activity detection → clean speech events, delivered to many listeners.
+**Phase 2 (milestone 2a complete):** those utterances become **text, on the
+device** — one recognition per utterance, engines swappable behind one seam,
+verified live on an iPhone.
 
 The problem this phase exists for is one boundary:
 
@@ -46,8 +49,12 @@ The problem this phase exists for is one boundary:
 | `AudioPump` | the one bridge: polls on an injected clock, chunks, judges, publishes | 8 tests, exact event sequences |
 | `Broadcast` | many listeners, bounded buffers, drop-oldest, losses counted, no replay | 7 tests |
 
+| `TranscriptionSession` | one recognition per utterance; the utterance ticket; the 30 s ceiling | 8 tests, exact event sequences |
+| `ScriptedTranscriber` | an engine that misbehaves on demand — silent, defiant, failing | the ticket's sparring partner |
+| `AppleSpeechEngine` | SpeechAnalyzer/SpeechTranscriber behind the seam | conformance-gated; verified live on iPhone |
+
 ```
-swift test   →   42 tests in 6 suites, green, ~0.1 s
+swift test   →   54 tests in 9 suites, green, ~0.12 s
 ```
 
 Everything runs on fake time and fake audio: same result on any machine, under
@@ -187,6 +194,63 @@ most of a short one. That is correct today (the tail is real sound and a
 recogniser may want it), and it is a candidate for a future ruling: trim the
 tail, or keep it and let the consumer decide.
 
+## Phase 2 — speech becomes text (milestone 2a)
+
+```
+AudioPump ──events──►  TranscriptionSession ──transcripts──► listeners
+                            │                    partial / final /
+                            │                    failed / truncated
+                            ├─ ONE recognition per utterance
+                            ├─ fed pre-roll first, every chunk once, in order
+                            └─ the utterance TICKET: a dead utterance's
+                               words can never reach a listener
+```
+
+**The law, again:** recognition is slow and speech does not wait — an engine
+may answer after its utterance is long over. Cancelling it is only a request.
+So every utterance carries a ticket, checked in the same actor step that can
+retire it; a *defiant* scripted engine that answers into a dead utterance on
+purpose proves the guarantee by test. Same law as a voice assistant's
+barge-in: **cancellation is the optimisation, the ticket is the guarantee.**
+
+**One loop, one truth:** audio events, engine updates and the stop request
+merge into a single stream handled by a single actor loop. No racing readers,
+no stored tasks, every state change in loop order.
+
+**Engines are swappable, provably.** `TranscriptionEngine` is the only thing
+the session knows. A **conformance kit** — one shared test suite — is what
+every engine must pass: one final then silence, partials never after the
+final, cancel ends without a final. Apple's engine ships in the core (zero
+dependencies kept); a Whisper-class engine is the planned second product
+(D-016/D-017), motivated by a real field finding: the on-device `en_US`
+model struggles with non-native accents — Whisper is famously robust there.
+Two engines, one contract, then a measured bake-off.
+
+**Failure is an event.** The scripted engine fails with the exact error shape
+observed live (`"transcription.en asset unavailable … final state: Network
+Error"`); the session publishes `failed` and accepts the next utterance. One
+bad recognition never kills the run.
+
+**What running on real hardware taught (none of it was in the docs):**
+1. The speech model is a downloadable asset, and its download can die.
+2. The engine's preferred audio format is unknowable until assets exist.
+3. The engine's results stream never ends by itself — tear it down or leak.
+4. Assets are **allocated per app** (`AssetInventory.reserve`) — without a
+   reservation the modules come up empty. Found in the first sixty seconds
+   on an iPhone; not in any of the documentation we read first.
+
+**Honesty about testing:** our tests verify *our* code on a scripted engine —
+deterministic, exact. Apple's model is exercised by the demos on real
+hardware, and no test in this repo pretends otherwise.
+
+**The demos:** `swift run audio-demo` (terminal: level bar, speech events,
+live partials, finals with audio-time stamps — offers the model download and
+degrades honestly to VAD-only if it fails) and **`Demo/TranscribeDemo`** — an
+iOS app: utterance cells updating in place (orange partial → green final →
+red failure), the VAD verdict and the ring's exact drop counter on screen.
+Verified live: model downloaded on-device, utterances transcribed on an
+iPhone, zero dropped frames.
+
 ## Rules this repo keeps
 
 - **Spec before code.** [SPEC.md](SPEC.md) is signed off before anything is
@@ -201,6 +265,11 @@ tail, or keep it and let the consumer decide.
 
 ## Status
 
-Phase 1 milestones 1a–1c complete: ring buffer, capture, clock, VAD, pump,
-events, live demo. Next: `os_signpost` instrumentation and the streaming STT
-seam (Phase 2). See [SPEC.md](SPEC.md) for what is deliberately out of scope.
+Phase 1 complete (ring, capture, clock, VAD, pump, events, live demo).
+Phase 2 milestone 2a complete (seam, session + ticket, scripted engine,
+conformance kit, Apple engine, iOS + terminal demos). Next: milestone 2b —
+the Whisper-class engine module and the measured engine bake-off; then
+`os_signpost` instrumentation (Phase 3). Known open item: the speech-model
+download repeatedly fails on one development Mac's network (the demo says so
+and degrades); it succeeded first-try on iPhone. See [SPEC.md](SPEC.md) and
+[DECISIONS.md](DECISIONS.md) — D-016…D-021 carry this phase's rulings.
