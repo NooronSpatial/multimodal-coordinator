@@ -95,3 +95,20 @@ struct ScriptedTranscriberConformanceTests {
             ScriptedTranscriber(plans: [.normal(partialEveryChunks: 2)]))
     }
 }
+
+/// The kit, applied to APPLE's engine — gated on the model being installed,
+/// so CI (which has no model) skips it silently instead of lying.
+///
+/// Honest scope: without recorded speech, only the cancel promise can be
+/// verified here — an engine fed constant samples may legitimately produce
+/// no final at all. Promises 1 and 2 are exercised against real speech by
+/// the demo apps, on real hardware, and the README says so.
+@Suite(.timeLimit(.minutes(2)))
+struct AppleSpeechEngineConformanceTests {
+    @Test("cancel ends the stream without a final (model required; skips if absent)")
+    func cancelWithoutFinal() async throws {
+        let engine = AppleSpeechEngine()
+        guard await engine.modelInstalled() else { return }   // nothing to verify here
+        try await EngineConformanceKit.verifyCancelEndsWithoutAFinal(engine)
+    }
+}

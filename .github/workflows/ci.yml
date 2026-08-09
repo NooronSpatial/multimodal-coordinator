@@ -9,7 +9,7 @@ permissions:
 jobs:
   build-and-test:
     name: swift build & test (macOS)
-    runs-on: macos-15
+    runs-on: macos-26   # SpeechAnalyzer needs the macOS 26 SDK (D-017)
     steps:
       - uses: actions/checkout@v4
       - name: Swift version
