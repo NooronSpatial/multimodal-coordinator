@@ -47,10 +47,17 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
         }
     }
 
+    /// Why the pump woke up: the poll came due, or somebody asked it to stop.
+    private enum Wake: Sendable {
+        case poll
+        case stopped
+    }
+
     private let consumer: AudioRingConsumer
     private let clock: C
     private let config: Config
     private let broadcast: Broadcast<AudioEvent>
+    private let stopSignal = StopSignal()
 
     private var vad: EnergyVAD
     /// Drain space, allocated once — never inside the loop.
@@ -92,13 +99,9 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
         isRunning = true
 
         while !isStopped && !Task.isCancelled {
-            do {
-                try await clock.sleep(until: clock.now.advanced(by: config.pollInterval), tolerance: nil)
-            } catch {
-                break   // cancelled while parked — the only way this throws
-            }
-            // Re-check after the await: stop() may have run while we slept.
-            if isStopped || Task.isCancelled { break }
+            let wake = await waitForPollOrStop(until: clock.now.advanced(by: config.pollInterval))
+            // Re-check after the await: stop() may have run while we waited.
+            if wake == .stopped || isStopped || Task.isCancelled { break }
             drainOnce()
         }
 
@@ -106,12 +109,42 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
         broadcast.finish()
     }
 
-    /// Ends the pump: every listener's stream finishes immediately, and the
-    /// loop leaves at its next wake — or at once, if the task is cancelled
-    /// (which is what a structured parent does on the way out).
+    /// Ends the pump at once: every listener's stream finishes, and the loop
+    /// wakes immediately even though it is parked on the clock (D-014).
     public func stop() {
         isStopped = true
+        stopSignal.signal()
         broadcast.finish()
+    }
+
+    /// Waits for whichever comes first: the next poll, or the stop signal.
+    ///
+    /// Two children, one scope, first result wins, loser cancelled — the same
+    /// race-then-cancel shape as a barge-in. Both children are born inside
+    /// this function's own task tree, so neither can outlive it: cancellation
+    /// is the optimisation, structure is the guarantee.
+    ///
+    /// `nonisolated` on purpose: the actor must NOT be held while waiting, or
+    /// `stop()` could never get in to change anything.
+    private nonisolated func waitForPollOrStop(until deadline: C.Instant) async -> Wake {
+        await withTaskGroup(of: Wake.self) { group in
+            group.addTask { [clock] in
+                do {
+                    try await clock.sleep(until: deadline, tolerance: nil)
+                    return .poll
+                } catch {
+                    return .stopped   // cancelled while parked
+                }
+            }
+            group.addTask { [stopSignal] in
+                await stopSignal.wait()
+                return .stopped
+            }
+
+            let first = await group.next() ?? .stopped
+            group.cancelAll()         // the loser is cancelled, never abandoned
+            return first
+        }
     }
 
     /// How many events this listener missed because it read too slowly.

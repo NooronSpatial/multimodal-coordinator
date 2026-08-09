@@ -105,6 +105,22 @@ struct AudioPumpTests {
         #expect(f.clock.sleeperCount == 0, "a sleeper survived stop()")
     }
 
+    @Test("stop() alone ends the loop — no cancellation, no clock advance")
+    func stopAloneEndsTheLoop() async {
+        let f = Self.makeFixture()
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await f.pump.run() }
+            #expect(await Self.parked(f.clock), "the pump never parked on the injected clock")
+
+            await f.pump.stop()
+            // Deliberately no cancelAll() and no advance(): the group can only
+            // finish here if stop() woke the parked loop by itself (D-014).
+        }
+
+        #expect(f.clock.sleeperCount == 0, "a sleeper survived stop()")
+    }
+
     // MARK: - AC-12 / AC-17 / AC-19: the full utterance, exactly
 
     @Test("A scripted utterance produces the exact event sequence, in timeline order")
