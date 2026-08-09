@@ -241,7 +241,17 @@ bad recognition never kills the run.
 
 **Honesty about testing:** our tests verify *our* code on a scripted engine —
 deterministic, exact. Apple's model is exercised by the demos on real
-hardware, and no test in this repo pretends otherwise.
+hardware, and no test in this repo pretends otherwise. The adapter itself is
+the one deliberately un-TDD-able file: `SpeechAnalyzer` is a final class with
+no seam behind it, so `AppleSpeechEngine` stays thin — convert, feed, tear
+down, no decisions — and everything that decides lives in the fully-tested
+session (D-022).
+
+**For your own tests:** the package ships a second product,
+`MultiModalKitTesting` — `ManualClock`, `FakeMicrophone` and
+`ScriptedTranscriber`, the same deterministic fakes this repo tests itself
+with. `import MultiModalKitTesting` and your integration tests run on fake
+time and scripted engines too.
 
 **The demos:** `swift run audio-demo` (terminal: level bar, speech events,
 live partials, finals with audio-time stamps — offers the model download and

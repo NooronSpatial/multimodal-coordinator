@@ -1,5 +1,6 @@
 import Testing
 import MultiModalKit
+import MultiModalKitTesting
 
 /// RED SUITE for the pump (SPEC AC-9, AC-10, AC-12, AC-13, AC-17…AC-20).
 ///

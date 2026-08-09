@@ -1,4 +1,5 @@
 import MultiModalKit
+import MultiModalKitTesting
 import Synchronization
 import Testing
 

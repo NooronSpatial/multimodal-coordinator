@@ -59,7 +59,7 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
     private let broadcast: Broadcast<AudioEvent>
     private let stopSignal = StopSignal()
 
-    private var vad: EnergyVAD
+    private var vad: any VoiceActivityDetecting
     /// Drain space, allocated once — never inside the loop.
     private var scratch: [Float]
     /// Frames of sound that have already become chunks (or gaps). Audio time.
@@ -74,7 +74,7 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
 
     public init(
         consumer: AudioRingConsumer,
-        vad: EnergyVAD,
+        vad: any VoiceActivityDetecting,
         clock: C,
         config: Config = Config()
     ) {

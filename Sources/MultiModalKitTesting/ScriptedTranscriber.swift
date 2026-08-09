@@ -1,3 +1,4 @@
+import MultiModalKit
 import Synchronization
 
 /// A transcription engine that does exactly what its script says — including

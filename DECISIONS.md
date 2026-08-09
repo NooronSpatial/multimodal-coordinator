@@ -431,3 +431,31 @@ not vanish because second thirty-one arrived. *Rejected:* truncate-as-abandon.
 
 **4. An open-failure is stamped at the utterance's start** — no audio was ever
 fed, so the start is the only honest moment it has.
+
+---
+
+## D-022 — Three findings from the 2a audit, ruled (F-a, F-b, F-c)
+
+**1. The VAD gets its seam** (`VoiceActivityDetecting` + `SpeechTransition`).
+D-018 ruled that utterance boundaries are OURS — but the pump named the
+concrete `EnergyVAD` type, which made the ruling true in prose and false in
+code. The pump now judges through the protocol; the adaptive or model-based
+detector the field runs are already asking for can arrive without touching
+the pump's signature.
+
+**2. The fakes become their own product** (`MultiModalKitTesting`).
+`ManualClock`, `FakeMicrophone` and `ScriptedTranscriber` were compiled into
+the core library — every consumer shipped our test doubles. They are a gift
+worth giving (consumers can test their own integrations deterministically),
+but a gift is offered, not forced: a second library product in the same
+package. The core stays lean; the gift stays one import away.
+
+**3. `Broadcast` moves to `Concurrency/`.** It always was generic
+infrastructure — the transcription session uses it as much as the pump does.
+The folder now says so.
+
+Also recorded from the audit, deliberately NOT changed: `AppleSpeechEngine`
+is not TDD-able — `SpeechAnalyzer` is a final class with no seam behind it,
+so the adapter stays deliberately THIN (convert, feed, tear down; no
+decisions) and is verified by the conformance kit on real hardware. The
+testing boundary is named in the README instead of pretended away.

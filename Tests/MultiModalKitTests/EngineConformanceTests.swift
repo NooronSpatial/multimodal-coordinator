@@ -1,5 +1,6 @@
 import Testing
 import MultiModalKit
+import MultiModalKitTesting
 
 /// THE ENGINE CONFORMANCE KIT (SPEC AC-36, D-017).
 ///

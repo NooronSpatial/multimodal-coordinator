@@ -1,5 +1,6 @@
 import Testing
 import MultiModalKit
+import MultiModalKitTesting
 
 /// RED SUITE for the transcription session (SPEC AC-23…AC-32).
 ///
