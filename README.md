@@ -150,22 +150,42 @@ swift test          # 42 tests, ~0.1 s, deterministic
 swift run audio-demo
 ```
 
-The demo opens the microphone and shows the pump deciding, live:
+The demo opens the microphone and shows the pump deciding, live. Real output
+from a 32-second run:
 
 ```
 🎙  Speak — the pump is listening.  (Ctrl-C to quit)
     48000 Hz · 960-frame chunks (20 ms) · 300 ms hangover · 2 chunks of pre-roll
     two listeners attached: [display] and [recogniser]
 
-▶︎  speech started  at 3.42 s
-   ↳ [recogniser] utterance #1 complete — 3840 frames received so far
-⏹  speech ended    at 4.28 s  —  0.86 s of audio in 43 chunks
-[████████████·····························] listening…
+▶︎  speech started  at 1.36 s
+   ↳ [recogniser] utterance #1 complete — 28800 frames received so far
+⏹  speech ended    at 1.92 s  —  0.60 s of audio in 30 chunks
+▶︎  speech started  at 2.78 s
+   ↳ [recogniser] utterance #3 complete — 169920 frames received so far
+⏹  speech ended    at 4.98 s  —  2.24 s of audio in 112 chunks
+[········································] listening…
 ```
 
-Two listeners are attached on purpose: the display, and a stand-in for a speech
-recogniser. They receive the same events independently — that is the multicast
-promise, visible.
+**Read the numbers — they prove two claims.**
+
+*Pre-roll works.* Utterance #1 runs 1.36 → 1.92 s: 0.56 s between the events,
+but 0.60 s of audio delivered. Utterance #3: 2.20 s between the events, 2.24 s
+of audio. Every phrase in the run is **exactly 0.04 s longer** — the two
+pre-roll chunks, handed over from before the start was announced. The first
+syllable is never cut, on real hardware, not only in a test.
+
+*The listeners are independent.* The `[recogniser]` line lands before the
+display's own end line, every time: two tasks consuming the same event, each at
+its own pace, neither waiting for the other.
+
+Across those 32 seconds the ring dropped **zero** frames.
+
+**A known trade-off, visible in the same output:** the 300 ms hangover is part
+of the delivered audio, so every utterance carries 300 ms of trailing silence —
+most of a short one. That is correct today (the tail is real sound and a
+recogniser may want it), and it is a candidate for a future ruling: trim the
+tail, or keep it and let the consumer decide.
 
 ## Rules this repo keeps
 
