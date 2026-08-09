@@ -396,7 +396,9 @@ DECISIONS.md covers every fork below · CI green · merge commit into main.
 
 # SPEC DELTA — Milestone 2b: the second engine, and the measured bake-off
 
-> Status: **DRAFT — awaiting sign-off.** No code before this is approved.
+> Status: **APPROVED 2026-08-09** — all five forks ruled as recommended
+> (D-023, D-024, D-025). Build order: spike → F2 semantics red-to-green →
+> the Whisper product → conformance → bake-off.
 > The motivation is field data: the on-device en_US model struggles with
 > non-native accents (found live, 2a). Whisper-class models are famously
 > robust there. Two engines behind one contract make that a measurement

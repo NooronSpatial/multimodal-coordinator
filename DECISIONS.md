@@ -459,3 +459,68 @@ is not TDD-able — `SpeechAnalyzer` is a final class with no seam behind it,
 so the adapter stays deliberately THIN (convert, feed, tear down; no
 decisions) and is verified by the conformance kit on real hardware. The
 testing boundary is named in the README instead of pretended away.
+
+---
+
+## D-023 — The Whisper engine rides on WhisperKit (F1, F3, F5)
+
+**Decision:** `MultiModalKitWhisper` (a separate product, D-016 tier 2)
+wraps **WhisperKit** — since v1.0.0 part of the Argmax OSS SDK
+(`argmax-oss-swift`), MIT — with the **base** model, downloaded on first use
+through the dependency's own model hub and surfaced through the same
+`modelInstalled()` / `ensureModel()` surface as the Apple engine. No fake
+partials: `emitsPartials: false` is the truth, and UIs can say "thinking…"
+because the capability flag exists.
+
+**The four D-016 questions, answered:**
+1. *Not the point of the project?* Running Whisper is not — the seam, the
+   session and the measurement are. Our own CoreML port stays the Phase-4
+   showcase.
+2. *Swift 6 clean?* Claimed by the project as of v1.0.0 — verified by spike
+   before any repo code depends on it.
+3. *Licence, maintenance?* MIT; actively maintained (v1.0.0, 2026-05).
+4. *Removable in a day?* Yes — it lives entirely behind
+   `TranscriptionEngine`, and the conformance kit defines what any
+   replacement must do.
+
+*Rejected — whisper.cpp:* drags the Metal/C++ phase forward prematurely.
+*Rejected — bundling weights:* repo bloat. *Rejected — `tiny` as default:*
+it would bias the bake-off against Whisper.
+
+---
+
+## D-024 — Overlap for batch engines (F2; amends D-021 ruling 1)
+
+**Decision:** retirement becomes **capabilities-driven**. For engines that
+emit partials (streaming), a new `speechStarted` retires the settling run —
+today's behavior, unchanged. For `wantsWholeUtterance` engines (batch), a
+settling run **survives** the next `speechStarted`: its final is published
+late, tagged with its own utterance number, and listeners — who already
+upsert by number — place it correctly. One run feeds at a time; several may
+settle. Every settling run keeps its ticket until its final, its failure,
+the ceiling, or `stop()`.
+
+**Why D-021.1 had to bend:** it was written when finals arrived in
+milliseconds. A batch engine answers in seconds — under strict retirement
+its results would die routinely; the second engine would be born broken.
+The amendment is this new entry; the old one stands as written, per the
+rule that decisions are never silently edited.
+
+*Rejected — strict retirement for everyone:* kills batch engines.
+*Rejected — serializing utterances:* queues unbounded audio and destroys
+conversational latency.
+
+---
+
+## D-025 — The bake-off is honest or it is nothing (F4)
+
+A fixed paragraph is written into the repo BEFORE recording — the reference
+transcript is known in advance. Ryad reads it aloud; **the reader's accent
+is the point of the experiment** (the finding that motivated this
+milestone). Recorded once, committed as small WAV fixtures.
+
+Measured per engine, same audio, same machine, stated: word error rate
+against the reference · capture→final wall-clock latency · model size on
+disk · peak memory. **Stated as NOT measured:** battery, thermal, other
+languages, far-field microphones. Runners: a macOS CLI and the iOS demo's
+engine picker — the iPhone being the one machine holding both models today.
