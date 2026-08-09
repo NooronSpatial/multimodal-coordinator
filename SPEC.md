@@ -391,3 +391,138 @@ DECISIONS.md covers every fork below · CI green · merge commit into main.
 - **B** No cap.
 - **Recommendation: A.** Nothing in this library is allowed to grow without a
   limit — the same rule as the ring (D-004) and the listener buffers (D-012).
+
+---
+
+# SPEC DELTA — Milestone 2b: the second engine, and the measured bake-off
+
+> Status: **DRAFT — awaiting sign-off.** No code before this is approved.
+> The motivation is field data: the on-device en_US model struggles with
+> non-native accents (found live, 2a). Whisper-class models are famously
+> robust there. Two engines behind one contract make that a measurement
+> instead of an opinion.
+
+## 12. What 2b builds
+
+A **second engine** — Whisper-class, CoreML, fully on-device — as a separate
+product `MultiModalKitWhisper` (D-016 tier 2: dependencies allowed, isolated,
+removable in a day because it lives behind `TranscriptionEngine`). Plus the
+**bake-off**: the same recorded speech through both engines, with accuracy,
+latency and size measured and written down honestly.
+
+## 13. The one hard problem (this milestone's reason to exist)
+
+**Whisper does not stream.** It wants the whole utterance, then decodes —
+seconds, not milliseconds. Two consequences:
+
+1. `EngineCapabilities` stops being decoration: `emitsPartials: false`,
+   `wantsWholeUtterance: true`, `requiredSampleRate: 16_000` are now REAL,
+   and the session must behave correctly for both engine shapes.
+2. **D-021's retirement rule breaks batch engines.** Today, a new
+   `speechStarted` retires the settling run — correct when finals arrive in
+   milliseconds, fatal when they take seconds: results would routinely die.
+   This is the milestone's real design fork (F2 below), and its ruling gets
+   a new decision entry — D-021 is amended, never silently edited.
+
+## 14. Acceptance criteria
+
+- **AC-37** `MultiModalKitWhisper` is a separate library product. The core
+  keeps zero runtime dependencies; CI proves the core builds without the
+  Whisper product.
+- **AC-38** `WhisperEngine` implements `TranscriptionEngine`, declares its
+  capabilities HONESTLY, and mirrors the Apple engine's model surface
+  (`modelInstalled()` / `ensureModel()`); model absence is an event.
+- **AC-39** The engine passes the conformance kit (gated on an installed
+  model, like Apple's; CI skips honestly).
+- **AC-40** The session honors `wantsWholeUtterance` per the F2 ruling, with
+  deterministic tests on a new scripted BATCH plan (`ScriptedTranscriber`
+  learns to answer slowly, on command).
+- **AC-41** Bounded by construction: accumulated audio is capped by the
+  existing utterance ceiling; the memory bound is stated in the docs.
+- **AC-42** `BAKEOFF.md`: methodology, exact numbers, honest caveats — same
+  audio, same machine, both engines; what was NOT measured is listed.
+- **AC-43** The iOS demo gains an engine picker, so the bake-off can run on
+  the one machine that has both models today: the iPhone.
+- **AC-44** CI stays green with no models installed anywhere.
+
+## 15. Test matrix (first pass)
+
+| Area | Tests |
+|---|---|
+| Batch semantics | scripted batch engine: final arrives AFTER the next utterance began → per the F2 ruling, exactly |
+| Capabilities | a wantsWholeUtterance engine is fed identically but its late results survive per ruling |
+| Ceiling | accumulation hits the 30 s cap → truncated, audio released |
+| Conformance | WhisperEngine passes the kit (gated); ScriptedTranscriber batch plan passes it ungated |
+| Bake-off harness | the runner computes WER correctly against a known reference (tested with scripted text, no models) |
+
+## 16. The design forks — for Ryad to rule
+
+**F1 — which dependency carries the model?**
+- **A — WhisperKit (Argmax OSS SDK v1.0.0).** CoreML + Neural Engine, MIT,
+  maintained, Swift 6 concurrency adopted. The four D-016 questions pass on
+  paper; the spike verifies the Swift-6-cleanliness claim before any code.
+- **B — whisper.cpp via C++ interop.** More control, no CoreML/ANE benefits
+  without extra work, and it drags the Metal/C++ phase forward prematurely.
+- **C — our own CoreML port.** The Phase-4 showcase, not a milestone.
+- **Recommendation: A**, with the spike-first condition, and the exit is
+  already built: it lives behind `TranscriptionEngine`, removable in a day.
+
+**F2 — what happens to a slow engine's settling run when new speech starts?**
+- **A — keep strict retirement** (today's D-021.1). Simple, but a batch
+  engine's results die routinely — the second engine would be born broken.
+- **B — capabilities-driven overlap:** for `wantsWholeUtterance` engines, a
+  settling run SURVIVES the next `speechStarted`; its final is published
+  late, tagged with its own utterance number (listeners already upsert by
+  number). One run still feeds at a time; several may settle. Each settling
+  run keeps its ticket until its final, failure, the ceiling, or `stop()`.
+- **C — serialize:** don't open utterance N+1 until N settled. Kills
+  conversational latency and queues unbounded audio — violates AC-41's
+  spirit.
+- **Recommendation: B.** It is what `EngineCapabilities` exists for, and the
+  streaming path keeps today's exact behavior — strict retirement stays for
+  engines that emit partials.
+
+**F3 — which model, and how does it arrive?**
+- **A — `base` (~150 MB), downloaded on first use** through the dependency's
+  own model hub, surfaced through `ensureModel()` like the Apple engine.
+- **B — `tiny` (~75 MB):** faster, noticeably weaker — it would bias the
+  bake-off against Whisper.
+- **C — bundled weights in the repo:** repo bloat, licence noise.
+- **Recommendation: A** — and the bake-off may add `tiny` later as a second
+  row, which is a measurement, not a decision.
+
+**F4 — the bake-off methodology (what makes it honest)?**
+- A fixed paragraph, written down in the repo, read aloud by Ryad — the
+  reference transcript is known BEFORE recording, and the reader's accent is
+  the point. Recorded once, committed as small WAV fixtures.
+- Metrics per engine: word error rate against the reference · capture→final
+  wall-clock latency (same machine, same audio, stated) · model size on
+  disk · peak memory. NOT measured (and said so): battery, thermal, other
+  languages, far-field microphones.
+- Runners: a macOS CLI (`bakeoff <wav>`) for any machine with models, and
+  the iOS demo's engine picker for the phone.
+- **Recommendation: as described.**
+
+**F5 — fake progress for a batch engine?**
+- **A — none:** `emitsPartials: false` is the truth; the UI shows "thinking…"
+  until the final arrives.
+- **B — synthesized partials** (decode a sliding window early): pretty, but
+  it manufactures the exact chunky-cadence problem we just escaped, and it
+  costs decode time twice.
+- **Recommendation: A.** The capability flag exists so UIs can tell the
+  truth.
+
+## 17. Out of scope for 2b (deliberately)
+
+Speaker diarization and TTS (the SDK ships them — not our milestone) ·
+language switching · streaming Whisper research · battery/thermal
+measurement (Phase 3's instruments) · replacing the dependency with our own
+CoreML port (Phase 4).
+
+## 18. Definition of done
+
+All ACs tested (deterministic where our code decides, gated where models are
+required) · the F2 ruling amended into the decision log · BAKEOFF.md holds
+real numbers from real hardware · the iOS demo switches engines · CI green ·
+merge commit into main · teach-back: Ryad explains the overlap semantics and
+the bake-off numbers cold.
