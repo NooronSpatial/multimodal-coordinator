@@ -196,3 +196,173 @@ seconds late would be a lie.
 → **Recommendation: no replay for events.** A new listener gets what happens
 from now on. If a UI later needs "am I speaking right now", that is a separate
 state stream, and that one may replay.
+
+---
+
+# SPEC — Phase 2: speech becomes text, on the device
+
+> Status: **DRAFT — awaiting sign-off.** No code before this is approved.
+> Phase 1 is delivered: sound reaches Swift concurrency as clean utterance
+> events. Phase 2 turns those utterances into words, still without a server.
+
+## 1. What Phase 2 builds
+
+The demo already has a listener called `[recogniser]` that only counts. Phase 2
+makes it real: a transcription session subscribes to the pump's events, opens
+one recognition per utterance, feeds it the audio it already received —
+pre-roll included — and publishes text as it arrives.
+
+```
+AudioPump ──events──►  TranscriptionSession ──transcript events──► listeners
+                            │
+                            ├─ opens ONE recognition per utterance
+                            ├─ feeds chunks in order, exactly once
+                            └─ a dead utterance can never publish
+```
+
+## 2. The one hard problem (this phase's reason to exist)
+
+**A recognition is slow, and speech does not wait.** Text for utterance 3 can
+arrive after utterance 4 has already begun. Cancelling the old recognition is
+only a request — the engine may still deliver one last result. So the same law
+as the barge-in work applies here: **cancellation is the optimisation, an
+utterance ticket is the guarantee.** A result carrying a dead ticket is
+dropped, provably, before anyone can see it.
+
+The second hard part is honesty about failure: real engines fail — no
+permission, no model downloaded, no network-free model available, audio format
+refused, the system busy. Phase 1's mocks never failed. Phase 2's fake fails on
+purpose.
+
+## 3. Acceptance criteria
+
+### The seam
+- **AC-21** A `TranscriptionProvider` protocol is the only thing the session
+  talks to. Tests use `ScriptedTranscriber`; the app uses the Apple engine.
+  Swapping them changes no line of session code.
+- **AC-22** The library **never** asks the user for permission and never opens
+  a microphone. Authorisation belongs to the app; unavailability arrives as an
+  event, not a crash.
+
+### The session
+- **AC-23** Exactly **one recognition per utterance**, opened on
+  `speechStarted`, closed on `speechEnded`.
+- **AC-24** Every chunk the pump published for that utterance is fed **once, in
+  order, including the pre-roll** — the first syllable reaches the engine too.
+- **AC-25** **The utterance ticket.** Each utterance gets a number that only
+  goes up. Every result is checked against it in the same actor step that could
+  raise it. A result from a finished or abandoned utterance is dropped and
+  never published — proven by a test where a defiant transcriber answers late.
+- **AC-26** Bounded by construction: audio is held only while its recognition
+  is open, and an utterance longer than a configured maximum (default 30 s) is
+  cut with an explicit `truncated` event. Nothing grows without a limit.
+
+### The events
+- **AC-27** Transcript events, in timeline order per utterance:
+  `partial(text, utterance:at:)` · `final(text, utterance:at:)` ·
+  `failed(reason, utterance:at:)` · `truncated(utterance:at:)`.
+- **AC-28** Partials are monotonic inside one utterance (each replaces the
+  previous), and a `final` ends that utterance. After `final`, that utterance
+  publishes nothing, ever.
+- **AC-29** Failure is an event, not an end: after `failed`, the session
+  accepts the next utterance normally. One bad recognition never kills the run.
+- **AC-30** Delivery reuses the Phase 1 `Broadcast`: many listeners, bounded
+  buffers, drop-oldest, counted, no replay.
+
+### Time and shutdown
+- **AC-31** Latency is measured in **audio time** (D-011): capture →
+  first partial, and capture → final, exact in tests.
+- **AC-32** `stop()` finishes every transcript stream, ends any open
+  recognition, leaves zero parked sleepers and no task behind (AC-16 rules
+  still apply).
+
+### Hygiene
+- **AC-33** Swift 6 strict concurrency, zero warnings, zero third-party
+  dependencies, CI green on every push.
+- **AC-34** Test coverage is claimed **only** for our own code. Apple's engine
+  is exercised by the demo on real hardware, and the README says so plainly —
+  no test in this repo will pretend to verify Apple's model.
+
+## 4. Test matrix (first pass)
+
+| Area | Tests |
+|---|---|
+| Session boundaries | one recognition per utterance · pre-roll fed first · chunks fed once, in order |
+| The ticket | defiant transcriber answers after `speechEnded` → nothing published · answers during the NEXT utterance → still nothing · the next utterance's own results are unaffected |
+| Partials | partials replace each other · `final` closes the utterance · nothing after `final` |
+| Failure | scripted failure → `failed` event → the next utterance still transcribes |
+| Truncation | an utterance longer than the cap → `truncated`, audio released |
+| Multicast | two listeners get identical transcript sequences |
+| Latency | capture → first partial and capture → final are exact on the ManualClock |
+| Shutdown | `stop()` mid-recognition: streams finish, no sleepers, no leaked tasks |
+
+## 5. Out of scope for Phase 2 (deliberately)
+
+Speaker identification · punctuation/formatting beyond what the engine gives ·
+language switching at runtime · `os_signpost` and thermal work (Phase 3) ·
+Metal / C++ interop (Phase 4) · any UI beyond the terminal demo · sending audio
+anywhere off the device, ever.
+
+## 6. Definition of done
+
+All ACs have deterministic tests on fake time and a scripted engine · the
+terminal demo transcribes live speech on real hardware · README gains the
+transcription picture and an honest note about what is and is not tested ·
+DECISIONS.md covers every fork below · CI green · merge commit into main.
+
+## 7. The design forks — for Ryad to rule
+
+**F1 — which engine?**
+- **A** `SFSpeechRecognizer` with `requiresOnDeviceRecognition` — works on the
+  current platform floor (macOS 15 / iOS 18), mature, and now the legacy API.
+- **B** `SpeechAnalyzer` + `SpeechTranscriber` — Apple's current API, built for
+  streaming and long audio, on-device by design. Costs a platform bump to
+  **macOS 26 / iOS 26** (your machine already runs 26).
+- **C** Bring your own CoreML model (e.g. a converted Whisper). Most control,
+  most work, and a model file in the repo.
+- **Recommendation: B.** It is what Apple's own Notes and Voice Memos use, it
+  is the honest "current expertise" signal in a 2026 portfolio, and the seam
+  (AC-21) keeps A reachable if availability disappoints. First task of the
+  milestone is a spike to confirm the API shape before anything is specified in
+  code — I will not write against an API I have not run.
+
+**F2 — who decides where an utterance starts and ends?**
+- **A** Our `EnergyVAD` (Phase 1) stays the boundary owner.
+- **B** Apple's `SpeechDetector` module does it.
+- **C** Let the transcriber's own endpointing decide.
+- **Recommendation: A.** The boundaries stay ours, deterministic and testable
+  on fake time — and the VAD is part of what this repo is showing. B becomes an
+  interesting comparison in a later phase, not a dependency now.
+
+**F3 — how audio reaches the engine?**
+- **A** An adapter converts our chunks into the engine's buffer type. The ring
+  stays the single crossing.
+- **B** Let the engine tap the microphone itself.
+- **Recommendation: A.** B would open a second capture path and quietly destroy
+  the "exactly one crossing" claim that the whole library is built on.
+
+**F4 — late results from a dead utterance?**
+- **A** An utterance ticket, checked in the same actor step that raises it.
+- **B** Trust cancellation.
+- **Recommendation: A.** Cancellation is a request; the ticket is the
+  invariant. Same law as the barge-in work, and a defiant fake will prove it.
+
+**F5 — how many partials to publish?**
+- **A** Every partial the engine gives.
+- **B** Throttle to at most one every N milliseconds.
+- **C** Finals only.
+- **Recommendation: A** for v1 — a UI wants them, and the bounded listener
+  buffers already protect a slow consumer. Throttling can be added later with
+  real numbers instead of a guess.
+
+**F6 — Phase 1's open question, now decidable: the hangover tail.**
+- **A** Keep it: the 300 ms of trailing quiet is fed to the engine.
+- **B** Trim it before feeding.
+- **Recommendation: A.** Recognisers use trailing silence to settle their
+  final result. Revisit with measurements once the real engine is running.
+
+**F7 — the maximum utterance?**
+- **A** A hard cap (default 30 s) with a `truncated` event.
+- **B** No cap.
+- **Recommendation: A.** Nothing in this library is allowed to grow without a
+  limit — the same rule as the ring (D-004) and the listener buffers (D-012).
