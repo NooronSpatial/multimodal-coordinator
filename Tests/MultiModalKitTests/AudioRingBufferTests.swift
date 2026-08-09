@@ -136,4 +136,55 @@ import Testing
         #expect(consumer.totalDropped == dropped)        // the public counter agrees
         #expect(highestSeen == totalFrames - 1)          // the newest frame arrived
     }
+
+    /// REGRESSION (D-015). The shape that caught the bug: a SLOW producer copy
+    /// (a big block) against FAST small reads by a consumer sitting a full ring
+    /// behind. Before the fix this returned a mix of old and brand-new frames —
+    /// dozens of order violations per run — because a copy still in flight was
+    /// invisible to a check that only looked at `head`.
+    @Test("A read never returns a mix of old and in-flight frames")
+    func inFlightWritesAreNeverMixedIntoARead() async {
+        var violations = 0
+
+        for _ in 0..<5 {
+            let ring = AudioRing.create(minimumCapacity: 8192)
+            let producer = ring.producer
+            let consumer = ring.consumer
+            let totalFrames = 200_000
+            let writeChunk = 4096                        // half the ring: a long copy
+
+            let writer = Task.detached {
+                var next = 0
+                while next < totalFrames {
+                    let n = min(writeChunk, totalFrames - next)
+                    let values = (0..<n).map { Float(next + $0) }
+                    values.withUnsafeBufferPointer { producer.write($0) }
+                    next += n
+                }
+            }
+
+            var delivered = 0, dropped = 0, highestSeen = -1
+            var buffer = [Float](repeating: .nan, count: 64)   // small, fast reads
+            var spins = 0
+            while delivered + dropped < totalFrames && spins < 1_000_000 {
+                spins += 1
+                let result = buffer.withUnsafeMutableBufferPointer { consumer.read(into: $0) }
+                if result.framesRead > 0 {
+                    for i in 0..<result.framesRead {
+                        let value = Int(buffer[i])
+                        if value <= highestSeen { violations += 1 }
+                        highestSeen = value
+                    }
+                    delivered += result.framesRead
+                }
+                dropped += result.framesDropped
+                if result.framesRead == 0 && result.framesDropped == 0 { await Task.yield() }
+            }
+            await writer.value
+
+            #expect(delivered + dropped == totalFrames)   // the accounting still balances
+        }
+
+        #expect(violations == 0)
+    }
 }

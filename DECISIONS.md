@@ -256,3 +256,39 @@ thing the audio is for.
 it points at the hole. A gap also clears the carried partial chunk: those
 leftover frames are no longer next to what follows, and pretending otherwise
 would splice two moments that never touched.
+
+---
+
+## D-015 — Two counters cross the boundary, not one (D-007 point 1 was wrong)
+
+**The bug.** D-007 celebrated that only ONE value crosses the thread boundary:
+`head`, stored after the copy ("first the goods, then the flag"). The reader
+validated its copy by re-reading `head`. That check has a hole: the producer
+publishes `head` only when its copy is **finished**, so a copy **still in
+flight** is invisible. When the reader sits a full ring behind, the producer's
+in-flight write lands in exactly the slots the reader is copying — and the
+reader returns a mix of old and brand-new frames believing it is clean.
+
+**How it was found.** A single order violation in the 100k-frame stress test,
+once in about 35 runs. Chased instead of retried. A probe with the shape the
+theory predicted — a slow producer copy (4096 frames) against fast 64-frame
+reads — produced **34 violations in 20 rounds**, on demand.
+
+**The fix (option B).** The producer now publishes its **intention** as well as
+its result: `reserved` is stored (sequentially consistent) *before* the copy,
+`head` (releasing) *after* it. `head` still says how far the consumer may read;
+`reserved` says which slots are unsafe, including a copy happening right now.
+The consumer clamps and validates against `reserved`, never against `head`.
+
+*Rejected — a "hot zone" margin* (the reader stays `maxWriteFrames` away from
+the oldest edge). It works, but it costs usable capacity and adds a second
+number to the contract; the fix would be conservative instead of exact.
+
+**The price, stated openly:** two atomics now cross the boundary instead of
+one, and the hot path carries one more store. That is the honest cost of the
+promise the buffer makes — it may drop, but it may never lie.
+
+**Proof kept:** the probe became a permanent regression test
+(`inFlightWritesAreNeverMixedIntoARead`). Verified with teeth: against the old
+implementation it fails; against the fixed one, 20 consecutive full-suite runs
+pass with zero failures.
