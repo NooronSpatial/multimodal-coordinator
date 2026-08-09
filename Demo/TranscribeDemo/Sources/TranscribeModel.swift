@@ -63,7 +63,10 @@ final class TranscribeModel {
 
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.record, mode: .measurement)
+            // Default mode ON PURPOSE: .measurement would switch off the
+            // system's input processing INCLUDING automatic gain — learned on
+            // the first field run ("I must speak loud and be near the phone").
+            try session.setCategory(.record)
             try session.setActive(true)
         } catch {
             engineState = .failed("Audio session: \(error.localizedDescription)")
@@ -85,11 +88,15 @@ final class TranscribeModel {
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
         let pump = AudioPump(
             consumer: consumer,
-            vad: EnergyVAD(config: .init(threshold: 0.02,
+            // Field-tuned: 0.01 opens the gate for normal speaking volume at
+            // arm's length (0.02 was a laptop-mic value and ate quiet words).
+            vad: EnergyVAD(config: .init(threshold: 0.01,
                                          hangoverFrames: Int(rate * 0.3))),
             clock: ContinuousClock(),
+            // 200 ms of pre-roll: a word's quiet onset must survive a VAD
+            // that only wakes on its loud middle.
             config: .init(sampleRate: rate, pollInterval: .milliseconds(10),
-                          chunkFrames: chunk, preRollChunks: 2))
+                          chunkFrames: chunk, preRollChunks: 10))
         let transcription = TranscriptionSession(
             engine: engine,
             config: .init(format: AudioStreamFormat(sampleRate: rate, channels: 1)))

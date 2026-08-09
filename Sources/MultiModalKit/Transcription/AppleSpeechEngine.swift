@@ -76,9 +76,12 @@ public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
 
     public func openRun(format: AudioStreamFormat) async throws -> any TranscriptionRun {
         try await reserveLocaleIfNeeded()
+        // .fastResults alongside .volatileResults: faster partial cadence
+        // for live use — the first field run showed the default cadence is
+        // too chunky for a conversational screen.
         let transcriber = SpeechTranscriber(
             locale: locale, transcriptionOptions: [],
-            reportingOptions: [.volatileResults], attributeOptions: [])
+            reportingOptions: [.volatileResults, .fastResults], attributeOptions: [])
 
         // Spike lesson 2: a nil format IS "the model is not here".
         guard let engineFormat = await SpeechAnalyzer
