@@ -1,0 +1,32 @@
+# The iOS demo project (Phase 2 slice deliverable — SPEC §6, D-017).
+# Regenerate with: cd Demo/TranscribeDemo && xcodegen
+# Dev tooling only (D-016 tier 4); the generated .xcodeproj is committed so
+# the demo opens with one click.
+name: TranscribeDemo
+options:
+  bundleIdPrefix: dev.nooron
+  deploymentTarget:
+    iOS: "26.0"
+  createIntermediateGroups: true
+packages:
+  multimodal-coordinator:
+    path: ../..
+targets:
+  TranscribeDemo:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    dependencies:
+      - package: multimodal-coordinator
+        product: MultiModalKit
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        # Ryad selects his team once in Xcode; nothing is hardcoded here.
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_NSMicrophoneUsageDescription: "The demo listens to the microphone to transcribe your speech — fully on this device, nothing leaves it."
+        INFOPLIST_KEY_NSSpeechRecognitionUsageDescription: "Transcription runs entirely on this device."
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
