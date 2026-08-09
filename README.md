@@ -280,6 +280,9 @@ Phase 2 milestone 2a complete (seam, session + ticket, scripted engine,
 conformance kit, Apple engine, iOS + terminal demos). Next: milestone 2b —
 the Whisper-class engine module and the measured engine bake-off; then
 `os_signpost` instrumentation (Phase 3). Known open item: the speech-model
-download repeatedly fails on one development Mac's network (the demo says so
-and degrades); it succeeded first-try on iPhone. See [SPEC.md](SPEC.md) and
+download repeatedly fails on one development Mac — proven NOT to be the
+network (home Wi-Fi and iPhone hotspot fail identically; the same model
+installed first-try on an iPhone). The machine's asset system is the wall;
+the demo says so and degrades to VAD-only. Parked until the next macOS
+update. See [SPEC.md](SPEC.md) and
 [DECISIONS.md](DECISIONS.md) — D-016…D-021 carry this phase's rulings.

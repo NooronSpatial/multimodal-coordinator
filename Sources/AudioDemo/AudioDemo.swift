@@ -26,7 +26,7 @@ struct AudioDemo {
         var engineReady = await engine.modelInstalled()
         if !engineReady {
             print("⏬ The en-US speech model is not on this Mac — downloading")
-            print("   (system-managed; this has failed on some networks before)…")
+            print("   (system-managed; known to fail on some machines — the demo degrades honestly)…")
             do {
                 try await engine.ensureModel()
                 print("✅ model installed")
