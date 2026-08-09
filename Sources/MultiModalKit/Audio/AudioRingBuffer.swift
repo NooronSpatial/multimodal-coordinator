@@ -131,8 +131,8 @@ public final class AudioRingConsumer: Sendable {
             }
             // Validate: did the producer lap into what we just copied — or is
             // it lapping into it at this very moment? `reserved` answers both.
-            let h2 = storage.reserved.load(ordering: .acquiring)
-            if h2 - start <= storage.capacity {           // clean copy
+            let reservedAfterCopy = storage.reserved.load(ordering: .acquiring)
+            if reservedAfterCopy - start <= storage.capacity {   // clean copy
                 storage.tail = start + n
                 if totalDroppedNow > 0 {
                     storage.dropped.wrappingAdd(totalDroppedNow, ordering: .relaxed)
