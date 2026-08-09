@@ -132,3 +132,163 @@ producer/consumer `~Copyable` would enforce "exactly one of each" at compile
 time — but Swift tuples cannot hold noncopyable values yet, which breaks the
 natural pair-returning API. Classes with a documented contract won; the
 noncopyable upgrade is a tracked idea for later.
+
+---
+
+## D-008 — Events leave the pump through a multicast, not a single stream (A)
+
+**Decision:** the pump publishes to a `Broadcast<AudioEvent>` — many
+listeners, each with its own stream, all seeing the same sequence.
+
+**Rejected — one `AsyncStream`, single consumer.** Cheapest option, and it
+matches the ring's own one-reader shape. Rejected because the terminal demo
+and a future conductor want to watch the same audio at the same time, and
+splitting later would change the public seam.
+
+**Rejected — a provider protocol returning one stream.** Same cost, nicer
+name, still only one listener.
+
+**The price, stated openly:** multicast needs a `Mutex`-guarded component and
+a per-listener buffer policy. That brings back the two lock rules — never
+hold the lock across a suspension point, never resume a continuation while
+holding it — and the buffer question answered in D-012.
+
+---
+
+## D-009 — A segment is chunks plus a pre-roll (B)
+
+**Decision:** while speech is on, audio is published chunk by chunk; and at
+`speechStarted` the pump first publishes the last **2 chunks (40 ms)** it was
+already holding.
+
+**Why:** a loudness VAD can only know speech began *after* the first loud
+chunk. Without a pre-roll the first syllable is cut — the difference between
+a demo and something a speech recogniser can actually use.
+
+**Rejected — one big segment at `speechEnded`.** Simple, but nothing can be
+streamed and memory grows with the length of the utterance.
+
+**Rejected — plain chunk-by-chunk.** Cheapest, but it throws away the start
+of every word. The fixed-size pre-roll buffer costs a few kilobytes.
+
+---
+
+## D-010 — Dropped frames are an event, not a counter (C)
+
+**Decision:** when the ring reports skipped frames, the pump publishes
+`dropped(frames:at:)` at that exact point in the sequence.
+
+**Why:** the ring already counts exactly (D-004). Putting the loss in the
+timeline shows *when* the machine fell behind — a counter only shows that it
+did, somewhere. Honesty stays visible instead of hiding in a getter.
+
+**Rejected — a pollable counter.** Less code, less truth.
+
+---
+
+## D-011 — Time comes from sample arithmetic, never from a clock (D)
+
+**Decision:** every event carries an `AudioTime` computed as
+`framesConsumed / sampleRate`.
+
+**Why:** it is the audio's own time, not the scheduler's. It makes
+capture-to-`speechStarted` latency an exact, reproducible number in tests
+instead of a measurement that shifts with machine load — and it keeps the
+package's rule intact: components stay clockless, time lives with the caller.
+
+**Rejected — a timestamp ring parallel to the audio.** More crossing state,
+more to get wrong, and it would measure delivery rather than sound.
+
+**Rejected — timestamping when the pump reads the chunk.** That measures the
+poll rhythm, not when the sound actually happened.
+
+---
+
+## D-012 — Listener buffers are bounded, drop-oldest, and counted; events never replay
+
+Two rulings that D-008 forced into the open.
+
+**1. Bounded, drop-oldest, honest.** Each listener gets its own buffer of a
+fixed size (64 events). When a listener reads too slowly and the buffer is
+full, the **oldest** event is dropped and that listener's own `droppedEvents`
+counter goes up. The pump is never blocked by a slow listener, memory can
+never grow without limit, and the loss is counted instead of hidden — the
+same philosophy as the ring buffer's dropped-frame counting (D-004).
+
+*Rejected — unbounded buffers.* Simpler, and exactly the weakness found in
+the hiring-task `Broadcast`: one listener that stops reading grows memory
+forever. Building the fixed version here is the whole point.
+
+**2. No replay for events.** A listener that subscribes late receives what
+happens **from now on**. The hiring-task `Broadcast` replays the last value,
+which is right for *state* ("you are speaking") — but these are events,
+moments in time. Replaying `speechStarted` to a listener that arrived ten
+seconds later would be a lie about when the sound happened.
+
+*Deferred, not rejected:* if a UI later needs "am I speaking right now", that
+is a separate **state** stream, and a state stream may replay.
+
+---
+
+## D-013 — Event semantics: four small rulings hidden inside the red tests
+
+Writing the expected sequences forced four choices. They are decisions, not
+details, so they are written down.
+
+**1. `speechStarted` comes BEFORE the pre-roll chunks it explains** — even
+though those chunks carry earlier moments. A listener should learn *that*
+speech began before audio arrives; the timestamps still tell the truth about
+when each piece of sound happened. *Rejected:* pre-roll first, which keeps
+moments monotonic but delivers audio nobody has been told to expect.
+
+**2. `speechEnded` carries the moment the DECISION was made** — the end of the
+chunk that spent the hangover — not the moment the sound actually stopped.
+*Rejected:* stamping the start of the first quiet chunk, which would pretend
+we knew the future; at that moment the pause could still have been a breath
+between two words.
+
+**3. The quiet tail inside the hangover is published as audio.** Those chunks
+belong to the utterance, and a speech recogniser wants the trailing silence.
+*Rejected:* holding them back, which saves a few kilobytes and damages the
+thing the audio is for.
+
+**4. `dropped` is stamped where the gap BEGINS**, not where recovery happens —
+it points at the hole. A gap also clears the carried partial chunk: those
+leftover frames are no longer next to what follows, and pretending otherwise
+would splice two moments that never touched.
+
+---
+
+## D-015 — Two counters cross the boundary, not one (D-007 point 1 was wrong)
+
+**The bug.** D-007 celebrated that only ONE value crosses the thread boundary:
+`head`, stored after the copy ("first the goods, then the flag"). The reader
+validated its copy by re-reading `head`. That check has a hole: the producer
+publishes `head` only when its copy is **finished**, so a copy **still in
+flight** is invisible. When the reader sits a full ring behind, the producer's
+in-flight write lands in exactly the slots the reader is copying — and the
+reader returns a mix of old and brand-new frames believing it is clean.
+
+**How it was found.** A single order violation in the 100k-frame stress test,
+once in about 35 runs. Chased instead of retried. A probe with the shape the
+theory predicted — a slow producer copy (4096 frames) against fast 64-frame
+reads — produced **34 violations in 20 rounds**, on demand.
+
+**The fix (option B).** The producer now publishes its **intention** as well as
+its result: `reserved` is stored (sequentially consistent) *before* the copy,
+`head` (releasing) *after* it. `head` still says how far the consumer may read;
+`reserved` says which slots are unsafe, including a copy happening right now.
+The consumer clamps and validates against `reserved`, never against `head`.
+
+*Rejected — a "hot zone" margin* (the reader stays `maxWriteFrames` away from
+the oldest edge). It works, but it costs usable capacity and adds a second
+number to the contract; the fix would be conservative instead of exact.
+
+**The price, stated openly:** two atomics now cross the boundary instead of
+one, and the hot path carries one more store. That is the honest cost of the
+promise the buffer makes — it may drop, but it may never lie.
+
+**Proof kept:** the probe became a permanent regression test
+(`inFlightWritesAreNeverMixedIntoARead`). Verified with teeth: against the old
+implementation it fails; against the fixed one, 20 consecutive full-suite runs
+pass with zero failures.
