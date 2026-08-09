@@ -29,10 +29,30 @@ public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
         return installed.contains { $0.identifier(.bcp47) == locale.identifier(.bcp47) }
     }
 
+    /// Fourth spike lesson — learned on a real iPhone, not in the spike:
+    /// on-device speech assets are ALLOCATED per app. Without a reservation
+    /// the modules come up empty ("Cannot use modules with unallocated
+    /// locales"). Reserving is idempotent and quota-bound
+    /// (`AssetInventory.maximumReservedLocales`), so it is done lazily, on
+    /// both paths that need the model.
+    private func reserveLocaleIfNeeded() async throws {
+        let reserved = await AssetInventory.reservedLocales
+        guard !reserved.contains(where: {
+            $0.identifier(.bcp47) == locale.identifier(.bcp47)
+        }) else { return }
+        do {
+            try await AssetInventory.reserve(locale: locale)
+        } catch {
+            throw TranscriptionFailure.engineFailed(
+                "locale reservation failed: \(String(describing: error))")
+        }
+    }
+
     /// Downloads the model if needed (system-managed; may be slow, may fail —
     /// the spike watched it die with "final state: Network Error"). Safe to
     /// call again: an already-installed model returns immediately.
     public func ensureModel() async throws {
+        try await reserveLocaleIfNeeded()
         let transcriber = SpeechTranscriber(
             locale: locale, transcriptionOptions: [],
             reportingOptions: [.volatileResults], attributeOptions: [])
@@ -55,6 +75,7 @@ public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
     }
 
     public func openRun(format: AudioStreamFormat) async throws -> any TranscriptionRun {
+        try await reserveLocaleIfNeeded()
         let transcriber = SpeechTranscriber(
             locale: locale, transcriptionOptions: [],
             reportingOptions: [.volatileResults], attributeOptions: [])

@@ -15,7 +15,7 @@
 
 /* Begin PBXFileReference section */
 		06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeDemoApp.swift; sourceTree = "<group>"; };
-		085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TranscribeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranscribeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E9370469C1D7537FC640A814 /* multimodal-coordinator */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "multimodal-coordinator"; path = ../..; sourceTree = SOURCE_ROOT; };
 		F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeModel.swift; sourceTree = "<group>"; };
 		F55B6AEB6559E79DEDA042A8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -146,6 +146,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9CNN68349Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo listens to the microphone to transcribe your speech — fully on this device, nothing leaves it.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcription runs entirely on this device.";
@@ -169,6 +170,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 9CNN68349Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo listens to the microphone to transcribe your speech — fully on this device, nothing leaves it.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcription runs entirely on this device.";
