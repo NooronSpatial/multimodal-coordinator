@@ -201,9 +201,14 @@ state stream, and that one may replay.
 
 # SPEC — Phase 2: speech becomes text, on the device
 
-> Status: **DRAFT — awaiting sign-off.** No code before this is approved.
+> Status: **APPROVED 2026-08-09.** Rulings: F1 = **B + D** (Apple's engine in
+> the core, a Whisper-class engine as an optional product), F2–F7 as
+> recommended, plus the tiered dependency policy — logged as D-016…D-020.
 > Phase 1 is delivered: sound reaches Swift concurrency as clean utterance
 > events. Phase 2 turns those utterances into words, still without a server.
+>
+> **First task: a spike.** `SpeechAnalyzer` is new; nothing is specified in
+> code before the API has been run on this machine.
 
 ## 1. What Phase 2 builds
 
@@ -277,8 +282,18 @@ purpose.
   still apply).
 
 ### Hygiene
-- **AC-33** Swift 6 strict concurrency, zero warnings, zero third-party
-  dependencies, CI green on every push.
+- **AC-33** Swift 6 strict concurrency, zero warnings, CI green on every push.
+  Dependencies follow the tiered policy (D-016): **the core library
+  `MultiModalKit` keeps zero runtime dependencies**; optional engine modules,
+  demo targets and tests may have them.
+- **AC-35** Every engine declares an `EngineCapabilities` value —
+  `emitsPartials`, `wantsWholeUtterance`, `requiredSampleRate`,
+  `maximumUtterance` — so a streaming engine and a batch engine can live behind
+  one protocol without the session guessing (D-017).
+- **AC-36** An **engine conformance kit**: one shared test suite that every
+  engine implementation must pass (one final per run, nothing after cancel,
+  failures are events, ordering, capability honesty). Switching engines is
+  proven by tests, not promised in a README.
 - **AC-34** Test coverage is claimed **only** for our own code. Apple's engine
   is exercised by the demo on real hardware, and the README says so plainly —
   no test in this repo will pretend to verify Apple's model.
@@ -320,11 +335,11 @@ DECISIONS.md covers every fork below · CI green · merge commit into main.
   **macOS 26 / iOS 26** (your machine already runs 26).
 - **C** Bring your own CoreML model (e.g. a converted Whisper). Most control,
   most work, and a model file in the repo.
-- **Recommendation: B.** It is what Apple's own Notes and Voice Memos use, it
-  is the honest "current expertise" signal in a 2026 portfolio, and the seam
-  (AC-21) keeps A reachable if availability disappoints. First task of the
-  milestone is a spike to confirm the API shape before anything is specified in
-  code — I will not write against an API I have not run.
+- **RULED: B + D** (D-017). Apple's engine ships in the core library; a
+  Whisper-class engine arrives as a separate optional product under the tiered
+  dependency policy (D-016). Both implement `TranscriptionEngine`, both pass
+  the conformance kit, and the pair makes a measured bake-off possible.
+  Platform floor moves to macOS 26 / iOS 26, accepted deliberately.
 
 **F2 — who decides where an utterance starts and ends?**
 - **A** Our `EnergyVAD` (Phase 1) stays the boundary owner.

@@ -292,3 +292,118 @@ promise the buffer makes — it may drop, but it may never lie.
 (`inFlightWritesAreNeverMixedIntoARead`). Verified with teeth: against the old
 implementation it fails; against the fixed one, 20 consecutive full-suite runs
 pass with zero failures.
+
+---
+
+## D-016 — Dependencies: a tiered policy, not a vow
+
+The old rule ("zero third-party dependencies") came from the hiring task and
+was carried into this repo unchanged. It is right for one part of the project
+and wrong for the rest, so it is replaced — not deleted.
+
+| Tier | Rule |
+|---|---|
+| The core library `MultiModalKit` | **Zero runtime dependencies.** No exceptions. |
+| Optional engine modules (e.g. `MultiModalKitWhisper`) | Dependencies allowed — separate products, opted into by the consumer |
+| Demo / example targets | Allowed freely |
+| Tests and dev tooling | Allowed |
+
+**Why the core stays clean:** in a library, dependencies are viral — every
+consumer inherits them. And the core is the part that argues for itself: a
+package cannot have written the ring buffer, the pump, or the ticket.
+
+**Before adding any dependency, four questions, all must pass:**
+1. Is it doing something that is *not* the point of this project?
+2. Is it Swift 6 clean — zero warnings, no `@preconcurrency`?
+3. Permissive licence, actually maintained?
+4. Could we remove it in a day — i.e. does it live behind one of our protocols?
+
+Question 4 is the load-bearing one. **A dependency behind a protocol is a
+decision; a dependency woven through the code is a marriage.**
+
+---
+
+## D-017 — Two engines, one contract (F1 = B + D)
+
+**Decision:** Phase 2 ships **Apple's `SpeechAnalyzer` + `SpeechTranscriber`**
+inside the core library, and a **separate optional product** for a
+Whisper-class engine. Both implement the same `TranscriptionEngine` protocol
+and both must pass the same conformance kit.
+
+**Why Apple's first:** it is the current API (it replaces `SFSpeechRecognizer`),
+built for streaming, on-device by design, no model files in the repo, and it
+gets to real words in days instead of weeks.
+
+**The price, stated openly:** the platform floor moves to **macOS 26 / iOS 26**.
+Anyone on an older OS can no longer build the library. Accepted deliberately
+for a 2026 portfolio project.
+
+**Why a second engine at all:** because two engines behind one contract turn
+"the seam works" from a claim into a test, and they make a bake-off possible —
+same audio, measured accuracy, latency, memory. A measurement is worth more
+than an opinion.
+
+**Rejected — `SFSpeechRecognizer` as the primary.** Keeps the old platform
+floor, but it is the legacy API and the weaker streaming story. Still reachable
+through the seam if Apple's new engine disappoints.
+
+**Deferred, not rejected — writing the whole CoreML decoder ourselves** (mel
+features, encoder, autoregressive decode with KV cache, tokenizer). That is a
+project, not a milestone, and it belongs with the Metal/C++ phase. Until then
+the optional module may lean on an existing package (allowed by D-016, tier 2)
+and can be replaced later behind the identical protocol.
+
+**Two things this ruling adds to the spec:**
+- an `EngineCapabilities` value every engine declares (`emitsPartials`,
+  `wantsWholeUtterance`, `requiredSampleRate`, `maximumUtterance`), so a
+  streaming engine and a batch engine can both live behind one protocol;
+- an **engine conformance kit**: one shared test suite every engine must pass.
+  Switching engines becomes provable instead of hopeful.
+
+**First task of the milestone: a spike.** The API is new; nothing gets
+specified in code before it has been run.
+
+---
+
+## D-018 — The pipeline keeps its shape (F2, F3)
+
+**Boundaries stay ours.** `EnergyVAD` decides where an utterance starts and
+ends — not Apple's `SpeechDetector`, not the transcriber's own endpointing.
+The boundaries stay deterministic and testable on fake time, and they are part
+of what this repo is showing. *Rejected:* handing turn-taking to the engine —
+it would make our own behaviour depend on a model we cannot test.
+
+**Audio reaches every engine through an adapter.** Our chunks are converted to
+whatever the engine wants (format, sample rate). *Rejected:* letting the engine
+tap the microphone itself — that opens a second capture path and destroys the
+"exactly one crossing" claim the whole library is built on.
+
+---
+
+## D-019 — The utterance ticket (F4)
+
+Each utterance carries a number that only goes up. Every result from an engine
+is checked against it in the **same actor step** that could raise it. A result
+belonging to a finished or abandoned utterance is dropped and can never reach a
+listener — proven by a defiant fake that answers late, on purpose.
+
+*Rejected — trusting cancellation.* Cancellation is a request, not a kill: an
+engine may still deliver one last result after being cancelled. Cancellation is
+the optimisation; the ticket is the guarantee. Same law as the barge-in work.
+
+---
+
+## D-020 — Partials, the tail, and the ceiling (F5, F6, F7)
+
+**Every partial is published** (F5). A UI wants them, and the bounded listener
+buffers (D-012) already protect a slow consumer. Throttling can come later,
+with measurements instead of a guess. Partials always **replace** — never
+append: a batch engine may rewrite a whole window.
+
+**The hangover tail is kept** (F6) — Phase 1's open question, now closed. The
+300 ms of trailing quiet is fed to the engine, because recognisers use it to
+settle a final result. Revisit with numbers once the real engine runs.
+
+**An utterance has a ceiling** (F7): 30 s by default, then a `truncated` event
+and the audio is released. Nothing in this library grows without a limit —
+same rule as the ring (D-004) and the listener buffers (D-012).
