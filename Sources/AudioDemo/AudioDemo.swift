@@ -1,19 +1,22 @@
 import Foundation
 import MultiModalKit
 
-/// Milestone 1c live demo: microphone → lock-free ring → pump → speech events.
+/// Phase 2 live demo: microphone → ring → pump → transcription → terminal.
 ///
-/// Speak, and watch it decide. The bar is the loudness of the chunk being
-/// judged right now; the lines above it are the events the pump published.
-/// Two listeners are attached on purpose — the display, and a stand-in for a
-/// speech recogniser — to show that both see the same sequence independently.
+/// The [recogniser] listener from milestone 1c is no longer a stand-in: it is
+/// a real `TranscriptionSession` running Apple's on-device engine. If the
+/// speech model is missing, the demo offers the download and — if it fails,
+/// as it repeatedly has on some networks — says so honestly and runs with
+/// voice detection only. Failure is an event, not an excuse to crash.
 ///
 /// Demo-only liberties (never taken in the library or its tests): a real
 /// `ContinuousClock` drives the pump, and Foundation is imported for stdout
-/// flushing and number formatting. The library itself stays clock-injected.
+/// flushing. The library itself stays clock-injected.
 @main
 struct AudioDemo {
     static func main() async {
+        setbuf(stdout, nil)
+
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
 
@@ -28,104 +31,141 @@ struct AudioDemo {
 
         let sampleRate = microphone.sampleRate
         let chunkFrames = Int(sampleRate * 0.02)          // 20 ms of sound per verdict
-        let hangoverFrames = Int(sampleRate * 0.3)        // 300 ms of quiet ends a phrase
-
         let pump = AudioPump(
             consumer: consumer,
-            vad: EnergyVAD(config: .init(threshold: 0.02, hangoverFrames: hangoverFrames)),
+            // Field-tuned values from the iOS run (0.01 gate, 200 ms pre-roll).
+            vad: EnergyVAD(config: .init(threshold: 0.01,
+                                         hangoverFrames: Int(sampleRate * 0.3))),
             clock: ContinuousClock(),
-            config: .init(
-                sampleRate: sampleRate,
-                pollInterval: .milliseconds(10),
-                chunkFrames: chunkFrames,
-                preRollChunks: 2
-            )
-        )
+            config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
+                          chunkFrames: chunkFrames, preRollChunks: 10))
 
-        let display = await pump.listen()
-        let recogniser = await pump.listen()
+        // The engine: present only if the model is (or becomes) available.
+        let engine = AppleSpeechEngine()
+        var transcription: TranscriptionSession?
+        if await engine.modelInstalled() {
+            transcription = TranscriptionSession(
+                engine: engine,
+                config: .init(format: .init(sampleRate: sampleRate, channels: 1)))
+        } else {
+            print("⏬ The en-US speech model is not on this Mac — downloading")
+            print("   (system-managed; this has failed on some networks before)…")
+            do {
+                try await engine.ensureModel()
+                print("✅ model installed")
+                transcription = TranscriptionSession(
+                    engine: engine,
+                    config: .init(format: .init(sampleRate: sampleRate, channels: 1)))
+            } catch {
+                print("⚠️  download failed: \(error)")
+                print("   Running with voice detection only — transcription disabled.")
+            }
+        }
 
-        print("🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
-        print("    \(Int(sampleRate)) Hz · \(chunkFrames)-frame chunks (20 ms) · 300 ms hangover · 2 chunks of pre-roll")
-        print("    two listeners attached: [display] and [recogniser]\n")
-        fflush(stdout)                                    // so the header shows even when piped
+        print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
+        print("    \(Int(sampleRate)) Hz · 20 ms chunks · 300 ms hangover · 200 ms pre-roll")
+        print("    transcription: \(transcription == nil ? "OFF (no model)" : "on-device, en-US")\n")
+
+        let screen = Screen()
 
         await withTaskGroup(of: Void.self) { group in
+            let audioForScreen = await pump.listen()
             group.addTask { await pump.run() }
-            group.addTask { await showEvents(display.events, ringDrops: consumer) }
-            group.addTask { await pretendToTranscribe(recogniser.events) }
-        }
-    }
+            group.addTask {
+                await showAudio(audioForScreen.events, on: screen, ringDrops: consumer)
+            }
 
-    /// Listener 1 — the picture on screen.
-    static func showEvents(_ events: AsyncStream<AudioEvent>, ringDrops consumer: AudioRingConsumer) async {
-        var chunksThisPhrase = 0
-
-        for await event in events {
-            switch event {
-            case .speechStarted(let at):
-                chunksThisPhrase = 0
-                line("▶︎  speech started  at \(seconds(at))")
-
-            case .audioSegment(let chunk):
-                chunksThisPhrase += 1
-                status(bar(for: chunk), "speaking · \(chunksThisPhrase) chunks · ring drops: \(consumer.totalDropped)")
-
-            case .speechEnded(let at):
-                let spoken = Double(chunksThisPhrase) * 0.02
-                line("⏹  speech ended    at \(seconds(at))  —  \(format(spoken)) s of audio in \(chunksThisPhrase) chunks")
-                status(String(repeating: "·", count: 40), "listening…")
-
-            case .dropped(let frames, let at):
-                line("⚠️  dropped \(frames) frames at \(seconds(at))  — the machine fell behind, and says so")
+            if let transcription {
+                let audioForSession = await pump.listen()
+                let transcripts = await transcription.listen()
+                group.addTask { await transcription.run(events: audioForSession.events) }
+                group.addTask { await showTranscripts(transcripts.events, on: screen) }
             }
         }
     }
 
-    /// Listener 2 — where a speech recogniser would sit. It only counts, but
-    /// it proves the point: the same events arrive here, independently.
-    static func pretendToTranscribe(_ events: AsyncStream<AudioEvent>) async {
-        var utterances = 0
-        var frames = 0
+    // MARK: - the two listeners' views of the world
 
+    static func showAudio(
+        _ events: AsyncStream<AudioEvent>, on screen: Screen, ringDrops consumer: AudioRingConsumer
+    ) async {
         for await event in events {
             switch event {
+            case .speechStarted:
+                await screen.set(speaking: true)
             case .audioSegment(let chunk):
-                frames += chunk.frameCount
+                await screen.set(level: level(of: chunk), drops: consumer.totalDropped)
             case .speechEnded:
-                utterances += 1
-                line("   ↳ [recogniser] utterance #\(utterances) complete — \(frames) frames received so far")
-            default:
-                break
+                await screen.set(speaking: false)
+            case .dropped(let frames, let at):
+                await screen.log("⚠️  dropped \(frames) frames at \(format(at.seconds)) s")
             }
         }
     }
 
-    // MARK: - terminal helpers
-
-    /// A permanent line, printed above the status line.
-    static func line(_ text: String) {
-        print("\r\u{1B}[K\(text)")
-        fflush(stdout)
+    static func showTranscripts(_ events: AsyncStream<TranscriptEvent>, on screen: Screen) async {
+        for await event in events {
+            switch event {
+            case .partial(let text, _, _):
+                await screen.set(partial: text)
+            case .final(let text, let utterance, let at):
+                await screen.log("💬 [\(utterance)] \(text)   (\(format(at.seconds)) s)")
+                await screen.set(partial: "")
+            case .failed(let failure, let utterance, _):
+                await screen.log("⚠️  [\(utterance)] recognition failed: \(failure)")
+                await screen.set(partial: "")
+            case .truncated(let utterance, _):
+                await screen.log("✂️  [\(utterance)] utterance hit the 30 s ceiling")
+            }
+        }
     }
 
-    /// The single line that keeps being rewritten in place.
-    static func status(_ bar: String, _ text: String) {
-        print("\r\u{1B}[K[\(bar)] \(text)", terminator: "")
-        fflush(stdout)
-    }
-
-    static func bar(for chunk: AudioChunk) -> String {
+    static func level(of chunk: AudioChunk) -> Int {
         var sumOfSquares: Float = 0
         for sample in chunk.samples { sumOfSquares += sample * sample }
         let rms = (sumOfSquares / Float(max(chunk.frameCount, 1))).squareRoot()
-
-        let width = 40
-        let level = min(Int(rms * 300), width)
-        return String(repeating: "█", count: level) + String(repeating: "·", count: width - level)
+        return min(Int(rms * 300), 24)
     }
 
-    static func seconds(_ time: AudioTime) -> String { format(time.seconds) + " s" }
-
     static func format(_ value: Double) -> String { String(format: "%.2f", value) }
+}
+
+/// One owner for the terminal: permanent lines above, one live status line
+/// below (level bar + the current partial). Two event streams write here
+/// concurrently; the actor serializes them so the screen never tears.
+actor Screen {
+    private var speaking = false
+    private var levelBar = ""
+    private var partial = ""
+    private var drops = 0
+
+    func set(speaking: Bool) {
+        self.speaking = speaking
+        if !speaking { levelBar = "" }
+        render()
+    }
+
+    func set(level: Int, drops: Int) {
+        self.levelBar = String(repeating: "█", count: level)
+        self.drops = drops
+        render()
+    }
+
+    func set(partial: String) {
+        self.partial = partial
+        render()
+    }
+
+    func log(_ line: String) {
+        print("\r\u{1B}[K\(line)")
+        render()
+    }
+
+    private func render() {
+        let icon = speaking ? "🗣" : "…"
+        let text = partial.isEmpty ? "" : "  \(partial.suffix(48))"
+        let dropText = drops > 0 ? "  dropped:\(drops)" : ""
+        print("\r\u{1B}[K\(icon) [\(levelBar.padding(toLength: 24, withPad: "·", startingAt: 0))]\(text)\(dropText)",
+              terminator: "")
+    }
 }

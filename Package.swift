@@ -4,8 +4,10 @@ import PackageDescription
 let package = Package(
     name: "multimodal-coordinator",
     platforms: [
-        .macOS(.v15),
-        .iOS(.v18),
+        // Phase 2 floor (D-017): Apple's SpeechAnalyzer/SpeechTranscriber
+        // ship with OS 26. The bump is deliberate and logged.
+        .macOS("26.0"),
+        .iOS("26.0"),
     ],
     products: [
         .library(name: "MultiModalKit", targets: ["MultiModalKit"]),

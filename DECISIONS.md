@@ -407,3 +407,27 @@ settle a final result. Revisit with numbers once the real engine runs.
 **An utterance has a ceiling** (F7): 30 s by default, then a `truncated` event
 and the audio is released. Nothing in this library grows without a limit —
 same rule as the ring (D-004) and the listener buffers (D-012).
+
+---
+
+## D-021 — Session semantics: four rulings found inside the red tests
+
+**1. A new utterance retires the settling one.** After `speechEnded` an engine
+is still "settling" — its final has not arrived. The moment the NEXT
+`speechStarted` lands, the old run is cancelled and its ticket dies: a late
+final from it is dropped. *Rejected — true overlap* (old text arriving after
+the new utterance's events): deterministic ordering wins for v1; overlap can
+return as a measured fork later. Same philosophy as barge-in: newer speech
+outranks stale text.
+
+**2. A text event is stamped with the audio already fed** to its run when the
+text was published — so capture→partial latency is exact arithmetic
+(`at − speechStarted`). The utterance's own start is already public, so both
+numbers exist.
+
+**3. A truncated utterance still gets its final.** The ceiling publishes
+`truncated`, stops feeding, and settles the run — thirty seconds of words do
+not vanish because second thirty-one arrived. *Rejected:* truncate-as-abandon.
+
+**4. An open-failure is stamped at the utterance's start** — no audio was ever
+fed, so the start is the only honest moment it has.
