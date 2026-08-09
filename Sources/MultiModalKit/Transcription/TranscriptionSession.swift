@@ -47,8 +47,11 @@ public actor TranscriptionSession {
         case stopped
     }
 
-    /// The one open-or-settling recognition. `active == nil` means every
-    /// earlier utterance is dead — that nil IS the retired ticket.
+    /// The one recognition being FED. For streaming engines, `active == nil`
+    /// means every earlier utterance is dead — that nil IS the retired
+    /// ticket. For batch engines (D-024), a run leaves `active` on the next
+    /// `speechStarted` but keeps its ticket in `settlingRuns` until its
+    /// final, its failure, or `stop()`.
     private struct Active {
         let utterance: Int
         let run: any TranscriptionRun
@@ -56,6 +59,13 @@ public actor TranscriptionSession {
         var fedFrames = 0
         var settling = false
         var truncated = false
+    }
+
+    /// A batch run whose audio is over and whose decode is still working.
+    /// Its `at` is fixed at settle time — the audio it was fed is complete.
+    private struct Settling {
+        let run: any TranscriptionRun
+        let at: AudioTime
     }
 
     private let engine: any TranscriptionEngine
@@ -66,6 +76,10 @@ public actor TranscriptionSession {
     private let ceilingFrames: Int
 
     private var active: Active?
+    /// D-024: settling batch runs, by utterance number — each keeps its
+    /// ticket until its final arrives. Streaming engines never enter here.
+    private var settlingRuns: [Int: Settling] = [:]
+    private let allowsOverlap: Bool
     private var nextUtterance = 0
     private var merge: AsyncStream<Input>.Continuation?
     private var isStopped = false
@@ -74,6 +88,7 @@ public actor TranscriptionSession {
         self.engine = engine
         self.config = config
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
+        self.allowsOverlap = engine.capabilities.wantsWholeUtterance
         let seconds = Double(config.maximumUtterance.components.seconds)
             + Double(config.maximumUtterance.components.attoseconds) * 1e-18
         self.ceilingFrames = Int((seconds * config.format.sampleRate).rounded())
@@ -119,8 +134,8 @@ public actor TranscriptionSession {
                 case .stopped:
                     break loop
                 }
-                // Graceful end: audio is over and nothing is settling.
-                if audioOver && active == nil { break }
+                // Graceful end: audio is over and no decode is still working.
+                if audioOver && active == nil && settlingRuns.isEmpty { break }
             }
             group.cancelAll()   // frees any forwarder stuck on a defiant stream
         }
@@ -134,11 +149,16 @@ public actor TranscriptionSession {
     public func stop() async {
         guard !isStopped else { return }
         isStopped = true
-        let dying = active
-        active = nil                       // the ticket dies HERE — no gap
+        let dyingActive = active
+        let dyingSettling = settlingRuns
+        active = nil                       // every ticket dies HERE — no gap
+        settlingRuns.removeAll()
         merge?.yield(.stopped)
         broadcast.finish()
-        if let dying { await dying.run.cancel() }   // optimisation, after the guarantee
+        if let dyingActive { await dyingActive.run.cancel() }   // optimisation,
+        for (_, settling) in dyingSettling {                    // after the
+            await settling.run.cancel()                         // guarantee
+        }
     }
 
     // MARK: - audio events (one at a time, in loop order)
@@ -150,10 +170,19 @@ public actor TranscriptionSession {
     ) async {
         switch event {
         case .speechStarted(let at):
-            // D-021 ruling 1: a new utterance retires the settling one.
             if let old = active {
-                active = nil               // ticket dead before any await
-                await old.run.cancel()
+                active = nil               // decided in this same actor step
+                if allowsOverlap && old.settling {
+                    // D-024: a batch decode SURVIVES the next utterance —
+                    // its ticket moves to the settling table, stamped with
+                    // the audio it was fed.
+                    settlingRuns[old.utterance] = Settling(
+                        run: old.run, at: time(old.startFrames + old.fedFrames))
+                } else {
+                    // D-021 ruling 1, unchanged for streaming engines: the
+                    // new utterance retires the old one; ticket dead first.
+                    await old.run.cancel()
+                }
             }
             let utterance = nextUtterance
             nextUtterance += 1
@@ -209,23 +238,36 @@ public actor TranscriptionSession {
     // MARK: - engine updates (the ticket's door)
 
     private func handleUpdate(_ update: TranscriptionUpdate, utterance: Int) {
-        // THE TICKET (AC-25, D-019): checked in the same actor step that can
-        // retire it. A dead utterance's words stop at this line.
-        guard let current = active, current.utterance == utterance else { return }
-
-        // D-021 ruling 2: stamped with the audio already fed to this run.
-        let at = time(current.startFrames + current.fedFrames)
+        // THE TICKET (AC-25, D-019, amended by D-024): checked in the same
+        // actor step that can retire it. A live ticket is either the run
+        // being fed or a settling batch decode; everything else is dead, and
+        // a dead utterance's words stop at this line.
+        let at: AudioTime
+        if let current = active, current.utterance == utterance {
+            // D-021 ruling 2: stamped with the audio already fed to this run.
+            at = time(current.startFrames + current.fedFrames)
+        } else if let settling = settlingRuns[utterance] {
+            at = settling.at               // fixed when its audio completed
+        } else {
+            return                         // the dead ticket's door
+        }
 
         switch update {
         case .partial(let text):
             publish(.partial(text, utterance: utterance, at: at))
         case .final(let text):
             publish(.final(text, utterance: utterance, at: at))
-            active = nil                   // after the final: nothing, ever (AC-28)
+            retire(utterance)              // after the final: nothing, ever (AC-28)
         case .failed(let failure):
             publish(.failed(failure, utterance: utterance, at: at))
-            active = nil                   // failure ends the utterance, not the session (AC-29)
+            retire(utterance)              // failure ends the utterance, not the session (AC-29)
         }
+    }
+
+    /// Ends an utterance's ticket wherever it lives — one funnel, no copies.
+    private func retire(_ utterance: Int) {
+        if active?.utterance == utterance { active = nil }
+        settlingRuns[utterance] = nil
     }
 
     private func publish(_ event: TranscriptEvent) {
