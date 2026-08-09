@@ -256,24 +256,28 @@ struct TranscriptionSessionTests {
         let first = await session.listen()
         let second = await session.listen()
 
-        var a: [TranscriptEvent] = []
-        var b: [TranscriptEvent] = []
+        let boxA = Collected()
+        let boxB = Collected()
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await session.run(events: feed.stream) }
+            group.addTask { for await event in first.events { await boxA.append(event) } }
+            group.addTask { for await event in second.events { await boxB.append(event) } }
 
             feed.yield(.speechStarted(at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             feed.yield(.speechEnded(at: Self.t(960)))
-            _ = await Self.fed(engine, run: 0, atLeast: 1)
+
+            // Gate on the PUBLISHED final — stop() is hard by definition, so
+            // stopping before the gate would rightly destroy the event.
+            #expect(await Self.collected(boxA, atLeast: 1), "listener A never got the final")
+            #expect(await Self.collected(boxB, atLeast: 1), "listener B never got the final")
 
             feed.finish()
             await session.stop()
-
-            for await event in first.events { a.append(event) }
-            for await event in second.events { b.append(event) }
-            group.cancelAll()
         }
 
+        let a = await boxA.events
+        let b = await boxB.events
         #expect(a == b)
         #expect(a == [.final("u0:final(1 chunks)", utterance: 0, at: Self.t(960))])
     }
