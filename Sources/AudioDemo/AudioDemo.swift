@@ -17,6 +17,26 @@ struct AudioDemo {
     static func main() async {
         setbuf(stdout, nil)
 
+        // The model phase comes FIRST — before the microphone exists.
+        // Learned live: with the mic started first, a 15-minute failed
+        // download left the ring honestly counting 43,206,464 dropped frames
+        // (900 s × 48 kHz) that nobody was reading. The ring told the truth;
+        // the ordering was the bug.
+        let engine = AppleSpeechEngine()
+        var engineReady = await engine.modelInstalled()
+        if !engineReady {
+            print("⏬ The en-US speech model is not on this Mac — downloading")
+            print("   (system-managed; this has failed on some networks before)…")
+            do {
+                try await engine.ensureModel()
+                print("✅ model installed")
+                engineReady = true
+            } catch {
+                print("⚠️  download failed: \(error)")
+                print("   Running with voice detection only — transcription disabled.")
+            }
+        }
+
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
 
@@ -40,27 +60,11 @@ struct AudioDemo {
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
                           chunkFrames: chunkFrames, preRollChunks: 10))
 
-        // The engine: present only if the model is (or becomes) available.
-        let engine = AppleSpeechEngine()
-        var transcription: TranscriptionSession?
-        if await engine.modelInstalled() {
-            transcription = TranscriptionSession(
+        let transcription: TranscriptionSession? = engineReady
+            ? TranscriptionSession(
                 engine: engine,
                 config: .init(format: .init(sampleRate: sampleRate, channels: 1)))
-        } else {
-            print("⏬ The en-US speech model is not on this Mac — downloading")
-            print("   (system-managed; this has failed on some networks before)…")
-            do {
-                try await engine.ensureModel()
-                print("✅ model installed")
-                transcription = TranscriptionSession(
-                    engine: engine,
-                    config: .init(format: .init(sampleRate: sampleRate, channels: 1)))
-            } catch {
-                print("⚠️  download failed: \(error)")
-                print("   Running with voice detection only — transcription disabled.")
-            }
-        }
+            : nil
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
         print("    \(Int(sampleRate)) Hz · 20 ms chunks · 300 ms hangover · 200 ms pre-roll")
