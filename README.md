@@ -5,9 +5,13 @@ phase, every design decision logged, every claim checkable in the tests.
 
 **Phase 1 (complete):** real microphone → lock-free ring buffer → voice
 activity detection → clean speech events, delivered to many listeners.
-**Phase 2 (milestone 2a complete):** those utterances become **text, on the
-device** — one recognition per utterance, engines swappable behind one seam,
-verified live on an iPhone.
+**Phase 2 (complete):** those utterances become **text, on the device** —
+one recognition per utterance, engines swappable behind one proven seam:
+Apple's `SpeechAnalyzer` and Whisper (an opt-in product), both certified by
+the same conformance kit, both **measured** against the same recorded voice.
+The numbers and their surprises live in [BAKEOFF.md](BAKEOFF.md) — including
+the motivating anecdote the measurement then refused to confirm, and the
+production bug the instrument caught on its first real run.
 
 The problem this phase exists for is one boundary:
 
@@ -48,13 +52,15 @@ The problem this phase exists for is one boundary:
 | `EnergyVAD` | RMS threshold + hangover, pure and clockless | 8 tests, exact boundary cases |
 | `AudioPump` | the one bridge: polls on an injected clock, chunks, judges, publishes | 8 tests, exact event sequences |
 | `Broadcast` | many listeners, bounded buffers, drop-oldest, losses counted, no replay | 7 tests |
-
-| `TranscriptionSession` | one recognition per utterance; the utterance ticket; the 30 s ceiling | 8 tests, exact event sequences |
-| `ScriptedTranscriber` | an engine that misbehaves on demand — silent, defiant, failing | the ticket's sparring partner |
+| `TranscriptionSession` | one recognition per utterance; the utterance ticket; batch overlap (D-024); the 30 s ceiling | 12 tests, exact event sequences |
+| `ScriptedTranscriber` | an engine that misbehaves on demand — silent, defiant, failing, or slow-batch | the ticket's sparring partner |
 | `AppleSpeechEngine` | SpeechAnalyzer/SpeechTranscriber behind the seam | conformance-gated; verified live on iPhone |
+| `WhisperEngine` (opt-in product) | WhisperKit behind the same seam — no partials, whole-utterance, 16 kHz, honestly declared | conformance-certified on the real CoreML pipeline |
+| `WordErrorRate` + `BakeoffHarness` | the measurement kit (testing product) | 6 exact tests; one implementation for CLI and app |
 
 ```
-swift test   →   54 tests in 9 suites, green, ~0.12 s
+swift test   →   66 tests in 12 suites, green
+                 (deterministic core ~0.14 s; gated engine suites run real models where installed)
 ```
 
 Everything runs on fake time and fake audio: same result on any machine, under
@@ -276,10 +282,10 @@ iPhone, zero dropped frames.
 ## Status
 
 Phase 1 complete (ring, capture, clock, VAD, pump, events, live demo).
-Phase 2 milestone 2a complete (seam, session + ticket, scripted engine,
-conformance kit, Apple engine, iOS + terminal demos). Next: milestone 2b —
-the Whisper-class engine module and the measured engine bake-off; then
-`os_signpost` instrumentation (Phase 3). Known open item: the speech-model
+Phase 2 complete (seam + session + ticket · Apple and Whisper engines behind
+one contract · conformance kit · the measured bake-off, BAKEOFF.md · engine
+picker in the iOS demo). Next: `os_signpost` instrumentation and thermal
+work (Phase 3). Known open item: the speech-model
 download repeatedly fails on one development Mac — proven NOT to be the
 network (home Wi-Fi and iPhone hotspot fail identically; the same model
 installed first-try on an iPhone). The machine's asset system is the wall;

@@ -396,9 +396,17 @@ DECISIONS.md covers every fork below · CI green · merge commit into main.
 
 # SPEC DELTA — Milestone 2b: the second engine, and the measured bake-off
 
-> Status: **APPROVED 2026-08-09** — all five forks ruled as recommended
-> (D-023, D-024, D-025). Build order: spike → F2 semantics red-to-green →
-> the Whisper product → conformance → bake-off.
+> Status: **DELIVERED 2026-08-10.** Spike ✅ (WhisperKit proven end-to-end;
+> Hugging Face delivered where Apple's daemon could not) · D-024 overlap
+> red→green ✅ · MultiModalKitWhisper + conformance on the real pipeline ✅ ·
+> WER scorer + shared harness + bakeoff CLI ✅ · engine picker + on-device
+> bake-off in the iOS demo ✅ · BAKEOFF.md with measured rows from two
+> devices ✅. Headline: a dead heat at 12.0% WER with different failure
+> styles — the motivating anecdote was NOT confirmed, and the document says
+> so. The instrument caught two scoring faults and one production bug (the
+> Apple adapter's first-final hangup) on its way to one table.
+> Original approval 2026-08-09 — all five forks ruled as recommended
+> (D-023, D-024, D-025).
 > The motivation is field data: the on-device en_US model struggles with
 > non-native accents (found live, 2a). Whisper-class models are famously
 > robust there. Two engines behind one contract make that a measurement

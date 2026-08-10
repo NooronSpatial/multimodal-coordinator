@@ -7,8 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		020BC41DB6212E492DB28B0C /* bakeoff-reference.txt in Resources */ = {isa = PBXBuildFile; fileRef = 62811A7E85B37A1A75B7AA6F /* bakeoff-reference.txt */; };
+		20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */; };
 		2C4BDC794DC39DAD662681F3 /* MultiModalKit in Frameworks */ = {isa = PBXBuildFile; productRef = AC3E96CBCF532F30A024E805 /* MultiModalKit */; };
+		310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */ = {isa = PBXBuildFile; productRef = 91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */; };
 		423F679D2CB7551AB7C0EC22 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55B6AEB6559E79DEDA042A8 /* ContentView.swift */; };
+		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
 		91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */; };
 		DFBA24BA87E376099A8AD354 /* TranscribeDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */; };
 /* End PBXBuildFile section */
@@ -16,6 +20,8 @@
 /* Begin PBXFileReference section */
 		06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeDemoApp.swift; sourceTree = "<group>"; };
 		085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranscribeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		40D158610A62F1FCD2DBDE41 /* ryad-en.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "ryad-en.wav"; sourceTree = "<group>"; };
+		62811A7E85B37A1A75B7AA6F /* bakeoff-reference.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "bakeoff-reference.txt"; sourceTree = "<group>"; };
 		E9370469C1D7537FC640A814 /* multimodal-coordinator */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "multimodal-coordinator"; path = ../..; sourceTree = SOURCE_ROOT; };
 		F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeModel.swift; sourceTree = "<group>"; };
 		F55B6AEB6559E79DEDA042A8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -27,6 +33,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2C4BDC794DC39DAD662681F3 /* MultiModalKit in Frameworks */,
+				20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */,
+				310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -44,6 +52,7 @@
 		1E2644FDCFF5C78A0B3F2F7B = {
 			isa = PBXGroup;
 			children = (
+				AD087B7200D20CD999676332 /* multimodal-coordinator */,
 				2E8F667CCD0694F240B5057A /* Packages */,
 				CEEE7D94E833B5DD028088EB /* Sources */,
 				05B544A7EA91B5DFC964AD1C /* Products */,
@@ -56,6 +65,24 @@
 				E9370469C1D7537FC640A814 /* multimodal-coordinator */,
 			);
 			name = Packages;
+			sourceTree = "<group>";
+		};
+		A7E92375DC6692181DC170C1 /* Fixtures */ = {
+			isa = PBXGroup;
+			children = (
+				62811A7E85B37A1A75B7AA6F /* bakeoff-reference.txt */,
+				40D158610A62F1FCD2DBDE41 /* ryad-en.wav */,
+			);
+			path = Fixtures;
+			sourceTree = "<group>";
+		};
+		AD087B7200D20CD999676332 /* multimodal-coordinator */ = {
+			isa = PBXGroup;
+			children = (
+				A7E92375DC6692181DC170C1 /* Fixtures */,
+			);
+			name = "multimodal-coordinator";
+			path = ../..;
 			sourceTree = "<group>";
 		};
 		CEEE7D94E833B5DD028088EB /* Sources */ = {
@@ -76,6 +103,7 @@
 			buildConfigurationList = 3D997CD369BEE75007A2F0BC /* Build configuration list for PBXNativeTarget "TranscribeDemo" */;
 			buildPhases = (
 				1588CC8687A6E11D9A560861 /* Sources */,
+				239DED780A0A122EB46375C7 /* Resources */,
 				64DCFEB2EA1B0FBC80FF16D9 /* Frameworks */,
 			);
 			buildRules = (
@@ -85,6 +113,8 @@
 			name = TranscribeDemo;
 			packageProductDependencies = (
 				AC3E96CBCF532F30A024E805 /* MultiModalKit */,
+				0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */,
+				91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */,
 			);
 			productName = TranscribeDemo;
 			productReference = 085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */;
@@ -125,6 +155,18 @@
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		239DED780A0A122EB46375C7 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				020BC41DB6212E492DB28B0C /* bakeoff-reference.txt in Resources */,
+				63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1588CC8687A6E11D9A560861 /* Sources */ = {
@@ -338,6 +380,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MultiModalKitTesting;
+		};
+		91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MultiModalKitWhisper;
+		};
 		AC3E96CBCF532F30A024E805 /* MultiModalKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MultiModalKit;

@@ -15,18 +15,39 @@ let package = Package(
         // own tests — ManualClock, FakeMicrophone, ScriptedTranscriber —
         // without shipping a single test double inside the core product.
         .library(name: "MultiModalKitTesting", targets: ["MultiModalKitTesting"]),
+        // The second engine (D-017, D-023): OPT-IN. The core keeps zero
+        // runtime dependencies; only consumers who import this product pull
+        // WhisperKit.
+        .library(name: "MultiModalKitWhisper", targets: ["MultiModalKitWhisper"]),
         .executable(name: "audio-demo", targets: ["AudioDemo"]),
+        .executable(name: "bakeoff", targets: ["Bakeoff"]),
+    ],
+    dependencies: [
+        // Tier 2 of the dependency policy (D-016): allowed because it lives
+        // behind TranscriptionEngine and is removable in a day (D-023).
+        .package(url: "https://github.com/argmaxinc/argmax-oss-swift", from: "1.1.0"),
     ],
     targets: [
         .target(name: "MultiModalKit"),
+        .target(
+            name: "MultiModalKitWhisper",
+            dependencies: [
+                "MultiModalKit",
+                .product(name: "WhisperKit", package: "argmax-oss-swift"),
+            ]
+        ),
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
         .executableTarget(
             name: "AudioDemo",
             dependencies: ["MultiModalKit"]
         ),
+        .executableTarget(
+            name: "Bakeoff",
+            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
+        ),
         .testTarget(
             name: "MultiModalKitTests",
-            dependencies: ["MultiModalKit", "MultiModalKitTesting"]
+            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
         ),
     ]
 )

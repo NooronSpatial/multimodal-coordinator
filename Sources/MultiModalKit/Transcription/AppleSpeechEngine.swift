@@ -1,5 +1,6 @@
 import AVFoundation
 import Speech
+import Synchronization
 
 /// Apple's on-device engine (`SpeechAnalyzer` + `SpeechTranscriber`), behind
 /// our seam (D-017). The session never sees a single Apple type — swap this
@@ -14,6 +15,12 @@ import Speech
 ///    can only be configured after availability is confirmed.
 /// 3. **The results stream does not end by itself** when analysis finishes —
 ///    the bridge task must be torn down explicitly, on every path.
+/// 4. **A segment final is PROGRESS, not the end.** On longer audio the
+///    transcriber finalizes per segment; a run that stops at the first
+///    `isFinal` loses everything after the first phrase. Found by the
+///    bake-off, when 46.5 s of speech came back as 14 words (1 substitution,
+///    78 deletions — the first sentence, perfect, then silence). The run's
+///    ONE final is the JOIN of all segment finals, emitted at settle.
 public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
     public let capabilities = EngineCapabilities(emitsPartials: true)
 
@@ -126,6 +133,10 @@ private final class AppleRun: TranscriptionRun, @unchecked Sendable {
     private let engineFormat: AVAudioFormat
     private let bridge: Task<Void, Never>
     private let updatesContinuation: AsyncStream<TranscriptionUpdate>.Continuation
+    /// Segment finals collected so far — the bridge appends, settle joins.
+    /// A reference box because Mutex itself is non-copyable.
+    private final class SettledBox: Sendable { let store = Mutex<[String]>([]) }
+    private let settled = SettledBox()
     private var torndown = false
 
     init(
@@ -144,17 +155,25 @@ private final class AppleRun: TranscriptionRun, @unchecked Sendable {
         self.updatesContinuation = handle
 
         let out = handle!
+        let settled = self.settled
         self.bridge = Task {
             do {
                 for try await result in transcriber.results {
                     let text = String(result.text.characters)
-                    out.yield(result.isFinal ? .final(text) : .partial(text))
-                    if result.isFinal { break }
+                    // Lesson 4: every result — settled segment or volatile
+                    // hypothesis — surfaces as a PARTIAL carrying the whole
+                    // text so far. The ONE final is emitted at settle.
+                    let joined = settled.store.withLock { box -> String in
+                        if result.isFinal { box.append(text) }
+                        let live = result.isFinal ? box : box + [text]
+                        return live.joined(separator: " ")
+                    }
+                    out.yield(.partial(joined.trimmingCharacters(in: .whitespaces)))
                 }
             } catch {
                 out.yield(.failed(.engineFailed(String(describing: error))))
+                out.finish()   // error is terminal; settle's yields become no-ops
             }
-            out.finish()
         }
     }
 
@@ -201,9 +220,14 @@ private final class AppleRun: TranscriptionRun, @unchecked Sendable {
         guard !torndown else { return }
         torndown = true
         feedContinuation.finish()
-        // Settle: the engine delivers its final through the bridge, which
-        // ends itself on isFinal. Then make sure the analyzer is closed.
+        // Settle: finalize flushes the remaining segments through the
+        // bridge as finals. Then — reader first, so nothing can speak after
+        // the final — the ONE final is the join of every settled segment.
         try? await analyzer.finalizeAndFinishThroughEndOfInput()
+        bridge.cancel()
+        let joined = settled.store.withLock { $0.joined(separator: " ") }
+        updatesContinuation.yield(.final(joined.trimmingCharacters(in: .whitespaces)))
+        updatesContinuation.finish()
     }
 
     func cancel() async {

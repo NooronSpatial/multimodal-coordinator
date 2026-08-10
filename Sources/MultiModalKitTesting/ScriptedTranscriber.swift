@@ -24,6 +24,11 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
         case silent
         case failOnOpen(TranscriptionFailure)
         case failWhileRunning(afterChunks: Int, TranscriptionFailure)
+        /// The batch engine (D-024): no partials, and the final arrives on
+        /// `finishAudio` — or, with `manualRelease`, only when the test calls
+        /// `releaseFinal(run:)`, so a final can arrive AFTER the next
+        /// utterance began. Conformant: `cancel` ends the stream, no final.
+        case batch(manualRelease: Bool)
     }
 
     public struct RunRecord: Sendable {
@@ -39,13 +44,45 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
         var continuations: [Int: AsyncStream<TranscriptionUpdate>.Continuation] = [:]
     }
 
-    public let capabilities = EngineCapabilities(emitsPartials: true)
+    public let capabilities: EngineCapabilities
 
     private let plans: [RunPlan]
     private let state = Mutex(State())
 
-    public init(plans: [RunPlan]) {
+    public init(
+        plans: [RunPlan],
+        capabilities: EngineCapabilities = EngineCapabilities(emitsPartials: true)
+    ) {
         self.plans = plans
+        self.capabilities = capabilities
+    }
+
+    /// A batch engine whose finals are released by hand — the slow decoder,
+    /// scripted (D-024's sparring partner).
+    public static func batch(runs: Int, manualRelease: Bool = true) -> ScriptedTranscriber {
+        ScriptedTranscriber(
+            plans: Array(repeating: .batch(manualRelease: manualRelease), count: runs),
+            capabilities: EngineCapabilities(
+                emitsPartials: false, wantsWholeUtterance: true, requiredSampleRate: 16_000))
+    }
+
+    /// Delivers the batch final NOW — the moment the "decode" finishes.
+    /// Conformant twin of `forceFinal`: exactly once, then the stream ends.
+    public func releaseFinal(run index: Int) {
+        let (final, continuation) = state.withLock {
+            state -> (String?, AsyncStream<TranscriptionUpdate>.Continuation?) in
+            guard index < state.records.count,
+                  state.records[index].audioFinished,
+                  !state.records[index].emittedFinal,
+                  !state.records[index].cancelled else { return (nil, nil) }
+            state.records[index].emittedFinal = true
+            let count = state.records[index].fedChunks.count
+            return ("u\(index):final(\(count) chunks)", state.continuations[index])
+        }
+        if let final {
+            continuation?.yield(.final(final))
+            continuation?.finish()
+        }
     }
 
     // MARK: - the record, for assertions
@@ -119,8 +156,12 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
         let (final, continuation) = state.withLock {
             state -> (String?, AsyncStream<TranscriptionUpdate>.Continuation?) in
             state.records[index].audioFinished = true
-            guard case .normal = planFor(index), !state.records[index].emittedFinal else {
-                return (nil, nil)   // silent stays silent; dead stays dead
+            switch planFor(index) {
+            case .normal, .batch(manualRelease: false): break
+            default: return (nil, nil)  // silent stays silent; manual batch waits
+            }
+            guard !state.records[index].emittedFinal else {
+                return (nil, nil)   // dead stays dead
             }
             state.records[index].emittedFinal = true
             let count = state.records[index].fedChunks.count
@@ -137,7 +178,7 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
             state -> AsyncStream<TranscriptionUpdate>.Continuation? in
             state.records[index].cancelled = true
             if case .silent = planFor(index) { return nil }   // defiance: ignore it
-            return state.continuations[index]
+            return state.continuations[index]   // batch and normal: conformant
         }
         continuation?.finish()   // a conformant engine ends the stream, no final
     }
