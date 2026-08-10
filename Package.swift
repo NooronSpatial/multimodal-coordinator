@@ -20,6 +20,7 @@ let package = Package(
         // WhisperKit.
         .library(name: "MultiModalKitWhisper", targets: ["MultiModalKitWhisper"]),
         .executable(name: "audio-demo", targets: ["AudioDemo"]),
+        .executable(name: "bakeoff", targets: ["Bakeoff"]),
     ],
     dependencies: [
         // Tier 2 of the dependency policy (D-016): allowed because it lives
@@ -39,6 +40,10 @@ let package = Package(
         .executableTarget(
             name: "AudioDemo",
             dependencies: ["MultiModalKit"]
+        ),
+        .executableTarget(
+            name: "Bakeoff",
+            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
         ),
         .testTarget(
             name: "MultiModalKitTests",

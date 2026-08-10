@@ -72,7 +72,14 @@ public actor WhisperEngine: TranscriptionEngine {
         let pipeline = try await loadedPipeline()
         do {
             let results = try await pipeline.transcribe(audioArray: samples)
-            return results.map(\.text).joined(separator: " ")
+            let joined = results.map(\.text).joined(separator: " ")
+            // Whisper emits non-speech CONTROL tokens like [BLANK_AUDIO] or
+            // [MUSIC]; they are markers, not words a person said — stripped
+            // here so no consumer ever mistakes them for transcription.
+            let stripped = joined.replacingOccurrences(
+                of: #"\[[A-Za-z_ ]+\]"#, with: "", options: .regularExpression)
+            return stripped
+                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
                 .trimmingCharacters(in: .whitespaces)
         } catch {
             throw TranscriptionFailure.engineFailed(String(describing: error))
