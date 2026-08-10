@@ -52,13 +52,15 @@ The problem this phase exists for is one boundary:
 | `EnergyVAD` | RMS threshold + hangover, pure and clockless | 8 tests, exact boundary cases |
 | `AudioPump` | the one bridge: polls on an injected clock, chunks, judges, publishes | 8 tests, exact event sequences |
 | `Broadcast` | many listeners, bounded buffers, drop-oldest, losses counted, no replay | 7 tests |
-
-| `TranscriptionSession` | one recognition per utterance; the utterance ticket; the 30 s ceiling | 8 tests, exact event sequences |
-| `ScriptedTranscriber` | an engine that misbehaves on demand — silent, defiant, failing | the ticket's sparring partner |
+| `TranscriptionSession` | one recognition per utterance; the utterance ticket; batch overlap (D-024); the 30 s ceiling | 12 tests, exact event sequences |
+| `ScriptedTranscriber` | an engine that misbehaves on demand — silent, defiant, failing, or slow-batch | the ticket's sparring partner |
 | `AppleSpeechEngine` | SpeechAnalyzer/SpeechTranscriber behind the seam | conformance-gated; verified live on iPhone |
+| `WhisperEngine` (opt-in product) | WhisperKit behind the same seam — no partials, whole-utterance, 16 kHz, honestly declared | conformance-certified on the real CoreML pipeline |
+| `WordErrorRate` + `BakeoffHarness` | the measurement kit (testing product) | 6 exact tests; one implementation for CLI and app |
 
 ```
-swift test   →   54 tests in 9 suites, green, ~0.12 s
+swift test   →   66 tests in 12 suites, green
+                 (deterministic core ~0.14 s; gated engine suites run real models where installed)
 ```
 
 Everything runs on fake time and fake audio: same result on any machine, under
