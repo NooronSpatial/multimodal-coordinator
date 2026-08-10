@@ -37,18 +37,54 @@ Apple M2 Pro · macOS 26.6.1 · WhisperKit (argmax-oss-swift 1.1.0)
 
 ## Results
 
-| Engine | WER | sub | ins | del | decode settle | model on disk |
-|---|---|---|---|---|---|---|
-| Whisper base (WhisperKit) | **12.0%** | 7 | 2 | 2 | 0.82 s | 142 MB |
-| Apple SpeechAnalyzer (en_US) | *pending* | — | — | — | — | system-managed |
+| Engine | WER | sub | ins | del | decode settle | device | model on disk |
+|---|---|---|---|---|---|---|---|
+| Apple SpeechAnalyzer (en_US) | **12.0%** | 9 | 0 | 2 | 0.62 s | iPhone | system-managed |
+| Whisper base (WhisperKit) | **12.0%** | 7 | 2 | 2 | 0.75 s | iPhone | 142 MB |
+| Whisper base (WhisperKit) | **12.0%** | 7 | 2 | 2 | 0.82 s | Mac (Apple Silicon) | 142 MB |
 
-**Why the Apple column is pending:** this Mac's asset daemon refuses the
-speech model download (machine-side, proven by elimination — see README).
-The column arrives from an iPhone via the demo's engine picker, or from this
-Mac after the next macOS update. It is left visibly empty rather than
-quietly omitted.
+The iPhone rows come from the demo app's bake-off button feeding the SAME
+bundled fixture through both engines. The Apple engine cannot run on the
+development Mac (its asset daemon refuses the model — see README), so its
+row comes from the phone only.
 
-## What Whisper base heard (verbatim)
+## Findings — read them all, they do not flatter anyone
+
+**1. A dead heat.** The anecdote that motivated this milestone — "the Apple
+model struggles with this accent" (milestone 2a field impression) — is NOT
+confirmed on read-aloud speech at equal conditions: both engines score
+12.0% on the same audio. The honest caveat cuts both ways: this fixture is
+one speaker reading one prepared paragraph; the 2a impression came from
+spontaneous conversational speech, which is a different and harder fixture —
+a candidate for a follow-up recording, not a conclusion by assumption.
+
+**2. They fail differently.** Apple substitutes (9) and never invents a
+word; Whisper invents a little (2 insertions) but substitutes less (7).
+For a downstream consumer, substitution-heavy and hallucination-light are
+different risk profiles — which one matters depends on the product.
+
+**3. Latency and shape favor Apple for conversation.** 0.62 s settle vs
+0.75 s — and Apple streams live partials while Whisper stays silent until
+the decode. For a conversational screen, that difference is the UX.
+
+**4. Whisper's real trump card is availability.** It is the only engine
+that can exist on the development Mac at all (Hugging Face delivered in
+34 s where Apple's asset daemon has failed for days), it has no per-app
+asset allocation ceremony, and its models are swappable files.
+
+**5. The instrument out-earned the comparison.** On its way to one table,
+the bake-off caught two scoring faults (digits, control tokens — disclosed
+above) and one PRODUCTION bug: the Apple adapter stopped at the first
+segment final, so 46.5 s of speech came back as 14 words (85.9% "WER" — 1
+substitution, 78 deletions; the arithmetic identified the bug: 92−78 = the
+first sentence exactly). A real utterance with a long mid-sentence pause
+would have lost its tail the same way. Fixed; lesson 4 in the adapter.
+
+**6. Reproducibility held.** Whisper scored an identical 12.0% with
+identical error counts on two different machines — the instrument measures
+the same thing twice, which is what makes everything above worth reading.
+
+## What Whisper base heard (verbatim, iPhone and Mac identical)
 
 > My name is Riyad and I am testing two speech engines on this device. The
 > audio travels through a ring buffer into pump that cuts it into small
