@@ -48,6 +48,15 @@ struct ContentView: View {
 
     private var transcriber: some View {
         VStack(spacing: 16) {
+            Picker("Engine", selection: Bindable(model).choice) {
+                ForEach(TranscribeModel.EngineChoice.allCases) { choice in
+                    Text(choice.rawValue).tag(choice)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(model.isListening)
+            .padding(.horizontal)
+
             List {
                 ForEach(model.utterances) { utterance in
                     HStack(alignment: .top) {
@@ -68,6 +77,37 @@ struct ContentView: View {
                 if model.utterances.isEmpty && model.isListening {
                     Text("Say something — it stops and listens.")
                         .foregroundStyle(.secondary)
+                }
+
+                if !model.isListening {
+                    Section("Bake-off — same fixture as the Mac") {
+                        if let status = model.bakeoffStatus {
+                            Label(status, systemImage: "hourglass")
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Button {
+                                Task { await model.runBakeoff() }
+                            } label: {
+                                Label("Run bake-off (both engines)", systemImage: "scalemass")
+                            }
+                        }
+                        ForEach(model.bakeoffRows, id: \.engineName) { row in
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(row.engineName).font(.subheadline.bold())
+                                Text(String(format: "WER %.1f%% · %d sub · %d ins · %d del · settle %.2f s",
+                                            row.score.wer * 100, row.score.substitutions,
+                                            row.score.insertions, row.score.deletions,
+                                            row.decodeSeconds))
+                                    .font(.caption.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        if !model.bakeoffRows.isEmpty {
+                            ShareLink(item: model.bakeoffMarkdown) {
+                                Label("Share table (markdown)", systemImage: "square.and.arrow.up")
+                            }
+                        }
+                    }
                 }
             }
             .listStyle(.plain)

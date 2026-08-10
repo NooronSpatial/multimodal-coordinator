@@ -21,63 +21,23 @@ guard let reference = try? String(contentsOfFile: referencePath, encoding: .utf8
     print("cannot read reference: \(referencePath)"); exit(1)
 }
 
-// Load the whole WAV as Float samples in its native rate.
-let file: AVAudioFile
-do { file = try AVAudioFile(forReading: URL(fileURLWithPath: wavPath)) }
+// One harness for CLI and app: same chunking, same settle, same scoring.
+let loaded: (samples: [Float], sampleRate: Double)
+do { loaded = try BakeoffHarness.loadAudio(URL(fileURLWithPath: wavPath)) }
 catch { print("cannot read wav: \(wavPath) — \(error)"); exit(1) }
-let format = file.processingFormat
-let frameCount = AVAudioFrameCount(file.length)
-guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount),
-      (try? file.read(into: buffer)) != nil,
-      let channel = buffer.floatChannelData else {
-    print("cannot decode wav"); exit(1)
-}
-let samples = Array(UnsafeBufferPointer(start: channel[0], count: Int(buffer.frameLength)))
-let sampleRate = format.sampleRate
+let samples = loaded.samples
+let sampleRate = loaded.sampleRate
 let seconds = Double(samples.count) / sampleRate
 print("audio: \(wavPath) — \(String(format: "%.1f", seconds)) s at \(Int(sampleRate)) Hz")
 print("reference: \(WordErrorRate.normalize(reference).count) words\n")
 
-struct Measurement {
-    let engineName: String
-    let text: String
-    let score: WordErrorRate.Score
-    let decodeSeconds: Double
+func run(_ engine: any TranscriptionEngine, label: String) async throws -> BakeoffMeasurement {
+    try await BakeoffHarness.measure(engine: engine, label: label,
+                                     samples: samples, sampleRate: sampleRate,
+                                     reference: reference)
 }
 
-/// Feeds the whole file through ONE run of the engine, 20 ms at a time,
-/// then settles and waits for the final. Returns text + decode latency
-/// (finishAudio → final wall-clock — the settle cost a user would feel).
-func run(_ engine: any TranscriptionEngine, label: String) async throws -> Measurement {
-    let run = try await engine.openRun(
-        format: AudioStreamFormat(sampleRate: sampleRate, channels: 1))
-    let chunkFrames = Int(sampleRate * 0.02)
-    var offset = 0
-    while offset < samples.count {
-        let end = min(offset + chunkFrames, samples.count)
-        let chunk = MultiModalKit.AudioChunk(
-            samples: Array(samples[offset..<end]),
-            start: AudioTime(frames: offset, sampleRate: sampleRate))
-        await run.feed(chunk)
-        offset = end
-    }
-    let settleStart = Date()
-    await run.finishAudio()
-    var text = ""
-    for await update in run.updates {
-        switch update {
-        case .partial(let partial): text = partial
-        case .final(let final): text = final
-        case .failed(let failure): throw failure
-        }
-    }
-    let decodeSeconds = Date().timeIntervalSince(settleStart)
-    return Measurement(engineName: label, text: text,
-                       score: WordErrorRate.score(reference: reference, hypothesis: text),
-                       decodeSeconds: decodeSeconds)
-}
-
-var measurements: [Measurement] = []
+var measurements: [BakeoffMeasurement] = []
 
 // — Apple —
 let apple = AppleSpeechEngine()

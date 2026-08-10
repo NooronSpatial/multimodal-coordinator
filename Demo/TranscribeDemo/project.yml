@@ -15,10 +15,21 @@ targets:
   TranscribeDemo:
     type: application
     platform: iOS
-    sources: [Sources]
+    sources:
+      - Sources
+      # The committed bake-off fixtures ride inside the app, so the phone
+      # measures EXACTLY the same audio as the Mac (AC-43).
+      - path: ../../Fixtures/ryad-en.wav
+        buildPhase: resources
+      - path: ../../Fixtures/bakeoff-reference.txt
+        buildPhase: resources
     dependencies:
       - package: multimodal-coordinator
         product: MultiModalKit
+      - package: multimodal-coordinator
+        product: MultiModalKitTesting
+      - package: multimodal-coordinator
+        product: MultiModalKitWhisper
     settings:
       base:
         CODE_SIGN_STYLE: Automatic

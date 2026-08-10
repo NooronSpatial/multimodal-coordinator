@@ -1,5 +1,7 @@
 import AVFAudio
 import MultiModalKit
+import MultiModalKitTesting
+import MultiModalKitWhisper
 import Observation
 
 /// The demo's one view model: microphone → ring → pump → session → screen.
@@ -11,6 +13,12 @@ import Observation
 @MainActor
 @Observable
 final class TranscribeModel {
+    enum EngineChoice: String, CaseIterable, Identifiable {
+        case apple = "Apple"
+        case whisper = "Whisper"
+        var id: String { rawValue }
+    }
+
     enum EngineState: Equatable {
         case checking
         case modelMissing
@@ -32,26 +40,99 @@ final class TranscribeModel {
     private(set) var utterances: [Utterance] = []
     private(set) var droppedFrames = 0
 
-    private let engine = AppleSpeechEngine()
+    var choice: EngineChoice = .apple {
+        didSet {
+            guard choice != oldValue, !isListening else { return }
+            engineState = .checking
+            Task { await checkModel() }
+        }
+    }
+    private(set) var bakeoffRows: [BakeoffMeasurement] = []
+    private(set) var bakeoffStatus: String?
+
+    private let appleEngine = AppleSpeechEngine()
+    private let whisperEngine = WhisperEngine()
+    private var engine: any TranscriptionEngine {
+        choice == .apple ? appleEngine : whisperEngine
+    }
     private var microphone: MicrophoneSource?
     private var pipeline: Task<Void, Never>?
 
     // MARK: - the model asset (the app's job, never the library's)
 
     func checkModel() async {
-        engineState = await engine.modelInstalled() ? .ready : .modelMissing
+        let installed = switch choice {
+        case .apple: await appleEngine.modelInstalled()
+        case .whisper: await whisperEngine.modelInstalled()
+        }
+        engineState = installed ? .ready : .modelMissing
     }
 
     func downloadModel() async {
         engineState = .downloading
         do {
-            try await engine.ensureModel()
+            switch choice {
+            case .apple: try await appleEngine.ensureModel()
+            case .whisper: try await whisperEngine.ensureModel()
+            }
             engineState = .ready
         } catch let failure as TranscriptionFailure {
             engineState = .failed(Self.describe(failure))
         } catch {
             engineState = .failed(String(describing: error))
         }
+    }
+
+    // MARK: - the bake-off (AC-43): the SAME committed fixture as the Mac
+
+    func runBakeoff() async {
+        guard !isListening, bakeoffStatus == nil else { return }
+        bakeoffRows = []
+        guard let wav = Bundle.main.url(forResource: "ryad-en", withExtension: "wav"),
+              let refURL = Bundle.main.url(forResource: "bakeoff-reference", withExtension: "txt"),
+              let reference = try? String(contentsOf: refURL, encoding: .utf8),
+              let audio = try? BakeoffHarness.loadAudio(wav) else {
+            bakeoffStatus = "fixtures missing from the bundle"
+            return
+        }
+
+        let engines: [(String, any TranscriptionEngine, Bool)] = [
+            ("Apple SpeechAnalyzer", appleEngine, await appleEngine.modelInstalled()),
+            ("Whisper base", whisperEngine, await whisperEngine.modelInstalled()),
+        ]
+        for (name, engine, installed) in engines {
+            guard installed else {
+                bakeoffStatus = "\(name): model not installed — skipped"
+                continue
+            }
+            bakeoffStatus = "\(name): warm-up (excluded)…"
+            _ = try? await BakeoffHarness.measure(
+                engine: engine, label: "warmup",
+                samples: audio.samples, sampleRate: audio.sampleRate, reference: reference)
+            bakeoffStatus = "\(name): measuring…"
+            do {
+                let row = try await BakeoffHarness.measure(
+                    engine: engine, label: name,
+                    samples: audio.samples, sampleRate: audio.sampleRate, reference: reference)
+                bakeoffRows.append(row)
+            } catch {
+                bakeoffStatus = "\(name): failed — \(error)"
+            }
+        }
+        bakeoffStatus = nil
+    }
+
+    /// The rows as a markdown table — copy straight into BAKEOFF.md.
+    var bakeoffMarkdown: String {
+        var lines = ["| Engine | WER | sub | ins | del | decode settle | device |",
+                     "|---|---|---|---|---|---|---|"]
+        for row in bakeoffRows {
+            lines.append(String(
+                format: "| %@ | **%.1f%%** | %d | %d | %d | %.2f s | iPhone |",
+                row.engineName, row.score.wer * 100, row.score.substitutions,
+                row.score.insertions, row.score.deletions, row.decodeSeconds))
+        }
+        return lines.joined(separator: "\n")
     }
 
     // MARK: - the pipeline
