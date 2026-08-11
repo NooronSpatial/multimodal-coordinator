@@ -8,7 +8,9 @@ opinion. Slots marked **⟨fill⟩** await the field session.
 ## Environment
 
 - Mac numbers: Apple Silicon, macOS 26.6.1 (the development machine).
-- Device numbers: **⟨fill: iPhone model, iOS version, date of session⟩**
+- Device numbers: Ryad's iPhone, iOS 26 — field sessions of 2026-08-11.
+  (Run 1: found the span leak. Run 2: found the concurrent decodes. Run 3:
+  **⟨fill: the clean capture after both fixes⟩**)
 - Pipeline configuration: 48 kHz mono · 10 ms poll · 20 ms chunks ·
   200 ms pre-roll · 300 ms hangover · 30 s ceiling.
 
@@ -41,10 +43,11 @@ proves signposts cheap where they live, not free where they're banned.
 
 | Metric | Value | Source |
 |---|---|---|
-| `pump.drain` cadence | **⟨fill: expect ~100/s⟩** | Instruments timeline |
-| `pump.drain` typical duration, silence | **⟨fill: expect µs-scale⟩** | Instruments |
-| App CPU %, listening, nobody speaking | **⟨fill⟩** | Instruments / Xcode gauge |
-| App memory, listening, models loaded | **⟨fill: per engine⟩** | Xcode gauge |
+| `pump.drain` cadence | ~100/s (1,460 drains / ~14.6 s listening) | run 2 |
+| `pump.drain` avg duration | **11.70 µs** (min 83 ns empty · max 496 µs) | run 2 |
+| Pump's total CPU share while listening | 17.08 ms / 14.6 s ≈ **0.12 % of one core** | run 2, arithmetic |
+| App CPU %, listening, nobody speaking | **⟨fill: plain run, Xcode gauge — not under Instruments⟩** | — |
+| App memory, listening, models loaded | **⟨fill: per engine⟩** | — |
 
 ## 3. Per-utterance cost — a real sentence on each engine (AC-51)
 
@@ -53,9 +56,9 @@ sentences per engine; report the middle one.
 
 | Span | Apple | Whisper base | Source |
 |---|---|---|---|
-| `session.utterance` (start → retire) | **⟨fill⟩** | **⟨fill⟩** | Instruments |
-| `session.settle` (the felt pause) | **⟨fill⟩** | **⟨fill⟩** | Instruments |
-| engine decode (`apple.settle` / `whisper.decode`) | **⟨fill⟩** | **⟨fill⟩** | Instruments |
+| `session.utterance` (start → retire) | **⟨fill, run 3⟩** | **⟨fill, run 3⟩** | Instruments |
+| `session.settle` (the felt pause) | fastest observed **54 ms** | **⟨fill, run 3 — run 2's numbers were contention, not decoding⟩** | run 2 / run 3 |
+| engine decode (`apple.settle` / `whisper.decode`) | **79 ms** avg (54–129, n=4) | **⟨fill, run 3⟩** | run 2 / run 3 |
 | Reference point: 46.5 s fixture decode | 0.62 s | 0.75–0.82 s | BAKEOFF.md, both devices |
 
 ## 4. Sustained run — thermal observation (AC-51)
@@ -65,7 +68,7 @@ watched, Instruments running.
 
 | Observation | Value |
 |---|---|
-| Thermal state reached (badge) | **⟨fill: cool / warm / hot⟩** |
+| Thermal state reached (badge) | **warm (.fair)** during run 2's concurrent whisper decodes — re-observe after the serialization fix: **⟨fill⟩** |
 | Time to first transition, if any | **⟨fill⟩** |
 | `whisper.decode` drift (first vs last minutes) | **⟨fill: does heat slow decodes?⟩** |
 | `dropped` counter after the run | **⟨fill: expect 0⟩** |
@@ -86,6 +89,26 @@ whole growing buffer every pass. The arithmetic, now with measured inputs:
 
 The rejection stands or falls with this table — reasoning now has numbers
 under it, which was the whole point.
+
+## What the instrument caught (before any table was even full)
+
+The first two field sessions found two real bugs the entire deterministic
+suite could not see:
+
+1. **The span leak (run 1).** Settle totals exceeded utterance totals —
+   geometrically impossible by design — because the streaming-retirement
+   branch dropped its spans and Instruments closed the orphans at
+   recording-stop. One summary table convicted one branch.
+2. **The concurrent decodes (run 2).** Three `whisper.decode` intervals
+   overlapping and finishing together: the engine claimed "one decode at a
+   time, by actor isolation" — but an actor does not hold isolation across
+   an await. The reentrancy law, violated by the code that preaches it.
+   Three transcribes fought over one Neural Engine; each was ~3–5× slower
+   than it should have been, and the device climbed to *warm* doing it.
+   Fixed with a real waiter queue; run 3 must show zero overlaps.
+
+An observability phase that finds two correctness bugs before filling its
+own tables has already paid for itself.
 
 ## Not measured (and said so)
 
