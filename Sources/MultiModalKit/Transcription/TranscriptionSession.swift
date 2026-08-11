@@ -84,10 +84,26 @@ public actor TranscriptionSession {
     private var merge: AsyncStream<Input>.Continuation?
     private var isStopped = false
 
-    public init(engine: any TranscriptionEngine, config: Config = Config()) {
+    private let diagnostics: PipelineDiagnostics?
+
+    public init(
+        engine: any TranscriptionEngine,
+        config: Config = Config(),
+        diagnostics: PipelineDiagnostics? = nil
+    ) {
         self.engine = engine
         self.config = config
-        self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
+        self.diagnostics = diagnostics
+        let onDrop: (@Sendable (Int, Int) -> Void)?
+        if let diagnostics {
+            onDrop = { id, total in
+                diagnostics.noteListenerLoss(listenerID: id, totalDropped: total)
+            }
+        } else {
+            onDrop = nil
+        }
+        self.broadcast = Broadcast(
+            bufferCapacity: config.listenerBufferCapacity, onListenerDrop: onDrop)
         self.allowsOverlap = engine.capabilities.wantsWholeUtterance
         let seconds = Double(config.maximumUtterance.components.seconds)
             + Double(config.maximumUtterance.components.attoseconds) * 1e-18
@@ -153,6 +169,7 @@ public actor TranscriptionSession {
         let dyingSettling = settlingRuns
         active = nil                       // every ticket dies HERE — no gap
         settlingRuns.removeAll()
+        diagnostics?.noteSettlingDecodes(count: 0)
         merge?.yield(.stopped)
         broadcast.finish()
         if let dyingActive { await dyingActive.run.cancel() }   // optimisation,
@@ -177,6 +194,7 @@ public actor TranscriptionSession {
                     // its ticket moves to the settling table, stamped with
                     // the audio it was fed.
                     settlingRuns[old.utterance] = Settling(run: old.run, at: time(old.startFrames + old.fedFrames))
+                    diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
                 } else {
                     // D-021 ruling 1, unchanged for streaming engines: the
                     // new utterance retires the old one; ticket dead first.
@@ -266,7 +284,9 @@ public actor TranscriptionSession {
     /// Ends an utterance's ticket wherever it lives — one funnel, no copies.
     private func retire(_ utterance: Int) {
         if active?.utterance == utterance { active = nil }
-        settlingRuns[utterance] = nil
+        if settlingRuns.removeValue(forKey: utterance) != nil {
+            diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
+        }
     }
 
     private func publish(_ event: TranscriptEvent) {

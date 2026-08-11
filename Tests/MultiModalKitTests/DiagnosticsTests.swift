@@ -164,3 +164,95 @@ struct DiagnosticsTests {
         #expect(Bool(true), "reaching here IS the assertion: nothing hung")
     }
 }
+
+/// Integration: the PIPELINE reports, not just the seam (AC-48 end to end).
+@Suite(.timeLimit(.minutes(1)))
+struct DiagnosticsWiringTests {
+
+    actor Collected {
+        private(set) var events: [HealthEvent] = []
+        func append(_ event: HealthEvent) { events.append(event) }
+    }
+
+    @Test("The pump mirrors ring drops into health, same numbers, same stamp")
+    func pumpMirrorsRingDrops() async {
+        let diagnostics = PipelineDiagnostics(thermal: ScriptedThermalProvider())
+        let ring = AudioRing.create(minimumCapacity: 2048)
+        let clock = ManualClock()
+        let pump = AudioPump(
+            consumer: ring.consumer,
+            vad: EnergyVAD(config: .init(threshold: 0.25, hangoverFrames: 1920)),
+            clock: clock,
+            config: .init(sampleRate: 48_000, pollInterval: .milliseconds(10),
+                          chunkFrames: 960, preRollChunks: 2),
+            diagnostics: diagnostics)
+        let box = Collected()
+        let health = diagnostics.health()
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await pump.run() }
+            group.addTask { for await event in health.events { await box.append(event) } }
+
+            for _ in 0..<40_000 {
+                if clock.sleeperCount >= 1 { break }
+                await Task.yield()
+            }
+            // 3072 frames into a 2048 ring ⇒ exactly 1024 lost (the ring's contract:
+            // three microphone-sized writes).
+            let samples = [Float](repeating: 0.5, count: 1024)
+            for _ in 0..<3 { samples.withUnsafeBufferPointer { ring.producer.write($0) } }
+            await clock.advance(by: .milliseconds(10))
+
+            #expect(await DiagnosticsTests.until { await !box.events.isEmpty },
+                    "the drop never reached health")
+            await pump.stop()
+            diagnostics.stop()
+        }
+
+        #expect(await box.events.first == .ringDropped(
+            frames: 1024, at: AudioTime(frames: 0, sampleRate: 48_000)))
+    }
+
+    @Test("The session's settling table reports its count changes")
+    func sessionReportsSettlingCounts() async {
+        let diagnostics = PipelineDiagnostics(thermal: ScriptedThermalProvider())
+        let engine = ScriptedTranscriber.batch(runs: 2)
+        let session = TranscriptionSession(engine: engine, diagnostics: diagnostics)
+        var handle: AsyncStream<AudioEvent>.Continuation!
+        let feed = AsyncStream<AudioEvent> { handle = $0 }
+        let input = handle!
+        let box = Collected()
+        let health = diagnostics.health()
+        func t(_ frames: Int) -> AudioTime { AudioTime(frames: frames, sampleRate: 48_000) }
+        func chunk(at frames: Int) -> AudioChunk {
+            AudioChunk(samples: [Float](repeating: 0.5, count: 960), start: t(frames))
+        }
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await session.run(events: feed) }
+            group.addTask { for await event in health.events { await box.append(event) } }
+
+            input.yield(.speechStarted(at: t(0)))
+            input.yield(.audioSegment(chunk(at: 0)))
+            input.yield(.speechEnded(at: t(960)))
+            #expect(await DiagnosticsTests.until { engine.record(ofRun: 0)?.audioFinished == true })
+
+            input.yield(.speechStarted(at: t(9600)))       // №0 moves to settling → count 1
+            #expect(await DiagnosticsTests.until { await box.events.contains(.settlingDecodes(count: 1)) },
+                    "the settling count never rose")
+
+            engine.releaseFinal(run: 0)                    // №0's final → count 0
+            #expect(await DiagnosticsTests.until { await box.events.contains(.settlingDecodes(count: 0)) },
+                    "the settling count never fell")
+
+            input.finish()
+            await session.stop()
+            diagnostics.stop()
+        }
+
+        let settling = await box.events.filter {
+            if case .settlingDecodes = $0 { true } else { false }
+        }
+        #expect(settling == [.settlingDecodes(count: 1), .settlingDecodes(count: 0)])
+    }
+}
