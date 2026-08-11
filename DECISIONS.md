@@ -524,3 +524,50 @@ against the reference · capture→final wall-clock latency · model size on
 disk · peak memory. **Stated as NOT measured:** battery, thermal, other
 languages, far-field microphones. Runners: a macOS CLI and the iOS demo's
 engine picker — the iPhone being the one machine holding both models today.
+
+---
+
+## D-026 — Signposts: dark audio thread, bright everywhere else (F1, F2, F5)
+
+**Where they live (F1 = A):** pump, session, and engines only. The audio
+thread stays completely dark — `os_signpost`'s fast path is cheap, but its
+slow paths (full trace buffer, first-use registration, formatting) are
+closed source and not documented real-time-safe. The asymmetry ruled:
+nanosecond-scale numbers for a memcpy-plus-two-atomics callback, against an
+audible glitch whose cause vanishes when you remove the instruments to look
+for it. The capture side's story still crosses through the atomics it
+already writes; ring occupancy at drain IS capture pressure, measured one
+step past the legal border. *Rejected:* signposting the tap callback — the
+iron laws do not take probabilistic exceptions; that absoluteness is what
+makes them defensible.
+
+**Release builds keep them (F2 = A):** near-zero when no instrument
+listens, and an excellent product is diagnosable in the field, not only in
+the lab.
+
+**The seam is injected, never global (F5 = A):** a `PipelineDiagnostics`
+object handed in like the clock. *Rejected:* a static logger reachable from
+anywhere — globals are how observability quietly becomes coupling.
+
+---
+
+## D-027 — Health is a stream; thermal is observed, never obeyed (F3, F4)
+
+**Delivery (F3 = A):** `Broadcast<HealthEvent>` — bounded, drop-oldest,
+counted, no replay; D-012's rules unchanged. One delivery idiom everywhere:
+a consumer that learned `listen()` once knows the whole library.
+
+**Thermal (F4 = A): mechanism now, policy later.** The pipeline reports —
+thermal transitions, ring drops, listener losses, settling-decode count —
+and the CONSUMER decides. Three apps have three correct answers to
+".serious" (never degrade / degrade silently / stop entirely), and a
+library that silently picks one betrays the other two. Self-throttling
+also turns knobs blind before INSTRUMENTS.md exists: nobody yet knows
+whether the poll rhythm even registers next to one Whisper decode.
+*Deferred, not rejected:* an opt-in ThermalPolicy component returns as its
+own fork once the numbers exist — same destination, reached with evidence,
+shipped as a choice.
+
+**Thermal reaches the pipeline through a seam** (`ThermalStateProviding`):
+the real provider wraps ProcessInfo; tests script transitions by hand. No
+test ever depends on a real device's temperature.

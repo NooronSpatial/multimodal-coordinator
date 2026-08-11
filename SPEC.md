@@ -541,7 +541,9 @@ the bake-off numbers cold.
 
 # SPEC — Phase 3: instruments and self-awareness
 
-> Status: **DRAFT — awaiting sign-off.** No code before this is approved.
+> Status: **APPROVED 2026-08-11** — all five forks ruled A as recommended
+> (F1/F2/F5 → D-026, F3/F4 → D-027). Build order: thermal seam + health
+> stream red→green, then signposts, then field numbers → INSTRUMENTS.md.
 > Phase 2 ended with an honest concession: "excluded by reasoning, never
 > benchmarked." Phase 3 exists so that sentence can never be necessary
 > again — the pipeline learns to measure itself, and to notice the device

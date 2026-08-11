@@ -176,8 +176,7 @@ public actor TranscriptionSession {
                     // D-024: a batch decode SURVIVES the next utterance —
                     // its ticket moves to the settling table, stamped with
                     // the audio it was fed.
-                    settlingRuns[old.utterance] = Settling(
-                        run: old.run, at: time(old.startFrames + old.fedFrames))
+                    settlingRuns[old.utterance] = Settling(run: old.run, at: time(old.startFrames + old.fedFrames))
                 } else {
                     // D-021 ruling 1, unchanged for streaming engines: the
                     // new utterance retires the old one; ticket dead first.
