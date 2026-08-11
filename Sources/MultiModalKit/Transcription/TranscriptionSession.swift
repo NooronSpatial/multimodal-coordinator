@@ -213,6 +213,10 @@ public actor TranscriptionSession {
                 } else {
                     // D-021 ruling 1, unchanged for streaming engines: the
                     // new utterance retires the old one; ticket dead first.
+                    // Its spans end HERE — found by the first field session:
+                    // this branch dropped them, and Instruments closed the
+                    // orphans at recording-stop, inflating every statistic.
+                    endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
                     await old.run.cancel()
                 }
             }
