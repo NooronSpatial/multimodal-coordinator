@@ -135,6 +135,14 @@ struct ContentView: View {
                   systemImage: model.isSpeaking ? "waveform" : "waveform.slash")
                 .foregroundStyle(model.isSpeaking ? .green : .secondary)
                 .contentTransition(.symbolEffect(.replace))
+            // The thermal badge — the health loop, visible (D-027).
+            Label(thermalText, systemImage: "thermometer.medium")
+                .foregroundStyle(thermalColor)
+            if model.settlingCount > 0 {
+                Label("decoding ×\(model.settlingCount)", systemImage: "brain")
+                    .foregroundStyle(Color.orange)
+                    .monospacedDigit()
+            }
             Spacer()
             // The ring's honesty, on screen: frames lost, exactly counted.
             Label("dropped: \(model.droppedFrames)", systemImage: "drop")
@@ -143,6 +151,24 @@ struct ContentView: View {
         }
         .font(.footnote)
         .padding(.horizontal)
+    }
+
+    private var thermalText: String {
+        switch model.thermal {
+        case .nominal: "cool"
+        case .fair: "warm"
+        case .serious: "hot"
+        case .critical: "critical"
+        }
+    }
+
+    private var thermalColor: Color {
+        switch model.thermal {
+        case .nominal: .secondary
+        case .fair: .yellow
+        case .serious: .orange
+        case .critical: .red
+        }
     }
 
     private func icon(for utterance: TranscribeModel.Utterance) -> String {
