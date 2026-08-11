@@ -26,6 +26,12 @@ opinion. Slots marked **⟨fill⟩** await the field session.
   cost, not recognition cost), same rule as BAKEOFF.md.
 - The audio thread carries **zero** instrumentation (D-026); capture-side
   pressure is read as ring occupancy at drain.
+- **Confounds are disclosed, not discovered.** Runs 1–2 carried two,
+  declared by the speaker before run 3: the device was charging/pre-heated
+  (voids thermal attribution), and sentences ran together without real
+  pauses (utterance shapes reflect glued speech, and decode overlap was
+  constant by accident). The run-3 protocol controls both: unplugged,
+  badge-cool start, deliberate pauses.
 
 ## 1. The observer's own cost (AC-47)
 
@@ -68,7 +74,7 @@ watched, Instruments running.
 
 | Observation | Value |
 |---|---|
-| Thermal state reached (badge) | **warm (.fair)** during run 2's concurrent whisper decodes — re-observe after the serialization fix: **⟨fill⟩** |
+| Thermal state reached (badge) | run 2 showed **warm (.fair)** — but Ryad disclosed the device was charging and already hot for external reasons, so **no attribution to the pipeline is claimed**. Clean protocol for run 3+: unplug, wait until the badge itself reads *cool*, then measure. Result: **⟨fill⟩** |
 | Time to first transition, if any | **⟨fill⟩** |
 | `whisper.decode` drift (first vs last minutes) | **⟨fill: does heat slow decodes?⟩** |
 | `dropped` counter after the run | **⟨fill: expect 0⟩** |
@@ -104,8 +110,11 @@ suite could not see:
    time, by actor isolation" — but an actor does not hold isolation across
    an await. The reentrancy law, violated by the code that preaches it.
    Three transcribes fought over one Neural Engine; each was ~3–5× slower
-   than it should have been, and the device climbed to *warm* doing it.
-   Fixed with a real waiter queue; run 3 must show zero overlaps.
+   than it should have been. (The device also showed *warm* — but the
+   speaker disclosed it was charging and pre-heated for external reasons,
+   so the heat is NOT claimed as our doing. Disclosed confounds beat
+   flattering attributions.) Fixed with a real waiter queue; run 3 must
+   show zero overlaps.
 
 An observability phase that finds two correctness bugs before filling its
 own tables has already paid for itself.
