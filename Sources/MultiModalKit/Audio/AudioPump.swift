@@ -115,7 +115,11 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
             let wake = await waitForPollOrStop(until: clock.now.advanced(by: config.pollInterval))
             // Re-check after the await: stop() may have run while we waited.
             if wake == .stopped || isStopped || Task.isCancelled { break }
-            drainOnce()
+            if let signposts = diagnostics?.signposts {
+                signposts.measure("pump.drain") { drainOnce() }
+            } else {
+                drainOnce()
+            }
         }
 
         isRunning = false

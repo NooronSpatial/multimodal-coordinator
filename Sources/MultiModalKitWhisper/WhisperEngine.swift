@@ -23,10 +23,12 @@ public actor WhisperEngine: TranscriptionEngine {
     )
 
     private let model: String
+    private nonisolated let diagnostics: PipelineDiagnostics?
     private var pipeline: WhisperKit?
 
-    public init(model: String = "base") {
+    public init(model: String = "base", diagnostics: PipelineDiagnostics? = nil) {
         self.model = model
+        self.diagnostics = diagnostics
     }
 
     /// Honest disk check against WhisperKit's default hub location — no
@@ -70,6 +72,12 @@ public actor WhisperEngine: TranscriptionEngine {
     /// queue here, in order, without a lock in sight.
     func decode(_ samples: [Float]) async throws -> String {
         let pipeline = try await loadedPipeline()
+        let span = diagnostics?.signposts.begin("whisper.decode")
+        defer { if let span { diagnostics?.signposts.end(span) } }
+        return try await decodeBody(pipeline, samples)
+    }
+
+    private func decodeBody(_ pipeline: WhisperKit, _ samples: [Float]) async throws -> String {
         do {
             let results = try await pipeline.transcribe(audioArray: samples)
             let joined = results.map(\.text).joined(separator: " ")

@@ -25,9 +25,12 @@ public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
     public let capabilities = EngineCapabilities(emitsPartials: true)
 
     private let locale: Locale
+    private let diagnostics: PipelineDiagnostics?
 
-    public init(locale: Locale = Locale(identifier: "en_US")) {
+    public init(locale: Locale = Locale(identifier: "en_US"),
+                diagnostics: PipelineDiagnostics? = nil) {
         self.locale = locale
+        self.diagnostics = diagnostics
     }
 
     /// Is the model for this engine's locale on the device right now?
@@ -112,7 +115,8 @@ public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
 
         return AppleRun(
             analyzer: analyzer, transcriber: transcriber, feed: feed,
-            converter: converter, ourFormat: ourFormat, engineFormat: engineFormat)
+            converter: converter, ourFormat: ourFormat, engineFormat: engineFormat,
+            signposts: diagnostics?.signposts)
     }
 }
 
@@ -132,6 +136,7 @@ private final class AppleRun: TranscriptionRun, @unchecked Sendable {
     private let ourFormat: AVAudioFormat
     private let engineFormat: AVAudioFormat
     private let bridge: Task<Void, Never>
+    private let signposts: PipelineSignposter?
     private let updatesContinuation: AsyncStream<TranscriptionUpdate>.Continuation
     /// Segment finals collected so far — the bridge appends, settle joins.
     /// A reference box because Mutex itself is non-copyable.
@@ -142,8 +147,10 @@ private final class AppleRun: TranscriptionRun, @unchecked Sendable {
     init(
         analyzer: SpeechAnalyzer, transcriber: SpeechTranscriber,
         feed: AsyncStream<AnalyzerInput>.Continuation,
-        converter: AVAudioConverter, ourFormat: AVAudioFormat, engineFormat: AVAudioFormat
+        converter: AVAudioConverter, ourFormat: AVAudioFormat, engineFormat: AVAudioFormat,
+        signposts: PipelineSignposter? = nil
     ) {
+        self.signposts = signposts
         self.analyzer = analyzer
         self.feedContinuation = feed
         self.converter = converter
@@ -223,7 +230,13 @@ private final class AppleRun: TranscriptionRun, @unchecked Sendable {
         // Settle: finalize flushes the remaining segments through the
         // bridge as finals. Then — reader first, so nothing can speak after
         // the final — the ONE final is the join of every settled segment.
-        try? await analyzer.finalizeAndFinishThroughEndOfInput()
+        if let signposts {
+            await signposts.measure("apple.settle") {
+                try? await analyzer.finalizeAndFinishThroughEndOfInput()
+            }
+        } else {
+            try? await analyzer.finalizeAndFinishThroughEndOfInput()
+        }
         bridge.cancel()
         let joined = settled.store.withLock { $0.joined(separator: " ") }
         updatesContinuation.yield(.final(joined.trimmingCharacters(in: .whitespaces)))

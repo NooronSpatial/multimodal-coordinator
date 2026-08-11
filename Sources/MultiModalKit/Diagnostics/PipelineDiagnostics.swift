@@ -19,6 +19,9 @@ public enum HealthEvent: Sendable, Equatable {
 ///
 public final class PipelineDiagnostics: Sendable {
     let thermal: any ThermalStateProviding
+    /// The pipeline's marks for Instruments (AC-45). Components reach it
+    /// through the seam; when no diagnostics is injected, no mark exists.
+    public let signposts = PipelineSignposter()
     private let broadcast: Broadcast<HealthEvent>
     /// The last settling count published — the dedupe memory. A reference
     /// box because Mutex is non-copyable.

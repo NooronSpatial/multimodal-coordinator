@@ -59,6 +59,10 @@ public actor TranscriptionSession {
         var fedFrames = 0
         var settling = false
         var truncated = false
+        /// Instruments spans (AC-45): the whole utterance, and — once
+        /// settling — the pause a user would feel. Actor-internal only.
+        var utteranceSpan: PipelineSignposter.Span?
+        var settleSpan: PipelineSignposter.Span?
     }
 
     /// A batch run whose audio is over and whose decode is still working.
@@ -66,6 +70,8 @@ public actor TranscriptionSession {
     private struct Settling {
         let run: any TranscriptionRun
         let at: AudioTime
+        var utteranceSpan: PipelineSignposter.Span?
+        var settleSpan: PipelineSignposter.Span?
     }
 
     private let engine: any TranscriptionEngine
@@ -145,6 +151,7 @@ public actor TranscriptionSession {
                     // are not lost; the loop then waits for its final.
                     if let current = active, !current.settling {
                         active?.settling = true
+                        active?.settleSpan = diagnostics?.signposts.begin("session.settle")
                         await current.run.finishAudio()
                     }
                 case .stopped:
@@ -170,6 +177,12 @@ public actor TranscriptionSession {
         active = nil                       // every ticket dies HERE — no gap
         settlingRuns.removeAll()
         diagnostics?.noteSettlingDecodes(count: 0)
+        if let dyingActive {
+            endSpans(utteranceSpan: dyingActive.utteranceSpan, settleSpan: dyingActive.settleSpan)
+        }
+        for (_, settled) in dyingSettling {
+            endSpans(utteranceSpan: settled.utteranceSpan, settleSpan: settled.settleSpan)
+        }
         merge?.yield(.stopped)
         broadcast.finish()
         if let dyingActive { await dyingActive.run.cancel() }   // optimisation,
@@ -193,7 +206,9 @@ public actor TranscriptionSession {
                     // D-024: a batch decode SURVIVES the next utterance —
                     // its ticket moves to the settling table, stamped with
                     // the audio it was fed.
-                    settlingRuns[old.utterance] = Settling(run: old.run, at: time(old.startFrames + old.fedFrames))
+                    settlingRuns[old.utterance] = Settling(
+                        run: old.run, at: time(old.startFrames + old.fedFrames),
+                        utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
                     diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
                 } else {
                     // D-021 ruling 1, unchanged for streaming engines: the
@@ -207,7 +222,9 @@ public actor TranscriptionSession {
                 let run = try await engine.openRun(format: config.format)
                 // Reentrancy law: stop() may have run while we awaited.
                 guard !isStopped else { await run.cancel(); return }
-                active = Active(utterance: utterance, run: run, startFrames: at.frames)
+                active = Active(
+                    utterance: utterance, run: run, startFrames: at.frames,
+                    utteranceSpan: diagnostics?.signposts.begin("session.utterance"))
                 group.addTask {
                     for await update in run.updates {
                         input.yield(.update(utterance: utterance, update))
@@ -245,6 +262,9 @@ public actor TranscriptionSession {
         case .speechEnded:
             guard let current = active, !current.settling else { return }
             active?.settling = true
+            // The settle span: "no more audio" until the final lands — the
+            // pause a user would feel (AC-45).
+            active?.settleSpan = diagnostics?.signposts.begin("session.settle")
             await current.run.finishAudio()
 
         case .dropped:
@@ -282,11 +302,24 @@ public actor TranscriptionSession {
     }
 
     /// Ends an utterance's ticket wherever it lives — one funnel, no copies.
+    /// The funnel also closes the utterance's Instruments spans: one grave,
+    /// one place where every story ends.
     private func retire(_ utterance: Int) {
-        if active?.utterance == utterance { active = nil }
-        if settlingRuns.removeValue(forKey: utterance) != nil {
+        if let current = active, current.utterance == utterance {
+            endSpans(utteranceSpan: current.utteranceSpan, settleSpan: current.settleSpan)
+            active = nil
+        }
+        if let settled = settlingRuns.removeValue(forKey: utterance) {
+            endSpans(utteranceSpan: settled.utteranceSpan, settleSpan: settled.settleSpan)
             diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
         }
+    }
+
+    private func endSpans(utteranceSpan: PipelineSignposter.Span?,
+                          settleSpan: PipelineSignposter.Span?) {
+        guard let signposts = diagnostics?.signposts else { return }
+        if let settleSpan { signposts.end(settleSpan) }
+        if let utteranceSpan { signposts.end(utteranceSpan) }
     }
 
     private func publish(_ event: TranscriptEvent) {
