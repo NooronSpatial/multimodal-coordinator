@@ -536,3 +536,142 @@ required) · the F2 ruling amended into the decision log · BAKEOFF.md holds
 real numbers from real hardware · the iOS demo switches engines · CI green ·
 merge commit into main · teach-back: Ryad explains the overlap semantics and
 the bake-off numbers cold.
+
+---
+
+# SPEC — Phase 3: instruments and self-awareness
+
+> Status: **DRAFT — awaiting sign-off.** No code before this is approved.
+> Phase 2 ended with an honest concession: "excluded by reasoning, never
+> benchmarked." Phase 3 exists so that sentence can never be necessary
+> again — the pipeline learns to measure itself, and to notice the device
+> it lives on.
+
+## 19. What Phase 3 builds
+
+Three things, in order:
+
+1. **Signposts** — `os_signpost` intervals across every pipeline stage
+   (drain, VAD verdict, session feed, decode-per-engine, capture→final per
+   utterance), so Instruments can draw the pipeline's true timeline on real
+   hardware.
+2. **The health stream** — a `HealthEvent` broadcast: thermal state changes,
+   ring drops, listener losses, settling-decode count. The pipeline tells
+   its consumer how it feels, through the same multicast machinery
+   everything else already uses.
+3. **INSTRUMENTS.md** — the evidence doc: pipeline idle cost, per-utterance
+   cost, Whisper decode cost, measured on the iPhone with the new
+   signposts; methodology stated, not-measured list included.
+
+## 20. The one hard problem (this phase's reason to exist)
+
+**Measurement must not disturb the measured.** The audio thread's iron laws
+(no locks, no allocation, no logging) do not bend for observability — a
+signpost in the tap callback could cost exactly the deadline it measures.
+So the capture side stays dark: its only story crosses the boundary through
+the atomics that already exist (drop counts, frame counts), and the
+signposts begin where waiting is legal — at the pump. Observing the
+real-time edge without touchinging it is the phase's craft.
+
+## 21. Acceptance criteria
+
+### Signposts
+- **AC-45** Signpost intervals exist for: one pump drain · one VAD verdict
+  batch · session chunk-feed · engine decode (labelled per engine) ·
+  capture→final per utterance (audio-time stamped). Visible as a clean
+  track in Instruments on a real device.
+- **AC-46** ZERO instrumentation on the audio thread. The capture side is
+  reconstructed from existing atomics only. Enforced by review and stated
+  in the thread-map doc — honestly noted as not machine-checkable.
+- **AC-47** Overhead is measured, not assumed: the deterministic suite runs
+  with and without signposts and the delta is recorded in INSTRUMENTS.md.
+
+### Health
+- **AC-48** `HealthEvent` stream via `Broadcast` (bounded, drop-oldest,
+  counted, no replay — D-012 rules apply unchanged): thermal state
+  transitions · ring drops (mirrored from D-010 events) · listener losses ·
+  settling-decode count changes.
+- **AC-49** Thermal state arrives through a **seam** (`ThermalStateProviding`)
+  — the real provider wraps `ProcessInfo`; tests drive a scripted fake
+  deterministically. No test ever depends on a real device's temperature.
+- **AC-50** v1 policy is **observe and publish only**: the pipeline reports,
+  the consumer decides. No self-throttling — adaptive behavior is a future
+  fork that needs Phase 3's own numbers first.
+
+### Evidence
+- **AC-51** INSTRUMENTS.md: methodology · idle pipeline cost · cost per
+  utterance (both engines) · signpost overhead · thermal observations from
+  a sustained run · what was NOT measured. Numbers from real hardware,
+  device named.
+- **AC-52** The eager-Whisper question from Phase 2 gets its number: decodes
+  per utterance and compute cost measured for the sliding-window approach,
+  recorded as a fork-input (not built as a feature).
+
+### Hygiene
+- **AC-53** Swift 6 strict, zero warnings, CI green; core keeps zero
+  runtime dependencies (`os` is a system framework); all health/diagnostic
+  code deterministic under test via the seams.
+
+## 22. Test matrix (first pass)
+
+| Area | Tests |
+|---|---|
+| Thermal seam | scripted transitions (nominal→serious→critical) → exact HealthEvent sequence |
+| Health stream | bounded/drop-oldest/no-replay semantics hold (reuse the Broadcast suite pattern) · ring-drop mirroring exact |
+| Settling count | batch overlap raises and lowers the count at exact moments (scripted batch engine) |
+| Signpost overhead | suite wall-time with/without, recorded (informational, not asserted) |
+| Determinism | full suite unchanged: no real thermal, no real clocks, no signposts required for any assertion |
+
+## 23. Out of scope for Phase 3 (deliberately)
+
+Adaptive throttling (needs this phase's numbers first — future fork) ·
+AVAudioSession interruption/route handling (calls, Siri — the "real product
+audio citizenship" phase, deserves its own spec) · the D-001/D-005 upgrade
+rulings (`AVAudioSinkNode`, signal-driven pump — now MEASURABLE with these
+instruments, ruled after numbers exist) · Metal/C++ (Phase 4) · any UI.
+
+## 24. Definition of done
+
+All ACs tested or honestly marked review-enforced · Instruments screenshot
+-worthy timeline on a real iPhone · INSTRUMENTS.md with real numbers ·
+DECISIONS.md covers every fork · CI green · merge commit · teach-back:
+Ryad explains the observer-effect problem and the health seam cold.
+
+## 25. The design forks — for Ryad to rule
+
+**F1 — where signposts live**
+- **A** Pump, session, and engines only — the audio thread stays dark, its
+  story told by the atomics it already writes.
+- **B** Everywhere, including the tap callback ("os_signpost is cheap").
+- **Recommendation: A.** "Cheap" is not "free," and not provably lock-free
+  on every path — the iron laws don't take probabilistic exceptions. The
+  capture story is already fully reconstructable from the ring's counters.
+
+**F2 — signposts in release builds**
+- **A** Keep them: they are near-zero when no instrument listens, and they
+  make FIELD problems diagnosable — an excellent product is debuggable in
+  production, not only in the lab.
+- **B** Compile them out for a theoretically pure release binary.
+- **Recommendation: A.**
+
+**F3 — how health reaches the consumer**
+- **A** `Broadcast<HealthEvent>` — the house pattern, bounded and honest,
+  many listeners (UI + logger + tests).
+- **B** A delegate/closure callback. **C** os_log only.
+- **Recommendation: A** — one delivery idiom everywhere; a consumer that
+  learned `listen()` once knows the whole library.
+
+**F4 — thermal policy**
+- **A** Observe and publish only; consumers decide (and the demo shows a
+  thermal badge, proving the loop).
+- **B** Adaptive now: pipeline self-throttles (wider poll, smaller model).
+- **Recommendation: A.** Self-throttling without measurements is guessing
+  with extra steps; F4-B returns as its own fork the moment INSTRUMENTS.md
+  exists, with numbers instead of vibes.
+
+**F5 — the diagnostics seam's shape**
+- **A** A small `PipelineDiagnostics` type owned by the consumer and passed
+  in (like the clock: injected, explicit).
+- **B** A global/static signpost logger reached from anywhere.
+- **Recommendation: A** — injection is the house law; globals are how
+  observability quietly becomes coupling.
