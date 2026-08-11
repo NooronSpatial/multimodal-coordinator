@@ -68,10 +68,27 @@ public actor WhisperEngine: TranscriptionEngine {
         return WhisperRun(engine: self, converter: converter, sourceFormat: source, targetFormat: target)
     }
 
-    /// One decode at a time, by actor isolation — several settling runs may
-    /// queue here, in order, without a lock in sight.
+    private var decodeBusy = false
+    private var decodeWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// One decode at a time — ENFORCED, not assumed. The first field session
+    /// caught the original sin in one screenshot: three decode spans
+    /// overlapping and finishing together, because an actor does NOT hold
+    /// isolation across an await — the moment transcribe() suspends, the
+    /// next decode walks in. The reentrancy law, violated by its own
+    /// preacher. Now a waiter queue serializes for real: while-loop re-check
+    /// after every wake (the law again), FIFO wake-up, release on every
+    /// exit path via defer.
     func decode(_ samples: [Float]) async throws -> String {
         let pipeline = try await loadedPipeline()
+        while decodeBusy {
+            await withCheckedContinuation { decodeWaiters.append($0) }
+        }
+        decodeBusy = true
+        defer {
+            decodeBusy = false
+            if !decodeWaiters.isEmpty { decodeWaiters.removeFirst().resume() }
+        }
         let span = diagnostics?.signposts.begin("whisper.decode")
         defer { if let span { diagnostics?.signposts.end(span) } }
         return try await decodeBody(pipeline, samples)
