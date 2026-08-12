@@ -53,8 +53,10 @@ proves signposts cheap where they live, not free where they're banned.
 | `pump.drain` cadence | ~100/s — 5,492 drains / ~55 s listening | run 3 |
 | `pump.drain` avg duration | **15.68 µs** (min 250 ns · max 777 µs); run 2 measured 11.70 µs — consistent | runs 2–3 |
 | Pump's total CPU share while listening | 86.1 ms / 55 s ≈ **0.16 % of one core** (3 runs agree: 0.12–0.16 %) | runs 1–3 |
-| App CPU %, listening, nobody speaking | **⟨fill: plain run, Xcode gauge — not under Instruments⟩** | — |
-| App memory, listening, models loaded | **⟨fill: per engine⟩** | — |
+| App CPU %, listening (whole app, UI included) | **4 %** — both engines | Xcode gauge, plain run |
+| App memory, listening | Apple: **29.1 MB** · Whisper: **51.8 MB** → the loaded Whisper base pipeline costs ≈ **23 MB resident** (CoreML maps weights; true footprint is larger than resident) | Xcode gauge |
+| Network while transcribing | **Zero KB/s, both engines** — the on-device claim, on a dial | Xcode gauge |
+| Energy Impact gauge | "High" while listening — driven by the live audio session; not decomposed further (a battery protocol is out of scope, and said so below) | Xcode gauge |
 
 ## 3. Per-utterance cost — a real sentence on each engine (AC-51)
 
@@ -75,10 +77,9 @@ watched, Instruments running.
 
 | Observation | Value |
 |---|---|
-| Thermal state reached (badge) | run 2 showed **warm (.fair)** — but Ryad disclosed the device was charging and already hot for external reasons, so **no attribution to the pipeline is claimed**. Clean protocol for run 3+: unplug, wait until the badge itself reads *cool*, then measure. Result: **⟨fill⟩** |
-| Time to first transition, if any | **⟨fill⟩** |
-| `whisper.decode` drift (first vs last minutes) | **⟨fill: does heat slow decodes?⟩** |
-| `dropped` counter after the run | **⟨fill: expect 0⟩** |
+| Thermal state reached (badge) | Run 3 started badge-cool per protocol; the badge did not stay cool for the whole run — and per the house rule, **no attribution is claimed**: the device context (5G, recent charging) is noisy, and separating the pipeline's contribution needs a controlled protocol this session doesn't have. Recorded as observed, not explained. |
+| `whisper.decode` drift within run 3 | none visible (3–311 ms band throughout) |
+| `dropped` counter after all runs | **0** — the ring never lost a frame in any field session |
 
 ### The unpredicted finding of run 3
 
@@ -105,8 +106,10 @@ whole growing buffer every pass. The arithmetic, now with measured inputs:
   … then 10 s of audio: **≈ 55 s-of-audio decoded for 10 s spoken — about
   5–6× the compute of the single settle decode**, plus the confirmation
   delay before text stabilises.
-- Field check (optional, honesty ceiling): **⟨fill if run: eager decodes
-  counted per utterance in a WhisperKit AudioStreamTranscriber spike⟩**
+- Field check: deliberately not run — the estimate now rests on measured
+  inputs (uncontended decode cost per second of audio), and the marginal
+  honesty of counting eager decodes live does not justify building the
+  spike. The cell says "computed from measurements", and that is the truth.
 
 The rejection stands or falls with this table — reasoning now has numbers
 under it, which was the whole point.
