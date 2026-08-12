@@ -38,11 +38,29 @@ public actor WhisperEngine: TranscriptionEngine {
             .appending(path: "openai_whisper-\(model)")
     }
 
-    /// Honest disk check against WhisperKit's default hub location — no
+    /// WhisperKit's default cache for the tokenizer — a SEPARATE asset from
+    /// the model, downloaded alongside it on first install.
+    private nonisolated var localTokenizerFolder: URL {
+        URL.documentsDirectory
+            .appending(path: "huggingface/models/openai")
+            .appending(path: "whisper-\(model)")
+    }
+
+    /// Honest disk check against WhisperKit's default hub locations — no
     /// download is ever triggered by asking.
+    ///
+    /// "Installed" means OFFLINE-CAPABLE, and that takes more than the model:
+    /// the source audit showed the tokenizer load is local-FIRST but not
+    /// local-ONLY — if its two cache files are missing, WhisperKit silently
+    /// falls back to a Hugging Face download. So this check requires all the
+    /// assets a zero-network start needs. Missing tokenizer files mean "not
+    /// installed" (download again), never a silent ping.
     public nonisolated func modelInstalled() async -> Bool {
         let contents = try? FileManager.default.contentsOfDirectory(atPath: localModelFolder.path)
-        return (contents?.isEmpty == false)
+        guard contents?.isEmpty == false else { return false }
+        let files = FileManager.default
+        return files.fileExists(atPath: localTokenizerFolder.appending(path: "tokenizer.json").path)
+            && files.fileExists(atPath: localTokenizerFolder.appending(path: "tokenizer_config.json").path)
     }
 
     /// Downloads (Hugging Face, ~142 MB for `base`) and loads the pipeline.
@@ -119,11 +137,18 @@ public actor WhisperEngine: TranscriptionEngine {
         if let pipeline { return pipeline }
         do {
             let config = WhisperKitConfig(model: model)
+            // Errors only. WhisperKit defaults to verbose info logging
+            // ("Loading models...", "Decoding Temperature: ..."), gated once
+            // at its init by verbose + logLevel. NOT verbose=false: that maps
+            // the level to .none and swallows real errors with the noise.
+            config.logLevel = .error
             // Offline-first — found by a field experiment in airplane mode:
             // WhisperKit pings huggingface.co to check the model revision
             // even when the model sits on disk. With modelFolder set it
             // loads locally and never touches the network — the on-device
-            // promise applies to STARTUP, not only to transcription.
+            // promise applies to STARTUP, not only to transcription. (The
+            // tokenizer needs no folder: its load is local-first from the
+            // cache that modelInstalled() now verifies file by file.)
             let folder = localModelFolder
             if (try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.isEmpty == false {
                 config.modelFolder = folder.path
