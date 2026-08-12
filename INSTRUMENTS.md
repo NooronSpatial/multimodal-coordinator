@@ -82,6 +82,14 @@ watched, Instruments running.
 | `whisper.decode` drift within run 3 | none visible (3–311 ms band throughout) |
 | `dropped` counter after all runs | **0** — the ring never lost a frame in any field session |
 
+The unproven-need caveat, stated where it belongs: the `ThermalPolicy`
+shipped in Phase 3b (D-028) is **insurance, not a measured cure** — this
+table never proved the pipeline heats a phone. The policy's price matches
+that honesty: its default is dormant below `.serious`, so if the pipeline
+never truly runs a device hot, it never changes anything. What it declines
+when heat does arrive — the settling decodes — is the one lever this
+document's numbers identify (110 ms ANE bursts, ×2–3 under contention).
+
 ### The unpredicted finding of run 3
 
 **Serialized Whisper settles almost like Apple.** 110 ms vs 73 ms average

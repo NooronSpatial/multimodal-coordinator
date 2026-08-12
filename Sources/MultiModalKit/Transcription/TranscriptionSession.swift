@@ -91,15 +91,19 @@ public actor TranscriptionSession {
     private var isStopped = false
 
     private let diagnostics: PipelineDiagnostics?
+    /// D-028: consulted at the settling-move only; nil = never decline.
+    private let thermalPolicy: (any ThermalPolicy)?
 
     public init(
         engine: any TranscriptionEngine,
         config: Config = Config(),
-        diagnostics: PipelineDiagnostics? = nil
+        diagnostics: PipelineDiagnostics? = nil,
+        thermalPolicy: (any ThermalPolicy)? = nil
     ) {
         self.engine = engine
         self.config = config
         self.diagnostics = diagnostics
+        self.thermalPolicy = thermalPolicy
         let onDrop: (@Sendable (Int, Int) -> Void)?
         if let diagnostics {
             onDrop = { id, total in
@@ -203,13 +207,40 @@ public actor TranscriptionSession {
             if let old = active {
                 active = nil               // decided in this same actor step
                 if allowsOverlap && old.settling {
-                    // D-024: a batch decode SURVIVES the next utterance —
-                    // its ticket moves to the settling table, stamped with
-                    // the audio it was fed.
-                    settlingRuns[old.utterance] = Settling(
-                        run: old.run, at: time(old.startFrames + old.fedFrames),
-                        utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
-                    diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
+                    // D-028: the ONE consultation (AC-55). Synchronous reads,
+                    // no await between the question and the verdict's effect.
+                    // The reads live INSIDE the policy check on purpose: with
+                    // nil policy this path is the old code byte for byte —
+                    // not even a thermal-provider getter fires (AC-54).
+                    let verdict: (allowed: Bool, thermal: ThermalState)
+                    if let thermalPolicy {
+                        let thermal = diagnostics?.thermal.current ?? .nominal
+                        verdict = (thermalPolicy.allowSettlingDecode(
+                            thermal: thermal, activeSettlingDecodes: settlingRuns.count), thermal)
+                    } else {
+                        verdict = (true, .nominal)
+                    }
+                    if verdict.allowed {
+                        // D-024: a batch decode SURVIVES the next utterance —
+                        // its ticket moves to the settling table, stamped with
+                        // the audio it was fed.
+                        settlingRuns[old.utterance] = Settling(
+                            run: old.run, at: time(old.startFrames + old.fedFrames),
+                            utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+                        diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
+                    } else {
+                        // The refusal (AC-56): loud and exactly once — a named
+                        // failure on the utterance, one health event, spans
+                        // ended here (one grave, every path). The ticket died
+                        // above; the cancel is the optimisation, as always.
+                        publish(.failed(.declinedUnderThermalPressure,
+                                        utterance: old.utterance,
+                                        at: time(old.startFrames + old.fedFrames)))
+                        diagnostics?.noteSettlingRefusal(
+                            utterance: old.utterance, thermal: verdict.thermal)
+                        endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+                        await old.run.cancel()
+                    }
                 } else {
                     // D-021 ruling 1, unchanged for streaming engines: the
                     // new utterance retires the old one; ticket dead first.
