@@ -31,13 +31,17 @@ public actor WhisperEngine: TranscriptionEngine {
         self.diagnostics = diagnostics
     }
 
+    /// WhisperKit's default hub location for this model, on this device.
+    private nonisolated var localModelFolder: URL {
+        URL.documentsDirectory
+            .appending(path: "huggingface/models/argmaxinc/whisperkit-coreml")
+            .appending(path: "openai_whisper-\(model)")
+    }
+
     /// Honest disk check against WhisperKit's default hub location — no
     /// download is ever triggered by asking.
     public nonisolated func modelInstalled() async -> Bool {
-        let folder = URL.documentsDirectory
-            .appending(path: "huggingface/models/argmaxinc/whisperkit-coreml")
-            .appending(path: "openai_whisper-\(model)")
-        let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
+        let contents = try? FileManager.default.contentsOfDirectory(atPath: localModelFolder.path)
         return (contents?.isEmpty == false)
     }
 
@@ -115,6 +119,15 @@ public actor WhisperEngine: TranscriptionEngine {
         if let pipeline { return pipeline }
         do {
             let config = WhisperKitConfig(model: model)
+            // Offline-first — found by a field experiment in airplane mode:
+            // WhisperKit pings huggingface.co to check the model revision
+            // even when the model sits on disk. With modelFolder set it
+            // loads locally and never touches the network — the on-device
+            // promise applies to STARTUP, not only to transcription.
+            let folder = localModelFolder
+            if (try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.isEmpty == false {
+                config.modelFolder = folder.path
+            }
             let fresh = try await WhisperKit(config)
             pipeline = fresh
             return fresh

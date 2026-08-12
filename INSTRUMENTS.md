@@ -56,6 +56,7 @@ proves signposts cheap where they live, not free where they're banned.
 | App CPU %, listening (whole app, UI included) | **4 %** — both engines | Xcode gauge, plain run |
 | App memory, listening | Apple: **29.1 MB** · Whisper: **51.8 MB** → the loaded Whisper base pipeline costs ≈ **23 MB resident** (CoreML maps weights; true footprint is larger than resident) | Xcode gauge |
 | Network while transcribing | **Zero KB/s, both engines** — the on-device claim, on a dial | Xcode gauge |
+| Network at engine STARTUP | Found by an airplane-mode experiment: WhisperKit pinged huggingface.co (a revision check) on every pipeline load, even with the model on disk — an offline failure and a privacy footnote in one. Fixed: with the local folder handed to the config, startup makes **zero requests** — and the test suite got 4× faster, because that ping was being paid on every load. | field experiment + fix |
 | Energy Impact gauge | "High" while listening — driven by the live audio session; not decomposed further (a battery protocol is out of scope, and said so below) | Xcode gauge |
 
 ## 3. Per-utterance cost — a real sentence on each engine (AC-51)
