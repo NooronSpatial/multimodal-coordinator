@@ -45,7 +45,19 @@ the top and leaves as text at the bottom.
                      │                     offline-proven local load.
                      ▼
                 TranscriptEvents:  partial / final / failed / truncated
-                     ──► the app's screen
+                     │                 ──► the app's screen
+                     ▼
+                TurnCoordinator (395)      THE NAMESAKE. The conversation
+                     │                     above the text: turn ticket,
+                     │                     barge-in across the whole chain,
+                     │                     the funnel + legal-pair table.
+                     ▼  via the turn seams (TurnCoordination, 91)
+                  ├─ ReplyGenerating       final text in, reply tokens out
+                  └─ SpeechSynthesizing    tokens in, spoken EVIDENCE out
+                     │                     (4a: scripted; real engines 4b/4c)
+                     ▼
+                TurnEvents:  stateChanged / replyToken / completed /
+                             barged / failed  ──► the app's screen
 ```
 
 ## The rails — cross-cutting, everything rides on them
@@ -71,9 +83,11 @@ requires observation, it offers it.
 
 ```
  MultiModalKitTesting      determinism tools: ManualClock,
-                           ScriptedTranscriber, FakeMicrophone,
+                           ScriptedTranscriber, ScriptedReplyGenerator,
+                           ScriptedSynthesizer, FakeMicrophone,
                            WER scorer, BakeoffHarness.
- AudioDemo (205)           terminal demo:  swift run audio-demo [apple|whisper]
+ AudioDemo (339)           terminal demo:
+                           swift run audio-demo [apple|whisper] [--talk]
  TranscribeDemo (~485)     the iPhone app (Demo/TranscribeDemo).
  Bakeoff (78)              the WER bake-off:  swift run bakeoff
 ```
@@ -96,15 +110,17 @@ apps must own (AC-22); everything else is the library, unchanged.
 | One-to-many events, listener drop counting | `Concurrency/Broadcast.swift` |
 | Thermal + health events | `Diagnostics/PipelineDiagnostics.swift`, `Diagnostics/Thermal.swift` |
 | The heat ruling — who may keep settling | `Diagnostics/ThermalPolicy.swift`; its one consultation lives in the session's `speechStarted` branch |
+| The turn loop, barge-in, the turn ticket | `Conversation/TurnCoordinator.swift` |
+| The reply + synthesis seams | `Conversation/TurnCoordination.swift` |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
 | The pipeline wired for real | `Demo/TranscribeDemo/Sources/TranscribeModel.swift`, `Sources/AudioDemo/AudioDemo.swift` |
 
 ## The shape in numbers
 
-The whole system is ~3,400 lines; the library core is ~2,000. The
-biggest file on the spine is 336 lines. The test folder mirrors this
-map roughly one suite per box — 14 suites, 74 tests, all deterministic
+The whole system is ~4,600 lines; the library core is ~2,600. The
+biggest file on the spine is 395 lines. The test folder mirrors this
+map roughly one suite per box — 16 suites, 94 tests, all deterministic
 (injected clocks, no sleeps, event-gated).
 
 If a box on this map ever stops being explainable in one sitting, that
