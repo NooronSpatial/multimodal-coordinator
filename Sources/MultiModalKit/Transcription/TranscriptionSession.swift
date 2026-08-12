@@ -209,10 +209,18 @@ public actor TranscriptionSession {
                 if allowsOverlap && old.settling {
                     // D-028: the ONE consultation (AC-55). Synchronous reads,
                     // no await between the question and the verdict's effect.
-                    let thermal = diagnostics?.thermal.current ?? .nominal
-                    let allowed = thermalPolicy?.allowSettlingDecode(
-                        thermal: thermal, activeSettlingDecodes: settlingRuns.count) ?? true
-                    if allowed {
+                    // The reads live INSIDE the policy check on purpose: with
+                    // nil policy this path is the old code byte for byte —
+                    // not even a thermal-provider getter fires (AC-54).
+                    let verdict: (allowed: Bool, thermal: ThermalState)
+                    if let thermalPolicy {
+                        let thermal = diagnostics?.thermal.current ?? .nominal
+                        verdict = (thermalPolicy.allowSettlingDecode(
+                            thermal: thermal, activeSettlingDecodes: settlingRuns.count), thermal)
+                    } else {
+                        verdict = (true, .nominal)
+                    }
+                    if verdict.allowed {
                         // D-024: a batch decode SURVIVES the next utterance —
                         // its ticket moves to the settling table, stamped with
                         // the audio it was fed.
@@ -229,7 +237,7 @@ public actor TranscriptionSession {
                                         utterance: old.utterance,
                                         at: time(old.startFrames + old.fedFrames)))
                         diagnostics?.noteSettlingRefusal(
-                            utterance: old.utterance, thermal: thermal)
+                            utterance: old.utterance, thermal: verdict.thermal)
                         endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
                         await old.run.cancel()
                     }

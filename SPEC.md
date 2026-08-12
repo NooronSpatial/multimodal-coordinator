@@ -748,7 +748,7 @@ shipped default is dormant in that case by construction.
 |---|---|
 | Seam | `nil` policy = suites pass untouched · scripted policy receives exact `(thermal, activeCount)` inputs |
 | Default | scripted transitions: refusals at `.serious`/`.critical` only, dormant below |
-| Refusal path | barge-in at `.serious` with a whole-utterance engine → named failure + health event + spans ended + next utterance clean |
+| Refusal path | barge-in at `.serious` with a whole-utterance engine → named failure + health event + next utterance clean (spans ended: enforced in code review, not machine-checkable — the house signpost doctrine: no test can observe an os_signpost) |
 | Live-turn immunity | active decode completes even at `.critical` |
 | Determinism | scripted provider everywhere; stability ×20 |
 

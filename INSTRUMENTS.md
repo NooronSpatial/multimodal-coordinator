@@ -79,6 +79,8 @@ watched, Instruments running.
 | Observation | Value |
 |---|---|
 | Thermal state reached (badge) | Run 3 started badge-cool per protocol; the badge did not stay cool for the whole run — and per the house rule, **no attribution is claimed**: the device context (5G, recent charging) is noisy, and separating the pipeline's contribution needs a controlled protocol this session doesn't have. Recorded as observed, not explained. |
+| `whisper.decode` drift within run 3 | none visible (3–311 ms band throughout) |
+| `dropped` counter after all runs | **0** — the ring never lost a frame in any field session |
 
 The unproven-need caveat, stated where it belongs: the `ThermalPolicy`
 shipped in Phase 3b (D-028) is **insurance, not a measured cure** — this
@@ -87,8 +89,6 @@ that honesty: its default is dormant below `.serious`, so if the pipeline
 never truly runs a device hot, it never changes anything. What it declines
 when heat does arrive — the settling decodes — is the one lever this
 document's numbers identify (110 ms ANE bursts, ×2–3 under contention).
-| `whisper.decode` drift within run 3 | none visible (3–311 ms band throughout) |
-| `dropped` counter after all runs | **0** — the ring never lost a frame in any field session |
 
 ### The unpredicted finding of run 3
 
