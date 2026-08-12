@@ -10,6 +10,10 @@ public enum HealthEvent: Sendable, Equatable {
     case listenerFellBehind(listenerID: Int, totalDropped: Int)
     /// How many batch decodes are still thinking (D-024) — on every change.
     case settlingDecodes(count: Int)
+    /// The thermal policy declined a settling decode (D-028). The utterance
+    /// also surfaced `.failed(.declinedUnderThermalPressure)` — this event
+    /// is the health-side record: one per refusal, counts exact (AC-56).
+    case settlingDecodeRefused(utterance: Int, thermal: ThermalState)
 }
 
 /// The injected diagnostics seam (D-026 F5): owned by the consumer, handed
@@ -72,6 +76,11 @@ public final class PipelineDiagnostics: Sendable {
             return true
         }
         if changed { broadcast.publish(.settlingDecodes(count: count)) }
+    }
+
+    /// One refusal, one event (AC-56): the policy declined a settling decode.
+    public func noteSettlingRefusal(utterance: Int, thermal: ThermalState) {
+        broadcast.publish(.settlingDecodeRefused(utterance: utterance, thermal: thermal))
     }
 
     /// Wired into a component's Broadcast so slow listeners become visible.

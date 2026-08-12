@@ -194,7 +194,10 @@ final class TranscribeModel {
         let transcription = TranscriptionSession(
             engine: engine,
             config: .init(format: AudioStreamFormat(sampleRate: rate, channels: 1)),
-            diagnostics: diagnostics)
+            diagnostics: diagnostics,
+            // THIS APP's ruling (D-027/D-028): on a hot phone, sacrifice the
+            // late settling decodes, loudly — the row will say so in words.
+            thermalPolicy: ConservativeThermalPolicy())
 
         isListening = true
         let diagnostics = diagnostics
@@ -253,6 +256,7 @@ final class TranscribeModel {
         case .thermal(let state): thermal = state
         case .settlingDecodes(let count): settlingCount = count
         case .ringDropped, .listenerFellBehind: break   // drops already on screen
+        case .settlingDecodeRefused: break   // the failed row says it in words
         }
     }
 
@@ -294,6 +298,7 @@ final class TranscribeModel {
         case .assetDownloadFailed(let reason): "Model download failed: \(reason)"
         case .audioFormatRejected: "The engine refused the audio format."
         case .engineFailed(let reason): "Engine error: \(reason)"
+        case .declinedUnderThermalPressure: "Decode skipped — device too hot."
         }
     }
 }

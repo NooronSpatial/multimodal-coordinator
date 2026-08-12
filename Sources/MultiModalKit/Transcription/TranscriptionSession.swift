@@ -91,15 +91,19 @@ public actor TranscriptionSession {
     private var isStopped = false
 
     private let diagnostics: PipelineDiagnostics?
+    /// D-028: consulted at the settling-move only; nil = never decline.
+    private let thermalPolicy: (any ThermalPolicy)?
 
     public init(
         engine: any TranscriptionEngine,
         config: Config = Config(),
-        diagnostics: PipelineDiagnostics? = nil
+        diagnostics: PipelineDiagnostics? = nil,
+        thermalPolicy: (any ThermalPolicy)? = nil
     ) {
         self.engine = engine
         self.config = config
         self.diagnostics = diagnostics
+        self.thermalPolicy = thermalPolicy
         let onDrop: (@Sendable (Int, Int) -> Void)?
         if let diagnostics {
             onDrop = { id, total in

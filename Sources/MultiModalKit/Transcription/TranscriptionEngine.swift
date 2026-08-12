@@ -48,6 +48,9 @@ public enum TranscriptionFailure: Error, Sendable, Equatable {
     case assetDownloadFailed(String)
     case audioFormatRejected
     case engineFailed(String)
+    /// The thermal policy declined this utterance's settling decode (D-028).
+    /// Text was sacrificed to heat — loudly, per utterance, never silently.
+    case declinedUnderThermalPressure
 }
 
 /// What one recognition can say back. No timestamps here on purpose — the
