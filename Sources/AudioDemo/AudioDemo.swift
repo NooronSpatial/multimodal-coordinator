@@ -1,5 +1,6 @@
 import Foundation
 import MultiModalKit
+import MultiModalKitWhisper
 
 /// Phase 2 live demo: microphone → ring → pump → transcription → terminal.
 ///
@@ -17,18 +18,47 @@ struct AudioDemo {
     static func main() async {
         setbuf(stdout, nil)
 
+        // Engine selection: `swift run audio-demo [apple|whisper]`.
+        // Born of a real machine: this Mac's asset daemon refuses Apple's
+        // model, so waiting through its failed download on every run was
+        // pure ceremony — while Whisper sits installed and willing.
+        let choice = CommandLine.arguments.dropFirst().first ?? "apple"
+        let engine: any TranscriptionEngine
+        let engineName: String
+        switch choice {
+        case "apple":
+            engine = AppleSpeechEngine()
+            engineName = "Apple SpeechAnalyzer (en-US, streaming)"
+        case "whisper":
+            engine = WhisperEngine()
+            engineName = "Whisper base (batch — text arrives after each pause)"
+        default:
+            print("usage: swift run audio-demo [apple|whisper]   (default: apple)")
+            return
+        }
+
         // The model phase comes FIRST — before the microphone exists.
         // Learned live: with the mic started first, a 15-minute failed
         // download left the ring honestly counting 43,206,464 dropped frames
         // (900 s × 48 kHz) that nobody was reading. The ring told the truth;
         // the ordering was the bug.
-        let engine = AppleSpeechEngine()
-        var engineReady = await engine.modelInstalled()
+        func modelReady() async -> Bool {
+            switch choice {
+            case "apple": await (engine as! AppleSpeechEngine).modelInstalled()
+            default: await (engine as! WhisperEngine).modelInstalled()
+            }
+        }
+        func ensure() async throws {
+            switch choice {
+            case "apple": try await (engine as! AppleSpeechEngine).ensureModel()
+            default: try await (engine as! WhisperEngine).ensureModel()
+            }
+        }
+        var engineReady = await modelReady()
         if !engineReady {
-            print("⏬ The en-US speech model is not on this Mac — downloading")
-            print("   (system-managed; known to fail on some machines — the demo degrades honestly)…")
+            print("⏬ The \(choice) model is not on this Mac — downloading…")
             do {
-                try await engine.ensureModel()
+                try await ensure()
                 print("✅ model installed")
                 engineReady = true
             } catch {
@@ -68,7 +98,7 @@ struct AudioDemo {
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
         print("    \(Int(sampleRate)) Hz · 20 ms chunks · 300 ms hangover · 200 ms pre-roll")
-        print("    transcription: \(transcription == nil ? "OFF (no model)" : "on-device, en-US")\n")
+        print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)\n")
 
         let screen = Screen()
 

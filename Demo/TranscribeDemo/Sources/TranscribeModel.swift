@@ -49,9 +49,21 @@ final class TranscribeModel {
     }
     private(set) var bakeoffRows: [BakeoffMeasurement] = []
     private(set) var bakeoffStatus: String?
+    /// The health loop, closed on screen (D-027 F4-A: the pipeline reports,
+    /// THIS APP decides — and what it decides, for now, is to show you).
+    private(set) var thermal: ThermalState = .nominal
+    private(set) var settlingCount = 0
 
-    private let appleEngine = AppleSpeechEngine()
-    private let whisperEngine = WhisperEngine()
+    private let diagnostics: PipelineDiagnostics
+    private let appleEngine: AppleSpeechEngine
+    private let whisperEngine: WhisperEngine
+
+    init() {
+        let diagnostics = PipelineDiagnostics()
+        self.diagnostics = diagnostics
+        self.appleEngine = AppleSpeechEngine(diagnostics: diagnostics)
+        self.whisperEngine = WhisperEngine(diagnostics: diagnostics)
+    }
     private var engine: any TranscriptionEngine {
         choice == .apple ? appleEngine : whisperEngine
     }
@@ -177,21 +189,33 @@ final class TranscribeModel {
             // 200 ms of pre-roll: a word's quiet onset must survive a VAD
             // that only wakes on its loud middle.
             config: .init(sampleRate: rate, pollInterval: .milliseconds(10),
-                          chunkFrames: chunk, preRollChunks: 10))
+                          chunkFrames: chunk, preRollChunks: 10),
+            diagnostics: diagnostics)
         let transcription = TranscriptionSession(
             engine: engine,
-            config: .init(format: AudioStreamFormat(sampleRate: rate, channels: 1)))
+            config: .init(format: AudioStreamFormat(sampleRate: rate, channels: 1)),
+            diagnostics: diagnostics)
 
         isListening = true
+        let diagnostics = diagnostics
         pipeline = Task { [weak self] in
             // Listeners are taken BEFORE the pumps run: no event is missed.
             let audioForSession = await pump.listen()
             let audioForUI = await pump.listen()          // the multicast, used for real
             let transcripts = await transcription.listen()
+            let health = diagnostics.health()
 
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await pump.run() }
                 group.addTask { await transcription.run(events: audioForSession.events) }
+                // The thermal watcher — cancelled with the group, never
+                // stop()ped: diagnostics lives across Listen sessions.
+                group.addTask { await diagnostics.run() }
+                group.addTask { [weak self] in
+                    for await event in health.events {
+                        await self?.show(health: event)
+                    }
+                }
                 group.addTask { [weak self] in
                     for await event in audioForUI.events {
                         await self?.show(audio: event)
@@ -223,6 +247,14 @@ final class TranscribeModel {
     }
 
     // MARK: - events → screen
+
+    private func show(health event: HealthEvent) {
+        switch event {
+        case .thermal(let state): thermal = state
+        case .settlingDecodes(let count): settlingCount = count
+        case .ringDropped, .listenerFellBehind: break   // drops already on screen
+        }
+    }
 
     private func show(audio event: AudioEvent) {
         switch event {

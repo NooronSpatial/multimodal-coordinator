@@ -23,20 +23,44 @@ public actor WhisperEngine: TranscriptionEngine {
     )
 
     private let model: String
+    private nonisolated let diagnostics: PipelineDiagnostics?
     private var pipeline: WhisperKit?
 
-    public init(model: String = "base") {
+    public init(model: String = "base", diagnostics: PipelineDiagnostics? = nil) {
         self.model = model
+        self.diagnostics = diagnostics
     }
 
-    /// Honest disk check against WhisperKit's default hub location — no
-    /// download is ever triggered by asking.
-    public nonisolated func modelInstalled() async -> Bool {
-        let folder = URL.documentsDirectory
+    /// WhisperKit's default hub location for this model, on this device.
+    private nonisolated var localModelFolder: URL {
+        URL.documentsDirectory
             .appending(path: "huggingface/models/argmaxinc/whisperkit-coreml")
             .appending(path: "openai_whisper-\(model)")
-        let contents = try? FileManager.default.contentsOfDirectory(atPath: folder.path)
-        return (contents?.isEmpty == false)
+    }
+
+    /// WhisperKit's default cache for the tokenizer — a SEPARATE asset from
+    /// the model, downloaded alongside it on first install.
+    private nonisolated var localTokenizerFolder: URL {
+        URL.documentsDirectory
+            .appending(path: "huggingface/models/openai")
+            .appending(path: "whisper-\(model)")
+    }
+
+    /// Honest disk check against WhisperKit's default hub locations — no
+    /// download is ever triggered by asking.
+    ///
+    /// "Installed" means OFFLINE-CAPABLE, and that takes more than the model:
+    /// the source audit showed the tokenizer load is local-FIRST but not
+    /// local-ONLY — if its two cache files are missing, WhisperKit silently
+    /// falls back to a Hugging Face download. So this check requires all the
+    /// assets a zero-network start needs. Missing tokenizer files mean "not
+    /// installed" (download again), never a silent ping.
+    public nonisolated func modelInstalled() async -> Bool {
+        let contents = try? FileManager.default.contentsOfDirectory(atPath: localModelFolder.path)
+        guard contents?.isEmpty == false else { return false }
+        let files = FileManager.default
+        return files.fileExists(atPath: localTokenizerFolder.appending(path: "tokenizer.json").path)
+            && files.fileExists(atPath: localTokenizerFolder.appending(path: "tokenizer_config.json").path)
     }
 
     /// Downloads (Hugging Face, ~142 MB for `base`) and loads the pipeline.
@@ -66,10 +90,33 @@ public actor WhisperEngine: TranscriptionEngine {
         return WhisperRun(engine: self, converter: converter, sourceFormat: source, targetFormat: target)
     }
 
-    /// One decode at a time, by actor isolation — several settling runs may
-    /// queue here, in order, without a lock in sight.
+    private var decodeBusy = false
+    private var decodeWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// One decode at a time — ENFORCED, not assumed. The first field session
+    /// caught the original sin in one screenshot: three decode spans
+    /// overlapping and finishing together, because an actor does NOT hold
+    /// isolation across an await — the moment transcribe() suspends, the
+    /// next decode walks in. The reentrancy law, violated by its own
+    /// preacher. Now a waiter queue serializes for real: while-loop re-check
+    /// after every wake (the law again), FIFO wake-up, release on every
+    /// exit path via defer.
     func decode(_ samples: [Float]) async throws -> String {
         let pipeline = try await loadedPipeline()
+        while decodeBusy {
+            await withCheckedContinuation { decodeWaiters.append($0) }
+        }
+        decodeBusy = true
+        defer {
+            decodeBusy = false
+            if !decodeWaiters.isEmpty { decodeWaiters.removeFirst().resume() }
+        }
+        let span = diagnostics?.signposts.begin("whisper.decode")
+        defer { if let span { diagnostics?.signposts.end(span) } }
+        return try await decodeBody(pipeline, samples)
+    }
+
+    private func decodeBody(_ pipeline: WhisperKit, _ samples: [Float]) async throws -> String {
         do {
             let results = try await pipeline.transcribe(audioArray: samples)
             let joined = results.map(\.text).joined(separator: " ")
@@ -90,6 +137,22 @@ public actor WhisperEngine: TranscriptionEngine {
         if let pipeline { return pipeline }
         do {
             let config = WhisperKitConfig(model: model)
+            // Errors only. WhisperKit defaults to verbose info logging
+            // ("Loading models...", "Decoding Temperature: ..."), gated once
+            // at its init by verbose + logLevel. NOT verbose=false: that maps
+            // the level to .none and swallows real errors with the noise.
+            config.logLevel = .error
+            // Offline-first — found by a field experiment in airplane mode:
+            // WhisperKit pings huggingface.co to check the model revision
+            // even when the model sits on disk. With modelFolder set it
+            // loads locally and never touches the network — the on-device
+            // promise applies to STARTUP, not only to transcription. (The
+            // tokenizer needs no folder: its load is local-first from the
+            // cache that modelInstalled() now verifies file by file.)
+            let folder = localModelFolder
+            if (try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.isEmpty == false {
+                config.modelFolder = folder.path
+            }
             let fresh = try await WhisperKit(config)
             pipeline = fresh
             return fresh

@@ -39,7 +39,7 @@ let package = Package(
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
         .executableTarget(
             name: "AudioDemo",
-            dependencies: ["MultiModalKit"]
+            dependencies: ["MultiModalKit", "MultiModalKitWhisper"]
         ),
         .executableTarget(
             name: "Bakeoff",

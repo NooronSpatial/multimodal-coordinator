@@ -72,17 +72,30 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
     private var isRunning = false
     private var isStopped = false
 
+    private let diagnostics: PipelineDiagnostics?
+
     public init(
         consumer: AudioRingConsumer,
         vad: any VoiceActivityDetecting,
         clock: C,
-        config: Config = Config()
+        config: Config = Config(),
+        diagnostics: PipelineDiagnostics? = nil
     ) {
         self.consumer = consumer
         self.vad = vad
         self.clock = clock
         self.config = config
-        self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
+        self.diagnostics = diagnostics
+        let onDrop: (@Sendable (Int, Int) -> Void)?
+        if let diagnostics {
+            onDrop = { id, total in
+                diagnostics.noteListenerLoss(listenerID: id, totalDropped: total)
+            }
+        } else {
+            onDrop = nil
+        }
+        self.broadcast = Broadcast(
+            bufferCapacity: config.listenerBufferCapacity, onListenerDrop: onDrop)
         self.scratch = [Float](repeating: 0, count: consumer.capacity)
         self.carry.reserveCapacity(consumer.capacity + config.chunkFrames)
     }
@@ -102,7 +115,11 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
             let wake = await waitForPollOrStop(until: clock.now.advanced(by: config.pollInterval))
             // Re-check after the await: stop() may have run while we waited.
             if wake == .stopped || isStopped || Task.isCancelled { break }
-            drainOnce()
+            if let signposts = diagnostics?.signposts {
+                signposts.measure("pump.drain") { drainOnce() }
+            } else {
+                drainOnce()
+            }
         }
 
         isRunning = false
@@ -165,6 +182,8 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
         if framesDropped > 0 {
             // The gap, stamped where it begins. A hole also breaks the carry:
             // those leftover frames are no longer next to what follows.
+            // Health mirrors the same fact (AC-48) — same numbers, same stamp.
+            diagnostics?.noteRingDrop(frames: framesDropped, at: time(framesConsumed))
             publish(.dropped(frames: framesDropped, at: time(framesConsumed)))
             framesConsumed += framesDropped
             carry.removeAll(keepingCapacity: true)

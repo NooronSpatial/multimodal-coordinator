@@ -42,9 +42,16 @@ public final class Broadcast<Element: Sendable>: Sendable {
 
     let bufferCapacity: Int
     private let state = Mutex(State())
+    /// Fired (outside the lock) when a slow listener loses an event —
+    /// the hook that lets diagnostics make silent loss visible (AC-48).
+    private let onListenerDrop: (@Sendable (_ listenerID: Int, _ totalDropped: Int) -> Void)?
 
-    public init(bufferCapacity: Int = Broadcast.defaultBufferCapacity) {
+    public init(
+        bufferCapacity: Int = Broadcast.defaultBufferCapacity,
+        onListenerDrop: (@Sendable (_ listenerID: Int, _ totalDropped: Int) -> Void)? = nil
+    ) {
         self.bufferCapacity = bufferCapacity
+        self.onListenerDrop = onListenerDrop
     }
 
     /// Adds a listener. It receives everything published from now on.
@@ -93,8 +100,14 @@ public final class Broadcast<Element: Sendable>: Sendable {
         }
 
         guard !overflowed.isEmpty else { return }
-        state.withLock { state in
-            for id in overflowed { state.dropped[id, default: 0] += 1 }
+        let totals = state.withLock { state -> [(Int, Int)] in
+            overflowed.map { id in
+                state.dropped[id, default: 0] += 1
+                return (id, state.dropped[id]!)
+            }
+        }
+        if let onListenerDrop {
+            for (id, total) in totals { onListenerDrop(id, total) }   // outside the lock
         }
     }
 
