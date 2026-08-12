@@ -57,60 +57,68 @@ struct ContentView: View {
             .disabled(model.isListening)
             .padding(.horizontal)
 
-            List {
-                ForEach(model.utterances) { utterance in
-                    HStack(alignment: .top) {
-                        Image(systemName: icon(for: utterance))
-                            .foregroundStyle(utterance.failure == nil
-                                             ? (utterance.isFinal ? .green : .orange)
-                                             : .red)
-                            .padding(.top, 2)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(utterance.text.isEmpty ? "…" : utterance.text)
-                                .foregroundStyle(utterance.isFinal ? .primary : .secondary)
-                            if let failure = utterance.failure {
-                                Text(failure).font(.caption).foregroundStyle(.red)
-                            }
-                        }
-                    }
-                }
-                if model.utterances.isEmpty && model.isListening {
-                    Text("Say something — it stops and listens.")
-                        .foregroundStyle(.secondary)
-                }
-
-                if !model.isListening {
-                    Section("Bake-off — same fixture as the Mac") {
-                        if let status = model.bakeoffStatus {
-                            Label(status, systemImage: "hourglass")
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Button {
-                                Task { await model.runBakeoff() }
-                            } label: {
-                                Label("Run bake-off (both engines)", systemImage: "scalemass")
-                            }
-                        }
-                        ForEach(model.bakeoffRows, id: \.engineName) { row in
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(model.utterances) { utterance in
+                        HStack(alignment: .top) {
+                            Image(systemName: icon(for: utterance))
+                                .foregroundStyle(utterance.failure == nil
+                                                 ? (utterance.isFinal ? .green : .orange)
+                                                 : .red)
+                                .padding(.top, 2)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(row.engineName).font(.subheadline.bold())
-                                Text(String(format: "WER %.1f%% · %d sub · %d ins · %d del · settle %.2f s",
-                                            row.score.wer * 100, row.score.substitutions,
-                                            row.score.insertions, row.score.deletions,
-                                            row.decodeSeconds))
-                                    .font(.caption.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        if !model.bakeoffRows.isEmpty {
-                            ShareLink(item: model.bakeoffMarkdown) {
-                                Label("Share table (markdown)", systemImage: "square.and.arrow.up")
+                                Text(utterance.text.isEmpty ? "…" : utterance.text)
+                                    .foregroundStyle(utterance.isFinal ? .primary : .secondary)
+                                if let failure = utterance.failure {
+                                    Text(failure).font(.caption).foregroundStyle(.red)
+                                }
                             }
                         }
                     }
+                    if model.utterances.isEmpty && model.isListening {
+                        Text("Say something — it stops and listens.")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !model.isListening {
+                        Section("Bake-off — same fixture as the Mac") {
+                            if let status = model.bakeoffStatus {
+                                Label(status, systemImage: "hourglass")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button {
+                                    Task { await model.runBakeoff() }
+                                } label: {
+                                    Label("Run bake-off (both engines)", systemImage: "scalemass")
+                                }
+                            }
+                            ForEach(model.bakeoffRows, id: \.engineName) { row in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.engineName).font(.subheadline.bold())
+                                    Text(String(format: "WER %.1f%% · %d sub · %d ins · %d del · settle %.2f s",
+                                                row.score.wer * 100, row.score.substitutions,
+                                                row.score.insertions, row.score.deletions,
+                                                row.decodeSeconds))
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if !model.bakeoffRows.isEmpty {
+                                ShareLink(item: model.bakeoffMarkdown) {
+                                    Label("Share table (markdown)", systemImage: "square.and.arrow.up")
+                                }
+                            }
+                        }
+                    }
+                }
+                .listStyle(.plain)
+                // Follow the conversation: any change to the utterances — a new
+                // row OR a growing partial — keeps the newest text on screen.
+                .onChange(of: model.utterances) {
+                    guard let last = model.utterances.last else { return }
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
-            .listStyle(.plain)
 
             statusBar
 
