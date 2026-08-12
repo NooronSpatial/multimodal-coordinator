@@ -677,3 +677,89 @@ Ryad explains the observer-effect problem and the health seam cold.
 - **B** A global/static signpost logger reached from anywhere.
 - **Recommendation: A** — injection is the house law; globals are how
   observability quietly becomes coupling.
+
+## 26. Phase 3b — the thermal policy (fork B, D-028)
+
+The deferral in D-027 comes due. One new seam:
+
+```swift
+public protocol ThermalPolicy: Sendable {
+    /// Consulted at exactly one moment: when a whole-utterance run is
+    /// about to move to the settling table. true = let the decode keep
+    /// its ticket; false = retire the run instead. Never consulted for
+    /// live work.
+    func allowSettlingDecode(thermal: ThermalState, activeSettlingDecodes: Int) -> Bool
+}
+```
+
+Injected into `TranscriptionSession` like the clock and diagnostics.
+`nil` = today's behavior, byte for byte. A shipped default — allow below
+`.serious`, refuse at `.serious`/`.critical` — encodes the field numbers:
+the settling decode is the only measured lever (110 ms ANE bursts, ×2–3
+under contention; everything else is 0.1 %-core noise or system-owned).
+
+Honesty about what a refusal saves: the decode may already be RUNNING
+(it starts at `finishAudio`); refusal cancels it — cooperative, an
+optimisation, the ticket stays the guarantee. The big saving is the
+CONTENDED case: queued decodes that would otherwise pile onto the ANE
+(the ×2–3 the field runs measured) never reach it.
+
+**The one hard problem:** a refusal must lose text *loudly and exactly
+once*. The refused utterance surfaces as
+`.failed(.declinedUnderThermalPressure)` — per-utterance, visible — plus
+one `HealthEvent` per refusal, and its spans end at the refusal (one
+grave, every path). Thermal staleness is tolerated by doctrine: the
+policy is an *optimization*, never correctness — a transition one
+millisecond after the read changes nothing that matters (the
+cancellation doctrine, applied to heat).
+
+**The boundary D-027 keeps:** the policy can only decline *optional*
+work. It cannot gate the live utterance, cannot stop listening, cannot
+cancel the active run. Those remain the app's rights. The policy is
+consulted even without diagnostics injected (thermal reads `.nominal`
+then) — so a custom policy can cap settling concurrency alone; the
+shipped default is dormant in that case by construction.
+
+## 27. Acceptance criteria (Phase 3b)
+
+- **AC-54** `ThermalPolicy` seam: one method, `Sendable`, optional
+  injection; with `nil`, every existing test passes unchanged.
+- **AC-55** Exactly one consultation point — the settling-move step of
+  the session funnel. The active utterance's decode is never gated, at
+  any thermal state.
+- **AC-56** Refusal semantics: run retired with its spans ended · the
+  utterance surfaces `.failed(.declinedUnderThermalPressure)` · one
+  `HealthEvent` per refusal · counts exact.
+- **AC-57** Shipped default: allow at `.nominal`/`.fair`, refuse at
+  `.serious`/`.critical`. Provably dormant on a cool device (a
+  nominal-only script produces zero refusals).
+- **AC-58** Determinism: all policy behavior driven by
+  `ScriptedThermalProvider` + scripted engines. No real temperature, no
+  real clocks, no sleeps.
+- **AC-59** Hygiene: Swift 6 strict, zero warnings, zero new
+  dependencies, CI green, 20× stability loop.
+- **AC-60** The map's own rule fires: `ARCHITECTURE.md` gains the new
+  box. The honesty caveat (thermal attribution never proven; the policy
+  is insurance) is stated where the thermal claims live.
+
+## 28. Test matrix (Phase 3b)
+
+| Area | Tests |
+|---|---|
+| Seam | `nil` policy = suites pass untouched · scripted policy receives exact `(thermal, activeCount)` inputs |
+| Default | scripted transitions: refusals at `.serious`/`.critical` only, dormant below |
+| Refusal path | barge-in at `.serious` with a whole-utterance engine → named failure + health event + spans ended + next utterance clean |
+| Live-turn immunity | active decode completes even at `.critical` |
+| Determinism | scripted provider everywhere; stability ×20 |
+
+## 29. Out of scope for Phase 3b (deliberately)
+
+Pump-cadence throttling (0.1 % core — nothing to save) · gating the
+Apple engine (system-managed) · auto-stop of listening (the app's
+right, D-027) · adaptive eager-window work (own fork, needs AC-52's
+numbers).
+
+## 30. Definition of done (Phase 3b)
+
+All ACs green · 20× stable · PR merged with the map updated ·
+teach-back survived.

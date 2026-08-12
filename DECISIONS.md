@@ -571,3 +571,26 @@ shipped as a choice.
 **Thermal reaches the pipeline through a seam** (`ThermalStateProviding`):
 the real provider wraps ProcessInfo; tests script transitions by hand. No
 test ever depends on a real device's temperature.
+
+---
+
+## D-028 — ThermalPolicy: a seam with a conservative default (Phase 3b fork = B)
+
+The D-027 deferral comes due: the numbers exist (INSTRUMENTS.md), and
+they reveal exactly one lever — the settling decode, optional comfort
+work (D-024), 110 ms ANE bursts, ×2–3 under contention; everything else
+measured too cheap to matter (pump 0.1 % core) or system-owned (Apple's
+settle). Ruled: an injected `ThermalPolicy` seam gating ONLY the move to
+the settling table, with a shipped default — allow below `.serious`,
+refuse at `.serious`/`.critical` — dormant on a cool device. Refusals
+are loud: a named failure on the utterance, a health event, spans ended
+at the refusal.
+
+*Rejected — A, document-only:* every app re-implements the same policy
+and the paid-for numbers stay decorative. *Rejected — C, measure-first:*
+the attribution confound (a pre-warmed phone) is real, but the default
+is dormant below `.serious`, so unproven need costs nothing at runtime;
+attribution stays an open question in INSTRUMENTS.md rather than a
+blocker. D-027's boundary holds: the pipeline never stops listening on
+its own — the policy can only decline optional work, never the live
+turn.
