@@ -92,19 +92,27 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     // MARK: - ReplyGenerating
 
     public func openReply(to transcript: String) async throws -> any ReplyRun {
-        let index = state.withLock { state -> Int in
+        // Record and continuation land in ONE lock: any observer that can
+        // see the record can reach the stream. (The split version lost a
+        // race — a test emitting between the two locks yielded into nothing
+        // and the update vanished. The older ScriptedTranscriber had this
+        // right; the law was re-learned here.)
+        var handle: AsyncStream<ReplyUpdate>.Continuation!
+        let stream = AsyncStream<ReplyUpdate> { handle = $0 }
+        let continuation = handle!
+        let (index, plan) = state.withLock { state -> (Int, Plan) in
             state.records.append(ReplyRecord(transcript: transcript))
-            return state.records.count - 1
+            let index = state.records.count - 1
+            let plan = index < plans.count ? plans[index] : Plan.manual()
+            if case .failOnOpen = plan {} else {
+                state.continuations[index] = continuation
+            }
+            return (index, plan)
         }
-        let plan = index < plans.count ? plans[index] : .manual()
 
         if case .failOnOpen(let reason) = plan {
             throw TurnFailure.generationFailed(reason)
         }
-
-        var handle: AsyncStream<ReplyUpdate>.Continuation!
-        let stream = AsyncStream<ReplyUpdate> { handle = $0 }
-        state.withLock { $0.continuations[index] = handle }
         return ScriptedReply(generator: self, index: index, plan: plan, updates: stream)
     }
 

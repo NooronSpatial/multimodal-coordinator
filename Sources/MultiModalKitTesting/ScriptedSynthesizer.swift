@@ -77,19 +77,25 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
     // MARK: - SpeechSynthesizing
 
     public func openUtterance() async throws -> any SynthesisRun {
-        let index = state.withLock { state -> Int in
+        // Record and continuation in ONE lock — see ScriptedReplyGenerator:
+        // an observer that can see the record must be able to reach the
+        // stream, or reports race into nothing.
+        var handle: AsyncStream<SynthesisUpdate>.Continuation!
+        let stream = AsyncStream<SynthesisUpdate> { handle = $0 }
+        let continuation = handle!
+        let (index, plan) = state.withLock { state -> (Int, Plan) in
             state.records.append(UtteranceRecord())
-            return state.records.count - 1
+            let index = state.records.count - 1
+            let plan = index < plans.count ? plans[index] : Plan.manual()
+            if case .failOnOpen = plan {} else {
+                state.continuations[index] = continuation
+            }
+            return (index, plan)
         }
-        let plan = index < plans.count ? plans[index] : .manual()
 
         if case .failOnOpen(let reason) = plan {
             throw TurnFailure.synthesisFailed(reason)
         }
-
-        var handle: AsyncStream<SynthesisUpdate>.Continuation!
-        let stream = AsyncStream<SynthesisUpdate> { handle = $0 }
-        state.withLock { $0.continuations[index] = handle }
         return ScriptedUtterance(synthesizer: self, index: index, plan: plan, updates: stream)
     }
 
