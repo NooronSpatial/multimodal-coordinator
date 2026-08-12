@@ -2,6 +2,7 @@
 
 A coordination library for on-device AI streaming, built in public — phase by
 phase, every design decision logged, every claim checkable in the tests.
+Lost in the code? [ARCHITECTURE.md](ARCHITECTURE.md) is the one-page map.
 
 **Phase 1 (complete):** real microphone → lock-free ring buffer → voice
 activity detection → clean speech events, delivered to many listeners.
