@@ -207,13 +207,32 @@ public actor TranscriptionSession {
             if let old = active {
                 active = nil               // decided in this same actor step
                 if allowsOverlap && old.settling {
-                    // D-024: a batch decode SURVIVES the next utterance —
-                    // its ticket moves to the settling table, stamped with
-                    // the audio it was fed.
-                    settlingRuns[old.utterance] = Settling(
-                        run: old.run, at: time(old.startFrames + old.fedFrames),
-                        utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
-                    diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
+                    // D-028: the ONE consultation (AC-55). Synchronous reads,
+                    // no await between the question and the verdict's effect.
+                    let thermal = diagnostics?.thermal.current ?? .nominal
+                    let allowed = thermalPolicy?.allowSettlingDecode(
+                        thermal: thermal, activeSettlingDecodes: settlingRuns.count) ?? true
+                    if allowed {
+                        // D-024: a batch decode SURVIVES the next utterance —
+                        // its ticket moves to the settling table, stamped with
+                        // the audio it was fed.
+                        settlingRuns[old.utterance] = Settling(
+                            run: old.run, at: time(old.startFrames + old.fedFrames),
+                            utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+                        diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
+                    } else {
+                        // The refusal (AC-56): loud and exactly once — a named
+                        // failure on the utterance, one health event, spans
+                        // ended here (one grave, every path). The ticket died
+                        // above; the cancel is the optimisation, as always.
+                        publish(.failed(.declinedUnderThermalPressure,
+                                        utterance: old.utterance,
+                                        at: time(old.startFrames + old.fedFrames)))
+                        diagnostics?.noteSettlingRefusal(
+                            utterance: old.utterance, thermal: thermal)
+                        endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+                        await old.run.cancel()
+                    }
                 } else {
                     // D-021 ruling 1, unchanged for streaming engines: the
                     // new utterance retires the old one; ticket dead first.

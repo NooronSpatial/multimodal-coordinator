@@ -59,6 +59,9 @@ the top and leaves as text at the bottom.
  PipelineSignposter (58)   the os_signpost spans Instruments shows.
  Thermal (54)              ThermalStateProviding seam + the real
                            ProcessInfo provider.
+ ThermalPolicy (40)        D-028: one question at one moment — may this
+                           settling decode keep its ticket? The shipped
+                           default is dormant below .serious.
 ```
 
 Diagnostics is optional everywhere (`nil` by default): the library never
@@ -92,6 +95,7 @@ apps must own (AC-22); everything else is the library, unchanged.
 | Whisper decode, waiter queue, offline load | `MultiModalKitWhisper/WhisperEngine.swift` |
 | One-to-many events, listener drop counting | `Concurrency/Broadcast.swift` |
 | Thermal + health events | `Diagnostics/PipelineDiagnostics.swift`, `Diagnostics/Thermal.swift` |
+| The heat ruling — who may keep settling | `Diagnostics/ThermalPolicy.swift`; its one consultation lives in the session's `speechStarted` branch |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
 | The pipeline wired for real | `Demo/TranscribeDemo/Sources/TranscribeModel.swift`, `Sources/AudioDemo/AudioDemo.swift` |
