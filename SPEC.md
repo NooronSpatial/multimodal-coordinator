@@ -763,3 +763,81 @@ numbers).
 
 All ACs green · 20× stable · PR merged with the map updated ·
 teach-back survived.
+
+## 31. Phase 4, milestone 4a — the turn loop (scripted stages)
+
+Today the spine ends at text. 4a builds the conversation above it: two new
+seams — `ReplyGenerating` (final text in, reply tokens out) and
+`SpeechSynthesizing` (token stream in, spoken-evidence events out) — plus
+the `TurnCoordinator`: one loop, one truth, consuming the audio and
+transcript streams the pipeline already broadcasts. Inputs are plain
+`AsyncStream`s; the coordinator never holds the session or the pump, so
+tests script it without either. 4a ships SCRIPTED stages only (with defiant
+plans — the proof duty); real engines are 4b/4c behind the same seams.
+
+**The one hard problem:** the ticket doctrine, promoted one level. An
+utterance ticket protected one decode; a **turn ticket** must protect a
+chain — generation feeding synthesis, both possibly mid-flight when the
+user barges. Raised in the same actor step as the retiring transition; a
+dead turn's tokens and speech provably unable to surface, defiant stages
+included. Cancellation stays the optimization, never the guarantee.
+
+**The input-side ticket:** a settling final from an EARLIER utterance
+(D-024) may arrive while a new turn is already listening. The coordinator
+mirrors the session's utterance numbering from the same event stream and
+only lets the CURRENT utterance's final open a turn's thinking phase —
+stale settled finals remain what they are: comfort text for apps, never a
+reply trigger.
+
+## 32. Acceptance criteria (Phase 4a)
+
+- **AC-61** `TurnState` (idle / listening / thinking / speaking) with a
+  single transition funnel validating every change against an explicit
+  legal-transition table; no state write outside the funnel.
+- **AC-62** Turn ticket: monotonic turn number, raised in the same actor
+  step as the retiring transition. After a barge-in, ZERO events from the
+  dead turn surface — proven with defiant generator AND defiant
+  synthesizer, and for the input side with a stale settled final.
+- **AC-63** Barge-in in every phase: during `thinking` before the first
+  token, mid-generation, and during `speaking` — each yields the exact
+  event sequence, tested.
+- **AC-64** A final transcript that is empty/whitespace produces no reply:
+  back to idle, the generator is never opened.
+- **AC-65** Failure is an event: a generator or synthesizer failure ends
+  the TURN, never the coordinator; the next turn runs clean.
+- **AC-66** `stop()`: streams finish, no leaked tasks — the D-014
+  race-then-cancel doctrine, applied to the turn loop.
+- **AC-67** Events via `Broadcast` (bounded, drop-oldest, counted, no
+  replay — D-012 unchanged); the current state is QUERYABLE on the actor,
+  so late listeners ask for "now" instead of replaying history.
+- **AC-68** Determinism: scripted stages, no sleeps, event-gated, 20×.
+- **AC-69** Hygiene: Swift 6 strict, zero warnings, zero new dependencies,
+  CI green, ARCHITECTURE.md updated (its own rule).
+- **AC-70** The slice: the terminal demo runs the scripted turn loop live —
+  speak, watch it think, see reply tokens print as speech, barge it
+  mid-reply with your voice.
+
+## 33. Test matrix (Phase 4a)
+
+| Area | Tests |
+|---|---|
+| Happy turn | exact event sequence idle→listening→thinking→speaking→idle, tokens included |
+| Barge-in | in thinking-before-tokens · mid-generation · mid-speaking · rapid double barge — exact sequences, defiant stages emit late and are dropped |
+| Input ticket | stale settled final while listening → no thinking opened |
+| Empty final | AC-64 exact; generator untouched |
+| Failures | generator fails · synthesizer fails → turnFailed + idle, next turn clean |
+| Funnel audit | full multi-turn state sequence: every adjacent pair in the legal table |
+| Zero-token reply | finished with no tokens → completed, speaking never entered |
+| stop() | mid-speaking: broadcast finishes, nothing after |
+
+## 34. Out of scope for 4a (deliberately)
+
+Real TTS (`AVSpeechSynthesizer` — 4b) · real on-device reply generation
+(4c, seam-ready) · echo cancellation — the assistant hearing itself is
+4b's hard problem, named now, solved when real audio exists · multi-turn
+memory/context · turn-level signposts (revisit with 4b's field session).
+
+## 35. Definition of done (Phase 4a)
+
+All ACs green · 20× stable · demo slice runs live on the Mac · PR merged
+with the map updated · teach-back survived.

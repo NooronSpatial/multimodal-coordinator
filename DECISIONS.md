@@ -594,3 +594,69 @@ attribution stays an open question in INSTRUMENTS.md rather than a
 blocker. D-027's boundary holds: the pipeline never stops listening on
 its own — the policy can only decline optional work, never the live
 turn.
+
+---
+
+## D-029 — The turn seams: streaming replies, evidence-reporting synthesis (Phase 4a forks F2 = A, F4 = A)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+`ReplyGenerating` answers with a TOKEN STREAM, not a whole string: early
+synthesis start and mid-generation barge-in both need tokens as they are
+born, and every seam in this library is streaming-first — a whole-reply
+seam would be its first non-streaming citizen. *Rejected:* one string back
+(simpler, but locks the loop into wait-for-everything and makes
+mid-generation barge meaningless).
+
+`SpeechSynthesizing` REPORTS — started / finished / failed — and the
+coordinator's `speaking` state follows those reports. *Rejected:* the
+coordinator assuming `speaking` the moment it hands tokens over — the
+house rule everywhere else is that state follows evidence, never
+assumption (the pump's verdicts, the session's tickets, the thermal
+baseline), and the scripted synthesizer makes the honest version fully
+testable today.
+
+---
+
+## D-030 — TurnCoordinator lives in core; state = enum + one funnel; state is queryable, events replay nothing (Phase 4a fork F3 = A)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+The coordinator is the library's namesake and carries zero dependency
+weight (it holds seams, never engines) — it lives in `MultiModalKit`.
+*Rejected:* a separate product — its argument was size, not kind.
+
+State machine: a `TurnState` enum and ONE transition funnel validating
+every change against an explicit legal-pair table; no state write outside
+the funnel. One place to point at: this function IS the state machine.
+*Rejected:* implicit state in control flow (transitions scatter; proving
+legality means auditing every path) and a generic interpreted transition
+table (machinery for machinery's sake at four states).
+
+Late listeners: `Broadcast` stays no-replay (D-012 unchanged) — but the
+current state is queryable on the actor. A late subscriber asks for NOW
+and then listens; history is not replayed, it is asked for. Same shape as
+the diagnostics baseline rule.
+
+---
+
+## D-031 — Barge-in = the pump's `speechStarted`; the ticket doctrine promoted to turns (Phase 4a fork F1 = A)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+The barge trigger is the earliest signal the system has: the pump's
+`speechStarted`. A first-partial fallback is structurally unnecessary in
+THIS pipeline — no recognition exists before the pump has fired
+`speechStarted`, by construction. *Rejected for 4a:* text-confirmed
+barge-in (`speechStarted` + first partial) — robustness against the
+assistant hearing itself, bought with latency at the most
+latency-sensitive moment, for an echo that cannot exist while the stages
+are scripted and silent. **The fork formally re-opens at 4b** when real
+audio makes it real.
+
+Mechanism: hybrid, as everywhere in this library — structured
+cancellation reclaims resources promptly; the monotonic turn ticket,
+raised in the same actor step as the retiring transition, is the
+correctness invariant. Each covers the other's gap. The input side gets
+the same treatment: only the CURRENT utterance's final may open thinking;
+a stale settled final (D-024) is comfort text, never a reply trigger.
