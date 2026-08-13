@@ -79,9 +79,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     private var state: TurnState = .idle
     private var current: LiveTurn?
     private var nextTurn = 0
-    /// Mirrors the session's utterance numbering: both count the same
-    /// `speechStarted` events from the same pump stream.
-    private var utteranceCount = 0
+    /// The newest utterance identity SEEN here (D-034). Identities are
+    /// assigned by the pump and carried in the events — this is a record
+    /// of what arrived, never a parallel count. The review proved parallel
+    /// counters over drop-tolerant streams desync forever; a number read
+    /// from the event cannot.
+    private var lastOnset = -1
     /// Reorder tolerance: the coordinator's two input streams cross two
     /// forwarders, so a final can reach the merge BEFORE its own
     /// `speechStarted` (tests hit this window constantly; production hits
@@ -219,10 +222,9 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         forwardingInto group: inout TaskGroup<Void>,
         via input: AsyncStream<Input>.Continuation
     ) async {
-        guard case .speechStarted = event else { return }   // segments, ends,
-                                                            // drops: not turn business
-        let utterance = utteranceCount
-        utteranceCount += 1
+        guard case .speechStarted(let utterance, _) = event else { return }
+        // segments, ends, drops: not turn business
+        lastOnset = utterance
 
         switch state {
         case .idle:
@@ -260,7 +262,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         }
 
         // The utterance is born — if its terminal transcript arrived early
-        // (cross-stream reorder), consume it NOW, in arrival order.
+        // (cross-stream reorder), consume it NOW, in arrival order. STRICTLY
+        // older pending entries can never see their onset again (identities
+        // are monotonic at the source): pruned, self-healing after any drop.
+        // The current key survives the prune — it is consumed on the next line.
         pendingTranscripts = pendingTranscripts.filter { $0.key >= utterance }
         if let early = pendingTranscripts.removeValue(forKey: utterance) {
             await handleTranscript(early, forwardingInto: &group, via: input)
@@ -282,10 +287,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // text for apps, never a reply trigger.
             guard let live = current, state == .listening, live.utterance == utterance
             else {
-                if utterance >= utteranceCount {   // from the future: reorder,
-                    pendingTranscripts[utterance] = event   // not staleness
+                if utterance > lastOnset {   // its onset has not arrived HERE
+                    pendingTranscripts[utterance] = event   // reorder, not staleness
                 }
-                return
+                return                       // ≤ lastOnset: stale or dead — dropped
             }
 
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -325,7 +330,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // ends as an event, the loop lives on (AC-65's transcription arm).
             guard let live = current, state == .listening, live.utterance == utterance
             else {
-                if utterance >= utteranceCount {
+                if utterance > lastOnset {
                     pendingTranscripts[utterance] = event
                 }
                 return

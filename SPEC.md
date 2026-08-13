@@ -816,6 +816,12 @@ reply trigger.
 - **AC-70** The slice: the terminal demo runs the scripted turn loop live —
   speak, watch it think, see reply tokens print as speech, barge it
   mid-reply with your voice.
+- **AC-72** *(added mid-milestone, ruled by Ryad — D-034)* Utterance
+  identity is assigned by the pump and carried in `speechStarted`; no
+  component derives it by counting. The desync-corruption scenario the
+  review confirmed (one lost onset → every reply off by one, forever) is
+  a regression test that proves one lost onset costs one utterance, and
+  the next event heals the view.
 - **AC-71** *(added mid-milestone, ruled by Ryad — D-032)* Latency seam:
   clock + injectable `LatencyReporter`, instants at the semantic
   boundaries, exact values proven on a manual clock (turn latency

@@ -118,7 +118,7 @@ struct TurnCoordinatorTests {
 
         /// One user utterance on the wire: onset, then its final.
         func speak(utterance: Int, final text: String, at frames: Int) {
-            audio.yield(.speechStarted(at: Self.t(frames)))
+            audio.yield(.speechStarted(utterance: utterance, at: Self.t(frames)))
             transcripts.yield(.final(text, utterance: utterance, at: Self.t(frames + 960)))
         }
 
@@ -199,7 +199,7 @@ struct TurnCoordinatorTests {
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
 
             // The user barges while the generator is still silent.
-            bench.audio.yield(.speechStarted(at: Self.t(9600)))
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             #expect(await Self.until { await bench.coordinator.currentState == .listening })
             #expect(await Self.until { bench.generator.record(ofReply: 0)?.cancelled == true })
 
@@ -255,7 +255,7 @@ struct TurnCoordinatorTests {
             #expect(await Self.until { await bench.coordinator.currentState == .speaking })
 
             // Barge mid-speech.
-            bench.audio.yield(.speechStarted(at: Self.t(48000)))
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(48000)))
             #expect(await Self.until { await bench.coordinator.currentState == .listening })
             #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.cancelled == true })
 
@@ -313,7 +313,7 @@ struct TurnCoordinatorTests {
             #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
             #expect(await bench.coordinator.currentState == .thinking)
 
-            bench.audio.yield(.speechStarted(at: Self.t(48000)))   // the barge
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(48000)))   // the barge
             #expect(await Self.until { bench.generator.record(ofReply: 0)?.cancelled == true })
             #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.cancelled == true },
                     "a mid-generation barge must kill the silent mouth too")
@@ -362,12 +362,12 @@ struct TurnCoordinatorTests {
 
             bench.speak(utterance: 0, final: "one", at: 0)
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
-            bench.audio.yield(.speechStarted(at: Self.t(9600)))       // barge 1
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(9600)))   // barge 1
             #expect(await Self.until { await bench.box.events.contains(.turnBarged(turn: 0)) })
 
             bench.transcripts.yield(.final("two", utterance: 1, at: Self.t(10560)))
             #expect(await Self.until { bench.generator.repliesOpened == 2 })
-            bench.audio.yield(.speechStarted(at: Self.t(19200)))      // barge 2
+            bench.audio.yield(.speechStarted(utterance: 2, at: Self.t(19200)))  // barge 2
             #expect(await Self.until { await bench.box.events.contains(.turnBarged(turn: 1)) })
 
             bench.transcripts.yield(.final("three", utterance: 2, at: Self.t(20160)))
@@ -402,7 +402,7 @@ struct TurnCoordinatorTests {
 
     // MARK: - the input-side ticket (AC-62's second half)
 
-    @Test("A stale settled final from an earlier utterance never opens thinking")
+    @Test("A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically")
     func staleSettledFinalIsNotAReplyTrigger() async {
         let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
@@ -410,27 +410,62 @@ struct TurnCoordinatorTests {
         await withTaskGroup(of: Void.self) { group in
             bench.start(in: &group, listener: listener)
 
-            // Utterance 0 starts; the user pauses and restarts (utterance 1)
-            // before any final: the session is settling utterance 0 (D-024).
-            bench.audio.yield(.speechStarted(at: Self.t(0)))
-            bench.audio.yield(.speechStarted(at: Self.t(9600)))
+            // Utterance 0 begins.
+            bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             #expect(await Self.until { await bench.coordinator.currentState == .listening })
 
-            // Utterance 0's settled final lands LATE — mid-listening to 1.
+            // Utterance 1's final arrives BEFORE its onset (cross-stream
+            // reorder): identity says "future" — it must wait, not fire.
+            bench.transcripts.yield(.final("current words", utterance: 1, at: Self.t(10560)))
+
+            // Utterance 1's onset: the re-arm consumes the waiting final.
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
+            #expect(await Self.until { bench.generator.repliesOpened == 1 },
+                    "the buffered CURRENT final must fire on its onset")
+            #expect(bench.generator.record(ofReply: 0)?.transcript == "current words")
+
+            // Utterance 0's settled final lands late (D-024): identity says
+            // "stale" — dropped, deterministically, whatever the state.
             bench.transcripts.yield(.final("stale words", utterance: 0, at: Self.t(960)))
 
-            // Then the CURRENT utterance's final arrives and drives the turn.
-            bench.transcripts.yield(.final("current words", utterance: 1, at: Self.t(10560)))
-            #expect(await Self.until { bench.generator.repliesOpened == 1 },
-                    "exactly one reply — the current utterance's")
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.repliesOpened == 1,
+                "the stale settled final must never reach the generator")
+    }
+
+    @Test("THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns")
+    func missedOnsetHealsInsteadOfCorrupting() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            // Utterance 0's onset was DROPPED before reaching this
+            // coordinator (bounded listener buffer, D-012) — it simply
+            // never appears on the wire. Utterance 1 arrives normally.
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(96000)))
+            #expect(await Self.until { await bench.coordinator.currentState == .listening })
+
+            // The orphan's final arrives. Under the old mirror this looked
+            // "from the future", waited, and answered utterance 2's onset —
+            // every reply off by one, forever. Identity kills it instead.
+            bench.transcripts.yield(.final("orphan words", utterance: 0, at: Self.t(960)))
+
+            // The real utterance's final drives the turn with the RIGHT text.
+            bench.transcripts.yield(.final("real words", utterance: 1, at: Self.t(97000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
 
             bench.finishInputs()
             await bench.coordinator.stop()
         }
 
         #expect(bench.generator.repliesOpened == 1)
-        #expect(bench.generator.record(ofReply: 0)?.transcript == "current words",
-                "the stale settled final must never reach the generator")
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "real words",
+                "one lost onset must cost ONE utterance, never every turn after it")
     }
 
     // MARK: - empty finals and failures (AC-64, AC-65)
@@ -580,7 +615,7 @@ struct TurnCoordinatorTests {
             #expect(await Self.until { bench.synthesizer.utterancesOpened == 2 })
             bench.synthesizer.reportStarted(utterance: 1)
             #expect(await Self.until { await bench.coordinator.currentState == .speaking })
-            bench.audio.yield(.speechStarted(at: Self.t(144000)))
+            bench.audio.yield(.speechStarted(utterance: 3, at: Self.t(144000)))
             #expect(await Self.until { await bench.box.events.contains(.turnBarged(turn: 2)) })
 
             bench.finishInputs()
@@ -717,7 +752,7 @@ struct TurnCoordinatorTests {
         await withTaskGroup(of: Void.self) { group in
             bench.start(in: &group, listener: listener)
 
-            bench.audio.yield(.speechStarted(at: Self.t(0)))
+            bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             bench.transcripts.yield(.failed(.engineFailed("mic route died"),
                                             utterance: 0, at: Self.t(960)))
             #expect(await Self.until { await bench.box.events.contains(
@@ -756,7 +791,7 @@ struct TurnCoordinatorTests {
             // Cross-stream reorder, forced deterministically: the final is
             // on the wire before anyone has spoken.
             bench.transcripts.yield(.final("early words", utterance: 0, at: Self.t(960)))
-            bench.audio.yield(.speechStarted(at: Self.t(0)))
+            bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             #expect(await Self.until { bench.generator.repliesOpened == 1 },
                     "the buffered final must fire the moment its utterance is born")
             #expect(bench.generator.record(ofReply: 0)?.transcript == "early words")
@@ -940,7 +975,7 @@ struct TurnCoordinatorTests {
             // cancel measurement, which starts at the barge itself.
             await clock.advance(by: .seconds(2))
 
-            bench.audio.yield(.speechStarted(at: Self.t(96000)))   // the barge
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(96000)))   // the barge
             #expect(await Self.until { await bench.box.events.contains(.turnBarged(turn: 0)) })
             #expect(await Self.until { !reporter.cancelLatencies.isEmpty })
 

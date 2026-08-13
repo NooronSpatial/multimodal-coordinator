@@ -710,3 +710,32 @@ attached to the state.
 injected clock, and a turn with no evidence behind it: three costs to
 buy a word. The zero-token path (thinking → idle on an empty reply)
 follows the same reasoning.
+
+---
+
+## D-034 — Utterance identity is born at the source (the review's mirror finding)
+
+**Date:** 2026-08-13 · **Decided by:** Ryad
+
+The adversarial review's major catch: the session and the coordinator each
+COUNTED `speechStarted` on their own broadcast listener to derive utterance
+numbers — and the transport is legally allowed to show two listeners two
+different event sets (no replay; bounded drop-oldest, D-012). One event
+seen by one listener and not the other desynchronized the counts FOREVER:
+every reply answering the PREVIOUS question, or permanent muteness —
+undetected, unhealable. The suite was green over it because a single-stream
+test bench cannot express a two-listener set mismatch.
+
+Ruled: identity travels WITH the evidence. The pump — the one place an
+utterance is born — assigns its number and carries it inside
+`speechStarted(utterance:at:)`. The session ADOPTS the number; the
+coordinator READS it; nobody counts anything downstream. A lost onset now
+costs exactly its own utterance (that final fails the identity door and
+dies — correct) and the very next event heals the view. The regression
+test drives the exact corruption scenario and proves the heal.
+
+*Rejected:* detect-and-resync heuristics — shrinks the window, closes
+nothing, and the doctrine demands stale events be PROVABLY inert.
+*Rejected:* documenting it as a known limit — a law with a waiver is not
+a law. Cost accepted: `AudioEvent.speechStarted` gained a field (pre-1.0,
+we own every consumer).

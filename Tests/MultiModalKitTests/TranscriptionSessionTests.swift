@@ -96,7 +96,7 @@ struct TranscriptionSessionTests {
         let engine = ScriptedTranscriber(plans: [.normal(partialEveryChunks: 100)])
 
         _ = await Self.withSession(engine: engine) { _, feed, _ in
-            feed.yield(.speechStarted(at: Self.t(1920)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(1920)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))      // pre-roll (older)
             feed.yield(.audioSegment(Self.chunk(at: 960)))    // pre-roll
             feed.yield(.audioSegment(Self.chunk(at: 1920)))   // live
@@ -117,7 +117,7 @@ struct TranscriptionSessionTests {
         let engine = ScriptedTranscriber(plans: [.normal(partialEveryChunks: 2)])
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             feed.yield(.audioSegment(Self.chunk(at: 960)))     // 2nd chunk → partial
             #expect(await Self.collected(box, atLeast: 1), "no partial arrived")
@@ -148,12 +148,12 @@ struct TranscriptionSessionTests {
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
             // Utterance 0 comes and goes; the silent engine never speaks.
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             feed.yield(.speechEnded(at: Self.t(960)))
 
             // Utterance 1 begins — utterance 0 is now dead.
-            feed.yield(.speechStarted(at: Self.t(4800)))
+            feed.yield(.speechStarted(utterance: 1, at: Self.t(4800)))
             feed.yield(.audioSegment(Self.chunk(at: 4800)))
             _ = await Self.fed(engine, run: 1, atLeast: 1)
 
@@ -182,13 +182,13 @@ struct TranscriptionSessionTests {
         ])
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             feed.yield(.audioSegment(Self.chunk(at: 960)))     // 2nd chunk → the engine dies
             #expect(await Self.collected(box, atLeast: 1), "no failed event arrived")
             feed.yield(.speechEnded(at: Self.t(1920)))
 
-            feed.yield(.speechStarted(at: Self.t(4800)))
+            feed.yield(.speechStarted(utterance: 1, at: Self.t(4800)))
             feed.yield(.audioSegment(Self.chunk(at: 4800)))
             feed.yield(.speechEnded(at: Self.t(5760)))
             #expect(await Self.collected(box, atLeast: 2), "the session did not survive the failure")
@@ -208,12 +208,12 @@ struct TranscriptionSessionTests {
         ])
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             feed.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.collected(box, atLeast: 1), "no failed event for the unopenable run")
 
-            feed.yield(.speechStarted(at: Self.t(4800)))
+            feed.yield(.speechStarted(utterance: 1, at: Self.t(4800)))
             feed.yield(.audioSegment(Self.chunk(at: 4800)))
             feed.yield(.speechEnded(at: Self.t(5760)))
             #expect(await Self.collected(box, atLeast: 2))
@@ -234,7 +234,7 @@ struct TranscriptionSessionTests {
         let config = TranscriptionSession.Config(maximumUtterance: .milliseconds(60))
 
         let events = await Self.withSession(engine: engine, config: config) { _, feed, box in
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             for i in 0..<5 {
                 feed.yield(.audioSegment(Self.chunk(at: i * Self.chunkFrames)))
             }
@@ -264,7 +264,7 @@ struct TranscriptionSessionTests {
             group.addTask { for await event in first.events { await boxA.append(event) } }
             group.addTask { for await event in second.events { await boxB.append(event) } }
 
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             feed.yield(.speechEnded(at: Self.t(960)))
 
@@ -290,7 +290,7 @@ struct TranscriptionSessionTests {
         let engine = ScriptedTranscriber(plans: [.normal(partialEveryChunks: 100)])
 
         let events = await Self.withSession(engine: engine) { session, feed, _ in
-            feed.yield(.speechStarted(at: Self.t(0)))
+            feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             feed.yield(.audioSegment(Self.chunk(at: 0)))
             _ = await Self.fed(engine, run: 0, atLeast: 1)
             await session.stop()          // mid-utterance, no speechEnded

@@ -110,7 +110,7 @@ struct ThermalPolicyTests {
             group.addTask { for await event in health.events { await healthBox.append(event) } }
 
             // Utterance 0: one chunk, then it ends — the "decode" begins.
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true },
@@ -118,7 +118,7 @@ struct ThermalPolicyTests {
 
             // Utterance 1 begins on a HOT device — the policy must refuse
             // the settling move and retire run 0 instead.
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             #expect(await Self.until { await box.events.count >= 1 },
                     "no refusal surfaced — D-028 not wired")
             #expect(await Self.until { engine.record(ofRun: 0)?.cancelled == true },
@@ -174,12 +174,12 @@ struct ThermalPolicyTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true })
 
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             input.yield(.audioSegment(Self.chunk(at: 9600)))
             #expect(await Self.until { (engine.record(ofRun: 1)?.fedChunks.count ?? 0) >= 1 })
 
@@ -223,12 +223,12 @@ struct ThermalPolicyTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true })
 
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             #expect(await Self.until { !policy.recorded.isEmpty },
                     "the policy was never consulted — D-028 not wired")
 
@@ -269,7 +269,7 @@ struct ThermalPolicyTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true },
@@ -309,11 +309,11 @@ struct ThermalPolicyTests {
             group.addTask { for await event in listener.events { await box.append(event) } }
 
             // Utterance 0 is barged mid-speech — D-021 strict retirement.
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             #expect(await Self.until { await box.events.count >= 1 })   // its partial
 
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             #expect(await Self.until { engine.record(ofRun: 0)?.cancelled == true },
                     "streaming retirement must still cancel")
 
@@ -349,11 +349,11 @@ struct ThermalPolicyTests {
             // Utterance 0: speech begins and is barged BEFORE any speechEnded
             // — old.settling is false, so this is live-turn replacement
             // (D-021), not a settling move. The policy has no say.
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             #expect(await Self.until { (engine.record(ofRun: 0)?.fedChunks.count ?? 0) >= 1 })
 
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             #expect(await Self.until { engine.record(ofRun: 0)?.cancelled == true },
                     "an unsettled batch run is retired like a streaming one")
 
@@ -397,14 +397,14 @@ struct ThermalPolicyTests {
             group.addTask { for await event in health.events { await healthBox.append(event) } }
 
             // Utterance 0 settles on a FAIR device...
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true })
 
             // ...and utterance 1's barge moves it to the settling table:
             // the policy allowed it, seeing (.fair, 0).
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             input.yield(.audioSegment(Self.chunk(at: 9600)))
             input.yield(.speechEnded(at: Self.t(10560)))
             #expect(await Self.until { engine.record(ofRun: 1)?.audioFinished == true })
@@ -412,7 +412,7 @@ struct ThermalPolicyTests {
             // THE DEVICE HEATS UP — then utterance 2 barges in. The policy
             // sees (.serious, 1): utterance 1's move is refused...
             provider.push(.serious)
-            input.yield(.speechStarted(at: Self.t(19200)))
+            input.yield(.speechStarted(utterance: 2, at: Self.t(19200)))
             #expect(await Self.until { await box.events.contains {
                 if case .failed(.declinedUnderThermalPressure, 1, _) = $0 { return true }
                 return false
@@ -470,12 +470,12 @@ struct ThermalPolicyTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true })
 
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             #expect(await Self.until { await box.events.count >= 1 },
                     "a refusal must not depend on diagnostics being injected")
 

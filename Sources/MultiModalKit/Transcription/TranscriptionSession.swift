@@ -86,7 +86,6 @@ public actor TranscriptionSession {
     /// ticket until its final arrives. Streaming engines never enter here.
     private var settlingRuns: [Int: Settling] = [:]
     private let allowsOverlap: Bool
-    private var nextUtterance = 0
     private var merge: AsyncStream<Input>.Continuation?
     private var isStopped = false
 
@@ -203,7 +202,7 @@ public actor TranscriptionSession {
         via input: AsyncStream<Input>.Continuation
     ) async {
         switch event {
-        case .speechStarted(let at):
+        case .speechStarted(let utterance, let at):
             if let old = active {
                 active = nil               // decided in this same actor step
                 if allowsOverlap && old.settling {
@@ -251,8 +250,8 @@ public actor TranscriptionSession {
                     await old.run.cancel()
                 }
             }
-            let utterance = nextUtterance
-            nextUtterance += 1
+            // D-034: the utterance's number arrived WITH the event — the
+            // pump assigned it at birth. No local counter to desync.
             do {
                 let run = try await engine.openRun(format: config.format)
                 // Reentrancy law: stop() may have run while we awaited.

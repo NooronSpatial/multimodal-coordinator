@@ -45,7 +45,12 @@ public struct AudioChunk: Sendable, Equatable {
 /// loss appears at the exact point where it happened, instead of hiding in a
 /// counter somebody has to remember to read.
 public enum AudioEvent: Sendable, Equatable {
-    case speechStarted(at: AudioTime)
+    /// Speech began. `utterance` is the utterance's IDENTITY, assigned HERE
+    /// at the source (D-034): every consumer reads the same number from the
+    /// same event, so no two components ever count in parallel — parallel
+    /// counters over drop-tolerant streams desync forever (the review's
+    /// mirror finding). The number travels WITH the evidence it names.
+    case speechStarted(utterance: Int, at: AudioTime)
     case audioSegment(AudioChunk)
     case speechEnded(at: AudioTime)
     case dropped(frames: Int, at: AudioTime)

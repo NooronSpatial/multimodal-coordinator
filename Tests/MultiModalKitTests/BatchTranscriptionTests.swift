@@ -56,14 +56,14 @@ struct BatchTranscriptionTests {
             group.addTask { for await event in listener.events { await box.append(event) } }
 
             // Utterance 0: one chunk, then it ends — the "decode" begins.
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true },
                     "utterance 0 never settled")
 
             // Utterance 1 begins — under the OLD rule, utterance 0 dies here.
-            input.yield(.speechStarted(at: Self.t(9600)))
+            input.yield(.speechStarted(utterance: 1, at: Self.t(9600)))
             input.yield(.audioSegment(Self.chunk(at: 9600)))
             #expect(await Self.until { (engine.record(ofRun: 1)?.fedChunks.count ?? 0) >= 1 },
                     "utterance 1 never reached the engine")
@@ -107,7 +107,7 @@ struct BatchTranscriptionTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true })
@@ -140,7 +140,7 @@ struct BatchTranscriptionTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             for i in 0..<5 { input.yield(.audioSegment(Self.chunk(at: i * Self.chunkFrames))) }
             #expect(await Self.until { await box.events.count >= 1 }, "no truncated event")
 
@@ -175,7 +175,7 @@ struct BatchTranscriptionTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in listener.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: Self.t(0)))
+            input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
             input.yield(.audioSegment(Self.chunk(at: 0)))
             input.yield(.speechEnded(at: Self.t(960)))
             #expect(await Self.until { engine.record(ofRun: 0)?.audioFinished == true })
