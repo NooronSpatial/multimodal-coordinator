@@ -28,12 +28,17 @@ struct AudioPumpTests {
     static func makeFixture(
         ringCapacity: Int = 1 << 15,
         hangoverChunks: Int = 2,
-        preRollChunks: Int = 2
+        preRollChunks: Int = 2,
+        onsetChunks: Int = 0
     ) -> Fixture {
         let ring = AudioRing.create(minimumCapacity: ringCapacity)
         let clock = ManualClock()
         let vad = EnergyVAD(
-            config: .init(threshold: threshold, hangoverFrames: hangoverChunks * chunkFrames)
+            config: .init(
+                threshold: threshold,
+                hangoverFrames: hangoverChunks * chunkFrames,
+                onsetFrames: onsetChunks * chunkFrames
+            )
         )
         let pump = AudioPump(
             consumer: ring.consumer,
@@ -307,5 +312,70 @@ struct AudioPumpTests {
         }
         #expect(at.frames == 1920)
         #expect(at.seconds == 0.04)   // 1920 / 48000, exactly
+    }
+
+    // MARK: - 1d: the onset window through the pump (AC-76, AC-73, D-035)
+
+    @Test("With the window wired per the F-4 law, the word is not beheaded")
+    func onsetWindowDeliversTheFullWordThroughPreRoll() async {
+        // Window = 3 chunks; pre-roll = 3 (the wiring law: pre-roll ≥ window).
+        // During candidacy the pump still believes "quiet", so the first two
+        // loud chunks — the true start of the word — sit on the pre-roll
+        // shelf and must come back out when the third chunk fires the start.
+        let f = Self.makeFixture(preRollChunks: 3, onsetChunks: 3)
+        let listener = await f.pump.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await f.pump.run() }
+            #expect(await Self.parked(f.clock))
+
+            Self.write(f.producer, Self.quiet, frames: 1 * Self.chunkFrames)  // run-up quiet
+            Self.write(f.producer, Self.loud, frames: 3 * Self.chunkFrames)   // exactly the window
+            Self.write(f.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // exactly the hangover
+
+            await f.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(f.clock))
+
+            await f.pump.stop()
+            group.cancelAll()
+        }
+
+        let events = await Self.collect(listener.events)
+        #expect(events == [
+            .speechStarted(utterance: 0, at: Self.t(2880)),   // the COMPLETING chunk's moment (F-3)
+            .audioSegment(Self.chunk(Self.quiet, at: 0)),     // pre-roll: the quiet run-up…
+            .audioSegment(Self.chunk(Self.loud, at: 960)),    // …and the word's true start,
+            .audioSegment(Self.chunk(Self.loud, at: 1920)),   // held during candidacy
+            .audioSegment(Self.chunk(Self.loud, at: 2880)),   // the chunk that fired
+            .audioSegment(Self.chunk(Self.quiet, at: 3840)),  // hangover tail
+            .audioSegment(Self.chunk(Self.quiet, at: 4800)),
+            .speechEnded(at: Self.t(5760)),
+        ])
+    }
+
+    @Test("A sub-window transient publishes nothing — nothing for the turn loop to barge on")
+    func subWindowTransientPublishesNothing() async {
+        // The turn-loop interplay proof: barge-in IS the pump's speechStarted
+        // (D-031). Zero events here means a click provably cannot reach any
+        // coordinator, in any state — there is no event to act on.
+        let f = Self.makeFixture(preRollChunks: 3, onsetChunks: 3)
+        let listener = await f.pump.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await f.pump.run() }
+            #expect(await Self.parked(f.clock))
+
+            Self.write(f.producer, Self.loud, frames: 2 * Self.chunkFrames)   // one short of the window
+            Self.write(f.producer, Self.quiet, frames: 6 * Self.chunkFrames)  // long silence after
+
+            await f.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(f.clock))
+
+            await f.pump.stop()
+            group.cancelAll()
+        }
+
+        let events = await Self.collect(listener.events)
+        #expect(events == [], "a transient leaked \(events.count) event(s) past the window")
     }
 }

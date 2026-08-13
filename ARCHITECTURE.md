@@ -27,7 +27,8 @@ the top and leaves as text at the bottom.
                      ▼                     exactly.
                 AudioPump (237)  actor     wakes on an injected clock,
                      │                     drains the ring, asks
-                     │                     EnergyVAD (78) "speech?", adds
+                     │                     EnergyVAD (99) "speech?" — onset
+                     │                     window in, hangover out — adds
                      │                     200 ms pre-roll.
                      ▼  AudioEvents:  speechStarted / audioSegment /
                      │                speechEnded / dropped
@@ -102,7 +103,7 @@ apps must own (AC-22); everything else is the library, unchanged.
 |---|---|
 | The audio-thread code (all of it) | `Audio/MicrophoneSource.swift` — the tap closure |
 | The iron laws' one crossing; drop counting | `Audio/AudioRingBuffer.swift` |
-| "Is this speech?" — gate, hangover, pre-roll | `Audio/AudioPump.swift` + `Audio/EnergyVAD.swift` |
+| "Is this speech?" — gate, onset window, hangover, pre-roll | `Audio/AudioPump.swift` + `Audio/EnergyVAD.swift` |
 | Barge-in, utterance tickets, settling table | `Transcription/TranscriptionSession.swift` |
 | The engine seam and capabilities | `Transcription/TranscriptionEngine.swift` |
 | Apple streaming, partials, segment joining | `Transcription/AppleSpeechEngine.swift` |
