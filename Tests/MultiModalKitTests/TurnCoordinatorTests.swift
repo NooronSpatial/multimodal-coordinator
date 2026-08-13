@@ -222,11 +222,19 @@ struct TurnCoordinatorTests {
             await bench.coordinator.stop()
         }
 
-        let events = await bench.box.events
-        #expect(!events.contains(.replyToken("ghost", turn: 0)), "dead turn's token surfaced")
-        #expect(!events.contains(.turnCompleted(turn: 0)), "dead turn completed")
-        #expect(events.contains(.turnBarged(turn: 0)))
-        #expect(events.contains(.turnCompleted(turn: 1)))
+        // AC-63: the EXACT sequence — order- and duplicate-proof. The
+        // ghosts are provably never published, so this is deterministic.
+        #expect(await bench.box.events == [
+            .stateChanged(.listening, turn: 0),
+            .stateChanged(.thinking, turn: 0),
+            .turnBarged(turn: 0),
+            .stateChanged(.listening, turn: 1),
+            .stateChanged(.thinking, turn: 1),
+            .replyToken("answer", turn: 1),
+            .stateChanged(.speaking, turn: 1),
+            .turnCompleted(turn: 1),
+            .stateChanged(.idle, turn: 1),
+        ])
     }
 
     @Test("Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn")
@@ -270,11 +278,78 @@ struct TurnCoordinatorTests {
             await bench.coordinator.stop()
         }
 
-        let events = await bench.box.events
-        #expect(!events.contains(.replyToken("upon", turn: 0)))
-        #expect(!events.contains(.turnCompleted(turn: 0)),
-                "a dead turn's ghost 'finished' must not complete it")
-        #expect(events.contains(.turnBarged(turn: 0)))
+        // AC-63: the EXACT sequence, ghost token and ghost 'finished'
+        // provably absent — not merely "not contained".
+        #expect(await bench.box.events == [
+            .stateChanged(.listening, turn: 0),
+            .stateChanged(.thinking, turn: 0),
+            .replyToken("Once", turn: 0),
+            .stateChanged(.speaking, turn: 0),
+            .turnBarged(turn: 0),
+            .stateChanged(.listening, turn: 1),
+            .stateChanged(.thinking, turn: 1),
+            .replyToken("OK.", turn: 1),
+            .stateChanged(.speaking, turn: 1),
+            .turnCompleted(turn: 1),
+            .stateChanged(.idle, turn: 1),
+        ])
+    }
+
+    @Test("Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn")
+    func bargeMidGeneration() async {
+        let bench = Bench(
+            generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true), .manual()]),
+            synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true), .manual()]))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "long story", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            // A token flows and the mouth OPENS — but reports nothing yet:
+            // the unique window where state is .thinking with a live synth.
+            bench.generator.emit(reply: 0, token: "Once")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            #expect(await bench.coordinator.currentState == .thinking)
+
+            bench.audio.yield(.speechStarted(at: Self.t(48000)))   // the barge
+            #expect(await Self.until { bench.generator.record(ofReply: 0)?.cancelled == true })
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.cancelled == true },
+                    "a mid-generation barge must kill the silent mouth too")
+
+            // BOTH dead stages defy — including the never-before-forced
+            // ghost 'started': if the ticket door leaks, it would flip the
+            // NEW turn's thinking to speaking with nothing audible.
+            bench.generator.forceToken(reply: 0, token: "upon")
+            bench.synthesizer.forceUpdate(utterance: 0, .started)
+
+            bench.transcripts.yield(.final("stop", utterance: 1, at: Self.t(49000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+            bench.generator.emit(reply: 1, token: "OK.")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 2 })
+            bench.synthesizer.reportStarted(utterance: 1)
+            bench.generator.finish(reply: 1)
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 1)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 1)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 1)) })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(await bench.box.events == [
+            .stateChanged(.listening, turn: 0),
+            .stateChanged(.thinking, turn: 0),
+            .replyToken("Once", turn: 0),
+            .turnBarged(turn: 0),
+            .stateChanged(.listening, turn: 1),
+            .stateChanged(.thinking, turn: 1),
+            .replyToken("OK.", turn: 1),
+            .stateChanged(.speaking, turn: 1),
+            .turnCompleted(turn: 1),
+            .stateChanged(.idle, turn: 1),
+        ], "speaking may appear ONLY for turn 1 — a ghost 'started' flipping a turn is the ticket door failing")
     }
 
     @Test("Rapid double barge: two dead turns, the third completes; exact event sequence")
@@ -550,6 +625,116 @@ struct TurnCoordinatorTests {
         let events = await bench.box.events
         #expect(!events.contains(.turnCompleted(turn: 0)),
                 "nothing may publish after stop()")
+    }
+
+    @Test("A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean")
+    func replyFailsMidStreamCancelsTheMouth() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "tell me more", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            bench.generator.emit(reply: 0, token: "well")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            #expect(await Self.until { await bench.coordinator.currentState == .speaking })
+
+            // The generator dies mid-sentence, mid-SPEECH.
+            bench.generator.fail(reply: 0, reason: "brain died")
+            #expect(await Self.until { await bench.box.events.contains(
+                .turnFailed(.generationFailed("brain died"), turn: 0)) })
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.cancelled == true },
+                    "a dead reply must silence the mouth it was feeding")
+
+            // The next turn is untouched.
+            bench.speak(utterance: 1, final: "again", at: 96000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+            bench.generator.emit(reply: 1, token: "fresh")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 2 })
+            bench.synthesizer.reportStarted(utterance: 1)
+            bench.generator.finish(reply: 1)
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 1)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 1)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 1)) })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(await bench.coordinator.currentState == .idle)
+    }
+
+    @Test("The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean")
+    func synthesizerRefusesToOpen() async {
+        let bench = Bench(
+            generator: .manual(replies: 2),
+            synthesizer: ScriptedSynthesizer(plans: [.failOnOpen("no voice"), .manual()]))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "speak", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            bench.generator.emit(reply: 0, token: "first")   // opens the mouth: it throws
+            #expect(await Self.until { await bench.box.events.contains(
+                .turnFailed(.synthesisFailed("no voice"), turn: 0)) },
+                    "the open-failure must surface with its reason intact")
+            #expect(await Self.until { bench.generator.record(ofReply: 0)?.cancelled == true },
+                    "a turn whose mouth never opened must not keep generating")
+
+            bench.speak(utterance: 1, final: "retry", at: 96000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+            bench.generator.emit(reply: 1, token: "ok")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 2 })
+            bench.synthesizer.reportStarted(utterance: 1)
+            bench.generator.finish(reply: 1)
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 1)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 1)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 1)) })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(await bench.coordinator.currentState == .idle)
+    }
+
+    @Test("The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on")
+    func transcriptionFailureEndsTheTurn() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.audio.yield(.speechStarted(at: Self.t(0)))
+            bench.transcripts.yield(.failed(.engineFailed("mic route died"),
+                                            utterance: 0, at: Self.t(960)))
+            #expect(await Self.until { await bench.box.events.contains(
+                .turnFailed(.transcriptionFailed(.engineFailed("mic route died")), turn: 0)) })
+
+            // The next utterance transcribes fine; its turn runs clean.
+            bench.speak(utterance: 1, final: "hello again", at: 96000)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 },
+                    "only the healthy utterance may reach the generator")
+            bench.generator.emit(reply: 0, token: "hi")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            bench.generator.finish(reply: 0)
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 0)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 1)) })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "hello again")
+        #expect(await bench.box.events.contains(.stateChanged(.idle, turn: 0)))
     }
 
     // MARK: - latency (R2: clock + injected reporter, exact under ManualClock)
