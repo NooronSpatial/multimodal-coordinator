@@ -59,20 +59,28 @@ import Testing
     }
 
     @Test func flushWithNothingWorthSayingIsNil() {
+        // (Also corrected before GREEN — same inconsistency as above:
+        // "Done." without trailing whitespace leaves only at flush, so
+        // the emptied-buffer case needs the space that completes it.)
         var phraser = SpeechPhraser()
-        _ = phraser.feed("Done.")
-        #expect(phraser.flush() == nil)          // everything already left
+        #expect(phraser.feed("Done. ") == ["Done."])
+        #expect(phraser.flush() == nil)          // the remainder is one space
         var empty = SpeechPhraser()
         _ = empty.feed("   ")
         #expect(empty.flush() == nil)            // whitespace is not a phrase
     }
 
     @Test func emptyAndWhitespaceTokensCompleteNothing() {
+        // (Corrected before GREEN: the first version expected "!" to emit
+        // immediately, contradicting the punctuation-then-whitespace rule
+        // every other test encodes. A boundary needs its whitespace.)
         var phraser = SpeechPhraser()
         #expect(phraser.feed("") == [])
         #expect(phraser.feed("   ") == [])
         #expect(phraser.feed("Hello") == [])
-        #expect(phraser.feed("!") == ["Hello!"])
+        #expect(phraser.feed("!") == [])                  // no whitespace after it yet
+        #expect(phraser.feed(" done") == ["   Hello!"])   // verbatim, spacing preserved
+        #expect(phraser.flush() == " done")
     }
 
     @Test func everyClauseMarkCuts() {

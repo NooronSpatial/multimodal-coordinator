@@ -25,6 +25,8 @@ public struct SpeechPhraser: Sendable {
     }
 
     private let config: Config
+    /// Text that has arrived but not yet left as a phrase. Verbatim.
+    private var buffer = ""
 
     public init(config: Config = Config()) {
         self.config = config
@@ -32,11 +34,55 @@ public struct SpeechPhraser: Sendable {
 
     /// Feed one token; receive every phrase it completed (usually none).
     public mutating func feed(_ token: String) -> [String] {
-        []
+        guard !token.isEmpty else { return [] }
+        buffer += token
+
+        var phrases: [String] = []
+        // Rule 1: a clause mark followed by whitespace ends a phrase.
+        // ("3.14" survives: its mark is followed by a digit, not space.)
+        while let cut = boundary() {
+            phrases.append(String(buffer[..<cut]))
+            buffer = String(buffer[cut...])
+        }
+        // Rule 2: past the limit, cut at the last whitespace before it —
+        // no word is ever torn. One unbroken run is cut hard: it cannot
+        // wait forever, and a cut mid-run beats no speech at all.
+        while buffer.count > config.maxPhraseCharacters {
+            let limit = buffer.index(buffer.startIndex,
+                                     offsetBy: config.maxPhraseCharacters)
+            let head = buffer[..<limit]
+            if let space = head.lastIndex(where: \.isWhitespace),
+                space != buffer.startIndex {
+                phrases.append(String(buffer[..<space]))
+                buffer = String(buffer[space...])
+            } else {
+                phrases.append(String(head))
+                buffer = String(buffer[limit...])
+            }
+        }
+        return phrases
     }
 
     /// No more tokens are coming: the remainder, if any words are in it.
     public mutating func flush() -> String? {
-        nil
+        defer { buffer = "" }
+        guard buffer.contains(where: { !$0.isWhitespace }) else { return nil }
+        return buffer
+    }
+
+    /// The index just past the first clause mark whose neighbor is
+    /// whitespace — the cut point of the oldest completed phrase.
+    private func boundary() -> String.Index? {
+        var i = buffer.startIndex
+        while i < buffer.endIndex {
+            if ".,:;?!".contains(buffer[i]) {
+                let next = buffer.index(after: i)
+                if next < buffer.endIndex, buffer[next].isWhitespace {
+                    return next
+                }
+            }
+            i = buffer.index(after: i)
+        }
+        return nil
     }
 }
