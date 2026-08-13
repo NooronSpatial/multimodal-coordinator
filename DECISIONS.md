@@ -739,3 +739,43 @@ nothing, and the doctrine demands stale events be PROVABLY inert.
 *Rejected:* documenting it as a known limit — a law with a waiver is not
 a law. Cost accepted: `AudioEvent.speechStarted` gained a field (pre-1.0,
 we own every consumer).
+
+---
+
+## D-035 — The onset debounce: five rulings, all A (Milestone 1d, forks F-1..F-5)
+
+**Date:** 2026-08-13 · **Decided by:** Ryad
+
+Field evidence (commit 5be72ac): a 0.01 gate on the Mac's ambient flapped
+`speechStarted` every 0.84 s like a metronome — and since D-031 a false
+onset is a barge trigger, able to kill a live reply. Ruled: loud must
+PERSIST for an onset window (frames, clockless) before `speechStarted`.
+The hangover's mirror: quiet must persist to end, loud must persist to
+begin. Five forks, all ruled A:
+
+1. **Where (F-1):** inside `EnergyVAD`, beside the hangover. *Rejected:*
+   a decorator VAD — the seam speaks only in transitions, so a wrapper
+   would need a second RMS judge; the pump — a bridge, not a judge
+   (D-018/D-022 boundary).
+2. **What counts (F-2):** strictly consecutive loud frames; one quiet
+   chunk kills the candidate. *Rejected:* a tolerance budget — kinder to
+   breathy onsets but more knobs and harder to prove; the D-008 drawer
+   (a smarter VAD later).
+3. **The stamp (F-3):** the chunk that completes the window — a decision
+   stamp, consistent with D-013's `speechEnded`; the seam is unchanged.
+   *Rejected:* backdating via `speechStarted(framesBack:)` — the seam
+   grows for one implementation's knob, and the true onset is already
+   recoverable from the pre-roll chunks' own stamps.
+4. **The pre-roll law (F-4):** the caller wires `preRollChunks` ≥ the
+   window in chunks — documented at both configs, proven by a pump-level
+   test (no beheaded words). *Rejected:* auto-sizing through a widened
+   seam — every future VAD would answer a question only this one has.
+5. **The default (F-5):** 0 = off; the library is byte-for-byte unchanged
+   (the D-028 precedent) and each product earns its own number. The demo
+   carries the field-tuned example (2,880 frames = 60 ms at 48 kHz).
+   *Rejected:* default-on — silently changes every caller and adds 40 ms
+   of barge latency nobody asked for.
+
+Cost accepted and written in the spec: every TRUE onset (and therefore
+every barge-in) is delayed by the window. The number must stay small,
+and it is the caller's number.

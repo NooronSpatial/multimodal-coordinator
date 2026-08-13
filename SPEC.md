@@ -852,3 +852,122 @@ memory/context · turn-level signposts (revisit with 4b's field session).
 
 All ACs green · 20× stable · demo slice runs live on the Mac · PR merged
 with the map updated · teach-back survived.
+
+# SPEC — Milestone 1d (interlude): the onset debounce
+
+## 36. What 1d builds, and why now
+
+Field evidence (08-13, commit 5be72ac): the Mac demo's 0.01 gate sat
+exactly on this machine's post-sentence ambient level, and the VAD flapped
+open every 0.84 s like a metronome — a dozen empty Whisper decodes per
+short run, clustered right after each real sentence. The demo was patched
+that day by raising the gate to 0.02; the principled fix was agreed as its
+own milestone. This is it.
+
+Today `speechStarted` fires on the FIRST loud chunk — 20 ms of sound.
+Any transient (a keyboard tap, a click, one metronome tick, ambient noise
+grazing the gate) opens a full utterance: pre-roll, a 300 ms hangover
+tail, an engine decode. Since 4a the cost is higher: a pump
+`speechStarted` is the barge-in trigger (D-031), so one 20 ms click can
+kill a live spoken reply mid-sentence.
+
+The fix is the mirror of the hangover. The hangover makes speech hard to
+END: quiet must persist before `speechEnded`. The onset window makes
+speech hard to START: loud must persist N frames before `speechStarted`.
+Counted in FRAMES, not seconds — the VAD stays pure and clockless
+(D-011), and the caller does the one conversion.
+
+**The honest cost, named:** a debounce delays every TRUE onset by its own
+length, so 4a's felt barge-in latency grows by the window. That is why
+the window must stay small (2–4 chunks, 40–80 ms at the demo's 20 ms
+chunks) and why the default is a fork for Ryad to rule (F-5).
+
+## 37. Acceptance criteria (1d)
+
+- **AC-73** `EnergyVAD.Config` gains an onset window in frames. A loud
+  burst shorter than the window produces NO transition at all — no
+  `speechStarted`, no `speechEnded`, no utterance born, nothing for the
+  turn loop to barge on.
+- **AC-74** Window = 0 is byte-for-byte today's behavior; the existing
+  suite passes untouched (proof by unchanged tests — the D-028 nil
+  precedent).
+- **AC-75** The candidate dies on quiet (per F-2 ruling): loud·quiet·loud
+  never accumulates across the gap. Loud persisting to exactly the window
+  fires on the chunk that completes it, stamped per the F-3 ruling.
+- **AC-76** No beheaded words: with pre-roll wired to cover the window
+  (per F-4 ruling), the candidate chunks — the true start of the word —
+  are delivered inside the utterance. Proven at the pump level: the first
+  loud chunk's samples arrive after `speechStarted`.
+- **AC-77** The hangover is untouched: while speaking, a loud chunk still
+  resets the quiet budget exactly as before — the window only guards the
+  quiet→speaking door. After a true end, a short transient does not
+  reopen the utterance (AC-73 applies again).
+- **AC-78** Hygiene + the slice: VAD purity kept (no clock, no
+  allocation, no await in `process()`); Swift 6 strict, zero warnings,
+  zero new dependencies; 20× stable; the Mac demo carries the window and
+  a field run shows transients ignored and real words still opening —
+  numbers printed and recorded in the PR.
+
+## 38. Test matrix (1d)
+
+| Area | Tests |
+|---|---|
+| Flap killer | 1-chunk and (window−1)-chunk bursts → zero transitions ever |
+| Exact window | a window-length run fires on the completing chunk, exact stamp per F-3 |
+| Candidate reset | loud·quiet·loud alternation never fires (F-2) |
+| Zero window | existing suite green, untouched (AC-74) |
+| Pump integration | run-up chunks delivered inside the utterance; identity still born at the pump (AC-72 regression stays green) |
+| Turn-loop interplay | scripted: a sub-window transient while `speaking` barges nothing |
+| Purity | clockless, allocation-free — the existing iron-law style |
+
+## 39. The design forks (1d) — for Ryad to rule
+
+- **F-1 WHERE the debounce lives.** A: inside `EnergyVAD` — only the VAD
+  knows loud/quiet per chunk; the window is the hangover's mirror and
+  lives beside it. B: a decorator over any `VoiceActivityDetecting` —
+  but the seam speaks only in transitions, so during nil-chunks the
+  wrapper cannot tell loud-continuing from quiet without recomputing RMS
+  (a second judge). C: in the pump — the pump is a bridge, not a judge
+  (D-018/D-022 boundary), and would need the seam to leak loudness.
+  **Recommendation: A.**
+- **F-2 WHAT the window counts.** A: strictly consecutive loud frames —
+  one quiet chunk kills the candidate. Simple, provable, kills clicks.
+  B: a tolerance budget (loud must dominate the window) — kinder to
+  breathy onsets, more knobs, harder to prove; belongs in the same
+  drawer as per-sample precision (D-008, a smarter VAD later).
+  **Recommendation: A.**
+- **F-3 THE STAMP.** With a window, decision time and true onset diverge
+  (today they coincide). A: stamp the chunk that completes the window —
+  a decision stamp, consistent with D-013's `speechEnded`; the seam is
+  unchanged, and the true onset is still recoverable from the pre-roll
+  chunks' own timestamps. B: backdate to the first candidate chunk — the
+  seam grows an associated value (`speechStarted(framesBack:)`) for one
+  implementation's knob. **Recommendation: A.**
+- **F-4 THE PRE-ROLL LAW.** During candidacy the pump believes "quiet",
+  so candidate chunks land in pre-roll — capacity 2 today. A window of
+  3 chunks would push the word's first chunk off the shelf. A: the
+  wiring law — the caller sets `preRollChunks` ≥ onset chunks + the
+  quiet run-up wanted; documented at both configs, wired in the demo,
+  proven by the AC-76 pump test. The pump cannot see through
+  `any VoiceActivityDetecting`, so config coupling is the caller's duty.
+  B: widen the seam so the pump can ask the VAD its window and auto-size
+  — the seam grows, and every future VAD must answer a question only one
+  of them has. **Recommendation: A.**
+- **F-5 THE DEFAULT.** A: default 0 — off. The library changes nothing
+  byte-for-byte (the D-028 precedent); each product earns its own number;
+  the demo sets the field-tuned example (3 chunks = 2,880 frames = 60 ms
+  at 48 kHz). B: default on at ~2 chunks — safer out of the box, but
+  silently changes every existing caller and adds 40 ms of barge latency
+  nobody asked for. **Recommendation: A.**
+
+## 40. Out of scope for 1d (deliberately)
+
+Adaptive/auto-calibrating thresholds · spectral or model-based VAD ·
+per-sample onset precision (D-008 drawer) · any change to the hangover
+side · demo per-machine tuning UI. Small milestone, one door guarded.
+
+## 41. Definition of done (1d)
+
+All ACs green · 20× stable · field run on the Mac recorded · PR merged
+with the map updated (if the map changes) · the forks ruled and logged
+as D-entries · teach-back folded into the next session's spaced quiz.
