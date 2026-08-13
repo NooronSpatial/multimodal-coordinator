@@ -86,6 +86,12 @@ struct AudioDemo {
 
         let sampleRate = microphone.sampleRate
         let chunkFrames = Int(sampleRate * 0.02)          // 20 ms of sound per verdict
+        // Field forensics (the 08-13 --talk investigation): the demo was
+        // BLIND to listener overflow — the pump's broadcast drops oldest
+        // silently when a listener stalls (D-012), and the session's merged
+        // loop can stall on inline stage awaits (a recorded 4a known limit).
+        // Health makes the invisible number visible.
+        let diagnostics = PipelineDiagnostics()
         let pump = AudioPump(
             consumer: consumer,
             // 0.02 is the LAPTOP gate. The 0.01 borrowed from the iPhone
@@ -102,12 +108,14 @@ struct AudioDemo {
                                          onsetFrames: Int(sampleRate * 0.06))),
             clock: ContinuousClock(),
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
-                          chunkFrames: chunkFrames, preRollChunks: 10))
+                          chunkFrames: chunkFrames, preRollChunks: 10),
+            diagnostics: diagnostics)
 
         let transcription: TranscriptionSession? = engineReady
             ? TranscriptionSession(
                 engine: engine,
-                config: .init(format: .init(sampleRate: sampleRate, channels: 1)))
+                config: .init(format: .init(sampleRate: sampleRate, channels: 1)),
+                diagnostics: diagnostics)
             : nil
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
@@ -123,6 +131,9 @@ struct AudioDemo {
 
         await withTaskGroup(of: Void.self) { group in
             let audioForScreen = await pump.listen()
+            let health = diagnostics.health()          // listen BEFORE run: no replay
+            group.addTask { await diagnostics.run() }
+            group.addTask { await showHealth(health.events, on: screen) }
             group.addTask { await pump.run() }
             group.addTask {
                 await showAudio(audioForScreen.events, on: screen, ringDrops: consumer)
@@ -182,16 +193,48 @@ struct AudioDemo {
 
     // MARK: - the two listeners' views of the world
 
+    /// The pipeline's own health, one line per fact — the forensics feed.
+    static func showHealth(_ events: AsyncStream<HealthEvent>, on screen: Screen) async {
+        for await event in events {
+            switch event {
+            case .thermal(let state):
+                await screen.log("🩺 thermal: \(state)")
+            case .ringDropped(let frames, let at):
+                await screen.log("🩺 ring dropped \(frames) frames at \(format(at.seconds)) s")
+            case .listenerFellBehind(let id, let total):
+                await screen.log("🩺 listener \(id) fell behind — \(total) events dropped so far")
+            case .settlingDecodes(let count):
+                await screen.log("🩺 settling decodes: \(count)")
+            case .settlingDecodeRefused(let utterance, let thermal):
+                await screen.log("🩺 [\(utterance)] settling decode refused (thermal: \(thermal))")
+            }
+        }
+    }
+
     static func showAudio(
         _ events: AsyncStream<AudioEvent>, on screen: Screen, ringDrops consumer: AudioRingConsumer
     ) async {
+        // Per-utterance forensics: what did the gate actually let through?
+        var utterance = -1
+        var startSeconds = 0.0
+        var chunks = 0
+        var peak: Float = 0
         for await event in events {
             switch event {
-            case .speechStarted:
+            case .speechStarted(let number, let at):
+                utterance = number
+                startSeconds = at.seconds
+                chunks = 0
+                peak = 0
                 await screen.set(speaking: true)
             case .audioSegment(let chunk):
+                chunks += 1
+                peak = max(peak, rms(of: chunk))
                 await screen.set(level: level(of: chunk), drops: consumer.totalDropped)
-            case .speechEnded:
+            case .speechEnded(let at):
+                let ms = (at.seconds - startSeconds) * 1000
+                await screen.log("🔎 [\(utterance)] \(String(format: "%.0f", ms)) ms" +
+                    " · peak rms \(String(format: "%.3f", peak)) · \(chunks) chunks")
                 await screen.set(speaking: false)
             case .dropped(let frames, let at):
                 await screen.log("⚠️  dropped \(frames) frames at \(format(at.seconds)) s")
@@ -216,11 +259,14 @@ struct AudioDemo {
         }
     }
 
-    static func level(of chunk: AudioChunk) -> Int {
+    static func rms(of chunk: AudioChunk) -> Float {
         var sumOfSquares: Float = 0
         for sample in chunk.samples { sumOfSquares += sample * sample }
-        let rms = (sumOfSquares / Float(max(chunk.frameCount, 1))).squareRoot()
-        return min(Int(rms * 300), 24)
+        return (sumOfSquares / Float(max(chunk.frameCount, 1))).squareRoot()
+    }
+
+    static func level(of chunk: AudioChunk) -> Int {
+        min(Int(rms(of: chunk) * 300), 24)
     }
 
     static func format(_ value: Double) -> String { String(format: "%.2f", value) }
