@@ -93,8 +93,13 @@ struct AudioDemo {
             // post-sentence level hovering AT 0.01 — the gate opened every
             // 0.84 s like a metronome, one empty Whisper decode per tick.
             // The iPhone demo keeps 0.01; each machine earns its own number.
+            // The 60 ms onset window (D-035) is the principled half of that
+            // fix: a click or tick is never an utterance — and since D-031,
+            // never a barge. Pre-roll (10 chunks) covers the window's 3
+            // (the F-4 wiring law), so no word is beheaded.
             vad: EnergyVAD(config: .init(threshold: 0.02,
-                                         hangoverFrames: Int(sampleRate * 0.3))),
+                                         hangoverFrames: Int(sampleRate * 0.3),
+                                         onsetFrames: Int(sampleRate * 0.06))),
             clock: ContinuousClock(),
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
                           chunkFrames: chunkFrames, preRollChunks: 10))
@@ -106,7 +111,7 @@ struct AudioDemo {
             : nil
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
-        print("    \(Int(sampleRate)) Hz · 20 ms chunks · 300 ms hangover · 200 ms pre-roll")
+        print("    \(Int(sampleRate)) Hz · 20 ms chunks · 60 ms onset · 300 ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
         if talk && transcription != nil {
             print("    turn loop: ON — it echoes what you say; interrupt it mid-reply\n")
