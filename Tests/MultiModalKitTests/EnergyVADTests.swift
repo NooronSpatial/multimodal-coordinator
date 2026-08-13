@@ -83,4 +83,86 @@ import Testing
         _ = vad.process(chunk(0.5))
         #expect(vad.process([]) == nil)                       // no frames, no opinion
     }
+
+    // MARK: - 1d: the onset window (AC-73…AC-75, AC-77, D-035)
+
+    /// The window used below: 300 loud frames must persist before a start.
+    private var debounced: EnergyVAD.Config {
+        EnergyVAD.Config(threshold: 0.25, hangoverFrames: 300, onsetFrames: 300)
+    }
+
+    @Test func subWindowBurstProducesNothingEver() {
+        // AC-73, the flap killer: a burst shorter than the window is not
+        // speech — no start, and therefore never an end either.
+        var vad = EnergyVAD(config: debounced)
+        #expect(vad.process(chunk(0.5, count: 299)) == nil)   // one frame short
+        for _ in 0..<10 {
+            #expect(vad.process(chunk(0.0)) == nil)           // quiet forever after:
+        }                                                     // nothing was ever open
+    }
+
+    @Test func onsetBoundaryIsExact() {
+        // AC-75: the window fires on the frame that completes it — the same
+        // exact-boundary arithmetic the hangover proves on its side.
+        var vad = EnergyVAD(config: debounced)
+        #expect(vad.process(chunk(0.5, count: 299)) == nil)   // 299 of 300
+        #expect(vad.process(chunk(0.5, count: 1)) == .speechStarted)  // frame 300
+    }
+
+    @Test func oneBigChunkCompletesTheWindowAlone() {
+        // A single chunk carrying the whole window starts speech at once.
+        var vad = EnergyVAD(config: debounced)
+        #expect(vad.process(chunk(0.5, count: 300)) == .speechStarted)
+    }
+
+    @Test func quietKillsTheCandidate() {
+        // AC-75, F-2 = A: one quiet chunk resets the count — loud runs
+        // never accumulate across a gap.
+        var vad = EnergyVAD(config: debounced)
+        #expect(vad.process(chunk(0.5, count: 299)) == nil)   // almost…
+        #expect(vad.process(chunk(0.0, count: 1)) == nil)     // …the candidate dies
+        #expect(vad.process(chunk(0.5, count: 299)) == nil)   // fresh count, not 598
+        #expect(vad.process(chunk(0.5, count: 1)) == .speechStarted)
+    }
+
+    @Test func defaultWindowIsZeroAndOff() {
+        // AC-74: the default Config carries no window; the first loud chunk
+        // fires exactly as before 1d. (The untouched pre-1d suite above is
+        // the byte-for-byte proof; this pins the default itself.)
+        #expect(EnergyVAD.Config().onsetFrames == 0)
+        var vad = EnergyVAD(config: .init(threshold: 0.25, hangoverFrames: 300))
+        #expect(vad.process(chunk(0.5, count: 1)) == .speechStarted)
+    }
+
+    @Test func hangoverIsUntouchedByTheWindow() {
+        // AC-77: the window guards only the quiet→speaking door. While
+        // speaking, loudness still resets the quiet budget as before —
+        // even a sub-window loud chunk, because it is not an onset.
+        var vad = EnergyVAD(config: debounced)
+        _ = vad.process(chunk(0.5, count: 300))               // started
+        #expect(vad.process(chunk(0.0, count: 299)) == nil)   // budget almost spent
+        #expect(vad.process(chunk(0.5, count: 100)) == nil)   // 100 < 300: still resets it
+        #expect(vad.process(chunk(0.0, count: 299)) == nil)   // fresh budget again
+        #expect(vad.process(chunk(0.0, count: 1)) == .speechEnded)
+        #expect(vad.process(chunk(0.5, count: 100)) == nil)   // AC-73 applies again:
+        #expect(vad.process(chunk(0.0, count: 300)) == nil)   // a click reopens nothing
+    }
+
+    @Test func fullSequenceWithTransientsAroundARealWord() {
+        // The field scenario from 5be72ac, in miniature: click · word · click.
+        var vad = EnergyVAD(config: debounced)
+        var transitions: [EnergyVAD.Transition] = []
+        let script: [[Float]] = [
+            chunk(0.5, count: 100),        // the metronome tick — sub-window
+            chunk(0.0, count: 100),        // (kills the candidate)
+            chunk(0.5, count: 300),        // a real word: the whole window
+            chunk(0.0, count: 300),        // real silence: over
+            chunk(0.5, count: 100),        // another tick
+            chunk(0.0, count: 300),        // quiet
+        ]
+        for c in script {
+            if let t = vad.process(c) { transitions.append(t) }
+        }
+        #expect(transitions == [.speechStarted, .speechEnded])
+    }
 }

@@ -21,10 +21,22 @@ public struct EnergyVAD: VoiceActivityDetecting {
         public var threshold: Float
         /// Quiet frames allowed before speech is declared over.
         public var hangoverFrames: Int
+        /// Loud frames required before speech is declared started — the
+        /// hangover's mirror (D-035). 0 = off: the first loud chunk fires,
+        /// byte-for-byte the pre-1d behavior. The caller who sets this must
+        /// also wire the pump's pre-roll to cover it (the F-4 wiring law),
+        /// or the window's own chunks — the start of the word — fall off
+        /// the pre-roll shelf.
+        public var onsetFrames: Int
 
-        public init(threshold: Float = 0.02, hangoverFrames: Int = 14_400) {
+        public init(
+            threshold: Float = 0.02,
+            hangoverFrames: Int = 14_400,
+            onsetFrames: Int = 0
+        ) {
             self.threshold = threshold
             self.hangoverFrames = hangoverFrames
+            self.onsetFrames = onsetFrames
         }
     }
 
