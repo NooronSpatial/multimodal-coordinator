@@ -684,3 +684,29 @@ Proven the deterministic way: a manual clock advanced 250 ms between the
 final and the `started` evidence reports EXACTLY 250 ms; and cancel
 latency in mock time is EXACTLY zero — structural teardown contains no
 clock waits, or the test would say so.
+
+---
+
+## D-033 — Post-reply state: idle, not listening (R1)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+After a reply is fully spoken the coordinator returns to `idle` —
+diverging DELIBERATELY from the author's earlier private precedent, where
+the same four-state machine went speaking → listening, with a silence
+window as the only exit to idle. The precedent's rationale was real:
+THERE, the state machine owned wakefulness — idle meant deaf — so
+returning to listening was the only way to keep the conversation hot.
+HERE, the pump never sleeps: the microphone hears at every moment, and
+`listening` is an OBSERVATION (an utterance is in flight, its ticket
+alive), never a posture. Entering it after a reply would claim an
+utterance that does not exist — a ghost ticket — and leaving it again
+would demand a clock in the core loop plus a policy number ("how much
+silence?") that D-027 assigns to the app. The UX is identical either
+way: the next word opens a turn instantly, because deafness was never
+attached to the state.
+
+*Rejected:* adopting the precedent's semantics — a silence window, an
+injected clock, and a turn with no evidence behind it: three costs to
+buy a word. The zero-token path (thinking → idle on an empty reply)
+follows the same reasoning.
