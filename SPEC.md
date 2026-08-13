@@ -978,3 +978,114 @@ side · demo per-machine tuning UI. Small milestone, one door guarded.
 All ACs green · 20× stable · field run on the Mac recorded · PR merged
 with the map updated (if the map changes) · the forks ruled and logged
 as D-entries · teach-back folded into the next session's spaced quiz.
+
+# SPEC — Phase 4b: the real mouth
+
+## 42. What 4b builds
+
+The first real engine behind `SpeechSynthesizing`: an
+`AVSpeechSynthesizer` adapter. The coordinator needs NO structural
+change — that is the seam's exam. With a real mouth come the two
+problems the 1d field session handed us:
+
+**The one hard problem — the echo loop.** The Mac speaks its reply
+through the speakers; the microphone hears it; the VAD opens; the
+pump's `speechStarted` is the barge trigger (D-031) — the assistant
+kills its own reply mid-sentence. Named in §34, due now.
+
+**The second field debt — the reply gate.** "The utterance ended"
+(300 ms of quiet) is a much weaker fact than "the user yielded the
+floor." The 1d field runs showed every echo barged while the speaker
+was still mid-paragraph. The coordinator gets the MECHANISM; the
+number stays with the app (D-027).
+
+Ordering ruled in session (2026-08-13): TTS before the LLM. The echo
+loop is real-time audio — this project's spine; reply generation (4c)
+is integration behind an already-proven seam, and it lands better
+into an audible loop.
+
+## 43. Acceptance criteria (4b)
+
+- **AC-79** The phraser, pure: a clockless component that takes raw
+  token text IN (any granularity — whole words today, subword
+  fragments from a future generator) and yields speakable phrases OUT
+  at punctuation and max-length boundaries. Exact deterministic tests
+  including: subword joins, punctuation inside a token, burst-then-
+  stall arrival, flush on finish. The token→utterance intelligence
+  lives HERE, never in the adapter.
+- **AC-80** The adapter, thin: `AVSpeechSynthesizer` behind
+  `SynthesisRun`. Evidence-based updates (D-029): `.started` = the
+  delegate's didStart (sound is audible), `.finished` = the LAST
+  utterance's didFinish after `finishTokens` (F-4 = A), `cancel()` =
+  `stopSpeaking(.immediate)`. Joins the recorded un-TDD-able list
+  beside `AppleSpeechEngine`: kept thin, conformance-verified live.
+- **AC-81** The reply gate, mechanism-not-policy: coordinator config —
+  a gate `Duration` between a final transcript and opening the
+  generator; a new onset during the gate kills the pending reply
+  silently (no thinking entered, no turn events for it). Default zero
+  = byte-for-byte today, proven by the untouched 4a suite (the D-028
+  precedent). Exact ManualClock tests: gate expiry opens thinking at
+  the exact instant; an onset one tick before expiry wins the race.
+- **AC-82** The echo defense (F-2 = A, spike-gated): voice-processing
+  echo cancellation on the microphone path. Honest before/after field
+  record: FIRST the failing run — the assistant barges itself,
+  recorded with the 1d forensic lines — THEN the fix: the assistant
+  completes replies with the microphone live, and a real human barge
+  still lands. If the spike fails on this hardware, fork F-2 reopens
+  with the evidence (fallback candidate: the software gate).
+- **AC-83** Latency, audible and measured: the D-032 seam reports
+  token→first-audible-sound; felt pause and barge-dead are now HEARD
+  on the Mac and printed as numbers.
+- **AC-84** Hygiene + the slice: Swift 6 strict, zero warnings, zero
+  NEW dependencies (AVFoundation/AVFAudio is the platform), 20×
+  stable, map updated; `--talk` speaks through the Mac's speakers and
+  is barged by a live voice.
+
+## 44. Test matrix (4b)
+
+| Area | Tests |
+|---|---|
+| Phraser | word tokens → phrases at punctuation · subword fragments joined · ". The" split correctly · max-length flush · finish flushes remainder · empty/whitespace tokens |
+| Reply gate | zero gate = 4a suite untouched · expiry opens thinking at exact mock instant · onset during gate: reply dies silently, no ghost events · onset one tick before expiry wins · gate + stale final interplay (identity door unchanged) |
+| Coordinator unchanged | full 4a suite green with a phrase-buffering scripted synth (defiant plans included) |
+| Adapter (live kit) | conformance on hardware: started-on-audible · finished-after-last-didFinish · cancel silences within the barge budget |
+| Echo (field) | the before run (self-barge recorded) · the after run (replies complete, human barge lands) |
+
+## 45. The design forks (4b) — ruled 2026-08-13, logged as D-037
+
+- **F-1 = A** Phrase buffer inside the mouth; per-token at the seam
+  preserved. (Initially ruled C — per-token utterances — then re-opened
+  the same day on the producer analysis: a future generator emits
+  SUBWORD fragments and glued punctuation, which per-token would
+  pronounce as broken pieces; buffering must exist somewhere, and the
+  deep-module answer puts it below the seam so coordinator and
+  generator never know. The seam law is untouched: the coordinator
+  forwards every token as it arrives, buffering nothing.)
+- **F-2 = A** OS-level echo cancellation (voice processing) on the
+  microphone path — SPIKE FIRST, D-023 style: it can change the tap's
+  format and sample rate; adoption is ruled on the spike's evidence.
+  Rejected: half-duplex (kills barge-in — the thesis); software gate
+  (kept as the named fallback if the spike fails).
+- **F-3 = A** Reply gate lives in the coordinator as mechanism, the
+  number in the app, default 0. Rejected: app-side filtering — the
+  race between onset and gate expiry belongs inside the actor with
+  the ticket; an app cannot win it from outside.
+- **F-4 = A** `.finished` = the last utterance's didFinish — evidence,
+  not intent (D-029). Rejected: finishing at `finishTokens` — state
+  would flip to idle while sound still plays, and the reply-done
+  latency number would be a lie.
+
+## 46. Out of scope for 4b (deliberately)
+
+TTSKit/neural voices — the named follow-up: spike three numbers
+(first-audio latency, stop latency, thermal under D-028's policy),
+then a voice bake-off with BAKEOFF.md discipline · SpeakerKit /
+multi-speaker rejection (recorded during the 1d confound) · voice and
+language selection policy · iOS talk demo · 4c reply generation.
+
+## 47. Definition of done (4b)
+
+All ACs green · 20× stable · the Mac audibly converses and survives
+its own voice, recorded before/after · PR merged with the map updated
+· teach-back survived (may share a session with the owed 4a
+teach-back).

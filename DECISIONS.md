@@ -825,3 +825,70 @@ option D, named and rejected-for-now, never silently revived).
 quiet room) · 40 ms as a compromise (its only supporting evidence died
 with the confound) · building the tolerance budget now (a design round
 mid-"small milestone"; it needs its own spec and its own field case).
+
+---
+
+## D-037 — Phase 4b ruled: the real mouth (order, and forks F-1..F-4)
+
+**Date:** 2026-08-13 · **Decided by:** Ryad
+
+**The order first:** TTS before the LLM. Ryad raised the fork himself.
+The echo loop — the assistant hearing its own voice and barging its own
+reply — is real-time audio, this project's spine, and every finding of
+the 1d field session (the reply gate, the cost of a false barge) points
+at the speak side. Reply generation is integration behind a proven seam
+and lands better into an audible loop. Also weighed: `AVSpeechSynthesizer`
+cannot fail the way this machine's model daemon does; an on-device LLM
+might. *Rejected:* LLM first — earlier "wow", but it buys text while
+the named hard problem waits.
+
+**The mouth's family plan, also ruled:** `AVSpeechSynthesizer` is the
+floor. TTSKit (a neural Qwen3-TTS living in the argmax-oss-swift
+package we already resolve — verified in its source, not from memory)
+is the named contender for a LATER milestone, gated by a spike on
+three numbers: first-audio latency, stop latency, thermal under
+D-028's policy — then a voice bake-off with BAKEOFF.md discipline.
+SpeakerKit (Pyannote diarization, same package) is recorded as the
+future candidate for multi-speaker rejection — the question the 1d
+confound asked ("was that utterance the speaker, or the child?").
+
+**F-1 = A — phrase buffer inside the mouth; per-token at the seam.**
+This ruling has a history, kept honestly: Ryad first ruled C
+(per-token utterances), valuing parity with the scripted demo and the
+finest barge granularity. Re-opened the same day — by Ryad — on the
+producer analysis: a future reply generator emits SUBWORD fragments
+("con"/"curr"/"ency") with punctuation glued on, at bursty pace.
+Per-token utterances would not be choppy but WRONG — a mouth
+pronouncing fragments. Buffering must exist somewhere; the deep-module
+answer puts it below the seam, so the coordinator keeps forwarding
+every token unbuffered as it arrives (the streaming/latency law and
+the mid-stream ticket proof both live on that law) while the mouth
+privately assembles speakable phrases. Ruling changed to A with the
+reasoning on the record. *Rejected:* per-token utterances (breaks on
+subwords) · whole-reply buffering (silent for the entire generation —
+the felt pause becomes the generation time).
+
+**F-2 = A — OS voice-processing echo cancellation, spike-gated.**
+The platform's own echo canceller on the microphone path, so the
+assistant's output is subtracted before the VAD ever judges. SPIKE
+FIRST (the D-023 discipline): voice processing can change the tap's
+format and sample rate on this hardware; adoption is ruled on the
+spike's evidence. *Rejected:* half-duplex deafness while speaking —
+kills barge-in, the thesis of the whole pipeline; software gate
+(raised threshold/window while speaking) — kept as the NAMED FALLBACK
+if the spike fails, not chosen while a real canceller is available.
+
+**F-3 = A — the reply gate is coordinator mechanism, app policy.**
+A configurable gate `Duration` between a final and opening the
+generator; an onset during the gate kills the pending reply silently;
+default 0 = byte-for-byte 4a (the D-028 precedent). The race between
+"gate expires" and "user resumed" must be decided in the same actor
+that owns the turn ticket. *Rejected:* app-side filtering — an app
+outside the actor cannot win that race without recreating the
+coordinator's own machinery.
+
+**F-4 = A — `.finished` is evidence, not intent.** The reply is done
+when the LAST utterance's didFinish arrives, never at `finishTokens`.
+D-029's principle carried through: state follows what is AUDIBLE.
+*Rejected:* finishing at finishTokens — idle while sound still plays,
+and a reply-done latency number that lies.
