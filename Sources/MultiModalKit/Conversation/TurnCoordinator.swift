@@ -351,6 +351,9 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
 
         switch update {
         case .token(let token):
+            // A defiant token AFTER the reply finished: the sentence is
+            // over; late words are noise, not speech (review finding).
+            guard !live.tokensFinished else { return }
             broadcast.publish(.replyToken(token, turn: turn))
             if live.synthesisRun == nil {
                 // The first token opens the mouth.
