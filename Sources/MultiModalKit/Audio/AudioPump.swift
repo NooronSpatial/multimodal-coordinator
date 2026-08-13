@@ -69,6 +69,9 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
     /// The last chunks heard while quiet — the run-up to a word (D-009).
     private var preRoll: [AudioChunk] = []
     private var isSpeaking = false
+    /// The source of utterance identity (D-034): a number assigned at
+    /// birth, carried by the event, never re-derived downstream.
+    private var utteranceCount = 0
     private var isRunning = false
     private var isStopped = false
 
@@ -206,7 +209,11 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
         switch transition {
         case .speechStarted:
             isSpeaking = true
-            publish(.speechStarted(at: chunk.start))
+            // The utterance is BORN here, identity included (D-034). The
+            // pump is the single source; everyone downstream reads, never
+            // counts.
+            publish(.speechStarted(utterance: utteranceCount, at: chunk.start))
+            utteranceCount += 1
             for held in preRoll { publish(.audioSegment(held)) }
             preRoll.removeAll(keepingCapacity: true)
             publish(.audioSegment(chunk))

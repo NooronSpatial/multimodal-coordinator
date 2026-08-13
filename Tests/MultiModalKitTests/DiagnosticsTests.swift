@@ -232,12 +232,12 @@ struct DiagnosticsWiringTests {
             group.addTask { await session.run(events: feed) }
             group.addTask { for await event in health.events { await box.append(event) } }
 
-            input.yield(.speechStarted(at: t(0)))
+            input.yield(.speechStarted(utterance: 0, at: t(0)))
             input.yield(.audioSegment(chunk(at: 0)))
             input.yield(.speechEnded(at: t(960)))
             #expect(await DiagnosticsTests.until { engine.record(ofRun: 0)?.audioFinished == true })
 
-            input.yield(.speechStarted(at: t(9600)))       // №0 moves to settling → count 1
+            input.yield(.speechStarted(utterance: 1, at: t(9600)))       // №0 moves to settling → count 1
             #expect(await DiagnosticsTests.until { await box.events.contains(.settlingDecodes(count: 1)) },
                     "the settling count never rose")
 

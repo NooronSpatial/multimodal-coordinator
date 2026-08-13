@@ -594,3 +594,148 @@ attribution stays an open question in INSTRUMENTS.md rather than a
 blocker. D-027's boundary holds: the pipeline never stops listening on
 its own — the policy can only decline optional work, never the live
 turn.
+
+---
+
+## D-029 — The turn seams: streaming replies, evidence-reporting synthesis (Phase 4a forks F2 = A, F4 = A)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+`ReplyGenerating` answers with a TOKEN STREAM, not a whole string: early
+synthesis start and mid-generation barge-in both need tokens as they are
+born, and every seam in this library is streaming-first — a whole-reply
+seam would be its first non-streaming citizen. *Rejected:* one string back
+(simpler, but locks the loop into wait-for-everything and makes
+mid-generation barge meaningless).
+
+`SpeechSynthesizing` REPORTS — started / finished / failed — and the
+coordinator's `speaking` state follows those reports. *Rejected:* the
+coordinator assuming `speaking` the moment it hands tokens over — the
+house rule everywhere else is that state follows evidence, never
+assumption (the pump's verdicts, the session's tickets, the thermal
+baseline), and the scripted synthesizer makes the honest version fully
+testable today.
+
+---
+
+## D-030 — TurnCoordinator lives in core; state = enum + one funnel; state is queryable, events replay nothing (Phase 4a fork F3 = A)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+The coordinator is the library's namesake and carries zero dependency
+weight (it holds seams, never engines) — it lives in `MultiModalKit`.
+*Rejected:* a separate product — its argument was size, not kind.
+
+State machine: a `TurnState` enum and ONE transition funnel validating
+every change against an explicit legal-pair table; no state write outside
+the funnel. One place to point at: this function IS the state machine.
+*Rejected:* implicit state in control flow (transitions scatter; proving
+legality means auditing every path) and a generic interpreted transition
+table (machinery for machinery's sake at four states).
+
+Late listeners: `Broadcast` stays no-replay (D-012 unchanged) — but the
+current state is queryable on the actor. A late subscriber asks for NOW
+and then listens; history is not replayed, it is asked for. Same shape as
+the diagnostics baseline rule.
+
+---
+
+## D-031 — Barge-in = the pump's `speechStarted`; the ticket doctrine promoted to turns (Phase 4a fork F1 = A)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+The barge trigger is the earliest signal the system has: the pump's
+`speechStarted`. A first-partial fallback is structurally unnecessary in
+THIS pipeline — no recognition exists before the pump has fired
+`speechStarted`, by construction. *Rejected for 4a:* text-confirmed
+barge-in (`speechStarted` + first partial) — robustness against the
+assistant hearing itself, bought with latency at the most
+latency-sensitive moment, for an echo that cannot exist while the stages
+are scripted and silent. **The fork formally re-opens at 4b** when real
+audio makes it real.
+
+Mechanism: hybrid, as everywhere in this library — structured
+cancellation reclaims resources promptly; the monotonic turn ticket,
+raised in the same actor step as the retiring transition, is the
+correctness invariant. Each covers the other's gap. The input side gets
+the same treatment: only the CURRENT utterance's final may open thinking;
+a stale settled final (D-024) is comfort text, never a reply trigger.
+
+---
+
+## D-032 — Turn latency: clock instants + an injectable `LatencyReporter` (R2, mid-4a)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+Raised by Ryad during 4a review: the coordinator measured nothing. Ruled:
+instants captured INSIDE the actor at the semantic boundaries — final
+accepted → the synthesizer's `started` evidence (the felt pause), and
+barge accepted → both stage cancels acknowledged (the interruption cost,
+belonging to the turn that died) — computed as `Duration`s and handed to
+an injectable `LatencyReporter`. The measurement shares the pipeline's
+clock and its isolation, so it can never race the thing it measures.
+Injected as a PAIR with the clock: no reporter, no clock reads — the
+default coordinator stays fully clockless. *Rejected:* wall-clock
+timestamps (nondeterministic, banned by the house rules) and an external
+telemetry actor (a cross-actor hop at exactly the boundary being
+measured — observation ordering becomes its own race).
+
+Proven the deterministic way: a manual clock advanced 250 ms between the
+final and the `started` evidence reports EXACTLY 250 ms; and cancel
+latency in mock time is EXACTLY zero — structural teardown contains no
+clock waits, or the test would say so.
+
+---
+
+## D-033 — Post-reply state: idle, not listening (R1)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+After a reply is fully spoken the coordinator returns to `idle` —
+diverging DELIBERATELY from the author's earlier private precedent, where
+the same four-state machine went speaking → listening, with a silence
+window as the only exit to idle. The precedent's rationale was real:
+THERE, the state machine owned wakefulness — idle meant deaf — so
+returning to listening was the only way to keep the conversation hot.
+HERE, the pump never sleeps: the microphone hears at every moment, and
+`listening` is an OBSERVATION (an utterance is in flight, its ticket
+alive), never a posture. Entering it after a reply would claim an
+utterance that does not exist — a ghost ticket — and leaving it again
+would demand a clock in the core loop plus a policy number ("how much
+silence?") that D-027 assigns to the app. The UX is identical either
+way: the next word opens a turn instantly, because deafness was never
+attached to the state.
+
+*Rejected:* adopting the precedent's semantics — a silence window, an
+injected clock, and a turn with no evidence behind it: three costs to
+buy a word. The zero-token path (thinking → idle on an empty reply)
+follows the same reasoning.
+
+---
+
+## D-034 — Utterance identity is born at the source (the review's mirror finding)
+
+**Date:** 2026-08-13 · **Decided by:** Ryad
+
+The adversarial review's major catch: the session and the coordinator each
+COUNTED `speechStarted` on their own broadcast listener to derive utterance
+numbers — and the transport is legally allowed to show two listeners two
+different event sets (no replay; bounded drop-oldest, D-012). One event
+seen by one listener and not the other desynchronized the counts FOREVER:
+every reply answering the PREVIOUS question, or permanent muteness —
+undetected, unhealable. The suite was green over it because a single-stream
+test bench cannot express a two-listener set mismatch.
+
+Ruled: identity travels WITH the evidence. The pump — the one place an
+utterance is born — assigns its number and carries it inside
+`speechStarted(utterance:at:)`. The session ADOPTS the number; the
+coordinator READS it; nobody counts anything downstream. A lost onset now
+costs exactly its own utterance (that final fails the identity door and
+dies — correct) and the very next event heals the view. The regression
+test drives the exact corruption scenario and proves the heal.
+
+*Rejected:* detect-and-resync heuristics — shrinks the window, closes
+nothing, and the doctrine demands stale events be PROVABLY inert.
+*Rejected:* documenting it as a known limit — a law with a waiver is not
+a law. Cost accepted: `AudioEvent.speechStarted` gained a field (pre-1.0,
+we own every consumer).

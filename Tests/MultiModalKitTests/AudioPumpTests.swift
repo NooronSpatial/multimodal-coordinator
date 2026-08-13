@@ -146,7 +146,7 @@ struct AudioPumpTests {
 
         let events = await Self.collect(listener.events)
         #expect(events == [
-            .speechStarted(at: Self.t(1920)),           // the first loud chunk's own moment
+            .speechStarted(utterance: 0, at: Self.t(1920)),           // the first loud chunk's own moment
             .audioSegment(Self.chunk(Self.quiet, at: 0)),     // pre-roll, older than the start
             .audioSegment(Self.chunk(Self.quiet, at: 960)),
             .audioSegment(Self.chunk(Self.loud, at: 1920)),
@@ -181,7 +181,7 @@ struct AudioPumpTests {
 
         let events = await Self.collect(listener.events)
         #expect(events == [
-            .speechStarted(at: Self.t(3840)),
+            .speechStarted(utterance: 0, at: Self.t(3840)),
             .audioSegment(Self.chunk(Self.quiet, at: 1920)),  // the two NEWEST quiet chunks only
             .audioSegment(Self.chunk(Self.quiet, at: 2880)),
             .audioSegment(Self.chunk(Self.loud, at: 3840)),
@@ -213,7 +213,7 @@ struct AudioPumpTests {
 
         let events = await Self.collect(listener.events)
         #expect(events == [
-            .speechStarted(at: Self.t(0)),
+            .speechStarted(utterance: 0, at: Self.t(0)),
             .audioSegment(Self.chunk(Self.loud, at: 0)),
             .audioSegment(Self.chunk(Self.loud, at: 960)),
         ])
@@ -245,7 +245,7 @@ struct AudioPumpTests {
         let events = await Self.collect(listener.events)
         #expect(events == [
             .dropped(frames: 1024, at: Self.t(0)),      // the gap, where it happened
-            .speechStarted(at: Self.t(1024)),           // audio time counts the lost frames
+            .speechStarted(utterance: 0, at: Self.t(1024)),           // audio time counts the lost frames
             .audioSegment(Self.chunk(Self.loud, at: 1024)),
             .audioSegment(Self.chunk(Self.loud, at: 1984)),
         ])
@@ -275,7 +275,7 @@ struct AudioPumpTests {
         let a = await Self.collect(first.events)
         let b = await Self.collect(second.events)
         #expect(a == b)
-        #expect(a.first == .speechStarted(at: Self.t(0)))
+        #expect(a.first == .speechStarted(utterance: 0, at: Self.t(0)))
         #expect(a.count == 3)
     }
 
@@ -301,7 +301,7 @@ struct AudioPumpTests {
         }
 
         let events = await Self.collect(listener.events)
-        guard case .speechStarted(let at)? = events.first else {
+        guard case .speechStarted(_, let at)? = events.first else {
             Issue.record("no speechStarted event")
             return
         }
