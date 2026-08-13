@@ -27,12 +27,14 @@ struct AudioDemo {
         // "spoken" into the terminal — barge it mid-reply with your voice.
         let arguments = Array(CommandLine.arguments.dropFirst())
         let talk = arguments.contains("--talk")
-        // `--onset <ms>`: the F-6 field A/B (08-13). Ryad's report — words
-        // lost, quality down vs pre-1d — fits the strict window's onset tax
-        // at a marginal gate: a flickering soft onset dies at every dip and
-        // opens late (clipped by pre-roll's 200 ms reach) or never. The flag
-        // lets the same voice try both doors; the 🔎 lines rule.
-        var onsetMs = 60.0
+        // `--onset <ms>`: the F-6 field A/B flag (08-13). The A/B convicted
+        // the strict window twice on this machine — "Riyadh"→"Riyat" and
+        // "error rate"→"rate", both onsets clipped after a split — against
+        // zero quiet-room benefit (the 0.02 gate already earned the clean
+        // runs). Ruled D-036: the Mac demo runs with the window OFF; the
+        // flag stays for experiments; a machine that truly needs a window
+        // with soft speech reopens F-2 as a tolerance budget first.
+        var onsetMs = 0.0
         if let flagIndex = arguments.firstIndex(of: "--onset"),
            let value = arguments.indices.contains(flagIndex + 1)
                ? Double(arguments[flagIndex + 1]) : nil {
@@ -110,10 +112,11 @@ struct AudioDemo {
             // post-sentence level hovering AT 0.01 — the gate opened every
             // 0.84 s like a metronome, one empty Whisper decode per tick.
             // The iPhone demo keeps 0.01; each machine earns its own number.
-            // The 60 ms onset window (D-035) is the principled half of that
-            // fix: a click or tick is never an utterance — and since D-031,
-            // never a barge. Pre-roll (10 chunks) covers the window's 3
-            // (the F-4 wiring law), so no word is beheaded.
+            // The onset window (D-035) ships OFF here — ruled D-036 after
+            // the field A/B clipped word onsets twice ("Riyat", "rate")
+            // for zero quiet-room benefit. The gate is this machine's
+            // earned defense; `--onset <ms>` re-arms the window for
+            // experiments (wire pre-roll ≥ the window per the F-4 law).
             vad: EnergyVAD(config: .init(threshold: 0.02,
                                          hangoverFrames: Int(sampleRate * 0.3),
                                          onsetFrames: Int(sampleRate * onsetMs / 1000))),

@@ -779,3 +779,49 @@ begin. Five forks, all ruled A:
 Cost accepted and written in the spec: every TRUE onset (and therefore
 every barge-in) is delayed by the window. The number must stay small,
 and it is the caller's number.
+
+---
+
+## D-036 — The field overruled the window: OFF for the Mac demo (1d fork F-6 = B)
+
+**Date:** 2026-08-13 · **Decided by:** Ryad
+
+The window shipped per D-035 and the field convicted it the same day.
+Ryad's report — "words get lost, quality below pre-1d" — led to a
+controlled A/B (`--onset 60` vs `--onset 0`, same voice, same fixed
+paragraph, forensic 🔎 lines per utterance). Verdict, two positional
+repeats: **"Riyadh" → "Riyat"** and **"error rate" → "rate"** — both
+word onsets clipped where an utterance opens after quiet. The mechanism:
+D-035's spec priced the window as 40–80 ms of latency, but at a marginal
+gate (speech peaks 0.05–0.11 against 0.02) a soft onset FLICKERS, and
+F-2's strict-consecutive rule kills the candidate at every 20 ms dip —
+the door opens late (clipped beyond pre-roll's reach) or never. Against
+this cost the quiet-room benefit measured ZERO: the 0.02 gate alone had
+already earned clean runs (5be72ac) before the window existed.
+
+Method note, on the record: the first A/B's no-window arm showed five
+noise utterances and nearly bought the window a smaller-number verdict
+(40 ms) — then Ryad disclosed a confound (his kid was audible in that
+arm) and the arm was re-run clean: the noise vanished with the kid, not
+with the window. The confession changed the ruling. Instruments and
+honesty, not impressions.
+
+Ruled (F-6 = B): the Mac demo runs with the window OFF (`--onset` flag
+kept for experiments). The library keeps the mechanism exactly as
+D-035 built it — default-off, byte-for-byte, deterministically proven.
+
+**The iOS question, answered without a test:** the iPhone demo never
+carried the window (default 0 = the old door, pinned by AC-74), so 1d
+changed nothing there and there is no observed disease to cure. The
+deeper lesson is recorded as a standing rule: a MARGINAL-GATE machine
+(the iPhone: 0.01, arm's-length soft speech) is precisely where
+strict-consecutive clips worst — the machine that most wants a window
+is the machine this window hurts most. If any platform's field ever
+demands a window over soft speech, **fork F-2 reopens FIRST toward a
+tolerance budget** (loud must dominate a window, dips forgiven —
+option D, named and rejected-for-now, never silently revived).
+
+*Rejected:* keeping 60 ms (pays a per-split clip tax for nothing in a
+quiet room) · 40 ms as a compromise (its only supporting evidence died
+with the confound) · building the tolerance budget now (a design round
+mid-"small milestone"; it needs its own spec and its own field case).

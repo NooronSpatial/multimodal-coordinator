@@ -907,6 +907,13 @@ chunks) and why the default is a fork for Ryad to rule (F-5).
   zero new dependencies; 20× stable; the Mac demo carries the window and
   a field run shows transients ignored and real words still opening —
   numbers printed and recorded in the PR.
+  *(Amended by ruling, 2026-08-13 — D-036, fork F-6 = B: the field A/B
+  convicted the window of clipping word onsets twice for zero quiet-room
+  benefit, so the Mac demo ships with the window OFF and an `--onset`
+  flag for experiments. The field evidence recorded in the PR is the
+  A/B itself — both signatures, the disclosed confound, and the clean
+  re-run — plus the forensic 🔎/🩺 lines that produced it. The window's
+  mechanism proofs remain the deterministic suite, AC-73..77.)*
 
 ## 38. Test matrix (1d)
 
