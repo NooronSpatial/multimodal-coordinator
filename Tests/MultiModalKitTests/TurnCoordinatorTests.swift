@@ -75,8 +75,10 @@ struct TurnCoordinatorTests {
         }
 
         /// The measuring bench (R2): manual clock in, exact durations out.
+        /// `config` carries the reply gate for the AC-81 tests.
         init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
-             clock: C, reporter: any LatencyReporter) {
+             clock: C, reporter: any LatencyReporter,
+             config: TurnCoordinator<C>.Config = .init()) {
             var audioHandle: AsyncStream<AudioEvent>.Continuation!
             let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
             var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
@@ -84,7 +86,7 @@ struct TurnCoordinatorTests {
             self.init(
                 generator: generator, synthesizer: synthesizer,
                 coordinator: TurnCoordinator(
-                    replyGenerator: generator, synthesizer: synthesizer,
+                    replyGenerator: generator, synthesizer: synthesizer, config: config,
                     clock: clock, latencyReporter: reporter),
                 audioStream: audioStream, audio: audioHandle,
                 transcriptStream: transcriptStream, transcripts: transcriptHandle)
@@ -919,6 +921,178 @@ struct TurnCoordinatorTests {
         var lateEvents: [TurnEvent] = []
         for await event in late.events { lateEvents.append(event) }
         #expect(lateEvents.isEmpty, "a post-stop listener must get an immediately-finished stream")
+    }
+
+    // MARK: - the reply gate (AC-81, D-037 F-3: mechanism here, number with the app)
+
+    /// A bounded "nothing happened" check: give the loop room to betray
+    /// itself, then assert it did not. The positive twin of `until`.
+    static func settled(spins: Int = 2_000) async {
+        for _ in 0..<spins { await Task.yield() }
+    }
+
+    @Test("The gate holds the generator shut, then expiry opens thinking at the exact instant")
+    func gateExpiryOpensThinkingAtTheExactInstant() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter,
+                          config: .init(replyGate: .milliseconds(500)))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "gated", at: 0)
+            // 499 of 500 ms: the gate must still hold — no thinking, no
+            // generator, state parked on listening.
+            await clock.advance(by: .milliseconds(499))
+            await Self.settled()
+            #expect(bench.generator.repliesOpened == 0, "the gate leaked early")
+            #expect(await bench.coordinator.currentState == .listening)
+
+            await clock.advance(by: .milliseconds(1))     // exactly 500
+            #expect(await Self.until { bench.generator.repliesOpened == 1 },
+                    "expiry did not open the generator")
+            #expect(await bench.coordinator.currentState == .thinking)
+
+            bench.generator.emit(reply: 0, token: "tick")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            #expect(await Self.until { await bench.coordinator.currentState == .speaking })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        // The felt pause is honest: it starts at the FINAL, so the gate's
+        // 500 ms belong to it — exactly, in mock time.
+        #expect(reporter.turnLatencies.first ?? (.zero, -1) == (.milliseconds(500), 0),
+                "the reported pause must include the gate the user waited through")
+    }
+
+    @Test("An onset during the gate kills the pending reply silently; the next final gates again")
+    func onsetDuringGateKillsThePendingReplySilently() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter,
+                          config: .init(replyGate: .milliseconds(500)))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "the user was not done", at: 0)
+            await clock.advance(by: .milliseconds(200))
+            // The user resumes: same turn keeps listening, the pending
+            // reply dies with NO events — no thinking, no ghost turn.
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(48_000)))
+            await clock.advance(by: .seconds(10))         // the dead gate expires into nothing
+            await Self.settled()
+            #expect(bench.generator.repliesOpened == 0, "a killed gate still opened the generator")
+            #expect(await bench.coordinator.currentState == .listening)
+
+            // The user's REAL final gates again and goes through.
+            bench.transcripts.yield(.final("now I am done", utterance: 1, at: Self.t(96_000)))
+            await clock.advance(by: .milliseconds(500))
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            #expect(bench.generator.record(ofReply: 0)?.transcript == "now I am done",
+                    "the generator must open with the SECOND final's text")
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        let states = await bench.box.states()
+        #expect(!states.dropFirst().contains(.listening),
+                "the killed reply must not produce a second listening transition")
+    }
+
+    @Test("An onset one tick before expiry wins the race")
+    func onsetOneTickBeforeExpiryWins() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter,
+                          config: .init(replyGate: .milliseconds(500)))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "almost", at: 0)
+            await clock.advance(by: .milliseconds(499))
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(24_000)))
+            // The onset must be IN before the last tick fires the gate.
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 1 },
+                    "the onset was not processed before the deciding tick")
+            await clock.advance(by: .milliseconds(1))
+            await Self.settled()
+            #expect(bench.generator.repliesOpened == 0, "the onset lost a race it arrived first for")
+            #expect(await bench.coordinator.currentState == .listening)
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+    }
+
+    @Test("The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)")
+    func defaultGateIsZero() {
+        #expect(TurnCoordinator<ContinuousClock>.Config().replyGate == .zero)
+    }
+
+    @Test("A stale final during the gate is dropped at the door; the armed reply survives it")
+    func staleFinalDuringGateIsDroppedAndTheArmedReplySurvives() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter,
+                          config: .init(replyGate: .milliseconds(500)))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            // Utterances 0..4 came and went before this bench's story; the
+            // pump's numbering is monotonic, so the test starts at 5.
+            bench.speak(utterance: 5, final: "armed", at: 0)
+            await clock.advance(by: .milliseconds(100))
+            // A settled final from an EARLIER utterance (D-024): the input
+            // door drops it — it must not disturb the armed gate.
+            bench.transcripts.yield(.final("stale comfort text", utterance: 3, at: Self.t(10)))
+            await Self.settled()
+            await clock.advance(by: .milliseconds(400))   // the gate completes
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            #expect(bench.generator.record(ofReply: 0)?.transcript == "armed",
+                    "the stale final must neither open nor replace the armed reply")
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+    }
+
+    @Test("stop() during the gate: clean end, no generator, no sleeping child left behind")
+    func stopDuringTheGateEndsClean() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter,
+                          config: .init(replyGate: .milliseconds(500)))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "never spoken", at: 0)
+            #expect(await Self.until { await bench.coordinator.currentState == .listening })
+            await Self.settled()                          // let the gate arm
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.repliesOpened == 0)
+        #expect(clock.sleeperCount == 0, "the gate's sleeper survived stop()")
     }
 
     // MARK: - latency (R2: clock + injected reporter, exact under ManualClock)

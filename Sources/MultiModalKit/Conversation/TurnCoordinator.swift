@@ -18,9 +18,20 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     public struct Config: Sendable {
         /// Events a listener may fall behind by before the oldest is dropped.
         public var listenerBufferCapacity: Int
+        /// The reply gate (AC-81, D-037 F-3): how long the floor must stay
+        /// yielded after a final before the generator opens. An onset during
+        /// the gate kills the pending reply silently — "the utterance ended"
+        /// is a weaker fact than "the user is done". Mechanism here, the
+        /// NUMBER with the app (D-027). Zero = byte-for-byte 4a. A non-zero
+        /// gate needs the clocked initializer.
+        public var replyGate: Duration
 
-        public init(listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity) {
+        public init(
+            listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity,
+            replyGate: Duration = .zero
+        ) {
             self.listenerBufferCapacity = listenerBufferCapacity
+            self.replyGate = replyGate
         }
     }
 
@@ -121,6 +132,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         synthesizer: any SpeechSynthesizing,
         config: Config = Config()
     ) where C == ContinuousClock {
+        precondition(config.replyGate == .zero,
+                     "a reply gate needs time — use the clocked initializer")
         self.replyGenerator = replyGenerator
         self.synthesizer = synthesizer
         self.config = config
@@ -132,6 +145,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// The current state, for late listeners: ask for NOW, then listen —
     /// events replay nothing (D-030, AC-67).
     public var currentState: TurnState { state }
+
+    /// The newest utterance identity seen here (D-034) — the input door's
+    /// position, queryable the same "ask for now" way as the state.
+    public var currentUtterance: Int { lastOnset }
 
     /// Adds a listener. It hears everything published from now on (D-012).
     public func listen() -> Broadcast<TurnEvent>.Listener {
