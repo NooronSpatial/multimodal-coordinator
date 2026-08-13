@@ -816,6 +816,11 @@ reply trigger.
 - **AC-70** The slice: the terminal demo runs the scripted turn loop live —
   speak, watch it think, see reply tokens print as speech, barge it
   mid-reply with your voice.
+- **AC-71** *(added mid-milestone, ruled by Ryad — D-032)* Latency seam:
+  clock + injectable `LatencyReporter`, instants at the semantic
+  boundaries, exact values proven on a manual clock (turn latency
+  = advanced time exactly; cancel latency = exactly zero in mock time).
+  The default coordinator stays clockless.
 
 ## 33. Test matrix (Phase 4a)
 

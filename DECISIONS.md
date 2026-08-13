@@ -660,3 +660,27 @@ raised in the same actor step as the retiring transition, is the
 correctness invariant. Each covers the other's gap. The input side gets
 the same treatment: only the CURRENT utterance's final may open thinking;
 a stale settled final (D-024) is comfort text, never a reply trigger.
+
+---
+
+## D-032 — Turn latency: clock instants + an injectable `LatencyReporter` (R2, mid-4a)
+
+**Date:** 2026-08-12 · **Decided by:** Ryad
+
+Raised by Ryad during 4a review: the coordinator measured nothing. Ruled:
+instants captured INSIDE the actor at the semantic boundaries — final
+accepted → the synthesizer's `started` evidence (the felt pause), and
+barge accepted → both stage cancels acknowledged (the interruption cost,
+belonging to the turn that died) — computed as `Duration`s and handed to
+an injectable `LatencyReporter`. The measurement shares the pipeline's
+clock and its isolation, so it can never race the thing it measures.
+Injected as a PAIR with the clock: no reporter, no clock reads — the
+default coordinator stays fully clockless. *Rejected:* wall-clock
+timestamps (nondeterministic, banned by the house rules) and an external
+telemetry actor (a cross-actor hop at exactly the boundary being
+measured — observation ordering becomes its own race).
+
+Proven the deterministic way: a manual clock advanced 250 ms between the
+final and the `started` evidence reports EXACTLY 250 ms; and cancel
+latency in mock time is EXACTLY zero — structural teardown contains no
+clock waits, or the test would say so.

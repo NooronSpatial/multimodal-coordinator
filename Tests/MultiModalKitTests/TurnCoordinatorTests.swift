@@ -1,6 +1,7 @@
 import Testing
 import MultiModalKit
 import MultiModalKitTesting
+import Synchronization
 
 /// RED SUITE for Phase 4a (SPEC §31–33, D-029..D-031): the turn loop.
 ///
@@ -35,10 +36,23 @@ struct TurnCoordinatorTests {
         }
     }
 
+    /// Records every latency hand-off — exact values, not vibes.
+    final class RecordingLatencyReporter: LatencyReporter, @unchecked Sendable {
+        private let store = Mutex<([(Duration, Int)], [(Duration, Int)])>(([], []))
+        var turnLatencies: [(Duration, Int)] { store.withLock { $0.0 } }
+        var cancelLatencies: [(Duration, Int)] { store.withLock { $0.1 } }
+        func turnLatency(_ duration: Duration, turn: Int) {
+            store.withLock { $0.0.append((duration, turn)) }
+        }
+        func cancelLatency(_ duration: Duration, turn: Int) {
+            store.withLock { $0.1.append((duration, turn)) }
+        }
+    }
+
     /// The whole loop on a bench: scripted stages, hand-driven input
     /// streams, a collector — and the coordinator in the middle.
-    struct Bench {
-        let coordinator: TurnCoordinator
+    struct Bench<C: Clock> where C.Duration == Duration {
+        let coordinator: TurnCoordinator<C>
         let generator: ScriptedReplyGenerator
         let synthesizer: ScriptedSynthesizer
         let audio: AsyncStream<AudioEvent>.Continuation
@@ -47,16 +61,48 @@ struct TurnCoordinatorTests {
         private let audioStream: AsyncStream<AudioEvent>
         private let transcriptStream: AsyncStream<TranscriptEvent>
 
-        init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer) {
+        init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer)
+        where C == ContinuousClock {
+            var audioHandle: AsyncStream<AudioEvent>.Continuation!
+            let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
+            var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
+            let transcriptStream = AsyncStream<TranscriptEvent> { transcriptHandle = $0 }
+            self.init(
+                generator: generator, synthesizer: synthesizer,
+                coordinator: TurnCoordinator(replyGenerator: generator, synthesizer: synthesizer),
+                audioStream: audioStream, audio: audioHandle,
+                transcriptStream: transcriptStream, transcripts: transcriptHandle)
+        }
+
+        /// The measuring bench (R2): manual clock in, exact durations out.
+        init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
+             clock: C, reporter: any LatencyReporter) {
+            var audioHandle: AsyncStream<AudioEvent>.Continuation!
+            let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
+            var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
+            let transcriptStream = AsyncStream<TranscriptEvent> { transcriptHandle = $0 }
+            self.init(
+                generator: generator, synthesizer: synthesizer,
+                coordinator: TurnCoordinator(
+                    replyGenerator: generator, synthesizer: synthesizer,
+                    clock: clock, latencyReporter: reporter),
+                audioStream: audioStream, audio: audioHandle,
+                transcriptStream: transcriptStream, transcripts: transcriptHandle)
+        }
+
+        private init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
+                     coordinator: TurnCoordinator<C>,
+                     audioStream: AsyncStream<AudioEvent>,
+                     audio: AsyncStream<AudioEvent>.Continuation,
+                     transcriptStream: AsyncStream<TranscriptEvent>,
+                     transcripts: AsyncStream<TranscriptEvent>.Continuation) {
             self.generator = generator
             self.synthesizer = synthesizer
-            var audioHandle: AsyncStream<AudioEvent>.Continuation!
-            self.audioStream = AsyncStream { audioHandle = $0 }
-            self.audio = audioHandle
-            var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
-            self.transcriptStream = AsyncStream { transcriptHandle = $0 }
-            self.transcripts = transcriptHandle
-            self.coordinator = TurnCoordinator(replyGenerator: generator, synthesizer: synthesizer)
+            self.coordinator = coordinator
+            self.audioStream = audioStream
+            self.audio = audio
+            self.transcriptStream = transcriptStream
+            self.transcripts = transcripts
             self.box = Collected()
         }
 
@@ -504,5 +550,74 @@ struct TurnCoordinatorTests {
         let events = await bench.box.events
         #expect(!events.contains(.turnCompleted(turn: 0)),
                 "nothing may publish after stop()")
+    }
+
+    // MARK: - latency (R2: clock + injected reporter, exact under ManualClock)
+
+    @Test("Turn latency = final accepted → the started evidence: exact on a manual clock")
+    func turnLatencyExact() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter)
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "measure me", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            // The user's wait: 250 ms of manual time before the mouth opens.
+            await clock.advance(by: .milliseconds(250))
+            bench.generator.emit(reply: 0, token: "tick")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            #expect(await Self.until { await bench.coordinator.currentState == .speaking })
+
+            bench.generator.finish(reply: 0)
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 0)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 0)) })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(reporter.turnLatencies.count == 1)
+        #expect(reporter.turnLatencies.first ?? (.zero, -1) == (.milliseconds(250), 0),
+                "the felt pause must be EXACTLY the manual time that passed")
+        #expect(reporter.cancelLatencies.isEmpty, "no barge happened — no cancel latency")
+    }
+
+    @Test("Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing")
+    func cancelLatencyZeroInMockTime() async {
+        let clock = ManualClock()
+        let reporter = RecordingLatencyReporter()
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1),
+                          clock: clock, reporter: reporter)
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "doomed", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            // Time passes while the turn thinks — it must NOT pollute the
+            // cancel measurement, which starts at the barge itself.
+            await clock.advance(by: .seconds(2))
+
+            bench.audio.yield(.speechStarted(at: Self.t(96000)))   // the barge
+            #expect(await Self.until { await bench.box.events.contains(.turnBarged(turn: 0)) })
+            #expect(await Self.until { !reporter.cancelLatencies.isEmpty })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(reporter.cancelLatencies.count == 1)
+        #expect(reporter.cancelLatencies.first ?? (.seconds(9), -1) == (.zero, 0),
+                "structural teardown takes no mock time — exactly zero, or a clock wait crept in")
+        #expect(reporter.turnLatencies.isEmpty,
+                "the turn died before speaking — a dead turn reports no turn latency")
     }
 }

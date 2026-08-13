@@ -14,7 +14,7 @@
 /// coordinator reacts to is merged into ONE stream and handled by ONE loop
 /// on the actor. Stage readers are group children that only forward into
 /// the merge; they never touch the actor.
-public actor TurnCoordinator {
+public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     public struct Config: Sendable {
         /// Events a listener may fall behind by before the oldest is dropped.
         public var listenerBufferCapacity: Int
@@ -40,6 +40,9 @@ public actor TurnCoordinator {
     /// the guard that reads this.
     private struct LiveTurn {
         let turn: Int
+        /// When this turn's final was accepted — the start of the pause the
+        /// user feels. Captured only when a latency reporter is injected.
+        var thinkingStart: C.Instant?
         /// The input-side ticket (SPEC §31): the utterance whose final may
         /// drive this turn. Mirrored from the same event stream the session
         /// numbers from. A settled final from an EARLIER utterance (D-024)
@@ -51,18 +54,27 @@ public actor TurnCoordinator {
     }
 
     /// AC-61: the legal-transition table. The funnel checks every change
-    /// against THIS — no state write happens anywhere else.
-    private static let legalTransitions: [TurnState: Set<TurnState>] = [
-        .idle: [.listening],
-        .listening: [.thinking, .idle],
-        .thinking: [.speaking, .listening, .idle],
-        .speaking: [.listening, .idle],
-    ]
+    /// against THIS — no state write happens anywhere else. (A computed
+    /// property because generic types cannot hold static storage; the
+    /// dictionary literal is trivially cheap next to a transition.)
+    private static var legalTransitions: [TurnState: Set<TurnState>] {
+        [
+            .idle: [.listening],
+            .listening: [.thinking, .idle],
+            .thinking: [.speaking, .listening, .idle],
+            .speaking: [.listening, .idle],
+        ]
+    }
 
     private let replyGenerator: any ReplyGenerating
     private let synthesizer: any SpeechSynthesizing
     private let config: Config
     private let broadcast: Broadcast<TurnEvent>
+    /// The measurement pair (R2): both or neither. With no reporter the
+    /// coordinator never reads a clock — clockless by default, like the
+    /// session (D-011's spirit: time only where a consumer asked for it).
+    private let clock: C?
+    private let latencyReporter: (any LatencyReporter)?
 
     private var state: TurnState = .idle
     private var current: LiveTurn?
@@ -81,14 +93,36 @@ public actor TurnCoordinator {
     private var merge: AsyncStream<Input>.Continuation?
     private var isStopped = false
 
+    /// The measuring coordinator (R2): instants captured at the semantic
+    /// boundaries, durations to the injected reporter. Deterministic under
+    /// a ManualClock; a wall-clock demo reuses the identical code path.
     public init(
         replyGenerator: any ReplyGenerating,
         synthesizer: any SpeechSynthesizing,
-        config: Config = Config()
+        config: Config = Config(),
+        clock: C,
+        latencyReporter: any LatencyReporter
     ) {
         self.replyGenerator = replyGenerator
         self.synthesizer = synthesizer
         self.config = config
+        self.clock = clock
+        self.latencyReporter = latencyReporter
+        self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
+    }
+
+    /// The everyday coordinator: fully clockless — no reporter, no clock,
+    /// not even a clock READ. Measurement is opt-in, never ambient.
+    public init(
+        replyGenerator: any ReplyGenerating,
+        synthesizer: any SpeechSynthesizing,
+        config: Config = Config()
+    ) where C == ContinuousClock {
+        self.replyGenerator = replyGenerator
+        self.synthesizer = synthesizer
+        self.config = config
+        self.clock = nil
+        self.latencyReporter = nil
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
     }
 
@@ -207,6 +241,7 @@ public actor TurnCoordinator {
         case .thinking, .speaking:
             // THE BARGE. Ticket first, in this same actor step: the old
             // turn is dead before anything awaits.
+            let bargeAccepted = clock?.now
             let dying = current
             let turn = nextTurn
             nextTurn += 1
@@ -217,6 +252,11 @@ public actor TurnCoordinator {
             transition(to: .listening, turn: turn)
             await dying?.replyRun?.cancel()      // optimization, after the
             await dying?.synthesisRun?.cancel()  // guarantee
+            // Cancel latency (R2): barge accepted → both cancels
+            // acknowledged. Belongs to the turn that died.
+            if let reporter = latencyReporter, let clock, let bargeAccepted, let dying {
+                reporter.cancelLatency(bargeAccepted.duration(to: clock.now), turn: dying.turn)
+            }
         }
 
         // The utterance is born — if its terminal transcript arrived early
@@ -259,6 +299,7 @@ public actor TurnCoordinator {
 
             let turn = live.turn
             transition(to: .thinking, turn: turn)
+            current?.thinkingStart = clock?.now   // the user's wait begins
             do {
                 let run = try await replyGenerator.openReply(to: trimmed)
                 // Reentrancy law: a barge or stop() may have run while we
@@ -371,6 +412,10 @@ public actor TurnCoordinator {
             // `started` fails the state guard and is noise, not a crash.
             guard state == .thinking else { return }
             transition(to: .speaking, turn: turn)
+            // Turn latency (R2): final accepted → audible. The felt pause.
+            if let reporter = latencyReporter, let clock, let start = live.thinkingStart {
+                reporter.turnLatency(start.duration(to: clock.now), turn: turn)
+            }
 
         case .finished:
             current = nil

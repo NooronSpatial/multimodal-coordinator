@@ -127,9 +127,13 @@ struct AudioDemo {
 
                 if talk {
                     // The Phase 4a slice (AC-70): the whole conversation loop,
-                    // scripted stages, real microphone barge-in.
+                    // scripted stages, real microphone barge-in — and the R2
+                    // latency seam on a real clock: the demo reuses the exact
+                    // code path the deterministic tests prove.
                     let coordinator = TurnCoordinator(
-                        replyGenerator: PacedEchoReply(), synthesizer: TerminalVoice())
+                        replyGenerator: PacedEchoReply(), synthesizer: TerminalVoice(),
+                        clock: ContinuousClock(),
+                        latencyReporter: ConsoleLatency(screen: screen))
                     let audioForTurns = await pump.listen()
                     let transcriptsForTurns = await transcription.listen()
                     let turnEvents = await coordinator.listen()
@@ -272,6 +276,28 @@ actor Screen {
 
 // MARK: - Phase 4a demo-tier stages (D-016 liberties: real clocks, an
 // unstructured task per reply — never taken in the library or its tests)
+
+/// Wall-clock latency to the terminal (R2). Demo-tier liberty: the report
+/// hops to the screen actor via an unstructured task (D-016).
+struct ConsoleLatency: LatencyReporter {
+    let screen: Screen
+    func turnLatency(_ duration: Duration, turn: Int) {
+        let screen = screen
+        Task { await screen.log("⏱  [\(turn)] felt pause: \(duration.formattedMs)") }
+    }
+    func cancelLatency(_ duration: Duration, turn: Int) {
+        let screen = screen
+        Task { await screen.log("⏱  [\(turn)] barge → dead in \(duration.formattedMs)") }
+    }
+}
+
+extension Duration {
+    var formattedMs: String {
+        let ms = Double(components.seconds) * 1000
+            + Double(components.attoseconds) * 1e-15
+        return String(format: "%.0f ms", ms)
+    }
+}
 
 /// Echoes the user's words back, one token at a time, paced so the reply
 /// FEELS spoken — slow enough to barge into.
