@@ -88,8 +88,12 @@ struct AudioDemo {
         let chunkFrames = Int(sampleRate * 0.02)          // 20 ms of sound per verdict
         let pump = AudioPump(
             consumer: consumer,
-            // Field-tuned values from the iOS run (0.01 gate, 200 ms pre-roll).
-            vad: EnergyVAD(config: .init(threshold: 0.01,
+            // 0.02 is the LAPTOP gate. The 0.01 borrowed from the iPhone
+            // tuning flaps on a Mac's ambient: field run 08-13 showed the
+            // post-sentence level hovering AT 0.01 — the gate opened every
+            // 0.84 s like a metronome, one empty Whisper decode per tick.
+            // The iPhone demo keeps 0.01; each machine earns its own number.
+            vad: EnergyVAD(config: .init(threshold: 0.02,
                                          hangoverFrames: Int(sampleRate * 0.3))),
             clock: ContinuousClock(),
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
