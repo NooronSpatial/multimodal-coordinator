@@ -944,6 +944,10 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "gated", at: 0)
+            // Event-gate: the gate is ARMED (its sleeper is parked on the
+            // clock) before any time moves — advancing first would let the
+            // deadline be computed from already-advanced time.
+            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
             // 499 of 500 ms: the gate must still hold — no thinking, no
             // generator, state parked on listening.
             await clock.advance(by: .milliseconds(499))
@@ -984,6 +988,7 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "the user was not done", at: 0)
+            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
             await clock.advance(by: .milliseconds(200))
             // The user resumes: same turn keeps listening, the pending
             // reply dies with NO events — no thinking, no ghost turn.
@@ -995,6 +1000,7 @@ struct TurnCoordinatorTests {
 
             // The user's REAL final gates again and goes through.
             bench.transcripts.yield(.final("now I am done", utterance: 1, at: Self.t(96_000)))
+            #expect(await Self.until { clock.sleeperCount == 1 }, "the second gate never armed")
             await clock.advance(by: .milliseconds(500))
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
             #expect(bench.generator.record(ofReply: 0)?.transcript == "now I am done",
@@ -1022,6 +1028,7 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "almost", at: 0)
+            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
             await clock.advance(by: .milliseconds(499))
             bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(24_000)))
             // The onset must be IN before the last tick fires the gate.
@@ -1057,6 +1064,7 @@ struct TurnCoordinatorTests {
             // Utterances 0..4 came and went before this bench's story; the
             // pump's numbering is monotonic, so the test starts at 5.
             bench.speak(utterance: 5, final: "armed", at: 0)
+            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
             await clock.advance(by: .milliseconds(100))
             // A settled final from an EARLIER utterance (D-024): the input
             // door drops it — it must not disturb the armed gate.
@@ -1085,8 +1093,8 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "never spoken", at: 0)
-            #expect(await Self.until { await bench.coordinator.currentState == .listening })
-            await Self.settled()                          // let the gate arm
+            #expect(await Self.until { clock.sleeperCount == 1 },
+                    "the gate must be PROVABLY armed before stop() — else the leak check is vacuous")
             bench.finishInputs()
             await bench.coordinator.stop()
         }

@@ -41,6 +41,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         case transcript(TranscriptEvent)
         case reply(turn: Int, ReplyUpdate)
         case synthesis(turn: Int, SynthesisUpdate)
+        /// The reply gate ran out (AC-81). Stamped with the turn AND the
+        /// utterance it was armed for: both doors are checked on arrival,
+        /// so a gate whose reply was killed expires into nothing.
+        case gateExpired(turn: Int, utterance: Int)
         case audioEnded
         case transcriptsEnded
         case stopped
@@ -59,6 +63,9 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// numbers from. A settled final from an EARLIER utterance (D-024)
         /// is comfort text for apps — never a reply trigger.
         var utterance: Int
+        /// A final accepted but held behind the reply gate (AC-81). An
+        /// onset while listening clears it — the reply dies unspoken.
+        var pendingReply: String?
         var replyRun: (any ReplyRun)?
         var synthesisRun: (any SynthesisRun)?
         var tokensFinished = false
@@ -191,6 +198,9 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                     await handleReply(update, turn: turn, forwardingInto: &group, via: input)
                 case .synthesis(let turn, let update):
                     await handleSynthesis(update, turn: turn)
+                case .gateExpired(let turn, let utterance):
+                    await handleGateExpired(turn: turn, utterance: utterance,
+                                            forwardingInto: &group, via: input)
                 case .audioEnded:
                     audioOver = true
                 case .transcriptsEnded:
@@ -254,8 +264,13 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // The user paused and restarted before their final arrived: the
             // session barged its own utterance (D-024). Same turn, but the
             // input-side ticket moves to the NEWEST utterance — the earlier
-            // one's final is stale the moment this event exists.
+            // one's final is stale the moment this event exists. A reply
+            // held behind the gate dies HERE, silently (AC-81): the user
+            // was not done, so nothing deserves an answer yet. (The armed
+            // gate's expiry also fails its utterance door — this line is
+            // the meaning, that guard is the proof.)
             current?.utterance = utterance
+            current?.pendingReply = nil
 
         case .thinking, .speaking:
             // THE BARGE. Ticket first, in this same actor step: the old
@@ -320,27 +335,25 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             }
 
             let turn = live.turn
-            transition(to: .thinking, turn: turn)
             current?.thinkingStart = clock?.now   // the user's wait begins
-            do {
-                let run = try await replyGenerator.openReply(to: trimmed)
-                // Reentrancy law: a barge or stop() may have run while we
-                // awaited. The ticket answers.
-                guard !isStopped, current?.turn == turn else {
-                    await run.cancel()
-                    return
-                }
-                current?.replyRun = run
+            if let clock, config.replyGate > .zero {
+                // AC-81: hold the reply — the floor must stay yielded for
+                // the whole gate. The sleeper is a group child (structured;
+                // stop() cancels it with everything else) that only knocks:
+                // the decision is made HERE, on the actor, when the knock
+                // arrives — and both its stamps must still be true then.
+                current?.pendingReply = trimmed
+                let deadline = clock.now.advanced(by: config.replyGate)
+                let armedFor = live.utterance
                 group.addTask {
-                    for await update in run.updates {
-                        input.yield(.reply(turn: turn, update))
-                    }
+                    try? await clock.sleep(until: deadline, tolerance: nil)
+                    input.yield(.gateExpired(turn: turn, utterance: armedFor))
                 }
-            } catch let failure as TurnFailure {
-                failTurn(turn, with: failure)
-            } catch {
-                failTurn(turn, with: .generationFailed(String(describing: error)))
+                return
             }
+            transition(to: .thinking, turn: turn)
+            await openGeneration(of: trimmed, turn: turn,
+                                 forwardingInto: &group, via: input)
 
         case .failed(let failure, let utterance, _):
             // The user's utterance itself failed to become text: the turn
@@ -356,6 +369,54 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
 
         case .partial, .truncated:
             break   // hypotheses and ceilings are the session's story
+        }
+    }
+
+    // MARK: - the reply gate (AC-81) and the one generation opener
+
+    /// The gate's knock. Three doors, all checked in this same actor step:
+    /// the turn ticket, the listening state, and the utterance the gate was
+    /// armed for. A killed reply fails the pending check; a resumed user
+    /// fails the utterance door; a barged turn fails the ticket. Any miss
+    /// means the expiry lands in silence — exactly what AC-81 promises.
+    private func handleGateExpired(
+        turn: Int, utterance: Int,
+        forwardingInto group: inout TaskGroup<Void>,
+        via input: AsyncStream<Input>.Continuation
+    ) async {
+        guard let live = current, live.turn == turn, state == .listening,
+              live.utterance == utterance, let text = live.pendingReply
+        else { return }
+        current?.pendingReply = nil
+        transition(to: .thinking, turn: turn)
+        await openGeneration(of: text, turn: turn, forwardingInto: &group, via: input)
+    }
+
+    /// Opens the generator for a turn already in `thinking` — the single
+    /// path, whether the gate was zero or just expired.
+    private func openGeneration(
+        of text: String, turn: Int,
+        forwardingInto group: inout TaskGroup<Void>,
+        via input: AsyncStream<Input>.Continuation
+    ) async {
+        do {
+            let run = try await replyGenerator.openReply(to: text)
+            // Reentrancy law: a barge or stop() may have run while we
+            // awaited. The ticket answers.
+            guard !isStopped, current?.turn == turn else {
+                await run.cancel()
+                return
+            }
+            current?.replyRun = run
+            group.addTask {
+                for await update in run.updates {
+                    input.yield(.reply(turn: turn, update))
+                }
+            }
+        } catch let failure as TurnFailure {
+            failTurn(turn, with: failure)
+        } catch {
+            failTurn(turn, with: .generationFailed(String(describing: error)))
         }
     }
 
