@@ -27,7 +27,18 @@ struct AudioDemo {
         // "spoken" into the terminal — barge it mid-reply with your voice.
         let arguments = Array(CommandLine.arguments.dropFirst())
         let talk = arguments.contains("--talk")
-        let choice = arguments.first { !$0.hasPrefix("--") } ?? "apple"
+        // `--onset <ms>`: the F-6 field A/B (08-13). Ryad's report — words
+        // lost, quality down vs pre-1d — fits the strict window's onset tax
+        // at a marginal gate: a flickering soft onset dies at every dip and
+        // opens late (clipped by pre-roll's 200 ms reach) or never. The flag
+        // lets the same voice try both doors; the 🔎 lines rule.
+        var onsetMs = 60.0
+        if let flagIndex = arguments.firstIndex(of: "--onset"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Double(arguments[flagIndex + 1]) : nil {
+            onsetMs = value
+        }
+        let choice = arguments.first { !$0.hasPrefix("--") && Double($0) == nil } ?? "apple"
         let engine: any TranscriptionEngine
         let engineName: String
         switch choice {
@@ -105,7 +116,7 @@ struct AudioDemo {
             // (the F-4 wiring law), so no word is beheaded.
             vad: EnergyVAD(config: .init(threshold: 0.02,
                                          hangoverFrames: Int(sampleRate * 0.3),
-                                         onsetFrames: Int(sampleRate * 0.06))),
+                                         onsetFrames: Int(sampleRate * onsetMs / 1000))),
             clock: ContinuousClock(),
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
                           chunkFrames: chunkFrames, preRollChunks: 10),
@@ -119,7 +130,7 @@ struct AudioDemo {
             : nil
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
-        print("    \(Int(sampleRate)) Hz · 20 ms chunks · 60 ms onset · 300 ms hangover · 200 ms pre-roll")
+        print("    \(Int(sampleRate)) Hz · 20 ms chunks · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
         if talk && transcription != nil {
             print("    turn loop: ON — it echoes what you say; interrupt it mid-reply\n")
