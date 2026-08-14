@@ -1083,6 +1083,43 @@ then a voice bake-off with BAKEOFF.md discipline · SpeakerKit /
 multi-speaker rejection (recorded during the 1d confound) · voice and
 language selection policy · iOS talk demo · 4c reply generation.
 
+## 46a. OPEN, RECORDED, NOT RULED (found in 4b's field runs)
+
+Two problems the 90-second field conversation of 2026-08-14 exposed.
+Both are named here with their evidence and deliberately left unruled —
+neither belongs to 4b, and neither should be hotfixed by tuning a number.
+
+**(1) A barge must be instant, but "was that even speech?" is known
+late.** With the canceller on, four ambient bursts opened utterances
+while the speaker was silent (420–580 ms, peaks 0.039–0.084) and all
+four decoded empty. They cost a wasted decode each — and, worse, each
+was a live barge trigger (D-031): had a reply been sounding, any one of
+them would have killed it. The levels forbid the easy fix: the bursts
+(≤0.084) overlap the speaker's own quiet sentences (0.087 for "Okay, I
+know"), so no threshold separates them, and 1d's onset window does not
+help either — a 580 ms burst passes a 60 ms persistence test easily.
+What *would* separate them is DURATION (bursts 420–580 ms against real
+utterances of 1000–3220 ms), which is exactly the fact a barge cannot
+wait for. The honest options for a later milestone, none ruled:
+a smarter judge (the D-008 drawer: spectral or model-based VAD);
+a two-speed barge (duck the reply at onset, kill it only once the
+utterance proves itself); or a transcript-gated barge (accept the
+interruption only when text arrives non-empty — cheap, but it delays
+the interruption by a whole decode). SpeakerKit-style diarization is
+the neighbouring question and stays in the same drawer.
+
+**(2) A pause inside one thought loses its first half.** The speaker
+said "Do you hear me well? Can you understand what I'm telling you?",
+paused, then "should they put a jacket?" — and the assistant answered
+only the LAST sentence. That is the input door and the reply gate
+working exactly as ruled (D-024, AC-81), and for an echo it is
+harmless. It will NOT be harmless in 4c: a reply generator that sees
+only the newest final answers half a question. The fork to open there:
+should a turn accumulate every final it collected while listening and
+hand the generator the whole thought? Recorded now, with this run as
+the evidence, so 4c starts from a known problem instead of discovering
+it late.
+
 ## 47. Definition of done (4b)
 
 All ACs green · 20× stable · the Mac audibly converses and survives

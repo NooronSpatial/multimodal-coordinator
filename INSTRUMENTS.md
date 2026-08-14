@@ -260,6 +260,22 @@ voice the canceller must ignore and the voice it must hear arrive at the
 same moment. Both confirmed by the person in the room. That closed the
 spike's gate and the canceller was adopted for the Mac demo (D-038).
 
+**The 90-second conversation** (same configuration, later the same day):
+five replies completed, one barge the speaker MEANT (he talked over the
+reply; it died in 0 ms), zero self-barges. Felt pause across the whole
+run: 1555 · 1489 · 1492 · 1486 · 1481 · 1503 ms — against an 800 ms
+gate, so the pipeline's own share is ~690 ms and it is remarkably
+steady. That is the cure holding under real use, not a single lucky
+exchange.
+
+The same run also produced the honest bad news, recorded in SPEC §46a:
+during a silent stretch, four ambient bursts (420–580 ms, peaks
+0.039–0.084) opened utterances and decoded empty. Their levels overlap
+the speaker's own quiet sentences (0.087), so no threshold separates
+them; what separates them is duration, which is precisely what a barge
+cannot wait to learn. Cost today: a wasted decode each. Risk: any of
+them would have killed a reply that happened to be sounding.
+
 **Not measured, and said so:** whether voice processing changes
 transcription accuracy. The after run's three clean utterances are an
 anecdote; BAKEOFF.md is the instrument if that question ever needs a
