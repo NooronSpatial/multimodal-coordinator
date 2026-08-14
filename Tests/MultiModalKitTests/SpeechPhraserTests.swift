@@ -127,6 +127,22 @@ import Testing
         #expect(phrases.joined().contains("done."))
     }
 
+    @Test func aLimitOfOneStillMakesProgress() {
+        // The smallest legal limit must still terminate and keep the text.
+        // (Found by review: at a limit of ZERO the old loop could not
+        // advance — empty head, no whitespace to cut at, buffer reassigned
+        // to itself — so it spun forever appending empty strings. The
+        // Config now refuses that value; this pins the boundary that
+        // remains legal.)
+        let phrases = speak(["ab", " c"], config: .init(maxPhraseCharacters: 1))
+        #expect(phrases.joined().contains("a"))
+        #expect(phrases.joined().contains("b"))
+        #expect(phrases.joined().contains("c"))
+        for phrase in phrases {
+            #expect(phrase.contains(where: { !$0.isWhitespace }))
+        }
+    }
+
     @Test func punctuationInsideANumberDoesNotCut() {
         // "3.14" — the mark must be followed by whitespace (or the end,
         // at flush) to count as a boundary.

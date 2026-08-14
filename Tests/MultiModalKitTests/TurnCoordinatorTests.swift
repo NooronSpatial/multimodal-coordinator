@@ -28,6 +28,21 @@ struct TurnCoordinatorTests {
         return false
     }
 
+    /// Waits for the FACT that something is parked on the clock — the house
+    /// pattern from `AudioPumpTests.parked`. The clock also offers an
+    /// event-driven `waitForSleepers`, which is prettier but parks forever
+    /// when the sleeper never comes; this polls the same fact with a spin
+    /// cap, so a red test dies in milliseconds instead of at the suite's
+    /// one-minute limit. Fact-gated AND fail-fast: both laws, not one.
+    @discardableResult
+    static func parked(_ clock: ManualClock, atLeast count: Int = 1, spins: Int = 40_000) async -> Bool {
+        for _ in 0..<spins {
+            if clock.sleeperCount >= count { return true }
+            await Task.yield()
+        }
+        return false
+    }
+
     actor Collected {
         private(set) var events: [TurnEvent] = []
         func append(_ event: TurnEvent) { events.append(event) }
@@ -925,11 +940,20 @@ struct TurnCoordinatorTests {
 
     // MARK: - the reply gate (AC-81, D-037 F-3: mechanism here, number with the app)
 
-    /// A bounded "nothing happened" check: give the loop room to betray
-    /// itself, then assert it did not. The positive twin of `until`.
-    static func settled(spins: Int = 2_000) async {
-        for _ in 0..<spins { await Task.yield() }
-    }
+    // How these tests prove a NEGATIVE without counting iterations (the
+    // project bans count-based waits, and the ManualClock's own `settle`
+    // says the tests must never lean on it):
+    //
+    //   · "the gate has not fired yet" is a FACT, available the instant
+    //     `advance` returns — advance wakes every due sleeper before it
+    //     returns, so a still-parked sleeper means the deadline is still
+    //     in the future. `sleeperCount` reads it directly.
+    //   · "a knock was already processed" is proven by a CAUSAL BARRIER:
+    //     the merged loop is FIFO, so arming a LATER gate and waiting for
+    //     that (event-driven, via waitForSleepers) proves everything
+    //     yielded earlier has been handled.
+    //
+    // No test here waits for "enough time" or "enough yields".
 
     @Test("The gate holds the generator shut, then expiry opens thinking at the exact instant")
     func gateExpiryOpensThinkingAtTheExactInstant() async {
@@ -944,14 +968,15 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "gated", at: 0)
-            // Event-gate: the gate is ARMED (its sleeper is parked on the
-            // clock) before any time moves — advancing first would let the
-            // deadline be computed from already-advanced time.
-            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
-            // 499 of 500 ms: the gate must still hold — no thinking, no
-            // generator, state parked on listening.
+            // The gate is ARMED — waited for event-driven, from the sleep's
+            // own registration. (Advancing before it exists would let the
+            // deadline be computed from already-advanced time.)
+            #expect(await Self.parked(clock), "no gate armed on the clock")
+            // 499 of 500 ms. `advance` wakes every DUE sleeper before it
+            // returns, so a sleeper still parked here is proof the deadline
+            // has not arrived — no settling, no counting.
             await clock.advance(by: .milliseconds(499))
-            await Self.settled()
+            #expect(clock.sleeperCount == 1, "the gate fired before its deadline")
             #expect(bench.generator.repliesOpened == 0, "the gate leaked early")
             #expect(await bench.coordinator.currentState == .listening)
 
@@ -988,19 +1013,23 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "the user was not done", at: 0)
-            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
+            #expect(await Self.parked(clock), "no gate armed on the clock")
             await clock.advance(by: .milliseconds(200))
             // The user resumes: same turn keeps listening, the pending
             // reply dies with NO events — no thinking, no ghost turn.
             bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(48_000)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 1 },
+                    "the onset never reached the actor")
             await clock.advance(by: .seconds(10))         // the dead gate expires into nothing
-            await Self.settled()
-            #expect(bench.generator.repliesOpened == 0, "a killed gate still opened the generator")
             #expect(await bench.coordinator.currentState == .listening)
 
-            // The user's REAL final gates again and goes through.
+            // The user's REAL final gates again — and its arming is the
+            // CAUSAL BARRIER: the loop is FIFO, so a second gate on the
+            // clock proves the dead gate's knock was already handled.
             bench.transcripts.yield(.final("now I am done", utterance: 1, at: Self.t(96_000)))
-            #expect(await Self.until { clock.sleeperCount == 1 }, "the second gate never armed")
+            #expect(await Self.parked(clock), "no gate armed on the clock")
+            #expect(bench.generator.repliesOpened == 0,
+                    "a killed gate still opened the generator")
             await clock.advance(by: .milliseconds(500))
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
             #expect(bench.generator.record(ofReply: 0)?.transcript == "now I am done",
@@ -1028,15 +1057,19 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "almost", at: 0)
-            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
+            #expect(await Self.parked(clock), "no gate armed on the clock")
             await clock.advance(by: .milliseconds(499))
             bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(24_000)))
             // The onset must be IN before the last tick fires the gate.
             #expect(await Self.until { await bench.coordinator.currentUtterance == 1 },
                     "the onset was not processed before the deciding tick")
-            await clock.advance(by: .milliseconds(1))
-            await Self.settled()
-            #expect(bench.generator.repliesOpened == 0, "the onset lost a race it arrived first for")
+            await clock.advance(by: .milliseconds(1))      // the gate fires into a changed world
+            // The barrier again: a second final arms a second gate, and its
+            // appearance on the clock proves the first knock was handled.
+            bench.transcripts.yield(.final("the real thing", utterance: 1, at: Self.t(48_000)))
+            #expect(await Self.parked(clock), "no gate armed on the clock")
+            #expect(bench.generator.repliesOpened == 0,
+                    "the onset lost a race it arrived first for")
             #expect(await bench.coordinator.currentState == .listening)
 
             bench.finishInputs()
@@ -1064,14 +1097,18 @@ struct TurnCoordinatorTests {
             // Utterances 0..4 came and went before this bench's story; the
             // pump's numbering is monotonic, so the test starts at 5.
             bench.speak(utterance: 5, final: "armed", at: 0)
-            #expect(await Self.until { clock.sleeperCount == 1 }, "the gate never armed")
+            #expect(await Self.parked(clock), "no gate armed on the clock")
             await clock.advance(by: .milliseconds(100))
             // A settled final from an EARLIER utterance (D-024): the input
-            // door drops it — it must not disturb the armed gate.
+            // door drops it — it must not disturb the armed gate. Yielded
+            // BEFORE the expiry knock, so the FIFO loop must handle it
+            // first: whatever it did (or failed to do) is already visible
+            // in the assertions below.
             bench.transcripts.yield(.final("stale comfort text", utterance: 3, at: Self.t(10)))
-            await Self.settled()
             await clock.advance(by: .milliseconds(400))   // the gate completes
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            #expect(bench.generator.repliesOpened == 1,
+                    "the stale final opened a reply of its own")
             #expect(bench.generator.record(ofReply: 0)?.transcript == "armed",
                     "the stale final must neither open nor replace the armed reply")
 
@@ -1093,8 +1130,8 @@ struct TurnCoordinatorTests {
             bench.start(in: &group, listener: listener)
 
             bench.speak(utterance: 0, final: "never spoken", at: 0)
-            #expect(await Self.until { clock.sleeperCount == 1 },
-                    "the gate must be PROVABLY armed before stop() — else the leak check is vacuous")
+            // PROVABLY armed before stop(), or the leak check below is vacuous.
+            #expect(await Self.parked(clock), "no gate armed on the clock")
             bench.finishInputs()
             await bench.coordinator.stop()
         }

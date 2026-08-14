@@ -20,6 +20,15 @@ public struct SpeechPhraser: Sendable {
         public var maxPhraseCharacters: Int
 
         public init(maxPhraseCharacters: Int = 120) {
+            // A limit below one cannot be honoured: there would be no room
+            // for a single character, the cut could not advance, and `feed`
+            // would spin forever building empty phrases. Found by review
+            // before any caller met it; refused loudly here rather than
+            // clamped silently, because a caller asking for zero has a bug
+            // of their own and deserves to hear about it. (This type and
+            // its Config are public API — the seam invites other mouths.)
+            precondition(maxPhraseCharacters >= 1,
+                         "SpeechPhraser needs room for at least one character")
             self.maxPhraseCharacters = maxPhraseCharacters
         }
     }
@@ -47,9 +56,11 @@ public struct SpeechPhraser: Sendable {
         // Rule 2: past the limit, cut at the last whitespace before it —
         // no word is ever torn. One unbroken run is cut hard: it cannot
         // wait forever, and a cut mid-run beats no speech at all.
-        while buffer.count > config.maxPhraseCharacters {
-            let limit = buffer.index(buffer.startIndex,
-                                     offsetBy: config.maxPhraseCharacters)
+        // `max(1, …)` is belt to the precondition's braces: the loop must be
+        // unable to spin even if a limit of zero ever reaches it.
+        let cap = max(1, config.maxPhraseCharacters)
+        while buffer.count > cap {
+            let limit = buffer.index(buffer.startIndex, offsetBy: cap)
             let head = buffer[..<limit]
             if let space = head.lastIndex(where: \.isWhitespace),
                 space != buffer.startIndex {

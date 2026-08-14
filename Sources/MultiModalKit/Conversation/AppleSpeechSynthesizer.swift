@@ -1,4 +1,5 @@
 import AVFAudio
+import Dispatch
 import Synchronization
 
 /// The first real mouth (SPEC AC-80, D-037): `AVSpeechSynthesizer` behind
@@ -30,13 +31,32 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
 }
 
 /// One spoken reply. `@unchecked Sendable` — the documented island, with
-/// the proof (§4.1): every caller-facing method (`feed`, `finishTokens`,
-/// `cancel`) is invoked from the coordinator's actor, so the
-/// `AVSpeechSynthesizer` object itself is touched from ONE serialized
-/// context only; the delegate callbacks arrive on the framework's thread
-/// and touch nothing but the `Mutex` state and the continuation (which is
-/// thread-safe). Lock rules kept: nothing suspends under the lock, and
-/// every yield happens on a snapshot taken inside it, after it releases.
+/// the proof (§4.1).
+///
+/// The FIRST version of this proof was WRONG, and an adversarial review
+/// disproved it with a probe: it claimed these methods "are invoked from
+/// the coordinator's actor, so the synthesizer is touched from ONE
+/// serialized context only". False — `feed`/`finishTokens`/`cancel` are
+/// non-isolated `async` methods, so the coordinator LEAVES the actor to
+/// call them; a barge or `stop()` then enters the actor and calls
+/// `cancel()` on another thread while a `feed` body is still running.
+/// Two consequences, both real: a phrase handed over after the cancel
+/// (the dead turn's voice in the room), and `speak`/`stopSpeaking` on a
+/// non-thread-safe object from two threads at once.
+///
+/// The proof that now holds, by construction:
+/// 1. All mutable state lives behind one `Mutex`; nothing suspends under
+///    it and no continuation is resumed while it is held.
+/// 2. EVERY touch of the `AVSpeechSynthesizer` happens on one serial
+///    queue — so the framework object has exactly one thread, always.
+/// 3. `cancel()` raises `cancelled` BEFORE it enqueues its stop, and each
+///    queued hand-off re-reads that flag as its first act. So whichever
+///    way the two race: either the hand-off sees the flag and stays
+///    silent, or it spoke first and the stop — FIFO behind it — silences
+///    it. Silence wins in every interleaving.
+/// 4. Delegate callbacks touch only the `Mutex` state and the
+///    continuation (itself thread-safe), never the queue — so no lock
+///    ordering exists to invert.
 final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelegate,
     @unchecked Sendable
 {
@@ -44,6 +64,11 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
     private let out: AsyncStream<SynthesisUpdate>.Continuation
     private let synthesizer = AVSpeechSynthesizer()
     private let voice: AVSpeechSynthesisVoice?
+    /// The framework object's ONE thread (proof point 2). FIFO matters
+    /// here — a stop enqueued after a hand-off must run after it — which
+    /// is why this is a serial queue and not an actor: Swift actors make
+    /// no ordering promise between two independent callers.
+    private let mouth = DispatchQueue(label: "dev.nooron.MultiModalKit.mouth")
 
     private struct Guarded {
         var phraser = SpeechPhraser()
@@ -71,24 +96,9 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
             s.queued += completed.count
             return completed
         }
-        // THE REENTRANCY LAW, one level down. The coordinator calls this
-        // with `await`, so the actor may service a BARGE while we are
-        // suspended here — and a barge cancels this run. Handing the OS a
-        // phrase after that would put the dead turn's voice in the room:
-        // the ticket doctrine's forbidden artifact, in its audible form.
-        // So the flag is re-read before every phrase, and once more after
-        // (the window between check and hand-off is closed by stopping
-        // what we just queued — cancel() sets the flag BEFORE it stops,
-        // so whichever order the two land in, silence wins).
-        for phrase in phrases {
-            let live = state.withLock { !$0.cancelled }
-            guard live else { return }
-            speak(phrase)
-            if state.withLock({ $0.cancelled }) {
-                synthesizer.stopSpeaking(at: .immediate)
-                return
-            }
-        }
+        // The reentrancy law is enforced inside `speak`, which re-reads the
+        // cancelled flag on the mouth's own queue — see proof point 3.
+        for phrase in phrases { speak(phrase) }
     }
 
     func finishTokens() async {
@@ -124,14 +134,23 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
             return was
         }
         guard !alreadyCancelled else { return }
-        synthesizer.stopSpeaking(at: .immediate)
+        // The flag is already up (above, under the lock) BEFORE this stop
+        // is enqueued — that ordering is what makes proof point 3 hold.
+        mouth.async { [self] in synthesizer.stopSpeaking(at: .immediate) }
         out.finish()                                   // no terminal: the contract
     }
 
+    /// Hands one phrase to the platform, on the mouth's own thread. The
+    /// cancelled flag is re-read HERE, as the block's first act: a barge
+    /// that landed while the caller was suspended has already raised it,
+    /// so nothing is spoken for a turn that is already dead.
     private func speak(_ text: String) {
         let utterance = AVSpeechUtterance(string: text)
         if let voice { utterance.voice = voice }
-        synthesizer.speak(utterance)
+        mouth.async { [self] in
+            guard state.withLock({ !$0.cancelled }) else { return }
+            synthesizer.speak(utterance)
+        }
     }
 
     // MARK: - the delegate: evidence in, updates out
