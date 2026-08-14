@@ -348,3 +348,43 @@ alters what a human hears from the speakers.
 Product → Profile → os_signpost template → filter `dev.nooron.MultiModalKit`
 → speak → read the tracks. The badge and `decoding ×N` come free in the
 demo's status bar.
+
+## 7. Milestone 4c in the field — the whole thought, seen
+
+The run that milestone 4c exists for (2026-08-14, `--talk --gate 800`,
+700 ms hangover, canceller on). The `🧠` line is the GENERATOR's own
+view: what actually crossed the seam.
+
+```
+💬 [2] Do you hear me? Well...                      ← sentence one
+💬 [3] Can you understand what I'm telling you?     ← sentence two, after a pause
+🧠 whole thought → "Do you hear me? Well... Can you understand what I'm telling you?"
+
+✋ [1] interrupted — listening to you instead       ← the speaker barged
+💬 [4] She'll die take a jacket.                    ← "should I take a jacket"
+🧠 whole thought → "Do you hear me? Well... Can you understand what I'm telling you?
+                    She'll die take a jacket."
+```
+
+Before 4c, utterance [2] was refused at the input door and discarded, and
+the reply answered [3] alone — the bug §46a finding (2) recorded. Both
+lines above are the fix, and the second is also **D-040 F-3 working
+live**: the barged thought carried forward and the third sentence joined
+it, because a reply that was interrupted never answered anything.
+
+**Not proven by this run, and not claimed:** clear-on-completion. No
+reply completed here — both were barged — so the ledger never emptied.
+That path has tests, not field evidence.
+
+**Still open, and visible again:** three utterances decoded empty at peak
+0.021–0.024 (720 ms each) — ambient just over the 0.02 gate, consistent
+with the 0.023 ceiling measured in §6. They contributed NOTHING to the
+thought, which is the ledger's whitespace rule doing its job, but each
+still cost a decode and each was a live barge trigger. §46a finding (1)
+stays open.
+
+**And the honest limit of this milestone:** the speaker was still
+interrupted mid-thought. 4c does not fix §46a finding (3) — no fixed
+timer separates "still thinking" from "done talking" — it makes the
+interruption *cheaper*, because when the assistant finally answers, it
+answers everything that was said instead of the last fragment.
