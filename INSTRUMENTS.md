@@ -309,6 +309,19 @@ assistant to answer half a thought. The true minimum lies between 500
 and 700; it was not chased further, because a speaker's pauses vary by
 the day and the margin is worth more than the 100 ms.
 
+**Confirmation run on the ruled defaults** (700 ms, gate 0.02, canceller
+on, reply gate 0): the sentence that shattered into four empty fragments
+at 300 ms arrived as one 2340 ms utterance at peak 0.080 — and Whisper
+returned the REAL words, "Do you think should I put my jacket?", not the
+"Debra"/"check" garble it produced from syllables. Whole input, whole
+output.
+
+That run also separates policy cost from pipeline cost, because the
+reply gate was zero: **felt pause 743 ms**. It closes D-039's
+arithmetic — 743 + 800 = 1543 ms, against the 1481–1572 ms measured
+with an 800 ms gate. The pipeline costs what it costs; the gate is the
+number a product chooses, and it is the larger of the two.
+
 The threshold hypothesis was mine, it was tested twice, and it failed
 twice — the pieces at 0.040 and 0.042 sat at the same level as a
 fragment that decoded fine, which is what finally pointed at the dip
