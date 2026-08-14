@@ -25,13 +25,21 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// NUMBER with the app (D-027). Zero = byte-for-byte 4a. A non-zero
         /// gate needs the clocked initializer.
         public var replyGate: Duration
+        /// How many pieces of one thought the ledger keeps (AC-85,
+        /// D-040 F-4). Bounded because F-2 keeps a FAILED turn's words:
+        /// without a bound, an oversized prompt could fail, keep its
+        /// words, and fail again — wedged forever. The number is the
+        /// app's (D-027); this default is a starting point, not a law.
+        public var maxContextPieces: Int
 
         public init(
             listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity,
-            replyGate: Duration = .zero
+            replyGate: Duration = .zero,
+            maxContextPieces: Int = 16
         ) {
             self.listenerBufferCapacity = listenerBufferCapacity
             self.replyGate = replyGate
+            self.maxContextPieces = maxContextPieces
         }
     }
 
