@@ -825,3 +825,184 @@ option D, named and rejected-for-now, never silently revived).
 quiet room) · 40 ms as a compromise (its only supporting evidence died
 with the confound) · building the tolerance budget now (a design round
 mid-"small milestone"; it needs its own spec and its own field case).
+
+---
+
+## D-037 — Phase 4b ruled: the real mouth (order, and forks F-1..F-4)
+
+**Date:** 2026-08-13 · **Decided by:** Ryad
+
+**The order first:** TTS before the LLM. Ryad raised the fork himself.
+The echo loop — the assistant hearing its own voice and barging its own
+reply — is real-time audio, this project's spine, and every finding of
+the 1d field session (the reply gate, the cost of a false barge) points
+at the speak side. Reply generation is integration behind a proven seam
+and lands better into an audible loop. Also weighed: `AVSpeechSynthesizer`
+cannot fail the way this machine's model daemon does; an on-device LLM
+might. *Rejected:* LLM first — earlier "wow", but it buys text while
+the named hard problem waits.
+
+**The mouth's family plan, also ruled:** `AVSpeechSynthesizer` is the
+floor. TTSKit (a neural Qwen3-TTS living in the argmax-oss-swift
+package we already resolve — verified in its source, not from memory)
+is the named contender for a LATER milestone, gated by a spike on
+three numbers: first-audio latency, stop latency, thermal under
+D-028's policy — then a voice bake-off with BAKEOFF.md discipline.
+SpeakerKit (Pyannote diarization, same package) is recorded as the
+future candidate for multi-speaker rejection — the question the 1d
+confound asked ("was that utterance the speaker, or the child?").
+
+**F-1 = A — phrase buffer inside the mouth; per-token at the seam.**
+This ruling has a history, kept honestly: Ryad first ruled C
+(per-token utterances), valuing parity with the scripted demo and the
+finest barge granularity. Re-opened the same day — by Ryad — on the
+producer analysis: a future reply generator emits SUBWORD fragments
+("con"/"curr"/"ency") with punctuation glued on, at bursty pace.
+Per-token utterances would not be choppy but WRONG — a mouth
+pronouncing fragments. Buffering must exist somewhere; the deep-module
+answer puts it below the seam, so the coordinator keeps forwarding
+every token unbuffered as it arrives (the streaming/latency law and
+the mid-stream ticket proof both live on that law) while the mouth
+privately assembles speakable phrases. Ruling changed to A with the
+reasoning on the record. *Rejected:* per-token utterances (breaks on
+subwords) · whole-reply buffering (silent for the entire generation —
+the felt pause becomes the generation time).
+
+**F-2 = A — OS voice-processing echo cancellation, spike-gated.**
+The platform's own echo canceller on the microphone path, so the
+assistant's output is subtracted before the VAD ever judges. SPIKE
+FIRST (the D-023 discipline): voice processing can change the tap's
+format and sample rate on this hardware; adoption is ruled on the
+spike's evidence. *Rejected:* half-duplex deafness while speaking —
+kills barge-in, the thesis of the whole pipeline; software gate
+(raised threshold/window while speaking) — kept as the NAMED FALLBACK
+if the spike fails, not chosen while a real canceller is available.
+
+**F-3 = A — the reply gate is coordinator mechanism, app policy.**
+A configurable gate `Duration` between a final and opening the
+generator; an onset during the gate kills the pending reply silently;
+default 0 = byte-for-byte 4a (the D-028 precedent). The race between
+"gate expires" and "user resumed" must be decided in the same actor
+that owns the turn ticket. *Rejected:* app-side filtering — an app
+outside the actor cannot win that race without recreating the
+coordinator's own machinery.
+
+**F-4 = A — `.finished` is evidence, not intent.** The reply is done
+when the LAST utterance's didFinish arrives, never at `finishTokens`.
+D-029's principle carried through: state follows what is AUDIBLE.
+*Rejected:* finishing at finishTokens — idle while sound still plays,
+and a reply-done latency number that lies.
+
+---
+
+## D-038 — The echo canceller is adopted: the spike's gate, passed in the field
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+D-037's F-2 ruled OS voice processing as the echo defense but made
+adoption conditional: "SPIKE FIRST … adoption is ruled on the spike's
+evidence." The gate had three questions, and all three are now answered
+with evidence rather than argument (numbers in INSTRUMENTS.md §6):
+
+1. **Does it cancel the echo?** Measured, machine-only: speaker audio at
+   the tap fell from peak 0.136 to 0.008 while the microphone kept
+   delivering a live floor — the `--levels` probe exists precisely so
+   "cancelled echo" cannot be confused with "dead microphone", a
+   distinction that mattered again hours later when the input really did
+   go silent.
+2. **Is the reply still comfortably audible?** Ryad, in the room: yes.
+   No instrument can answer this one; ears did.
+3. **Does barge-in survive the cure?** The acid test — the voice the
+   canceller must ignore and the voice it must hear arrive together.
+   Ryad barged it mid-reply: it stopped. Confirmed live.
+
+Field proof of the disease and its cure, same rig: BEFORE, every spoken
+reply killed itself within a second (`✋ … barge → dead in 1 ms`) because
+the pump's own `speechStarted` is the barge trigger (D-031). AFTER, two
+full replies completed with the microphone live, his voice landing at
+peak 0.106–0.235 against the machine's residual 0.008 — speech and echo
+on opposite sides of the gate.
+
+Ruled: the Mac demo turns voice processing ON by default (`--no-aec`
+keeps the A/B door open). The LIBRARY default stays `false` — the
+D-028/D-036 precedent: a zero/off option changes nothing byte-for-byte,
+and each product earns its own number. The iPhone demo is untouched: it
+has no talking loop yet, and enabling voice processing there also means
+an `AVAudioSession` category decision that belongs with that milestone.
+
+*Rejected:* defaulting it on in the library (silently changes every
+existing caller's capture path, and the ratios measured here belong to
+one rig — a Mac mini whose microphone is an iPhone over Continuity).
+*Rejected:* keeping it opt-in on the demo (the demo's job is to show the
+pipeline working; shipping it with a known self-barge would be a demo of
+the bug).
+
+**Not measured, and said so:** whether voice processing changes
+transcription accuracy. Three clean utterances in the after run are an
+anecdote, not a WER study — the BAKEOFF.md instrument exists if that
+question ever needs a real answer.
+
+---
+
+## D-039 — The hangover is the fragment boundary: 700 ms for the demo (fork F-7 = A)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+A field report — quiet speech heard by the gate and lost by the
+pipeline, the speaker talking and nothing happening — was chased through
+four runs, and the chase is the point of this entry as much as the
+number.
+
+**Two of my hypotheses died on the way, both mine, both by measurement.**
+First: ambient noise was opening those empty utterances. Killed when the
+speaker said he had been talking — same evidence, opposite meaning, the
+D-036 confound lesson repeating. Second: the GATE was too high, because
+the canceller had lowered the ambient floor (0.024 → 0.006) that 0.02
+was chosen against. Tested at 0.008 and again at 0.012; the quiet
+sentence still shattered, and two of its pieces sat at peak 0.040–0.042
+— the very level that had decoded fine seconds earlier. A threshold
+cannot explain a fragment that is loud enough. That is what pointed at
+the dip budget instead.
+
+**The mechanism, then.** The gate decides whether a chunk is LOUD; the
+hangover decides how long a dip is FORGIVEN before the utterance is
+declared over. Quiet speech is mostly forgiven silence — unvoiced
+consonants, trailing vowels, thinking gaps — and those dips outlast a
+300 ms budget while staying well under 700 ms. So the sentence is cut
+mid-thought, the engine receives syllables, and the failure is SILENT:
+no error, no event, nothing said.
+
+**Bracketed from both sides, one voice, one room** (INSTRUMENTS.md):
+300 ms shattered a quiet sentence into four pieces · 500 ms split it in
+two (and split "Hello my friend, how is the weather today?" — a phrase
+spoken in both runs, so a natural controlled comparison — where 700 ms
+held it as one) · 700 ms delivered it whole, 2300 ms, zero empty
+decodes. Ruled: the Mac demo runs at 700 ms; `--hangover <ms>` keeps
+every other number one flag away.
+
+**The library default stays 300 ms.** Third application of the same law
+(D-028's nil policy, D-036's zero window): a default that shifts
+silently under existing callers is a bug, and these dips belong to one
+speaker in one room on one microphone.
+
+**The cost, stated where it is paid:** the hangover sits in front of
+EVERY final, so every reply waits 400 ms longer. Accepted on a
+user-experience argument, not a technical one — being silently ignored
+makes a user repeat themselves and lose trust, while waiting 400 ms
+annoys them; and 400 ms is not where this pipeline's latency lives
+anyway (the 800 ms reply gate is the larger, purely-policy number, and
+is where speed should be shopped). Barge-in is untouched: it fires on
+an utterance's ONSET, never its end.
+
+*Rejected:* 500 ms (splits sentences — a split is a premature final, and
+every premature final is another chance to answer half a thought) · 600
+ms (saves 100 ms with no evidence behind it; a speaker's pauses vary by
+the day and the margin is worth more) · keeping 300 ms as the next
+milestone's problem (the demo would keep ignoring quiet speech).
+
+**Not settled, deliberately:** the true minimum lies between 500 and 700
+and was left unchased. And the deeper finding stands recorded in SPEC
+§46a — this number should not be a constant at all. The same speaker
+ranged from peak 0.059 to 0.263 within one run, so any fixed dip budget
+is wrong for one of his own modes. Adaptation belongs to a milestone
+with its own spec.

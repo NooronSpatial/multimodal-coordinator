@@ -17,9 +17,11 @@ Everything the library does is one journey. A spoken sentence enters at
 the top and leaves as text at the bottom.
 
 ```
- microphone ──► MicrophoneSource (45)      the mic tap. The ONLY code that
+ microphone ──► MicrophoneSource (74)      the mic tap. The ONLY code that
                      │ writes frames       runs on the audio thread: view
-                     │                     the buffer, copy, return.
+                     │                     the buffer, copy, return. Can ask
+                     │                     for the platform's voice-processing
+                     │                     unit — the echo canceller (4b).
                      ▼
                 AudioRingBuffer (199)      lock-free SPSC ring; the one
                      │                     bridge off the audio thread;
@@ -48,14 +50,20 @@ the top and leaves as text at the bottom.
                 TranscriptEvents:  partial / final / failed / truncated
                      │                 ──► the app's screen
                      ▼
-                TurnCoordinator (395)      THE NAMESAKE. The conversation
+                TurnCoordinator (526)      THE NAMESAKE. The conversation
                      │                     above the text: turn ticket,
                      │                     barge-in across the whole chain,
-                     │                     the funnel + legal-pair table.
+                     │                     the funnel + legal-pair table,
+                     │                     and the reply gate — the floor
+                     │                     must stay yielded before it
+                     │                     answers (4b, app's number).
                      ▼  via the turn seams (TurnCoordination, 91)
                   ├─ ReplyGenerating       final text in, reply tokens out
                   └─ SpeechSynthesizing    tokens in, spoken EVIDENCE out
-                     │                     (4a: scripted; real engines 4b/4c)
+                     │  └─ AppleSpeech-    the first real mouth (4b): thin,
+                     │     Synthesizer     delegate evidence only — the
+                     │     (151)           phrasing lives in SpeechPhraser
+                     │                     (88), pure and clockless.
                      ▼
                 TurnEvents:  stateChanged / replyToken / completed /
                              barged / failed  ──► the app's screen
@@ -112,17 +120,22 @@ apps must own (AC-22); everything else is the library, unchanged.
 | Thermal + health events | `Diagnostics/PipelineDiagnostics.swift`, `Diagnostics/Thermal.swift` |
 | The heat ruling — who may keep settling | `Diagnostics/ThermalPolicy.swift`; its one consultation lives in the session's `speechStarted` branch |
 | The turn loop, barge-in, the turn ticket | `Conversation/TurnCoordinator.swift` |
+| The reply gate — "did the user yield the floor?" | `Conversation/TurnCoordinator.swift` — `Config.replyGate`, `handleGateExpired` |
 | The reply + synthesis seams | `Conversation/TurnCoordination.swift` |
+| Tokens → speakable phrases (subwords joined) | `Conversation/SpeechPhraser.swift` |
+| The real mouth; delegate evidence → seam updates | `Conversation/AppleSpeechSynthesizer.swift` |
+| The echo canceller switch, and what it measured | `Audio/MicrophoneSource.swift`, `INSTRUMENTS.md` §6 |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
 | The pipeline wired for real | `Demo/TranscribeDemo/Sources/TranscribeModel.swift`, `Sources/AudioDemo/AudioDemo.swift` |
 
 ## The shape in numbers
 
-The whole system is ~4,600 lines; the library core is ~2,600. The
-biggest file on the spine is 395 lines. The test folder mirrors this
-map roughly one suite per box — 16 suites, 94 tests, all deterministic
-(injected clocks, no sleeps, event-gated).
+The whole system is ~5,100 lines; the library core is ~3,000. The
+biggest file on the spine is 526 lines. The test folder mirrors this
+map roughly one suite per box — 18 suites, 134 tests, all deterministic
+(injected clocks, no sleeps, event-gated); the two that touch real
+speakers are gated behind `MMK_LIVE_SYNTH=1` and skip honestly.
 
 If a box on this map ever stops being explainable in one sitting, that
 is a design smell, not a documentation problem — see the deep-module

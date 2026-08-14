@@ -978,3 +978,262 @@ side · demo per-machine tuning UI. Small milestone, one door guarded.
 All ACs green · 20× stable · field run on the Mac recorded · PR merged
 with the map updated (if the map changes) · the forks ruled and logged
 as D-entries · teach-back folded into the next session's spaced quiz.
+
+# SPEC — Phase 4b: the real mouth
+
+## 42. What 4b builds
+
+The first real engine behind `SpeechSynthesizing`: an
+`AVSpeechSynthesizer` adapter. The coordinator needs NO structural
+change — that is the seam's exam. With a real mouth come the two
+problems the 1d field session handed us:
+
+**The one hard problem — the echo loop.** The Mac speaks its reply
+through the speakers; the microphone hears it; the VAD opens; the
+pump's `speechStarted` is the barge trigger (D-031) — the assistant
+kills its own reply mid-sentence. Named in §34, due now.
+
+**The second field debt — the reply gate.** "The utterance ended"
+(300 ms of quiet) is a much weaker fact than "the user yielded the
+floor." The 1d field runs showed every echo barged while the speaker
+was still mid-paragraph. The coordinator gets the MECHANISM; the
+number stays with the app (D-027).
+
+Ordering ruled in session (2026-08-13): TTS before the LLM. The echo
+loop is real-time audio — this project's spine; reply generation (4c)
+is integration behind an already-proven seam, and it lands better
+into an audible loop.
+
+## 43. Acceptance criteria (4b)
+
+- **AC-79** The phraser, pure: a clockless component that takes raw
+  token text IN (any granularity — whole words today, subword
+  fragments from a future generator) and yields speakable phrases OUT
+  at punctuation and max-length boundaries. Exact deterministic tests
+  including: subword joins, punctuation inside a token, burst-then-
+  stall arrival, flush on finish. The token→utterance intelligence
+  lives HERE, never in the adapter.
+- **AC-80** The adapter, thin: `AVSpeechSynthesizer` behind
+  `SynthesisRun`. Evidence-based updates (D-029): `.started` = the
+  delegate's didStart (sound is audible), `.finished` = the LAST
+  utterance's didFinish after `finishTokens` (F-4 = A), `cancel()` =
+  `stopSpeaking(.immediate)`. Joins the recorded un-TDD-able list
+  beside `AppleSpeechEngine`: kept thin, conformance-verified live.
+- **AC-81** The reply gate, mechanism-not-policy: coordinator config —
+  a gate `Duration` between a final transcript and opening the
+  generator; a new onset during the gate kills the pending reply
+  silently (no thinking entered, no turn events for it). Default zero
+  = byte-for-byte today, proven by the untouched 4a suite (the D-028
+  precedent). Exact ManualClock tests: gate expiry opens thinking at
+  the exact instant; an onset one tick before expiry wins the race.
+- **AC-82** The echo defense (F-2 = A, spike-gated): voice-processing
+  echo cancellation on the microphone path. Honest before/after field
+  record: FIRST the failing run — the assistant barges itself,
+  recorded with the 1d forensic lines — THEN the fix: the assistant
+  completes replies with the microphone live, and a real human barge
+  still lands. If the spike fails on this hardware, fork F-2 reopens
+  with the evidence (fallback candidate: the software gate).
+- **AC-83** Latency, audible and measured: the D-032 seam reports
+  token→first-audible-sound; felt pause and barge-dead are now HEARD
+  on the Mac and printed as numbers.
+- **AC-84** Hygiene + the slice: Swift 6 strict, zero warnings, zero
+  NEW dependencies (AVFoundation/AVFAudio is the platform), 20×
+  stable, map updated; `--talk` speaks through the Mac's speakers and
+  is barged by a live voice.
+
+## 44. Test matrix (4b)
+
+| Area | Tests |
+|---|---|
+| Phraser | word tokens → phrases at punctuation · subword fragments joined · ". The" split correctly · max-length flush · finish flushes remainder · empty/whitespace tokens |
+| Reply gate | zero gate = 4a suite untouched · expiry opens thinking at exact mock instant · onset during gate: reply dies silently, no ghost events · onset one tick before expiry wins · gate + stale final interplay (identity door unchanged) |
+| Coordinator unchanged | full 4a suite green with a phrase-buffering scripted synth (defiant plans included) |
+| Adapter (live kit) | conformance on hardware: started-on-audible · finished-after-last-didFinish · cancel silences within the barge budget |
+| Echo (field) | the before run (self-barge recorded) · the after run (replies complete, human barge lands) |
+
+## 45. The design forks (4b) — ruled 2026-08-13, logged as D-037
+
+- **F-1 = A** Phrase buffer inside the mouth; per-token at the seam
+  preserved. (Initially ruled C — per-token utterances — then re-opened
+  the same day on the producer analysis: a future generator emits
+  SUBWORD fragments and glued punctuation, which per-token would
+  pronounce as broken pieces; buffering must exist somewhere, and the
+  deep-module answer puts it below the seam so coordinator and
+  generator never know. The seam law is untouched: the coordinator
+  forwards every token as it arrives, buffering nothing.)
+- **F-2 = A** OS-level echo cancellation (voice processing) on the
+  microphone path — SPIKE FIRST, D-023 style: it can change the tap's
+  format and sample rate; adoption is ruled on the spike's evidence.
+  Rejected: half-duplex (kills barge-in — the thesis); software gate
+  (kept as the named fallback if the spike fails).
+- **F-3 = A** Reply gate lives in the coordinator as mechanism, the
+  number in the app, default 0. Rejected: app-side filtering — the
+  race between onset and gate expiry belongs inside the actor with
+  the ticket; an app cannot win it from outside.
+- **F-4 = A** `.finished` = the last utterance's didFinish — evidence,
+  not intent (D-029). Rejected: finishing at `finishTokens` — state
+  would flip to idle while sound still plays, and the reply-done
+  latency number would be a lie.
+
+## 46. Out of scope for 4b (deliberately)
+
+TTSKit/neural voices — the named follow-up: spike three numbers
+(first-audio latency, stop latency, thermal under D-028's policy),
+then a voice bake-off with BAKEOFF.md discipline · SpeakerKit /
+multi-speaker rejection (recorded during the 1d confound) · voice and
+language selection policy · iOS talk demo · 4c reply generation.
+
+## 46a. OPEN, RECORDED, NOT RULED (found in 4b's field runs)
+
+Two problems the 90-second field conversation of 2026-08-14 exposed.
+Both are named here with their evidence and deliberately left unruled —
+neither belongs to 4b, and neither should be hotfixed by tuning a number.
+
+**(1) QUIET SPEECH IS HEARD BY THE GATE AND LOST BY THE PIPELINE.**
+Four utterances in the field run (420–580 ms, peaks 0.039–0.084) opened,
+decoded EMPTY, and produced no reply — the speaker said something and
+the assistant did nothing.
+
+*(Diagnosis corrected on the record: first reported as a silent stretch,
+so this entry first blamed ambient noise and argued that no threshold
+could separate noise from speech. The speaker then corrected it — he WAS
+talking. The evidence never changed; its meaning did. Same lesson as
+D-036's confound: the room's description is data, and data gets
+corrected.)*
+
+The arithmetic says what happened. Each utterance carries a 300 ms
+hangover tail, so a 420 ms utterance holds only ~120 ms of actual voice —
+a syllable. At peak 0.039–0.084 the voice is barely 2–4× the 0.02 gate
+(his normal speech runs 7–13×), so between syllables it dips UNDER the
+gate, the hangover expires mid-word, and the utterance is cut. The
+engine then receives fragments too short to decode and returns nothing.
+Fragmentation, not deafness — and the failure is silent, which is worse.
+
+The canceller changed the arithmetic that chose that gate. Before it,
+ambient peaked at 0.024 and 0.01 flapped like a metronome (D-035/D-036);
+with it, ambient peaks at 0.006. So the prediction was: a lower gate
+should hold quiet speech in ONE utterance. `--vad <level>` was added to
+test it.
+
+**THE PREDICTION WAS TESTED AND IT FAILED — the threshold was the wrong
+knob.** Field A/B at gate 0.012 (2026-08-14), one quiet sentence:
+
+```
+🔎 [1]  940 ms · peak 0.040  → "Do you think?"   decoded
+🔎 [2]  380 ms · peak 0.017  → (empty)
+🔎 [3]  820 ms · peak 0.042  → (empty)   ← the SAME level as [1]
+🔎 [4]  380 ms · peak 0.017  → (empty)
+```
+
+One sentence, four pieces, and two of those pieces sat at the exact
+level that had decoded a moment earlier. Lowering the gate 0.02 → 0.012
+did not stop the shattering, so the fragment boundary is not the
+threshold.
+
+It is the HANGOVER. The gate decides whether a chunk is loud; the
+hangover decides how long a dip is forgiven before the utterance is
+declared over — and it is 300 ms. Quiet speech dips longer and deeper
+(unvoiced consonants, trailing vowels, thinking gaps fall under any sane
+gate), so a soft sentence crosses that 300 ms budget mid-thought and is
+cut. 300 ms is a number tuned for brisk turn-taking, not for a speaker
+who is quiet or composing.
+
+This links finding (1) to finding (3) through ONE knob: a longer
+hangover both keeps a quiet sentence whole AND stops the pipeline
+manufacturing premature finals for the reply gate to act on — fewer
+fragments, fewer wrong interruptions.
+
+**A/B RUN, AND THE HANGOVER HYPOTHESIS IS CONFIRMED** (2026-08-14, the
+same quiet sentence spoken twice, one variable changed):
+
+```
+300 ms hangover, gate 0.012        700 ms hangover, gate 0.02
+🔎 940 ms · 0.040 "Do you think?"   🔎 2300 ms · 0.059
+🔎 380 ms · 0.017 (empty)              "Do you think, should I put
+🔎 820 ms · 0.042 (empty)               my check on?"
+🔎 380 ms · 0.017 (empty)
+   one sentence, four pieces          one sentence, one utterance
+```
+
+At peak 0.059 the voice sits comfortably ABOVE the 0.02 gate, which
+settles it: the threshold never cut that sentence — the 300 ms dip
+budget did. Zero empty decodes in the whole run, and the reply
+completed without a barge.
+
+Not yet bracketed: the minimum that works (500 ms untested; 700 proven,
+300 disproven). Not yet tested: whether the longer hangover also reduces
+the finding-(3) interruptions — that run was two utterances long. The
+cost is real and must be stated wherever the number is adopted: the
+hangover sits in front of EVERY final, so every reply waits 400 ms
+longer than it did at 300 ms.
+
+The barge side of the same coin stays open too: every one of those
+fragments was a live barge trigger (D-031), so a reply that happened to
+be sounding would have been killed by a syllable. If a lower gate does
+not settle it, the named options are a smarter judge (the D-008 drawer),
+a two-speed barge (duck at onset, kill only once the utterance proves
+itself), or a transcript-gated barge (cheap, but delays the interruption
+by a whole decode). SpeakerKit-style diarization is the neighbouring
+question and stays in the same drawer.
+
+**(2) A pause inside one thought loses its first half.** The speaker
+said "Do you hear me well? Can you understand what I'm telling you?",
+paused, then "should they put a jacket?" — and the assistant answered
+only the LAST sentence. That is the input door and the reply gate
+working exactly as ruled (D-024, AC-81), and for an echo it is
+harmless. It will NOT be harmless in 4c: a reply generator that sees
+only the newest final answers half a question. The fork to open there:
+should a turn accumulate every final it collected while listening and
+hand the generator the whole thought? Recorded now, with this run as
+the evidence, so 4c starts from a known problem instead of discovering
+it late.
+
+**(3) NO FIXED TIMER SEPARATES "STILL THINKING" FROM "DONE TALKING."**
+Field report, 2026-08-14, in the speaker's own words: *"when I talk for
+long, the system just interrupts me and says what I'm saying at the
+end"* — and the run contains the exchange, including his live complaint
+about it being echoed back at him. The arithmetic explains it without
+any component misbehaving. Measured from the same run: the hangover
+costs 300 ms, the batch decode ~700 ms, the gate 800 ms, so the
+assistant answers only when a pause exceeds ~1.8 s of real silence:
+
+- pause < ~1.0 s — the next onset beats the final to the coordinator,
+  the final is stale at the input door (D-024), nothing is said;
+- ~1.0–1.8 s — the gate is armed and the onset kills the pending reply
+  (AC-81), nothing is said;
+- pause > ~1.8 s — the gate expires and it SPEAKS. If the speaker was
+  merely composing his next sentence, that is an interruption.
+
+His thinking-pauses and his finished-pauses are both around two
+seconds, so no single number can tell them apart. BOTH WALLS ARE NOW
+MEASURED: at gate 800 ms the assistant interrupts him mid-thought; at
+gate 2000 ms it never answered at all in a 22-second exchange (felt
+pauses, when it did answer in an earlier run: 2679–2768 ms — the cost
+lands on every legitimate reply). A timer has no setting that is both
+patient and prompt. This is the endpointing
+problem, and it is a POLICY question the pipeline cannot answer with a
+timer alone. Options, none ruled, all for their own milestone:
+(a) accumulate the turn's finals so an early reply at least answers
+everything said — this makes finding (2)'s fix the mitigation for
+finding (3), which is why they belong in one milestone;
+(b) semantic endpointing — let a judge decide whether the sentence is
+COMPLETE, which is natural once 4c has a language model in the loop;
+(c) prosodic endpointing (falling pitch, final lengthening) — the
+D-008 smarter-judge drawer;
+(d) leave it as the app's number and document the trade — honest, and
+the current state.
+
+Also observed, on the `--vad 0.008` experiment that finding (1)
+predicted: no metronome flap returned (four empty utterances in 85 s,
+not one every 0.84 s), which supports the canceller-gave-headroom
+claim — but the gate now admits genuine ambient at peaks 0.009–0.011,
+and the quiet-speech case was not re-run, so finding (1) stays OPEN.
+The bracket to try next is 0.012–0.015: above the ambient just
+measured, far below the 0.039 quiet speech that was being lost.
+
+## 47. Definition of done (4b)
+
+All ACs green · 20× stable · the Mac audibly converses and survives
+its own voice, recorded before/after · PR merged with the map updated
+· teach-back survived (may share a session with the owed 4a
+teach-back).

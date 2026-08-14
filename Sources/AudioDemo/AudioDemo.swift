@@ -40,6 +40,43 @@ struct AudioDemo {
                ? Double(arguments[flagIndex + 1]) : nil {
             onsetMs = value
         }
+        // `--gate <ms>`: the reply gate (AC-81) — how long the floor must
+        // stay yielded before the assistant answers. 0 = reply at the
+        // final, exactly the 4a behavior. The number is the app's to earn
+        // (D-027); the flag is where this machine earns it.
+        var gateMs = 0.0
+        if let flagIndex = arguments.firstIndex(of: "--gate"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Double(arguments[flagIndex + 1]) : nil {
+            gateMs = value
+        }
+        // `--vad <level>`: the loudness gate itself. Born from the field
+        // finding in SPEC §46a — quiet speech at 2-4x this number gets
+        // FRAGMENTED into syllables that decode to nothing — and from the
+        // fact that echo cancellation moved the ambient floor this number
+        // was chosen against (peak 0.024 -> 0.006). The prediction to test:
+        // with the canceller on, a lower gate holds quiet speech together
+        // without reviving 1d's flap.
+        var vadThreshold: Float = 0.02
+        if let flagIndex = arguments.firstIndex(of: "--vad"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Float(arguments[flagIndex + 1]) : nil {
+            vadThreshold = value
+        }
+        // `--hangover <ms>`: how long a dip is forgiven before the utterance
+        // is declared over — the fragment boundary, proven in the field
+        // (SPEC §46a). 700 ms is this demo's ruled number (D-039), bracketed
+        // from both sides on one voice: at 300 ms a quiet sentence shattered
+        // into four pieces, at 500 ms it split in two, at 700 ms it arrived
+        // whole. The LIBRARY default stays 300 ms — each product earns its
+        // own number (D-028/D-036). Cost, stated where it is paid: every
+        // final waits 400 ms longer than the library default would.
+        var hangoverMs = 700.0
+        if let flagIndex = arguments.firstIndex(of: "--hangover"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Double(arguments[flagIndex + 1]) : nil {
+            hangoverMs = value
+        }
         let choice = arguments.first { !$0.hasPrefix("--") && Double($0) == nil } ?? "apple"
         let engine: any TranscriptionEngine
         let engineName: String
@@ -88,7 +125,13 @@ struct AudioDemo {
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
 
-        let microphone = MicrophoneSource()
+        // Echo cancellation is ON by default here (D-038): the spike its
+        // adoption was gated on passed, in the field, with a human in the
+        // room — replies complete instead of barging themselves, the reply
+        // stays comfortably loud, and a live voice still interrupts it.
+        // `--no-aec` keeps the old door open for A/B experiments.
+        let wantsAEC = !arguments.contains("--no-aec")
+        let microphone = MicrophoneSource(voiceProcessing: wantsAEC)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -117,8 +160,8 @@ struct AudioDemo {
             // for zero quiet-room benefit. The gate is this machine's
             // earned defense; `--onset <ms>` re-arms the window for
             // experiments (wire pre-roll ≥ the window per the F-4 law).
-            vad: EnergyVAD(config: .init(threshold: 0.02,
-                                         hangoverFrames: Int(sampleRate * 0.3),
+            vad: EnergyVAD(config: .init(threshold: vadThreshold,
+                                         hangoverFrames: Int(sampleRate * hangoverMs / 1000),
                                          onsetFrames: Int(sampleRate * onsetMs / 1000))),
             clock: ContinuousClock(),
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
@@ -133,12 +176,59 @@ struct AudioDemo {
             : nil
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
-        print("    \(Int(sampleRate)) Hz · 20 ms chunks · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
+        print("    \(Int(sampleRate)) Hz · 20 ms chunks · gate \(vadThreshold)"
+            + " · \(Int(onsetMs)) ms onset · \(Int(hangoverMs)) ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
+        print("    voice processing: "
+            + (wantsAEC
+                ? (microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")
+                : "OFF (--no-aec) — the assistant will hear itself"))
         if talk && transcription != nil {
-            print("    turn loop: ON — it echoes what you say; interrupt it mid-reply\n")
+            print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
+                + " interrupt it mid-reply")
+            print("    reply gate: \(Int(gateMs)) ms"
+                + (gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor")
+                + "\n")
         } else {
             print("")
+        }
+
+        // `--levels`: the honest instrument the F-2 spike needed. The pump
+        // only publishes sound the VAD already accepted, so "no utterances"
+        // could mean cancelled echo OR a deaf microphone — indistinguishable
+        // from the pump's output. This mode reads the ring directly (the
+        // pump is not running here, so its sole-reader rule stands) and
+        // prints what the microphone ACTUALLY delivers, gate or no gate.
+        if arguments.contains("--levels") {
+            print("\n📏 level probe — what the microphone really delivers, every 500 ms")
+            print("    voice processing: "
+                + (wantsAEC
+                    ? (microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")
+                    : "off"))
+            print("    (the demo's VAD gate for reference: 0.02)   Ctrl-C to quit\n")
+            var scratch = [Float](repeating: 0, count: consumer.capacity)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                var sumOfSquares: Float = 0
+                var peak: Float = 0
+                var frames = 0
+                var dropped = 0
+                scratch.withUnsafeMutableBufferPointer { buffer in
+                    let result = consumer.read(into: buffer)
+                    frames = result.framesRead
+                    dropped = result.framesDropped
+                    for i in 0..<frames {
+                        sumOfSquares += buffer[i] * buffer[i]
+                        peak = max(peak, abs(buffer[i]))
+                    }
+                }
+                let rms = frames > 0 ? (sumOfSquares / Float(frames)).squareRoot() : 0
+                let bar = String(repeating: "█", count: min(Int(rms * 300), 30))
+                print(String(format: "rms %.4f · peak %.4f · %5d frames%@  %@",
+                             rms, peak, frames,
+                             dropped > 0 ? " · dropped \(dropped)" : "", bar))
+            }
+            return
         }
 
         let screen = Screen()
@@ -160,12 +250,16 @@ struct AudioDemo {
                 group.addTask { await showTranscripts(transcripts.events, on: screen) }
 
                 if talk {
-                    // The Phase 4a slice (AC-70): the whole conversation loop,
-                    // scripted stages, real microphone barge-in — and the R2
-                    // latency seam on a real clock: the demo reuses the exact
-                    // code path the deterministic tests prove.
+                    // The Phase 4b slice (AC-84): the loop now SPEAKS —
+                    // AVSpeechSynthesizer behind the same seam the scripted
+                    // voice proved. Real microphone barge-in, the R2 latency
+                    // seam on a real clock, and (--gate) the AC-81 reply
+                    // gate: the demo reuses the exact code paths the
+                    // deterministic tests prove.
                     let coordinator = TurnCoordinator(
-                        replyGenerator: PacedEchoReply(), synthesizer: TerminalVoice(),
+                        replyGenerator: PacedEchoReply(),
+                        synthesizer: AppleSpeechSynthesizer(),
+                        config: .init(replyGate: .milliseconds(Int(gateMs))),
                         clock: ContinuousClock(),
                         latencyReporter: ConsoleLatency(screen: screen))
                     let audioForTurns = await pump.listen()
@@ -191,7 +285,7 @@ struct AudioDemo {
                 if state == .listening || state == .idle { reply = "" }
                 await screen.set(reply: reply)
             case .replyToken(let token, _):
-                reply += reply.isEmpty ? token : " " + token
+                reply += token          // tokens carry their own spacing now
                 await screen.set(reply: reply)
             case .turnCompleted(let turn):
                 await screen.log("🤖 [\(turn)] \(reply)")
@@ -369,10 +463,13 @@ extension Duration {
 }
 
 /// Echoes the user's words back, one token at a time, paced so the reply
-/// FEELS spoken — slow enough to barge into.
+/// FEELS generated — slow enough to barge into. Tokens carry their own
+/// spacing (the way real generators emit them): the phraser concatenates
+/// VERBATIM and never invents a space.
 struct PacedEchoReply: ReplyGenerating {
     func openReply(to transcript: String) async throws -> any ReplyRun {
-        EchoRun(words: ["You", "said:"] + transcript.split(separator: " ").map(String.init))
+        EchoRun(words: ["You", " said:"]
+            + transcript.split(separator: " ").map { " " + $0 })
     }
 }
 
@@ -398,37 +495,7 @@ private final class EchoRun: ReplyRun, @unchecked Sendable {
     func cancel() async { task.withLock { $0?.cancel() } }
 }
 
-/// "Speaks" into the terminal: the coordinator's replyToken events do the
-/// drawing; this voice only reports the EVIDENCE (started/finished) that
-/// drives the speaking state — the same contract a real TTS will honor in 4b.
-struct TerminalVoice: SpeechSynthesizing {
-    func openUtterance() async throws -> any SynthesisRun { VoiceRun() }
-}
-
-private final class VoiceRun: SynthesisRun, @unchecked Sendable {
-    let updates: AsyncStream<SynthesisUpdate>
-    private let out: AsyncStream<SynthesisUpdate>.Continuation
-    private let started = Mutex(false)
-
-    init() {
-        var handle: AsyncStream<SynthesisUpdate>.Continuation!
-        self.updates = AsyncStream { handle = $0 }
-        self.out = handle!
-    }
-
-    func feed(_ token: String) async {
-        let first = started.withLock { begun -> Bool in
-            let isFirst = !begun
-            begun = true
-            return isFirst
-        }
-        if first { out.yield(.started) }
-    }
-
-    func finishTokens() async {
-        out.yield(.finished)
-        out.finish()
-    }
-
-    func cancel() async { out.finish() }
-}
+// (The 4a `TerminalVoice` — a mouth that only printed — retired here: the
+// real `AppleSpeechSynthesizer` speaks behind the same seam, which was
+// the seam's whole promise. Its contract lives on in the library's
+// `ScriptedSynthesizer`, where the deterministic tests need it.)
