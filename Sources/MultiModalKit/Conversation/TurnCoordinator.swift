@@ -177,6 +177,13 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// position, queryable the same "ask for now" way as the state.
     public var currentUtterance: Int { lastOnset }
 
+    /// The thought as it stands: everything the speaker has said that has
+    /// not yet been answered (AC-85). Same "ask for now, replay nothing"
+    /// pattern as `currentState` (D-030) — an app can show what the
+    /// assistant is about to answer, and a test can gate on the FACT that
+    /// a final was recorded instead of hoping two tasks raced its way.
+    public var currentContext: String { ledger.text }
+
     /// Adds a listener. It hears everything published from now on (D-012).
     public func listen() -> Broadcast<TurnEvent>.Listener {
         broadcast.listen()

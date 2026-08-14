@@ -1122,11 +1122,21 @@ struct TurnCoordinatorTests {
             #expect(await Self.parked(clock), "no gate armed on the clock")
             await clock.advance(by: .milliseconds(100))
             // A settled final from an EARLIER utterance (D-024): the input
-            // door drops it — it must not disturb the armed gate. Yielded
-            // BEFORE the expiry knock, so the FIFO loop must handle it
-            // first: whatever it did (or failed to do) is already visible
-            // in the assertions below.
+            // door refuses it as a trigger — it must not disturb the armed
+            // gate.
+            //
+            // This yield USED to be followed straight by the clock advance,
+            // under the comment "the FIFO loop must handle it first". That
+            // was WRONG, and 4c proved it: the transcript forwarder and the
+            // gate's sleeper are independent tasks racing to reach the
+            // merge, so their order was never guaranteed. The old assertion
+            // could not see it (the stale final was dropped either way);
+            // the ledger can, and the suite flaked once in ~15 runs until
+            // this gate was put in. Chased, not retried.
             bench.transcripts.yield(.final("stale comfort text", utterance: 3, at: Self.t(10)))
+            #expect(await Self.until {
+                await bench.coordinator.currentContext.contains("stale comfort text") },
+                "the stale final must be RECORDED before the gate fires — the fact, not a hope")
             await clock.advance(by: .milliseconds(400))   // the gate completes
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
             #expect(bench.generator.repliesOpened == 1,
