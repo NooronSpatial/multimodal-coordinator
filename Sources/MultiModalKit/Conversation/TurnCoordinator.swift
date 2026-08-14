@@ -71,9 +71,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// numbers from. A settled final from an EARLIER utterance (D-024)
         /// is comfort text for apps — never a reply trigger.
         var utterance: Int
-        /// A final accepted but held behind the reply gate (AC-81). An
-        /// onset while listening clears it — the reply dies unspoken.
-        var pendingReply: String?
+        /// A reply accepted but held behind the gate (AC-81). It is a
+        /// FLAG, not the text: the words live in the ledger, so anything
+        /// the speaker adds DURING the gate joins the thought that
+        /// finally goes out. An onset while listening lowers it — the
+        /// reply dies unspoken.
+        var replyArmed = false
         var replyRun: (any ReplyRun)?
         var synthesisRun: (any SynthesisRun)?
         var tokensFinished = false
@@ -119,6 +122,13 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// its `speechStarted` arrives. Everything else that fails the input
     /// door is genuinely stale or dead, and stays dropped.
     private var pendingTranscripts: [Int: TranscriptEvent] = [:]
+    /// What the speaker said, kept whole (AC-85, D-040). Actor-scoped on
+    /// purpose, NOT turn-scoped: a turn dies for reasons that have
+    /// nothing to do with the words — an empty decode (the field's most
+    /// common ending), a failure, a barge — and in every one of those
+    /// the speaker never got an answer. It is emptied on `turnCompleted`
+    /// and nowhere else (F-2 = A).
+    private var ledger: TranscriptLedger
     private var merge: AsyncStream<Input>.Continuation?
     private var isStopped = false
 
@@ -138,6 +148,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         self.clock = clock
         self.latencyReporter = latencyReporter
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
+        self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
     }
 
     /// The everyday coordinator: fully clockless — no reporter, no clock,
@@ -155,6 +166,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         self.clock = nil
         self.latencyReporter = nil
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
+        self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
     }
 
     /// The current state, for late listeners: ask for NOW, then listen —
@@ -278,7 +290,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // gate's expiry also fails its utterance door — this line is
             // the meaning, that guard is the proof.)
             current?.utterance = utterance
-            current?.pendingReply = nil
+            current?.replyArmed = false
 
         case .thinking, .speaking:
             // THE BARGE. Ticket first, in this same actor step: the old
@@ -321,6 +333,13 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     ) async {
         switch event {
         case .final(let text, let utterance, _):
+            // EVIDENCE FIRST (D-040). The words go into the ledger before
+            // any door judges them, because the door decides what may
+            // TRIGGER a reply, not what the speaker said. A refused final
+            // is still speech; the ledger itself refuses only silence,
+            // and identity makes a replayed final idempotent.
+            ledger.record(text, utterance: utterance)
+
             // THE INPUT DOOR: only the live turn, only while listening, and
             // only the CURRENT utterance's final. A stale settled final
             // (D-024) fails the third check and stays what it is — comfort
@@ -350,7 +369,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                 // stop() cancels it with everything else) that only knocks:
                 // the decision is made HERE, on the actor, when the knock
                 // arrives — and both its stamps must still be true then.
-                current?.pendingReply = trimmed
+                current?.replyArmed = true
                 let deadline = clock.now.advanced(by: config.replyGate)
                 let armedFor = live.utterance
                 group.addTask {
@@ -360,7 +379,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                 return
             }
             transition(to: .thinking, turn: turn)
-            await openGeneration(of: trimmed, turn: turn,
+            // The WHOLE thought, not this one sentence (AC-88). With a
+            // single final the ledger's text IS `trimmed` — which is why
+            // the common path is byte-for-byte what it was (D-040 F-5).
+            await openGeneration(of: ledger.text, turn: turn,
                                  forwardingInto: &group, via: input)
 
         case .failed(let failure, let utterance, _):
@@ -393,11 +415,13 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         via input: AsyncStream<Input>.Continuation
     ) async {
         guard let live = current, live.turn == turn, state == .listening,
-              live.utterance == utterance, let text = live.pendingReply
+              live.utterance == utterance, live.replyArmed
         else { return }
-        current?.pendingReply = nil
+        current?.replyArmed = false
         transition(to: .thinking, turn: turn)
-        await openGeneration(of: text, turn: turn, forwardingInto: &group, via: input)
+        // Built HERE, not when the gate was armed: anything the speaker
+        // added during the gate belongs to the same thought.
+        await openGeneration(of: ledger.text, turn: turn, forwardingInto: &group, via: input)
     }
 
     /// Opens the generator for a turn already in `thinking` — the single
@@ -482,8 +506,11 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                 await synthesis.finishTokens()
             } else {
                 // Zero tokens: nothing to say. The turn completes; the mouth
-                // never opened, `speaking` never existed.
+                // never opened, `speaking` never existed. The thought is
+                // still ANSWERED — the generator saw all of it and chose
+                // silence — so the ledger is emptied (D-040 F-2).
                 current = nil
+                ledger.clear()
                 broadcast.publish(.turnCompleted(turn: turn))
                 transition(to: .idle, turn: turn)
             }
@@ -512,7 +539,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             }
 
         case .finished:
+            // THE ONE PLACE THE THOUGHT IS FORGOTTEN (D-040 F-2): the
+            // reply was fully SPOKEN — evidence, not intent — so the
+            // speaker got their answer. Every other ending keeps the
+            // words, because in every other ending they went unanswered.
             current = nil
+            ledger.clear()
             broadcast.publish(.turnCompleted(turn: turn))
             transition(to: .idle, turn: turn)
             await live.replyRun?.cancel()   // normally already done; reclaims

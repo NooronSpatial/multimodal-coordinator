@@ -18,14 +18,14 @@ struct TurnCoordinatorTests {
         AudioTime(frames: frames, sampleRate: sampleRate)
     }
 
-    /// Spin-capped gates — red fails fast, never hangs.
-    @discardableResult
     /// A bounded "nothing happened" check: give the loop room to betray
     /// itself, then assert it did not. The positive twin of `until`.
     static func settled(spins: Int = 2_000) async {
         for _ in 0..<spins { await Task.yield() }
     }
 
+    /// Spin-capped gates — red fails fast, never hangs.
+    @discardableResult
     static func until(_ condition: () async -> Bool, spins: Int = 40_000) async -> Bool {
         for _ in 0..<spins {
             if await condition() { return true }
@@ -487,8 +487,15 @@ struct TurnCoordinatorTests {
         }
 
         #expect(bench.generator.repliesOpened == 1)
-        #expect(bench.generator.record(ofReply: 0)?.transcript == "real words",
-                "one lost onset must cost ONE utterance, never every turn after it")
+        // AMENDED BY RULING (D-040 F-5, 2026-08-14). This once read
+        // `== "real words"`. The claim D-034 makes — a lost onset costs
+        // ONE utterance and cannot corrupt later turns — is about
+        // TRIGGERING, and it is unchanged: still one reply, still driven
+        // by utterance 1, still no off-by-one. What changed is content:
+        // the orphan's WORDS are evidence the speaker really produced, so
+        // they now join the thought while triggering nothing.
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "orphan words real words",
+                "one lost onset must cost ONE utterance's TRIGGER, never every turn after it")
     }
 
     // MARK: - empty finals and failures (AC-64, AC-65)
@@ -1038,8 +1045,17 @@ struct TurnCoordinatorTests {
                     "a killed gate still opened the generator")
             await clock.advance(by: .milliseconds(500))
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
-            #expect(bench.generator.record(ofReply: 0)?.transcript == "now I am done",
-                    "the generator must open with the SECOND final's text")
+            // AMENDED BY RULING (D-040 F-5). This once read
+            // `== "now I am done"` with the reason "the generator must
+            // open with the SECOND final's text" — and that sentence was
+            // this milestone's bug, stated as a requirement. The gate's
+            // job is unchanged and still proven above: the killed reply
+            // opened NOTHING at its own expiry. What changed is that the
+            // words the speaker said before the gate died are not thrown
+            // away; they are part of the same thought.
+            #expect(bench.generator.record(ofReply: 0)?.transcript
+                    == "the user was not done now I am done",
+                    "the killed reply's words were never answered, so they join the thought")
 
             bench.finishInputs()
             await bench.coordinator.stop()
@@ -1115,8 +1131,13 @@ struct TurnCoordinatorTests {
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
             #expect(bench.generator.repliesOpened == 1,
                     "the stale final opened a reply of its own")
-            #expect(bench.generator.record(ofReply: 0)?.transcript == "armed",
-                    "the stale final must neither open nor replace the armed reply")
+            // AMENDED BY RULING (D-040 F-5). This once read `== "armed"`.
+            // The stale final still neither opens a reply of its own (the
+            // assertion above) nor replaces the armed one — the door is
+            // untouched. It now contributes its WORDS, in spoken order:
+            // utterance 3 was said before utterance 5, so it leads.
+            #expect(bench.generator.record(ofReply: 0)?.transcript == "stale comfort text armed",
+                    "a stale final may not TRIGGER, but it is still something the speaker said")
 
             bench.finishInputs()
             await bench.coordinator.stop()
