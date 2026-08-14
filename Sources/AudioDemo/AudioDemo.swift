@@ -187,8 +187,9 @@ struct AudioDemo {
             print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
                 + " interrupt it mid-reply")
             print("    reply gate: \(Int(gateMs)) ms"
-                + (gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor")
-                + "\n")
+                + (gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor"))
+            print("    context: up to 16 pieces of one thought — 🧠 shows what the"
+                + " generator received\n")
         } else {
             print("")
         }
@@ -257,7 +258,7 @@ struct AudioDemo {
                     // gate: the demo reuses the exact code paths the
                     // deterministic tests prove.
                     let coordinator = TurnCoordinator(
-                        replyGenerator: PacedEchoReply(),
+                        replyGenerator: PacedEchoReply(screen: screen),
                         synthesizer: AppleSpeechSynthesizer(),
                         config: .init(replyGate: .milliseconds(Int(gateMs))),
                         clock: ContinuousClock(),
@@ -467,8 +468,15 @@ extension Duration {
 /// spacing (the way real generators emit them): the phraser concatenates
 /// VERBATIM and never invents a space.
 struct PacedEchoReply: ReplyGenerating {
+    let screen: Screen
+
     func openReply(to transcript: String) async throws -> any ReplyRun {
-        EchoRun(words: ["You", " said:"]
+        // AC-91: the milestone made visible. This prints what actually
+        // CROSSED THE SEAM — the generator's own view, which is the only
+        // honest witness that the whole thought arrived. Speak two
+        // sentences with a pause and this line holds both.
+        await screen.log("🧠 whole thought → \"\(transcript)\"")
+        return EchoRun(words: ["You", " said:"]
             + transcript.split(separator: " ").map { " " + $0 })
     }
 }

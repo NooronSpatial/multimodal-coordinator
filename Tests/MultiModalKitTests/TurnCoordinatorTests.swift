@@ -18,6 +18,12 @@ struct TurnCoordinatorTests {
         AudioTime(frames: frames, sampleRate: sampleRate)
     }
 
+    /// A bounded "nothing happened" check: give the loop room to betray
+    /// itself, then assert it did not. The positive twin of `until`.
+    static func settled(spins: Int = 2_000) async {
+        for _ in 0..<spins { await Task.yield() }
+    }
+
     /// Spin-capped gates — red fails fast, never hangs.
     @discardableResult
     static func until(_ condition: () async -> Bool, spins: Int = 40_000) async -> Bool {
@@ -76,7 +82,8 @@ struct TurnCoordinatorTests {
         private let audioStream: AsyncStream<AudioEvent>
         private let transcriptStream: AsyncStream<TranscriptEvent>
 
-        init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer)
+        init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
+             config: TurnCoordinator<ContinuousClock>.Config = .init())
         where C == ContinuousClock {
             var audioHandle: AsyncStream<AudioEvent>.Continuation!
             let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
@@ -84,7 +91,8 @@ struct TurnCoordinatorTests {
             let transcriptStream = AsyncStream<TranscriptEvent> { transcriptHandle = $0 }
             self.init(
                 generator: generator, synthesizer: synthesizer,
-                coordinator: TurnCoordinator(replyGenerator: generator, synthesizer: synthesizer),
+                coordinator: TurnCoordinator(replyGenerator: generator, synthesizer: synthesizer,
+                                             config: config),
                 audioStream: audioStream, audio: audioHandle,
                 transcriptStream: transcriptStream, transcripts: transcriptHandle)
         }
@@ -481,8 +489,15 @@ struct TurnCoordinatorTests {
         }
 
         #expect(bench.generator.repliesOpened == 1)
-        #expect(bench.generator.record(ofReply: 0)?.transcript == "real words",
-                "one lost onset must cost ONE utterance, never every turn after it")
+        // AMENDED BY RULING (D-040 F-5, 2026-08-14). This once read
+        // `== "real words"`. The claim D-034 makes — a lost onset costs
+        // ONE utterance and cannot corrupt later turns — is about
+        // TRIGGERING, and it is unchanged: still one reply, still driven
+        // by utterance 1, still no off-by-one. What changed is content:
+        // the orphan's WORDS are evidence the speaker really produced, so
+        // they now join the thought while triggering nothing.
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "orphan words real words",
+                "one lost onset must cost ONE utterance's TRIGGER, never every turn after it")
     }
 
     // MARK: - empty finals and failures (AC-64, AC-65)
@@ -1032,8 +1047,17 @@ struct TurnCoordinatorTests {
                     "a killed gate still opened the generator")
             await clock.advance(by: .milliseconds(500))
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
-            #expect(bench.generator.record(ofReply: 0)?.transcript == "now I am done",
-                    "the generator must open with the SECOND final's text")
+            // AMENDED BY RULING (D-040 F-5). This once read
+            // `== "now I am done"` with the reason "the generator must
+            // open with the SECOND final's text" — and that sentence was
+            // this milestone's bug, stated as a requirement. The gate's
+            // job is unchanged and still proven above: the killed reply
+            // opened NOTHING at its own expiry. What changed is that the
+            // words the speaker said before the gate died are not thrown
+            // away; they are part of the same thought.
+            #expect(bench.generator.record(ofReply: 0)?.transcript
+                    == "the user was not done now I am done",
+                    "the killed reply's words were never answered, so they join the thought")
 
             bench.finishInputs()
             await bench.coordinator.stop()
@@ -1100,17 +1124,40 @@ struct TurnCoordinatorTests {
             #expect(await Self.parked(clock), "no gate armed on the clock")
             await clock.advance(by: .milliseconds(100))
             // A settled final from an EARLIER utterance (D-024): the input
-            // door drops it — it must not disturb the armed gate. Yielded
-            // BEFORE the expiry knock, so the FIFO loop must handle it
-            // first: whatever it did (or failed to do) is already visible
-            // in the assertions below.
+            // door refuses it as a trigger — it must not disturb the armed
+            // gate.
+            //
+            // This yield USED to be followed straight by the clock advance,
+            // under the comment "the FIFO loop must handle it first". That
+            // was WRONG, and 4c proved it: the transcript forwarder and the
+            // gate's sleeper are independent tasks racing to reach the
+            // merge, so their order was never guaranteed. The old assertion
+            // could not see it (the stale final was dropped either way);
+            // the ledger can, and the suite flaked once in ~15 runs until
+            // this gate was put in. Chased, not retried.
             bench.transcripts.yield(.final("stale comfort text", utterance: 3, at: Self.t(10)))
+            #expect(await Self.until {
+                await bench.coordinator.currentContext.contains("stale comfort text") },
+                "the stale final must be RECORDED before the gate fires — the fact, not a hope")
+            // DOOR SENSITIVITY, RESTORED (review finding). The amendment
+            // below replaced the one assertion that could see the input
+            // door, leaving a test that passed with the door broken. THIS
+            // is the door: an ACCEPTED stale final would open its reply
+            // immediately, without waiting for the armed gate. Checked
+            // before the clock moves, so only a refusal can be green.
+            #expect(bench.generator.repliesOpened == 0,
+                    "the stale final was accepted — it opened a reply without the gate")
             await clock.advance(by: .milliseconds(400))   // the gate completes
             #expect(await Self.until { bench.generator.repliesOpened == 1 })
             #expect(bench.generator.repliesOpened == 1,
                     "the stale final opened a reply of its own")
-            #expect(bench.generator.record(ofReply: 0)?.transcript == "armed",
-                    "the stale final must neither open nor replace the armed reply")
+            // AMENDED BY RULING (D-040 F-5). This once read `== "armed"`.
+            // The stale final still neither opens a reply of its own (the
+            // assertion above) nor replaces the armed one — the door is
+            // untouched. It now contributes its WORDS, in spoken order:
+            // utterance 3 was said before utterance 5, so it leads.
+            #expect(bench.generator.record(ofReply: 0)?.transcript == "stale comfort text armed",
+                    "a stale final may not TRIGGER, but it is still something the speaker said")
 
             bench.finishInputs()
             await bench.coordinator.stop()
@@ -1207,5 +1254,346 @@ struct TurnCoordinatorTests {
                 "structural teardown takes no mock time — exactly zero, or a clock wait crept in")
         #expect(reporter.turnLatencies.isEmpty,
                 "the turn died before speaking — a dead turn reports no turn latency")
+    }
+
+    // MARK: - the transcript ledger (SPEC AC-87..AC-90, D-040)
+
+    /// Drives the field scenario's shape: an onset, a SECOND onset before
+    /// the first final arrives (so that first final is refused at the
+    /// input door), then both finals. Event-gated at the point where the
+    /// two streams must not race — the coordinator's own comment says a
+    /// final can beat its onset, so nothing here may assume arrival order.
+    private func speakTwoSentencesWithAPause(
+        _ bench: Bench<ContinuousClock>, first: String, second: String
+    ) async {
+        bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
+        #expect(await Self.until { await bench.coordinator.currentUtterance == 0 })
+        bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(48_000)))
+        #expect(await Self.until { await bench.coordinator.currentUtterance == 1 },
+                "the second onset must land before the finals, or the door is not exercised")
+        // Same stream, so these two keep their order.
+        bench.transcripts.yield(.final(first, utterance: 0, at: Self.t(1_000)))
+        bench.transcripts.yield(.final(second, utterance: 1, at: Self.t(49_000)))
+    }
+
+    @Test("THE MILESTONE: a thought spoken in two sentences reaches the generator whole")
+    func theWholeThoughtReachesTheGenerator() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            await speakTwoSentencesWithAPause(
+                bench, first: "Do you hear me well?", second: "should I take a jacket?")
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 0)?.transcript
+                == "Do you hear me well? should I take a jacket?",
+                "the refused final must contribute CONTENT — that is the whole milestone")
+    }
+
+    @Test("The refused final contributes content and still triggers nothing (AC-87)")
+    func theRefusedFinalTriggersNothing() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            await speakTwoSentencesWithAPause(bench, first: "one", second: "two")
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            await Self.settled()
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.repliesOpened == 1,
+                "two finals, ONE reply — a refused final must open no turn")
+        let states = await bench.box.states()
+        #expect(states == [.listening, .thinking],
+                "the refused final must not add a transition — the trigger rules did not move")
+    }
+
+    @Test("A completed reply forgets the thought; the next turn starts clean (AC-89)")
+    func completionForgetsTheThought() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "the first thought", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            bench.generator.emit(reply: 0, token: "tick")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            bench.generator.finish(reply: 0)
+            #expect(await Self.until {
+                bench.synthesizer.record(ofUtterance: 0)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 0)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 0)) })
+
+            bench.speak(utterance: 1, final: "the second thought", at: 96_000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 1)?.transcript == "the second thought",
+                "a thought that was ANSWERED must not haunt the next turn")
+    }
+
+    @Test("A failed turn keeps its words — nothing answered them (AC-89)")
+    func aFailedTurnKeepsItsWords() async {
+        let bench = Bench(generator: ScriptedReplyGenerator(plans: [.failOnOpen("no model"), .manual()]),
+                          synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "the lost question", at: 0)
+            #expect(await Self.until {
+                await bench.box.events.contains(
+                    .turnFailed(.generationFailed("no model"), turn: 0)) })
+
+            bench.speak(utterance: 1, final: "asking again", at: 96_000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 1)?.transcript == "the lost question asking again",
+                "a failure never answered the words, so they must survive (D-040 F-2)")
+    }
+
+    @Test("A barge carries the interrupted thought forward (AC-89, F-3 = A, provisional)")
+    func aBargeCarriesTheThoughtForward() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "the interrupted thought", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            bench.generator.emit(reply: 0, token: "answering")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            #expect(await Self.until { await bench.coordinator.currentState == .speaking })
+
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(96_000)))   // THE BARGE
+            #expect(await Self.until { await bench.box.events.contains(.turnBarged(turn: 0)) })
+            bench.transcripts.yield(.final("and the rest of it", utterance: 1, at: Self.t(97_000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 1)?.transcript
+                == "the interrupted thought and the rest of it",
+                "the barged reply never landed, so its words were never answered")
+    }
+
+    @Test("An empty final is NOT rescued into a reply by a full ledger (AC-87)")
+    func anEmptyFinalIsNotRescuedByAFullLedger() async {
+        // §46a finding 1: an empty decode is the signature of a
+        // FRAGMENTED speaker, never of a finished one.
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            await speakTwoSentencesWithAPause(bench, first: "words in the ledger", second: "   ")
+            #expect(await Self.until { await bench.coordinator.currentState == .idle })
+            await Self.settled()
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.repliesOpened == 0,
+                "silence must not become a trigger just because earlier words exist")
+    }
+
+    @Test("stop() mid-accumulation ends clean and publishes nothing after (AC-90)")
+    func stopMidAccumulationEndsClean() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 0 })
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(48_000)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 1 })
+            bench.transcripts.yield(.final("recorded but never answered", utterance: 0,
+                                           at: Self.t(1_000)))
+            // DE-VACUIZED (review finding): this used to wait on `settled()`
+            // — a count of yields, i.e. hope — and asserted nothing that
+            // required the final to have been RECORDED. It was green with
+            // the ledger deleted. Now it gates on the fact and proves the
+            // accumulation it is named for actually happened first.
+            #expect(await Self.until {
+                await bench.coordinator.currentContext == "recorded but never answered" },
+                "nothing was accumulated, so this test would prove nothing about stop()")
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.repliesOpened == 0)
+        let events = await bench.box.events
+        #expect(events == [.stateChanged(.listening, turn: 0)],
+                "accumulating is silent: it publishes nothing of its own")
+    }
+
+    @Test("The context bound is the app's number, and its default is stated")
+    func theContextBoundIsTheAppsNumber() {
+        #expect(TurnCoordinator<ContinuousClock>.Config().maxContextPieces == 16)
+    }
+
+    @Test("A ZERO-TOKEN reply also forgets the thought — F-2's second clear site")
+    func aZeroTokenReplyAlsoForgetsTheThought() async {
+        // Review finding: D-040 F-2 names TWO clear sites and only the
+        // spoken one was covered. The generator here sees the whole
+        // thought and says nothing — which counts as answered.
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "a question with no answer", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            bench.generator.finish(reply: 0)                // finished with ZERO tokens
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 0)) })
+            #expect(await bench.coordinator.currentContext == "",
+                    "the generator saw the whole thought and chose silence — that is an answer")
+
+            bench.speak(utterance: 1, final: "a fresh question", at: 96_000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 1)?.transcript == "a fresh question")
+    }
+
+    @Test("MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought")
+    func onlyFinalsEnterTheThought() async {
+        // Review finding: AC-86's membership rule was prose only — no test
+        // ever yielded a .partial or .truncated to the coordinator, so
+        // recording them would have left the whole suite green.
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 0 })
+            bench.transcripts.yield(.partial("a guess in progress", utterance: 0, at: Self.t(500)))
+            bench.transcripts.yield(.truncated(utterance: 0, at: Self.t(600)))
+            bench.transcripts.yield(.final("the real words", utterance: 0, at: Self.t(1_000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "the real words",
+                "a hypothesis is not speech; only a FINAL is what the speaker said")
+    }
+
+    @Test("The app's context bound reaches the ledger and drops the oldest through the loop")
+    func theContextBoundIsWiredThroughTheLoop() async {
+        // Review finding: only the Config literal was pinned, so nothing
+        // proved the number ever arrived, nor that F-4's anti-wedge bound
+        // works through the coordinator.
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+                          config: .init(maxContextPieces: 2))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            for utterance in 0...2 {
+                bench.audio.yield(.speechStarted(utterance: utterance,
+                                                 at: Self.t(utterance * 48_000)))
+                #expect(await Self.until {
+                    await bench.coordinator.currentUtterance == utterance })
+            }
+            bench.transcripts.yield(.final("one", utterance: 0, at: Self.t(1_000)))
+            bench.transcripts.yield(.final("two", utterance: 1, at: Self.t(49_000)))
+            bench.transcripts.yield(.final("three", utterance: 2, at: Self.t(97_000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "two three",
+                "a bound of 2 must drop the oldest piece, all the way through the loop")
+    }
+
+    // MARK: - the review's regressions (adversarial pass, 2026-08-14)
+
+    @Test("REGRESSION: a final that beat its own onset is answered ONCE, never twice")
+    func aFinalThatBeatItsOnsetIsAnsweredOnce() async {
+        // The review's confirmed bug, reproduced. A final can reach the
+        // merge BEFORE its own `speechStarted` (separate forwarders —
+        // the coordinator documents this window). It was recorded into
+        // the LIVE turn's thought AND stashed as a future trigger, so
+        // after that turn completed and emptied the ledger, the replay
+        // answered the very same sentence a second time.
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.audio.yield(.speechStarted(utterance: 0, at: Self.t(0)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 0 })
+            // Utterance 1's final overtakes its own onset.
+            bench.transcripts.yield(.final("and what about Spain", utterance: 1, at: Self.t(96_000)))
+            bench.transcripts.yield(.final("what is the capital of France", utterance: 0,
+                                           at: Self.t(1_000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+
+            // Turn 0 is spoken in full, so its thought is answered and forgotten.
+            bench.generator.emit(reply: 0, token: "answer")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            bench.generator.finish(reply: 0)
+            #expect(await Self.until {
+                bench.synthesizer.record(ofUtterance: 0)?.tokensFinished == true })
+            bench.synthesizer.reportFinished(utterance: 0)
+            #expect(await Self.until { await bench.box.events.contains(.turnCompleted(turn: 0)) })
+
+            // Only NOW does the late onset arrive, releasing the stashed final.
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(96_000)))
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 0)?.transcript == "what is the capital of France",
+                "an utterance whose onset has not arrived is NOT part of this thought yet")
+        #expect(bench.generator.record(ofReply: 1)?.transcript == "and what about Spain",
+                "…and when its turn comes it is answered exactly once, not repeated")
     }
 }

@@ -1006,3 +1006,169 @@ and was left unchased. And the deeper finding stands recorded in SPEC
 ranged from peak 0.059 to 0.263 within one run, so any fixed dip budget
 is wrong for one of his own modes. Adaptation belongs to a milestone
 with its own spec.
+
+---
+
+## D-040 — The transcript ledger: five rulings, all A (Milestone 4c, forks F-1..F-5)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+The milestone the field specified (SPEC §46a findings 2 and 3): a turn
+answers only its LAST accepted final, so a two-sentence question with a
+pause in it gets an answer to sentence two. The ledger keeps what the
+speaker said and hands the generator the whole thought. **The trigger
+rules do not change** — a refused final still opens no turn, arms no
+gate, moves no ticket. It contributes CONTENT only.
+
+**The doctrine line this milestone rests on:** *user speech is EVIDENCE;
+a turn's reply tokens are COMPUTATION.* The ticket exists to stop
+cancelled computation from surfacing; words the speaker really said do
+not stop being true when a ticket expires. Evidence may cross a turn
+boundary; computation may not. That answers *may they live*. F-2
+answers *when must they die*, and the answer is again evidence.
+
+Five forks, ruled after a four-lens design pass in which every lens was
+adversarially critiqued and all four came back `needs_revision`. Three
+of those critiques changed the draft before Ryad ever saw it, and one
+corrected the author's description of the actor itself (see F-5, F-2,
+and the reentrancy note below).
+
+**F-1 = A — the seam keeps `openReply(to: String)`.** The coordinator
+joins the pieces; no conformer changes. *Rejected:* a `TurnTranscript`
+value carrying pieces + utterance + `AudioTime` — no acceptance
+criterion in THIS milestone reads those fields, and the house rule is
+not to widen a seam on speculation; pre-1.0 we own every conformer, so
+widening later costs three call sites and can be done with evidence.
+*Rejected:* a raw `[Piece]` array — it pushes joining onto every
+implementer, including a two-line echo. **Recorded as the reason B may
+win later:** choosing the separator between a user's sentences IS
+prompt formatting, which is policy, and A keeps that policy in the
+library — a live D-027 objection, not a dismissed one.
+
+**F-2 = A — the words die on `turnCompleted`, and only there.** That
+event means the reply was FULLY SPOKEN (the D-029/F-4 evidence rule
+again), so the thought was answered. The distinction that makes it
+coherent: *completed* means the pipeline ran to the end — a zero-token
+reply still clears, because the generator saw the whole thought and had
+nothing to say — while *failed* means nothing ever processed the words,
+so they stay. *Rejected:* turn-scoped (the ledger dying with
+`current = nil`) — structurally elegant, but it throws the thought away
+on the empty-final path, which §46a measured as the field's MOST COMMON
+turn-ender (four in 85 seconds); it would fix the bug everywhere except
+where it happens most. *Rejected:* a high-water mark raised when the
+generator opens — the adversarial pass killed it: opening a generator
+is not the user hearing an answer, and four paths (generator failure,
+synthesis failure, zero-token, barge) let the open succeed while the
+room stays silent. *Rejected:* time-based expiry — it needs a clock in
+the core loop plus a policy number, the two costs D-033 refused.
+
+**F-3 = A — a barge carries the interrupted thought forward. RULED
+PROVISIONAL by Ryad ("A but maybe we changed later").** It is the same
+rule as F-2, not an exception: words die when answered, and a barge is
+the clearest case of NOT answered. Every barge in the field runs was a
+CONTINUATION ("Why you interrupt me and tell me what I'm saying?").
+*Rejected:* emptying on barge — it re-introduces the milestone's own
+bug through a side door, discarding sentences that were never answered.
+*Rejected:* carrying only never-generated pieces — it produces the
+WORST result in the measured case, dropping exactly the sentence the
+conversation was about. *Rejected:* an app-side knob — no evidence any
+app wants the other setting (D-039's lesson).
+**The signal that reopens this fork, named in advance:** a field run
+where a barge CHANGES SUBJECT and the reply visibly drags the old
+subject in. The demo prints the accumulated context, so this is
+observable, not a matter of opinion.
+
+**F-4 = A — bounded by piece count, drop-oldest, no eviction event.**
+The bound is not speculative: it is what keeps F-2 = A safe. Without
+it, 4d's language model hits its context limit → the generator throws →
+`turnFailed` → F-2 KEEPS the words → the next turn sends the same
+oversized prompt → wedged forever, no reply ever again. Counting
+PIECES rather than characters uses an invariant the pipeline already
+owns: the 30-second utterance ceiling (D-021) bounds each piece, so
+bounding the count bounds the whole. *Rejected:* no bound (the wedge
+above, landing on a real model in 4d, not on today's echo).
+*Rejected:* a character bound (either splits a sentence or degenerates
+into dropping whole pieces, which is A). *Rejected:* a time bound
+(clock in the core loop — the D-033 precedent again). *Rejected:* an
+eviction `TurnEvent` — the adversarial pass was right that D-010's
+"loss is an event" concerned audio frames NO consumer can see, whereas
+an app watching the transcript stream sees every final itself.
+
+**F-5 = A — no flag; accumulation is always on.** This BREAKS a
+precedent Ryad set three times (D-028 nil policy, D-036 zero window,
+D-039 library hangover), and the break is deliberate: those three
+defaulted-off a POLICY — a thermal gate, an onset window, a tuning
+number. This is a CORRECTNESS fix, and a switch whose "off" position
+preserves a known bug is not a feature. The proof argument decided it:
+with a default-off flag the existing 28 tests would exercise NONE of
+the new code, so "the suite passes untouched" would prove nothing — the
+vacuous-test trap this repo has already been bitten by twice. Note also
+what does NOT change: a turn with one final, following a completed
+turn, produces byte-for-byte today's text. *Rejected:* default-off
+(above) · default-on opt-out (breaks the precedent anyway, so it pays
+A's cost and carries B's maintenance forever).
+**Consequence accepted:** the existing tests that encode "only the last
+final reaches the generator" are amended BY THIS RULING, visibly, in
+the RED commit that enumerates them — never quietly.
+
+**A correction to the record, from the same adversarial pass:** the
+author had been describing the coordinator's reentrancy surface too
+broadly. The merge loop awaits each handler INLINE, so no audio or
+transcript event can interleave inside `handleTranscript` — a barge
+waits its turn in the stream. Only `stop()` can enter during an await,
+which is exactly what the existing post-await guards check. The
+ledger's guards are specified against that real surface (AC-90).
+
+---
+
+## D-041 — Review before merge, always (Ryad's rule, proven the day it was made)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+Milestone 4b shipped with an INCOMPLETE adversarial review: only two of
+four planned lenses ever ran before the API overloaded. That was
+disclosed in its PR and merged anyway. Milestone 4c was then presented
+for merge with its DESIGN reviewed (a four-lens pass before any code
+existed) but its CODE reviewed by nobody, and the author recommended
+merging on green CI plus a live field run.
+
+Ryad refused, and asked the question that became this entry: *why should
+we merge before fixing the missing points — the missing review?*
+
+The review he insisted on found, in the 4c diff, **a regression the
+milestone itself had introduced**: a final that overtakes its own
+`speechStarted` (the reorder window the coordinator documents) was
+recorded into the LIVE turn's thought AND stashed as a future trigger,
+so once that turn completed and emptied the ledger, the stashed final
+was answered a SECOND time — the speaker hears one sentence answered
+twice. It was reproduced by executed probe, with a control run on `main`
+proving each sentence was answered exactly once there.
+
+It also found **six tests that were green while the thing they named was
+broken** — including one the author had personally weakened hours
+earlier while amending tests under D-040 F-5: the amendment replaced the
+only assertion sensitive to the input door, leaving a test that passed
+with that door broken.
+
+**Ruled:** a milestone is not ready to merge until its CODE has been
+adversarially reviewed, not merely its design, and not merely its
+acceptance criteria made green. Green CI proves the tests pass; it says
+nothing about whether the tests can fail. Where a review confirms a
+finding about a test, the fix is verified by MUTATION — break the
+behaviour, watch the test fail — because a test that cannot fail is not
+a test.
+
+*Rejected:* merge-on-green-CI-plus-field-run (the position the author
+argued; CI was green and the field run was successful while the
+double-answer regression sat in the diff). *Rejected:* treating a
+completed design review as a substitute for a code review — the design
+pass for 4c was thorough, caught real errors, and still could not see a
+bug that only exists in the wiring.
+
+**The boundary, also ruled here:** this rule is about THIS milestone's
+code. Open problems recorded elsewhere with their evidence — SPEC §46a
+findings (1) and (2) — do NOT block a merge; they are the next
+milestone's spec. Blocking on them would mean no milestone ever merges
+and every branch grows into the big-bang PR the working method forbids.
+A milestone is done when it meets ITS spec, its code has been reviewed,
+and what remains open is written down honestly.
