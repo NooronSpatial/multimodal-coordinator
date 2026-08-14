@@ -1118,3 +1118,57 @@ transcript event can interleave inside `handleTranscript` — a barge
 waits its turn in the stream. Only `stop()` can enter during an await,
 which is exactly what the existing post-await guards check. The
 ledger's guards are specified against that real surface (AC-90).
+
+---
+
+## D-041 — Review before merge, always (Ryad's rule, proven the day it was made)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+Milestone 4b shipped with an INCOMPLETE adversarial review: only two of
+four planned lenses ever ran before the API overloaded. That was
+disclosed in its PR and merged anyway. Milestone 4c was then presented
+for merge with its DESIGN reviewed (a four-lens pass before any code
+existed) but its CODE reviewed by nobody, and the author recommended
+merging on green CI plus a live field run.
+
+Ryad refused, and asked the question that became this entry: *why should
+we merge before fixing the missing points — the missing review?*
+
+The review he insisted on found, in the 4c diff, **a regression the
+milestone itself had introduced**: a final that overtakes its own
+`speechStarted` (the reorder window the coordinator documents) was
+recorded into the LIVE turn's thought AND stashed as a future trigger,
+so once that turn completed and emptied the ledger, the stashed final
+was answered a SECOND time — the speaker hears one sentence answered
+twice. It was reproduced by executed probe, with a control run on `main`
+proving each sentence was answered exactly once there.
+
+It also found **six tests that were green while the thing they named was
+broken** — including one the author had personally weakened hours
+earlier while amending tests under D-040 F-5: the amendment replaced the
+only assertion sensitive to the input door, leaving a test that passed
+with that door broken.
+
+**Ruled:** a milestone is not ready to merge until its CODE has been
+adversarially reviewed, not merely its design, and not merely its
+acceptance criteria made green. Green CI proves the tests pass; it says
+nothing about whether the tests can fail. Where a review confirms a
+finding about a test, the fix is verified by MUTATION — break the
+behaviour, watch the test fail — because a test that cannot fail is not
+a test.
+
+*Rejected:* merge-on-green-CI-plus-field-run (the position the author
+argued; CI was green and the field run was successful while the
+double-answer regression sat in the diff). *Rejected:* treating a
+completed design review as a substitute for a code review — the design
+pass for 4c was thorough, caught real errors, and still could not see a
+bug that only exists in the wiring.
+
+**The boundary, also ruled here:** this rule is about THIS milestone's
+code. Open problems recorded elsewhere with their evidence — SPEC §46a
+findings (1) and (2) — do NOT block a merge; they are the next
+milestone's spec. Blocking on them would mean no milestone ever merges
+and every branch grows into the big-bang PR the working method forbids.
+A milestone is done when it meets ITS spec, its code has been reviewed,
+and what remains open is written down honestly.
