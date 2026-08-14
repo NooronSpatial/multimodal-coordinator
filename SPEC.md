@@ -1138,6 +1138,46 @@ hand the generator the whole thought? Recorded now, with this run as
 the evidence, so 4c starts from a known problem instead of discovering
 it late.
 
+**(3) NO FIXED TIMER SEPARATES "STILL THINKING" FROM "DONE TALKING."**
+Field report, 2026-08-14, in the speaker's own words: *"when I talk for
+long, the system just interrupts me and says what I'm saying at the
+end"* — and the run contains the exchange, including his live complaint
+about it being echoed back at him. The arithmetic explains it without
+any component misbehaving. Measured from the same run: the hangover
+costs 300 ms, the batch decode ~700 ms, the gate 800 ms, so the
+assistant answers only when a pause exceeds ~1.8 s of real silence:
+
+- pause < ~1.0 s — the next onset beats the final to the coordinator,
+  the final is stale at the input door (D-024), nothing is said;
+- ~1.0–1.8 s — the gate is armed and the onset kills the pending reply
+  (AC-81), nothing is said;
+- pause > ~1.8 s — the gate expires and it SPEAKS. If the speaker was
+  merely composing his next sentence, that is an interruption.
+
+His thinking-pauses and his finished-pauses are both around two
+seconds, so no single number can tell them apart: raising the gate
+buys fewer interruptions and pays for them in every legitimate reply
+(gate 2000 ms ⇒ ~2.7 s before any answer). This is the endpointing
+problem, and it is a POLICY question the pipeline cannot answer with a
+timer alone. Options, none ruled, all for their own milestone:
+(a) accumulate the turn's finals so an early reply at least answers
+everything said — this makes finding (2)'s fix the mitigation for
+finding (3), which is why they belong in one milestone;
+(b) semantic endpointing — let a judge decide whether the sentence is
+COMPLETE, which is natural once 4c has a language model in the loop;
+(c) prosodic endpointing (falling pitch, final lengthening) — the
+D-008 smarter-judge drawer;
+(d) leave it as the app's number and document the trade — honest, and
+the current state.
+
+Also observed, on the `--vad 0.008` experiment that finding (1)
+predicted: no metronome flap returned (four empty utterances in 85 s,
+not one every 0.84 s), which supports the canceller-gave-headroom
+claim — but the gate now admits genuine ambient at peaks 0.009–0.011,
+and the quiet-speech case was not re-run, so finding (1) stays OPEN.
+The bracket to try next is 0.012–0.015: above the ambient just
+measured, far below the 0.039 quiet speech that was being lost.
+
 ## 47. Definition of done (4b)
 
 All ACs green · 20× stable · the Mac audibly converses and survives
