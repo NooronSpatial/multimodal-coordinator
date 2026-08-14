@@ -71,10 +71,29 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
             s.queued += completed.count
             return completed
         }
-        for phrase in phrases { speak(phrase) }        // outside the lock
+        // THE REENTRANCY LAW, one level down. The coordinator calls this
+        // with `await`, so the actor may service a BARGE while we are
+        // suspended here — and a barge cancels this run. Handing the OS a
+        // phrase after that would put the dead turn's voice in the room:
+        // the ticket doctrine's forbidden artifact, in its audible form.
+        // So the flag is re-read before every phrase, and once more after
+        // (the window between check and hand-off is closed by stopping
+        // what we just queued — cancel() sets the flag BEFORE it stops,
+        // so whichever order the two land in, silence wins).
+        for phrase in phrases {
+            let live = state.withLock { !$0.cancelled }
+            guard live else { return }
+            speak(phrase)
+            if state.withLock({ $0.cancelled }) {
+                synthesizer.stopSpeaking(at: .immediate)
+                return
+            }
+        }
     }
 
     func finishTokens() async {
+        // Same law, same reason: this is awaited too, so a barge may have
+        // landed while we waited to run.
         enum Outcome { case speak(String), finishNow, wait }
         let outcome = state.withLock { s -> Outcome in
             guard !s.cancelled, !s.tokensFinished else { return .wait }

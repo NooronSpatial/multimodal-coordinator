@@ -58,6 +58,25 @@ enum SynthesizerConformanceKit {
         #expect(updates == [.finished], "nothing to say: finished, and no started ever")
     }
 
+    /// Promise 5 — NOTHING AFTER THE CANCEL: once a reply is abandoned, a
+    /// late `feed`/`finishTokens` (the coordinator's `await` gave a barge
+    /// time to land mid-call) must produce no evidence and no speech. The
+    /// stream stays finished; the mouth stays shut.
+    static func verifyNothingSurvivesTheCancel(
+        _ synthesizer: any SpeechSynthesizing
+    ) async throws {
+        let run = try await synthesizer.openUtterance()
+        await run.feed("Before the interruption. ")
+        await run.cancel()
+        // The late arrivals a suspended caller can still deliver:
+        await run.feed("This must never be spoken. ")
+        await run.finishTokens()
+
+        let updates = await drain(run)
+        #expect(updates.isEmpty || !updates.contains(.finished),
+                "a cancelled reply must not report completion, however late the feed")
+    }
+
     /// Promise 4 — THE LIVENESS PROMISE: a reply always terminates. Every
     /// piece the mouth accepts must eventually be accounted for, so the
     /// coordinator can never be stranded mid-turn waiting for a `finished`
@@ -115,5 +134,11 @@ struct AppleSynthesizerConformanceTests {
     func unspeakableStillTerminates() async throws {
         try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(
             AppleSpeechSynthesizer())
+    }
+
+    @Test("nothing survives the cancel — late feeds are silent (live audio; MMK_LIVE_SYNTH=1)")
+    func nothingSurvivesTheCancel() async throws {
+        guard Self.liveAudioAllowed else { return }
+        try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(AppleSpeechSynthesizer())
     }
 }
