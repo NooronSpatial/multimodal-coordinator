@@ -60,7 +60,13 @@ public struct SpeechPhraser: Sendable {
                 buffer = String(buffer[limit...])
             }
         }
-        return phrases
+        // THE LIVENESS INVARIANT: never emit a phrase with nothing to say.
+        // Downstream every phrase becomes one utterance the mouth must
+        // account for before the turn completes, and a platform is free to
+        // stay silent about an unspeakable one — which would strand the
+        // turn forever. Only the max-length cut can produce such a piece
+        // (a long whitespace run); dropping it costs nothing but spaces.
+        return phrases.filter { $0.contains(where: { !$0.isWhitespace }) }
     }
 
     /// No more tokens are coming: the remainder, if any words are in it.

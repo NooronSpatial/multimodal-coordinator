@@ -107,6 +107,26 @@ import Testing
         #expect(phrases == ["aaaaaaaaaa", "bbbbbbbbbb"])
     }
 
+    @Test func noEmittedPhraseIsUnspeakable() {
+        // THE LIVENESS INVARIANT. Downstream, every emitted phrase becomes
+        // one utterance the mouth must account for before the turn can
+        // complete. A phrase with nothing speakable in it is a piece the
+        // platform may decline to report on — and an unreported piece
+        // strands the turn forever. So the phraser never emits one.
+        // (A long whitespace run forces the max-length cut, which is the
+        // only path that can produce one.)
+        let phrases = speak(
+            [String(repeating: " ", count: 200), "   ...   ", " done."],
+            config: .init(maxPhraseCharacters: 10))
+        for phrase in phrases {
+            #expect(phrase.contains(where: { !$0.isWhitespace }),
+                    "emitted a phrase with nothing to say: \(phrase.debugDescription)")
+        }
+        // …and the speakable content still survives, in order.
+        #expect(phrases.joined().contains("..."))
+        #expect(phrases.joined().contains("done."))
+    }
+
     @Test func punctuationInsideANumberDoesNotCut() {
         // "3.14" — the mark must be followed by whitespace (or the end,
         // at flush) to count as a boundary.

@@ -57,6 +57,26 @@ enum SynthesizerConformanceKit {
         let updates = await drain(run)
         #expect(updates == [.finished], "nothing to say: finished, and no started ever")
     }
+
+    /// Promise 4 — THE LIVENESS PROMISE: a reply always terminates. Every
+    /// piece the mouth accepts must eventually be accounted for, so the
+    /// coordinator can never be stranded mid-turn waiting for a `finished`
+    /// that will not come. The adversarial input is a long unbroken run of
+    /// whitespace: it is big enough to force the phraser's max-length cut,
+    /// so a naive mouth queues a piece with NOTHING SPEAKABLE in it — and
+    /// if the platform declines to report on an unspeakable utterance, the
+    /// count never balances and the turn hangs forever.
+    static func verifyUnspeakableContentStillTerminates(
+        _ synthesizer: any SpeechSynthesizing
+    ) async throws {
+        let run = try await synthesizer.openUtterance()
+        await run.feed(String(repeating: " ", count: 200))
+        await run.feed("   ...   ")
+        await run.finishTokens()
+
+        let updates = await drain(run)      // hangs here if the count leaks
+        #expect(updates.last == .finished, "an unspeakable reply must still end")
+    }
 }
 
 /// The kit, applied to APPLE's mouth. Promise 3 is deterministic and runs
@@ -89,5 +109,11 @@ struct AppleSynthesizerConformanceTests {
     func cancelWithoutTerminal() async throws {
         guard Self.liveAudioAllowed else { return }
         try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(AppleSpeechSynthesizer())
+    }
+
+    @Test("an unspeakable reply still terminates — the liveness promise (runs everywhere)")
+    func unspeakableStillTerminates() async throws {
+        try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(
+            AppleSpeechSynthesizer())
     }
 }
