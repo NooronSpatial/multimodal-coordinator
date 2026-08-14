@@ -99,11 +99,19 @@ import Testing
 
     @Test func theBoundCountsPiecesNotRecords() {
         // A repeat is not new speech, so it must not push anything out.
+        //
+        // DE-VACUIZED (review finding): this once repeated the OLDEST
+        // identity — the single case where an UNDEDUPED insert evicts
+        // itself and leaves every observable value unchanged, so the test
+        // was green with dedup deleted. Repeating the NEWEST identity is
+        // the case that can only survive real dedup: without it the
+        // duplicate lands at the end and pushes "one" out.
         var ledger = TranscriptLedger(maxPieces: 2)
         ledger.record("one", utterance: 1)
         ledger.record("two", utterance: 2)
-        ledger.record("one", utterance: 1)
-        #expect(ledger.text == "one two")
+        ledger.record("two", utterance: 2)
+        #expect(ledger.count == 2)
+        #expect(ledger.text == "one two", "a repeat must evict nothing")
     }
 
     @Test func aLateOldPieceCannotEvictANewerOneItPredates() {

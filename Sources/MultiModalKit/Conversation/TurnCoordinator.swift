@@ -345,7 +345,18 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // TRIGGER a reply, not what the speaker said. A refused final
             // is still speech; the ledger itself refuses only silence,
             // and identity makes a replayed final idempotent.
-            ledger.record(text, utterance: utterance)
+            //
+            // …but only for an utterance whose ONSET WE HAVE SEEN. A final
+            // can overtake its own `speechStarted` (separate forwarders),
+            // and such a final is not part of the thought in progress — it
+            // is a FUTURE utterance waiting below for its own turn. The
+            // adversarial review proved what happens without this test:
+            // the words joined the live prompt, the turn completed and
+            // emptied the ledger, and the stashed final was then replayed
+            // into a fresh one — answering the same sentence twice.
+            if utterance <= lastOnset {
+                ledger.record(text, utterance: utterance)
+            }
 
             // THE INPUT DOOR: only the live turn, only while listening, and
             // only the CURRENT utterance's final. A stale settled final
