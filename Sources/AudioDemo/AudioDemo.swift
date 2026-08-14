@@ -64,13 +64,14 @@ struct AudioDemo {
             vadThreshold = value
         }
         // `--hangover <ms>`: how long a dip is forgiven before the utterance
-        // is declared over. The field A/B on --vad proved the THRESHOLD was
-        // the wrong knob for quiet speech (SPEC §46a): one quiet sentence
-        // still shattered into four pieces at 0.012, two of them at the very
-        // level that decoded fine moments earlier. Quiet speech dips longer
-        // and deeper, so the fragment boundary is set HERE. 300 ms is tuned
-        // for brisk turn-taking; a thinking speaker may need double.
-        var hangoverMs = 300.0
+        // is declared over — the fragment boundary, proven in the field
+        // (SPEC §46a). 700 ms is this demo's ruled number (D-039), bracketed
+        // from both sides on one voice: at 300 ms a quiet sentence shattered
+        // into four pieces, at 500 ms it split in two, at 700 ms it arrived
+        // whole. The LIBRARY default stays 300 ms — each product earns its
+        // own number (D-028/D-036). Cost, stated where it is paid: every
+        // final waits 400 ms longer than the library default would.
+        var hangoverMs = 700.0
         if let flagIndex = arguments.firstIndex(of: "--hangover"),
            let value = arguments.indices.contains(flagIndex + 1)
                ? Double(arguments[flagIndex + 1]) : nil {

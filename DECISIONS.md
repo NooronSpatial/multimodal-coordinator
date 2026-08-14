@@ -941,3 +941,68 @@ the bug).
 transcription accuracy. Three clean utterances in the after run are an
 anecdote, not a WER study — the BAKEOFF.md instrument exists if that
 question ever needs a real answer.
+
+---
+
+## D-039 — The hangover is the fragment boundary: 700 ms for the demo (fork F-7 = A)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+A field report — quiet speech heard by the gate and lost by the
+pipeline, the speaker talking and nothing happening — was chased through
+four runs, and the chase is the point of this entry as much as the
+number.
+
+**Two of my hypotheses died on the way, both mine, both by measurement.**
+First: ambient noise was opening those empty utterances. Killed when the
+speaker said he had been talking — same evidence, opposite meaning, the
+D-036 confound lesson repeating. Second: the GATE was too high, because
+the canceller had lowered the ambient floor (0.024 → 0.006) that 0.02
+was chosen against. Tested at 0.008 and again at 0.012; the quiet
+sentence still shattered, and two of its pieces sat at peak 0.040–0.042
+— the very level that had decoded fine seconds earlier. A threshold
+cannot explain a fragment that is loud enough. That is what pointed at
+the dip budget instead.
+
+**The mechanism, then.** The gate decides whether a chunk is LOUD; the
+hangover decides how long a dip is FORGIVEN before the utterance is
+declared over. Quiet speech is mostly forgiven silence — unvoiced
+consonants, trailing vowels, thinking gaps — and those dips outlast a
+300 ms budget while staying well under 700 ms. So the sentence is cut
+mid-thought, the engine receives syllables, and the failure is SILENT:
+no error, no event, nothing said.
+
+**Bracketed from both sides, one voice, one room** (INSTRUMENTS.md):
+300 ms shattered a quiet sentence into four pieces · 500 ms split it in
+two (and split "Hello my friend, how is the weather today?" — a phrase
+spoken in both runs, so a natural controlled comparison — where 700 ms
+held it as one) · 700 ms delivered it whole, 2300 ms, zero empty
+decodes. Ruled: the Mac demo runs at 700 ms; `--hangover <ms>` keeps
+every other number one flag away.
+
+**The library default stays 300 ms.** Third application of the same law
+(D-028's nil policy, D-036's zero window): a default that shifts
+silently under existing callers is a bug, and these dips belong to one
+speaker in one room on one microphone.
+
+**The cost, stated where it is paid:** the hangover sits in front of
+EVERY final, so every reply waits 400 ms longer. Accepted on a
+user-experience argument, not a technical one — being silently ignored
+makes a user repeat themselves and lose trust, while waiting 400 ms
+annoys them; and 400 ms is not where this pipeline's latency lives
+anyway (the 800 ms reply gate is the larger, purely-policy number, and
+is where speed should be shopped). Barge-in is untouched: it fires on
+an utterance's ONSET, never its end.
+
+*Rejected:* 500 ms (splits sentences — a split is a premature final, and
+every premature final is another chance to answer half a thought) · 600
+ms (saves 100 ms with no evidence behind it; a speaker's pauses vary by
+the day and the margin is worth more) · keeping 300 ms as the next
+milestone's problem (the demo would keep ignoring quiet speech).
+
+**Not settled, deliberately:** the true minimum lies between 500 and 700
+and was left unchased. And the deeper finding stands recorded in SPEC
+§46a — this number should not be a constant at all. The same speaker
+ranged from peak 0.059 to 0.263 within one run, so any fixed dip budget
+is wrong for one of his own modes. Adaptation belongs to a milestone
+with its own spec.
