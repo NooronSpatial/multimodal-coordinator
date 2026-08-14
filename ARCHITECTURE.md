@@ -50,13 +50,17 @@ the top and leaves as text at the bottom.
                 TranscriptEvents:  partial / final / failed / truncated
                      │                 ──► the app's screen
                      ▼
-                TurnCoordinator (526)      THE NAMESAKE. The conversation
+                TurnCoordinator (566)      THE NAMESAKE. The conversation
                      │                     above the text: turn ticket,
                      │                     barge-in across the whole chain,
                      │                     the funnel + legal-pair table,
-                     │                     and the reply gate — the floor
-                     │                     must stay yielded before it
-                     │                     answers (4b, app's number).
+                     │                     the reply gate — the floor must
+                     │                     stay yielded before it answers
+                     │                     (4b, app's number) — and the
+                     │                     TranscriptLedger (98), which
+                     │                     keeps the WHOLE thought so a
+                     │                     pause mid-sentence no longer
+                     │                     costs the first half (4c).
                      ▼  via the turn seams (TurnCoordination, 91)
                   ├─ ReplyGenerating       final text in, reply tokens out
                   └─ SpeechSynthesizing    tokens in, spoken EVIDENCE out
@@ -121,6 +125,7 @@ apps must own (AC-22); everything else is the library, unchanged.
 | The heat ruling — who may keep settling | `Diagnostics/ThermalPolicy.swift`; its one consultation lives in the session's `speechStarted` branch |
 | The turn loop, barge-in, the turn ticket | `Conversation/TurnCoordinator.swift` |
 | The reply gate — "did the user yield the floor?" | `Conversation/TurnCoordinator.swift` — `Config.replyGate`, `handleGateExpired` |
+| The whole thought — what the speaker said, kept | `Conversation/TranscriptLedger.swift`; recorded before the input door, emptied only at `turnCompleted` |
 | The reply + synthesis seams | `Conversation/TurnCoordination.swift` |
 | Tokens → speakable phrases (subwords joined) | `Conversation/SpeechPhraser.swift` |
 | The real mouth; delegate evidence → seam updates | `Conversation/AppleSpeechSynthesizer.swift` |
