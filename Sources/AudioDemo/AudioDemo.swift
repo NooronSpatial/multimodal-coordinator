@@ -50,6 +50,19 @@ struct AudioDemo {
                ? Double(arguments[flagIndex + 1]) : nil {
             gateMs = value
         }
+        // `--vad <level>`: the loudness gate itself. Born from the field
+        // finding in SPEC §46a — quiet speech at 2-4x this number gets
+        // FRAGMENTED into syllables that decode to nothing — and from the
+        // fact that echo cancellation moved the ambient floor this number
+        // was chosen against (peak 0.024 -> 0.006). The prediction to test:
+        // with the canceller on, a lower gate holds quiet speech together
+        // without reviving 1d's flap.
+        var vadThreshold: Float = 0.02
+        if let flagIndex = arguments.firstIndex(of: "--vad"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Float(arguments[flagIndex + 1]) : nil {
+            vadThreshold = value
+        }
         let choice = arguments.first { !$0.hasPrefix("--") && Double($0) == nil } ?? "apple"
         let engine: any TranscriptionEngine
         let engineName: String
@@ -133,7 +146,7 @@ struct AudioDemo {
             // for zero quiet-room benefit. The gate is this machine's
             // earned defense; `--onset <ms>` re-arms the window for
             // experiments (wire pre-roll ≥ the window per the F-4 law).
-            vad: EnergyVAD(config: .init(threshold: 0.02,
+            vad: EnergyVAD(config: .init(threshold: vadThreshold,
                                          hangoverFrames: Int(sampleRate * 0.3),
                                          onsetFrames: Int(sampleRate * onsetMs / 1000))),
             clock: ContinuousClock(),
@@ -149,7 +162,8 @@ struct AudioDemo {
             : nil
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
-        print("    \(Int(sampleRate)) Hz · 20 ms chunks · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
+        print("    \(Int(sampleRate)) Hz · 20 ms chunks · gate \(vadThreshold)"
+            + " · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
         print("    voice processing: "
             + (wantsAEC

@@ -269,12 +269,20 @@ steady. That is the cure holding under real use, not a single lucky
 exchange.
 
 The same run also produced the honest bad news, recorded in SPEC §46a:
-during a silent stretch, four ambient bursts (420–580 ms, peaks
-0.039–0.084) opened utterances and decoded empty. Their levels overlap
-the speaker's own quiet sentences (0.087), so no threshold separates
-them; what separates them is duration, which is precisely what a barge
-cannot wait to learn. Cost today: a wasted decode each. Risk: any of
-them would have killed a reply that happened to be sounding.
+four utterances (420–580 ms, peaks 0.039–0.084) decoded EMPTY — and the
+speaker had been talking. Quiet speech, fragmented by the gate: subtract
+the 300 ms hangover tail and a 420 ms utterance holds ~120 ms of voice,
+so at 2–4× the gate his voice dipped under it between syllables and the
+utterance closed mid-word. The engine got syllables and returned
+nothing. (First written up here as ambient noise, on the first
+description of the room; corrected when he said he had spoken. The
+numbers never moved — their meaning did.)
+
+Note what the canceller did to the number that gate was chosen for:
+ambient peaks went from 0.024 to 0.006, so 0.02 is now far more
+conservative than when it was picked to beat a flapping 0.01 (D-035/36).
+The prediction to test next, with `--vad <level>`: a lower gate should
+hold quiet speech in one utterance without reviving the flap.
 
 **Not measured, and said so:** whether voice processing changes
 transcription accuracy. The after run's three clean utterances are an

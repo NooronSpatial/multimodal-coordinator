@@ -1089,24 +1089,42 @@ Two problems the 90-second field conversation of 2026-08-14 exposed.
 Both are named here with their evidence and deliberately left unruled —
 neither belongs to 4b, and neither should be hotfixed by tuning a number.
 
-**(1) A barge must be instant, but "was that even speech?" is known
-late.** With the canceller on, four ambient bursts opened utterances
-while the speaker was silent (420–580 ms, peaks 0.039–0.084) and all
-four decoded empty. They cost a wasted decode each — and, worse, each
-was a live barge trigger (D-031): had a reply been sounding, any one of
-them would have killed it. The levels forbid the easy fix: the bursts
-(≤0.084) overlap the speaker's own quiet sentences (0.087 for "Okay, I
-know"), so no threshold separates them, and 1d's onset window does not
-help either — a 580 ms burst passes a 60 ms persistence test easily.
-What *would* separate them is DURATION (bursts 420–580 ms against real
-utterances of 1000–3220 ms), which is exactly the fact a barge cannot
-wait for. The honest options for a later milestone, none ruled:
-a smarter judge (the D-008 drawer: spectral or model-based VAD);
-a two-speed barge (duck the reply at onset, kill it only once the
-utterance proves itself); or a transcript-gated barge (accept the
-interruption only when text arrives non-empty — cheap, but it delays
-the interruption by a whole decode). SpeakerKit-style diarization is
-the neighbouring question and stays in the same drawer.
+**(1) QUIET SPEECH IS HEARD BY THE GATE AND LOST BY THE PIPELINE.**
+Four utterances in the field run (420–580 ms, peaks 0.039–0.084) opened,
+decoded EMPTY, and produced no reply — the speaker said something and
+the assistant did nothing.
+
+*(Diagnosis corrected on the record: first reported as a silent stretch,
+so this entry first blamed ambient noise and argued that no threshold
+could separate noise from speech. The speaker then corrected it — he WAS
+talking. The evidence never changed; its meaning did. Same lesson as
+D-036's confound: the room's description is data, and data gets
+corrected.)*
+
+The arithmetic says what happened. Each utterance carries a 300 ms
+hangover tail, so a 420 ms utterance holds only ~120 ms of actual voice —
+a syllable. At peak 0.039–0.084 the voice is barely 2–4× the 0.02 gate
+(his normal speech runs 7–13×), so between syllables it dips UNDER the
+gate, the hangover expires mid-word, and the utterance is cut. The
+engine then receives fragments too short to decode and returns nothing.
+Fragmentation, not deafness — and the failure is silent, which is worse.
+
+The canceller changed the arithmetic that chose that gate. Before it,
+ambient peaked at 0.024 and 0.01 flapped like a metronome (D-035/D-036);
+with it, ambient peaks at 0.006. The gate now has room it did not have
+when 0.02 was picked. TESTABLE PREDICTION, to be run before anything is
+ruled: with voice processing on, a lower gate should keep quiet speech in
+ONE utterance and stop the empty decodes, without the flapping that
+killed 0.01 in 1d. `--vad <level>` exists for exactly that A/B.
+
+The barge side of the same coin stays open too: every one of those
+fragments was a live barge trigger (D-031), so a reply that happened to
+be sounding would have been killed by a syllable. If a lower gate does
+not settle it, the named options are a smarter judge (the D-008 drawer),
+a two-speed barge (duck at onset, kill only once the utterance proves
+itself), or a transcript-gated barge (cheap, but delays the interruption
+by a whole decode). SpeakerKit-style diarization is the neighbouring
+question and stays in the same drawer.
 
 **(2) A pause inside one thought loses its first half.** The speaker
 said "Do you hear me well? Can you understand what I'm telling you?",
