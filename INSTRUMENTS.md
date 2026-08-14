@@ -281,8 +281,24 @@ numbers never moved — their meaning did.)
 Note what the canceller did to the number that gate was chosen for:
 ambient peaks went from 0.024 to 0.006, so 0.02 is now far more
 conservative than when it was picked to beat a flapping 0.01 (D-035/36).
-The prediction to test next, with `--vad <level>`: a lower gate should
-hold quiet speech in one utterance without reviving the flap.
+That suggested lowering the gate — and the field said no.
+
+**The knob hunt, in order, with what each run actually proved:**
+
+| run | gate | hangover | quiet sentence | empties |
+|---|---|---|---|---|
+| baseline | 0.02 | 300 ms | shattered (4 pieces, 0.039–0.084) | 4 |
+| lower gate | 0.008 | 300 ms | not re-tested | 4 @ 0.009–0.011 (ambient) |
+| bracket | 0.012 | 300 ms | **still shattered** (4 pieces) | 3 @ 0.014–0.023 |
+| **hangover** | **0.02** | **700 ms** | **WHOLE — 2300 ms, one utterance** | **0** |
+
+The threshold hypothesis was mine, it was tested twice, and it failed
+twice — the pieces at 0.040 and 0.042 sat at the same level as a
+fragment that decoded fine, which is what finally pointed at the dip
+budget instead. The gate says whether a chunk is loud; the hangover says
+how long a silence is forgiven, and quiet speech is mostly forgiven
+silence. Cost of the fix, stated where the number lives: every final
+waits 400 ms longer, on every turn.
 
 **Not measured, and said so:** whether voice processing changes
 transcription accuracy. The after run's three clean utterances are an

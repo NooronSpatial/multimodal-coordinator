@@ -1141,10 +1141,31 @@ who is quiet or composing.
 This links finding (1) to finding (3) through ONE knob: a longer
 hangover both keeps a quiet sentence whole AND stops the pipeline
 manufacturing premature finals for the reply gate to act on — fewer
-fragments, fewer wrong interruptions. `--hangover <ms>` now exists; the
-next A/B is 600–800 ms against the same quiet sentence, and the cost to
-watch is a slower reply on every legitimate turn (the hangover sits in
-front of every final).
+fragments, fewer wrong interruptions.
+
+**A/B RUN, AND THE HANGOVER HYPOTHESIS IS CONFIRMED** (2026-08-14, the
+same quiet sentence spoken twice, one variable changed):
+
+```
+300 ms hangover, gate 0.012        700 ms hangover, gate 0.02
+🔎 940 ms · 0.040 "Do you think?"   🔎 2300 ms · 0.059
+🔎 380 ms · 0.017 (empty)              "Do you think, should I put
+🔎 820 ms · 0.042 (empty)               my check on?"
+🔎 380 ms · 0.017 (empty)
+   one sentence, four pieces          one sentence, one utterance
+```
+
+At peak 0.059 the voice sits comfortably ABOVE the 0.02 gate, which
+settles it: the threshold never cut that sentence — the 300 ms dip
+budget did. Zero empty decodes in the whole run, and the reply
+completed without a barge.
+
+Not yet bracketed: the minimum that works (500 ms untested; 700 proven,
+300 disproven). Not yet tested: whether the longer hangover also reduces
+the finding-(3) interruptions — that run was two utterances long. The
+cost is real and must be stated wherever the number is adopted: the
+hangover sits in front of EVERY final, so every reply waits 400 ms
+longer than it did at 300 ms.
 
 The barge side of the same coin stays open too: every one of those
 fragments was a live barge trigger (D-031), so a reply that happened to
