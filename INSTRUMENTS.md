@@ -216,10 +216,46 @@ before it ran, and the correction stays visible there): that the unit
 would only cancel audio rendered through *our* engine, and that its AGC
 would lift room noise toward the gate. Neither happened on this machine.
 
-**Not proven here, and it needs a human**: that the reply stays
-comfortably audible to ears in the room while voice processing is on, and
-that a live human voice still opens an utterance (barge-in must survive
-the cure). Until that field run, adoption stays a spike behind `--aec`.
+**The after run — a human in the room** (`--talk --aec --gate 800`,
+2026-08-14). What the machine-only tests could not answer, answered:
+
+```
+    voice processing: ACTIVE
+🔎 [0] 1620 ms · peak rms 0.106 · 91 chunks      ← a real voice, heard clearly
+💬 [0] How is the weather today?   (3.28 s)
+⏱  [0] felt pause: 1549 ms
+🤖 [0] You said: How is the weather today?       ← COMPLETED. No ✋.
+🔎 [1] 1480 ms · peak rms 0.235
+💬 [1] How is the weather today?   (18.48 s)
+🔎 [2] 1320 ms · peak rms 0.235
+💬 [2] Should I put the jacket?    (20.68 s)     ← he kept talking
+⏱  [1] felt pause: 1495 ms
+🤖 [1] You said: Should I put the jacket?        ← answered the FINISHED thought
+```
+
+Three readings:
+1. **The echo loop is cured.** Two replies spoken aloud with the
+   microphone live, and not one self-barge. Before the canceller, every
+   reply died inside a second (`✋ … barge → dead in 1 ms`).
+2. **The cure does not deafen it.** The human voice still lands at peak
+   0.106–0.235 — an order of magnitude above what the canceller leaves
+   of the machine's own speech (0.008). Speech and echo end up on
+   opposite sides of the gate, which is the whole trick.
+3. **The reply gate earned its keep.** Utterance [1] never got its own
+   answer: the speaker carried on into [2] inside the 800 ms, so the
+   assistant waited and answered the completed thought. Honest limit:
+   in the field this outcome is indistinguishable from the D-024 stale-
+   final door doing the same job — only the deterministic tests separate
+   the two mechanisms.
+
+Felt pause = 1549 and 1495 ms against an 800 ms gate, so ~700 ms is
+pipeline (decode + first token + mouth) and the rest is the number the
+app chose. The gate is the tunable part of the wait, and it is the app's
+to tune (D-027).
+
+**Still not proven, and still needs a human:** barge-in *during* the
+assistant's own speech — the acid test for a canceller, since the voice
+it must ignore and the voice it must hear arrive at the same moment.
 
 ## Not measured (and said so)
 
