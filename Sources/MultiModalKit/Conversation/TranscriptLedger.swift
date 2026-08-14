@@ -37,27 +37,62 @@ public struct TranscriptLedger: Sendable, Equatable {
     /// utterance ceiling (D-021) already bounds each one.
     public let maxPieces: Int
 
+    /// Kept sorted by utterance identity — the thought in spoken order.
+    /// An array, not a dictionary: it holds at most `maxPieces` entries,
+    /// so a linear insert is cheaper than hashing, and "sorted" is then
+    /// a fact of the storage rather than a step at every read.
+    private var pieces: [(utterance: Int, text: String)] = []
+
     public init(maxPieces: Int = 16) {
+        precondition(maxPieces > 0, "a ledger that can hold nothing is not a bound, it is a bug")
         self.maxPieces = maxPieces
     }
 
     /// Records what one utterance said. Whitespace-only text is not
     /// speech and is never recorded; a repeated identity records once.
     public mutating func record(_ text: String, utterance: Int) {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }          // silence is not speech
+
+        // Identity is unique per utterance (D-034), so a match is a
+        // REPEAT of the same speech — never a second sentence. First
+        // text wins, and the piece keeps its place in the thought.
+        guard !pieces.contains(where: { $0.utterance == utterance }) else { return }
+
+        // Insert in identity order: arrival order may be scrambled by
+        // D-024's settling path, spoken order never is.
+        let slot = pieces.firstIndex { $0.utterance > utterance } ?? pieces.count
+        pieces.insert((utterance, trimmed), at: slot)
+
+        // Past the bound, the OLDEST SPEECH goes — which is index 0
+        // precisely because the array is kept in spoken order. A late
+        // old piece therefore evicts itself, never a newer one.
+        if pieces.count > maxPieces { pieces.removeFirst(pieces.count - maxPieces) }
     }
 
     /// The whole thought, in spoken order — what the generator receives
     /// (F-1 = A: the seam stays a String).
-    public var text: String { "" }
+    public var text: String {
+        pieces.map(\.text).joined(separator: " ")
+    }
 
     /// True when nothing worth saying has been recorded.
-    public var isEmpty: Bool { true }
+    public var isEmpty: Bool { pieces.isEmpty }
 
     /// How many pieces are held — the bound's observable side.
-    public var count: Int { 0 }
+    public var count: Int { pieces.count }
 
     /// Forgets everything. Called when the thought was ANSWERED
     /// (D-040 F-2: on `turnCompleted`, and only there).
     public mutating func clear() {
+        pieces.removeAll(keepingCapacity: true)
+    }
+
+    /// Value equality over the pieces — tuples are not `Equatable`, so
+    /// the synthesised conformance cannot see them.
+    public static func == (lhs: TranscriptLedger, rhs: TranscriptLedger) -> Bool {
+        lhs.maxPieces == rhs.maxPieces
+            && lhs.pieces.count == rhs.pieces.count
+            && zip(lhs.pieces, rhs.pieces).allSatisfy { $0 == $1 }
     }
 }
