@@ -1237,3 +1237,163 @@ All ACs green · 20× stable · the Mac audibly converses and survives
 its own voice, recorded before/after · PR merged with the map updated
 · teach-back survived (may share a session with the owed 4a
 teach-back).
+
+# SPEC — Milestone 4c: the whole thought (the transcript ledger)
+
+*(Numbering note: what the 4b spec called "4c — real reply generation"
+becomes 4d. This milestone was not planned; it was specified BY THE
+FIELD — SPEC §46a findings (2) and (3) — and it is a prerequisite for
+putting a language model behind the reply seam, because a model that
+sees one fragment answers half a question.)*
+
+## 48. What 4c builds, and the evidence that demands it
+
+Today a turn answers its LAST accepted final and nothing else. Every
+other thing the speaker said in that turn is refused at the input door
+(D-024/D-034 identity) or killed by the reply gate (AC-81), and then
+dropped. Measured in the field, 2026-08-14:
+
+```
+"Do you hear me well? Can you understand what I'm telling you?"
+[pause]
+"should I take a jacket?"          →  the assistant answered ONLY the jacket
+```
+
+4c gives the turn a **transcript ledger**: the coordinator keeps what
+the speaker said and hands the generator the whole thought. The
+TRIGGER rules do not change — a refused final still never opens a turn,
+never re-arms a gate, never moves a ticket. It contributes CONTENT
+only.
+
+**The one hard problem: when may a dead turn's words live, and when
+must they die?** The ticket doctrine says a dead generation's events
+must be provably unable to cause observable effects, and a ledger is a
+deliberate channel from a refused input into a live prompt. The line
+this milestone draws, and must defend:
+
+> **User speech is EVIDENCE; a turn's reply tokens are COMPUTATION.**
+> The ticket exists to stop cancelled computation from surfacing.
+> Words the speaker really said do not stop being true when a ticket
+> expires. Evidence may cross a turn boundary; computation may not.
+
+That answers *may they live*. The other half — *when must they die* —
+is answered by evidence too, and is fork F-2 below.
+
+## 49. Acceptance criteria (4c)
+
+- **AC-85** The ledger, pure: an ordered store keyed by utterance
+  identity (D-034), with dedup by that identity, ordering by it, and a
+  bounded size with drop-oldest (the D-012 house idiom). Clockless, no
+  allocation surprises, exact deterministic tests — no coordinator, no
+  actor, no clock in its suite.
+- **AC-86** Membership, exactly: ONLY `TranscriptEvent.final` with
+  non-empty trimmed text is recorded — whether the input door accepted
+  it or refused it. `.partial` (a hypothesis), `.truncated` (a ceiling
+  notice, its final still comes), `.failed` (no words) and every
+  synthesis/reply event record NOTHING. A dead turn's reply tokens can
+  never enter the ledger; the ledger holds only what the user said.
+- **AC-87** The trigger rules are unchanged, and this is PROVEN, not
+  asserted: refused finals still open no turn, arm no gate, move no
+  ticket; the empty-final path still ends the turn (AC-64) and a
+  non-empty ledger does NOT rescue it into a reply — an empty decode is
+  the field's signature of a FRAGMENTED speaker (§46a finding 1), never
+  of a finished one.
+- **AC-88** The whole thought reaches the generator: when a reply
+  opens, the generator receives every recorded piece of that thought in
+  spoken order, joined per the F-1 ruling. The field scenario above is
+  a test: two sentences with a pause, one reply, both sentences in it.
+- **AC-89** The ledger empties on EVIDENCE (F-2 ruling), never on
+  assumption: the words survive every path where the speaker did not
+  actually get an answer, and are gone once they did.
+- **AC-90** Reentrancy, stated precisely: the merge loop awaits each
+  handler inline, so no audio or transcript event can interleave INSIDE
+  a handler — only `stop()` can enter during an await. The ledger's
+  post-await guards are specified against that REAL surface, not
+  against an imagined one, and `stop()` mid-accumulation is a test.
+- **AC-91** Hygiene + the slice: Swift 6 strict, zero warnings, zero
+  new dependencies, 20× stable, map updated; the terminal demo makes
+  the accumulated thought VISIBLE (one line per opened reply) so a
+  field run can confirm the fix with the naked eye.
+
+## 50. Test matrix (4c)
+
+| Area | Tests |
+|---|---|
+| Ledger, pure (no clock, no actor) | order by identity · dedup by identity · bound + drop-oldest · join is exact · whitespace/empty excluded · out-of-order insert (a settled final arriving after a newer one) |
+| The milestone's own bug | two sentences + pause → ONE reply containing BOTH (the field scenario, exactly) |
+| Gate interaction | a gate-killed final still contributes to the reply that eventually fires |
+| Door interaction | a stale settled final (D-024) contributes CONTENT and still opens nothing |
+| Empty final | AC-64 exact: no turn, no rescue-by-ledger, generator untouched |
+| Failure paths | generator/synthesis failure and transcription failure keep the words (F-2) |
+| Barge | per the F-3 ruling, with the exact event sequence unchanged |
+| Completion | after a reply is fully spoken, the words are gone (no double answer) |
+| stop() | mid-accumulation: clean end, nothing published, no leak |
+| Trigger invariance | the existing 4a/4b suite, with the one test that encodes the OLD behaviour amended visibly and by ruling |
+
+## 51. The design forks (4c) — for Ryad to rule
+
+- **F-1 WHAT THE GENERATOR RECEIVES.** A: keep `openReply(to: String)`
+  — the coordinator joins the pieces (separator documented) and no
+  conformer changes. B: widen the seam to a small `TurnTranscript`
+  value carrying pieces (text + utterance + `AudioTime`) plus a joined
+  `text`. B's honest argument is D-027: the join separator is PROMPT
+  FORMATTING, which is policy, and A hard-codes it in the library.
+  A's argument is the house rule against widening a seam on
+  speculation — no AC here reads the extra fields, and pre-1.0 we own
+  every conformer, so widening later costs three call sites.
+  **Recommendation: A**, with the separator named in the spec and the
+  D-027 objection recorded as the reason B may win later.
+- **F-2 WHEN THE WORDS DIE.** A: on `turnCompleted` ONLY — the reply
+  was fully spoken (the D-029/F-4 evidence rule again), so the thought
+  was answered; every other ending (empty final, failure, barge, stop)
+  keeps the words for the next attempt. B: on any turn end — simplest,
+  but the field's most common turn-ender is the empty decode, so this
+  throws the thought away exactly when it is most needed. C: a
+  high-water mark raised when a generator is opened — rejected by the
+  adversarial pass: opening a generator is not the user hearing an
+  answer (failures, zero-token replies and barges all leave the words
+  unanswered). **Recommendation: A.**
+- **F-3 WHAT A BARGE MEANS FOR THE LEDGER.** A: the interrupted
+  thought carries into the new turn — the speaker's field barges were
+  CONTINUATIONS ("Why you interrupt me and tell me what I'm saying?").
+  B: a barge empties the ledger — an interruption is an explicit "not
+  that", and carrying risks answering an abandoned thought.
+  **Recommendation: A**, because F-2 already deletes anything actually
+  answered, so what carries is by construction unanswered speech — and
+  the measured bug is the PAUSE case, which A serves and B does not.
+  Honest counter: a speaker who barges to CHANGE subject drags the old
+  subject into the new prompt.
+- **F-4 THE BOUND.** A: bounded, drop-oldest, with a default count —
+  the ledger's consumer is a PROMPT, and prompts have hard limits, so
+  an unbounded ledger is a latent failure with a batch engine and a
+  speaker who never completes a turn (a real 22-second field run
+  produced zero completions). B: no bound until evidence demands one —
+  D-039's own closing lesson is "do not invent a knob without
+  evidence", and the measured volumes are tiny (16 utterances in 90 s).
+  **Recommendation: A**, mechanism only: drop-oldest, no eviction
+  event (the adversarial pass correctly called that unearned), and the
+  number stated as the app's (D-027).
+- **F-5 THE FLAG.** A: no flag — accumulation is always on. B: a
+  default-off `Config` switch, mirroring D-028/D-036/D-039.
+  **Recommendation: A**, and the distinction matters: those three
+  precedents defaulted-off a POLICY (a thermal gate, an onset window, a
+  tuning number). This is a CORRECTNESS fix — a switch to "keep
+  answering half the question" is not a feature. Also, with the flag
+  off the existing suite would exercise none of the new code, so
+  "untouched suite" would prove nothing. The one existing test that
+  encodes the old behaviour is amended VISIBLY, by this ruling, in the
+  honest-history way.
+
+## 52. Out of scope for 4c (deliberately)
+
+Real reply generation (now 4d) · semantic or prosodic endpointing
+(§46a finding 3's real answer — this milestone only SOFTENS it by
+answering everything when it does answer) · cross-session memory ·
+adaptive VAD (the D-008 drawer) · multi-speaker rejection (SpeakerKit).
+
+## 53. Definition of done (4c)
+
+All ACs green · 20× stable · the field scenario reproduced live on the
+Mac and recorded (two sentences, one pause, one reply containing both)
+· PR merged with the map updated · the forks logged as D-entries ·
+teach-back survived.
