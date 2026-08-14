@@ -1111,11 +1111,40 @@ Fragmentation, not deafness — and the failure is silent, which is worse.
 
 The canceller changed the arithmetic that chose that gate. Before it,
 ambient peaked at 0.024 and 0.01 flapped like a metronome (D-035/D-036);
-with it, ambient peaks at 0.006. The gate now has room it did not have
-when 0.02 was picked. TESTABLE PREDICTION, to be run before anything is
-ruled: with voice processing on, a lower gate should keep quiet speech in
-ONE utterance and stop the empty decodes, without the flapping that
-killed 0.01 in 1d. `--vad <level>` exists for exactly that A/B.
+with it, ambient peaks at 0.006. So the prediction was: a lower gate
+should hold quiet speech in ONE utterance. `--vad <level>` was added to
+test it.
+
+**THE PREDICTION WAS TESTED AND IT FAILED — the threshold was the wrong
+knob.** Field A/B at gate 0.012 (2026-08-14), one quiet sentence:
+
+```
+🔎 [1]  940 ms · peak 0.040  → "Do you think?"   decoded
+🔎 [2]  380 ms · peak 0.017  → (empty)
+🔎 [3]  820 ms · peak 0.042  → (empty)   ← the SAME level as [1]
+🔎 [4]  380 ms · peak 0.017  → (empty)
+```
+
+One sentence, four pieces, and two of those pieces sat at the exact
+level that had decoded a moment earlier. Lowering the gate 0.02 → 0.012
+did not stop the shattering, so the fragment boundary is not the
+threshold.
+
+It is the HANGOVER. The gate decides whether a chunk is loud; the
+hangover decides how long a dip is forgiven before the utterance is
+declared over — and it is 300 ms. Quiet speech dips longer and deeper
+(unvoiced consonants, trailing vowels, thinking gaps fall under any sane
+gate), so a soft sentence crosses that 300 ms budget mid-thought and is
+cut. 300 ms is a number tuned for brisk turn-taking, not for a speaker
+who is quiet or composing.
+
+This links finding (1) to finding (3) through ONE knob: a longer
+hangover both keeps a quiet sentence whole AND stops the pipeline
+manufacturing premature finals for the reply gate to act on — fewer
+fragments, fewer wrong interruptions. `--hangover <ms>` now exists; the
+next A/B is 600–800 ms against the same quiet sentence, and the cost to
+watch is a slower reply on every legitimate turn (the hangover sits in
+front of every final).
 
 The barge side of the same coin stays open too: every one of those
 fragments was a live barge trigger (D-031), so a reply that happened to
@@ -1155,9 +1184,12 @@ assistant answers only when a pause exceeds ~1.8 s of real silence:
   merely composing his next sentence, that is an interruption.
 
 His thinking-pauses and his finished-pauses are both around two
-seconds, so no single number can tell them apart: raising the gate
-buys fewer interruptions and pays for them in every legitimate reply
-(gate 2000 ms ⇒ ~2.7 s before any answer). This is the endpointing
+seconds, so no single number can tell them apart. BOTH WALLS ARE NOW
+MEASURED: at gate 800 ms the assistant interrupts him mid-thought; at
+gate 2000 ms it never answered at all in a 22-second exchange (felt
+pauses, when it did answer in an earlier run: 2679–2768 ms — the cost
+lands on every legitimate reply). A timer has no setting that is both
+patient and prompt. This is the endpointing
 problem, and it is a POLICY question the pipeline cannot answer with a
 timer alone. Options, none ruled, all for their own milestone:
 (a) accumulate the turn's finals so an early reply at least answers

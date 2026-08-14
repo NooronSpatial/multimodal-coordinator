@@ -63,6 +63,19 @@ struct AudioDemo {
                ? Float(arguments[flagIndex + 1]) : nil {
             vadThreshold = value
         }
+        // `--hangover <ms>`: how long a dip is forgiven before the utterance
+        // is declared over. The field A/B on --vad proved the THRESHOLD was
+        // the wrong knob for quiet speech (SPEC §46a): one quiet sentence
+        // still shattered into four pieces at 0.012, two of them at the very
+        // level that decoded fine moments earlier. Quiet speech dips longer
+        // and deeper, so the fragment boundary is set HERE. 300 ms is tuned
+        // for brisk turn-taking; a thinking speaker may need double.
+        var hangoverMs = 300.0
+        if let flagIndex = arguments.firstIndex(of: "--hangover"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Double(arguments[flagIndex + 1]) : nil {
+            hangoverMs = value
+        }
         let choice = arguments.first { !$0.hasPrefix("--") && Double($0) == nil } ?? "apple"
         let engine: any TranscriptionEngine
         let engineName: String
@@ -147,7 +160,7 @@ struct AudioDemo {
             // earned defense; `--onset <ms>` re-arms the window for
             // experiments (wire pre-roll ≥ the window per the F-4 law).
             vad: EnergyVAD(config: .init(threshold: vadThreshold,
-                                         hangoverFrames: Int(sampleRate * 0.3),
+                                         hangoverFrames: Int(sampleRate * hangoverMs / 1000),
                                          onsetFrames: Int(sampleRate * onsetMs / 1000))),
             clock: ContinuousClock(),
             config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
@@ -163,7 +176,7 @@ struct AudioDemo {
 
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
         print("    \(Int(sampleRate)) Hz · 20 ms chunks · gate \(vadThreshold)"
-            + " · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
+            + " · \(Int(onsetMs)) ms onset · \(Int(hangoverMs)) ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
         print("    voice processing: "
             + (wantsAEC
