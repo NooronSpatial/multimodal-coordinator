@@ -98,8 +98,12 @@ struct AudioDemo {
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
 
-        // `--aec`: the F-2 spike switch (voice-processing input unit).
-        let wantsAEC = arguments.contains("--aec")
+        // Echo cancellation is ON by default here (D-038): the spike its
+        // adoption was gated on passed, in the field, with a human in the
+        // room — replies complete instead of barging themselves, the reply
+        // stays comfortably loud, and a live voice still interrupts it.
+        // `--no-aec` keeps the old door open for A/B experiments.
+        let wantsAEC = !arguments.contains("--no-aec")
         let microphone = MicrophoneSource(voiceProcessing: wantsAEC)
         do {
             try microphone.start(into: producer)
@@ -147,9 +151,10 @@ struct AudioDemo {
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
         print("    \(Int(sampleRate)) Hz · 20 ms chunks · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
-        if wantsAEC {
-            print("    voice processing: \(microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")")
-        }
+        print("    voice processing: "
+            + (wantsAEC
+                ? (microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")
+                : "OFF (--no-aec) — the assistant will hear itself"))
         if talk && transcription != nil {
             print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
                 + " interrupt it mid-reply")

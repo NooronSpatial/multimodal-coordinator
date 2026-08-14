@@ -892,3 +892,52 @@ when the LAST utterance's didFinish arrives, never at `finishTokens`.
 D-029's principle carried through: state follows what is AUDIBLE.
 *Rejected:* finishing at finishTokens — idle while sound still plays,
 and a reply-done latency number that lies.
+
+---
+
+## D-038 — The echo canceller is adopted: the spike's gate, passed in the field
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+D-037's F-2 ruled OS voice processing as the echo defense but made
+adoption conditional: "SPIKE FIRST … adoption is ruled on the spike's
+evidence." The gate had three questions, and all three are now answered
+with evidence rather than argument (numbers in INSTRUMENTS.md §6):
+
+1. **Does it cancel the echo?** Measured, machine-only: speaker audio at
+   the tap fell from peak 0.136 to 0.008 while the microphone kept
+   delivering a live floor — the `--levels` probe exists precisely so
+   "cancelled echo" cannot be confused with "dead microphone", a
+   distinction that mattered again hours later when the input really did
+   go silent.
+2. **Is the reply still comfortably audible?** Ryad, in the room: yes.
+   No instrument can answer this one; ears did.
+3. **Does barge-in survive the cure?** The acid test — the voice the
+   canceller must ignore and the voice it must hear arrive together.
+   Ryad barged it mid-reply: it stopped. Confirmed live.
+
+Field proof of the disease and its cure, same rig: BEFORE, every spoken
+reply killed itself within a second (`✋ … barge → dead in 1 ms`) because
+the pump's own `speechStarted` is the barge trigger (D-031). AFTER, two
+full replies completed with the microphone live, his voice landing at
+peak 0.106–0.235 against the machine's residual 0.008 — speech and echo
+on opposite sides of the gate.
+
+Ruled: the Mac demo turns voice processing ON by default (`--no-aec`
+keeps the A/B door open). The LIBRARY default stays `false` — the
+D-028/D-036 precedent: a zero/off option changes nothing byte-for-byte,
+and each product earns its own number. The iPhone demo is untouched: it
+has no talking loop yet, and enabling voice processing there also means
+an `AVAudioSession` category decision that belongs with that milestone.
+
+*Rejected:* defaulting it on in the library (silently changes every
+existing caller's capture path, and the ratios measured here belong to
+one rig — a Mac mini whose microphone is an iPhone over Continuity).
+*Rejected:* keeping it opt-in on the demo (the demo's job is to show the
+pipeline working; shipping it with a known self-barge would be a demo of
+the bug).
+
+**Not measured, and said so:** whether voice processing changes
+transcription accuracy. Three clean utterances in the after run are an
+anecdote, not a WER study — the BAKEOFF.md instrument exists if that
+question ever needs a real answer.

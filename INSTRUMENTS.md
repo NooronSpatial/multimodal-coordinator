@@ -253,9 +253,17 @@ pipeline (decode + first token + mouth) and the rest is the number the
 app chose. The gate is the tunable part of the wait, and it is the app's
 to tune (D-027).
 
-**Still not proven, and still needs a human:** barge-in *during* the
-assistant's own speech — the acid test for a canceller, since the voice
-it must ignore and the voice it must hear arrive at the same moment.
+**The last two answers came from ears, not instruments** (same session):
+the reply stays comfortably loud with voice processing on, and a live
+voice still barges it *during* its own speech — the acid test, since the
+voice the canceller must ignore and the voice it must hear arrive at the
+same moment. Both confirmed by the person in the room. That closed the
+spike's gate and the canceller was adopted for the Mac demo (D-038).
+
+**Not measured, and said so:** whether voice processing changes
+transcription accuracy. The after run's three clean utterances are an
+anecdote; BAKEOFF.md is the instrument if that question ever needs a
+real answer.
 
 ## Not measured (and said so)
 
