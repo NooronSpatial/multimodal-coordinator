@@ -317,7 +317,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // only the CURRENT utterance's final. A stale settled final
             // (D-024) fails the third check and stays what it is — comfort
             // text for apps, never a reply trigger.
-            guard let live = current, state == .listening   // MUTANT: third door removed
+            guard let live = current, state == .listening, live.utterance == utterance
             else {
                 if utterance > lastOnset {   // its onset has not arrived HERE
                     pendingTranscripts[utterance] = event   // reorder, not staleness
