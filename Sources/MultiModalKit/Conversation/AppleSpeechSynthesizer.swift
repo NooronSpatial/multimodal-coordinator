@@ -145,10 +145,15 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
     /// that landed while the caller was suspended has already raised it,
     /// so nothing is spoken for a turn that is already dead.
     private func speak(_ text: String) {
-        let utterance = AVSpeechUtterance(string: text)
-        if let voice { utterance.voice = voice }
+        // Only the TEXT crosses onto the queue: `AVSpeechUtterance` is not
+        // Sendable, and building it here would smuggle a non-Sendable
+        // object into a @Sendable closure (Swift 6 rejects it, and it is
+        // right to — the object would then exist on two threads). It is
+        // born and used entirely on the mouth's own thread instead.
         mouth.async { [self] in
             guard state.withLock({ !$0.cancelled }) else { return }
+            let utterance = AVSpeechUtterance(string: text)
+            if let voice { utterance.voice = voice }
             synthesizer.speak(utterance)
         }
     }
