@@ -98,7 +98,9 @@ struct AudioDemo {
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
 
-        let microphone = MicrophoneSource()
+        // `--aec`: the F-2 spike switch (voice-processing input unit).
+        let wantsAEC = arguments.contains("--aec")
+        let microphone = MicrophoneSource(voiceProcessing: wantsAEC)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -145,6 +147,9 @@ struct AudioDemo {
         print("\n🎙  Speak — the pump is listening.  (Ctrl-C to quit)")
         print("    \(Int(sampleRate)) Hz · 20 ms chunks · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
+        if wantsAEC {
+            print("    voice processing: \(microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")")
+        }
         if talk && transcription != nil {
             print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
                 + " interrupt it mid-reply")
@@ -153,6 +158,44 @@ struct AudioDemo {
                 + "\n")
         } else {
             print("")
+        }
+
+        // `--levels`: the honest instrument the F-2 spike needed. The pump
+        // only publishes sound the VAD already accepted, so "no utterances"
+        // could mean cancelled echo OR a deaf microphone — indistinguishable
+        // from the pump's output. This mode reads the ring directly (the
+        // pump is not running here, so its sole-reader rule stands) and
+        // prints what the microphone ACTUALLY delivers, gate or no gate.
+        if arguments.contains("--levels") {
+            print("\n📏 level probe — what the microphone really delivers, every 500 ms")
+            print("    voice processing: "
+                + (wantsAEC
+                    ? (microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")
+                    : "off"))
+            print("    (the demo's VAD gate for reference: 0.02)   Ctrl-C to quit\n")
+            var scratch = [Float](repeating: 0, count: consumer.capacity)
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(500))
+                var sumOfSquares: Float = 0
+                var peak: Float = 0
+                var frames = 0
+                var dropped = 0
+                scratch.withUnsafeMutableBufferPointer { buffer in
+                    let result = consumer.read(into: buffer)
+                    frames = result.framesRead
+                    dropped = result.framesDropped
+                    for i in 0..<frames {
+                        sumOfSquares += buffer[i] * buffer[i]
+                        peak = max(peak, abs(buffer[i]))
+                    }
+                }
+                let rms = frames > 0 ? (sumOfSquares / Float(frames)).squareRoot() : 0
+                let bar = String(repeating: "█", count: min(Int(rms * 300), 30))
+                print(String(format: "rms %.4f · peak %.4f · %5d frames%@  %@",
+                             rms, peak, frames,
+                             dropped > 0 ? " · dropped \(dropped)" : "", bar))
+            }
+            return
         }
 
         let screen = Screen()

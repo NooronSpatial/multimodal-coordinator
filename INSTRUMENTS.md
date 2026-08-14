@@ -146,11 +146,67 @@ suite could not see:
 An observability phase that finds two correctness bugs before filling its
 own tables has already paid for itself.
 
+## 6. The echo loop (Phase 4b, AC-82) — the assistant hearing itself
+
+With a real mouth (`AVSpeechSynthesizer`) the pipeline gained a new way to
+fail: its own voice reaches its own microphone, the VAD opens an utterance,
+and since D-031 an utterance IS the barge trigger — so the assistant kills
+its own reply mid-sentence.
+
+**Captured before any fix** (Mac, `--talk`, Whisper, output volume 75, the
+demo's own forensic lines):
+
+```
+💬 [1] weather today.                     ← ambient speech in the room, transcribed
+   🤖 You said: weather today.            ← the assistant answers ALOUD
+✋ [0] interrupted — listening to you instead    ← it barged ITSELF
+⏱  [0] barge → dead in 1 ms
+🔎 [2] 360 ms · peak rms 0.024 · 28 chunks       ← the utterance that killed it
+```
+
+**The echo path, isolated.** Method: no turn loop, so nothing on this
+machine speaks except a scripted `say` through the speakers — a controlled
+"user" that is reproducible and needs no human. Whisper transcribed it:
+`💬 [0] Testing 123` at peak rms 0.037. The path is real, and it lands
+just above the demo's 0.02 gate.
+
+**The F-2 spike (voice-processing input unit), measured with `--levels`.**
+The pump publishes only sound the VAD already accepted, so "no utterances"
+cannot distinguish *cancelled echo* from *deaf microphone*. `--levels`
+reads the ring directly and prints what the microphone really delivers:
+
+| | room silent | speakers playing `say` |
+|---|---|---|
+| voice processing **off** | rms 0.0045 · peak 0.024 | rms 0.0189 · **peak 0.136** |
+| voice processing **on** | rms 0.0016 · peak 0.006 | rms 0.0016 · **peak 0.008** |
+
+Three readings, three conclusions:
+1. **The echo is cancelled** — peak 0.136 → 0.008 (~17×), rms 0.019 →
+   0.0016 (~12×). No utterance opened at all in the `--aec` run.
+2. **The microphone is NOT deaf** — it still delivers a live floor
+   (0.0016 rms, 0.006 peak) while cancelling. The dangerous false
+   positive is ruled out by measurement, not by hope.
+3. **A bonus for 1d's marginal gate**: the ambient peak fell from 0.024 —
+   which was *touching* the 0.02 gate and is exactly why this Mac's VAD
+   flapped — to 0.006, comfortably below it.
+
+**Two predictions this spike refuted** (both were written in the source
+before it ran, and the correction stays visible there): that the unit
+would only cancel audio rendered through *our* engine, and that its AGC
+would lift room noise toward the gate. Neither happened on this machine.
+
+**Not proven here, and it needs a human**: that the reply stays
+comfortably audible to ears in the room while voice processing is on, and
+that a live human voice still opens an utterance (barge-in must survive
+the cure). Until that field run, adoption stays a spike behind `--aec`.
+
 ## Not measured (and said so)
 
 Battery drain in mAh (needs a longer protocol than this session) · other
 languages · far-field microphones · Apple engine on the Mac (asset daemon,
-see README) · memory high-water marks under pressure.
+see README) · memory high-water marks under pressure · echo cancellation
+on iOS (measured on the Mac only) · whether the voice-processing unit
+alters what a human hears from the speakers.
 
 ## Reproduce
 
