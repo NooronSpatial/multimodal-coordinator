@@ -7,7 +7,9 @@ opinion. Slots marked **⟨fill⟩** await the field session.
 
 ## Environment
 
-- Mac numbers: Apple Silicon, macOS 26.6.1 (the development machine).
+- Mac numbers: Apple Silicon, macOS 26.6.1 (the development machine — a
+  Mac mini, which has no built-in microphone: its input arrives from an
+  iPhone over Continuity. Matters for §6; see the capture chain there).
 - Device numbers: Ryad's iPhone, iOS 26 — field sessions of 2026-08-11.
   (Run 1: found the span leak. Run 2: found the concurrent decodes. Run 3:
   the clean capture, both fixes in, confounds controlled — the numbers
@@ -169,6 +171,25 @@ machine speaks except a scripted `say` through the speakers — a controlled
 "user" that is reproducible and needs no human. Whisper transcribed it:
 `💬 [0] Testing 123` at peak rms 0.037. The path is real, and it lands
 just above the demo's 0.02 gate.
+
+**The capture chain these echo numbers came through — state it, because
+it is not the obvious one.** The development machine is a Mac mini, which
+has NO built-in microphone: its default input is *"Ryad's iPhone
+Microphone"* over Continuity, while the sound comes out of the Mac mini's
+own speakers. So the echo path measured here is *Mac speakers → across
+the room → iPhone → Continuity → the tap*, and the canceller is the Mac's
+voice-processing unit applying the Mac's output as reference to a signal
+captured elsewhere. It worked (numbers below), and the mechanism is
+sound — an echo canceller needs the reference, not a particular
+microphone — but a built-in-mic laptop has a shorter acoustic delay and a
+different tail, so these ratios are this rig's, not a law. Re-measure on
+any machine before trusting them.
+
+(How this surfaced, and it is worth knowing: mid-session the tap went to
+DIGITAL ZERO — frames still arriving, every sample 0.0000 — because the
+iPhone dropped out. A missing microphone does not look like an error
+here; it looks like a very quiet room. `--levels` is what told them
+apart.)
 
 **The F-2 spike (voice-processing input unit), measured with `--levels`.**
 The pump publishes only sound the VAD already accepted, so "no utterances"
