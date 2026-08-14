@@ -40,6 +40,16 @@ struct AudioDemo {
                ? Double(arguments[flagIndex + 1]) : nil {
             onsetMs = value
         }
+        // `--gate <ms>`: the reply gate (AC-81) — how long the floor must
+        // stay yielded before the assistant answers. 0 = reply at the
+        // final, exactly the 4a behavior. The number is the app's to earn
+        // (D-027); the flag is where this machine earns it.
+        var gateMs = 0.0
+        if let flagIndex = arguments.firstIndex(of: "--gate"),
+           let value = arguments.indices.contains(flagIndex + 1)
+               ? Double(arguments[flagIndex + 1]) : nil {
+            gateMs = value
+        }
         let choice = arguments.first { !$0.hasPrefix("--") && Double($0) == nil } ?? "apple"
         let engine: any TranscriptionEngine
         let engineName: String
@@ -136,7 +146,11 @@ struct AudioDemo {
         print("    \(Int(sampleRate)) Hz · 20 ms chunks · \(Int(onsetMs)) ms onset · 300 ms hangover · 200 ms pre-roll")
         print("    transcription: \(transcription == nil ? "OFF (no model)" : engineName)")
         if talk && transcription != nil {
-            print("    turn loop: ON — it echoes what you say; interrupt it mid-reply\n")
+            print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
+                + " interrupt it mid-reply")
+            print("    reply gate: \(Int(gateMs)) ms"
+                + (gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor")
+                + "\n")
         } else {
             print("")
         }
@@ -160,12 +174,16 @@ struct AudioDemo {
                 group.addTask { await showTranscripts(transcripts.events, on: screen) }
 
                 if talk {
-                    // The Phase 4a slice (AC-70): the whole conversation loop,
-                    // scripted stages, real microphone barge-in — and the R2
-                    // latency seam on a real clock: the demo reuses the exact
-                    // code path the deterministic tests prove.
+                    // The Phase 4b slice (AC-84): the loop now SPEAKS —
+                    // AVSpeechSynthesizer behind the same seam the scripted
+                    // voice proved. Real microphone barge-in, the R2 latency
+                    // seam on a real clock, and (--gate) the AC-81 reply
+                    // gate: the demo reuses the exact code paths the
+                    // deterministic tests prove.
                     let coordinator = TurnCoordinator(
-                        replyGenerator: PacedEchoReply(), synthesizer: TerminalVoice(),
+                        replyGenerator: PacedEchoReply(),
+                        synthesizer: AppleSpeechSynthesizer(),
+                        config: .init(replyGate: .milliseconds(Int(gateMs))),
                         clock: ContinuousClock(),
                         latencyReporter: ConsoleLatency(screen: screen))
                     let audioForTurns = await pump.listen()
@@ -191,7 +209,7 @@ struct AudioDemo {
                 if state == .listening || state == .idle { reply = "" }
                 await screen.set(reply: reply)
             case .replyToken(let token, _):
-                reply += reply.isEmpty ? token : " " + token
+                reply += token          // tokens carry their own spacing now
                 await screen.set(reply: reply)
             case .turnCompleted(let turn):
                 await screen.log("🤖 [\(turn)] \(reply)")
@@ -369,10 +387,13 @@ extension Duration {
 }
 
 /// Echoes the user's words back, one token at a time, paced so the reply
-/// FEELS spoken — slow enough to barge into.
+/// FEELS generated — slow enough to barge into. Tokens carry their own
+/// spacing (the way real generators emit them): the phraser concatenates
+/// VERBATIM and never invents a space.
 struct PacedEchoReply: ReplyGenerating {
     func openReply(to transcript: String) async throws -> any ReplyRun {
-        EchoRun(words: ["You", "said:"] + transcript.split(separator: " ").map(String.init))
+        EchoRun(words: ["You", " said:"]
+            + transcript.split(separator: " ").map { " " + $0 })
     }
 }
 
@@ -398,37 +419,7 @@ private final class EchoRun: ReplyRun, @unchecked Sendable {
     func cancel() async { task.withLock { $0?.cancel() } }
 }
 
-/// "Speaks" into the terminal: the coordinator's replyToken events do the
-/// drawing; this voice only reports the EVIDENCE (started/finished) that
-/// drives the speaking state — the same contract a real TTS will honor in 4b.
-struct TerminalVoice: SpeechSynthesizing {
-    func openUtterance() async throws -> any SynthesisRun { VoiceRun() }
-}
-
-private final class VoiceRun: SynthesisRun, @unchecked Sendable {
-    let updates: AsyncStream<SynthesisUpdate>
-    private let out: AsyncStream<SynthesisUpdate>.Continuation
-    private let started = Mutex(false)
-
-    init() {
-        var handle: AsyncStream<SynthesisUpdate>.Continuation!
-        self.updates = AsyncStream { handle = $0 }
-        self.out = handle!
-    }
-
-    func feed(_ token: String) async {
-        let first = started.withLock { begun -> Bool in
-            let isFirst = !begun
-            begun = true
-            return isFirst
-        }
-        if first { out.yield(.started) }
-    }
-
-    func finishTokens() async {
-        out.yield(.finished)
-        out.finish()
-    }
-
-    func cancel() async { out.finish() }
-}
+// (The 4a `TerminalVoice` — a mouth that only printed — retired here: the
+// real `AppleSpeechSynthesizer` speaks behind the same seam, which was
+// the seam's whole promise. Its contract lives on in the library's
+// `ScriptedSynthesizer`, where the deterministic tests need it.)
