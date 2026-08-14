@@ -291,6 +291,23 @@ That suggested lowering the gate — and the field said no.
 | lower gate | 0.008 | 300 ms | not re-tested | 4 @ 0.009–0.011 (ambient) |
 | bracket | 0.012 | 300 ms | **still shattered** (4 pieces) | 3 @ 0.014–0.023 |
 | **hangover** | **0.02** | **700 ms** | **WHOLE — 2300 ms, one utterance** | **0** |
+| bracket down | 0.02 | 500 ms | cut short (1080 ms, tail lost) | 0 |
+
+The 500 ms run bracketed the minimum from below, and the cleanest
+evidence in it is a phrase spoken in BOTH runs — a natural controlled
+comparison:
+
+```
+700 ms:  "Hello my friend, how is the weather today?"   → one utterance (3060 ms)
+500 ms:  "Hello my friend!" + "How is the weather today?" → two (1340 + 1760 ms)
+```
+
+500 ms is better than 300 ms — it splits sentences instead of
+shattering them, and produced no empty decodes — but a split is still a
+premature final, and every premature final is another chance for the
+assistant to answer half a thought. The true minimum lies between 500
+and 700; it was not chased further, because a speaker's pauses vary by
+the day and the margin is worth more than the 100 ms.
 
 The threshold hypothesis was mine, it was tested twice, and it failed
 twice — the pieces at 0.040 and 0.042 sat at the same level as a
