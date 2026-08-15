@@ -19,6 +19,11 @@ let package = Package(
         // runtime dependencies; only consumers who import this product pull
         // WhisperKit.
         .library(name: "MultiModalKitWhisper", targets: ["MultiModalKitWhisper"]),
+        // The second MOUTH (D-045 F-4): opt-in for the same reason, and
+        // its OWN product rather than a corner of the Whisper module —
+        // it implements a different seam, and an app that wants a voice
+        // should not be made to pull a speech recogniser.
+        .library(name: "MultiModalKitTTS", targets: ["MultiModalKitTTS"]),
         .executable(name: "audio-demo", targets: ["AudioDemo"]),
         .executable(name: "bakeoff", targets: ["Bakeoff"]),
     ],
@@ -36,6 +41,13 @@ let package = Package(
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ]
         ),
+        .target(
+            name: "MultiModalKitTTS",
+            dependencies: [
+                "MultiModalKit",
+                .product(name: "TTSKit", package: "argmax-oss-swift"),
+            ]
+        ),
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
         .executableTarget(
             name: "AudioDemo",
@@ -47,7 +59,10 @@ let package = Package(
         ),
         .testTarget(
             name: "MultiModalKitTests",
-            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
+            dependencies: [
+                "MultiModalKit", "MultiModalKitTesting",
+                "MultiModalKitWhisper", "MultiModalKitTTS",
+            ]
         ),
     ]
 )
