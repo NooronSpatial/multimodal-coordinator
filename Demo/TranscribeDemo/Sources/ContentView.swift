@@ -117,6 +117,20 @@ struct ContentView: View {
                     }
                 }
 
+                // THE BARGE DIAGNOSTIC. Two counters, because they fail
+                // apart: onsets is what the PUMP heard while the reply was
+                // playing, barges is what the COORDINATOR did about it.
+                HStack(spacing: 10) {
+                    Text("onsets while speaking: \(model.onsetsWhileSpeaking)")
+                        .foregroundStyle(model.onsetsWhileSpeaking > 0 ? Color.primary
+                                                                       : Color.secondary)
+                    Text("barges: \(model.bargeCount)")
+                        .foregroundStyle(model.bargeCount > 0 ? Color.green : Color.red)
+                    Spacer()
+                    Text(model.lastTurnEvent).foregroundStyle(.secondary)
+                }
+                .font(.caption2.monospacedDigit())
+
                 if !model.reply.isEmpty {
                     Text(model.reply)
                         .font(.callout)

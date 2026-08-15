@@ -476,3 +476,35 @@ built for full-duplex speech, and it was the one-line hope. It is kept —
 the noise floor it buys is real and measured — but it is NOT the answer:
 same route, same probe, still 0.9391. Ruled in D-043: the finding ships
 with milestone 4d and the routing fix becomes 4f, after TTSKit.
+
+## 9. Milestone 4d on the phone — the conversation, and one false alarm
+
+**AC-92 PASSED on hardware** (2026-08-15, receiver route, gate 0.020,
+`.voiceChat`, Ryad's iPhone): the phone holds a conversation — it
+listens, replies aloud through `AVSpeechSynthesizer`, and **a live voice
+barges it**. The same `TurnCoordinator`, `TranscriptLedger`,
+`SpeechPhraser` and mouth the Mac runs, with no iOS variant of any of
+them. That was the milestone's thesis (AC-92) and it held: the whole
+diff was platform reality.
+
+**The false alarm, kept because it earned a change.** An earlier attempt
+reported "it kept talking when I talked", which read as a barge-in
+failure — the project's thesis breaking on a new platform. Two causes
+fit equally well (the microphone never opening, or the mouth ignoring
+its cancel), and the screen could not tell them apart. The real cause
+was neither: the Listen button had not been tapped, so no pipeline was
+running at all.
+
+What it exposed is still real: an acceptance criterion that could only
+be judged BY EAR. So the screen now counts both halves separately —
+`onsets while speaking` (what the pump heard) and `barges` (what the
+coordinator did about it). They fail apart, which is the point:
+
+```
+both climbing    → the barge works, the mouth is deaf to cancel
+only onsets      → the coordinator never acted
+neither          → the microphone never heard the voice
+```
+
+Three different bugs, one glance — and AC-92 becomes a number instead of
+an impression.

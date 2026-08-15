@@ -76,6 +76,15 @@ final class TranscribeModel {
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.
     private(set) var wasInterrupted = false
+    /// BARGE DIAGNOSTICS (AC-92). `onsetsWhileSpeaking` counts what the
+    /// PUMP saw; `bargeCount` counts what the COORDINATOR did about it.
+    /// Both climbing = the barge works and the mouth is deaf to cancel.
+    /// Only the first climbing = the coordinator never acted.
+    /// Neither climbing = the microphone never heard the voice at all.
+    /// Three different bugs, one glance.
+    private(set) var bargeCount = 0
+    private(set) var onsetsWhileSpeaking = 0
+    private(set) var lastTurnEvent = "—"
     /// The live input level — what the microphone hears RIGHT NOW. With
     /// the assistant speaking and nobody else in the room, this IS the
     /// echo residual, and comparing it to the gate answers AC-96 without
@@ -513,6 +522,7 @@ final class TranscribeModel {
             // The question the field run has to answer: was this the
             // person, or the phone hearing itself?
             let echo = turnState == .speaking
+            if echo { onsetsWhileSpeaking += 1 }     // what the PUMP saw
             upsert(utterance) { $0.whileSpeaking = echo }
         case .speechEnded(let at):
             isSpeaking = false
@@ -540,11 +550,19 @@ final class TranscribeModel {
             if state == .listening || state == .idle { reply = "" }
         case .replyToken(let token, _):
             reply += reply.isEmpty ? token : " " + token
-        case .turnCompleted:
-            break                       // the reply stays on screen until the next turn
-        case .turnBarged:
+        case .turnCompleted(let turn):
+            lastTurnEvent = "completed \(turn)"
+        case .turnBarged(let turn):
+            // COUNTED AND SHOWN. The first conversation run failed with
+            // "it kept talking when I talked", and the screen could not
+            // say whether the coordinator had barged and the mouth
+            // ignored it, or whether no barge ever happened — two
+            // different bugs, indistinguishable from outside.
+            bargeCount += 1
+            lastTurnEvent = "BARGED \(turn)"
             reply = ""
-        case .turnFailed(let failure, _):
+        case .turnFailed(let failure, let turn):
+            lastTurnEvent = "failed \(turn)"
             reply = ""
             if case .interrupted = failure { wasInterrupted = true }
         }
