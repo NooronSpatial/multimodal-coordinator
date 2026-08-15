@@ -19,42 +19,109 @@ import TTSKit
 ///
 /// This file's first job is the part that can be tested without a
 /// speaker: knowing whether the model is here, and saying so honestly.
-public final class NeuralVoice: Sendable {
+/// An actor for the same reason `WhisperEngine` is one: it caches a
+/// loaded CoreML pipeline, and that is mutable state which must not be
+/// touched from two places at once.
+public actor NeuralVoice {
     /// Which Qwen3 variant to speak with. 0.6B is the smaller, faster
     /// one; the bake-off's numbers decide whether the larger earns its
     /// download.
-    public let variant: TTSModelVariant
+    /// `nonisolated` because it never changes and callers ask it while
+    /// printing — an actor hop to read a `let` is ceremony.
+    public nonisolated let variant: TTSModelVariant
+
+    /// The loaded pipeline, kept so a second utterance does not pay the
+    /// load again.
+    private var pipeline: TTSKit?
 
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b) {
         self.variant = variant
     }
 
-    /// Where TTSKit's hub places this variant on this device.
+    /// Where TTSKit's hub actually places this variant — MEASURED, not
+    /// guessed. The first version of this property guessed
+    /// `argmaxinc/tts-coreml/qwen3-tts-0.6b` and was wrong on both
+    /// halves; the install printed "the load succeeded but the disk
+    /// check says NOT installed", which is the message existing to
+    /// catch exactly that.
     ///
     /// Named explicitly rather than left to the library's default, and
     /// that is a Phase 2 lesson rather than a preference: WhisperKit
     /// pinged Hugging Face on EVERY pipeline load until its
     /// `modelFolder` was handed over — an offline failure, a privacy
     /// footnote, and a 4× cost on every test load, all from a default.
-    var localModelFolder: URL {
+    nonisolated var localModelFolder: URL {
         URL.documentsDirectory
-            .appending(path: "huggingface/models/argmaxinc/tts-coreml")
-            .appending(path: "qwen3-tts-\(variant.rawValue)")
+            .appending(path: "huggingface/models/argmaxinc/ttskit-coreml")
+            .appending(path: "qwen3_tts")
+    }
+
+    /// The component directory each variant's weights live in
+    /// (`code_decoder/12hz-0.6b-customvoice`, and five siblings).
+    nonisolated var variantDirectoryName: String {
+        switch variant {
+        case .qwen3TTS_1_7b: "12hz-1.7b-customvoice"
+        default: "12hz-0.6b-customvoice"
+        }
+    }
+
+    /// The TOKENIZER, which lives in a different repo entirely
+    /// (`Qwen/Qwen3-0.6B`) — 11 MB beside 1.1 GB of CoreML.
+    nonisolated var localTokenizerFolder: URL {
+        let repo = variant == .qwen3TTS_1_7b ? "Qwen3-1.7B" : "Qwen3-0.6B"
+        return URL.documentsDirectory
+            .appending(path: "huggingface/models/Qwen")
+            .appending(path: repo)
     }
 
     /// Honest disk check — asking never triggers a download.
     ///
-    /// "Installed" means OFFLINE-CAPABLE. The Whisper audit found that a
-    /// model folder alone was not enough: its tokenizer was a separate
-    /// asset whose load fell back to the network when its cache files
-    /// were missing. The same question is asked here, of this model's
-    /// own assets, so that "installed" cannot quietly mean "installed
-    /// plus one network request".
-    public func modelInstalled() async -> Bool {
+    /// "Installed" means OFFLINE-CAPABLE, and the Whisper audit's finding
+    /// repeats here EXACTLY: the model folder alone is not enough,
+    /// because the tokenizer is a separate asset in a separate repo whose
+    /// absence sends the loader to the network. So this asks for all six
+    /// CoreML components AND the tokenizer files by name. Anything less
+    /// lets "installed" quietly mean "installed plus one download".
+    public nonisolated func modelInstalled() async -> Bool {
         let files = FileManager.default
-        guard let contents = try? files.contentsOfDirectory(atPath: localModelFolder.path),
-              !contents.isEmpty
-        else { return false }
-        return true
+        let components = ["code_decoder", "code_embedder", "multi_code_decoder",
+                          "multi_code_embedder", "speech_decoder", "text_projector"]
+        for component in components {
+            let path = localModelFolder
+                .appending(path: component)
+                .appending(path: variantDirectoryName)
+            guard let contents = try? files.contentsOfDirectory(atPath: path.path),
+                  !contents.isEmpty
+            else { return false }
+        }
+        return files.fileExists(atPath:
+                localTokenizerFolder.appending(path: "tokenizer.json").path)
+            && files.fileExists(atPath:
+                localTokenizerFolder.appending(path: "tokenizer_config.json").path)
+    }
+
+    /// Downloads the model if it is missing, then loads the pipeline.
+    /// Idempotent: with the assets on disk this is a load, not a fetch.
+    ///
+    /// No progress callback, deliberately. The first draft of this method
+    /// had one, and it was decoration: it reported 1.0 when the await
+    /// returned and nothing before — a fake instrument in a repo whose
+    /// whole method is refusing those. TTSKit's own `verbose` logging is
+    /// the honest reporter until a real one is needed.
+    /// Returns nothing on purpose: handing a `TTSKit` back would drag
+    /// the dependency into every caller's imports, which is the opposite
+    /// of what an opt-in module is for (D-045 F-4). The pipeline stays
+    /// in here.
+    public func ensureModel() async throws {
+        pipeline = try await loadedPipeline()
+    }
+
+    /// Loads once, then reuses. The variant's own logging reports the
+    /// download; this only owns the caching.
+    private func loadedPipeline() async throws -> TTSKit {
+        if let pipeline { return pipeline }
+        let fresh = try await TTSKit(TTSKitConfig(model: variant, download: true, load: true))
+        pipeline = fresh
+        return fresh
     }
 }

@@ -55,7 +55,10 @@ let package = Package(
         ),
         .executableTarget(
             name: "Bakeoff",
-            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
+            dependencies: [
+                "MultiModalKit", "MultiModalKitTesting",
+                "MultiModalKitWhisper", "MultiModalKitTTS",
+            ]
         ),
         .testTarget(
             name: "MultiModalKitTests",
