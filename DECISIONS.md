@@ -1258,3 +1258,66 @@ asked for the other behaviour yet (D-039's lesson).
 
 **Also carried into the definition of done (D-041):** this milestone's
 CODE is adversarially reviewed before its merge, not after.
+
+---
+
+## D-043 — iOS cancels only what it renders: the finding ships, the fix is its own milestone
+
+**Date:** 2026-08-15 · **Decided by:** Ryad
+
+**The measurement** (iPhone, echo probe, gate 0.010, speaker route):
+
+```
+                     voice processing ACTIVE
+quiet room       peak 0.0030   rms 0.0003     ← was 0.0092 before the canceller
+while speaking   peak 1.0000   rms 0.0254     ← FULL SCALE, untouched
+```
+
+The canceller is running and demonstrably working — it took the room's
+noise floor down threefold. And the assistant's own reply still arrives
+at the microphone at **full scale**. Not partial cancellation: a
+canceller that cannot SEE the reply.
+
+**The mechanism.** Voice processing cancels what ITS OWN audio unit
+renders. `AVSpeechSynthesizer` plays on a separate path, outside this
+pipeline's `AVAudioEngine`. On macOS the D-038 spike proved cancellation
+of audio from an entirely separate PROCESS, so the reference there is
+system-wide — that was one platform measured, and this entry is what it
+cost to have treated it as a law. **The Mac's numbers never transferred,
+exactly as AC-96 insisted they might not.**
+
+**What the measurement also kills.** Tuning. Human speech peaks around
+0.1–0.3; on this route the echo peaks at 1.0. The echo is LOUDER than
+the speaker, so no threshold separates them — a raised gate would
+silence the person before it silenced the phone. An entire branch of
+work, closed by one number.
+
+**Ruled:** the FINDING ships with milestone 4d; the FIX is its own
+milestone, and it comes AFTER TTSKit. Order from here: **4d (this) →
+4e TTSKit's second mouth → 4f the echo routing fix → 4g the language
+model.**
+
+*Why the fix is deferred, in Ryad's own weighing:* it is a session of
+the trickiest audio code — one component owning a single engine, the
+mouth rewired from `speak()` to `write()` plus a player node, format
+conversion, a new source of `.started`/`.finished` evidence (which would
+reopen D-037 F-4), and all of it un-TDD-able. Against that, the phone
+ALREADY converses on the receiver and on headphones, where the echo path
+is weak. A precise, reproducible platform finding with an instrument
+behind it is worth more right now than a rushed rewrite of the mouth.
+
+**F-4 AMENDED BY MEASUREMENT (the D-036 precedent).** F-4 ruled the
+loudspeaker as the demo's default because it is the honest hard case.
+It is now the *measured broken* case: with it, the demo barges itself
+out of the box. The default becomes the route that WORKS, the speaker
+stays one toggle away for measurement, and the screen says why. The
+original ruling and its reasoning stay on the record.
+
+**The design that a later milestone will build**, so the finding carries
+its own answer: render the reply through the SAME engine that cancels —
+`AVSpeechSynthesizer.write` into a player node on the pipeline's engine,
+so the voice-processing unit finally has the reply as its reference.
+*Rejected as permanent answers:* half-duplex while speaking (kills
+barge-in, the project's thesis — already rejected in D-037 F-2) ·
+receiver-only (dodges the problem and makes the demo unshowable, though
+it is exactly what makes shipping the finding acceptable today).

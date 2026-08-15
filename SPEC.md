@@ -1580,9 +1580,12 @@ around 0.1-0.3, so on this route **the echo is louder than the speaker's
 own voice**, and no threshold can separate them. Raising the gate would
 silence the person before it silenced the phone.
 
-Still to distinguish before ruling (the probe now reports it): voice
-processing REFUSED by the platform versus voice processing ACTIVE but
-blind to the reply. Same number, opposite fixes.
+DISTINGUISHED, and the answer is the worse one: the probe reports
+**voice processing ACTIVE** while the reply still arrives at peak
+**1.0000** — and the same run shows the canceller working on room noise
+(0.0092 → 0.0030). It runs; it cannot see the reply. Ruled in D-043:
+the finding ships with 4d, the routing fix becomes milestone 4f, after
+TTSKit (4e).
 
 The hypothesis that predicted this: **the canceller may not
 have the reply as its reference at all.** Voice processing cancels what
