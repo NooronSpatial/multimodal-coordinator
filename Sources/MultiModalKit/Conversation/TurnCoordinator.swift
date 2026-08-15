@@ -252,8 +252,15 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// first, one event, back to idle. The LOOP survives; the next
     /// utterance starts a clean turn.
     ///
-    /// RED skeleton — the shape without the behaviour.
     public func interrupt() async {
+        // The ticket dies FIRST, in this same actor step — before any
+        // await, exactly as a barge does. Only then are the stages
+        // cancelled, because cancellation is the optimisation and the
+        // ticket is the guarantee.
+        guard !isStopped, let dying = current else { return }
+        failTurn(dying.turn, with: .interrupted)
+        await dying.replyRun?.cancel()
+        await dying.synthesisRun?.cancel()
     }
 
     /// The app has decided to listen again (AC-94, D-042 F-5 = B). Note
@@ -268,8 +275,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// go). The ledger cannot expire by time — it has no clock, by
     /// design — but "resume" is a signal, and it costs nothing.
     ///
-    /// RED skeleton — the shape without the behaviour.
     public func resume() {
+        ledger.clear()
     }
 
     /// Ends the loop: the ticket dies in this same actor step, every
