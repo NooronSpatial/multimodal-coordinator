@@ -93,6 +93,23 @@ struct ContentView: View {
                 }
             }
 
+            // THE INSTRUMENT (AC-96). With the assistant speaking and
+            // nobody else in the room, this level IS the echo residual —
+            // and the gate beside it is what decides whether that residual
+            // becomes a barge. The first field run could only be
+            // described; this makes the next one measurable.
+            HStack(spacing: 8) {
+                Text("in \(model.inputLevel, format: .number.precision(.fractionLength(3)))")
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(model.inputLevel >= model.vadThreshold ? .red : .secondary)
+                Text("gate")
+                    .font(.caption).foregroundStyle(.secondary)
+                Slider(value: Bindable(model).vadThreshold, in: 0.005...0.08)
+                    .disabled(model.isListening)
+                Text(model.vadThreshold, format: .number.precision(.fractionLength(3)))
+                    .font(.caption.monospacedDigit())
+            }
+
             // F-5 = B: nothing resumes by itself. A person decides when a
             // microphone turns back on — and resuming forgets the thought.
             if model.wasInterrupted {
@@ -156,6 +173,22 @@ struct ContentView: View {
                                     .foregroundStyle(utterance.isFinal ? .primary : .secondary)
                                 if let failure = utterance.failure {
                                     Text(failure).font(.caption).foregroundStyle(.red)
+                                }
+                                // The Mac's 🔎 line: what actually opened
+                                // this utterance, in numbers. "echo?" marks
+                                // one that began while the phone was
+                                // talking — the self-barge signature.
+                                if utterance.peakRMS > 0 {
+                                    HStack(spacing: 6) {
+                                        Text("peak \(utterance.peakRMS, format: .number.precision(.fractionLength(3)))")
+                                        Text("· \(utterance.milliseconds) ms")
+                                        if utterance.whileSpeaking {
+                                            Text("· echo?")
+                                                .foregroundStyle(.red)
+                                        }
+                                    }
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
                                 }
                             }
                         }

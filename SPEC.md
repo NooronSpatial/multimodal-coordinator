@@ -1539,6 +1539,43 @@ device, or it claims nothing.
   **Recommendation: A**, with the honest note that it is the harder
   case and the one the numbers must be taken under.
 
+## 58a. OPEN, RECORDED, NOT RULED (found in 4d's first field run)
+
+**The echo loop is NOT cured on the phone.** First device run,
+2026-08-14, speaker route: the assistant barged ITSELF while speaking —
+the disease D-038's canceller cured on the Mac, back on iOS. Lowering
+the output volume reduced it, which is the signature of a residual echo
+sitting ABOVE the gate rather than of anything subtler.
+
+The arithmetic that makes it unsurprising: this app's gate is **0.01**,
+earned in Phase 2 when the app only LISTENED — no speaker, so nothing to
+cross it — while the Mac runs 0.02 against a MEASURED residual of 0.008.
+On a phone the loudspeaker sits centimetres from the microphone, and
+since D-031 an onset IS a barge.
+
+Also reported and NOT yet explained: lowering the volume helped the
+Apple engine but not Whisper. The barge fires on the pump's
+`speechStarted`, which never sees the engine at all, so either something
+else differs or the observation was about transcription quality rather
+than barging. **No theory is recorded here, because the first run had no
+instrument** — the phone app shipped without the forensic levels the Mac
+demo has had since its first field session. That gap is now closed (live
+input level, per-utterance peak/duration, an "echo?" mark on any
+utterance that began while the assistant was speaking, and the gate
+itself adjustable on screen), so the next run measures instead of
+describes.
+
+The hypothesis to test FIRST, before any tuning: **the canceller may not
+have the reply as its reference at all.** Voice processing cancels what
+the audio unit it belongs to renders; `AVSpeechSynthesizer` does not
+play through this pipeline's `AVAudioEngine`. On macOS the spike proved
+cancellation of audio from an entirely separate PROCESS, so the
+reference is system-wide there — that is a measurement of one platform,
+never a law, and iOS may differ. If it does, raising the gate treats a
+symptom: the honest fix is routing the mouth's audio through the same
+engine (`AVSpeechSynthesizer.write` into a player node), which is a
+design fork, not a tweak.
+
 ## 59. Out of scope for 4d (deliberately)
 
 TTSKit (now 4e) · the language model (now 4f) · endpointing (§46a

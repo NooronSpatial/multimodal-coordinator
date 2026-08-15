@@ -32,6 +32,16 @@ final class TranscribeModel {
         var text: String
         var isFinal: Bool
         var failure: String?
+        /// FORENSICS (the Mac's 🔎 line, brought to the phone). Without
+        /// these the first field run could only be described, not
+        /// measured — and the echo question is entirely a question about
+        /// levels: what does the microphone hear when the phone speaks?
+        var peakRMS: Float = 0
+        var milliseconds: Int = 0
+        /// True when this utterance began while the assistant was SPEAKING
+        /// — the signature of the echo loop. A run full of these is the
+        /// machine hearing itself.
+        var whileSpeaking = false
     }
 
     private(set) var engineState: EngineState = .checking
@@ -61,6 +71,21 @@ final class TranscribeModel {
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.
     private(set) var wasInterrupted = false
+    /// The live input level — what the microphone hears RIGHT NOW. With
+    /// the assistant speaking and nobody else in the room, this IS the
+    /// echo residual, and comparing it to the gate answers AC-96 without
+    /// any theory (D-038's `--levels` probe, in a phone's shape).
+    private(set) var inputLevel: Float = 0
+    /// The gate this device is currently using — on screen, and
+    /// adjustable, because a level means nothing without the number it is
+    /// judged against, and because AC-97 says the phone earns its own.
+    var vadThreshold: Float = 0.01 {
+        didSet { if isListening { restart() } }
+    }
+
+    private var liveUtterance: Int?
+    private var utteranceStartSeconds = 0.0
+    private var utterancePeak: Float = 0
 
     var choice: EngineChoice = .apple {
         didSet {
@@ -207,9 +232,14 @@ final class TranscribeModel {
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
         let pump = AudioPump(
             consumer: consumer,
-            // Field-tuned: 0.01 opens the gate for normal speaking volume at
-            // arm's length (0.02 was a laptop-mic value and ate quiet words).
-            vad: EnergyVAD(config: .init(threshold: 0.01,
+            // 0.01 was earned in Phase 2, when this app only LISTENED —
+            // no speaker, so no echo to cross it. The first 4d field run
+            // showed the assistant barging itself on the phone, which is
+            // that number meeting a loudspeaker centimetres from the
+            // microphone. It is adjustable on screen now, because AC-97
+            // says this device earns its own numbers from a run rather
+            // than inheriting the Mac's.
+            vad: EnergyVAD(config: .init(threshold: vadThreshold,
                                          hangoverFrames: Int(rate * 0.3))),
             clock: ContinuousClock(),
             // 200 ms of pre-roll: a word's quiet onset must survive a VAD
@@ -378,10 +408,31 @@ final class TranscribeModel {
 
     private func show(audio event: AudioEvent) {
         switch event {
-        case .speechStarted: isSpeaking = true
-        case .speechEnded: isSpeaking = false
-        case .dropped(let frames, _): droppedFrames += frames
-        case .audioSegment: break
+        case .speechStarted(let utterance, let at):
+            isSpeaking = true
+            liveUtterance = utterance
+            utteranceStartSeconds = at.seconds
+            utterancePeak = 0
+            // The question the field run has to answer: was this the
+            // person, or the phone hearing itself?
+            let echo = turnState == .speaking
+            upsert(utterance) { $0.whileSpeaking = echo }
+        case .speechEnded(let at):
+            isSpeaking = false
+            if let utterance = liveUtterance {
+                let peak = utterancePeak
+                let ms = Int((at.seconds - utteranceStartSeconds) * 1000)
+                upsert(utterance) { $0.peakRMS = peak; $0.milliseconds = ms }
+            }
+            liveUtterance = nil
+        case .dropped(let frames, _):
+            droppedFrames += frames
+        case .audioSegment(let chunk):
+            var sumOfSquares: Float = 0
+            for sample in chunk.samples { sumOfSquares += sample * sample }
+            let rms = (sumOfSquares / Float(max(chunk.frameCount, 1))).squareRoot()
+            utterancePeak = max(utterancePeak, rms)
+            inputLevel = rms
         }
     }
 
