@@ -1611,3 +1611,156 @@ live voice, and survives a real interruption — recorded · the device's
 own numbers in INSTRUMENTS.md · PR merged with the map updated · the
 forks logged as D-entries · code adversarially reviewed BEFORE the merge
 (D-041) · teach-back survived.
+
+# SPEC — Milestone 4e: the second mouth (TTSKit)
+
+## 61. What 4e builds, and why it is next
+
+Every seam in this library has two real implementations — except one.
+`TranscriptionEngine` has Apple's and Whisper's, proven interchangeable
+by a measured bake-off. `SpeechSynthesizing` has one mouth, and
+"we can switch mouths" is therefore a CLAIM where the input side has a
+PROOF.
+
+4e builds the second: a `SpeechSynthesizing` backed by **TTSKit**
+(Qwen3 neural TTS, CoreML) from the `argmax-oss-swift` package this
+project already resolves for WhisperKit. Same seam, no coordinator
+change, and a voice bake-off with BAKEOFF.md's discipline.
+
+**Two things make it worth doing now rather than after the language
+model.** First, the architecture claim is the portfolio's differentiator
+and it is one milestone from being provable. Second — and this was not
+planned — TTSKit may hand back the fix that 4d deferred.
+
+## 62. The unplanned opportunity, stated as a HYPOTHESIS
+
+D-043 measured why the iPhone cannot cancel its own reply: voice
+processing removes only what ITS OWN audio unit renders, and
+`AVSpeechSynthesizer` plays somewhere else. The fix named there is to
+render the reply through the pipeline's engine — deferred as milestone
+4f because it meant rewiring Apple's mouth.
+
+TTSKit's `SpeechModel` exposes BOTH paths:
+
+```
+   play(text:…)      → TTSKit renders through its own AudioOutput   (same problem)
+   generate(text:…)  → hands US the PCM, chunk by chunk, in a callback
+                          ▲
+              if WE render it, the canceller can see it
+```
+
+So the neural mouth may arrive already cancellable, and 4f may shrink to
+"do the same for Apple's mouth". **Recorded as a hypothesis to TEST, not
+a claim** — the D-038 lesson is exactly what happens when a measurement
+on one path is treated as a law elsewhere. It is fork F-1 below, and
+AC-104 is the measurement that settles it.
+
+## 63. The one hard problem: a mouth that thinks before it speaks
+
+`AVSpeechSynthesizer` starts almost instantly. A neural TTS decodes
+autoregressively — roughly one frame (~80 ms of audio) per step — so
+**time-to-first-audio becomes part of the felt pause**, and it is
+variable rather than fixed. The pipeline's whole latency story (743 ms
+of pipeline, 1481–1555 ms felt pause with an 800 ms gate) gets a new
+term, and the D-028 thermal policy — honestly labelled "insurance, not a
+measured cure" since Phase 3 — finally meets a workload that can heat a
+phone.
+
+## 64. Acceptance criteria (4e)
+
+- **AC-99** The module: `MultiModalKitTTS`, an OPT-IN product beside
+  `MultiModalKitWhisper` (D-016 tier 2, D-023's four questions). The
+  core keeps zero runtime dependencies; nothing in `MultiModalKit`
+  learns that TTSKit exists.
+- **AC-100** Model lifecycle with Phase 2's lessons applied, not
+  re-learned: `modelInstalled()` verifies the asset files BY NAME and
+  means offline-capable; `ensureModel()` downloads once; a missing model
+  is a named failure, never a crash; and startup makes **zero network
+  requests** when the model is on disk (the WhisperKit ping that cost
+  4× on every test load).
+- **AC-101** The adapter behind the seam: `SpeechSynthesizing` /
+  `SynthesisRun`, obeying the same evidence rules as Apple's mouth
+  (D-029, D-037 F-4) — `.started` when sound is AUDIBLE, `.finished`
+  when the room is quiet, `cancel()` silent and terminal-free. It passes
+  the existing `SynthesizerConformanceKit` unchanged: that kit was
+  written for "a second mouth we do not have yet", and this is the
+  milestone that makes it earn its keep.
+- **AC-102** THE SPIKE GATES, measured before any adoption ruling
+  (D-023's discipline, as D-037 promised): **time-to-first-audio**,
+  **stop latency** (barge → silence), and **thermal** under sustained
+  use with D-028's policy watching. Numbers in INSTRUMENTS.md, on both
+  Mac and iPhone, or no adoption.
+- **AC-103** THE VOICE BAKE-OFF. Both mouths, the same sentences, and
+  measurements that are honest about what can and cannot be measured:
+  intelligibility as a NUMBER by round-tripping the spoken audio back
+  through the transcription engines this repo already owns (speak →
+  record → transcribe → WER against the source text), plus latency and
+  size. Anything subjective — "which voice sounds better" — is reported
+  as opinion and labelled as such, never dressed as data.
+- **AC-104** The echo hypothesis (§62) TESTED on the iPhone with the
+  4d probe: does a reply rendered through the pipeline's own engine fall
+  under the gate? Either answer is recorded; a positive one reshapes 4f.
+- **AC-105** Hygiene + the slice: Swift 6 strict, zero warnings, 20×
+  stable, map updated, and the demos let a listener switch mouths and
+  hear the difference on real hardware.
+
+## 65. Test matrix (4e)
+
+| Area | Tests |
+|---|---|
+| Conformance | the existing `SynthesizerConformanceKit`, applied to the neural mouth (model-gated, skipped honestly where absent — the WhisperEngine precedent) |
+| Model lifecycle | not-installed is a named failure · `modelInstalled()` false when asset files are missing by name · zero network on a warm start |
+| Cancellation | `cancel()` mid-generation stops the decode AND the audio; no terminal; nothing survives a late feed |
+| Liveness | an unspeakable reply still terminates (the promise the Apple mouth already keeps) |
+| Coordinator | the whole 4a–4d suite green with the neural mouth substituted in the scripted places it can be |
+| Bake-off | the round-trip WER harness itself: a known-good pair scores 0 %, a scrambled pair scores high |
+
+## 66. The design forks (4e) — for Ryad to rule
+
+- **F-1 `play()` OR `generate()` + our own rendering.** A: let TTSKit
+  play — least code, and it inherits 4d's echo problem unchanged. B:
+  take the PCM from `generate`'s callback and render it through the
+  pipeline's engine — more code (format conversion, a player node,
+  buffer scheduling) but it is the ONLY path that can make the reply
+  cancellable, and it turns §62's hypothesis into a measurement.
+  **Recommendation: B**, with A kept as the fallback if the rendering
+  proves to fight the platform.
+- **F-2 WHAT `.started` MEANS for a mouth that thinks.** A: the first
+  PCM chunk actually rendered — evidence, consistent with D-029. B:
+  generation start — earlier, and a lie: nothing is audible yet.
+  **Recommendation: A.**
+- **F-3 THE PLAYBACK STRATEGY.** TTSKit offers `.auto`, `.stream`,
+  `.buffered`, `.generateFirst`. A: `.auto`, which measures the first
+  step and pre-buffers accordingly. B: `.stream`, lowest latency,
+  choppy if the device cannot generate faster than real time. C:
+  `.generateFirst`, smooth but the felt pause absorbs the whole
+  generation. **Recommendation: A**, with the measured number recorded
+  either way — this is a latency/robustness trade the spike can settle.
+- **F-4 WHERE IT LIVES.** A: a new opt-in product `MultiModalKitTTS`,
+  mirroring `MultiModalKitWhisper`. B: inside the existing Whisper
+  module, since both come from one package. **Recommendation: A** — the
+  seam it implements is different, and an app wanting a neural voice
+  should not be made to pull a speech recogniser.
+- **F-5 WHAT THE BAKE-OFF MAY CLAIM.** A: intelligibility measured by
+  round-trip WER (speak → record → transcribe → compare), plus latency,
+  size and thermal — with voice preference reported as labelled
+  opinion. B: latency and size only; refuse to score quality at all. C:
+  a subjective rating as the headline. **Recommendation: A** — the
+  round trip is a real instrument and this repo's whole method is
+  turning "it sounds better" into a number with stated caveats. C is
+  the thing BAKEOFF.md exists to refuse.
+
+## 67. Out of scope for 4e (deliberately)
+
+The echo ROUTING fix for Apple's mouth (still 4f, informed by AC-104) ·
+the language model (4g) · voice/language selection UI beyond what the
+bake-off needs · streaming partial replies from a language model ·
+SpeakerKit.
+
+## 68. Definition of done (4e)
+
+All ACs green · 20× stable · the spike's three numbers measured on both
+devices BEFORE the adoption ruling · the bake-off written with its
+caveats · code adversarially reviewed BEFORE the merge (D-041) · PR
+merged with the map updated · the forks logged as D-entries ·
+teach-back survived.
