@@ -40,6 +40,28 @@ final class TranscribeModel {
     private(set) var utterances: [Utterance] = []
     private(set) var droppedFrames = 0
 
+    // MARK: - the conversation (milestone 4d)
+
+    /// Speak the replies aloud. OFF puts the app back in its Phase 2
+    /// shape — record-only session, no mouth — which is also the honest
+    /// A/B for what the talking session costs.
+    var talkEnabled = true {
+        didSet { if isListening { restart() } }
+    }
+    /// F-4 = A + toggle: loudspeaker (default, the hard echo case) or the
+    /// receiver. Both routes get measured; the numbers are the phone's own.
+    var useSpeaker = true {
+        didSet { if isListening { restart() } }
+    }
+    private(set) var turnState: TurnState = .idle
+    private(set) var reply = ""
+    /// The whole thought the generator received (AC-91) — 4c made visible.
+    private(set) var wholeThought = ""
+    private(set) var feltPauseMilliseconds: Int?
+    /// The platform took the audio away. Nothing resumes by itself
+    /// (F-5 = B): a person decides when a microphone turns back on.
+    private(set) var wasInterrupted = false
+
     var choice: EngineChoice = .apple {
         didSet {
             guard choice != oldValue, !isListening else { return }
@@ -69,6 +91,8 @@ final class TranscribeModel {
     }
     private var microphone: MicrophoneSource?
     private var pipeline: Task<Void, Never>?
+    private var coordinator: TurnCoordinator<ContinuousClock>?
+    private var interruptionObserver: (any NSObjectProtocol)?
 
     // MARK: - the model asset (the app's job, never the library's)
 
@@ -153,22 +177,23 @@ final class TranscribeModel {
         guard engineState == .ready, !isListening else { return }
         utterances.removeAll()
         droppedFrames = 0
-
-        do {
-            let session = AVAudioSession.sharedInstance()
-            // Default mode ON PURPOSE: .measurement would switch off the
-            // system's input processing INCLUDING automatic gain — learned on
-            // the first field run ("I must speak loud and be near the phone").
-            try session.setCategory(.record)
-            try session.setActive(true)
-        } catch {
-            engineState = .failed("Audio session: \(error.localizedDescription)")
-            return
-        }
+        reply = ""
+        wholeThought = ""
+        feltPauseMilliseconds = nil
+        wasInterrupted = false
 
         // ~1.4 s of audio at 48 kHz; power-of-two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 16)
-        let microphone = MicrophoneSource()
+        // The session is handed to the LIBRARY, which orders its steps
+        // around capture (D-042 F-1 = B). The app never calls setActive
+        // by hand any more — that ordering was guaranteed by nobody.
+        let microphone = MicrophoneSource(
+            // Voice processing only when there is something to cancel.
+            // Its numbers were measured on a Mac whose microphone is an
+            // iPhone over Continuity — none of them transfer, so AC-96
+            // re-measures here or claims nothing.
+            voiceProcessing: talkEnabled,
+            session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker))
         do {
             try microphone.start(into: producer)
         } catch {
@@ -176,6 +201,7 @@ final class TranscribeModel {
             return
         }
         self.microphone = microphone
+        observeInterruptions()
 
         let rate = microphone.sampleRate
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
@@ -199,6 +225,20 @@ final class TranscribeModel {
             // late settling decodes, loudly — the row will say so in words.
             thermalPolicy: ConservativeThermalPolicy())
 
+        // The conversation, if the app is talking. Same coordinator, same
+        // ledger, same phraser, same mouth as the Mac — AC-92's whole
+        // point is that none of them needed an iOS variant.
+        let coordinator: TurnCoordinator<ContinuousClock>? = talkEnabled
+            ? TurnCoordinator(
+                replyGenerator: PhoneEchoReply(onThought: { [weak self] thought in
+                    Task { @MainActor in self?.wholeThought = thought }
+                }),
+                synthesizer: AppleSpeechSynthesizer(),
+                clock: ContinuousClock(),
+                latencyReporter: PhoneLatency(model: self))
+            : nil
+        self.coordinator = coordinator
+
         isListening = true
         let diagnostics = diagnostics
         pipeline = Task { [weak self] in
@@ -207,10 +247,26 @@ final class TranscribeModel {
             let audioForUI = await pump.listen()          // the multicast, used for real
             let transcripts = await transcription.listen()
             let health = diagnostics.health()
+            let audioForTurns = coordinator == nil ? nil : await pump.listen()
+            let transcriptsForTurns = coordinator == nil ? nil : await transcription.listen()
+            let turnEvents = coordinator == nil ? nil : await coordinator?.listen()
 
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await pump.run() }
                 group.addTask { await transcription.run(events: audioForSession.events) }
+                if let coordinator, let audioForTurns, let transcriptsForTurns {
+                    group.addTask {
+                        await coordinator.run(audio: audioForTurns.events,
+                                              transcripts: transcriptsForTurns.events)
+                    }
+                }
+                if let turnEvents {
+                    group.addTask { [weak self] in
+                        for await event in turnEvents.events {
+                            await self?.show(turn: event)
+                        }
+                    }
+                }
                 // The thermal watcher — cancelled with the group, never
                 // stop()ped: diagnostics lives across Listen sessions.
                 group.addTask { await diagnostics.run() }
@@ -234,6 +290,7 @@ final class TranscribeModel {
                 _ = await group.next()
                 await pump.stop()
                 await transcription.stop()
+                await coordinator?.stop()
             }
         }
     }
@@ -242,11 +299,70 @@ final class TranscribeModel {
         guard isListening else { return }
         isListening = false
         isSpeaking = false
-        microphone?.stop()
+        turnState = .idle
+        microphone?.stop()          // the library releases the session, in order
         microphone = nil
         pipeline?.cancel()
         pipeline = nil
-        try? AVAudioSession.sharedInstance().setActive(false)
+        coordinator = nil
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+            self.interruptionObserver = nil
+        }
+    }
+
+    private func restart() {
+        stop()
+        start()
+    }
+
+    // MARK: - interruptions (AC-94, D-042 F-2 = A and F-5 = B)
+
+    /// The app observes the platform notification and feeds the library a
+    /// plain event. The core never learns what iOS is (F-2 = A), and the
+    /// library's reaction — the turn dies like a failure, the words stay —
+    /// is written once, in one place, instead of once per app.
+    private func observeInterruptions() {
+        guard interruptionObserver == nil else { return }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+            Task { @MainActor in await self?.handle(interruption: type) }
+        }
+    }
+
+    private func handle(interruption type: AVAudioSession.InterruptionType) async {
+        switch type {
+        case .began:
+            // The platform already took the audio; the live turn must die
+            // honestly rather than hang. Capture is torn down here too —
+            // the graph is dead whether we admit it or not.
+            await coordinator?.interrupt()
+            wasInterrupted = true
+            stop()
+        case .ended:
+            // NOTHING happens automatically (F-5 = B). The system's
+            // `.shouldResume` hint is a hint TO THE APP; a person decides
+            // when a microphone turns back on. The UI now offers it.
+            break
+        @unknown default:
+            break
+        }
+    }
+
+    /// The person tapped "resume". The thought is forgotten first — a call
+    /// is a break in the conversation, and a pre-call fragment must not
+    /// join a post-call sentence (F-5's second half).
+    func resumeAfterInterruption() async {
+        await coordinator?.resume()
+        wasInterrupted = false
+        reply = ""
+        wholeThought = ""
+        start()
     }
 
     // MARK: - events → screen
@@ -267,6 +383,29 @@ final class TranscribeModel {
         case .dropped(let frames, _): droppedFrames += frames
         case .audioSegment: break
         }
+    }
+
+    private func show(turn event: TurnEvent) {
+        switch event {
+        case .stateChanged(let state, _):
+            turnState = state
+            if state == .listening || state == .idle { reply = "" }
+        case .replyToken(let token, _):
+            reply += reply.isEmpty ? token : " " + token
+        case .turnCompleted:
+            break                       // the reply stays on screen until the next turn
+        case .turnBarged:
+            reply = ""
+        case .turnFailed(let failure, _):
+            reply = ""
+            if case .interrupted = failure { wasInterrupted = true }
+        }
+    }
+
+    func show(feltPause duration: Duration) {
+        feltPauseMilliseconds = Int(
+            Double(duration.components.seconds) * 1000
+                + Double(duration.components.attoseconds) * 1e-15)
     }
 
     private func show(transcript event: TranscriptEvent) {

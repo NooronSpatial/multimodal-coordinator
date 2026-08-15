@@ -46,6 +46,89 @@ struct ContentView: View {
         }
     }
 
+    /// Milestone 4d on screen: the turn loop the Mac has had since 4a/4b,
+    /// now on the phone — plus the two toggles the field run needs.
+    private var conversation: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Toggle("Talk back", isOn: Bindable(model).talkEnabled)
+                Divider().frame(height: 20)
+                // F-4 = A + toggle: the speaker is the default and the hard
+                // echo case; both routes get measured (AC-96).
+                Toggle("Speaker", isOn: Bindable(model).useSpeaker)
+                    .disabled(!model.talkEnabled)
+            }
+            .toggleStyle(.switch)
+            .font(.subheadline)
+
+            if model.talkEnabled {
+                HStack(spacing: 8) {
+                    Image(systemName: turnIcon)
+                        .foregroundStyle(model.turnState == .speaking ? .blue : .secondary)
+                    Text(turnLabel).font(.subheadline.weight(.medium))
+                    Spacer()
+                    if let pause = model.feltPauseMilliseconds {
+                        Text("felt pause \(pause) ms")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if !model.reply.isEmpty {
+                    Text(model.reply)
+                        .font(.callout)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(.blue.opacity(0.12), in: .rect(cornerRadius: 8))
+                }
+
+                // The whole thought that crossed the seam — 4c, visible
+                // (AC-91). Two sentences with a pause between them belong
+                // on ONE line here.
+                if !model.wholeThought.isEmpty {
+                    Label(model.wholeThought, systemImage: "brain")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            // F-5 = B: nothing resumes by itself. A person decides when a
+            // microphone turns back on — and resuming forgets the thought.
+            if model.wasInterrupted {
+                HStack {
+                    Label("Interrupted — the audio was taken away",
+                          systemImage: "phone.down.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Resume") { Task { await model.resumeAfterInterruption() } }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    private var turnIcon: String {
+        switch model.turnState {
+        case .idle: "circle"
+        case .listening: "ear"
+        case .thinking: "ellipsis.circle"
+        case .speaking: "speaker.wave.2.fill"
+        }
+    }
+
+    private var turnLabel: String {
+        switch model.turnState {
+        case .idle: "idle"
+        case .listening: "listening"
+        case .thinking: "thinking"
+        case .speaking: "speaking — interrupt it with your voice"
+        }
+    }
+
     private var transcriber: some View {
         VStack(spacing: 16) {
             Picker("Engine", selection: Bindable(model).choice) {
@@ -56,6 +139,8 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .disabled(model.isListening)
             .padding(.horizontal)
+
+            conversation
 
             ScrollViewReader { proxy in
                 List {
