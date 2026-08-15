@@ -5,22 +5,54 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch model.engineState {
-                case .checking:
-                    ProgressView("Checking the speech model…")
-                case .modelMissing:
-                    modelMissing
-                case .downloading:
-                    ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
-                        .multilineTextAlignment(.center)
-                case .failed(let reason):
-                    failed(reason)
-                case .ready:
-                    transcriber
+            VStack(spacing: 0) {
+                Group {
+                    switch model.engineState {
+                    case .checking:
+                        ProgressView("Checking the speech model…")
+                    case .modelMissing:
+                        modelMissing
+                    case .downloading:
+                        ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
+                            .multilineTextAlignment(.center)
+                    case .failed(let reason):
+                        failed(reason)
+                    case .ready:
+                        transcriber
+                    }
+                }
+                .frame(maxHeight: .infinity)
+
+                // ALWAYS reachable, deliberately: the echo probe needs no
+                // speech model, and the machines where a model refuses to
+                // install are exactly the ones where a measurement matters
+                // most. Trapping it behind "ready" would have hidden the
+                // instrument on the first device that needed it.
+                // The probe's RESULTS live here; its trigger is in the
+                // toolbar. A button in this bottom strip did not fire on
+                // synthetic taps in the simulator — the Download button in
+                // the same build did — and rather than ship a control I
+                // could not prove works, the trigger moved somewhere
+                // taps are reliable.
+                if model.probeSilence != nil || model.probeStatus != nil {
+                    Divider()
+                    echoProbeResults
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
                 }
             }
             .navigationTitle("MultiModalKit")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await model.runEchoProbe() }
+                    } label: {
+                        Label(model.probeStatus == nil ? "Echo probe" : "measuring…",
+                              systemImage: "waveform.badge.magnifyingglass")
+                    }
+                    .disabled(model.isListening || model.probeStatus != nil)
+                }
+            }
             .task { await model.checkModel() }
         }
     }
@@ -46,6 +78,193 @@ struct ContentView: View {
         }
     }
 
+    /// Milestone 4d on screen: the turn loop the Mac has had since 4a/4b,
+    /// now on the phone — plus the two toggles the field run needs.
+    private var conversation: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Toggle("Talk back", isOn: Bindable(model).talkEnabled)
+                Divider().frame(height: 20)
+                // F-4 as amended by D-043: the speaker is the measured
+                // broken route, kept one toggle away for measurement.
+                Toggle("Speaker", isOn: Bindable(model).useSpeaker)
+                    .disabled(!model.talkEnabled)
+            }
+            .toggleStyle(.switch)
+            .font(.subheadline)
+
+            // The known limit, said plainly where it bites — not buried in
+            // a document the person holding the phone will never open.
+            if model.talkEnabled && model.useSpeaker {
+                Label("On speaker the reply is not cancelled (measured peak 1.0) — "
+                      + "it will interrupt itself. Receiver or headphones work.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if model.talkEnabled {
+                HStack(spacing: 8) {
+                    Image(systemName: turnIcon)
+                        .foregroundStyle(model.turnState == .speaking ? .blue : .secondary)
+                    Text(turnLabel).font(.subheadline.weight(.medium))
+                    Spacer()
+                    if let pause = model.feltPauseMilliseconds {
+                        Text("felt pause \(pause) ms")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // THE BARGE DIAGNOSTIC. Two counters, because they fail
+                // apart: onsets is what the PUMP heard while the reply was
+                // playing, barges is what the COORDINATOR did about it.
+                HStack(spacing: 10) {
+                    Text("onsets while speaking: \(model.onsetsWhileSpeaking)")
+                        .foregroundStyle(model.onsetsWhileSpeaking > 0 ? Color.primary
+                                                                       : Color.secondary)
+                    Text("barges: \(model.bargeCount)")
+                        .foregroundStyle(model.bargeCount > 0 ? Color.green : Color.red)
+                    Spacer()
+                    Text(model.lastTurnEvent).foregroundStyle(.secondary)
+                }
+                .font(.caption2.monospacedDigit())
+
+                if !model.reply.isEmpty {
+                    Text(model.reply)
+                        .font(.callout)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(.blue.opacity(0.12), in: .rect(cornerRadius: 8))
+                }
+
+                // The whole thought that crossed the seam — 4c, visible
+                // (AC-91). Two sentences with a pause between them belong
+                // on ONE line here.
+                if !model.wholeThought.isEmpty {
+                    Label(model.wholeThought, systemImage: "brain")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            // The gate, on screen and adjustable — a level means nothing
+            // without the number it is judged against (AC-97: this device
+            // earns its own).
+            HStack(spacing: 8) {
+                Text("gate").font(.caption).foregroundStyle(.secondary)
+                Slider(value: Bindable(model).vadThreshold, in: 0.005...0.08)
+                    .disabled(model.isListening)
+                Text(model.vadThreshold, format: .number.precision(.fractionLength(3)))
+                    .font(.caption.monospacedDigit())
+            }
+
+            // F-5 = B: nothing resumes by itself. A person decides when a
+            // microphone turns back on — and resuming forgets the thought.
+            if model.wasInterrupted {
+                HStack {
+                    Label("Interrupted — the audio was taken away",
+                          systemImage: "phone.down.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Resume") { Task { await model.resumeAfterInterruption() } }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    /// AC-96's instrument: the phone speaks while reading the microphone
+    /// RAW — past the VAD, so "nothing happened" can never be confused
+    /// with "the microphone is deaf". Needs no speech model, so it runs
+    /// even where an engine will not.
+    private var echoProbeResults: some View {
+        VStack(spacing: 6) {
+            if let status = model.probeStatus {
+                HStack {
+                    ProgressView().controlSize(.mini)
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
+            if let failure = model.probeFailure {
+                Text(failure).font(.caption).foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if let quiet = model.probeSilence, let speaking = model.probeWhileSpeaking {
+                VStack(alignment: .leading, spacing: 3) {
+                    // The two facts that make the numbers interpretable:
+                    // which way the sound came out, and whether the
+                    // canceller was actually granted (asked ≠ got).
+                    HStack {
+                        Text(model.probeRoute).font(.caption2)
+                        Text(model.probeVoiceProcessingActive
+                             ? "· voice processing ACTIVE"
+                             : "· voice processing REFUSED")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(model.probeVoiceProcessingActive
+                                             ? Color.secondary : Color.red)
+                        Spacer()
+                    }
+                    probeRow("quiet room", quiet)
+                    probeRow("while speaking", speaking)
+                    // The verdict, in one line, so the field run does not
+                    // have to interpret two numbers under pressure.
+                    Text(speaking.peak >= model.vadThreshold
+                         ? "→ CROSSES the gate — if you stayed quiet, it will barge itself"
+                         : "→ stays under the gate on this route")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(speaking.peak >= model.vadThreshold ? .red : .green)
+                    // The verdict is only true in SILENCE. A run where the
+                    // person spoke measures their VOICE and reads as a
+                    // failure — it misled us once, so the assumption is
+                    // now printed next to the claim that depends on it.
+                    Text("valid only if nobody spoke during the measurement")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func probeRow(_ label: String, _ value: (peak: Float, rms: Float)) -> some View {
+        HStack {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text("peak \(value.peak, format: .number.precision(.fractionLength(4)))")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(value.peak >= model.vadThreshold ? .red : .primary)
+            Text("rms \(value.rms, format: .number.precision(.fractionLength(4)))")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var turnIcon: String {
+        switch model.turnState {
+        case .idle: "circle"
+        case .listening: "ear"
+        case .thinking: "ellipsis.circle"
+        case .speaking: "speaker.wave.2.fill"
+        }
+    }
+
+    private var turnLabel: String {
+        switch model.turnState {
+        case .idle: "idle"
+        case .listening: "listening"
+        case .thinking: "thinking"
+        case .speaking: "speaking — interrupt it with your voice"
+        }
+    }
+
     private var transcriber: some View {
         VStack(spacing: 16) {
             Picker("Engine", selection: Bindable(model).choice) {
@@ -56,6 +275,8 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .disabled(model.isListening)
             .padding(.horizontal)
+
+            conversation
 
             ScrollViewReader { proxy in
                 List {
@@ -71,6 +292,22 @@ struct ContentView: View {
                                     .foregroundStyle(utterance.isFinal ? .primary : .secondary)
                                 if let failure = utterance.failure {
                                     Text(failure).font(.caption).foregroundStyle(.red)
+                                }
+                                // The Mac's 🔎 line: what actually opened
+                                // this utterance, in numbers. "echo?" marks
+                                // one that began while the phone was
+                                // talking — the self-barge signature.
+                                if utterance.peakRMS > 0 {
+                                    HStack(spacing: 6) {
+                                        Text("peak \(utterance.peakRMS, format: .number.precision(.fractionLength(3)))")
+                                        Text("· \(utterance.milliseconds) ms")
+                                        if utterance.whileSpeaking {
+                                            Text("· echo?")
+                                                .foregroundStyle(.red)
+                                        }
+                                    }
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -132,6 +369,11 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(model.isListening ? .red : .accentColor)
+            // The other half of the mutual exclusion (4d review): the
+            // probe already refused to start while listening, but nothing
+            // stopped listening from starting while a probe held the
+            // process-wide session.
+            .disabled(model.probeStatus != nil)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }

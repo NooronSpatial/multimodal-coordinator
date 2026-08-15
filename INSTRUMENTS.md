@@ -388,3 +388,123 @@ interrupted mid-thought. 4c does not fix §46a finding (3) — no fixed
 timer separates "still thinking" from "done talking" — it makes the
 interruption *cheaper*, because when the assistant finally answers, it
 answers everything that was said instead of the last fragment.
+
+## 8. The phone's echo — measured, and the cheap fix ruled out (AC-96)
+
+The Mac's canceller numbers never transferred, exactly as the milestone
+insisted they might not. Measured on Ryad's iPhone with the app's own
+echo probe — which reads the ring DIRECTLY, past the VAD, so "nothing
+happened" can never be confused with "the microphone is deaf":
+
+| session mode | route | quiet room peak | while SPEAKING peak | voice processing |
+|---|---|---|---|---|
+| `.default` | speaker | 0.0030 | **1.0000** (full scale) | ACTIVE |
+| `.voiceChat` | speaker | **0.0008** | **0.9391** | ACTIVE |
+
+And the same probe on the RECEIVER, twice:
+
+| session mode | route | quiet room peak | while SPEAKING peak | verdict at gate 0.010 |
+|---|---|---|---|---|
+| `.voiceChat` | receiver | 0.0099 | 0.0094 | under — by **6 %** |
+| `.voiceChat` | receiver | 0.0002 | 0.0044 | under — the reply adds ~0.004 over the floor |
+
+At the gate this device then EARNED for itself (AC-97), the margin stops
+being uncomfortable:
+
+| session mode | route | gate | quiet room peak | while SPEAKING peak | margin |
+|---|---|---|---|---|---|
+| `.voiceChat` | receiver | 0.020 | 0.0008 | 0.0063 | 3.2× |
+| `.voiceChat` | receiver | 0.020 | 0.0000 | 0.0053 | 3.8× |
+
+Those two runs also served as an accidental CONTROL: one was taken with
+Apple selected and one with Whisper, and the probe touches no engine at
+all — it starts the microphone, speaks, and reads the ring. Same result
+either way, which is what says the 0.0063/0.0053 difference is room
+variation rather than anything about an engine. It also weakens the one
+loose end still unexplained from the first device run ("lowering the
+volume helped Apple but not Whisper"): the echo path is now measured as
+engine-independent at two separate points.
+
+**And the third number, arrived at by accident.** One probe was run
+while the speaker TALKED through it — which voids the verdict line (it
+assumes silence) but measures the thing no other run had: a human voice
+on this route, at **peak 0.2540**. The picture that completes:
+
+```
+   echo leak      0.0044 – 0.0094      ← must stay UNDER the gate
+   gate           0.020                ← 2–4x above the leak
+   human voice    0.2540               ← 13x above the gate
+```
+
+Ten-fold separation at both ends. That is AC-97 answered by measurement
+rather than by choosing a number that felt safe — and the probe now
+prints "valid only if nobody spoke during the measurement", because this
+run read as a failure when it was in fact the best result of the day.
+
+**Why the receiver works, stated precisely, because the easy phrasing is
+wrong.** It is not that the canceller works there. The canceller is
+exactly as blind on the receiver as on the speaker — it cannot see
+`AVSpeechSynthesizer` either way. The receiver is quiet and aimed at an
+ear, so ~200× less of the reply reaches the microphone (0.9391 →
+0.0044). That is ACOUSTIC ISOLATION doing the work, and it is worth
+saying because the two explanations predict different futures: a louder
+voice, a smaller room or a lower gate breaks isolation, and one run
+already came within 6 % of the gate.
+
+Read the rows twice, because they say two different things.
+
+**The canceller works.** It is not refused, and it is not idle: it takes
+the room's own noise floor down — threefold under `.default`, and
+another fourfold under `.voiceChat` (0.0092 unprocessed → 0.0008).
+
+**And it never sees the reply.** The assistant's own voice arrives at
+the microphone at essentially full scale under both modes. Voice
+processing cancels what ITS OWN audio unit renders;
+`AVSpeechSynthesizer` plays on a separate path. The macOS spike (§6)
+proved cancellation of audio from a whole separate PROCESS, so the
+reference is system-wide there — one platform measured, and iOS is not
+the same platform.
+
+**What these numbers retire.** Tuning. Human speech peaks around
+0.1–0.3 here; the echo peaks at ~1.0, so on this route **the echo is
+louder than the person**. No gate separates them: raising it would
+silence the speaker before the phone. An entire line of work, closed by
+one measurement.
+
+**The cheap fix, tried and ruled out.** `.voiceChat` is the session mode
+built for full-duplex speech, and it was the one-line hope. It is kept —
+the noise floor it buys is real and measured — but it is NOT the answer:
+same route, same probe, still 0.9391. Ruled in D-043: the finding ships
+with milestone 4d and the routing fix becomes 4f, after TTSKit.
+
+## 9. Milestone 4d on the phone — the conversation, and one false alarm
+
+**AC-92 PASSED on hardware** (2026-08-15, receiver route, gate 0.020,
+`.voiceChat`, Ryad's iPhone): the phone holds a conversation — it
+listens, replies aloud through `AVSpeechSynthesizer`, and **a live voice
+barges it**. The same `TurnCoordinator`, `TranscriptLedger`,
+`SpeechPhraser` and mouth the Mac runs, with no iOS variant of any of
+them. That was the milestone's thesis (AC-92) and it held: the whole
+diff was platform reality.
+
+**The false alarm, kept because it earned a change.** An earlier attempt
+reported "it kept talking when I talked", which read as a barge-in
+failure — the project's thesis breaking on a new platform. Two causes
+fit equally well (the microphone never opening, or the mouth ignoring
+its cancel), and the screen could not tell them apart. The real cause
+was neither: the Listen button had not been tapped, so no pipeline was
+running at all.
+
+What it exposed is still real: an acceptance criterion that could only
+be judged BY EAR. So the screen now counts both halves separately —
+`onsets while speaking` (what the pump heard) and `barges` (what the
+coordinator did about it). They fail apart, which is the point:
+
+```
+both climbing    → the barge works, the mouth is deaf to cancel
+only onsets      → the coordinator never acted
+neither          → the microphone never heard the voice
+```
+
+Three different bugs, one glance — and AC-92 becomes a number instead of
+an impression.

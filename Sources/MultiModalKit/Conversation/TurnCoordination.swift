@@ -21,6 +21,14 @@ public enum TurnFailure: Error, Sendable, Equatable {
     case generationFailed(String)
     case synthesisFailed(String)
     case transcriptionFailed(TranscriptionFailure)
+    /// The platform took the audio away mid-turn — a call, Siri, a route
+    /// that vanished (AC-94, D-042 F-3). It is a FAILURE, not a barge:
+    /// the speaker did not interrupt, the system did, so `turnBarged`
+    /// would be a lie and `listening` afterwards would claim an
+    /// utterance that does not exist. Being a failure also means the
+    /// speaker's words stay in the ledger — nothing answered them
+    /// (D-040 F-2).
+    case interrupted
 }
 
 /// What the coordinator publishes (AC-67). Every event carries its turn

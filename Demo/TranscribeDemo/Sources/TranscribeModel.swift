@@ -32,6 +32,16 @@ final class TranscribeModel {
         var text: String
         var isFinal: Bool
         var failure: String?
+        /// FORENSICS (the Mac's 🔎 line, brought to the phone). Without
+        /// these the first field run could only be described, not
+        /// measured — and the echo question is entirely a question about
+        /// levels: what does the microphone hear when the phone speaks?
+        var peakRMS: Float = 0
+        var milliseconds: Int = 0
+        /// True when this utterance began while the assistant was SPEAKING
+        /// — the signature of the echo loop. A run full of these is the
+        /// machine hearing itself.
+        var whileSpeaking = false
     }
 
     private(set) var engineState: EngineState = .checking
@@ -39,6 +49,70 @@ final class TranscribeModel {
     private(set) var isSpeaking = false
     private(set) var utterances: [Utterance] = []
     private(set) var droppedFrames = 0
+
+    // MARK: - the conversation (milestone 4d)
+
+    /// Speak the replies aloud. OFF puts the app back in its Phase 2
+    /// shape — record-only session, no mouth — which is also the honest
+    /// A/B for what the talking session costs.
+    var talkEnabled = true {
+        didSet { if isListening { restart() } }
+    }
+    /// F-4, AMENDED BY MEASUREMENT (D-043). It was ruled speaker-default
+    /// because that is the honest hard case; the device then measured the
+    /// reply arriving at peak 1.0000 while the canceller reported ACTIVE,
+    /// so the hard case is the BROKEN case and a speaker default would
+    /// ship a demo that barges itself out of the box. The default is now
+    /// the route that works; the speaker is one toggle away, for
+    /// measurement, and the screen says why.
+    var useSpeaker = false {
+        didSet { if isListening { restart() } }
+    }
+    private(set) var turnState: TurnState = .idle
+    private(set) var reply = ""
+    /// The whole thought the generator received (AC-91) — 4c made visible.
+    private(set) var wholeThought = ""
+    private(set) var feltPauseMilliseconds: Int?
+    /// The platform took the audio away. Nothing resumes by itself
+    /// (F-5 = B): a person decides when a microphone turns back on.
+    private(set) var wasInterrupted = false
+    /// BARGE DIAGNOSTICS (AC-92). `onsetsWhileSpeaking` counts what the
+    /// PUMP saw; `bargeCount` counts what the COORDINATOR did about it.
+    /// Both climbing = the barge works and the mouth is deaf to cancel.
+    /// Only the first climbing = the coordinator never acted.
+    /// Neither climbing = the microphone never heard the voice at all.
+    /// Three different bugs, one glance.
+    private(set) var bargeCount = 0
+    private(set) var onsetsWhileSpeaking = 0
+    private(set) var lastTurnEvent = "—"
+    /// The gate this device is currently using — on screen, and
+    /// adjustable, because a level means nothing without the number it is
+    /// judged against, and because AC-97 says the phone earns its own.
+    /// 0.020 — THIS DEVICE'S OWN NUMBER (AC-97), earned from the echo
+    /// probe rather than inherited. 0.010 came from Phase 2, when the app
+    /// only listened and nothing ever played; with a mouth in the loop
+    /// the reply leaks 0.0044–0.0094 on the receiver, so one run cleared
+    /// 0.010 by six per cent. At 0.020 the leak has 2–4x headroom below
+    /// and speech (0.05–0.26) has 2.5x above.
+    var vadThreshold: Float = 0.02 {
+        didSet { if isListening { restart() } }
+    }
+
+    /// The echo probe's results (AC-96): what the microphone delivers in
+    /// a quiet room, and what it delivers while the phone is speaking.
+    private(set) var probeSilence: (peak: Float, rms: Float)?
+    private(set) var probeWhileSpeaking: (peak: Float, rms: Float)?
+    private(set) var probeStatus: String?
+    /// A failed probe's reason. Kept apart from `probeStatus`, which is
+    /// also the re-entrancy latch — merging them once bricked the button.
+    private(set) var probeFailure: String?
+    /// Did the platform actually GRANT voice processing for this probe?
+    private(set) var probeVoiceProcessingActive = false
+    private(set) var probeRoute = ""
+
+    private var liveUtterance: Int?
+    private var utteranceStartSeconds = 0.0
+    private var utterancePeak: Float = 0
 
     var choice: EngineChoice = .apple {
         didSet {
@@ -69,6 +143,8 @@ final class TranscribeModel {
     }
     private var microphone: MicrophoneSource?
     private var pipeline: Task<Void, Never>?
+    private var coordinator: TurnCoordinator<ContinuousClock>?
+    private var interruptionObserver: (any NSObjectProtocol)?
 
     // MARK: - the model asset (the app's job, never the library's)
 
@@ -150,25 +226,34 @@ final class TranscribeModel {
     // MARK: - the pipeline
 
     func start() {
-        guard engineState == .ready, !isListening else { return }
+        // The gate is SYMMETRIC (4d review). MicrophoneSource enforces
+        // "activate once, release after the engine stops" per INSTANCE,
+        // but PhoneSession acts on the process-wide AVAudioSession. The
+        // probe already refused to run while listening; nothing stopped
+        // listening from starting while a probe held the session, which
+        // reconfigured it under a live tap and then released it under a
+        // running graph — verbatim both failures the seam exists to
+        // prevent.
+        guard engineState == .ready, !isListening, probeStatus == nil else { return }
         utterances.removeAll()
         droppedFrames = 0
-
-        do {
-            let session = AVAudioSession.sharedInstance()
-            // Default mode ON PURPOSE: .measurement would switch off the
-            // system's input processing INCLUDING automatic gain — learned on
-            // the first field run ("I must speak loud and be near the phone").
-            try session.setCategory(.record)
-            try session.setActive(true)
-        } catch {
-            engineState = .failed("Audio session: \(error.localizedDescription)")
-            return
-        }
+        reply = ""
+        wholeThought = ""
+        feltPauseMilliseconds = nil
+        wasInterrupted = false
 
         // ~1.4 s of audio at 48 kHz; power-of-two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 16)
-        let microphone = MicrophoneSource()
+        // The session is handed to the LIBRARY, which orders its steps
+        // around capture (D-042 F-1 = B). The app never calls setActive
+        // by hand any more — that ordering was guaranteed by nobody.
+        let microphone = MicrophoneSource(
+            // Voice processing only when there is something to cancel.
+            // Its numbers were measured on a Mac whose microphone is an
+            // iPhone over Continuity — none of them transfer, so AC-96
+            // re-measures here or claims nothing.
+            voiceProcessing: talkEnabled,
+            session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker))
         do {
             try microphone.start(into: producer)
         } catch {
@@ -176,14 +261,20 @@ final class TranscribeModel {
             return
         }
         self.microphone = microphone
+        observeInterruptions()
 
         let rate = microphone.sampleRate
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
         let pump = AudioPump(
             consumer: consumer,
-            // Field-tuned: 0.01 opens the gate for normal speaking volume at
-            // arm's length (0.02 was a laptop-mic value and ate quiet words).
-            vad: EnergyVAD(config: .init(threshold: 0.01,
+            // 0.01 was earned in Phase 2, when this app only LISTENED —
+            // no speaker, so no echo to cross it. The first 4d field run
+            // showed the assistant barging itself on the phone, which is
+            // that number meeting a loudspeaker centimetres from the
+            // microphone. It is adjustable on screen now, because AC-97
+            // says this device earns its own numbers from a run rather
+            // than inheriting the Mac's.
+            vad: EnergyVAD(config: .init(threshold: vadThreshold,
                                          hangoverFrames: Int(rate * 0.3))),
             clock: ContinuousClock(),
             // 200 ms of pre-roll: a word's quiet onset must survive a VAD
@@ -199,6 +290,20 @@ final class TranscribeModel {
             // late settling decodes, loudly — the row will say so in words.
             thermalPolicy: ConservativeThermalPolicy())
 
+        // The conversation, if the app is talking. Same coordinator, same
+        // ledger, same phraser, same mouth as the Mac — AC-92's whole
+        // point is that none of them needed an iOS variant.
+        let coordinator: TurnCoordinator<ContinuousClock>? = talkEnabled
+            ? TurnCoordinator(
+                replyGenerator: PhoneEchoReply(onThought: { [weak self] thought in
+                    Task { @MainActor in self?.wholeThought = thought }
+                }),
+                synthesizer: AppleSpeechSynthesizer(),
+                clock: ContinuousClock(),
+                latencyReporter: PhoneLatency(model: self))
+            : nil
+        self.coordinator = coordinator
+
         isListening = true
         let diagnostics = diagnostics
         pipeline = Task { [weak self] in
@@ -207,10 +312,26 @@ final class TranscribeModel {
             let audioForUI = await pump.listen()          // the multicast, used for real
             let transcripts = await transcription.listen()
             let health = diagnostics.health()
+            let audioForTurns = coordinator == nil ? nil : await pump.listen()
+            let transcriptsForTurns = coordinator == nil ? nil : await transcription.listen()
+            let turnEvents = coordinator == nil ? nil : await coordinator?.listen()
 
             await withTaskGroup(of: Void.self) { group in
                 group.addTask { await pump.run() }
                 group.addTask { await transcription.run(events: audioForSession.events) }
+                if let coordinator, let audioForTurns, let transcriptsForTurns {
+                    group.addTask {
+                        await coordinator.run(audio: audioForTurns.events,
+                                              transcripts: transcriptsForTurns.events)
+                    }
+                }
+                if let turnEvents {
+                    group.addTask { [weak self] in
+                        for await event in turnEvents.events {
+                            await self?.show(turn: event)
+                        }
+                    }
+                }
                 // The thermal watcher — cancelled with the group, never
                 // stop()ped: diagnostics lives across Listen sessions.
                 group.addTask { await diagnostics.run() }
@@ -234,6 +355,7 @@ final class TranscribeModel {
                 _ = await group.next()
                 await pump.stop()
                 await transcription.stop()
+                await coordinator?.stop()
             }
         }
     }
@@ -242,11 +364,162 @@ final class TranscribeModel {
         guard isListening else { return }
         isListening = false
         isSpeaking = false
-        microphone?.stop()
+        turnState = .idle
+        microphone?.stop()          // the library releases the session, in order
         microphone = nil
         pipeline?.cancel()
         pipeline = nil
-        try? AVAudioSession.sharedInstance().setActive(false)
+        coordinator = nil
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+            self.interruptionObserver = nil
+        }
+    }
+
+    /// A toggle flipped mid-run rebuilds the pipeline. `stop()` only
+    /// CANCELS the old task, so without awaiting it the previous run's
+    /// buffered events could still drain into the fresh one and corrupt
+    /// the forensics (4d review). Awaiting the cancelled task first makes
+    /// the handover clean.
+    private func restart() {
+        let dying = pipeline
+        stop()
+        Task { [weak self] in
+            _ = await dying?.value
+            self?.start()
+        }
+    }
+
+    // MARK: - the echo probe (AC-96) — the phone's own numbers
+
+    /// THE INSTRUMENT the first field run lacked.
+    ///
+    /// The pump publishes only sound the VAD already ACCEPTED, so "no
+    /// utterances" is ambiguous — cancelled echo and a deaf microphone
+    /// look identical from its output. The Mac learned this during the
+    /// D-038 spike and answered it with a probe that reads the ring
+    /// directly; this is that probe, in a phone's shape, and it needs no
+    /// speech model at all — so it runs even where an engine will not.
+    ///
+    /// What it does: start capture, measure the quiet room, then SPEAK
+    /// while measuring again. The difference between those two numbers,
+    /// against the gate, is the whole echo question.
+    func runEchoProbe() async {
+        guard !isListening, probeStatus == nil else { return }
+        probeStatus = "measuring the quiet room…"
+        probeSilence = nil
+        probeWhileSpeaking = nil
+
+        let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 16)
+        let microphone = MicrophoneSource(
+            voiceProcessing: true,
+            session: PhoneSession(talking: true, useSpeaker: useSpeaker))
+        do {
+            try microphone.start(into: producer)
+        } catch {
+            // NOT LEFT SET (4d review): probeStatus is both the label and
+            // the re-entrancy latch, so parking an error string here
+            // disabled the instrument for the life of the process — on
+            // exactly the machines where a measurement matters most.
+            probeFailure = "microphone: \(error.localizedDescription)"
+            probeStatus = nil
+            return
+        }
+        probeFailure = nil
+        defer { microphone.stop() }
+        // ASKED FOR is not GOT. Without this, a loud residual is
+        // ambiguous: the canceller may have been refused by the platform,
+        // or it may be running and simply never see the reply. Those need
+        // opposite fixes, so the probe must not leave it to inference.
+        probeVoiceProcessingActive = microphone.voiceProcessingActive
+        probeRoute = useSpeaker ? "speaker" : "receiver"
+
+        var scratch = [Float](repeating: 0, count: consumer.capacity)
+        /// Reads whatever the microphone has delivered since the last read
+        /// — the raw truth, gate or no gate. Safe because the pump is NOT
+        /// running here, so the ring's sole-reader rule still holds.
+        func measure(for seconds: Double) async -> (peak: Float, rms: Float) {
+            var peak: Float = 0
+            var sumOfSquares: Float = 0
+            var total = 0
+            let rounds = Int(seconds * 4)
+            for _ in 0..<max(rounds, 1) {
+                try? await Task.sleep(for: .milliseconds(250))
+                scratch.withUnsafeMutableBufferPointer { buffer in
+                    let result = consumer.read(into: buffer)
+                    for i in 0..<result.framesRead {
+                        let sample = buffer[i]
+                        peak = max(peak, abs(sample))
+                        sumOfSquares += sample * sample
+                    }
+                    total += result.framesRead
+                }
+            }
+            return (peak, (sumOfSquares / Float(max(total, 1))).squareRoot())
+        }
+
+        probeSilence = await measure(for: 2)
+
+        probeStatus = "speaking — stay quiet…"
+        let speech = AVSpeechUtterance(string:
+            "Measuring the echo. The microphone is listening to this sentence right now, "
+            + "and the numbers on screen say whether the canceller removed it.")
+        speech.rate = AVSpeechUtteranceDefaultSpeechRate
+        let synthesizer = AVSpeechSynthesizer()
+        synthesizer.speak(speech)
+        probeWhileSpeaking = await measure(for: 6)
+        synthesizer.stopSpeaking(at: .immediate)
+
+        probeStatus = nil
+    }
+
+    // MARK: - interruptions (AC-94, D-042 F-2 = A and F-5 = B)
+
+    /// The app observes the platform notification and feeds the library a
+    /// plain event. The core never learns what iOS is (F-2 = A), and the
+    /// library's reaction — the turn dies like a failure, the words stay —
+    /// is written once, in one place, instead of once per app.
+    private func observeInterruptions() {
+        guard interruptionObserver == nil else { return }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: AVAudioSession.sharedInstance(),
+            queue: .main
+        ) { [weak self] note in
+            guard let raw = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt,
+                  let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+            Task { @MainActor in await self?.handle(interruption: type) }
+        }
+    }
+
+    private func handle(interruption type: AVAudioSession.InterruptionType) async {
+        switch type {
+        case .began:
+            // The platform already took the audio; the live turn must die
+            // honestly rather than hang. Capture is torn down here too —
+            // the graph is dead whether we admit it or not.
+            await coordinator?.interrupt()
+            wasInterrupted = true
+            stop()
+        case .ended:
+            // NOTHING happens automatically (F-5 = B). The system's
+            // `.shouldResume` hint is a hint TO THE APP; a person decides
+            // when a microphone turns back on. The UI now offers it.
+            break
+        @unknown default:
+            break
+        }
+    }
+
+    /// The person tapped "resume". The thought is forgotten first — a call
+    /// is a break in the conversation, and a pre-call fragment must not
+    /// join a post-call sentence (F-5's second half).
+    func resumeAfterInterruption() async {
+        await coordinator?.resume()
+        wasInterrupted = false
+        reply = ""
+        wholeThought = ""
+        start()
     }
 
     // MARK: - events → screen
@@ -262,11 +535,67 @@ final class TranscribeModel {
 
     private func show(audio event: AudioEvent) {
         switch event {
-        case .speechStarted: isSpeaking = true
-        case .speechEnded: isSpeaking = false
-        case .dropped(let frames, _): droppedFrames += frames
-        case .audioSegment: break
+        case .speechStarted(let utterance, let at):
+            isSpeaking = true
+            liveUtterance = utterance
+            utteranceStartSeconds = at.seconds
+            utterancePeak = 0
+            // The question the field run has to answer: was this the
+            // person, or the phone hearing itself?
+            let echo = turnState == .speaking
+            if echo { onsetsWhileSpeaking += 1 }     // what the PUMP saw
+            upsert(utterance) { $0.whileSpeaking = echo }
+        case .speechEnded(let at):
+            isSpeaking = false
+            if let utterance = liveUtterance {
+                let peak = utterancePeak
+                let ms = Int((at.seconds - utteranceStartSeconds) * 1000)
+                upsert(utterance) { $0.peakRMS = peak; $0.milliseconds = ms }
+            }
+            liveUtterance = nil
+        case .dropped(let frames, _):
+            droppedFrames += frames
+        case .audioSegment(let chunk):
+            var sumOfSquares: Float = 0
+            for sample in chunk.samples { sumOfSquares += sample * sample }
+            let rms = (sumOfSquares / Float(max(chunk.frameCount, 1))).squareRoot()
+            utterancePeak = max(utterancePeak, rms)
         }
+    }
+
+    private func show(turn event: TurnEvent) {
+        switch event {
+        case .stateChanged(let state, _):
+            turnState = state
+            if state == .listening || state == .idle { reply = "" }
+        case .replyToken(let token, _):
+            // VERBATIM (4d review): tokens carry their own spacing —
+            // that is the D-037 F-1 rule the phraser depends on — so
+            // adding another space made the screen disagree with the
+            // mouth on every word after the first.
+            reply += token
+        case .turnCompleted(let turn):
+            lastTurnEvent = "completed \(turn)"
+        case .turnBarged(let turn):
+            // COUNTED AND SHOWN. The first conversation run failed with
+            // "it kept talking when I talked", and the screen could not
+            // say whether the coordinator had barged and the mouth
+            // ignored it, or whether no barge ever happened — two
+            // different bugs, indistinguishable from outside.
+            bargeCount += 1
+            lastTurnEvent = "BARGED \(turn)"
+            reply = ""
+        case .turnFailed(let failure, let turn):
+            lastTurnEvent = "failed \(turn)"
+            reply = ""
+            if case .interrupted = failure { wasInterrupted = true }
+        }
+    }
+
+    func show(feltPause duration: Duration) {
+        feltPauseMilliseconds = Int(
+            Double(duration.components.seconds) * 1000
+                + Double(duration.components.attoseconds) * 1e-15)
     }
 
     private func show(transcript event: TranscriptEvent) {

@@ -11,7 +11,12 @@ import AVFoundation
 /// callback) is documented in D-001 and deliberately NOT built yet (AC-8).
 public final class MicrophoneSource: AudioSource {
     private let engine = AVAudioEngine()
-    private var running = false
+    /// Whether capture is live. Public because an app showing a
+    /// microphone indicator wants it — and because the session seam's
+    /// second promise ("released only AFTER the engine stops") cannot be
+    /// PINNED by a test without something to observe. The 4d review found
+    /// that promise asserted in a message and verified by nothing.
+    public private(set) var isRunning = false
     /// SPIKE-LEVEL (4b fork F-2 = A, spike-gated): ask the platform for its
     /// voice-processing input unit — echo cancellation, noise suppression and
     /// AGC in one switch. Default false = byte-for-byte the pre-4b tap.
@@ -37,12 +42,36 @@ public final class MicrophoneSource: AudioSource {
     /// is not the same as got, and the caller deserves the difference.
     public private(set) var voiceProcessingActive = false
 
-    public init(voiceProcessing: Bool = false) {
+    /// The platform session this capture rides on (AC-93, D-042 F-1 = B).
+    /// The library calls its steps in order; the app supplies their
+    /// contents. `nil` on macOS, which has no session to manage.
+    ///
+    /// RED skeleton: stored, not yet obeyed.
+    private let session: (any AudioSessionConfiguring)?
+
+    public init(voiceProcessing: Bool = false,
+                session: (any AudioSessionConfiguring)? = nil) {
         self.voiceProcessing = voiceProcessing
+        self.session = session
     }
 
     public func start(into producer: AudioRingProducer) throws {
-        guard !running else { return }
+        guard !isRunning else { return }
+
+        // THE ORDER (D-042 F-1): the session is made ready BEFORE the
+        // format is read or the tap is installed — read it from a session
+        // that was never activated and the format can shift underneath
+        // the tap later. If the app refuses, capture is not attempted at
+        // all: the error leaves here, and nothing was opened to release.
+        try session?.activate()
+        var captureBegan = false
+        defer {
+            // Every throwing path below leaves through here. A session we
+            // activated and then failed to use must not be left active —
+            // on iOS that is another app's audio held hostage.
+            if !captureBegan { session?.deactivate() }
+        }
+
         let input = engine.inputNode
         if voiceProcessing {
             // BEFORE the format read: the unit re-negotiates the input format
@@ -62,13 +91,17 @@ public final class MicrophoneSource: AudioSource {
 
         engine.prepare()
         try engine.start()
-        running = true
+        isRunning = true
+        captureBegan = true          // the session is now in use; keep it
     }
 
     public func stop() {
-        guard running else { return }
+        guard isRunning else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
-        running = false
+        isRunning = false
+        // AFTER the engine has stopped, never before: releasing a session
+        // out from under a running graph is the other half of the bug.
+        session?.deactivate()
     }
 }

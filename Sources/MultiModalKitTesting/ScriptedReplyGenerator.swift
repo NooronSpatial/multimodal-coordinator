@@ -17,6 +17,15 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     public enum Plan: Sendable {
         case manual(ignoresCancel: Bool = false)
         case failOnOpen(String)
+        /// SUSPENDS inside `openReply` until `releaseOpen()`, then throws.
+        /// It exists for one job: holding the coordinator INSIDE its
+        /// `await replyGenerator.openReply(...)` so a test can land
+        /// `interrupt()` in that exact window. The adversarial review of
+        /// 4d found a critical bug living there — the catch arms failed
+        /// the turn a second time, after an interruption had already
+        /// driven the state to idle — and no existing plan could hold the
+        /// door open long enough to prove it.
+        case blockThenFailOnOpen(String)
     }
 
     public struct ReplyRecord: Sendable {
@@ -27,6 +36,11 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     private struct State {
         var records: [ReplyRecord] = []
         var continuations: [Int: AsyncStream<ReplyUpdate>.Continuation] = [:]
+        /// The one waiting `openReply`, held open for `blockThenFailOnOpen`.
+        var openGate: CheckedContinuation<Void, Never>?
+        /// True when `releaseOpen()` was called BEFORE anyone waited — the
+        /// release must not be lost to a race with the arriving caller.
+        var openReleasedEarly = false
     }
 
     private let plans: [Plan]
@@ -113,7 +127,34 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         if case .failOnOpen(let reason) = plan {
             throw TurnFailure.generationFailed(reason)
         }
+        if case .blockThenFailOnOpen(let reason) = plan {
+            // Hold the caller here until the test says go. Lock rules
+            // (§4.1): the continuation is STORED under the lock and
+            // resumed outside it, by `releaseOpen`.
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let releaseNow = state.withLock { state -> Bool in
+                    if state.openReleasedEarly { return true }
+                    state.openGate = continuation
+                    return false
+                }
+                if releaseNow { continuation.resume() }
+            }
+            throw TurnFailure.generationFailed(reason)
+        }
         return ScriptedReply(generator: self, index: index, plan: plan, updates: stream)
+    }
+
+    /// Lets a `blockThenFailOnOpen` reply out of `openReply`, so it throws.
+    /// Safe to call before anyone is waiting: the release is remembered.
+    public func releaseOpen() {
+        // Snapshot under the lock, resume OUTSIDE it — never resume a
+        // continuation while holding a lock (§4.1's second rule, learned
+        // the hard way in Phase 1).
+        let waiting = state.withLock { state -> CheckedContinuation<Void, Never>? in
+            state.openReleasedEarly = true
+            return state.openGate.take()
+        }
+        waiting?.resume()
     }
 
     fileprivate func cancel(reply index: Int, ignoresCancel: Bool) {

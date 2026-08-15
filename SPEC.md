@@ -1397,3 +1397,217 @@ All ACs green · 20× stable · the field scenario reproduced live on the
 Mac and recorded (two sentences, one pause, one reply containing both)
 · PR merged with the map updated · the forks logged as D-entries ·
 teach-back survived.
+
+# SPEC — Milestone 4d: the conversation leaves the Mac
+
+*(Numbering note, second one: milestone letters follow EXECUTION order in
+this repo. Ryad's ruling of 2026-08-14 puts the iPhone conversation
+first, TTSKit's second mouth after it, and the language model last — so
+what §48 called "4d — real reply generation" becomes **4f**, TTSKit is
+**4e**, and this milestone takes 4d. The old names are left visible
+where they were written; nothing is edited away.)*
+
+## 54. What 4d builds, and why it is not a copy-paste
+
+The Mac converses aloud. The iPhone still only transcribes: its demo
+(`Demo/TranscribeDemo`) runs mic → pump → session → transcript list,
+with a thermal badge, an engine picker and an on-device bake-off — but
+**no turn loop and no mouth**. 4d gives the phone the whole
+conversation.
+
+The library needs no new capability for this. Everything the loop
+requires — coordinator, ledger, phraser, `AppleSpeechSynthesizer` —
+is platform-neutral and already shipped. **That is the milestone's
+thesis, and its exam: if the core is honest, the diff is almost
+entirely platform reality.**
+
+Platform reality, on iOS, is an audio session that can be TAKEN AWAY.
+
+## 55. The one hard problem: an audio session that fights back
+
+On macOS the pipeline owns the microphone until it stops. On iOS it
+owns nothing:
+
+```
+   a phone call arrives      → the session is INTERRUPTED, the engine stops
+   Siri is invoked           → same
+   headphones are unplugged  → the ROUTE changes under a running graph
+   the app is backgrounded   → capture may end
+   the app wants to SPEAK    → recording alone is no longer enough
+```
+
+And two of those interact with everything 4b measured. Playing a reply
+while recording needs the `.playAndRecord` category — which on iPhone
+defaults its output to the **receiver** (the quiet earpiece), not the
+speaker. Choosing the speaker makes the reply audible AND makes the
+echo loop far worse, which is the problem D-038's canceller exists to
+solve — but the canceller's numbers were measured on a Mac mini whose
+"microphone" is an iPhone over Continuity (INSTRUMENTS §6). None of
+those ratios transfer. This milestone measures them again, on the
+device, or it claims nothing.
+
+## 56. Acceptance criteria (4d)
+
+- **AC-92** The phone converses: speak, hear a spoken reply, and barge
+  it with your voice. The same `TurnCoordinator`, `TranscriptLedger`,
+  `SpeechPhraser` and `AppleSpeechSynthesizer` the Mac uses — no iOS
+  fork of any of them, and no new library capability. If the core needs
+  a change to run here, that change is a FINDING and gets recorded.
+- **AC-93** Session mechanism, app policy (D-027): whatever configures
+  `AVAudioSession` exposes MECHANISM; the category, mode, options and
+  the speaker-vs-receiver choice are the APP's, stated in one place and
+  visible in the UI. Per the F-1 ruling below.
+- **AC-94** INTERRUPTION IS AN EVENT, NOT A CRASH: a phone call or Siri
+  interrupts capture, and the pipeline ends the turn honestly rather
+  than hanging — the turn's ticket dies, no ghost reply speaks
+  afterwards, and the UI says what happened. On resume the next
+  utterance starts a clean turn. Proven deterministically with a
+  scripted interruption source, and once on hardware.
+- **AC-95** ROUTE CHANGE IS AN EVENT: plugging or unplugging headphones
+  while a reply is being spoken does not strand the turn. Same
+  guarantees as AC-94, same proof shape.
+- **AC-96** The echo numbers are re-measured ON THE PHONE and recorded
+  in INSTRUMENTS.md, for BOTH output routes (the F-4 toggle: receiver
+  and speaker, one row each): the residual level with voice processing on, the
+  speaker's own level at the tap, and the human-speech level for
+  comparison. No Mac number is reused, and the sentence "the ratios
+  transfer" is never written without a device measurement behind it.
+- **AC-97** The numbers this device earns are ITS OWN (the D-036/D-039
+  precedent): VAD gate, hangover and reply gate are re-derived on the
+  phone from a field run, not inherited from the Mac's 0.02 / 700 ms /
+  800 ms. Whatever they turn out to be, the reasoning is recorded.
+- **AC-98** Hygiene + the slice: Swift 6 strict, zero warnings, zero new
+  dependencies, the whole suite 20× stable, map updated; a field run on
+  the iPhone recorded with the same forensic discipline as the Mac's —
+  including at least one interruption survived live.
+
+## 57. Test matrix (4d)
+
+| Area | Tests |
+|---|---|
+| Interruption | scripted: began → the turn dies, no reply speaks after, exact event sequence · ended → the next utterance opens a clean turn |
+| Route change | scripted mid-reply: no stranded turn, ticket honoured |
+| Session seam | the app's configuration is called exactly once per start; a failure to configure is an event, not a crash |
+| Core unchanged | the entire existing suite green with no iOS-specific branch in the library |
+| Hardware (gated) | conformance of the real session path, skipped honestly off-device — the `MMK_LIVE_SYNTH` precedent |
+
+## 58. The design forks (4d) — for Ryad to rule
+
+- **F-1 WHERE THE SESSION LIVES.** A: entirely in the demo app — the
+  library never mentions `AVAudioSession`, and the app configures it
+  before starting capture (what the iOS demo does today). B: a small
+  library seam (`AudioSessionConfiguring`) that the app implements and
+  injects, so the library can ORDER the steps (configure → start →
+  deactivate) without knowing the policy. C: `MicrophoneSource`
+  configures it internally on iOS. **Recommendation: B** — the ordering
+  IS mechanism and it is easy to get wrong (deactivating while the
+  engine runs, activating twice), while every value in it is policy;
+  A leaves the ordering to be re-invented by every app, C hides policy
+  inside a type that has no business choosing it.
+- **F-2 HOW INTERRUPTIONS REACH THE PIPELINE.** A: an
+  `InterruptionReporting` seam the app feeds from
+  `AVAudioSession.interruptionNotification`, so the library sees a
+  platform-neutral event and the tests can script it. B: the app alone
+  reacts, stopping and restarting the pipeline from outside. C: the
+  library subscribes to the notification itself (platform code in the
+  core — against the house shape). **Recommendation: A** — it is the
+  only option that makes AC-94 deterministically testable, and it keeps
+  the core free of iOS.
+- **F-3 WHAT AN INTERRUPTION DOES TO A LIVE TURN.** A: it ends the turn
+  like a failure — the ticket dies, the mouth is silenced, an event is
+  published, and the words STAY in the ledger (D-040 F-2: nothing
+  answered them). B: it pauses and resumes the same turn. C: it is
+  treated as a barge. **Recommendation: A** — B needs state that
+  survives a dead audio graph and invents a "paused turn" the funnel
+  has no place for; C would be a lie (the user did not speak).
+- **F-5 WHO DECIDES TO RESUME (added mid-spec, raised by Ryad).** The
+  OS takes the session during a call — there is no "keep recording"
+  option to rule on. The real choice is what happens when the
+  interruption ENDS. A: the library auto-resumes when the platform
+  hints `.shouldResume`. B: the library stays stopped, publishes that
+  it was interrupted, and the APP (or the user, via a control) decides
+  when listening starts again. C: a config knob with a default.
+  **Recommendation: B** — auto-resume has a real failure mode: after a
+  long call the speaker may have walked away, and with the ledger the
+  assistant still holds what was said BEFORE the call and could answer
+  it out of nowhere. Resuming is policy (D-027), and policy belongs to
+  the app. C is B plus a knob nobody has asked for yet.
+- **F-4 SPEAKER OR RECEIVER.** A: `.defaultToSpeaker` — the reply is
+  audible across a room, and the echo is loud, so the canceller is
+  doing real work and is measured doing it. B: receiver/earpiece —
+  quiet, phone-to-ear, far less echo, but the demo becomes unshowable.
+  **Recommendation: A**, with the honest note that it is the harder
+  case and the one the numbers must be taken under.
+
+## 58a. OPEN, RECORDED, NOT RULED (found in 4d's first field run)
+
+**The echo loop is NOT cured on the phone.** First device run,
+2026-08-14, speaker route: the assistant barged ITSELF while speaking —
+the disease D-038's canceller cured on the Mac, back on iOS. Lowering
+the output volume reduced it, which is the signature of a residual echo
+sitting ABOVE the gate rather than of anything subtler.
+
+The arithmetic that makes it unsurprising: this app's gate is **0.01**,
+earned in Phase 2 when the app only LISTENED — no speaker, so nothing to
+cross it — while the Mac runs 0.02 against a MEASURED residual of 0.008.
+On a phone the loudspeaker sits centimetres from the microphone, and
+since D-031 an onset IS a barge.
+
+Also reported and NOT yet explained: lowering the volume helped the
+Apple engine but not Whisper. The barge fires on the pump's
+`speechStarted`, which never sees the engine at all, so either something
+else differs or the observation was about transcription quality rather
+than barging. **No theory is recorded here, because the first run had no
+instrument** — the phone app shipped without the forensic levels the Mac
+demo has had since its first field session. That gap is now closed (live
+input level, per-utterance peak/duration, an "echo?" mark on any
+utterance that began while the assistant was speaking, and the gate
+itself adjustable on screen), so the next run measures instead of
+describes.
+
+**MEASURED ON THE DEVICE, 2026-08-15 — and the hypothesis below was
+right.** Echo probe, speaker route, gate 0.010:
+
+```
+quiet room       peak 0.0092   rms 0.0008
+while speaking   peak 0.7036   rms 0.0100      ← 76x the quiet room
+```
+
+The Mac's canceller took speaker audio at the tap from 0.136 to 0.008.
+The phone shows **0.70** — the reply arrives essentially UNCANCELLED.
+This also kills tuning as an option, permanently: human speech peaks
+around 0.1-0.3, so on this route **the echo is louder than the speaker's
+own voice**, and no threshold can separate them. Raising the gate would
+silence the person before it silenced the phone.
+
+DISTINGUISHED, and the answer is the worse one: the probe reports
+**voice processing ACTIVE** while the reply still arrives at peak
+**1.0000** — and the same run shows the canceller working on room noise
+(0.0092 → 0.0030). It runs; it cannot see the reply. Ruled in D-043:
+the finding ships with 4d, the routing fix becomes milestone 4f, after
+TTSKit (4e).
+
+The hypothesis that predicted this: **the canceller may not
+have the reply as its reference at all.** Voice processing cancels what
+the audio unit it belongs to renders; `AVSpeechSynthesizer` does not
+play through this pipeline's `AVAudioEngine`. On macOS the spike proved
+cancellation of audio from an entirely separate PROCESS, so the
+reference is system-wide there — that is a measurement of one platform,
+never a law, and iOS may differ. If it does, raising the gate treats a
+symptom: the honest fix is routing the mouth's audio through the same
+engine (`AVSpeechSynthesizer.write` into a player node), which is a
+design fork, not a tweak.
+
+## 59. Out of scope for 4d (deliberately)
+
+TTSKit (now 4e) · the language model (now 4f) · endpointing (§46a
+finding 3) · adaptive VAD (finding 1) · background audio and lock-screen
+playback · CarPlay/AirPlay routing · a second iOS UI design pass.
+
+## 60. Definition of done (4d)
+
+All ACs green · 20× stable · the iPhone converses aloud, is barged by a
+live voice, and survives a real interruption — recorded · the device's
+own numbers in INSTRUMENTS.md · PR merged with the map updated · the
+forks logged as D-entries · code adversarially reviewed BEFORE the merge
+(D-041) · teach-back survived.

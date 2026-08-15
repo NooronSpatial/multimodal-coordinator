@@ -1172,3 +1172,201 @@ milestone's spec. Blocking on them would mean no milestone ever merges
 and every branch grows into the big-bang PR the working method forbids.
 A milestone is done when it meets ITS spec, its code has been reviewed,
 and what remains open is written down honestly.
+
+---
+
+## D-042 — The conversation on iPhone: five rulings (Milestone 4d, forks F-1..F-5)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+Ordering ruled first: the iPhone gets the existing conversation BEFORE a
+second mouth (TTSKit) and before a language model. Milestone letters
+follow execution order in this repo, so the LLM's earlier names shift to
+4f and TTSKit becomes 4e — recorded in SPEC §54, not edited away.
+
+The milestone's thesis is also its exam: the library needs NO new
+capability to converse on iOS, so an honest core means the diff is
+almost entirely platform reality. **If the core must change to run
+there, that change is a finding** (AC-92).
+
+**F-1 = B — the audio session reaches the library through an injected
+seam.** The library CALLS the steps in order (configure → activate →
+start capture → stop → deactivate); the app SUPPLIES every value. The
+ordering is real mechanism and currently guaranteed by nobody: today the
+iOS demo makes those calls by hand and the library simply trusts that
+they happened. Getting it wrong — deactivating while the engine runs,
+activating twice, configuring after start so the format shifts — is not
+a compile error, it is a strange bug on a device. *Rejected:* app-only
+(every app re-invents the ordering, and a configuration failure surfaces
+later as an unrelated-looking capture failure). *Rejected:*
+`MicrophoneSource` configuring it internally — that would put POLICY in
+a type with no business choosing it, and would hard-code F-4's answer
+inside the library forever.
+
+**F-2 = A — interruptions arrive through a seam the app feeds.** iOS
+posts its notification to the APP; the library would otherwise just find
+its microphone dead. A platform-neutral `began`/`ended` event keeps iOS
+out of the core and makes AC-94 provable with a scripted source, no
+device. *Rejected:* the library subscribing to `NotificationCenter`
+itself — platform code in a cross-platform core, untestable without
+faking the notification centre, and (Ryad's point) it would also let the
+LIBRARY decide about resuming, taking that choice away from the user.
+*Rejected:* the app reacting alone — it forces every app to re-derive
+library semantics (which dies first, the ticket or the mouth?), and it
+loses data: `stop()` ends everything, so rebuilding the pipeline means a
+NEW, EMPTY ledger, discarding words that D-040 F-2 says must survive.
+
+**F-3 = A — an interruption ends the turn like a failure.** The ticket
+dies, the mouth is silenced, one event is published, the state returns
+to idle. No new state, no new legal transitions, and it inherits the
+right behaviour for free: D-040 F-2 already keeps a failed turn's words,
+so the speaker's sentence survives the phone call. *Rejected:*
+pause-and-resume — it needs state that outlives a DEAD audio graph (the
+mouth, the recognition run and the capture chain are all gone), the
+mouth has no "continue from the middle" API, and it forces a fifth state
+into the funnel. *Rejected:* treating it as a barge — a lie that
+spreads: `turnBarged` means THE USER SPOKE, so it would corrupt the
+event for every app and make the barge-latency number meaningless; and
+entering `listening` afterwards would claim an utterance that does not
+exist — the ghost ticket D-033 refused.
+
+**F-4 = A + toggle — speaker by default, and BOTH routes measured.**
+`.playAndRecord` defaults to the receiver, which is quiet and forces the
+phone against an ear; the loudspeaker is how a voice assistant is
+actually used, and it is the HARD case: output loud, next to the
+microphone. That is where D-038's canceller must prove itself, because
+every echo number this project owns was measured on a Mac mini whose
+microphone is an iPhone over Continuity — none of it transfers. Ryad
+added the toggle, so INSTRUMENTS gets two rows (receiver vs speaker
+residual) in the bake-off's instrument-first spirit. *Rejected:*
+receiver-only — it dodges the problem and makes the demo unshowable.
+
+**F-5 = B — the APP decides when listening resumes, and resuming CLEARS
+the thought.** (Fork raised by Ryad mid-spec.) The OS takes the session
+during a call, so there is nothing to rule there; the real choice is the
+other side. Auto-resume has a concrete failure mode: after a long call
+the speaker may have walked away, and a microphone that reactivates
+itself unannounced is the wrong default for a project whose stated bias
+is on-device privacy. The clear-on-resume half closes an interaction
+between two correct rulings: F-3 keeps the interrupted turn's words, so
+without it a pre-call fragment would join a post-call sentence and be
+answered as one nonsense thought. The ledger cannot expire by time — it
+has no clock, deliberately (D-040 rejected time-based expiry) — but
+"resume" is a perfectly good signal and costs nothing. *Rejected:*
+auto-resume on `.shouldResume`. *Rejected:* a config knob — nobody has
+asked for the other behaviour yet (D-039's lesson).
+
+**Also carried into the definition of done (D-041):** this milestone's
+CODE is adversarially reviewed before its merge, not after.
+
+---
+
+## D-043 — iOS cancels only what it renders: the finding ships, the fix is its own milestone
+
+**Date:** 2026-08-15 · **Decided by:** Ryad
+
+**The measurement** (iPhone, echo probe, gate 0.010, speaker route):
+
+```
+                     voice processing ACTIVE
+quiet room       peak 0.0030   rms 0.0003     ← was 0.0092 before the canceller
+while speaking   peak 1.0000   rms 0.0254     ← FULL SCALE, untouched
+```
+
+The canceller is running and demonstrably working — it took the room's
+noise floor down threefold. And the assistant's own reply still arrives
+at the microphone at **full scale**. Not partial cancellation: a
+canceller that cannot SEE the reply.
+
+**The mechanism.** Voice processing cancels what ITS OWN audio unit
+renders. `AVSpeechSynthesizer` plays on a separate path, outside this
+pipeline's `AVAudioEngine`. On macOS the D-038 spike proved cancellation
+of audio from an entirely separate PROCESS, so the reference there is
+system-wide — that was one platform measured, and this entry is what it
+cost to have treated it as a law. **The Mac's numbers never transferred,
+exactly as AC-96 insisted they might not.**
+
+**What the measurement also kills.** Tuning. Human speech peaks around
+0.1–0.3; on this route the echo peaks at 1.0. The echo is LOUDER than
+the speaker, so no threshold separates them — a raised gate would
+silence the person before it silenced the phone. An entire branch of
+work, closed by one number.
+
+**Ruled:** the FINDING ships with milestone 4d; the FIX is its own
+milestone, and it comes AFTER TTSKit. Order from here: **4d (this) →
+4e TTSKit's second mouth → 4f the echo routing fix → 4g the language
+model.**
+
+*Why the fix is deferred, in Ryad's own weighing:* it is a session of
+the trickiest audio code — one component owning a single engine, the
+mouth rewired from `speak()` to `write()` plus a player node, format
+conversion, a new source of `.started`/`.finished` evidence (which would
+reopen D-037 F-4), and all of it un-TDD-able. Against that, the phone
+ALREADY converses on the receiver and on headphones, where the echo path
+is weak. A precise, reproducible platform finding with an instrument
+behind it is worth more right now than a rushed rewrite of the mouth.
+
+**F-4 AMENDED BY MEASUREMENT (the D-036 precedent).** F-4 ruled the
+loudspeaker as the demo's default because it is the honest hard case.
+It is now the *measured broken* case: with it, the demo barges itself
+out of the box. The default becomes the route that WORKS, the speaker
+stays one toggle away for measurement, and the screen says why. The
+original ruling and its reasoning stay on the record.
+
+**THE CHEAP FIX WAS TRIED AND MEASURED, not assumed away.**
+`.voiceChat` — the session mode built for full-duplex speech — was the
+one-line hope. Same phone, same route, same probe: quiet room 0.0030 →
+**0.0008** (the canceller is doing MORE work on what it can see), and
+the reply still arriving at **0.9391**. The conclusion now rests on two
+independent modes rather than one, which is what makes it a finding
+instead of a guess. `.voiceChat` is KEPT, on the measured noise floor
+alone, with no claim that it helps the echo.
+
+**The design that a later milestone will build**, so the finding carries
+its own answer: render the reply through the SAME engine that cancels —
+`AVSpeechSynthesizer.write` into a player node on the pipeline's engine,
+so the voice-processing unit finally has the reply as its reference.
+*Rejected as permanent answers:* half-duplex while speaking (kills
+barge-in, the project's thesis — already rejected in D-037 F-2) ·
+receiver-only (dodges the problem and makes the demo unshowable, though
+it is exactly what makes shipping the finding acceptable today).
+
+---
+
+## D-044 — The session's release-on-failure branch: accept the gap, name the cost
+
+**Date:** 2026-08-15 · **Decided by:** Ryad
+
+`MicrophoneSource.start` activates the app's audio session before it
+reads the format or installs the tap, and a `defer` releases it again if
+capture never begins. Those three lines matter on iOS: a failed start
+that leaves the session active holds another app's audio hostage from a
+pipeline that is not even running.
+
+**The gap, as the adversarial review sharpened it.** The branch runs on
+NO machine that executes the suite. Where a microphone exists, capture
+succeeds and the other path is taken; where it does not, the failure
+happens AT activate, not after it. The test file had already disclosed
+this and guessed that CI would cover it — the review checked, and that
+guess was wrong. Green CI says nothing about these three lines.
+
+**Ruled: accept and document.** The alternative was a test-only
+injection point for the "start the engine" step — a permanent hole in a
+public type whose only caller would be one test file, bought to prove a
+`defer`. The repo already has a category for code that only real audio
+can exercise: `AppleSpeechEngine` and the mouth, kept thin,
+conformance-verified on hardware, and NAMED as such (D-022's
+discipline). These three lines join that list rather than bending the
+public API around a test.
+
+*Rejected:* the injection point (public surface for a test-only caller;
+the first of its kind in this library, and a precedent that would
+recur). *Rejected:* deleting the disclosure and calling the suite
+complete — the failure is silent on the platform where it matters, and
+an undocumented gap is the one thing worse than an unproven line.
+
+**Consequences, written where they will be read:** the gap and its cost
+are stated in `AudioSessionSeamTests.swift` beside the invariant, not
+only here, so the next person to touch that `defer` meets the warning in
+the file they are editing. The original note is kept above the ruling —
+its FACTS did not change, only the reasoning that followed them.
