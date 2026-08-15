@@ -77,7 +77,29 @@ import MultiModalKit
         }
     }
 
-    // KNOWN COVERAGE GAP, stated rather than hidden (D-041's standard).
+    // KNOWN COVERAGE GAP — RULED, not merely disclosed (D-044).
+    //
+    // The adversarial review sharpened the original note: this branch runs
+    // on NO machine that executes the suite. Where capture succeeds the
+    // `if started` path is taken; where it fails, the failure happens at
+    // ACTIVATE, not after it. So the invariant below is unproven
+    // everywhere, and CI being green says nothing about it.
+    //
+    // Ryad ruled: ACCEPT AND DOCUMENT. The alternative was a test-only
+    // injection point for "start the engine" — a permanent hole in a
+    // public type whose only caller would be this file, to prove three
+    // lines of `defer`. The repo already has a category for code that
+    // real audio alone can exercise (AppleSpeechEngine, and the mouth):
+    // kept thin, verified on hardware, and named. These three lines join
+    // it.
+    //
+    // What it costs if the logic is ever wrong, so nobody has to guess:
+    // on iOS a failed start leaves the session ACTIVE — another app's
+    // audio held hostage by a pipeline that is not even running. Anyone
+    // touching MicrophoneSource.start's defer should re-read this.
+    //
+    // ORIGINAL NOTE, kept because the reasoning changed rather than the
+    // facts (D-041's standard).
     //
     // The `else` branch above — activate succeeded, then the ENGINE failed,
     // so the session must be released — is the one invariant this suite

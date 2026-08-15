@@ -1330,3 +1330,43 @@ so the voice-processing unit finally has the reply as its reference.
 barge-in, the project's thesis — already rejected in D-037 F-2) ·
 receiver-only (dodges the problem and makes the demo unshowable, though
 it is exactly what makes shipping the finding acceptable today).
+
+---
+
+## D-044 — The session's release-on-failure branch: accept the gap, name the cost
+
+**Date:** 2026-08-15 · **Decided by:** Ryad
+
+`MicrophoneSource.start` activates the app's audio session before it
+reads the format or installs the tap, and a `defer` releases it again if
+capture never begins. Those three lines matter on iOS: a failed start
+that leaves the session active holds another app's audio hostage from a
+pipeline that is not even running.
+
+**The gap, as the adversarial review sharpened it.** The branch runs on
+NO machine that executes the suite. Where a microphone exists, capture
+succeeds and the other path is taken; where it does not, the failure
+happens AT activate, not after it. The test file had already disclosed
+this and guessed that CI would cover it — the review checked, and that
+guess was wrong. Green CI says nothing about these three lines.
+
+**Ruled: accept and document.** The alternative was a test-only
+injection point for the "start the engine" step — a permanent hole in a
+public type whose only caller would be one test file, bought to prove a
+`defer`. The repo already has a category for code that only real audio
+can exercise: `AppleSpeechEngine` and the mouth, kept thin,
+conformance-verified on hardware, and NAMED as such (D-022's
+discipline). These three lines join that list rather than bending the
+public API around a test.
+
+*Rejected:* the injection point (public surface for a test-only caller;
+the first of its kind in this library, and a precedent that would
+recur). *Rejected:* deleting the disclosure and calling the suite
+complete — the failure is silent on the platform where it matters, and
+an undocumented gap is the one thing worse than an unproven line.
+
+**Consequences, written where they will be read:** the gap and its cost
+are stated in `AudioSessionSeamTests.swift` beside the invariant, not
+only here, so the next person to touch that `defer` meets the warning in
+the file they are editing. The original note is kept above the ruling —
+its FACTS did not change, only the reasoning that followed them.
