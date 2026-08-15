@@ -1172,3 +1172,89 @@ milestone's spec. Blocking on them would mean no milestone ever merges
 and every branch grows into the big-bang PR the working method forbids.
 A milestone is done when it meets ITS spec, its code has been reviewed,
 and what remains open is written down honestly.
+
+---
+
+## D-042 — The conversation on iPhone: five rulings (Milestone 4d, forks F-1..F-5)
+
+**Date:** 2026-08-14 · **Decided by:** Ryad
+
+Ordering ruled first: the iPhone gets the existing conversation BEFORE a
+second mouth (TTSKit) and before a language model. Milestone letters
+follow execution order in this repo, so the LLM's earlier names shift to
+4f and TTSKit becomes 4e — recorded in SPEC §54, not edited away.
+
+The milestone's thesis is also its exam: the library needs NO new
+capability to converse on iOS, so an honest core means the diff is
+almost entirely platform reality. **If the core must change to run
+there, that change is a finding** (AC-92).
+
+**F-1 = B — the audio session reaches the library through an injected
+seam.** The library CALLS the steps in order (configure → activate →
+start capture → stop → deactivate); the app SUPPLIES every value. The
+ordering is real mechanism and currently guaranteed by nobody: today the
+iOS demo makes those calls by hand and the library simply trusts that
+they happened. Getting it wrong — deactivating while the engine runs,
+activating twice, configuring after start so the format shifts — is not
+a compile error, it is a strange bug on a device. *Rejected:* app-only
+(every app re-invents the ordering, and a configuration failure surfaces
+later as an unrelated-looking capture failure). *Rejected:*
+`MicrophoneSource` configuring it internally — that would put POLICY in
+a type with no business choosing it, and would hard-code F-4's answer
+inside the library forever.
+
+**F-2 = A — interruptions arrive through a seam the app feeds.** iOS
+posts its notification to the APP; the library would otherwise just find
+its microphone dead. A platform-neutral `began`/`ended` event keeps iOS
+out of the core and makes AC-94 provable with a scripted source, no
+device. *Rejected:* the library subscribing to `NotificationCenter`
+itself — platform code in a cross-platform core, untestable without
+faking the notification centre, and (Ryad's point) it would also let the
+LIBRARY decide about resuming, taking that choice away from the user.
+*Rejected:* the app reacting alone — it forces every app to re-derive
+library semantics (which dies first, the ticket or the mouth?), and it
+loses data: `stop()` ends everything, so rebuilding the pipeline means a
+NEW, EMPTY ledger, discarding words that D-040 F-2 says must survive.
+
+**F-3 = A — an interruption ends the turn like a failure.** The ticket
+dies, the mouth is silenced, one event is published, the state returns
+to idle. No new state, no new legal transitions, and it inherits the
+right behaviour for free: D-040 F-2 already keeps a failed turn's words,
+so the speaker's sentence survives the phone call. *Rejected:*
+pause-and-resume — it needs state that outlives a DEAD audio graph (the
+mouth, the recognition run and the capture chain are all gone), the
+mouth has no "continue from the middle" API, and it forces a fifth state
+into the funnel. *Rejected:* treating it as a barge — a lie that
+spreads: `turnBarged` means THE USER SPOKE, so it would corrupt the
+event for every app and make the barge-latency number meaningless; and
+entering `listening` afterwards would claim an utterance that does not
+exist — the ghost ticket D-033 refused.
+
+**F-4 = A + toggle — speaker by default, and BOTH routes measured.**
+`.playAndRecord` defaults to the receiver, which is quiet and forces the
+phone against an ear; the loudspeaker is how a voice assistant is
+actually used, and it is the HARD case: output loud, next to the
+microphone. That is where D-038's canceller must prove itself, because
+every echo number this project owns was measured on a Mac mini whose
+microphone is an iPhone over Continuity — none of it transfers. Ryad
+added the toggle, so INSTRUMENTS gets two rows (receiver vs speaker
+residual) in the bake-off's instrument-first spirit. *Rejected:*
+receiver-only — it dodges the problem and makes the demo unshowable.
+
+**F-5 = B — the APP decides when listening resumes, and resuming CLEARS
+the thought.** (Fork raised by Ryad mid-spec.) The OS takes the session
+during a call, so there is nothing to rule there; the real choice is the
+other side. Auto-resume has a concrete failure mode: after a long call
+the speaker may have walked away, and a microphone that reactivates
+itself unannounced is the wrong default for a project whose stated bias
+is on-device privacy. The clear-on-resume half closes an interaction
+between two correct rulings: F-3 keeps the interrupted turn's words, so
+without it a pre-call fragment would join a post-call sentence and be
+answered as one nonsense thought. The ledger cannot expire by time — it
+has no clock, deliberately (D-040 rejected time-based expiry) — but
+"resume" is a perfectly good signal and costs nothing. *Rejected:*
+auto-resume on `.shouldResume`. *Rejected:* a config knob — nobody has
+asked for the other behaviour yet (D-039's lesson).
+
+**Also carried into the definition of done (D-041):** this milestone's
+CODE is adversarially reviewed before its merge, not after.

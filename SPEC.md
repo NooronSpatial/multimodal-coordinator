@@ -1467,7 +1467,8 @@ device, or it claims nothing.
   while a reply is being spoken does not strand the turn. Same
   guarantees as AC-94, same proof shape.
 - **AC-96** The echo numbers are re-measured ON THE PHONE and recorded
-  in INSTRUMENTS.md: the residual level with voice processing on, the
+  in INSTRUMENTS.md, for BOTH output routes (the F-4 toggle: receiver
+  and speaker, one row each): the residual level with voice processing on, the
   speaker's own level at the tap, and the human-speech level for
   comparison. No Mac number is reused, and the sentence "the ratios
   transfer" is never written without a device measurement behind it.
