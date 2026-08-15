@@ -246,6 +246,32 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         broadcast.finish()
     }
 
+    /// The platform took the audio away (AC-94, D-042 F-3). The app calls
+    /// this when it observes an interruption — a call, Siri, a route that
+    /// vanished. The live turn dies exactly like a stage failure: ticket
+    /// first, one event, back to idle. The LOOP survives; the next
+    /// utterance starts a clean turn.
+    ///
+    /// RED skeleton — the shape without the behaviour.
+    public func interrupt() async {
+    }
+
+    /// The app has decided to listen again (AC-94, D-042 F-5 = B). Note
+    /// what this is NOT: the platform's "interruption ended" hint. That
+    /// hint goes to the app, and the app — or the person holding the
+    /// phone — decides whether a microphone turns back on.
+    ///
+    /// Resuming forgets the thought. An interruption big enough to stop
+    /// the pipeline is a break in the conversation, and without this a
+    /// pre-call fragment would join a post-call sentence and be answered
+    /// as one nonsense prompt (F-3 keeps the words; this is where they
+    /// go). The ledger cannot expire by time — it has no clock, by
+    /// design — but "resume" is a signal, and it costs nothing.
+    ///
+    /// RED skeleton — the shape without the behaviour.
+    public func resume() {
+    }
+
     /// Ends the loop: the ticket dies in this same actor step, every
     /// listener's stream finishes, and the stage runs are cancelled AFTER
     /// the guarantee (AC-66, the D-014 doctrine).

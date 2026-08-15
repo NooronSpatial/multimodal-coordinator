@@ -1549,6 +1549,144 @@ struct TurnCoordinatorTests {
                 "a bound of 2 must drop the oldest piece, all the way through the loop")
     }
 
+    // MARK: - interruptions (SPEC AC-94, D-042 F-3 and F-5)
+
+    @Test("An interruption ends the live turn like a failure — not a barge")
+    func interruptionEndsTheTurnLikeAFailure() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "a question the phone will interrupt", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            bench.generator.emit(reply: 0, token: "answering")
+            #expect(await Self.until { bench.synthesizer.utterancesOpened == 1 })
+            bench.synthesizer.reportStarted(utterance: 0)
+            #expect(await Self.until { await bench.coordinator.currentState == .speaking })
+
+            await bench.coordinator.interrupt()
+            #expect(await Self.until { await bench.coordinator.currentState == .idle })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        let events = await bench.box.events
+        #expect(events.contains(.turnFailed(.interrupted, turn: 0)),
+                "the platform took the audio — that is a failure, and it must be named")
+        #expect(!events.contains(.turnBarged(turn: 0)),
+                "nobody spoke: calling this a barge would corrupt the event for every app")
+        #expect(!events.contains(.turnCompleted(turn: 0)))
+        let states = await bench.box.states()
+        #expect(states == [.listening, .thinking, .speaking, .idle],
+                "idle, never listening — listening would claim a ghost utterance (D-033)")
+    }
+
+    @Test("A dead turn cannot speak after an interruption — defiant stages included")
+    func nothingSurvivesAnInterruption() async {
+        let bench = Bench(generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true)]),
+                          synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "doomed by a phone call", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            await bench.coordinator.interrupt()
+            #expect(await Self.until { await bench.coordinator.currentState == .idle })
+
+            // The defiant generator keeps talking after cancel. The ticket
+            // is the guarantee, not the cancel.
+            bench.generator.forceToken(reply: 0, token: "ghost")
+            bench.generator.forceFinished(reply: 0)
+            await Self.settled()
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        let events = await bench.box.events
+        #expect(!events.contains(where: { if case .replyToken = $0 { true } else { false } }),
+                "a dead turn's token reached a listener")
+        #expect(!events.contains(.turnCompleted(turn: 0)))
+    }
+
+    @Test("The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)")
+    func anInterruptionKeepsTheWords() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "the words the call interrupted", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            await bench.coordinator.interrupt()
+            #expect(await Self.until { await bench.coordinator.currentState == .idle })
+            #expect(await bench.coordinator.currentContext == "the words the call interrupted",
+                    "an interruption never answered them, so they must still be there")
+
+            bench.speak(utterance: 1, final: "and what I said after", at: 96_000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 1)?.transcript
+                == "the words the call interrupted and what I said after")
+    }
+
+    @Test("resume() forgets the thought — a call is a break in the conversation (F-5)")
+    func resumingForgetsTheThought() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            bench.speak(utterance: 0, final: "should I book a table for", at: 0)
+            #expect(await Self.until { bench.generator.repliesOpened == 1 })
+            await bench.coordinator.interrupt()
+            #expect(await Self.until { await bench.coordinator.currentState == .idle })
+
+            await bench.coordinator.resume()          // the app decides to listen again
+            #expect(await bench.coordinator.currentContext == "",
+                    "a pre-call fragment must not join a post-call sentence")
+
+            bench.speak(utterance: 1, final: "what is the weather", at: 96_000)
+            #expect(await Self.until { bench.generator.repliesOpened == 2 })
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(bench.generator.record(ofReply: 1)?.transcript == "what is the weather",
+                "the thought after a resume starts empty")
+    }
+
+    @Test("Interrupting while idle publishes nothing at all")
+    func interruptingWhileIdleIsSilent() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+
+            await bench.coordinator.interrupt()       // no turn is alive
+            await Self.settled()
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        #expect(await bench.box.events.isEmpty,
+                "there was no turn to end — an interruption must invent nothing")
+    }
+
     // MARK: - the review's regressions (adversarial pass, 2026-08-14)
 
     @Test("REGRESSION: a final that beat its own onset is answered ONCE, never twice")
