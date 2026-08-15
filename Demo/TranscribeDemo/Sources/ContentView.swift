@@ -192,6 +192,10 @@ struct ContentView: View {
                     Spacer()
                 }
             }
+            if let failure = model.probeFailure {
+                Text(failure).font(.caption).foregroundStyle(.red)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             if let quiet = model.probeSilence, let speaking = model.probeWhileSpeaking {
                 VStack(alignment: .leading, spacing: 3) {
@@ -365,6 +369,11 @@ struct ContentView: View {
             }
             .buttonStyle(.borderedProminent)
             .tint(model.isListening ? .red : .accentColor)
+            // The other half of the mutual exclusion (4d review): the
+            // probe already refused to start while listening, but nothing
+            // stopped listening from starting while a probe held the
+            // process-wide session.
+            .disabled(model.probeStatus != nil)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }

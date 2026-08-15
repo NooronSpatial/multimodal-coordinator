@@ -24,10 +24,23 @@ struct TurnCoordinatorTests {
         for _ in 0..<spins { await Task.yield() }
     }
 
-    /// Spin-capped gates — red fails fast, never hangs.
+    /// Gates on a FACT, with a deadline as the backstop — red still fails
+    /// fast and can never hang.
+    ///
+    /// It was a spin COUNT until the 4d review's fixes landed, and a
+    /// 20-round stability sweep then reported ten failures that ~50
+    /// subsequent rounds could not reproduce — including six under
+    /// deliberate CPU load. The cause was never identified and is
+    /// recorded as unexplained. What a count DOES do, provably, is tie
+    /// the budget to scheduler behaviour rather than to elapsed time, so
+    /// a busy machine can exhaust it before a perfectly correct pipeline
+    /// answers. Removing that coupling costs nothing and removes a whole
+    /// class of doubt from every future sweep.
     @discardableResult
-    static func until(_ condition: () async -> Bool, spins: Int = 40_000) async -> Bool {
-        for _ in 0..<spins {
+    static func until(_ condition: () async -> Bool, within: Duration = .seconds(10)) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: within)
+        while clock.now < deadline {
             if await condition() { return true }
             await Task.yield()
         }
@@ -1577,6 +1590,16 @@ struct TurnCoordinatorTests {
             bench.finishInputs()
             await bench.coordinator.stop()
         }
+
+        // THE MOUTH MUST STOP. The 4d review found the whole interruption
+        // suite asserting events, states and ledger contents while never
+        // once checking that the stages were cancelled — so deleting both
+        // cancels from interrupt() passed every test, with a phone that
+        // keeps talking through a call.
+        #expect(bench.synthesizer.record(ofUtterance: 0)?.cancelled == true,
+                "the platform took the audio and the mouth was never told")
+        #expect(bench.generator.record(ofReply: 0)?.cancelled == true,
+                "the generator kept producing for a turn nobody can hear")
 
         let events = await bench.box.events
         #expect(events.contains(.turnFailed(.interrupted, turn: 0)),

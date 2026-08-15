@@ -85,11 +85,6 @@ final class TranscribeModel {
     private(set) var bargeCount = 0
     private(set) var onsetsWhileSpeaking = 0
     private(set) var lastTurnEvent = "—"
-    /// The live input level — what the microphone hears RIGHT NOW. With
-    /// the assistant speaking and nobody else in the room, this IS the
-    /// echo residual, and comparing it to the gate answers AC-96 without
-    /// any theory (D-038's `--levels` probe, in a phone's shape).
-    private(set) var inputLevel: Float = 0
     /// The gate this device is currently using — on screen, and
     /// adjustable, because a level means nothing without the number it is
     /// judged against, and because AC-97 says the phone earns its own.
@@ -108,6 +103,9 @@ final class TranscribeModel {
     private(set) var probeSilence: (peak: Float, rms: Float)?
     private(set) var probeWhileSpeaking: (peak: Float, rms: Float)?
     private(set) var probeStatus: String?
+    /// A failed probe's reason. Kept apart from `probeStatus`, which is
+    /// also the re-entrancy latch — merging them once bricked the button.
+    private(set) var probeFailure: String?
     /// Did the platform actually GRANT voice processing for this probe?
     private(set) var probeVoiceProcessingActive = false
     private(set) var probeRoute = ""
@@ -228,7 +226,15 @@ final class TranscribeModel {
     // MARK: - the pipeline
 
     func start() {
-        guard engineState == .ready, !isListening else { return }
+        // The gate is SYMMETRIC (4d review). MicrophoneSource enforces
+        // "activate once, release after the engine stops" per INSTANCE,
+        // but PhoneSession acts on the process-wide AVAudioSession. The
+        // probe already refused to run while listening; nothing stopped
+        // listening from starting while a probe held the session, which
+        // reconfigured it under a live tap and then released it under a
+        // running graph — verbatim both failures the seam exists to
+        // prevent.
+        guard engineState == .ready, !isListening, probeStatus == nil else { return }
         utterances.removeAll()
         droppedFrames = 0
         reply = ""
@@ -370,9 +376,18 @@ final class TranscribeModel {
         }
     }
 
+    /// A toggle flipped mid-run rebuilds the pipeline. `stop()` only
+    /// CANCELS the old task, so without awaiting it the previous run's
+    /// buffered events could still drain into the fresh one and corrupt
+    /// the forensics (4d review). Awaiting the cancelled task first makes
+    /// the handover clean.
     private func restart() {
+        let dying = pipeline
         stop()
-        start()
+        Task { [weak self] in
+            _ = await dying?.value
+            self?.start()
+        }
     }
 
     // MARK: - the echo probe (AC-96) — the phone's own numbers
@@ -402,9 +417,15 @@ final class TranscribeModel {
         do {
             try microphone.start(into: producer)
         } catch {
-            probeStatus = "microphone: \(error.localizedDescription)"
+            // NOT LEFT SET (4d review): probeStatus is both the label and
+            // the re-entrancy latch, so parking an error string here
+            // disabled the instrument for the life of the process — on
+            // exactly the machines where a measurement matters most.
+            probeFailure = "microphone: \(error.localizedDescription)"
+            probeStatus = nil
             return
         }
+        probeFailure = nil
         defer { microphone.stop() }
         // ASKED FOR is not GOT. Without this, a loud residual is
         // ambiguous: the canceller may have been refused by the platform,
@@ -539,7 +560,6 @@ final class TranscribeModel {
             for sample in chunk.samples { sumOfSquares += sample * sample }
             let rms = (sumOfSquares / Float(max(chunk.frameCount, 1))).squareRoot()
             utterancePeak = max(utterancePeak, rms)
-            inputLevel = rms
         }
     }
 
@@ -549,7 +569,11 @@ final class TranscribeModel {
             turnState = state
             if state == .listening || state == .idle { reply = "" }
         case .replyToken(let token, _):
-            reply += reply.isEmpty ? token : " " + token
+            // VERBATIM (4d review): tokens carry their own spacing —
+            // that is the D-037 F-1 rule the phraser depends on — so
+            // adding another space made the screen disagree with the
+            // mouth on every word after the first.
+            reply += token
         case .turnCompleted(let turn):
             lastTurnEvent = "completed \(turn)"
         case .turnBarged(let turn):

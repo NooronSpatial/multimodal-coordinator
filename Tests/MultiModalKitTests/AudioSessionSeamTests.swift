@@ -16,10 +16,17 @@ import MultiModalKit
         enum Step: Equatable { case activate, deactivate }
         private let store = Mutex<[Step]>([])
         private let failure: (any Error)?
+        /// What the microphone was doing at the moment we were released.
+        /// The seam's second promise — "released only AFTER the engine
+        /// stops" — was previously asserted in a MESSAGE and verified by
+        /// nothing, because the session had no view of the engine.
+        private let observed = Mutex<Bool?>(nil)
+        nonisolated(unsafe) weak var microphone: MicrophoneSource?
 
         init(failsToActivate: (any Error)? = nil) { self.failure = failsToActivate }
 
         var steps: [Step] { store.withLock { $0 } }
+        var microphoneWasRunningAtRelease: Bool? { observed.withLock { $0 } }
 
         func activate() throws {
             store.withLock { $0.append(.activate) }
@@ -27,6 +34,7 @@ import MultiModalKit
         }
 
         func deactivate() {
+            observed.withLock { $0 = microphone?.isRunning ?? false }
             store.withLock { $0.append(.deactivate) }
         }
     }
@@ -37,6 +45,7 @@ import MultiModalKit
     func theSessionIsActivatedFirstAndAlwaysReleased() throws {
         let session = ScriptedSession()
         let microphone = MicrophoneSource(session: session)
+        session.microphone = microphone
         let (producer, _) = AudioRing.create(minimumCapacity: 4096)
 
         // Capture may succeed here (a Mac with a microphone) or throw (a
@@ -57,7 +66,11 @@ import MultiModalKit
                     "a running engine must not have its session released underneath it")
             microphone.stop()
             #expect(session.steps == [.activate, .deactivate],
-                    "release happens after the engine has stopped, exactly once")
+                    "release happens exactly once")
+            // THE OTHER HALF, now pinned rather than asserted in prose:
+            // at the moment we were released, capture was already down.
+            #expect(session.microphoneWasRunningAtRelease == false,
+                    "the session was released while the engine was still running")
         } else {
             #expect(session.steps == [.activate, .deactivate],
                     "capture failed, so the session it opened must not be left active")
@@ -105,11 +118,26 @@ import MultiModalKit
         let microphone = MicrophoneSource(session: session)
         let (producer, _) = AudioRing.create(minimumCapacity: 4096)
 
-        try? microphone.start(into: producer)
+        // DE-VACUIZED (4d review): with `try?` on both calls, a machine
+        // where capture FAILS reaches the same assertion by a different
+        // road — the first start throws, activate-then-release runs, and
+        // the count is 1 for a reason that has nothing to do with the
+        // guard. The outcome is now branched on what actually happened.
+        let firstStarted = (try? { try microphone.start(into: producer); return true }()) ?? false
         try? microphone.start(into: producer)      // the guard must hold
 
-        #expect(session.steps.filter { $0 == .activate }.count == 1,
-                "activating an already-active session is exactly the bug this seam prevents")
+        if firstStarted {
+            #expect(session.steps == [.activate],
+                    "the second start re-entered a live session")
+        } else {
+            // Capture failed, so each attempt legitimately activates and
+            // releases. What must NOT happen is a release without its
+            // activate, or the pair running out of order.
+            #expect(session.steps.first == .activate)
+            #expect(session.steps.filter { $0 == .activate }.count
+                    == session.steps.filter { $0 == .deactivate }.count,
+                    "every activation must be paired with exactly one release")
+        }
         microphone.stop()
     }
 
