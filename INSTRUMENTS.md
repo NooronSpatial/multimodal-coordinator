@@ -388,3 +388,41 @@ interrupted mid-thought. 4c does not fix §46a finding (3) — no fixed
 timer separates "still thinking" from "done talking" — it makes the
 interruption *cheaper*, because when the assistant finally answers, it
 answers everything that was said instead of the last fragment.
+
+## 8. The phone's echo — measured, and the cheap fix ruled out (AC-96)
+
+The Mac's canceller numbers never transferred, exactly as the milestone
+insisted they might not. Measured on Ryad's iPhone with the app's own
+echo probe — which reads the ring DIRECTLY, past the VAD, so "nothing
+happened" can never be confused with "the microphone is deaf":
+
+| session mode | route | quiet room peak | while SPEAKING peak | voice processing |
+|---|---|---|---|---|
+| `.default` | speaker | 0.0030 | **1.0000** (full scale) | ACTIVE |
+| `.voiceChat` | speaker | **0.0008** | **0.9391** | ACTIVE |
+
+Read the rows twice, because they say two different things.
+
+**The canceller works.** It is not refused, and it is not idle: it takes
+the room's own noise floor down — threefold under `.default`, and
+another fourfold under `.voiceChat` (0.0092 unprocessed → 0.0008).
+
+**And it never sees the reply.** The assistant's own voice arrives at
+the microphone at essentially full scale under both modes. Voice
+processing cancels what ITS OWN audio unit renders;
+`AVSpeechSynthesizer` plays on a separate path. The macOS spike (§6)
+proved cancellation of audio from a whole separate PROCESS, so the
+reference is system-wide there — one platform measured, and iOS is not
+the same platform.
+
+**What these numbers retire.** Tuning. Human speech peaks around
+0.1–0.3 here; the echo peaks at ~1.0, so on this route **the echo is
+louder than the person**. No gate separates them: raising it would
+silence the speaker before the phone. An entire line of work, closed by
+one measurement.
+
+**The cheap fix, tried and ruled out.** `.voiceChat` is the session mode
+built for full-duplex speech, and it was the one-line hope. It is kept —
+the noise floor it buys is real and measured — but it is NOT the answer:
+same route, same probe, still 0.9391. Ruled in D-043: the finding ships
+with milestone 4d and the routing fix becomes 4f, after TTSKit.

@@ -1313,6 +1313,15 @@ out of the box. The default becomes the route that WORKS, the speaker
 stays one toggle away for measurement, and the screen says why. The
 original ruling and its reasoning stay on the record.
 
+**THE CHEAP FIX WAS TRIED AND MEASURED, not assumed away.**
+`.voiceChat` — the session mode built for full-duplex speech — was the
+one-line hope. Same phone, same route, same probe: quiet room 0.0030 →
+**0.0008** (the canceller is doing MORE work on what it can see), and
+the reply still arriving at **0.9391**. The conclusion now rests on two
+independent modes rather than one, which is what makes it a finding
+instead of a guess. `.voiceChat` is KEPT, on the measured noise floor
+alone, with no claim that it helps the echo.
+
 **The design that a later milestone will build**, so the finding carries
 its own answer: render the reply through the SAME engine that cancels —
 `AVSpeechSynthesizer.write` into a player node on the pipeline's engine,
