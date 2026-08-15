@@ -129,8 +129,17 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// the speaker never got an answer. It is emptied on `turnCompleted`
     /// and nowhere else (F-2 = A).
     private var ledger: TranscriptLedger
+    /// Everything at or below this utterance belongs to a conversation
+    /// that `resume()` ended. Set only there; it fences pre-interruption
+    /// speech out of the fresh thought (the 4d review's finding).
+    private var contextFloor = -1
     private var merge: AsyncStream<Input>.Continuation?
     private var isStopped = false
+    /// The input streams' end, held on the ACTOR rather than in `run()`'s
+    /// locals: a ticket retired from outside the loop has to be able to
+    /// ask whether the loop still has work (see `wakeIfDrained`).
+    private var audioEnded = false
+    private var transcriptsEnded = false
 
     /// The measuring coordinator (R2): instants captured at the semantic
     /// boundaries, durations to the injected reporter. Deterministic under
@@ -212,8 +221,6 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                 input.yield(.transcriptsEnded)
             }
 
-            var audioOver = false
-            var transcriptsOver = false
             loop: for await item in inputs {
                 if isStopped { break }
                 switch item {
@@ -229,15 +236,15 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                     await handleGateExpired(turn: turn, utterance: utterance,
                                             forwardingInto: &group, via: input)
                 case .audioEnded:
-                    audioOver = true
+                    audioEnded = true
                 case .transcriptsEnded:
-                    transcriptsOver = true
+                    transcriptsEnded = true
                 case .stopped:
                     break loop
                 }
                 // Graceful end: no more triggers can arrive and no turn is
                 // in flight — the loop's work is provably done.
-                if audioOver && transcriptsOver && current == nil { break }
+                if isDrained { break }
             }
             group.cancelAll()   // frees any forwarder stuck on a defiant stream
         }
@@ -261,6 +268,9 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         failTurn(dying.turn, with: .interrupted)
         await dying.replyRun?.cancel()
         await dying.synthesisRun?.cancel()
+        // Retiring from OUTSIDE the merge loop: if the inputs are already
+        // finished, nothing will ever wake it again (the 4d review).
+        wakeIfDrained()
     }
 
     /// The app has decided to listen again (AC-94, D-042 F-5 = B). Note
@@ -277,6 +287,17 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     ///
     public func resume() {
         ledger.clear()
+        // Forgetting is not FENCING — the 4d review's catch. Clearing
+        // empties what has arrived; it says nothing about pre-interruption
+        // speech still in flight. Two doors have to shut:
+        //   · anything already stashed in the reorder buffer belongs to
+        //     the conversation that the call ended;
+        //   · anything the recogniser flushes LATER for an utterance we
+        //     had already seen must not enter the fresh thought either.
+        // Without both, a pre-call fragment joins a post-call sentence —
+        // exactly the nonsense F-5 was ruled to prevent.
+        pendingTranscripts.removeAll()
+        contextFloor = lastOnset
     }
 
     /// Ends the loop: the ticket dies in this same actor step, every
@@ -291,6 +312,19 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         broadcast.finish()
         await dying?.replyRun?.cancel()    // optimization, after the guarantee
         await dying?.synthesisRun?.cancel()
+    }
+
+    /// No more triggers can arrive and no turn is in flight.
+    private var isDrained: Bool { audioEnded && transcriptsEnded && current == nil }
+
+    /// The merge loop re-reads `isDrained` only when an item arrives, so a
+    /// ticket retired from OUTSIDE the loop — which `interrupt()` is the
+    /// first path to do — can leave it parked on streams that will never
+    /// speak again. The 4d review caught it: `run()` never returned and
+    /// every listener's stream stayed open. Whoever retires a ticket from
+    /// outside must therefore knock.
+    private func wakeIfDrained() {
+        if isDrained { merge?.yield(.stopped) }
     }
 
     // MARK: - the funnel (AC-61: the ONLY writer of `state`)
@@ -387,7 +421,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // the words joined the live prompt, the turn completed and
             // emptied the ledger, and the stashed final was then replayed
             // into a fresh one — answering the same sentence twice.
-            if utterance <= lastOnset {
+            if utterance <= lastOnset && utterance > contextFloor {
                 ledger.record(text, utterance: utterance)
             }
 
@@ -496,10 +530,19 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                     input.yield(.reply(turn: turn, update))
                 }
             }
-        } catch let failure as TurnFailure {
-            failTurn(turn, with: failure)
         } catch {
-            failTurn(turn, with: .generationFailed(String(describing: error)))
+            // THE REENTRANCY LAW, ON THE FAILURE PATH — the arm the 4d
+            // review found unguarded. `interrupt()` can land while
+            // `openReply` is suspended, and unlike `stop()` it also drives
+            // the state to `.idle`. Failing again from there is an illegal
+            // `.idle → .idle` transition AND a second terminal event for a
+            // turn that is already dead. The ticket answers, as always.
+            guard !isStopped, current?.turn == turn else { return }
+            if let failure = error as? TurnFailure {
+                failTurn(turn, with: failure)
+            } else {
+                failTurn(turn, with: .generationFailed(String(describing: error)))
+            }
         }
     }
 
@@ -537,13 +580,20 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
                         }
                     }
                     await run.feed(token)
-                } catch let failure as TurnFailure {
-                    let dying = current
-                    failTurn(turn, with: failure)
-                    await dying?.replyRun?.cancel()
                 } catch {
+                    // Same law, same reason (the review's second critical,
+                    // and the likelier one in the field): an iOS
+                    // interruption lands exactly while the mouth is being
+                    // opened. If the ticket died in that window the turn
+                    // is already finished — failing it again would be
+                    // `.idle → .idle`.
+                    guard !isStopped, current?.turn == turn else { return }
                     let dying = current
-                    failTurn(turn, with: .synthesisFailed(String(describing: error)))
+                    if let failure = error as? TurnFailure {
+                        failTurn(turn, with: failure)
+                    } else {
+                        failTurn(turn, with: .synthesisFailed(String(describing: error)))
+                    }
                     await dying?.replyRun?.cancel()
                 }
             } else {

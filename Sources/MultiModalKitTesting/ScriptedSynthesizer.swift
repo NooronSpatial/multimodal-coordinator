@@ -11,6 +11,12 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
     public enum Plan: Sendable {
         case manual(ignoresCancel: Bool = false)
         case failOnOpen(String)
+        /// SUSPENDS inside `openUtterance` until `releaseOpen()`, then
+        /// throws — the twin of the generator's plan, for the second of
+        /// the two criticals the 4d review confirmed. An iOS interruption
+        /// lands in exactly this window: the mouth is being opened at the
+        /// moment the platform takes the audio away.
+        case blockThenFailOnOpen(String)
     }
 
     public struct UtteranceRecord: Sendable {
@@ -22,6 +28,8 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
     private struct State {
         var records: [UtteranceRecord] = []
         var continuations: [Int: AsyncStream<SynthesisUpdate>.Continuation] = [:]
+        var openGate: CheckedContinuation<Void, Never>?
+        var openReleasedEarly = false
     }
 
     private let plans: [Plan]
@@ -33,6 +41,16 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
 
     public static func manual(utterances: Int) -> ScriptedSynthesizer {
         ScriptedSynthesizer(plans: Array(repeating: .manual(), count: utterances))
+    }
+
+    /// Lets a `blockThenFailOnOpen` utterance out of `openUtterance`.
+    /// Safe before anyone waits: the release is remembered.
+    public func releaseOpen() {
+        let waiting = state.withLock { state -> CheckedContinuation<Void, Never>? in
+            state.openReleasedEarly = true
+            return state.openGate.take()
+        }
+        waiting?.resume()
     }
 
     // MARK: - the record
@@ -94,6 +112,18 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
         }
 
         if case .failOnOpen(let reason) = plan {
+            throw TurnFailure.synthesisFailed(reason)
+        }
+        if case .blockThenFailOnOpen(let reason) = plan {
+            // Stored under the lock, resumed outside it (§4.1).
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let releaseNow = state.withLock { state -> Bool in
+                    if state.openReleasedEarly { return true }
+                    state.openGate = continuation
+                    return false
+                }
+                if releaseNow { continuation.resume() }
+            }
             throw TurnFailure.synthesisFailed(reason)
         }
         return ScriptedUtterance(synthesizer: self, index: index, plan: plan, updates: stream)
