@@ -425,6 +425,22 @@ loose end still unexplained from the first device run ("lowering the
 volume helped Apple but not Whisper"): the echo path is now measured as
 engine-independent at two separate points.
 
+**And the third number, arrived at by accident.** One probe was run
+while the speaker TALKED through it — which voids the verdict line (it
+assumes silence) but measures the thing no other run had: a human voice
+on this route, at **peak 0.2540**. The picture that completes:
+
+```
+   echo leak      0.0044 – 0.0094      ← must stay UNDER the gate
+   gate           0.020                ← 2–4x above the leak
+   human voice    0.2540               ← 13x above the gate
+```
+
+Ten-fold separation at both ends. That is AC-97 answered by measurement
+rather than by choosing a number that felt safe — and the probe now
+prints "valid only if nobody spoke during the measurement", because this
+run read as a failure when it was in fact the best result of the day.
+
 **Why the receiver works, stated precisely, because the easy phrasing is
 wrong.** It is not that the canceller works there. The canceller is
 exactly as blind on the receiver as on the speaker — it cannot see

@@ -199,10 +199,17 @@ struct ContentView: View {
                     // The verdict, in one line, so the field run does not
                     // have to interpret two numbers under pressure.
                     Text(speaking.peak >= model.vadThreshold
-                         ? "→ the reply CROSSES the gate: it will barge itself"
-                         : "→ the reply stays under the gate: the canceller is working")
+                         ? "→ CROSSES the gate — if you stayed quiet, it will barge itself"
+                         : "→ stays under the gate on this route")
                         .font(.caption.weight(.medium))
                         .foregroundStyle(speaking.peak >= model.vadThreshold ? .red : .green)
+                    // The verdict is only true in SILENCE. A run where the
+                    // person spoke measures their VOICE and reads as a
+                    // failure — it misled us once, so the assumption is
+                    // now printed next to the claim that depends on it.
+                    Text("valid only if nobody spoke during the measurement")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
