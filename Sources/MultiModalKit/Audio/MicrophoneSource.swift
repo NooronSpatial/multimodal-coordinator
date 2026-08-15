@@ -37,8 +37,17 @@ public final class MicrophoneSource: AudioSource {
     /// is not the same as got, and the caller deserves the difference.
     public private(set) var voiceProcessingActive = false
 
-    public init(voiceProcessing: Bool = false) {
+    /// The platform session this capture rides on (AC-93, D-042 F-1 = B).
+    /// The library calls its steps in order; the app supplies their
+    /// contents. `nil` on macOS, which has no session to manage.
+    ///
+    /// RED skeleton: stored, not yet obeyed.
+    private let session: (any AudioSessionConfiguring)?
+
+    public init(voiceProcessing: Bool = false,
+                session: (any AudioSessionConfiguring)? = nil) {
         self.voiceProcessing = voiceProcessing
+        self.session = session
     }
 
     public func start(into producer: AudioRingProducer) throws {
