@@ -408,6 +408,23 @@ And the same probe on the RECEIVER, twice:
 | `.voiceChat` | receiver | 0.0099 | 0.0094 | under — by **6 %** |
 | `.voiceChat` | receiver | 0.0002 | 0.0044 | under — the reply adds ~0.004 over the floor |
 
+At the gate this device then EARNED for itself (AC-97), the margin stops
+being uncomfortable:
+
+| session mode | route | gate | quiet room peak | while SPEAKING peak | margin |
+|---|---|---|---|---|---|
+| `.voiceChat` | receiver | 0.020 | 0.0008 | 0.0063 | 3.2× |
+| `.voiceChat` | receiver | 0.020 | 0.0000 | 0.0053 | 3.8× |
+
+Those two runs also served as an accidental CONTROL: one was taken with
+Apple selected and one with Whisper, and the probe touches no engine at
+all — it starts the microphone, speaks, and reads the ring. Same result
+either way, which is what says the 0.0063/0.0053 difference is room
+variation rather than anything about an engine. It also weakens the one
+loose end still unexplained from the first device run ("lowering the
+volume helped Apple but not Whisper"): the echo path is now measured as
+engine-independent at two separate points.
+
 **Why the receiver works, stated precisely, because the easy phrasing is
 wrong.** It is not that the canceller works there. The canceller is
 exactly as blind on the receiver as on the speaker — it cannot see

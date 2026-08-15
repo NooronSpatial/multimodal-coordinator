@@ -84,7 +84,13 @@ final class TranscribeModel {
     /// The gate this device is currently using — on screen, and
     /// adjustable, because a level means nothing without the number it is
     /// judged against, and because AC-97 says the phone earns its own.
-    var vadThreshold: Float = 0.01 {
+    /// 0.020 — THIS DEVICE'S OWN NUMBER (AC-97), earned from the echo
+    /// probe rather than inherited. 0.010 came from Phase 2, when the app
+    /// only listened and nothing ever played; with a mouth in the loop
+    /// the reply leaks 0.0044–0.0094 on the receiver, so one run cleared
+    /// 0.010 by six per cent. At 0.020 the leak has 2–4x headroom below
+    /// and speech (0.05–0.26) has 2.5x above.
+    var vadThreshold: Float = 0.02 {
         didSet { if isListening { restart() } }
     }
 
