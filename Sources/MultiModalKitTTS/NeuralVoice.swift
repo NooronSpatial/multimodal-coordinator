@@ -1,3 +1,4 @@
+import AVFAudio
 import Foundation
 import MultiModalKit
 import TTSKit
@@ -22,7 +23,7 @@ import TTSKit
 /// An actor for the same reason `WhisperEngine` is one: it caches a
 /// loaded CoreML pipeline, and that is mutable state which must not be
 /// touched from two places at once.
-public actor NeuralVoice {
+public actor NeuralVoice: SpeechSynthesizing {
     /// Which Qwen3 variant to speak with. 0.6B is the smaller, faster
     /// one; the bake-off's numbers decide whether the larger earns its
     /// download.
@@ -34,8 +35,41 @@ public actor NeuralVoice {
     /// load again.
     private var pipeline: TTSKit?
 
-    public init(variant: TTSModelVariant = .qwen3TTS_0_6b) {
+    /// The engine this voice renders through. Handing one in is how a
+    /// caller makes the reply CANCELLABLE: D-043 measured that iOS voice
+    /// processing removes only what its own audio unit renders, so a
+    /// reply rendered on the engine that also captures is the first one
+    /// the canceller can see. `nil` means "make your own", which works
+    /// everywhere and cancels nowhere.
+    ///
+    /// Sharing the CAPTURE engine is not yet possible — `MicrophoneSource`
+    /// keeps its own private — and that is exactly the work milestone 4f
+    /// carries. AC-104 is the measurement that will say what it is worth.
+    private let providedEngine: AVAudioEngine?
+    private var ownEngine: AVAudioEngine?
+
+    public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
+                renderingOn engine: AVAudioEngine? = nil) {
         self.variant = variant
+        self.providedEngine = engine
+    }
+
+    /// The seam (AC-101). One utterance, decoded by TTSKit and rendered
+    /// by us.
+    public func openUtterance() async throws -> any SynthesisRun {
+        let kit = try await loadedPipeline()
+        let engine: AVAudioEngine
+        if let providedEngine {
+            engine = providedEngine
+        } else if let ownEngine {
+            engine = ownEngine
+        } else {
+            let fresh = AVAudioEngine()
+            ownEngine = fresh
+            engine = fresh
+        }
+        return try NeuralVoiceRun(kit: kit, engine: engine,
+                                  sampleRate: Double(kit.sampleRate))
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not

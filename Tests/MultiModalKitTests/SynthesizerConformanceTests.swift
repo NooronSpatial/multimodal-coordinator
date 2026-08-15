@@ -142,3 +142,57 @@ struct AppleSynthesizerConformanceTests {
         try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(AppleSpeechSynthesizer())
     }
 }
+
+#if canImport(MultiModalKitTTS)
+import MultiModalKitTTS
+
+/// THE KIT'S REASON TO EXIST, finally exercised. It was written in 4b
+/// against "a second mouth we do not have yet"; this is that mouth.
+///
+/// Model-gated like the engine suites: a machine without the 1.1 GB of
+/// weights skips honestly rather than failing for the wrong reason. The
+/// audible promises additionally need `MMK_LIVE_SYNTH=1`, because they
+/// make the machine SPEAK and a headless runner's audio is not ours to
+/// assume (D-022).
+@Suite(.timeLimit(.minutes(4)), .serialized)
+struct NeuralVoiceConformanceTests {
+    static var liveAudioAllowed: Bool {
+        ProcessInfo.processInfo.environment["MMK_LIVE_SYNTH"] == "1"
+    }
+
+    @Test("a silent reply completes without speaking (model required; skips if absent)")
+    func silentReply() async throws {
+        let voice = NeuralVoice()
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifySilentReplyCompletesWithoutSpeaking(voice)
+    }
+
+    @Test("an unspeakable reply still terminates — liveness (model required; skips if absent)")
+    func unspeakableStillTerminates() async throws {
+        let voice = NeuralVoice()
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(voice)
+    }
+
+    @Test("started once, finished once, in order (model + MMK_LIVE_SYNTH=1)")
+    func startedThenFinished() async throws {
+        let voice = NeuralVoice()
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyStartedThenFinished(voice)
+    }
+
+    @Test("cancel silences and ends without a terminal (model + MMK_LIVE_SYNTH=1)")
+    func cancelWithoutTerminal() async throws {
+        let voice = NeuralVoice()
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(voice)
+    }
+
+    @Test("nothing survives the cancel — late feeds are silent (model + MMK_LIVE_SYNTH=1)")
+    func nothingSurvivesTheCancel() async throws {
+        let voice = NeuralVoice()
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(voice)
+    }
+}
+#endif
