@@ -1519,6 +1519,18 @@ device, or it claims nothing.
   treated as a barge. **Recommendation: A** — B needs state that
   survives a dead audio graph and invents a "paused turn" the funnel
   has no place for; C would be a lie (the user did not speak).
+- **F-5 WHO DECIDES TO RESUME (added mid-spec, raised by Ryad).** The
+  OS takes the session during a call — there is no "keep recording"
+  option to rule on. The real choice is what happens when the
+  interruption ENDS. A: the library auto-resumes when the platform
+  hints `.shouldResume`. B: the library stays stopped, publishes that
+  it was interrupted, and the APP (or the user, via a control) decides
+  when listening starts again. C: a config knob with a default.
+  **Recommendation: B** — auto-resume has a real failure mode: after a
+  long call the speaker may have walked away, and with the ledger the
+  assistant still holds what was said BEFORE the call and could answer
+  it out of nowhere. Resuming is policy (D-027), and policy belongs to
+  the app. C is B plus a knob nobody has asked for yet.
 - **F-4 SPEAKER OR RECEIVER.** A: `.defaultToSpeaker` — the reply is
   audible across a room, and the echo is loud, so the canceller is
   doing real work and is measured doing it. B: receiver/earpiece —
