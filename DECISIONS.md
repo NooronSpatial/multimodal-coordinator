@@ -1370,3 +1370,64 @@ are stated in `AudioSessionSeamTests.swift` beside the invariant, not
 only here, so the next person to touch that `defer` meets the warning in
 the file they are editing. The original note is kept above the ruling —
 its FACTS did not change, only the reasoning that followed them.
+
+---
+
+## D-045 — The second mouth: five rulings (Milestone 4e, forks F-1..F-5)
+
+**Date:** 2026-08-15 · **Decided by:** Ryad
+
+Every seam in this library has two real implementations except one, so
+"we can switch mouths" was a CLAIM where the input side had a PROOF.
+4e closes it with TTSKit's neural voice (Qwen3, CoreML) from the
+`argmax-oss-swift` package already resolved for WhisperKit.
+
+**F-1 = B — we render the audio, TTSKit only decodes.** `generate`
+hands back PCM chunk by chunk; `play` would render through TTSKit's own
+output. B is the only path that can make the reply CANCELLABLE on iOS:
+D-043 measured that voice processing removes only what its own audio
+unit renders, so a reply we render ourselves is the first one the
+canceller can see. It also makes `.started` real evidence (a buffer
+actually scheduled) and makes `cancel()` something we can measure rather
+than request. *Rejected:* `play()` — least code, and it inherits 4d's
+echo problem unchanged, with `.started` degraded to "their callback
+fired" and cancellation to a hope. *Rejected:* a platform split
+(`play` on macOS, render on iOS) — one seam with two behaviours, and
+`.started` meaning different things per platform.
+**The cost, accepted knowingly:** we take back the problem TTSKit had
+already solved — pre-buffering against underruns, and a 24 kHz source
+feeding an engine at 48 kHz. If our rendering is choppy the neural mouth
+is WORSE than Apple's for no gain. AC-102's spike measures exactly that,
+and option A stays documented as the fallback.
+
+**F-2 = A — `.started` is the first PCM actually rendered.** D-029's
+rule survives the change of mouth: state follows what is AUDIBLE.
+*Rejected:* reporting at generation start — earlier, and a lie, because
+nothing can be heard yet; it would also corrupt the felt-pause number
+that INSTRUMENTS.md has tracked since 4b.
+
+**F-3 = A — `PlaybackStrategy.auto`.** It measures the first decode step
+and pre-buffers just enough, re-assessed per chunk. *Rejected:*
+`.stream` (lowest latency, choppy wherever the device cannot generate
+faster than real time) and `.generateFirst` (smooth, but the felt pause
+swallows the whole generation). The number is recorded either way — this
+is a latency/robustness trade the spike settles, not taste.
+
+**F-4 = A — its own opt-in product, `MultiModalKitTTS`.** Mirrors
+`MultiModalKitWhisper` (D-016 tier 2, D-023's four questions). The core
+keeps zero runtime dependencies. *Rejected:* folding it into the Whisper
+module because both come from one package — it implements a DIFFERENT
+seam, and an app that wants a voice should not be made to pull a speech
+recogniser.
+
+**F-5 = A — the bake-off measures intelligibility, and labels opinion as
+opinion.** Voice quality cannot be scored honestly by assertion, but it
+CAN be measured indirectly: speak the text, record it, transcribe it
+with the two engines this repo already owns, and score WER against the
+source. That is a real instrument, with real caveats (it measures what a
+RECOGNISER understands, not what a human enjoys). Latency, size and
+thermal are objective and reported directly. Anything subjective is
+reported as labelled opinion. *Rejected:* refusing to score quality at
+all (the easy way out, and it wastes an instrument already in the repo).
+*Rejected:* a subjective rating as the headline number — precisely what
+BAKEOFF.md exists to refuse.
