@@ -28,7 +28,18 @@ struct PhoneSession: AudioSessionConfiguring {
         if talking {
             var options: AVAudioSession.CategoryOptions = [.allowBluetooth]
             if useSpeaker { options.insert(.defaultToSpeaker) }
-            try session.setCategory(.playAndRecord, mode: .default, options: options)
+            // MODE, and it is not cosmetic. The device probe measured the
+            // reply arriving at the microphone at peak 1.0000 — full
+            // scale, untouched — while voice processing reported ACTIVE
+            // and was visibly working on room noise (0.0092 → 0.0030).
+            // So the canceller runs and simply cannot see
+            // `AVSpeechSynthesizer`, which plays outside this pipeline's
+            // `AVAudioEngine`. `.voiceChat` is the mode built for
+            // full-duplex speech; the cheap question it answers is
+            // whether the SESSION's processing covers output this app did
+            // not render itself. If the probe still reads ~1.0, it does
+            // not, and the honest fix is routing (SPEC §58a).
+            try session.setCategory(.playAndRecord, mode: .voiceChat, options: options)
         } else {
             try session.setCategory(.record, mode: .default)
         }
