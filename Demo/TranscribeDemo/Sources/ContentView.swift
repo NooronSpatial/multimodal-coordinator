@@ -5,22 +5,54 @@ struct ContentView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch model.engineState {
-                case .checking:
-                    ProgressView("Checking the speech model…")
-                case .modelMissing:
-                    modelMissing
-                case .downloading:
-                    ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
-                        .multilineTextAlignment(.center)
-                case .failed(let reason):
-                    failed(reason)
-                case .ready:
-                    transcriber
+            VStack(spacing: 0) {
+                Group {
+                    switch model.engineState {
+                    case .checking:
+                        ProgressView("Checking the speech model…")
+                    case .modelMissing:
+                        modelMissing
+                    case .downloading:
+                        ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
+                            .multilineTextAlignment(.center)
+                    case .failed(let reason):
+                        failed(reason)
+                    case .ready:
+                        transcriber
+                    }
+                }
+                .frame(maxHeight: .infinity)
+
+                // ALWAYS reachable, deliberately: the echo probe needs no
+                // speech model, and the machines where a model refuses to
+                // install are exactly the ones where a measurement matters
+                // most. Trapping it behind "ready" would have hidden the
+                // instrument on the first device that needed it.
+                // The probe's RESULTS live here; its trigger is in the
+                // toolbar. A button in this bottom strip did not fire on
+                // synthetic taps in the simulator — the Download button in
+                // the same build did — and rather than ship a control I
+                // could not prove works, the trigger moved somewhere
+                // taps are reliable.
+                if model.probeSilence != nil || model.probeStatus != nil {
+                    Divider()
+                    echoProbeResults
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
                 }
             }
             .navigationTitle("MultiModalKit")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await model.runEchoProbe() }
+                    } label: {
+                        Label(model.probeStatus == nil ? "Echo probe" : "measuring…",
+                              systemImage: "waveform.badge.magnifyingglass")
+                    }
+                    .disabled(model.isListening || model.probeStatus != nil)
+                }
+            }
             .task { await model.checkModel() }
         }
     }
@@ -93,17 +125,11 @@ struct ContentView: View {
                 }
             }
 
-            // THE INSTRUMENT (AC-96). With the assistant speaking and
-            // nobody else in the room, this level IS the echo residual —
-            // and the gate beside it is what decides whether that residual
-            // becomes a barge. The first field run could only be
-            // described; this makes the next one measurable.
+            // The gate, on screen and adjustable — a level means nothing
+            // without the number it is judged against (AC-97: this device
+            // earns its own).
             HStack(spacing: 8) {
-                Text("in \(model.inputLevel, format: .number.precision(.fractionLength(3)))")
-                    .font(.caption.monospacedDigit())
-                    .foregroundStyle(model.inputLevel >= model.vadThreshold ? .red : .secondary)
-                Text("gate")
-                    .font(.caption).foregroundStyle(.secondary)
+                Text("gate").font(.caption).foregroundStyle(.secondary)
                 Slider(value: Bindable(model).vadThreshold, in: 0.005...0.08)
                     .disabled(model.isListening)
                 Text(model.vadThreshold, format: .number.precision(.fractionLength(3)))
@@ -126,6 +152,50 @@ struct ContentView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    /// AC-96's instrument: the phone speaks while reading the microphone
+    /// RAW — past the VAD, so "nothing happened" can never be confused
+    /// with "the microphone is deaf". Needs no speech model, so it runs
+    /// even where an engine will not.
+    private var echoProbeResults: some View {
+        VStack(spacing: 6) {
+            if let status = model.probeStatus {
+                HStack {
+                    ProgressView().controlSize(.mini)
+                    Text(status).font(.caption).foregroundStyle(.secondary)
+                    Spacer()
+                }
+            }
+
+            if let quiet = model.probeSilence, let speaking = model.probeWhileSpeaking {
+                VStack(alignment: .leading, spacing: 3) {
+                    probeRow("quiet room", quiet)
+                    probeRow("while speaking", speaking)
+                    // The verdict, in one line, so the field run does not
+                    // have to interpret two numbers under pressure.
+                    Text(speaking.peak >= model.vadThreshold
+                         ? "→ the reply CROSSES the gate: it will barge itself"
+                         : "→ the reply stays under the gate: the canceller is working")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(speaking.peak >= model.vadThreshold ? .red : .green)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
+    private func probeRow(_ label: String, _ value: (peak: Float, rms: Float)) -> some View {
+        HStack {
+            Text(label).font(.caption).foregroundStyle(.secondary)
+            Spacer()
+            Text("peak \(value.peak, format: .number.precision(.fractionLength(4)))")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(value.peak >= model.vadThreshold ? .red : .primary)
+            Text("rms \(value.rms, format: .number.precision(.fractionLength(4)))")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var turnIcon: String {

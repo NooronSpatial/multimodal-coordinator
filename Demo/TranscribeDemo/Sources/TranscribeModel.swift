@@ -83,6 +83,12 @@ final class TranscribeModel {
         didSet { if isListening { restart() } }
     }
 
+    /// The echo probe's results (AC-96): what the microphone delivers in
+    /// a quiet room, and what it delivers while the phone is speaking.
+    private(set) var probeSilence: (peak: Float, rms: Float)?
+    private(set) var probeWhileSpeaking: (peak: Float, rms: Float)?
+    private(set) var probeStatus: String?
+
     private var liveUtterance: Int?
     private var utteranceStartSeconds = 0.0
     private var utterancePeak: Float = 0
@@ -344,6 +350,77 @@ final class TranscribeModel {
     private func restart() {
         stop()
         start()
+    }
+
+    // MARK: - the echo probe (AC-96) — the phone's own numbers
+
+    /// THE INSTRUMENT the first field run lacked.
+    ///
+    /// The pump publishes only sound the VAD already ACCEPTED, so "no
+    /// utterances" is ambiguous — cancelled echo and a deaf microphone
+    /// look identical from its output. The Mac learned this during the
+    /// D-038 spike and answered it with a probe that reads the ring
+    /// directly; this is that probe, in a phone's shape, and it needs no
+    /// speech model at all — so it runs even where an engine will not.
+    ///
+    /// What it does: start capture, measure the quiet room, then SPEAK
+    /// while measuring again. The difference between those two numbers,
+    /// against the gate, is the whole echo question.
+    func runEchoProbe() async {
+        guard !isListening, probeStatus == nil else { return }
+        probeStatus = "measuring the quiet room…"
+        probeSilence = nil
+        probeWhileSpeaking = nil
+
+        let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 16)
+        let microphone = MicrophoneSource(
+            voiceProcessing: true,
+            session: PhoneSession(talking: true, useSpeaker: useSpeaker))
+        do {
+            try microphone.start(into: producer)
+        } catch {
+            probeStatus = "microphone: \(error.localizedDescription)"
+            return
+        }
+        defer { microphone.stop() }
+
+        var scratch = [Float](repeating: 0, count: consumer.capacity)
+        /// Reads whatever the microphone has delivered since the last read
+        /// — the raw truth, gate or no gate. Safe because the pump is NOT
+        /// running here, so the ring's sole-reader rule still holds.
+        func measure(for seconds: Double) async -> (peak: Float, rms: Float) {
+            var peak: Float = 0
+            var sumOfSquares: Float = 0
+            var total = 0
+            let rounds = Int(seconds * 4)
+            for _ in 0..<max(rounds, 1) {
+                try? await Task.sleep(for: .milliseconds(250))
+                scratch.withUnsafeMutableBufferPointer { buffer in
+                    let result = consumer.read(into: buffer)
+                    for i in 0..<result.framesRead {
+                        let sample = buffer[i]
+                        peak = max(peak, abs(sample))
+                        sumOfSquares += sample * sample
+                    }
+                    total += result.framesRead
+                }
+            }
+            return (peak, (sumOfSquares / Float(max(total, 1))).squareRoot())
+        }
+
+        probeSilence = await measure(for: 2)
+
+        probeStatus = "speaking — stay quiet…"
+        let speech = AVSpeechUtterance(string:
+            "Measuring the echo. The microphone is listening to this sentence right now, "
+            + "and the numbers on screen say whether the canceller removed it.")
+        speech.rate = AVSpeechUtteranceDefaultSpeechRate
+        let synthesizer = AVSpeechSynthesizer()
+        synthesizer.speak(speech)
+        probeWhileSpeaking = await measure(for: 6)
+        synthesizer.stopSpeaking(at: .immediate)
+
+        probeStatus = nil
     }
 
     // MARK: - interruptions (AC-94, D-042 F-2 = A and F-5 = B)
