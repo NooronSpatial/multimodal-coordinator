@@ -85,13 +85,24 @@ struct ContentView: View {
             HStack {
                 Toggle("Talk back", isOn: Bindable(model).talkEnabled)
                 Divider().frame(height: 20)
-                // F-4 = A + toggle: the speaker is the default and the hard
-                // echo case; both routes get measured (AC-96).
+                // F-4 as amended by D-043: the speaker is the measured
+                // broken route, kept one toggle away for measurement.
                 Toggle("Speaker", isOn: Bindable(model).useSpeaker)
                     .disabled(!model.talkEnabled)
             }
             .toggleStyle(.switch)
             .font(.subheadline)
+
+            // The known limit, said plainly where it bites — not buried in
+            // a document the person holding the phone will never open.
+            if model.talkEnabled && model.useSpeaker {
+                Label("On speaker the reply is not cancelled (measured peak 1.0) — "
+                      + "it will interrupt itself. Receiver or headphones work.",
+                      systemImage: "exclamationmark.triangle")
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             if model.talkEnabled {
                 HStack(spacing: 8) {

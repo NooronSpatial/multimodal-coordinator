@@ -58,9 +58,14 @@ final class TranscribeModel {
     var talkEnabled = true {
         didSet { if isListening { restart() } }
     }
-    /// F-4 = A + toggle: loudspeaker (default, the hard echo case) or the
-    /// receiver. Both routes get measured; the numbers are the phone's own.
-    var useSpeaker = true {
+    /// F-4, AMENDED BY MEASUREMENT (D-043). It was ruled speaker-default
+    /// because that is the honest hard case; the device then measured the
+    /// reply arriving at peak 1.0000 while the canceller reported ACTIVE,
+    /// so the hard case is the BROKEN case and a speaker default would
+    /// ship a demo that barges itself out of the box. The default is now
+    /// the route that works; the speaker is one toggle away, for
+    /// measurement, and the screen says why.
+    var useSpeaker = false {
         didSet { if isListening { restart() } }
     }
     private(set) var turnState: TurnState = .idle
