@@ -401,6 +401,23 @@ happened" can never be confused with "the microphone is deaf":
 | `.default` | speaker | 0.0030 | **1.0000** (full scale) | ACTIVE |
 | `.voiceChat` | speaker | **0.0008** | **0.9391** | ACTIVE |
 
+And the same probe on the RECEIVER, twice:
+
+| session mode | route | quiet room peak | while SPEAKING peak | verdict at gate 0.010 |
+|---|---|---|---|---|
+| `.voiceChat` | receiver | 0.0099 | 0.0094 | under — by **6 %** |
+| `.voiceChat` | receiver | 0.0002 | 0.0044 | under — the reply adds ~0.004 over the floor |
+
+**Why the receiver works, stated precisely, because the easy phrasing is
+wrong.** It is not that the canceller works there. The canceller is
+exactly as blind on the receiver as on the speaker — it cannot see
+`AVSpeechSynthesizer` either way. The receiver is quiet and aimed at an
+ear, so ~200× less of the reply reaches the microphone (0.9391 →
+0.0044). That is ACOUSTIC ISOLATION doing the work, and it is worth
+saying because the two explanations predict different futures: a louder
+voice, a smaller room or a lower gate breaks isolation, and one run
+already came within 6 % of the gate.
+
 Read the rows twice, because they say two different things.
 
 **The canceller works.** It is not refused, and it is not idle: it takes
