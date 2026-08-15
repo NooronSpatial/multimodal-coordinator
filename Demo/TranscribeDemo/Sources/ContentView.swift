@@ -170,6 +170,19 @@ struct ContentView: View {
 
             if let quiet = model.probeSilence, let speaking = model.probeWhileSpeaking {
                 VStack(alignment: .leading, spacing: 3) {
+                    // The two facts that make the numbers interpretable:
+                    // which way the sound came out, and whether the
+                    // canceller was actually granted (asked ≠ got).
+                    HStack {
+                        Text(model.probeRoute).font(.caption2)
+                        Text(model.probeVoiceProcessingActive
+                             ? "· voice processing ACTIVE"
+                             : "· voice processing REFUSED")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(model.probeVoiceProcessingActive
+                                             ? Color.secondary : Color.red)
+                        Spacer()
+                    }
                     probeRow("quiet room", quiet)
                     probeRow("while speaking", speaking)
                     // The verdict, in one line, so the field run does not

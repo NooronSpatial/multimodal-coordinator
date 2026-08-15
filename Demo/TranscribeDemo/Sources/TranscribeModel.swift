@@ -88,6 +88,9 @@ final class TranscribeModel {
     private(set) var probeSilence: (peak: Float, rms: Float)?
     private(set) var probeWhileSpeaking: (peak: Float, rms: Float)?
     private(set) var probeStatus: String?
+    /// Did the platform actually GRANT voice processing for this probe?
+    private(set) var probeVoiceProcessingActive = false
+    private(set) var probeRoute = ""
 
     private var liveUtterance: Int?
     private var utteranceStartSeconds = 0.0
@@ -383,6 +386,12 @@ final class TranscribeModel {
             return
         }
         defer { microphone.stop() }
+        // ASKED FOR is not GOT. Without this, a loud residual is
+        // ambiguous: the canceller may have been refused by the platform,
+        // or it may be running and simply never see the reply. Those need
+        // opposite fixes, so the probe must not leave it to inference.
+        probeVoiceProcessingActive = microphone.voiceProcessingActive
+        probeRoute = useSpeaker ? "speaker" : "receiver"
 
         var scratch = [Float](repeating: 0, count: consumer.capacity)
         /// Reads whatever the microphone has delivered since the last read

@@ -1565,7 +1565,26 @@ utterance that began while the assistant was speaking, and the gate
 itself adjustable on screen), so the next run measures instead of
 describes.
 
-The hypothesis to test FIRST, before any tuning: **the canceller may not
+**MEASURED ON THE DEVICE, 2026-08-15 — and the hypothesis below was
+right.** Echo probe, speaker route, gate 0.010:
+
+```
+quiet room       peak 0.0092   rms 0.0008
+while speaking   peak 0.7036   rms 0.0100      ← 76x the quiet room
+```
+
+The Mac's canceller took speaker audio at the tap from 0.136 to 0.008.
+The phone shows **0.70** — the reply arrives essentially UNCANCELLED.
+This also kills tuning as an option, permanently: human speech peaks
+around 0.1-0.3, so on this route **the echo is louder than the speaker's
+own voice**, and no threshold can separate them. Raising the gate would
+silence the person before it silenced the phone.
+
+Still to distinguish before ruling (the probe now reports it): voice
+processing REFUSED by the platform versus voice processing ACTIVE but
+blind to the reply. Same number, opposite fixes.
+
+The hypothesis that predicted this: **the canceller may not
 have the reply as its reference at all.** Voice processing cancels what
 the audio unit it belongs to renders; `AVSpeechSynthesizer` does not
 play through this pipeline's `AVAudioEngine`. On macOS the spike proved
