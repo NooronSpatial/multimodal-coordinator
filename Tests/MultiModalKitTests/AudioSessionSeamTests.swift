@@ -64,6 +64,26 @@ import MultiModalKit
         }
     }
 
+    // KNOWN COVERAGE GAP, stated rather than hidden (D-041's standard).
+    //
+    // The `else` branch above — activate succeeded, then the ENGINE failed,
+    // so the session must be released — is the one invariant this suite
+    // cannot force. It runs only where capture genuinely fails, i.e. a
+    // machine with no input device. On the development Mac capture
+    // succeeds, so a mutation that deletes the release-on-failure logic
+    // passes here; it is caught only on a runner without a microphone,
+    // which is an assumption about CI, not a proof.
+    //
+    // Making it deterministic would mean injecting the "start the engine"
+    // step so a test could fail it on demand — a public hole in
+    // `MicrophoneSource` whose only caller would be this file. That trade
+    // is deliberately NOT taken alone: it is a design question, recorded
+    // here for the adversarial review to rule on before the merge.
+    //
+    // What the gap costs if the logic is ever wrong: on iOS, a failed
+    // start would leave the session active — another app's audio held
+    // hostage by a pipeline that is not even running.
+
     @Test("A session that refuses to activate stops the whole start — capture is never attempted")
     func aRefusedSessionAbortsTheStart() {
         let session = ScriptedSession(failsToActivate: SessionRefused())

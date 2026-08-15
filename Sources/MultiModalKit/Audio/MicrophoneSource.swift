@@ -52,6 +52,21 @@ public final class MicrophoneSource: AudioSource {
 
     public func start(into producer: AudioRingProducer) throws {
         guard !running else { return }
+
+        // THE ORDER (D-042 F-1): the session is made ready BEFORE the
+        // format is read or the tap is installed — read it from a session
+        // that was never activated and the format can shift underneath
+        // the tap later. If the app refuses, capture is not attempted at
+        // all: the error leaves here, and nothing was opened to release.
+        try session?.activate()
+        var captureBegan = false
+        defer {
+            // Every throwing path below leaves through here. A session we
+            // activated and then failed to use must not be left active —
+            // on iOS that is another app's audio held hostage.
+            if !captureBegan { session?.deactivate() }
+        }
+
         let input = engine.inputNode
         if voiceProcessing {
             // BEFORE the format read: the unit re-negotiates the input format
@@ -72,6 +87,7 @@ public final class MicrophoneSource: AudioSource {
         engine.prepare()
         try engine.start()
         running = true
+        captureBegan = true          // the session is now in use; keep it
     }
 
     public func stop() {
@@ -79,5 +95,8 @@ public final class MicrophoneSource: AudioSource {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
         running = false
+        // AFTER the engine has stopped, never before: releasing a session
+        // out from under a running graph is the other half of the bug.
+        session?.deactivate()
     }
 }
