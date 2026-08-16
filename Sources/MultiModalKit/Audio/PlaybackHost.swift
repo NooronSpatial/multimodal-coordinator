@@ -149,15 +149,35 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
         }
     }
 
-    /// `detach` ABORTS THE PROCESS on a node the engine no longer holds,
-    /// and it is an ObjC assertion, so there is nothing to catch. Our own
-    /// bookkeeping is not enough to know: the engine drops nodes on its
-    /// own whenever the graph is reconfigured — a route change, a session
-    /// interruption, the speaker being switched — and it does not ask us
-    /// first. So the engine's own list is consulted, every time, as the
-    /// last word before an irreversible call.
+    /// `detach` ABORTS THE PROCESS, and it took two attempts to guard
+    /// it properly — the second one is the lesson.
+    ///
+    /// The first guard asked `attachedNodes.contains(node)`, which is a
+    /// different question from the one the assertion asks. The phone
+    /// crashed again, inside this very function, because **attached is
+    /// not the same as IN A CHAIN**:
+    ///
+    ///   required condition is false:
+    ///   graphNode->IsNodeState(kAUGraphNodeState_InInputChain) ||
+    ///   graphNode->IsNodeState(kAUGraphNodeState_InOutputChain)
+    ///
+    /// A node can be attached and wired to nothing — after a graph
+    /// reconfiguration drops its connections, or when the connect never
+    /// produced a valid chain in the first place, which is exactly what
+    /// the `vpio render err: -1` runs were. So the connection is what
+    /// gets checked now, because the connection is what the assertion
+    /// is about.
+    ///
+    /// **The honest cost:** a node that is attached but unwired is left
+    /// attached rather than detached — leaked, until the engine itself
+    /// goes. That is a bounded leak traded against an unbounded crash,
+    /// and the trade is deliberate. Removing the trade means the host
+    /// owning ONE reusable player instead of a node per reply, which is
+    /// a change to this seam's shape and therefore Ryad's to rule.
     private func detachIfStillOurs(_ node: AVAudioNode) {
         guard engine.attachedNodes.contains(node) else { return }
+        guard !engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
+        else { return }
         engine.detach(node)
     }
 
@@ -240,9 +260,12 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
         state.withLock { hosted in
             guard hosted.contains(where: { $0.node === node }) else { return }
             hosted.removeAll { $0.node === node }
-            // Same guard, same reason as the capture host: `detach` on a
-            // node the engine has already dropped aborts the process.
-            guard engine.attachedNodes.contains(node) else { return }
+            // Same two guards, same reason as the capture host: the
+            // engine must still hold it AND it must still be wired to
+            // something, because that second one is what detach asserts.
+            guard engine.attachedNodes.contains(node),
+                  !engine.outputConnectionPoints(for: node, outputBus: 0).isEmpty
+            else { return }
             engine.detach(node)
         }
     }
@@ -252,7 +275,9 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
     /// detaching them asserts.
     public func stopRendering() {
         state.withLock { hosted in
-            for held in hosted where engine.attachedNodes.contains(held.node) {
+            for held in hosted
+            where engine.attachedNodes.contains(held.node)
+                && !engine.outputConnectionPoints(for: held.node, outputBus: 0).isEmpty {
                 engine.detach(held.node)
             }
             hosted.removeAll()

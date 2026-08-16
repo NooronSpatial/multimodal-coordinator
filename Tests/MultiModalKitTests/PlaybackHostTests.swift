@@ -123,6 +123,29 @@ struct PlaybackHostTests {
         #expect(host.hostedCount == 0)
     }
 
+    /// THE SECOND CRASH, from the same field session, INSIDE the guard
+    /// written for the first one. `attachedNodes.contains` was true and
+    /// `detach` still aborted, because attached and in-a-chain are
+    /// different questions and only the second is what detach asserts on.
+    @Test("detaching a node that is attached but wired to nothing is a no-op")
+    func detachingAnUnwiredNodeIsSafe() throws {
+        let engine = AVAudioEngine()
+        let host = AudioEnginePlaybackHost(engine: engine)
+        let player = AVAudioPlayerNode()
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                   sampleRate: 24_000, channels: 1, interleaved: false)!
+        try host.attachForPlayback(player, format: format)
+
+        // A reconfiguration drops the connection but leaves the node
+        // attached — the exact state the phone reached.
+        engine.disconnectNodeOutput(player)
+        #expect(engine.attachedNodes.contains(player),
+                "still attached: the first guard would have let this through")
+
+        host.detachFromPlayback(player)     // aborted the process before
+        #expect(host.hostedCount == 0)
+    }
+
     @Test("tearing down after the engine stopped is safe")
     func teardownAfterEngineStopIsSafe() throws {
         let engine = AVAudioEngine()
