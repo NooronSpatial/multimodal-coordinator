@@ -64,10 +64,19 @@ public final class MicrophoneSource: AudioSource {
     /// handle holds a lock and an engine reference and nothing else.
     public let playbackHost: MicrophonePlaybackHost
 
+    /// Whether replies will be rendered on this engine (AC-108).
+    ///
+    /// It has to be known BEFORE capture starts, which is why it is an
+    /// init parameter and not a fact discovered when the first reply
+    /// arrives. See `start` for what it does and why the field forced it.
+    private let hostsPlayback: Bool
+
     public init(voiceProcessing: Bool = false,
-                session: (any AudioSessionConfiguring)? = nil) {
+                session: (any AudioSessionConfiguring)? = nil,
+                hostsPlayback: Bool = false) {
         self.voiceProcessing = voiceProcessing
         self.session = session
+        self.hostsPlayback = hostsPlayback
         self.playbackHost = MicrophonePlaybackHost(engine: engine)
     }
 
@@ -105,6 +114,30 @@ public final class MicrophoneSource: AudioSource {
             producer.write(UnsafeBufferPointer(start: channels[0], count: frames))
         }
 
+        // THE OUTPUT CHAIN IS BUILT BEFORE THE ENGINE STARTS, and this
+        // one line is a field fix. Ryad's iPhone logged, over and over:
+        //
+        //     throwing -1 from AU (…): auou/vpio/appl, render err: -1
+        //
+        // Reading `mainMixerNode` is not a query — it CREATES the mixer
+        // and wires it to the output node. Until this line existed, the
+        // first reply did that, which meant building the entire output
+        // half of a LIVE voice-processing unit while it was rendering.
+        // VPIO refuses, every render cycle, and the reply is never
+        // heard: the app sits in "thinking" forever.
+        //
+        // Done here, the chain is negotiated with the hardware at start
+        // time like every other format, and a reply later only adds an
+        // input bus to an existing mixer — an ordinary operation.
+        //
+        // This is the asymmetry AC-108 could not test: the plain host
+        // obeys "attach, connect, THEN start" because it owns its
+        // engine, and this one structurally cannot, because capture is
+        // already running by the time a reply exists. The answer is to
+        // move the part that must come first into `start`.
+        if hostsPlayback {
+            _ = engine.mainMixerNode
+        }
         engine.prepare()
         try engine.start()
         isRunning = true

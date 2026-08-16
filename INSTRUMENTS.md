@@ -922,3 +922,55 @@ like the 750 ms one in §10.
 iPhone (AC-104), thermal, and stop latency. `NeuralVoice`'s sizing rule
 reads one named constant, so a slower measurement puts the cushion back
 by changing that constant rather than by re-deriving the argument.
+
+## 16. The phone's gate, earned the hard way (AC-97, AC-104)
+
+**0.020 was too low on this iPhone, and it silenced the app completely.**
+
+Field, 2026-08-16, iPhone, speaker on, Apple STT + neural voice. The
+screen showed utterances opening at **peak 0.022, 0.030, 0.040** against
+a gate of **0.020** — room noise, barely over the line. Every one of
+those was an onset, and an onset while the app is thinking is a barge.
+So every reply was cancelled before it made a sound, and the state sat
+at "thinking" forever. Ryad's words: "i hear nothing and the state is
+thinking!"
+
+**Raising the gate to 0.060 made it speak.** One slider, and the
+symptom went.
+
+Two things worth separating, because they arrived together:
+
+- **The gate is the cause.** 0.020 was earned in Phase 2 on a Mac, when
+  this app only LISTENED. AC-97 already said the phone earns its own,
+  and this is the phone earning it: 3× the Mac's value, on hardware
+  where the noise floor sits at 0.02–0.04.
+- **The barge fix made it VISIBLE.** Until `feed` handed off, a barge
+  queued behind a whole phrase decode, so a false onset often arrived
+  too late to kill the reply. Making barge-in correct is what turned an
+  intermittent annoyance into total silence. A fix that exposes a
+  second fault is still a fix; it is not the cause.
+
+### Two real crashes and one refusal, found in the same session
+
+**`detach` aborts the process.** `AVAudioEngine.detach` asserts when the
+node is no longer in the graph, and it is an ObjC assertion, so nothing
+can catch it. Two causes, both ours: nodes were detached AFTER
+`engine.stop()` (they are in no chain by then), and our own bookkeeping
+was trusted over the engine's — `AVAudioEngine` drops nodes by itself on
+any reconfiguration, including the speaker being switched, and never
+says so. Fixed, with a regression test that lets the engine take a node
+back behind our back.
+
+**`auou/vpio/appl, render err: -1`, repeating.** The capture engine
+started with a microphone tap and NO output chain. The first reply then
+called `engine.connect(player, to: engine.mainMixerNode)` — and touching
+`mainMixerNode` for the first time creates it and wires it to the output
+node. So the entire output half of a LIVE voice-processing unit was
+being built while it was rendering, which VPIO refuses, every cycle.
+The chain is now established inside `start`, before the engine runs, so
+a reply only adds an input bus to a mixer that already exists.
+
+**Honest status: that last fix is UNVERIFIED on hardware.** The gate
+change is what made the phone speak, on the build without it. Whether
+the render errors stop is the next thing to look at, and it is not
+claimed here.

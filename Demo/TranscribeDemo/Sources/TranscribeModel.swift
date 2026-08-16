@@ -342,7 +342,11 @@ final class TranscribeModel {
             // iPhone over Continuity — none of them transfer, so AC-96
             // re-measures here or claims nothing.
             voiceProcessing: talkEnabled,
-            session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker))
+            session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker),
+            // Replies render on THIS engine (AC-108), so its output half
+            // must exist before capture starts — not be built by the
+            // first reply, on a live voice-processing unit that refuses.
+            hostsPlayback: talkEnabled)
         do {
             try microphone.start(into: producer)
         } catch {
