@@ -1,3 +1,4 @@
+import Foundation
 /// The mouth's private assembler (SPEC AC-79, D-037 F-1).
 ///
 /// Tokens arrive at ANY granularity — whole words from a scripted
@@ -14,6 +15,30 @@
 /// RED skeleton: the shape without the judgment. Every rule below is a
 /// failing test until GREEN wires it.
 public struct SpeechPhraser: Sendable {
+
+    /// IS THERE ANYTHING WORTH SAYING? (AC-106.)
+    ///
+    /// Found by a test that hung. A phrase of pure whitespace or pure
+    /// punctuation gives an autoregressive voice nothing to end on, so
+    /// the model decodes toward its own step cap — 245 steps in TTSKit,
+    /// about **19.6 seconds of audio for a phrase containing nothing**.
+    /// Sometimes it stopped early instead, which is worse: it made the
+    /// failure a coin flip.
+    ///
+    /// The turn loop cannot afford that. It waits inline for a mouth to
+    /// report `finished`, so one stray whitespace phrase buys twenty
+    /// seconds of dead air. So the mouths ask this first, and a phrase
+    /// with nothing in it is completed rather than spoken.
+    ///
+    /// **Letters OR digits, in any script.** A rule that asked for A–Z
+    /// would mute Arabic, Japanese and Russian — a far worse bug than
+    /// the one it was written to fix — so the test is Unicode's own
+    /// letter and number classes, not an alphabet.
+    public static func hasSpeakableContent(_ text: String) -> Bool {
+        text.unicodeScalars.contains {
+            CharacterSet.letters.contains($0) || CharacterSet.decimalDigits.contains($0)
+        }
+    }
     public struct Config: Sendable {
         /// A phrase is cut here even without punctuation, at the last
         /// whitespace before the limit (or hard, if one unbroken run).

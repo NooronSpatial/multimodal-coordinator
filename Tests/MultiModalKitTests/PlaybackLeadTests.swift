@@ -145,3 +145,61 @@ struct PlaybackLeadTests {
                                      realTimeFactor: 1.0) == .zero)
     }
 }
+
+/// IS THERE ANYTHING TO SAY? (AC-106, found by a hanging test.)
+///
+/// The conformance kit's liveness promise feeds a long run of whitespace,
+/// which the phraser cuts into several whitespace-only phrases. Apple's
+/// mouth shrugs at those. The neural mouth does not: with no letters to
+/// end on, the model has no reason to stop, so each one decodes toward
+/// `maxNewTokens` — 245 steps, about 19.6 SECONDS of audio, for a phrase
+/// containing nothing. Several of those in a row ran the suite past its
+/// four-minute limit, sometimes; other times the model happened to stop
+/// early and the test passed in 9 seconds. A test whose duration depends
+/// on when a language model feels like stopping is flaky by construction.
+///
+/// It is a product fault before it is a test fault. In a live turn, one
+/// stray whitespace phrase would buy twenty seconds of dead air while the
+/// coordinator waited for a `finished` that was busy decoding silence.
+@Suite("Is there anything worth speaking?")
+struct SpeakableContentTests {
+
+    @Test("ordinary text is speakable")
+    func wordsAreSpeakable() {
+        #expect(SpeechPhraser.hasSpeakableContent("Hello."))
+        #expect(SpeechPhraser.hasSpeakableContent("   trailing and leading   "))
+        #expect(SpeechPhraser.hasSpeakableContent("a"))
+    }
+
+    @Test("digits are speakable — a number is a word out loud")
+    func digitsAreSpeakable() {
+        #expect(SpeechPhraser.hasSpeakableContent("42"))
+        #expect(SpeechPhraser.hasSpeakableContent(" 7 "))
+    }
+
+    @Test("whitespace alone is not speakable — the case that hung the suite")
+    func whitespaceIsNotSpeakable() {
+        #expect(!SpeechPhraser.hasSpeakableContent(""))
+        #expect(!SpeechPhraser.hasSpeakableContent(" "))
+        #expect(!SpeechPhraser.hasSpeakableContent(String(repeating: " ", count: 200)))
+        #expect(!SpeechPhraser.hasSpeakableContent("\n\t  \n"))
+    }
+
+    @Test("punctuation alone is not speakable")
+    func punctuationIsNotSpeakable() {
+        #expect(!SpeechPhraser.hasSpeakableContent("..."))
+        #expect(!SpeechPhraser.hasSpeakableContent("   ...   "))
+        #expect(!SpeechPhraser.hasSpeakableContent("—,;:!?"))
+    }
+
+    /// Not English-only. A rule that asked for A–Z would silently mute
+    /// every other writing system, which is a worse bug than the one it
+    /// was written to fix.
+    @Test("other writing systems are speakable")
+    func otherScriptsAreSpeakable() {
+        #expect(SpeechPhraser.hasSpeakableContent("مرحبا"))
+        #expect(SpeechPhraser.hasSpeakableContent("こんにちは"))
+        #expect(SpeechPhraser.hasSpeakableContent("Привет"))
+        #expect(SpeechPhraser.hasSpeakableContent("é"))
+    }
+}

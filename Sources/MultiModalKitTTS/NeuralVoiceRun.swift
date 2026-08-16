@@ -51,7 +51,11 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     static let traceSteps = ProcessInfo.processInfo.environment["MMK_TRACE_TTS"] == "1"
     private let stepClock = Mutex<ContinuousClock.Instant?>(nil)
     private let birth = ContinuousClock().now
-    private struct Totals { var samples = 0 }
+    private struct Totals {
+        var samples = 0
+        var firstStep: ContinuousClock.Instant?
+        var firstSamples = 0
+    }
     private let stepTotals = Mutex(Totals())
 
     /// THE MARGIN QUESTION (AC-102). A streaming voice must decode audio
@@ -64,22 +68,52 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// and that is deliberate: this type is internal, and widening a
     /// library's public surface to let a measuring tool peek in is a
     /// worse trade than a printed line.
+    /// ONE NUMBER WAS HIDING TWO COSTS (AC-106). This clocked from the
+    /// run's BIRTH, so every reported factor carried a fixed ~230 ms of
+    /// prefill — the model's first step, paid once. Divide that fixed
+    /// cost by three different audio lengths and you get three different
+    /// factors for one decoder: AC-102's spread of 1.09-1.23 was mostly
+    /// the SHORTEST sentence failing to amortise it, not a decoder that
+    /// changes speed.
+    ///
+    /// That mattered twice over. It made the sizing rule use 1.25 when
+    /// the steady rate is nearer 1.08 — an oversized lead, paid in felt
+    /// pause — and it would have graded every speed lever wrongly, since
+    /// a lever that saves a real 8 ms per frame shows up as 0.06 on one
+    /// row and 0.03 on another. So the two are separated: prefill is
+    /// reported as itself, and STEADY RTF is measured from the first
+    /// step onward, which is the only rate a decode lever can move.
     private func reportMargin() {
         guard NeuralVoiceRun.traceSteps else { return }
-        let samples = stepTotals.withLock { $0.samples }
+        let (samples, firstStep, firstSamples) = stepTotals.withLock {
+            ($0.samples, $0.firstStep, $0.firstSamples)
+        }
         guard samples > 0, let last = stepClock.withLock({ $0 }) else { return }
-        let elapsed = birth.duration(to: last)
-        let wall = Double(elapsed.components.seconds) * 1000
-            + Double(elapsed.components.attoseconds) * 1e-15
+        func ms(_ d: Duration) -> Double {
+            Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
+        }
+        let wall = ms(birth.duration(to: last))
         let audio = Double(samples) / format.sampleRate * 1000
-        FileHandle.standardError.write(Data(String(
-            format: "   MARGIN · %.0f ms audio decoded in %.0f ms wall · RTF %.2f\n",
-            audio, wall, wall / audio).utf8))
+        var line = String(
+            format: "   MARGIN . %.0f ms audio decoded in %.0f ms wall . RTF %.2f",
+            audio, wall, wall / audio)
+        if let first = firstStep {
+            let steadyWall = ms(first.duration(to: last))
+            let steadyAudio = Double(samples - firstSamples) / format.sampleRate * 1000
+            if steadyAudio > 0 {
+                line += String(format: " . prefill %.0f ms . STEADY %.3f",
+                               ms(birth.duration(to: first)), steadyWall / steadyAudio)
+            }
+        }
+        FileHandle.standardError.write(Data((line + "\n").utf8))
     }
 
+    private let temperature: Float?
+
     init(kit: TTSKit, engine: AVAudioEngine, sampleRate: Double,
-         lead: PlaybackLead) throws {
+         lead: PlaybackLead, temperature: Float? = nil) throws {
         self.state = Mutex(Guarded(lead: lead))
+        self.temperature = temperature
         self.kit = kit
         self.engine = engine
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
@@ -157,39 +191,83 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     // MARK: - decode, then render
 
     private func speak(_ text: String) async {
-        do {
-            _ = try await kit.generate(
-                text: text, voice: nil, language: nil, options: GenerationOptions()
-            ) { [weak self] progress in
-                guard let self else { return false }
-                // The decode's own cancellation channel: returning false
-                // stops it at the next step. The ticket upstream is still
-                // the guarantee; this only saves the compute.
-                guard self.state.withLock({ !$0.cancelled }) else { return false }
-                // DIAGNOSTIC (AC-102): is a slow first sound the MODEL's
-                // prefill or OUR integration? A step trace separates
-                // them — many fast steps means the model streams and we
-                // are holding it up somewhere; one long wait then a
-                // flood means the wait is prefill.
-                if NeuralVoiceRun.traceSteps {
-                    let now = ContinuousClock().now
-                    let since = self.stepClock.withLock { last -> Duration in
-                        let d = (last ?? self.birth).duration(to: now)
-                        last = now
-                        return d
+        // NOTHING TO SAY, SO NOTHING IS DECODED (AC-106).
+        //
+        // A whitespace or punctuation-only phrase gives this model no
+        // reason to stop, so it decodes toward its 245-step cap — about
+        // 19.6 seconds of audio for a phrase containing nothing — and
+        // the turn loop waits inline for every one of them. The
+        // accounting below still runs, unchanged: the phrase is counted
+        // as done, which is what keeps `finished` honest.
+        //
+        // The Apple mouth deliberately does NOT get this guard. Its
+        // failure mode is different (it may decline to REPORT on an
+        // unspeakable utterance, which the counting already survives),
+        // it is proven, and it costs nothing there.
+        if SpeechPhraser.hasSpeakableContent(text) {
+            do {
+                var options = GenerationOptions()
+                // NOT A TUNING KNOB - A CORRECTNESS PIN, and TTSKit proves it
+                // by doing the same thing in its own `play()`.
+                //
+                // The default is 0, "all chunks run concurrently in one
+                // batch". On that path the streaming callback is handed
+                // `audio: []` on every single step, and the real samples
+                // arrive only after the WHOLE batch finishes decoding
+                // (TTSKit.swift:910-919 and :958-972). A renderer like ours
+                // would receive nothing to play until the entire reply was
+                // decoded - no streaming, no lead, first-audio back to full
+                // decode time - and it would happen silently, only for
+                // replies long enough to split into two chunks. Every
+                // sentence measured so far is one chunk, which is exactly
+                // why this never showed.
+                //
+                // `1` takes the sequential branch, which passes the real
+                // callback through untouched (TTSKit.swift:858-880). The
+                // library's own real-time path sets the same value for the
+                // same reason (TTSKit.swift:1046).
+                options.concurrentWorkerCount = 1
+                if let temperature { options.temperature = temperature }
+                _ = try await kit.generate(
+                    text: text, voice: nil, language: nil, options: options
+                ) { [weak self] progress in
+                    guard let self else { return false }
+                    // The decode's own cancellation channel: returning false
+                    // stops it at the next step. The ticket upstream is still
+                    // the guarantee; this only saves the compute.
+                    guard self.state.withLock({ !$0.cancelled }) else { return false }
+                    // DIAGNOSTIC (AC-102): is a slow first sound the MODEL's
+                    // prefill or OUR integration? A step trace separates
+                    // them — many fast steps means the model streams and we
+                    // are holding it up somewhere; one long wait then a
+                    // flood means the wait is prefill.
+                    if NeuralVoiceRun.traceSteps {
+                        let now = ContinuousClock().now
+                        let since = self.stepClock.withLock { last -> Duration in
+                            let d = (last ?? self.birth).duration(to: now)
+                            last = now
+                            return d
+                        }
+                        let ms = Double(since.components.seconds) * 1000
+                            + Double(since.components.attoseconds) * 1e-15
+                        _ = ms
+                        self.stepTotals.withLock {
+                            if $0.firstStep == nil {
+                                $0.firstStep = now
+                                $0.firstSamples = progress.audio.count
+                            }
+                            $0.samples += progress.audio.count
+                        }
                     }
-                    let ms = Double(since.components.seconds) * 1000
-                        + Double(since.components.attoseconds) * 1e-15
-                    _ = ms
-                    self.stepTotals.withLock { $0.samples += progress.audio.count }
+                    self.render(progress.audio)
+                    return true
                 }
-                self.render(progress.audio)
-                return true
+            } catch {
+                let live = state.withLock { !$0.cancelled }
+                if live { report(.failed("neural voice: \(error)"), terminal: true) }
             }
-        } catch {
-            let live = state.withLock { !$0.cancelled }
-            if live { report(.failed("neural voice: \(error)"), terminal: true) }
         }
+
         // THE LIVENESS STEP. A reply shorter than the lead has queued
         // everything it will ever queue, and the target will never be
         // reached. If nothing released it here, the player would never

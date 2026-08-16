@@ -10,11 +10,63 @@ import Foundation
 import MultiModalKit
 import MultiModalKitTesting
 import MultiModalKitTTS
+import TTSKit
 import MultiModalKitWhisper
 
 setbuf(stdout, nil)
 
 let arguments = CommandLine.arguments
+
+/// Drives one reply through a mouth and times the two moments that
+/// matter: when sound STARTS, and when the room goes quiet.
+func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
+    -> (firstAudio: Double, total: Double)
+{
+    let run = try await mouth.openUtterance()
+    let clock = ContinuousClock()
+    let t0 = clock.now
+    var firstAudio: Duration?
+
+    // THE READER RUNS FIRST, AND THAT IS A CORRECTION.
+    //
+    // The first version of this function fed the whole sentence,
+    // closed it, and only THEN read the update stream. That is fair
+    // to Apple, whose `feed` hands the text to the framework and
+    // returns at once — and deeply unfair to the neural mouth, whose
+    // `feed` does not return until the decode is finished. Its
+    // `.started` was sent on time and sat buffered in the stream;
+    // this function stamped it when it finally READ it. The result
+    // was a first-audio number that was really a total, and a 202x
+    // ratio that measured a mistake.
+    //
+    // The tell was in the table: neural first-audio within ~100 ms
+    // of neural total, on every single row. A step trace settled it
+    // — audio steps arrive every ~80 ms from the start.
+    //
+    // So: this task parks on the stream, and the FEEDING moves to a
+    // child. The gate below is why there is no sleep here — the
+    // feeder waits for a fact, not for a guess (the determinism rule).
+    let gate = AsyncStream<Void>.makeStream()
+    let feeder = Task {
+        for await _ in gate.stream { break }
+        await run.feed(text)
+        await run.finishTokens()
+    }
+    gate.continuation.finish()      // opens the gate: the feeder may go
+    for await update in run.updates {
+        switch update {
+        case .started: if firstAudio == nil { firstAudio = t0.duration(to: clock.now) }
+        case .failed(let why): print("   ⚠️  \(why)")
+        case .finished: break
+        }
+    }
+    let total = t0.duration(to: clock.now)
+    await feeder.value
+    func ms(_ d: Duration) -> Double {
+        Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
+    }
+    return (firstAudio.map(ms) ?? -1, ms(total))
+}
 
 // `swift run bakeoff voice-spike` — AC-102's gates, measured before any
 // adoption ruling (D-045, the D-023 discipline). Two mouths, the same
@@ -27,64 +79,21 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
         "Should I take a jacket?",
     ]
 
-    /// Drives one reply through a mouth and times the two moments that
-    /// matter: when sound STARTS, and when the room goes quiet.
-    func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
-        -> (firstAudio: Double, total: Double)
-    {
-        let run = try await mouth.openUtterance()
-        let clock = ContinuousClock()
-        let t0 = clock.now
-        var firstAudio: Duration?
-
-        // THE READER RUNS FIRST, AND THAT IS A CORRECTION.
-        //
-        // The first version of this function fed the whole sentence,
-        // closed it, and only THEN read the update stream. That is fair
-        // to Apple, whose `feed` hands the text to the framework and
-        // returns at once — and deeply unfair to the neural mouth, whose
-        // `feed` does not return until the decode is finished. Its
-        // `.started` was sent on time and sat buffered in the stream;
-        // this function stamped it when it finally READ it. The result
-        // was a first-audio number that was really a total, and a 202x
-        // ratio that measured a mistake.
-        //
-        // The tell was in the table: neural first-audio within ~100 ms
-        // of neural total, on every single row. A step trace settled it
-        // — audio steps arrive every ~80 ms from the start.
-        //
-        // So: this task parks on the stream, and the FEEDING moves to a
-        // child. The gate below is why there is no sleep here — the
-        // feeder waits for a fact, not for a guess (the determinism rule).
-        let gate = AsyncStream<Void>.makeStream()
-        let feeder = Task {
-            for await _ in gate.stream { break }
-            await run.feed(text)
-            await run.finishTokens()
-        }
-        gate.continuation.finish()      // opens the gate: the feeder may go
-        for await update in run.updates {
-            switch update {
-            case .started: if firstAudio == nil { firstAudio = t0.duration(to: clock.now) }
-            case .failed(let why): print("   ⚠️  \(why)")
-            case .finished: break
-            }
-        }
-        let total = t0.duration(to: clock.now)
-        await feeder.value
-        func ms(_ d: Duration) -> Double {
-            Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
-        }
-        return (firstAudio.map(ms) ?? -1, ms(total))
-    }
-
-    let voice = NeuralVoice()
+    // Flags, so the SAME instrument can measure the before and the after
+    // (AC-106) instead of two instruments being compared to each other.
+    let fused = arguments.contains("--fused")
+    let leadMS = arguments.first(where: { $0.hasPrefix("--lead=") })
+        .flatMap { Int($0.dropFirst("--lead=".count)) }
+    let voice = NeuralVoice(
+        lead: leadMS.map { Duration.milliseconds($0) } ?? NeuralVoice.defaultLead,
+        multiCodeDecoderMode: fused ? .fused : .stepped)
     guard await voice.modelInstalled() else {
         print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
         exit(1)
     }
 
     print("\n🎚  VOICE SPIKE (AC-102) — the numbers the adoption ruling needs")
+    print("    decoder: \(fused ? ".fused" : ".stepped") · lead: \(leadMS.map { "\($0) ms" } ?? "default")")
     print("    warm-up excluded, same rule as BAKEOFF.md: the first load compiles graphs")
     _ = try? await measure(voice, "Warming up the neural pipeline.")   // excluded
 
@@ -110,6 +119,76 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
     print("\nNOT measured here, and not claimed: STOP latency (request → the room")
     print("actually quiet). The seam reports its own bookkeeping instantly; proving")
     print("silence needs the microphone probe, on the device. Thermal likewise.")
+    exit(0)
+}
+
+// `swift run bakeoff voice-levers` — AC-106, D-046 = B. Every decode
+// lever that survived adversarial verification, measured SERIALLY on one
+// machine, because two models decoding at once would corrupt both
+// timings. The numbers land on stderr beside each config banner.
+if arguments.count > 1, arguments[1] == "voice-levers" {
+    // ONE long single-chunk sentence. Long, so the fixed prefill is
+    // amortised and STEADY rtf is what moves; single-chunk, so the
+    // sequential/batch branch is not part of what is being compared.
+    let sentence = "The audio travels through a ring buffer into a pump "
+        + "that cuts it into small chunks."
+    let runsPerConfig = 3
+
+    struct Lever {
+        let name: String
+        let multi: Qwen3MultiCodeDecoderMode
+        let speech: Qwen3SpeechDecoderMode
+        let temperature: Float?
+    }
+    let levers = [
+        Lever(name: "baseline (stepped + latency)", multi: .stepped,
+              speech: .latencyOptimized, temperature: nil),
+        Lever(name: "rank 2: fused", multi: .fused,
+              speech: .latencyOptimized, temperature: nil),
+        Lever(name: "rank 3: throughputOptimized", multi: .stepped,
+              speech: .throughputOptimized, temperature: nil),
+        Lever(name: "rank 4: fused + throughputOptimized", multi: .fused,
+              speech: .throughputOptimized, temperature: nil),
+        Lever(name: "rank 5: temperature 0 (on stepped)", multi: .stepped,
+              speech: .latencyOptimized, temperature: 0),
+        Lever(name: "rank 5b: temperature 0 (on fused)", multi: .fused,
+              speech: .latencyOptimized, temperature: 0),
+    ]
+
+    func banner(_ text: String) {
+        FileHandle.standardError.write(Data("\n=== \(text) ===\n".utf8))
+    }
+
+    print("\n🔧 VOICE LEVERS (AC-106) — serial, release, one machine")
+    print("    watch STEADY, not RTF: the whole-run factor still carries prefill")
+
+    for lever in levers {
+        banner(lever.name)
+        // A seed makes the draws comparable across configs. `.fused`
+        // samples in-graph, so it is NOT expected to match `.stepped`
+        // sample-for-sample even seeded — the seed removes run-to-run
+        // noise WITHIN a config, which is what a median needs.
+        let voice = NeuralVoice(lead: .zero,
+                                multiCodeDecoderMode: lever.multi,
+                                speechDecoderMode: lever.speech,
+                                temperature: lever.temperature,
+                                seed: 20260816)
+        do {
+            try await voice.ensureModel()
+        } catch {
+            print("| \(lever.name) | LOAD FAILED — \(error) |")
+            FileHandle.standardError.write(Data("   load failed: \(error)\n".utf8))
+            continue
+        }
+        // Warm-up, excluded: the first decode after a load compiles and
+        // warms graphs, the same rule voice-spike follows.
+        _ = try? await measure(voice, "Warming up.")
+        for run in 1...runsPerConfig {
+            FileHandle.standardError.write(Data("  run \(run):\n".utf8))
+            _ = try? await measure(voice, sentence)
+        }
+    }
+    print("\nRead the STEADY column from stderr, median of \(runsPerConfig) per config.")
     exit(0)
 }
 

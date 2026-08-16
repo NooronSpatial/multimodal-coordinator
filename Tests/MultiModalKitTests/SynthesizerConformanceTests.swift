@@ -145,6 +145,7 @@ struct AppleSynthesizerConformanceTests {
 
 #if canImport(MultiModalKitTTS)
 import MultiModalKitTTS
+import TTSKit
 
 /// THE KIT'S REASON TO EXIST, finally exercised. It was written in 4b
 /// against "a second mouth we do not have yet"; this is that mouth.
@@ -160,38 +161,75 @@ struct NeuralVoiceConformanceTests {
         ProcessInfo.processInfo.environment["MMK_LIVE_SYNTH"] == "1"
     }
 
+    /// ONE VOICE PER DECODER, SHARED. Each `NeuralVoice` caches its own
+    /// loaded pipeline, so a fresh one per test meant a fresh 1.1 GB of
+    /// CoreML per test. Three of them in one process was enough to turn
+    /// a 9-second liveness test into a 243-second time-limit failure —
+    /// not a hang, just a machine out of room. Sharing is also how an
+    /// app uses a voice: one mouth, many utterances.
+    static let stepped = NeuralVoice()
+    static let fused = NeuralVoice(multiCodeDecoderMode: .fused)
+
     @Test("a silent reply completes without speaking (model required; skips if absent)")
     func silentReply() async throws {
-        let voice = NeuralVoice()
+        let voice = Self.stepped
         guard await voice.modelInstalled() else { return }
         try await SynthesizerConformanceKit.verifySilentReplyCompletesWithoutSpeaking(voice)
     }
 
     @Test("an unspeakable reply still terminates — liveness (model required; skips if absent)")
     func unspeakableStillTerminates() async throws {
-        let voice = NeuralVoice()
+        let voice = Self.stepped
         guard await voice.modelInstalled() else { return }
         try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(voice)
     }
 
     @Test("started once, finished once, in order (model + MMK_LIVE_SYNTH=1)")
     func startedThenFinished() async throws {
-        let voice = NeuralVoice()
+        let voice = Self.stepped
         guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
         try await SynthesizerConformanceKit.verifyStartedThenFinished(voice)
     }
 
     @Test("cancel silences and ends without a terminal (model + MMK_LIVE_SYNTH=1)")
     func cancelWithoutTerminal() async throws {
-        let voice = NeuralVoice()
+        let voice = Self.stepped
         guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
         try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(voice)
     }
 
     @Test("nothing survives the cancel — late feeds are silent (model + MMK_LIVE_SYNTH=1)")
     func nothingSurvivesTheCancel() async throws {
-        let voice = NeuralVoice()
+        let voice = Self.stepped
         guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(voice)
+    }
+
+    /// THE FUSED DECODER, held to the same promises (AC-106). AC-106
+    /// measured `.fused` at steady RTF 0.752 against `.stepped`'s 1.066
+    /// — it is the lever that took this voice below real time. A faster
+    /// decoder that broke the seam's contract would be worth nothing, so
+    /// it faces the same kit rather than a speed number alone.
+    ///
+    /// This also PROVES THE ASSET: `.fused` needs the multifunction
+    /// CoreML model on disk, and TTSKit throws `invalidConfiguration` if
+    /// what is there is the legacy single-function one. A load that
+    /// succeeds here is that check, run on whatever machine runs the
+    /// suite rather than assumed from the one that measured it.
+    @Test("the fused decoder keeps the same promises (model required; skips if absent)")
+    func fusedKeepsThePromises() async throws {
+        let voice = Self.fused
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifySilentReplyCompletesWithoutSpeaking(voice)
+        try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(voice)
+    }
+
+    @Test("the fused decoder speaks and stops (model + MMK_LIVE_SYNTH=1)")
+    func fusedSpeaksAndStops() async throws {
+        let voice = Self.fused
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyStartedThenFinished(voice)
+        try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(voice)
         try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(voice)
     }
 }

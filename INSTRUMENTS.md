@@ -649,3 +649,94 @@ cushion; 1500 ms covers ~6 s of speech at RTF 1.25 and no more.
    the voice on this input, and AC-103's round-trip WER is the
    instrument that will say whether those extra seconds are silence,
    drawl, or invention.
+
+## 12. Attacking the decode (AC-106, D-046 = B) — one lever won, one vendor claim died
+
+Nine candidate levers survived adversarial verification against the
+pinned `argmax-oss-swift` checkout; five families were closed on paper
+(no smaller model exists — the only other variant is the 1.7B; no faster
+asset string; the prompt cache is already optimally placed; `prewarm`
+compiles and discards; logging has no per-step cost). The rest were
+measured serially — one machine, one run at a time, because two models
+decoding at once would corrupt both timings.
+
+### First, a correction to our own instrument
+
+`reportMargin` clocked from the run's BIRTH, so every factor carried a
+fixed ~210 ms of prefill. Divide one fixed cost by three different audio
+lengths and you get three different factors for one decoder: **AC-102's
+"RTF 1.09–1.23" was largely the shortest sentence failing to amortise
+prefill, not a decoder that changes speed.** Prefill and STEADY rate are
+now reported separately. The steady baseline is **1.066**, not 1.25 —
+which means §11's lead was sized against a number that was partly an
+artefact of how we measured.
+
+### The matrix — median STEADY of 3 runs, release, M-series Mac
+
+| config | steady RTF | prefill | verdict |
+|---|---|---|---|
+| baseline (`.stepped` + `.latencyOptimized`) | 1.066 | 207 ms | — |
+| **`.fused`** | **0.752** | **171 ms** | **the win** |
+| `.throughputOptimized` | 1.148 | 535 ms | worse on both |
+| `.fused` + `.throughputOptimized` | 0.766 | 386 ms | worse than fused alone |
+| temperature 0 (on `.stepped`) | 1.036 | 217 ms | inside noise |
+| temperature 0 (on `.fused`) | 0.815 | 165 ms | worse than fused alone |
+
+**`.fused` takes the decoder below 1.0.** It replaces ~35 CoreML
+predictions per 80 ms frame with about 5, doing the whole 15-code frame
+in one prediction with in-graph sampling. Dispatch overhead, not matrix
+maths, was where our time was going.
+
+**A vendor claim, refuted on our hardware.** Argmax's own table (M4,
+default compute units) reports `.throughputOptimized` as the faster
+vocoder path — 1.32× against 1.18×. On this machine it is **slower**
+(1.148 vs 1.066) and its prefill is 2.6× worse. Their number is not
+wrong; it is theirs. This is why the spike discipline exists.
+
+### End to end, with `.fused` and the lead at ZERO
+
+| sentence | audio | decode wall | first + audio | measured total | miss |
+|---|---|---|---|---|---|
+| How is the weather today? | 3600 | 2929 | 3822 | 3870 | 48 ms |
+| The audio travels through a ring b… | 9360 | **7190** | 9529 | 9567 | 38 ms |
+| Should I take a jacket? | 3040 | 2591 | 3336 | 3391 | 55 ms |
+
+**first-audio mean — neural 229 ms · Apple 32 ms · ratio 7.1×.**
+
+Every miss is under ONE 80 ms buffer, and decode wall now finishes
+*before* the audio does — 2.2 s early on the long sentence. With the
+decoder ahead of the ear there is no deficit to bank, so §11's 1500 ms
+cushion is not needed on this Mac: **gapless AND 229 ms, together.**
+
+### Two bugs the investigation found, neither of them a speed knob
+
+**1. Our streaming was one long phrase away from silently stopping.**
+`GenerationOptions.concurrentWorkerCount` defaults to 0, "all chunks
+concurrently in one batch". On that path TTSKit hands the streaming
+callback `audio: []` on every step and delivers real samples only after
+the whole batch finishes. Any reply long enough to split into two chunks
+would have stopped streaming — no lead, first-audio back to full decode
+time — and only for long replies, which is why every sentence measured
+so far missed it. TTSKit's own `play()` sets this to 1 for exactly this
+reason. Now so do we.
+
+**2. A phrase with nothing to say cost up to 19.6 seconds.**
+The conformance kit's liveness promise feeds whitespace. The phraser
+cuts it into whitespace-only phrases, and an autoregressive voice given
+no letters to end on decodes toward its 245-step cap — ~19.6 s of audio
+for a phrase containing nothing. Several in a row pushed the suite past
+its four-minute limit; other times the model stopped early and the test
+passed in 9 s. **A test whose duration depends on when a model feels
+like stopping is flaky by construction**, and it was a product fault
+first: the turn loop waits inline, so one stray whitespace phrase buys
+twenty seconds of dead air. `SpeechPhraser.hasSpeakableContent` (letters
+or digits, any script) now answers first. That liveness test went from a
+240-second timeout to **0.001 s**, and the suite from 251 s to 7.5 s.
+
+### Not measured, still not claimed
+
+**iPhone** (slower silicon, and `.fused` needs iOS 18), **thermal**,
+**stop latency**, and **whether `.fused` SOUNDS right**. Its audio
+lengths are plausible and more consistent than `.stepped`'s, which is
+weak evidence and labelled as such — AC-103's round-trip WER is the
+instrument, and no adoption should precede it.

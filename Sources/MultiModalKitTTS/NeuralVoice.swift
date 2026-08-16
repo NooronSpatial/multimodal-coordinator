@@ -72,12 +72,38 @@ public actor NeuralVoice: SpeechSynthesizing {
     public nonisolated static let defaultLead = PlaybackLead.deficit(
         forReplyOf: .seconds(6), realTimeFactor: 1.25)
 
+    /// How the multi-code decoder runs each 15-code frame. `.stepped`
+    /// is TTSKit's default and costs ~35 CoreML predictions per 80 ms
+    /// frame; `.fused` does the frame in one prediction with in-graph
+    /// sampling, leaving about 5. AC-106 measures whether those 30
+    /// fewer dispatches are actually where our time goes.
+    public nonisolated let multiCodeDecoderMode: Qwen3MultiCodeDecoderMode
+    /// How the vocoder runs. `.throughputOptimized` produces four audio
+    /// frames per call instead of one.
+    public nonisolated let speechDecoderMode: Qwen3SpeechDecoderMode
+    /// Sampling temperature, or `nil` for TTSKit's default. Zero is
+    /// greedy — every head takes the argmax branch, which removes about
+    /// half the host round-trips per frame.
+    public nonisolated let temperature: Float?
+    /// Fixes the sampler. INSTRUMENTS §11 recorded this voice producing
+    /// 8240 ms of audio for a sentence one run and 6480 ms the next;
+    /// a seed is what makes a bake-off reproducible rather than one draw.
+    public nonisolated let seed: UInt64?
+
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
                 renderingOn engine: AVAudioEngine? = nil,
-                lead: Duration = NeuralVoice.defaultLead) {
+                lead: Duration = NeuralVoice.defaultLead,
+                multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .stepped,
+                speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
+                temperature: Float? = nil,
+                seed: UInt64? = nil) {
         self.variant = variant
         self.providedEngine = engine
         self.lead = lead
+        self.multiCodeDecoderMode = multiCodeDecoderMode
+        self.speechDecoderMode = speechDecoderMode
+        self.temperature = temperature
+        self.seed = seed
     }
 
     /// The seam (AC-101). One utterance, decoded by TTSKit and rendered
@@ -96,7 +122,8 @@ public actor NeuralVoice: SpeechSynthesizing {
         }
         return try NeuralVoiceRun(kit: kit, engine: engine,
                                   sampleRate: Double(kit.sampleRate),
-                                  lead: PlaybackLead(target: lead))
+                                  lead: PlaybackLead(target: lead),
+                                  temperature: temperature)
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not
@@ -181,7 +208,11 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// download; this only owns the caching.
     private func loadedPipeline() async throws -> TTSKit {
         if let pipeline { return pipeline }
-        let fresh = try await TTSKit(TTSKitConfig(model: variant, download: true, load: true))
+        let fresh = try await TTSKit(TTSKitConfig(
+            model: variant,
+            speechDecoderMode: speechDecoderMode,
+            multiCodeDecoderMode: multiCodeDecoderMode,
+            download: true, load: true, seed: seed))
         pipeline = fresh
         return fresh
     }
