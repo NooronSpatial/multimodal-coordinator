@@ -323,6 +323,16 @@ struct ContentView: View {
                         EmptyView()
                     }
 
+                    // WHICH APPLE VOICE, and how good. "compact" here is
+                    // the honest explanation for a robotic reply, and it
+                    // points at a download rather than at a bug.
+                    if model.mouth == .apple {
+                        Text(model.appleVoiceDescription)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     // VOICE FORENSICS (AC-104). A field run came back
                     // with four adjectives — hot, late, worse, "drunk" —
                     // and no numbers. These are the numbers, on the

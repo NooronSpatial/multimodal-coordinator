@@ -1,5 +1,6 @@
 import AVFAudio
 import Dispatch
+import Foundation
 import Synchronization
 
 /// The first real mouth (SPEC AC-80, D-037): `AVSpeechSynthesizer` behind
@@ -23,6 +24,65 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
 
     public init(voiceIdentifier: String? = nil) {
         self.voiceIdentifier = voiceIdentifier
+    }
+
+    /// Asks for a voice that does not sound like a robot.
+    ///
+    /// `nil` — what this type has always passed — means "system
+    /// default", and the system default is a COMPACT voice
+    /// (`com.apple.voice.compact.en-US.Samantha`). Compact is the
+    /// smallest tier Apple ships and it is why the field's verdict was
+    /// "like a robot". Nothing was broken; nothing better was ever
+    /// requested.
+    ///
+    /// The tiers are `default` (compact) → `enhanced` → `premium`, and
+    /// this returns the best one INSTALLED for the language.
+    ///
+    /// **It very often returns a compact voice anyway**, and that is not
+    /// a bug in here. Enhanced and premium voices are downloads: this
+    /// Mac reports 41 English voices, of which 0 are enhanced and 0 are
+    /// premium. On iOS a person gets them under
+    /// *Settings → Accessibility → Spoken Content → Voices*. So this
+    /// function is half the answer, and the other half is on the device.
+    ///
+    /// Siri's own voices are NOT among these — as far as I know they
+    /// are not offered to third-party apps through `AVSpeechSynthesizer`
+    /// — and that is stated as belief rather than as a measurement,
+    /// because nothing here has tested it.
+    public static func bestInstalledVoice(
+        forLanguage language: String = Locale.preferredLanguages.first ?? "en-US"
+    ) -> AVSpeechSynthesisVoice? {
+        let prefix = String(language.prefix(2))
+        let candidates = AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix(prefix) }
+        func rank(_ voice: AVSpeechSynthesisVoice) -> Int {
+            switch voice.quality {
+            case .premium: 3
+            case .enhanced: 2
+            default: 1
+            }
+        }
+        // Exact locale first (en-GB before en-US for a British phone),
+        // then quality. A worse-sounding voice in the right accent still
+        // beats a better one in the wrong language.
+        return candidates
+            .max { a, b in
+                let exactA = a.language == language ? 1 : 0
+                let exactB = b.language == language ? 1 : 0
+                return (exactA, rank(a)) < (exactB, rank(b))
+            }
+    }
+
+    /// What `bestInstalledVoice` found, for a screen to show. A person
+    /// who cannot see WHICH voice is speaking cannot tell "the app
+    /// ignored my download" from "this is as good as it gets".
+    public static func describe(_ voice: AVSpeechSynthesisVoice) -> String {
+        let quality = switch voice.quality {
+        case .premium: "premium"
+        case .enhanced: "enhanced"
+        default: "compact"
+        }
+        return "\(voice.name) (\(quality), \(voice.language))"
     }
 
     public func openUtterance() async throws -> any SynthesisRun {

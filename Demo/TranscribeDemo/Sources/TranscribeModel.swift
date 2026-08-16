@@ -99,9 +99,26 @@ final class TranscribeModel {
     /// the neural one is the held instance for the reason above.
     private var currentMouth: any SpeechSynthesizing {
         switch mouth {
-        case .apple: AppleSpeechSynthesizer()
+        // The BEST INSTALLED voice, not the system default. The default
+        // is a compact voice, which is why the field's verdict on this
+        // mouth was "like a robot" (AC-105). If the phone has no
+        // enhanced or premium voice downloaded, this returns a compact
+        // one and nothing changes — which is why the name is on screen.
+        case .apple: AppleSpeechSynthesizer(
+            voiceIdentifier: AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
         case .neural: neuralVoice
         }
+    }
+
+    /// Which Apple voice this device will actually use, and how good it
+    /// is. On screen because a person who cannot see it has no way to
+    /// tell "the app ignored my download" from "this is as good as this
+    /// phone gets".
+    var appleVoiceDescription: String {
+        guard let voice = AppleSpeechSynthesizer.bestInstalledVoice() else {
+            return "no voice found"
+        }
+        return AppleSpeechSynthesizer.describe(voice)
     }
     private(set) var isListening = false
     private(set) var isSpeaking = false
