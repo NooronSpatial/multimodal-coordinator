@@ -42,6 +42,13 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var played = 0             // buffers the player reported done
         var phrasesInFlight = 0    // decodes started but not finished
         var lead: PlaybackLead
+        /// Phrases accepted but not yet decoded. THE POINT OF THIS
+        /// QUEUE is that `feed` can put a phrase here and return, rather
+        /// than standing still until a model finishes speaking it.
+        var pending: [String] = []
+        /// Whether a decoder is already working through `pending`. One
+        /// at a time, because a reply's phrases must be spoken in order.
+        var draining = false
         var tokensFinished = false
         var cancelled = false
     }
@@ -57,6 +64,8 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var firstSamples = 0
     }
     private let stepTotals = Mutex(Totals())
+    /// The owned worker. Held so `cancel()` can stop it.
+    private let drainTask = Mutex<Task<Void, Never>?>(nil)
 
     /// THE MARGIN QUESTION (AC-102). A streaming voice must decode audio
     /// at least as fast as the ear drinks it. The real-time factor is
@@ -153,34 +162,88 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
 
     // MARK: - the seam
 
+    /// HANDS OFF. DOES NOT DECODE. (Conformance promise 6.)
+    ///
+    /// This used to `await speak(phrase)` — a full model decode, seconds
+    /// long — and the coordinator awaits its handlers inline, on one
+    /// serial loop, by design. So the user's speech onset, the very
+    /// event meant to cancel this reply, queued behind the decode of the
+    /// reply it was trying to stop. The field reported it as "barge in
+    /// to late" before any test could: every barge test in the suite
+    /// runs against a scripted mouth whose `feed` cannot block.
+    ///
+    /// Apple's mouth never had the fault, and its shape is copied here:
+    /// take the text, put it somewhere, return. The work happens
+    /// elsewhere.
     func feed(_ token: String) async {
-        let phrases = state.withLock { s -> [String] in
-            guard !s.cancelled else { return [] }
+        let startDrain = state.withLock { s -> Bool in
+            guard !s.cancelled else { return false }
             let completed = s.phraser.feed(token)
+            guard !completed.isEmpty else { return false }
             s.phrasesInFlight += completed.count
-            return completed
+            s.pending.append(contentsOf: completed)
+            guard !s.draining else { return false }
+            s.draining = true
+            return true
         }
-        for phrase in phrases { await speak(phrase) }
+        if startDrain { beginDraining() }
     }
 
+    /// Also hands off, for the same reason — and it matters MORE here
+    /// than in `feed`. The phraser only cuts at clause marks, so a reply
+    /// with no punctuation in its body flushes as ONE phrase at the end:
+    /// the single longest decode of the turn, covering nearly all of the
+    /// audible reply, which is exactly the window a human interrupts in.
     func finishTokens() async {
-        enum Outcome { case speak(String), finishNow, wait }
+        enum Outcome { case startDrain, finishNow, wait }
         let outcome = state.withLock { s -> Outcome in
             guard !s.cancelled, !s.tokensFinished else { return .wait }
             s.tokensFinished = true
             if let rest = s.phraser.flush() {
                 s.phrasesInFlight += 1
-                return .speak(rest)
+                s.pending.append(rest)
+                guard !s.draining else { return .wait }
+                s.draining = true
+                return .startDrain
             }
             // Nothing left to say, and nothing still sounding: a reply of
             // pure whitespace ends here, silently.
             return (s.phrasesInFlight == 0 && s.scheduled == s.played) ? .finishNow : .wait
         }
         switch outcome {
-        case .speak(let rest): await speak(rest)
+        case .startDrain: beginDraining()
         case .finishNow: report(.finished, terminal: true)
         case .wait: break
         }
+    }
+
+    /// The one worker that turns queued phrases into sound, in order.
+    ///
+    /// An unstructured `Task`, which this project's rules allow only
+    /// when it is OWNED rather than leaked — so it is: stored, cancelled
+    /// in `cancel()`, and it ends on its own the moment the queue is
+    /// empty. Its lifetime cannot outlive the reply, because the reply
+    /// is the only thing that fills the queue.
+    ///
+    /// Cancelling it is an OPTIMISATION, not the guarantee. The
+    /// guarantee is the `cancelled` flag, which the decode callback
+    /// checks at every step and which every path here re-reads — the
+    /// same doctrine the coordinator uses for its ticket.
+    private func beginDraining() {
+        let task = Task { [self] in
+            while true {
+                let next = state.withLock { s -> String? in
+                    guard !s.cancelled, !s.pending.isEmpty else {
+                        s.draining = false
+                        return nil
+                    }
+                    return s.pending.removeFirst()
+                }
+                guard let next else { return }
+                await speak(next)
+            }
+        }
+        drainTask.withLock { $0 = task }
     }
 
     func cancel() async {
@@ -188,9 +251,14 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             let was = s.cancelled
             s.cancelled = true
             s.lead.abandon()      // same step, no gap: the ticket doctrine
+            s.pending.removeAll() // nothing queued will ever be spoken
             return was
         }
         guard !already else { return }
+        // Stops the worker from picking up more work. The decode already
+        // in flight stops at its next step, because its callback reads
+        // the flag that was raised above.
+        drainTask.withLock { $0 }?.cancel()
         // The flag is up BEFORE the stop is enqueued, so a decode still
         // running sees it at its next step and returns false, and any
         // hand-off already queued finds it and stays silent.

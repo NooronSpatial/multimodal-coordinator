@@ -362,28 +362,6 @@ final class TranscribeModel {
         //
         // AFTER `start`, never before: the host refuses to attach to a
         // microphone that is not capturing, and it is right to.
-        if mouth == .neural {
-            // The HOST, not the microphone. Swift 6 refused the first
-            // version of this line and was right to: a host is used by
-            // this actor and by the mouth's serial queue, so it has to
-            // be Sendable, and a capture object full of engine state is
-            // not. The handle is.
-            let host = microphone.playbackHost
-            Task { [weak self] in
-                await self?.neuralVoice.render(on: host)
-                await self?.neuralVoice.reportMargins { margin in
-                    Task { @MainActor in self?.voiceMargin = margin }
-                }
-                // Read the graph's rate BACK, once it is running. The
-                // voice is 24 kHz; if these differ and the graph did not
-                // resample, that alone explains a drunk-sounding voice.
-                await MainActor.run {
-                    self?.voiceRates = String(
-                        format: "voice 24000 Hz → graph %.0f Hz",
-                        host.outputSampleRate)
-                }
-            }
-        }
 
         let rate = microphone.sampleRate
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
@@ -428,7 +406,38 @@ final class TranscribeModel {
 
         isListening = true
         let diagnostics = diagnostics
+        // THE HOST GOES IN BEFORE ANYTHING CAN SPEAK, and that ordering
+        // is the whole point rather than tidiness. It used to be a
+        // detached Task fired here and awaited by nobody: if a reply
+        // opened first, `openUtterance` would find no host, invent its
+        // own engine, and render the reply where the voice-processing
+        // unit cannot see it — silently undoing the milestone. No error,
+        // no log, nothing on screen; just AC-108 appearing not to work.
+        //
+        // Inside the pipeline task, before the group starts, the reply
+        // cannot exist yet: nothing has been transcribed.
+        let neuralHost = mouth == .neural ? microphone.playbackHost : nil
+
         pipeline = Task { [weak self] in
+            if let neuralHost, let self {
+                await neuralVoice.render(on: neuralHost)
+                await neuralVoice.reportMargins { margin in
+                    // The graph's rate is refreshed HERE, with the
+                    // margin, because it only becomes real when a reply
+                    // has actually rendered: the host records it during
+                    // attach rather than by poking a mixer that may not
+                    // exist yet. Asking at start-up would have printed
+                    // "not rendered yet" forever, which is the same
+                    // family of mistake as the instrument that shipped
+                    // dead an hour ago.
+                    let rate = neuralHost.outputSampleRate
+                    Task { @MainActor in
+                        self.voiceMargin = margin
+                        self.voiceRates = "voice 24000 Hz → graph "
+                            + (rate > 0 ? String(format: "%.0f Hz", rate) : "unknown")
+                    }
+                }
+            }
             // Listeners are taken BEFORE the pumps run: no event is missed.
             let audioForSession = await pump.listen()
             let audioForUI = await pump.listen()          // the multicast, used for real

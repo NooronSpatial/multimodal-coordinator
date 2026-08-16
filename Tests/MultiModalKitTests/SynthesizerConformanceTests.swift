@@ -77,6 +77,51 @@ enum SynthesizerConformanceKit {
                 "a cancelled reply must not report completion, however late the feed")
     }
 
+    /// Promise 6 — THE BARGE PROMISE: **`feed` HANDS OFF; it does not
+    /// wait for audio.**
+    ///
+    /// The coordinator drains ONE serial loop and awaits its handlers
+    /// inline. That is deliberate — it is what stops an audio event
+    /// interleaving in the middle of a handler — but it means a mouth
+    /// that blocks inside `feed` blocks the whole conversation. The
+    /// user's speech onset, the very event that should cancel the reply,
+    /// queues behind it.
+    ///
+    /// Apple's mouth never had this problem: its `speak` is not `async`
+    /// at all, just an enqueue onto a serial queue. The neural mouth
+    /// awaited a whole phrase decode — seconds — and the field found it
+    /// before any test did: "barge in to late".
+    ///
+    /// The assertion is event-based, not timed. Feed a sentence long
+    /// enough that decoding it takes real work, then cancel IMMEDIATELY.
+    /// A mouth that hands off is still holding an undecoded phrase, so
+    /// nothing was ever audible. A mouth that blocks has already decoded
+    /// and scheduled the whole thing, so `.started` has fired — and the
+    /// listener heard a reply they had already interrupted.
+    ///
+    /// Scoped to mouths that DECODE. Apple's hands text to a framework
+    /// that starts speaking on a thread of its own, so `started` there
+    /// is a race with the platform rather than a statement about our
+    /// hand-off — the kit excludes it for the same reason it excludes
+    /// the scripted synthesizer.
+    static func verifyFeedHandsOffRatherThanDecoding(
+        _ synthesizer: any SpeechSynthesizing
+    ) async throws {
+        let run = try await synthesizer.openUtterance()
+        await run.feed("This is a deliberately long sentence, "
+                       + "long enough that decoding all of it takes real work.")
+        // THE BARGE, at the worst possible moment: the instant after the
+        // text arrives. No sleep, no timing guess — the point is that
+        // this line is REACHED at all while the phrase is undecoded.
+        await run.cancel()
+
+        let updates = await drain(run)
+        #expect(!updates.contains(.started),
+                "feed must hand off: a reply cancelled this early was never audible")
+        #expect(!updates.contains(.finished),
+                "a cancelled reply must not claim completion")
+    }
+
     /// Promise 4 — THE LIVENESS PROMISE: a reply always terminates. Every
     /// piece the mouth accepts must eventually be accounted for, so the
     /// coordinator can never be stranded mid-turn waiting for a `finished`
@@ -222,6 +267,16 @@ struct NeuralVoiceConformanceTests {
         guard await voice.modelInstalled() else { return }
         try await SynthesizerConformanceKit.verifySilentReplyCompletesWithoutSpeaking(voice)
         try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(voice)
+    }
+
+    /// THE BARGE PROMISE (found by the field, not by this suite). Needs
+    /// the model because the whole question is whether a real decode is
+    /// awaited inline; a mock that returns instantly cannot fail it.
+    @Test("feed hands off — an immediate cancel is never heard (model required)")
+    func feedHandsOff() async throws {
+        let voice = Self.fused
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyFeedHandsOffRatherThanDecoding(voice)
     }
 
     @Test("the fused decoder speaks and stops (model + MMK_LIVE_SYNTH=1)")
