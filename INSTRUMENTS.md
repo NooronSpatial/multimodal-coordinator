@@ -974,3 +974,66 @@ a reply only adds an input bus to a mixer that already exists.
 change is what made the phone speak, on the build without it. Whether
 the render errors stop is the next thing to look at, and it is not
 claimed here.
+
+## 17. Why the neural voice would not talk — measured on a Mac, not on Ryad
+
+Five field runs, five faults, and each time I answered with a hypothesis
+and sent Ryad back to his phone. That was the wrong shape. **This Mac
+has a microphone and voice processing**, so it can run the exact path
+the phone runs — a live capture engine with a reply rendered onto it —
+and it took one command to reproduce.
+
+`swift run bakeoff voice-onmic`, one variable:
+
+| output chain on the capture engine | capture starts? | input format |
+|---|---|---|
+| **yes** (the neural path, AC-108) | **NO** | 0 Hz, 0 channels |
+| no (the pre-AC-108 path) | yes | 48000 Hz |
+
+Then the full truth table, four combinations:
+
+| voice processing | output chain | result |
+|---|---|---|
+| on | **on** | **FAILS — `-10875` at `PerformCommand(*outputNode, kAUInitialize)`** |
+| on | off | starts, 48000 Hz / 3 ch |
+| off | on | starts, 48000 Hz / 1 ch |
+| off | off | starts, 48000 Hz / 1 ch |
+
+**Voice processing and an output chain on the same engine cannot both
+exist here.** That is precisely the AC-108 configuration. Capture never
+starts, so the state can only ever read `idle` — which is exactly what
+the phone showed.
+
+### Two mechanisms, separated
+
+**1. Touching `mainMixerNode` invalidates `inputFormat`.**
+
+```
+after voice processing   input 48000 Hz/3ch   inputNode.output 48000 Hz/3ch
+after mainMixerNode      input     0 Hz/0ch   inputNode.output 48000 Hz/3ch
+after prepare            input     0 Hz/0ch   inputNode.output 48000 Hz/3ch
+```
+
+`inputFormat` collapses; `outputFormat` does not. A tap observes what a
+node PRODUCES, so `outputFormat` was the correct property all along —
+this code had been reading the other one, and the difference only shows
+when something else touches the graph.
+
+**2. Handing an invalid format to `installTap` is not an error, it is an
+ABORT** — `IsFormatSampleRateAndChannelCountValid`. A microphone that is
+merely unavailable became a crash report. It is now
+`AudioSourceFailure.inputUnavailable(sampleRate:channels:)`, which a
+screen can show in words.
+
+### What this does NOT prove
+
+**That iOS behaves the same way.** `-10875` on a Mac is consistent with
+voice processing requiring one device for input and output, and a Mac
+routinely has two. A phone has one. So the Mac reproduces the SYMPTOM
+and names two real bugs, but it cannot convict iOS of the same cause —
+and the iPhone's five faults are equally consistent with the ordering
+bugs found and fixed along the way.
+
+Recorded plainly because the temptation is to call this settled. It is
+not. What is settled: two real bugs, a path that is un-runnable on this
+Mac, and a harness that can test it here instead of on a person.

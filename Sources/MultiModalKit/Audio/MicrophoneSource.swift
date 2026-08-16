@@ -151,33 +151,46 @@ public final class MicrophoneSource: AudioSource {
             try input.setVoiceProcessingEnabled(true)
             voiceProcessingActive = input.isVoiceProcessingEnabled
         }
-        // THE OUTPUT CHAIN IS BUILT BEFORE THE FORMAT IS READ, and the
-        // position of these two lines is the whole fix — twice over.
+        // THE ORDER, THIRD ATTEMPT — and this time it is measured, not
+        // reasoned about. `bakeoff voice-onmic` runs this exact path on
+        // a Mac with one variable, and the first two attempts died in
+        // ways a person had to discover on a phone:
         //
-        // Reading `mainMixerNode` is not a query: it CREATES the mixer
-        // and wires it to the output node. Until it existed at all, the
-        // first REPLY did that, building the output half of a live
-        // voice-processing unit while it rendered, and the phone logged
-        //     throwing -1 from AU (…): auou/vpio/appl, render err: -1
-        // over and over while the app sat in "thinking".
+        //   format → tap → mixer   the phone went DEAF: creating the
+        //                          mixer renegotiates the unit, and the
+        //                          tap was already holding a dead format
+        //   mixer → format → tap   inputFormat returns 0 Hz / 0 channels
+        //                          and capture cannot start at all —
+        //                          "the state is always idle"
         //
-        // Then it was added — below the tap — and the phone went
-        // completely DEAF. Same reason, one step later: changing the
-        // graph's shape renegotiates the I/O unit, and the tap had
-        // already been installed with a format the hardware no longer
-        // used. Both symptoms are one rule, learned from both sides:
+        // The mixer must exist before the engine is prepared, because
+        // the output half of a voice-processing unit cannot be built
+        // while it renders. And the input format is only valid AFTER
+        // `prepare`, because that is when the graph is resolved against
+        // the hardware. So both go before it, and everything that reads
+        // a format goes after:
         //
-        //     build the whole graph FIRST, read formats SECOND,
-        //     install the tap THIRD, start LAST.
-        //
-        // Gated on `hostsPlayback` because a listen-only pipeline must
-        // not grow an output chain it never uses — that would change
-        // what every earlier measurement in this project was measuring.
+        //   mixer → prepare → read format → tap → start
         if hostsPlayback {
             _ = engine.mainMixerNode
         }
+        engine.prepare()
 
-        let format = input.inputFormat(forBus: 0)
+        // `outputFormat`, NOT `inputFormat`, and that is a correction.
+        // A tap observes what a node PRODUCES, so the node's output
+        // format is the one it must be installed with — and measurement
+        // showed the difference matters: touching `mainMixerNode`
+        // invalidates `inputFormat` (0 Hz / 0 ch) while `outputFormat`
+        // stays at 48000 Hz / 3 ch on the same engine, same instant.
+        let format = input.outputFormat(forBus: 0)
+        // VALIDATED, because the alternative is not an error — it is an
+        // ABORT. `installTap` asserts on a format with no rate or no
+        // channels and takes the process with it, which is how a
+        // microphone that is merely unavailable becomes a crash report.
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            throw AudioSourceFailure.inputUnavailable(
+                sampleRate: format.sampleRate, channels: format.channelCount)
+        }
         sampleRate = format.sampleRate
 
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [latestLevel] buffer, _ in
@@ -199,22 +212,7 @@ public final class MicrophoneSource: AudioSource {
             latestLevel.store(rms)
         }
 
-        // Watch for the engine killing its own graph. Installed BEFORE
-        // start, because a reconfiguration provoked by starting is
-        // exactly the one that has been invisible.
-        configurationObserver = NotificationCenter.default.addObserver(
-            forName: .AVAudioEngineConfigurationChange,
-            object: engine, queue: nil
-        ) { [reconfigurations] _ in
-            // Deliberately does NOT restart anything. Restarting a graph
-            // from inside its own reconfiguration notification is how a
-            // loop gets built; and this project's rule is that a
-            // measurement comes before a cure. For now it counts, and
-            // the count is on screen.
-            reconfigurations.increment()
-        }
-
-        engine.prepare()
+        // Already prepared above, before the format was read.
         try engine.start()
         isRunning = true
         // The host may take replies only now: it refuses to attach to an
