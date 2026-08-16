@@ -360,6 +360,42 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
 
+            // THE LEVEL METER, above everything the gate controls.
+            // Set the gate ABOVE the quiet number and BELOW the speaking
+            // one, and the app works; there is no third rule.
+            if model.isListening {
+                VStack(spacing: 2) {
+                    HStack {
+                        Text(String(format: "mic %.3f", model.inputLevel))
+                        Spacer()
+                        Text(String(format: "peak %.3f", model.inputPeak))
+                        Spacer()
+                        Text(String(format: "gate %.3f", model.vadThreshold))
+                            .foregroundStyle(model.inputLevel > model.vadThreshold
+                                             ? AnyShapeStyle(Color.green)
+                                             : AnyShapeStyle(.secondary))
+                    }
+                    .font(.caption2.monospaced())
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.quaternary)
+                            Capsule()
+                                .fill(model.inputLevel > model.vadThreshold ? Color.green : Color.gray)
+                                .frame(width: geometry.size.width
+                                       * CGFloat(min(model.inputLevel / 0.3, 1)))
+                            // Where the gate sits, on the same scale.
+                            Rectangle()
+                                .fill(Color.orange)
+                                .frame(width: 2)
+                                .offset(x: geometry.size.width
+                                        * CGFloat(min(model.vadThreshold / 0.3, 1)))
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .padding(.horizontal)
+            }
+
             conversation
 
             ScrollViewReader { proxy in

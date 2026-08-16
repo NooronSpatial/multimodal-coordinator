@@ -199,6 +199,19 @@ final class TranscribeModel {
         return stored
     }
 
+    /// THE RAW MICROPHONE LEVEL, ungated and always moving while the
+    /// pipeline runs. Everything else on this screen is downstream of
+    /// the gate, so when the gate is wrong there is nothing to look at —
+    /// and a gate can be wrong in two opposite ways that feel identical.
+    /// Too HIGH: no utterance ever opens. Too LOW: one opens, never
+    /// ends, and no reply is ever produced. Both are "I speak and
+    /// nothing happens". This is the number that tells them apart, and
+    /// it is what a person should set the gate ABOVE.
+    private(set) var inputLevel: Float = 0
+    /// The loudest thing heard since Listen was tapped. A moving level
+    /// is hard to read while speaking; the peak stays put.
+    private(set) var inputPeak: Float = 0
+
     /// The echo probe's results (AC-96): what the microphone delivers in
     /// a quiet room, and what it delivers while the phone is speaking.
     private(set) var probeSilence: (peak: Float, rms: Float)?
@@ -452,6 +465,7 @@ final class TranscribeModel {
         self.coordinator = coordinator
 
         isListening = true
+        inputPeak = 0
         let diagnostics = diagnostics
         // THE HOST GOES IN BEFORE ANYTHING CAN SPEAK, and that ordering
         // is the whole point rather than tidiness. It used to be a
@@ -521,6 +535,22 @@ final class TranscribeModel {
                 group.addTask { [weak self] in
                     for await event in audioForUI.events {
                         await self?.show(audio: event)
+                    }
+                }
+                // THE LEVEL METER. A poll, deliberately: the level is a
+                // lock-free atomic written by the audio thread, and the
+                // screen only needs it as fast as a person can read it.
+                // Nothing downstream depends on this task, and it ends
+                // with the group like everything else here.
+                group.addTask { [weak self] in
+                    while !Task.isCancelled {
+                        guard let self else { return }
+                        let level = await MainActor.run { self.microphone?.inputLevel ?? 0 }
+                        await MainActor.run {
+                            self.inputLevel = level
+                            self.inputPeak = max(self.inputPeak, level)
+                        }
+                        try? await Task.sleep(for: .milliseconds(100))
                     }
                 }
                 group.addTask { [weak self] in

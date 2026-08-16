@@ -1,4 +1,5 @@
 import AVFoundation
+import Synchronization
 
 /// Real microphone capture via `AVAudioEngine.installTap` (D-001, option A).
 ///
@@ -41,6 +42,28 @@ public final class MicrophoneSource: AudioSource {
     /// True when the platform actually granted voice processing — asked for
     /// is not the same as got, and the caller deserves the difference.
     public private(set) var voiceProcessingActive = false
+
+    /// THE RAW INPUT LEVEL, ungated (AC-97).
+    ///
+    /// Everything else this pipeline shows a person is downstream of the
+    /// VAD gate, which means that when the gate is set wrong there is
+    /// nothing to look at — and a gate can be wrong in two opposite
+    /// ways that feel identical from outside. Too HIGH and no utterance
+    /// ever opens; too LOW and one opens, never ends, and no reply is
+    /// ever produced. Both look like "I speak and nothing happens".
+    /// This number tells them apart, and it tells a person where to put
+    /// the gate instead of making them guess.
+    ///
+    /// Lock-free on purpose. It is written from the tap — the audio
+    /// thread, where the iron laws forbid locks and allocation — so it
+    /// is one relaxed atomic store of a float's bit pattern. No lock, no
+    /// allocation, no ordering guarantee needed: a level meter that
+    /// reads a value one buffer stale is still a correct level meter.
+    private let latestLevel = InputLevelBox()
+
+    /// The most recent 20 ms RMS the microphone delivered, gate or no
+    /// gate. Read it as often as a screen refreshes.
+    public var inputLevel: Float { latestLevel.level }
 
     /// The platform session this capture rides on (AC-93, D-042 F-1 = B).
     /// The library calls its steps in order; the app supplies their
@@ -133,11 +156,23 @@ public final class MicrophoneSource: AudioSource {
         let format = input.inputFormat(forBus: 0)
         sampleRate = format.sampleRate
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [latestLevel] buffer, _ in
             // Iron laws territory. View → copy → return. Nothing else.
             guard let channels = buffer.floatChannelData else { return }
             let frames = Int(buffer.frameLength)
             producer.write(UnsafeBufferPointer(start: channels[0], count: frames))
+
+            // The level, computed here because here is the only place
+            // the RAW signal exists — everywhere downstream is gated.
+            // A loop and one relaxed atomic store: no lock, no
+            // allocation, nothing that can block a render callback.
+            var sumOfSquares: Float = 0
+            for index in 0..<frames {
+                let sample = channels[0][index]
+                sumOfSquares += sample * sample
+            }
+            let rms = (sumOfSquares / Float(max(frames, 1))).squareRoot()
+            latestLevel.store(rms)
         }
 
         engine.prepare()
@@ -173,4 +208,25 @@ public final class MicrophoneSource: AudioSource {
         // out from under a running graph is the other half of the bug.
         session?.deactivate()
     }
+}
+
+
+/// One atomic float, in a box that a closure can capture.
+///
+/// `Atomic` is non-copyable, so a capture list cannot take it out of the
+/// object that owns it — the same wall `Mutex` puts up, and the same
+/// answer: a small class whose only job is to be referenceable. It has
+/// no other members on purpose.
+///
+/// `@unchecked Sendable` with a one-line proof: the only state is an
+/// atomic, and every access is a relaxed load or store. There is nothing
+/// to tear and nothing to order — a level meter reading one buffer stale
+/// is still a correct level meter.
+final class InputLevelBox: @unchecked Sendable {
+    private let value = Atomic<UInt32>(0)
+    /// Called from the audio thread. No lock, no allocation.
+    func store(_ level: Float) {
+        value.store(level.bitPattern, ordering: .relaxed)
+    }
+    var level: Float { Float(bitPattern: value.load(ordering: .relaxed)) }
 }
