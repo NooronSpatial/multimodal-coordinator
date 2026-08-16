@@ -1,6 +1,7 @@
 import AVFAudio
 import MultiModalKit
 import MultiModalKitTesting
+import MultiModalKitTTS
 import MultiModalKitWhisper
 import Observation
 
@@ -13,6 +14,16 @@ import Observation
 @MainActor
 @Observable
 final class TranscribeModel {
+    /// WHICH MOUTH SPEAKS (AC-105). The milestone's whole thesis was
+    /// that a second implementation of `SpeechSynthesizing` needs no
+    /// change anywhere else; this picker is where a listener gets to
+    /// check that claim with their ears instead of reading it.
+    enum MouthChoice: String, CaseIterable, Identifiable {
+        case apple = "Apple"
+        case neural = "Neural"
+        var id: String { rawValue }
+    }
+
     enum EngineChoice: String, CaseIterable, Identifiable {
         case apple = "Apple"
         case whisper = "Whisper"
@@ -45,6 +56,33 @@ final class TranscribeModel {
     }
 
     private(set) var engineState: EngineState = .checking
+
+    /// The mouth. Changing it restarts the pipeline, like every other
+    /// choice that is baked into a running turn loop.
+    var mouth: MouthChoice = .apple {
+        didSet {
+            guard mouth != oldValue else { return }
+            if isListening { restart() }
+            Task { await checkVoice() }
+        }
+    }
+    /// The neural voice's own model state — SEPARATE from `engineState`,
+    /// which belongs to the transcriber. Two models, two downloads, two
+    /// ways to be missing; one shared state would have made "not ready"
+    /// ambiguous on a screen whose job is to remove ambiguity.
+    private(set) var voiceState: EngineState = .checking
+    /// Held, not rebuilt: the voice caches a loaded pipeline, and making
+    /// a new one per turn would pay 1.1 GB of load again every time.
+    private let neuralVoice = NeuralVoice()
+
+    /// The mouth the coordinator gets. Apple's is cheap to build fresh;
+    /// the neural one is the held instance for the reason above.
+    private var currentMouth: any SpeechSynthesizing {
+        switch mouth {
+        case .apple: AppleSpeechSynthesizer()
+        case .neural: neuralVoice
+        }
+    }
     private(set) var isListening = false
     private(set) var isSpeaking = false
     private(set) var utterances: [Utterance] = []
@@ -156,6 +194,32 @@ final class TranscribeModel {
         engineState = installed ? .ready : .modelMissing
     }
 
+    /// Honest disk check for the VOICE. Asking never downloads.
+    func checkVoice() async {
+        guard mouth == .neural else { voiceState = .ready; return }
+        voiceState = await neuralVoice.modelInstalled() ? .ready : .modelMissing
+    }
+
+    /// The voice's 1.1 GB, fetched once. Deliberately a separate button
+    /// from the transcriber's download: they are different models, they
+    /// fail for different reasons, and a single "Download" that could
+    /// mean either would be a worse screen.
+    func installVoice() async {
+        voiceState = .downloading
+        do {
+            try await neuralVoice.ensureModel()
+            // Trust the DISK, not the call returning. Phase 2's lesson,
+            // and the one that caught a wrong model path in this very
+            // milestone: a load can succeed against files the check
+            // cannot find.
+            voiceState = await neuralVoice.modelInstalled()
+                ? .ready
+                : .failed("loaded, but the disk check disagrees")
+        } catch {
+            voiceState = .failed(String(describing: error))
+        }
+    }
+
     func downloadModel() async {
         engineState = .downloading
         do {
@@ -234,7 +298,12 @@ final class TranscribeModel {
         // reconfigured it under a live tap and then released it under a
         // running graph — verbatim both failures the seam exists to
         // prevent.
-        guard engineState == .ready, !isListening, probeStatus == nil else { return }
+        // The VOICE must be ready too, or the first reply fails
+        // mid-turn with a missing model — a failure the screen would
+        // report as a turn error when it is really a setup problem.
+        guard engineState == .ready, !isListening, probeStatus == nil,
+              !(talkEnabled && mouth == .neural && voiceState != .ready)
+        else { return }
         utterances.removeAll()
         droppedFrames = 0
         reply = ""
@@ -298,7 +367,7 @@ final class TranscribeModel {
                 replyGenerator: PhoneEchoReply(onThought: { [weak self] thought in
                     Task { @MainActor in self?.wholeThought = thought }
                 }),
-                synthesizer: AppleSpeechSynthesizer(),
+                synthesizer: currentMouth,
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self))
             : nil

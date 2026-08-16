@@ -1552,3 +1552,31 @@ to either decoder.** In AC-103's draws Whisper heard `*crying*`,
 vocalisations, on BOTH decoders. For an assistant that talks to people
 that is a real problem, and it is owed its own fork rather than a
 footnote. It does not block this ruling because it is unaffected by it.
+
+## D-048 — AC-104 needs the capture engine, so 4f's engine sharing is pulled forward, scoped (Milestone 4e)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: B**
+
+**Why the question forced it.** AC-104 asks whether a reply rendered
+through the pipeline's OWN engine falls under the gate. D-043 measured
+that iOS voice processing removes only what its own audio unit renders,
+and that unit lives on `MicrophoneSource`'s engine — which is `private`.
+So the reply must render *there*, or the hypothesis is not being tested.
+
+*Rejected:* **A — the partial test**, neural voice on its own separate
+engine. It is runnable the moment the demo is wired, and it would cost a
+1.1 GB download and a field session to re-confirm D-043: an engine the
+voice-processing unit does not render cannot be cancelled by it. A
+measurement whose result is known in advance is not a measurement.
+
+**Scoped, and the scope is the point.** ONLY the engine sharing moves
+into 4e — enough for a reply to render where the canceller can see it.
+4f keeps the rest of the routing fix, and keeps Apple's mouth, whose
+echo problem D-043 documented and which this does not touch.
+
+`NeuralVoice(renderingOn:)` already exists for exactly this. Its own
+doc comment, written in this milestone, says: *"Sharing the CAPTURE
+engine is not yet possible — `MicrophoneSource` keeps its own private —
+and that is exactly the work milestone 4f carries."* This ruling is that
+sentence coming due earlier than expected, which is a reason to record
+it rather than to quietly delete the comment.

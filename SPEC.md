@@ -1728,6 +1728,17 @@ phone.
   are numbered in the order they were ADDED, not in the order they will
   be met, and AC-105's hygiene gate still closes the milestone last.*
 
+- **AC-108** (added by D-048) **A reply can be rendered on the capture
+  engine.** `MicrophoneSource` gains a way to host playback, so the
+  audio unit that does the echo cancelling is the one that also renders
+  the reply. The seam must hide the engine's LIFECYCLE, not merely
+  expose the object: attaching to a host that is not running is a named
+  failure rather than silence, and stopping the host takes the reply's
+  node with it. It ships with TWO implementations, because that is this
+  repo's standard for calling something a seam — the microphone, and a
+  plain engine for machines with no capture in the picture. What cannot
+  be proven without hardware is stated as such and measured in AC-104.
+
 ## 65. Test matrix (4e)
 
 | Area | Tests |

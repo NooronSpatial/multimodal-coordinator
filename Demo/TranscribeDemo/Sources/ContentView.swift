@@ -53,7 +53,12 @@ struct ContentView: View {
                     .disabled(model.isListening || model.probeStatus != nil)
                 }
             }
-            .task { await model.checkModel() }
+            .task {
+                // Both models are asked about at launch: the transcriber's
+                // and the voice's. Asking never downloads either.
+                await model.checkModel()
+                await model.checkVoice()
+            }
         }
     }
 
@@ -275,6 +280,51 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .disabled(model.isListening)
             .padding(.horizontal)
+
+            // THE SECOND MOUTH, on screen (AC-105). Only shown when the
+            // app is actually talking — a mouth picker above a silent
+            // pipeline would be a control with nothing to control.
+            if model.talkEnabled {
+                VStack(spacing: 8) {
+                    Picker("Voice", selection: Bindable(model).mouth) {
+                        ForEach(TranscribeModel.MouthChoice.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(model.isListening)
+
+                    switch model.voiceState {
+                    case .modelMissing:
+                        VStack(spacing: 4) {
+                            Text("The neural voice needs a 1.1 GB download. "
+                                 + "One time, over Wi-Fi — then it runs on this phone.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Install voice") {
+                                Task { await model.installVoice() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    case .downloading:
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Downloading the voice — a silent minute is not a hang.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    case .failed(let why):
+                        Text("Voice unavailable: \(why)")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    case .checking, .ready:
+                        EmptyView()
+                    }
+                }
+                .padding(.horizontal)
+            }
 
             conversation
 
