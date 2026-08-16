@@ -82,19 +82,21 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
 
     // Flags, so the SAME instrument can measure the before and the after
     // (AC-106) instead of two instruments being compared to each other.
-    let fused = arguments.contains("--fused")
+    // `--stepped` reproduces the pre-D-047 baseline; the default is now
+    // the library's, which is `.fused`.
+    let forceStepped = arguments.contains("--stepped")
     let leadMS = arguments.first(where: { $0.hasPrefix("--lead=") })
         .flatMap { Int($0.dropFirst("--lead=".count)) }
     let voice = NeuralVoice(
         lead: leadMS.map { Duration.milliseconds($0) } ?? NeuralVoice.defaultLead,
-        multiCodeDecoderMode: fused ? .fused : .stepped)
+        multiCodeDecoderMode: forceStepped ? .stepped : .fused)
     guard await voice.modelInstalled() else {
         print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
         exit(1)
     }
 
     print("\n🎚  VOICE SPIKE (AC-102) — the numbers the adoption ruling needs")
-    print("    decoder: \(fused ? ".fused" : ".stepped") · lead: \(leadMS.map { "\($0) ms" } ?? "default")")
+    print("    decoder: \(forceStepped ? ".stepped" : ".fused") · lead: \(leadMS.map { "\($0) ms" } ?? "default (\(NeuralVoice.defaultLead))")")
     print("    warm-up excluded, same rule as BAKEOFF.md: the first load compiles graphs")
     _ = try? await measure(voice, "Warming up the neural pipeline.")   // excluded
 

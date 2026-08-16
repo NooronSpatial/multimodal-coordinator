@@ -167,8 +167,8 @@ struct NeuralVoiceConformanceTests {
     /// a 9-second liveness test into a 243-second time-limit failure —
     /// not a hang, just a machine out of room. Sharing is also how an
     /// app uses a voice: one mouth, many utterances.
-    static let stepped = NeuralVoice()
-    static let fused = NeuralVoice(multiCodeDecoderMode: .fused)
+    static let stepped = NeuralVoice(multiCodeDecoderMode: .stepped)
+    static let fused = NeuralVoice(multiCodeDecoderMode: .fused)   // also the default (D-047)
 
     @Test("a silent reply completes without speaking (model required; skips if absent)")
     func silentReply() async throws {

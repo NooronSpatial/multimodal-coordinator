@@ -1489,3 +1489,66 @@ the whole content of A, and D-045 F-1 already named the bill:
 Per this log's rule, F-3 is not edited away. It stands as ruled, with
 this entry recording that it was ruled against a capability we had
 already given up in the fork above it.
+
+## D-047 — `.fused` becomes the neural voice's default, and the lead returns to zero (Milestone 4e, post-AC-103/106)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: A**
+
+**The evidence this rests on**, all in INSTRUMENTS §12–§14:
+
+| | `.stepped` | `.fused` |
+|---|---|---|
+| steady RTF (AC-106) | 1.066 | **0.752** |
+| round-trip WER, 18 draws (AC-103) | 0.083 | 0.074 |
+| blind listening, 3 rounds (AC-103) | 1 win | 1 win, 1 tie |
+
+**29% faster, and no quality difference that two independent instruments
+could find** — one subjective, one objective, neither looking for the
+same thing. `.fused` replaces ~35 CoreML predictions per 80 ms frame
+with about 5.
+
+**THE LEAD GOES TO ZERO BY DERIVATION, NOT BY PREFERENCE.** The sizing
+rule is `deficit = replyLength × (RTF − 1)`, and at 0.752 it returns
+zero: the decoder runs ahead of the ear, so there is no shortfall to
+bank. `NeuralVoice.defaultLead` is still computed from that rule against
+a named measured factor, so the day a slower machine is measured, the
+constant changes and the cushion reappears on its own. First audio
+returns from 1882 ms to **229 ms**, gapless.
+
+*Rejected:* **B — keep `.stepped` until the iPhone is measured.** It was
+the strictest reading of D-045, and its bar has now been cleared on the
+Mac by both instruments. Holding on would mean every remaining 4e
+measurement — AC-104's iPhone numbers, the demos, the review — is taken
+against a configuration we already intend to replace, which measures the
+wrong thing carefully.
+
+*Rejected:* **C — adopt `.fused` but keep a ~250 ms cushion as
+insurance** for the unmeasured phone. It buys protection against a risk
+nobody has measured, which is the same "insurance, not a measured cure"
+label D-028's thermal policy has carried honestly since Phase 3. The
+sizing rule makes the cushion one line the moment AC-104 produces a
+number that asks for one. Guessing it now would only make that number
+harder to read.
+
+**Costs accepted knowingly:**
+- **iOS 18 / macOS 15 floor.** `.fused` needs the multifunction CoreML
+  asset and a modern runtime. The conformance kit proves the asset on
+  whatever machine runs the suite rather than assuming it.
+- **Undocumented path.** The mode appears in Argmax's CLI and example
+  app, not their README. A package bump could change it without a
+  release note, so the conformance test that loads it is the guard.
+- **Output is not bit-identical** to `.stepped`: sampling moves inside
+  the graph. Measured as indistinguishable, not as identical.
+
+**What this ruling does NOT do.** It does not adopt the neural voice as
+the conversational mouth — D-045 and AC-102 still require iPhone numbers,
+stop latency and thermal, and none of those exist yet. This chooses which
+decoder the neural voice uses when it is used at all, so that every
+remaining measurement is taken against the real candidate.
+
+**An open hazard, recorded here because it belongs to the voice and not
+to either decoder.** In AC-103's draws Whisper heard `*crying*`,
+`(laughing)`, `"Ha,"` and `"Uh uh, uh,"` — the model emits non-speech
+vocalisations, on BOTH decoders. For an assistant that talks to people
+that is a real problem, and it is owed its own fork rather than a
+footnote. It does not block this ruling because it is unaffected by it.

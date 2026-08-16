@@ -60,23 +60,39 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// which is how the before/after number stays honest.
     public nonisolated let lead: Duration
 
-    /// The default, DERIVED rather than picked. AC-102 measured this
-    /// voice at RTF 1.09–1.23 on an M-series Mac; the sizing rule says a
-    /// reply of length L needs a cushion of L × (RTF − 1). Sized here for
-    /// a six-second reply at the worst measured factor.
+    /// The steady real-time factor MEASURED for the default decoder
+    /// (AC-106: `.fused`, release build, M-series Mac, median of three
+    /// runs on a long sentence). Below 1.0 means the decoder produces
+    /// audio faster than the ear drinks it.
     ///
-    /// What that buys and what it does not: replies up to ~6 s play
-    /// gaplessly, longer ones still drain the cushion, because a FIXED
-    /// lead has a ceiling while RTF stays above 1.0. That is the honest
-    /// limit of option A, and it is why D-046 ruled B as well.
-    public nonisolated static let defaultLead = PlaybackLead.deficit(
-        forReplyOf: .seconds(6), realTimeFactor: 1.25)
+    /// Named rather than inlined because it is the one input the lead
+    /// below is derived from: measure a slower machine, change this,
+    /// and the cushion reappears without anyone having to remember why.
+    /// The iPhone is NOT measured yet — that is AC-104.
+    public nonisolated static let measuredRealTimeFactor = 0.752
 
-    /// How the multi-code decoder runs each 15-code frame. `.stepped`
-    /// is TTSKit's default and costs ~35 CoreML predictions per 80 ms
-    /// frame; `.fused` does the frame in one prediction with in-graph
-    /// sampling, leaving about 5. AC-106 measures whether those 30
-    /// fewer dispatches are actually where our time goes.
+    /// The default lead, DERIVED rather than picked (D-047).
+    ///
+    /// The sizing rule is `replyLength × (RTF − 1)`, and at 0.752 it
+    /// returns **zero**: the decoder runs ahead of the ear, so there is
+    /// no shortfall to bank and no reason to make anyone wait. That is
+    /// why this is zero today — not a preference, an arithmetic result.
+    ///
+    /// It was 1500 ms while the default decoder was `.stepped` at RTF
+    /// 1.066–1.25, and it cost first audio 227 ms → 1882 ms (§11).
+    /// D-046 ruled to attack the decode as well as buy the cushion, and
+    /// attacking it is what made the cushion unnecessary.
+    public nonisolated static let defaultLead = PlaybackLead.deficit(
+        forReplyOf: .seconds(6), realTimeFactor: measuredRealTimeFactor)
+
+    /// How the multi-code decoder runs each 15-code frame. **Defaults to
+    /// `.fused` (D-047)**, which is NOT TTSKit's own default.
+    ///
+    /// `.stepped` costs ~35 CoreML predictions per 80 ms frame; `.fused`
+    /// does the whole frame in one prediction with in-graph sampling,
+    /// leaving about 5. AC-106 measured 1.066 → 0.752, and AC-103 found
+    /// no quality difference by ear or by round-trip WER. Dispatch
+    /// overhead, not matrix maths, was where the time went.
     public nonisolated let multiCodeDecoderMode: Qwen3MultiCodeDecoderMode
     /// How the vocoder runs. `.throughputOptimized` produces four audio
     /// frames per call instead of one.
@@ -93,7 +109,7 @@ public actor NeuralVoice: SpeechSynthesizing {
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
                 renderingOn engine: AVAudioEngine? = nil,
                 lead: Duration = NeuralVoice.defaultLead,
-                multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .stepped,
+                multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused,
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 seed: UInt64? = nil) {

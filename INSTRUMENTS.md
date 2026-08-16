@@ -889,3 +889,36 @@ callback would have reported them done and produced a table of silence.
 - **Apple's capture is not our shipping path.** `AVSpeechSynthesizer`
   does not render through our engine, so its audio comes from the
   framework's offline `write` — the same voice, not the same code path.
+
+## 15. The shipped configuration (D-047) — what the default actually does now
+
+`.fused`, lead **0 ms** (derived from the measured 0.752, not chosen).
+
+| sentence | first audio | audio | first + audio | measured total | miss |
+|---|---|---|---|---|---|
+| How is the weather today? | 162 ms | 2880 | 3042 | 3131 | 89 ms |
+| The audio travels through a ring b… | 168 ms | 6240 | 6408 | 6494 | 86 ms |
+| Should I take a jacket? | 294 ms | 3680 | 3974 | 4062 | 88 ms |
+
+**first-audio mean — neural 208 ms · Apple 30 ms · ratio 7.0×.**
+Steady RTF 0.765–0.797.
+
+The whole journey of one number:
+
+| | first audio | gapless | steady RTF |
+|---|---|---|---|
+| AC-102, as found | 227 ms | **no** | 1.066 |
+| + the lead (D-046 A) | 1882 ms | yes | 1.066 |
+| + fused (D-046 B, D-047) | **208 ms** | yes | **0.765** |
+
+**On the misses being 86–89 rather than 38–55.** That is not a
+regression, it is `.dataPlayedBack`: the completion now waits for audio
+to actually play, so the device's own output latency is inside the
+number. What matters is that the three misses are within 3 ms of each
+other — a starving player produces misses that are large and variable,
+like the 750 ms one in §10.
+
+**Still unmeasured, and the lead's zero is measured only here:** the
+iPhone (AC-104), thermal, and stop latency. `NeuralVoice`'s sizing rule
+reads one named constant, so a slower measurement puts the cushion back
+by changing that constant rather than by re-deriving the argument.
