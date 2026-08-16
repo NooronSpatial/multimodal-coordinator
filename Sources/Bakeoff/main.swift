@@ -122,6 +122,137 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
     exit(0)
 }
 
+/// A tiny seeded generator, so the blind order is REPRODUCIBLE. The seed
+/// is printed with the result: a listening test nobody can re-run is an
+/// anecdote, and this repo does not record anecdotes as data.
+struct SeededRNG: RandomNumberGenerator {
+    private var state: UInt64
+    init(seed: UInt64) { state = seed &* 6364136223846793005 &+ 1442695040888963407 }
+    mutating func next() -> UInt64 {
+        state = state &* 6364136223846793005 &+ 1442695040888963407
+        var z = state
+        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
+        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
+        return z ^ (z >> 31)
+    }
+}
+
+// `swift run bakeoff voice-listen` — AC-103's SUBJECTIVE half, run
+// honestly. D-045 and AC-103 both say the same thing: anything
+// subjective is reported as opinion and labelled as such, never dressed
+// as data. This is the instrument for collecting that opinion without
+// poisoning it.
+//
+// THE COMPARISON IS `.stepped` vs `.fused`, BLIND. Same model, same
+// voice, same text, same lead — only the decoder differs, which is the
+// one thing a listener cannot guess from the sound of the words. Apple
+// plays first as a REFERENCE and is deliberately NOT blinded: its voice
+// is recognisable in three syllables, so pretending otherwise would be
+// theatre rather than blinding.
+//
+// Both neural clips get the SAME 800 ms lead. `.fused` does not need it
+// (AC-106: it decodes ahead of the ear) but `.stepped` does, and a test
+// where one candidate stutters because of OUR buffering would measure
+// the buffer, not the voice.
+if arguments.count > 1, arguments[1] == "voice-listen" {
+    let sentences = [
+        "How is the weather today?",
+        "I can hear you. Say that again and I will stop talking.",
+        "The audio travels through a ring buffer into a pump that cuts it into small chunks.",
+    ]
+    let seed: UInt64 = 20260816
+    let lead = Duration.milliseconds(800)
+
+    let apple = AppleSpeechSynthesizer()
+    let stepped = NeuralVoice(lead: lead, multiCodeDecoderMode: .stepped, seed: seed)
+    let fused = NeuralVoice(lead: lead, multiCodeDecoderMode: .fused, seed: seed)
+
+    guard await stepped.modelInstalled() else {
+        print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
+        exit(1)
+    }
+
+    print("\n🎧  LISTENING TEST (AC-103, the opinion half)")
+    print("    Two neural decoders, blind, labelled A and B.")
+    print("    Apple plays first each round as a reference — not blinded,")
+    print("    because that voice gives itself away in three syllables.")
+    print("\n    Loading both decoders (this takes a moment)…")
+    do {
+        try await stepped.ensureModel()
+        try await fused.ensureModel()
+    } catch {
+        print("⚠️  load failed: \(error)")
+        exit(1)
+    }
+    // Warm-ups, excluded and unheard-of-purpose: the first decode after a
+    // load compiles graphs, and a first clip that stumbles would bias the
+    // whole round against whichever mouth drew it.
+    _ = try? await measure(stepped, "Warming up.")
+    _ = try? await measure(fused, "Warming up.")
+
+    func ask(_ prompt: String) -> String? {
+        print(prompt, terminator: " ")
+        guard let line = readLine() else { return nil }
+        return line.trimmingCharacters(in: .whitespaces).uppercased()
+    }
+
+    var rng = SeededRNG(seed: seed)
+    var rounds: [(text: String, aWasFused: Bool, choice: String)] = []
+
+    for (index, text) in sentences.enumerated() {
+        let aIsFused = Bool.random(using: &rng)
+        print("\n────────────────────────────────────────────────")
+        print("ROUND \(index + 1) of \(sentences.count): \"\(text)\"")
+
+        var choice: String? = nil
+        while choice == nil {
+            print("\n  ▶ reference (Apple)…")
+            _ = try? await measure(apple, text)
+            print("  ▶ clip A…")
+            _ = try? await measure(aIsFused ? fused : stepped, text)
+            print("  ▶ clip B…")
+            _ = try? await measure(aIsFused ? stepped : fused, text)
+
+            guard let answer = ask("\n  Which neural clip sounded better? [A / B / S same / R replay / Q quit]")
+            else {
+                print("\n(no input — nothing recorded)")
+                exit(0)
+            }
+            switch answer {
+            case "A", "B", "S": choice = answer
+            case "Q": print("\nstopped early — \(rounds.count) round(s) recorded"); choice = "Q"
+            case "R": print("  replaying…")
+            default: print("  please answer A, B, S, R or Q")
+            }
+        }
+        if choice == "Q" { break }
+        rounds.append((text, aIsFused, choice!))
+    }
+
+    // THE REVEAL, only now.
+    print("\n════════════════════════════════════════════════")
+    print("REVEAL (seed \(seed) — re-runnable, same order)\n")
+    print("| round | clip A was | clip B was | preferred |")
+    print("|---|---|---|---|")
+    var fusedWins = 0, steppedWins = 0, ties = 0
+    for (i, r) in rounds.enumerated() {
+        let aName = r.aWasFused ? "fused" : "stepped"
+        let bName = r.aWasFused ? "stepped" : "fused"
+        let picked: String
+        switch r.choice {
+        case "A": picked = aName; if r.aWasFused { fusedWins += 1 } else { steppedWins += 1 }
+        case "B": picked = bName; if r.aWasFused { steppedWins += 1 } else { fusedWins += 1 }
+        default:  picked = "no difference heard"; ties += 1
+        }
+        print("| \(i + 1) | \(aName) | \(bName) | **\(picked)** |")
+    }
+    print("\nfused \(fusedWins) · stepped \(steppedWins) · no difference \(ties)")
+    print("\nThis is an OPINION from one listener over \(rounds.count) round(s),")
+    print("and it is recorded as one. It does not measure intelligibility —")
+    print("that is the round-trip WER half of AC-103, and it is a number.")
+    exit(0)
+}
+
 // `swift run bakeoff voice-levers` — AC-106, D-046 = B. Every decode
 // lever that survived adversarial verification, measured SERIALLY on one
 // machine, because two models decoding at once would corrupt both
