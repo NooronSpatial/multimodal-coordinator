@@ -370,6 +370,14 @@ struct ContentView: View {
                         Spacer()
                         Text(String(format: "peak %.3f", model.inputPeak))
                         Spacer()
+                        if !model.engineAlive {
+                            Text("ENGINE STOPPED")
+                                .foregroundStyle(Color.red)
+                        }
+                        if model.engineReconfigurations > 0 {
+                            Text("reconfig \(model.engineReconfigurations)")
+                                .foregroundStyle(Color.orange)
+                        }
                         Text(String(format: "gate %.3f", model.vadThreshold))
                             .foregroundStyle(model.inputLevel > model.vadThreshold
                                              ? AnyShapeStyle(Color.green)

@@ -43,6 +43,30 @@ public final class MicrophoneSource: AudioSource {
     /// is not the same as got, and the caller deserves the difference.
     public private(set) var voiceProcessingActive = false
 
+    /// HOW MANY TIMES THE ENGINE RECONFIGURED ITSELF, and whether it is
+    /// still running.
+    ///
+    /// `AVAudioEngine` STOPS ITS OWN GRAPH when the audio route or the
+    /// hardware format changes, and it posts a notification rather than
+    /// asking. Nothing in this project ever observed it. The result on a
+    /// phone is the worst kind of failure: the microphone indicator
+    /// appears for an instant and vanishes, no error is thrown, no row
+    /// appears, and a person reports "the mic is not working at all"
+    /// with nothing to look at. Ryad reported exactly that.
+    ///
+    /// Counting it does not fix it. It makes it VISIBLE, which is the
+    /// difference between a bug and a mystery.
+    public var configurationChanges: Int { reconfigurations.count }
+    /// Boxed for the same reason the level is: a notification closure is
+    /// `@Sendable`, and this class is not — so what crosses into it is a
+    /// tiny object holding one atomic, never `self`.
+    private let reconfigurations = ReconfigurationCount()
+    /// True while the engine's graph is actually running. `isRunning`
+    /// above is OUR intent; this is the engine's own answer, and they
+    /// disagree exactly when something has gone wrong behind our back.
+    public var engineIsRunning: Bool { engine.isRunning }
+    private var configurationObserver: (any NSObjectProtocol)?
+
     /// THE RAW INPUT LEVEL, ungated (AC-97).
     ///
     /// Everything else this pipeline shows a person is downstream of the
@@ -175,6 +199,21 @@ public final class MicrophoneSource: AudioSource {
             latestLevel.store(rms)
         }
 
+        // Watch for the engine killing its own graph. Installed BEFORE
+        // start, because a reconfiguration provoked by starting is
+        // exactly the one that has been invisible.
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine, queue: nil
+        ) { [reconfigurations] _ in
+            // Deliberately does NOT restart anything. Restarting a graph
+            // from inside its own reconfiguration notification is how a
+            // loop gets built; and this project's rule is that a
+            // measurement comes before a cure. For now it counts, and
+            // the count is on screen.
+            reconfigurations.increment()
+        }
+
         engine.prepare()
         try engine.start()
         isRunning = true
@@ -186,6 +225,10 @@ public final class MicrophoneSource: AudioSource {
 
     public func stop() {
         guard isRunning else { return }
+        if let configurationObserver {
+            NotificationCenter.default.removeObserver(configurationObserver)
+            self.configurationObserver = nil
+        }
         engine.inputNode.removeTap(onBus: 0)
         // BEFORE the engine stops, and that order is a CRASH FIX, not a
         // preference. This line used to sit after `engine.stop()`, with
@@ -222,6 +265,14 @@ public final class MicrophoneSource: AudioSource {
 /// atomic, and every access is a relaxed load or store. There is nothing
 /// to tear and nothing to order — a level meter reading one buffer stale
 /// is still a correct level meter.
+/// One atomic counter, boxed so a `@Sendable` notification closure can
+/// hold it without holding the capture object.
+final class ReconfigurationCount: @unchecked Sendable {
+    private let value = Atomic<Int>(0)
+    func increment() { value.wrappingAdd(1, ordering: .relaxed) }
+    var count: Int { value.load(ordering: .relaxed) }
+}
+
 final class InputLevelBox: @unchecked Sendable {
     private let value = Atomic<UInt32>(0)
     /// Called from the audio thread. No lock, no allocation.

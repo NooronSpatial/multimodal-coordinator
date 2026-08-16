@@ -211,6 +211,12 @@ final class TranscribeModel {
     /// The loudest thing heard since Listen was tapped. A moving level
     /// is hard to read while speaking; the peak stays put.
     private(set) var inputPeak: Float = 0
+    /// The ENGINE's own answer about whether it is running, not ours.
+    /// They disagree exactly when something has gone wrong behind our
+    /// back — which on this phone looked like the microphone indicator
+    /// appearing and vanishing with no error at all.
+    private(set) var engineAlive = false
+    private(set) var engineReconfigurations = 0
 
     /// The echo probe's results (AC-96): what the microphone delivers in
     /// a quiet room, and what it delivers while the phone is speaking.
@@ -399,10 +405,15 @@ final class TranscribeModel {
             // re-measures here or claims nothing.
             voiceProcessing: talkEnabled,
             session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker),
-            // Replies render on THIS engine (AC-108), so its output half
-            // must exist before capture starts — not be built by the
-            // first reply, on a live voice-processing unit that refuses.
-            hostsPlayback: talkEnabled)
+            // ONLY when something will actually render there. Apple's
+            // mouth speaks through its own framework, not our engine, so
+            // asking for an output chain on its behalf builds a graph
+            // nobody uses — and building it is what made this phone's
+            // engine reconfigure and die on start. Now it is asked for
+            // only by the mouth that needs it, which also makes the two
+            // cases separable in the field: Apple works, Neural is the
+            // one under test.
+            hostsPlayback: talkEnabled && mouth == .neural)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -545,10 +556,16 @@ final class TranscribeModel {
                 group.addTask { [weak self] in
                     while !Task.isCancelled {
                         guard let self else { return }
-                        let level = await MainActor.run { self.microphone?.inputLevel ?? 0 }
+                        let (level, alive, reconfigs) = await MainActor.run {
+                            (self.microphone?.inputLevel ?? 0,
+                             self.microphone?.engineIsRunning ?? false,
+                             self.microphone?.configurationChanges ?? 0)
+                        }
                         await MainActor.run {
                             self.inputLevel = level
                             self.inputPeak = max(self.inputPeak, level)
+                            self.engineAlive = alive
+                            self.engineReconfigurations = reconfigs
                         }
                         try? await Task.sleep(for: .milliseconds(100))
                     }
