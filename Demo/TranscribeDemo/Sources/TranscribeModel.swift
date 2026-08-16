@@ -332,6 +332,26 @@ final class TranscribeModel {
         self.microphone = microphone
         observeInterruptions()
 
+        // THE POINT OF AC-104 (D-048, AC-108). The reply renders on the
+        // CAPTURE engine — the one whose audio unit does the echo
+        // cancelling — because D-043 measured that iOS voice processing
+        // removes only what that unit itself renders. Every earlier
+        // reply, Apple's included, was rendered somewhere the canceller
+        // could not see, which is why the probe read 0.94-1.00 with the
+        // canceller demonstrably working on everything else.
+        //
+        // AFTER `start`, never before: the host refuses to attach to a
+        // microphone that is not capturing, and it is right to.
+        if mouth == .neural {
+            // The HOST, not the microphone. Swift 6 refused the first
+            // version of this line and was right to: a host is used by
+            // this actor and by the mouth's serial queue, so it has to
+            // be Sendable, and a capture object full of engine state is
+            // not. The handle is.
+            let host = microphone.playbackHost
+            Task { await neuralVoice.render(on: host) }
+        }
+
         let rate = microphone.sampleRate
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
         let pump = AudioPump(

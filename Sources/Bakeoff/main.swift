@@ -281,10 +281,14 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
     let steppedCapture = MixerCapture(engine: steppedEngine)
     let fusedCapture = MixerCapture(engine: fusedEngine)
 
-    let stepped = NeuralVoice(renderingOn: steppedEngine, lead: lead,
-                              multiCodeDecoderMode: .stepped)
-    let fused = NeuralVoice(renderingOn: fusedEngine, lead: lead,
-                            multiCodeDecoderMode: .fused)
+    // The seam's plain implementation (AC-108). The tool still needs the
+    // engine itself, because it taps the mixer — but the voice only ever
+    // sees a host, so the start-order rule that hung this tool now lives
+    // in one place instead of here.
+    let stepped = NeuralVoice(renderingOn: AudioEnginePlaybackHost(engine: steppedEngine),
+                              lead: lead, multiCodeDecoderMode: .stepped)
+    let fused = NeuralVoice(renderingOn: AudioEnginePlaybackHost(engine: fusedEngine),
+                            lead: lead, multiCodeDecoderMode: .fused)
     guard await stepped.modelInstalled() else {
         print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
         exit(1)

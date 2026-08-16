@@ -49,10 +49,26 @@ public final class MicrophoneSource: AudioSource {
     /// RED skeleton: stored, not yet obeyed.
     private let session: (any AudioSessionConfiguring)?
 
+    /// WHERE A REPLY CAN SPEAK FROM (AC-108, D-048).
+    ///
+    /// D-043 measured that iOS voice processing subtracts only what its
+    /// own audio unit renders, and that unit is the one behind this
+    /// engine. So a reply rendered through this host is the FIRST reply
+    /// the canceller can possibly remove from what the microphone hears
+    /// — which is the hypothesis AC-104 goes to the phone to test.
+    ///
+    /// A separate object rather than a conformance on this class, and
+    /// that is the compiler's doing: a host is touched by whoever owns
+    /// capture AND by the mouth's own queue, so it must be `Sendable`,
+    /// and an audio-capture class full of engine state is not. The
+    /// handle holds a lock and an engine reference and nothing else.
+    public let playbackHost: MicrophonePlaybackHost
+
     public init(voiceProcessing: Bool = false,
                 session: (any AudioSessionConfiguring)? = nil) {
         self.voiceProcessing = voiceProcessing
         self.session = session
+        self.playbackHost = MicrophonePlaybackHost(engine: engine)
     }
 
     public func start(into producer: AudioRingProducer) throws {
@@ -92,6 +108,9 @@ public final class MicrophoneSource: AudioSource {
         engine.prepare()
         try engine.start()
         isRunning = true
+        // The host may take replies only now: it refuses to attach to an
+        // engine that is not pulling, and until this line it was not.
+        playbackHost.captureStarted()
         captureBegan = true          // the session is now in use; keep it
     }
 
@@ -99,6 +118,10 @@ public final class MicrophoneSource: AudioSource {
         guard isRunning else { return }
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
+        // AFTER the engine is down, and before the session is released:
+        // a reply's node outliving the capture it was rendered on is
+        // exactly the leak AC-108 exists to prevent.
+        playbackHost.captureStopped()
         isRunning = false
         // AFTER the engine has stopped, never before: releasing a session
         // out from under a running graph is the other half of the bug.

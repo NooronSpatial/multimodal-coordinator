@@ -28,7 +28,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     private let out: AsyncStream<SynthesisUpdate>.Continuation
 
     private let kit: TTSKit
-    private let engine: AVAudioEngine
+    private let host: any PlaybackHost
     private let player = AVAudioPlayerNode()
     private let format: AVAudioFormat
     /// The engine's one thread. Same reasoning as the Apple mouth: FIFO
@@ -110,12 +110,12 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
 
     private let temperature: Float?
 
-    init(kit: TTSKit, engine: AVAudioEngine, sampleRate: Double,
+    init(kit: TTSKit, host: any PlaybackHost, sampleRate: Double,
          lead: PlaybackLead, temperature: Float? = nil) throws {
         self.state = Mutex(Guarded(lead: lead))
         self.temperature = temperature
         self.kit = kit
-        self.engine = engine
+        self.host = host
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                          sampleRate: sampleRate,
                                          channels: 1, interleaved: false) else {
@@ -127,12 +127,12 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         self.updates = AsyncStream { handle = $0 }
         self.out = handle
 
-        engine.attach(player)
-        engine.connect(player, to: engine.mainMixerNode, format: format)
-        if !engine.isRunning {
-            engine.prepare()
-            try engine.start()
-        }
+        // The host owns the ORDER — attach, connect, then start — and
+        // throws rather than silently attaching to a graph nobody pulls
+        // (AC-108). That failure used to be ours to get wrong, and we
+        // did: an engine started before any node existed hung a
+        // measurement run for twenty minutes (INSTRUMENTS §14).
+        try host.attachForPlayback(player, format: format)
         // NOT `player.play()` — that was the bug AC-102 measured. The
         // player starts when `PlaybackLead` says a cushion exists, and
         // not one buffer sooner (D-046 = A).
@@ -184,7 +184,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         mouth.async { [self] in
             player.stop()
             player.reset()
-            engine.detach(player)
+            host.detachFromPlayback(player)
         }
         out.finish()          // no terminal: the seam's cancel contract
     }
@@ -379,7 +379,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     private func teardown() {
         mouth.async { [self] in
             player.stop()
-            engine.detach(player)
+            host.detachFromPlayback(player)
         }
     }
 }

@@ -35,18 +35,21 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// load again.
     private var pipeline: TTSKit?
 
-    /// The engine this voice renders through. Handing one in is how a
-    /// caller makes the reply CANCELLABLE: D-043 measured that iOS voice
-    /// processing removes only what its own audio unit renders, so a
-    /// reply rendered on the engine that also captures is the first one
+    /// WHERE THIS VOICE RENDERS (AC-108, D-048). Handing in a host is
+    /// how a caller makes the reply CANCELLABLE: D-043 measured that iOS
+    /// voice processing removes only what its own audio unit renders, so
+    /// a reply rendered on the host that also CAPTURES is the first one
     /// the canceller can see. `nil` means "make your own", which works
     /// everywhere and cancels nowhere.
     ///
-    /// Sharing the CAPTURE engine is not yet possible — `MicrophoneSource`
-    /// keeps its own private — and that is exactly the work milestone 4f
-    /// carries. AC-104 is the measurement that will say what it is worth.
-    private let providedEngine: AVAudioEngine?
-    private var ownEngine: AVAudioEngine?
+    /// This used to read "sharing the capture engine is not yet possible
+    /// — `MicrophoneSource` keeps its own private — and that is exactly
+    /// the work milestone 4f carries." D-048 pulled that work forward
+    /// the moment AC-104 turned out to be untestable without it. The old
+    /// sentence is quoted rather than deleted because the decision log
+    /// refers to it.
+    private var providedHost: (any PlaybackHost)?
+    private var ownHost: AudioEnginePlaybackHost?
 
     /// How much audio to bank before the first sound (D-046 = A,
     /// AC-107). AC-102 measured this voice decoding SLOWER than it
@@ -107,14 +110,14 @@ public actor NeuralVoice: SpeechSynthesizing {
     public nonisolated let seed: UInt64?
 
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
-                renderingOn engine: AVAudioEngine? = nil,
+                renderingOn host: (any PlaybackHost)? = nil,
                 lead: Duration = NeuralVoice.defaultLead,
                 multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused,
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 seed: UInt64? = nil) {
         self.variant = variant
-        self.providedEngine = engine
+        self.providedHost = host
         self.lead = lead
         self.multiCodeDecoderMode = multiCodeDecoderMode
         self.speechDecoderMode = speechDecoderMode
@@ -122,21 +125,32 @@ public actor NeuralVoice: SpeechSynthesizing {
         self.seed = seed
     }
 
+    /// Renders replies on `host` from now on.
+    ///
+    /// Settable rather than fixed at init because the two lifetimes do
+    /// not match: a capture session starts and stops every time someone
+    /// taps Listen, while a 1.1 GB pipeline should be loaded once and
+    /// kept. Rebuilding the voice to change where it speaks would pay
+    /// for the model again on every tap.
+    public func render(on host: any PlaybackHost) {
+        providedHost = host
+    }
+
     /// The seam (AC-101). One utterance, decoded by TTSKit and rendered
-    /// by us.
+    /// by us, on whichever host the caller chose.
     public func openUtterance() async throws -> any SynthesisRun {
         let kit = try await loadedPipeline()
-        let engine: AVAudioEngine
-        if let providedEngine {
-            engine = providedEngine
-        } else if let ownEngine {
-            engine = ownEngine
+        let host: any PlaybackHost
+        if let providedHost {
+            host = providedHost
+        } else if let ownHost {
+            host = ownHost
         } else {
-            let fresh = AVAudioEngine()
-            ownEngine = fresh
-            engine = fresh
+            let fresh = AudioEnginePlaybackHost()
+            ownHost = fresh
+            host = fresh
         }
-        return try NeuralVoiceRun(kit: kit, engine: engine,
+        return try NeuralVoiceRun(kit: kit, host: host,
                                   sampleRate: Double(kit.sampleRate),
                                   lead: PlaybackLead(target: lead),
                                   temperature: temperature)
