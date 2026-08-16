@@ -85,12 +85,12 @@ final class TranscribeModel {
     /// the lead derived to ZERO from a MAC measurement (D-047), that
     /// means the player runs dry from the first buffer.
     private(set) var voiceMargin: DecodeMargin?
-    /// The voice's own rate against the rate the audio graph actually
-    /// runs at, READ BACK rather than assumed. 24 kHz audio played as if
-    /// it were 16 kHz sounds slow, low and slurred — which is one honest
-    /// reading of "like someone drunk", and it is not the same fault as
-    /// starving.
-    private(set) var voiceRates: String?
+    // The graph-rate line is GONE, not hidden. It was added to test a
+    // theory — that a 24 kHz voice was being played as 16 kHz — and the
+    // theory died: PlaybackHost passes an explicit format into connect,
+    // so a mismatch would crash rather than slur (INSTRUMENTS §14). A
+    // dead instrument left on screen is worse than none, because the
+    // next person reads it as evidence.
     // Thermal is NOT duplicated here. The health loop already reports it
     // (D-027) and the toolbar already wears the badge; a second reading
     // of the same fact is how two numbers start disagreeing.
@@ -487,15 +487,15 @@ final class TranscribeModel {
             // re-measures here or claims nothing.
             voiceProcessing: talkEnabled,
             session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker),
-            // ONLY when something will actually render there. Apple's
-            // mouth speaks through its own framework, not our engine, so
-            // asking for an output chain on its behalf builds a graph
-            // nobody uses — and building it is what made this phone's
-            // engine reconfigure and die on start. Now it is asked for
-            // only by the mouth that needs it, which also makes the two
-            // cases separable in the field: Apple works, Neural is the
-            // one under test.
-            hostsPlayback: talkEnabled && mouth == .neural)
+            // FALSE, BY RULING (D-049). Rendering the reply on the
+            // capture engine is reversed: voice processing and an output
+            // chain cannot coexist on one engine (INSTRUMENTS §17), so
+            // asking for one stopped capture from starting at all — the
+            // phone's "state is always idle". The neural voice now uses
+            // its own engine, its reply is not echo-cancelled on iOS
+            // (D-043's cost, accepted again), and the capture-side host
+            // waits for 4f behind the Mac harness that now exists.
+            hostsPlayback: false)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -560,21 +560,13 @@ final class TranscribeModel {
         isListening = true
         inputPeak = 0
         let diagnostics = diagnostics
-        // THE HOST GOES IN BEFORE ANYTHING CAN SPEAK, and that ordering
-        // is the whole point rather than tidiness. It used to be a
-        // detached Task fired here and awaited by nobody: if a reply
-        // opened first, `openUtterance` would find no host, invent its
-        // own engine, and render the reply where the voice-processing
-        // unit cannot see it — silently undoing the milestone. No error,
-        // no log, nothing on screen; just AC-108 appearing not to work.
-        //
-        // Inside the pipeline task, before the group starts, the reply
-        // cannot exist yet: nothing has been transcribed.
-        let neuralHost = mouth == .neural ? microphone.playbackHost : nil
-
+        // NO HOST IS INSTALLED (D-049). The voice makes its own engine,
+        // which is the configuration that has worked since the hour it
+        // was written. What stays is the margin reporting: the decode
+        // numbers are how anyone will know whether this phone can run
+        // this voice at all, and they do not depend on where it renders.
         pipeline = Task { [weak self] in
-            if let neuralHost, let self {
-                await neuralVoice.render(on: neuralHost)
+            if let self, mouth == .neural {
                 await neuralVoice.reportMargins { margin in
                     // The graph's rate is refreshed HERE, with the
                     // margin, because it only becomes real when a reply
@@ -584,12 +576,7 @@ final class TranscribeModel {
                     // "not rendered yet" forever, which is the same
                     // family of mistake as the instrument that shipped
                     // dead an hour ago.
-                    let rate = neuralHost.outputSampleRate
-                    Task { @MainActor in
-                        self.voiceMargin = margin
-                        self.voiceRates = "voice 24000 Hz → graph "
-                            + (rate > 0 ? String(format: "%.0f Hz", rate) : "unknown")
-                    }
+                    Task { @MainActor in self.voiceMargin = margin }
                 }
             }
             // Listeners are taken BEFORE the pumps run: no event is missed.

@@ -1580,3 +1580,81 @@ engine is not yet possible — `MicrophoneSource` keeps its own private —
 and that is exactly the work milestone 4f carries."* This ruling is that
 sentence coming due earlier than expected, which is a reason to record
 it rather than to quietly delete the comment.
+
+## D-049 — Reversing D-048: the neural voice renders on its own engine (Milestone 4e)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: A — reverse**
+
+**This overturns D-048, which Ryad ruled B on my recommendation eight
+hours earlier.** The recommendation was wrong, and it was wrong in a
+specific way worth naming: I argued that option A "would cost a 1.1 GB
+download and a field session to re-confirm D-043", and that a
+measurement whose result is known in advance is not a measurement. What
+I did not weigh was that **I had no way to test option B**, and that
+every step of it would therefore be tested by a person holding a phone.
+
+**What it cost, honestly counted.** One afternoon, five rebuilds, and
+these faults — every one of them introduced by me while fixing the
+previous one:
+
+| fault | how it showed |
+|---|---|
+| `detach` after `engine.stop()` | process abort |
+| guarded *attached* instead of *in a chain* | process abort, inside the first guard |
+| no output chain at all | `vpio render err: -1`, forever, state "thinking" |
+| output chain built after the tap | phone completely deaf |
+| output chain at all, with voice processing | capture cannot start, state "idle" |
+
+**The measurement that ended it** (INSTRUMENTS §17). Once the path was
+finally run on a Mac — which took one command, and which I should have
+written first:
+
+| voice processing | output chain | result |
+|---|---|---|
+| on | **on** | **cannot start: `-10875` at `kAUInitialize`** |
+| on | off | starts |
+| off | on | starts |
+| off | off | starts |
+
+Voice processing and an output chain cannot coexist on one engine here.
+That is the AC-108 configuration exactly.
+
+**The ruling.** The neural voice renders on its OWN engine —
+`AudioEnginePlaybackHost`, the seam's second implementation, which has
+worked since the hour it was written. Its reply is therefore NOT
+echo-cancelled on iOS, which is D-043's measured cost, accepted again
+and knowingly.
+
+*Rejected:* **B — keep going.** Real apps do run duplex voice processing
+on iOS, so this is possible. But the deciding case cannot be tested on
+this Mac (`-10875` is consistent with voice processing needing one
+device for input and output; a Mac has two, a phone has one), which
+means every further attempt is tested by Ryad. That is the exact
+arrangement that produced the table above.
+
+### What survives, and it is most of it
+
+The seam is not deleted. `PlaybackHost` has two implementations, eleven
+tests, and it now encodes rules that were learned the hard way. The
+capture-side host stays, unused by the demo, waiting for 4f — where it
+belongs, behind a harness that now exists.
+
+**And the harness is the real deliverable of this reversal.** `bakeoff
+voice-onmic` runs the capture path on a machine I control, with one
+variable. Everything above was findable in one command. 4f starts there,
+not on a phone.
+
+### Bugs found on the way that have nothing to do with the ruling
+
+They stay fixed, and they were worth the afternoon on their own:
+
+- the tap was installed with `inputFormat` when a tap observes what a
+  node PRODUCES — `outputFormat` is correct, and the two disagree the
+  moment anything else touches the graph
+- an invalid format handed to `installTap` ABORTS rather than throws;
+  now `AudioSourceFailure.inputUnavailable`
+- `AVAudioEngineConfigurationChange` was never observed, so an engine
+  that killed its own graph looked like a dead microphone
+- `feed` blocked the coordinator's loop for a whole phrase decode, which
+  is why barge-in was late
+- the gate was a guess; it is now measured, and the level is on screen

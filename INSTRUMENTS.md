@@ -1037,3 +1037,31 @@ bugs found and fixed along the way.
 Recorded plainly because the temptation is to call this settled. It is
 not. What is settled: two real bugs, a path that is un-runnable on this
 Mac, and a harness that can test it here instead of on a person.
+
+### A late measurement that complicates §17, recorded because it does
+
+After D-049 was ruled, the same harness was run once more with the
+mixer created LAZILY — at the first reply, the way AC-108 originally
+did it — instead of at capture start:
+
+```
+capture running: true · voice processing: true · input rate 48000 Hz
+utterance 1: started YES · finished YES · 4986 ms · reconfigs 0
+```
+
+**It worked.** The neural voice rendered onto a live capture engine with
+voice processing active, on this Mac, and both the start and the finish
+arrived.
+
+So the truth table above is narrower than it first reads. What it
+proves is that creating the output chain **before `engine.start()`**
+cannot coexist with voice processing here. It does NOT prove that
+rendering onto the capture engine is impossible — the original lazy
+arrangement is fine on this machine, and it was the phone, not the Mac,
+that answered it with `vpio render err: -1`.
+
+Which means the Mac still cannot settle the deciding case, and that is
+exactly the reasoning D-049 rests on: not "this cannot work", but "I
+cannot test whether it works, and the person holding the phone should
+not be the harness". 4f inherits a real question and a real tool for
+asking it.

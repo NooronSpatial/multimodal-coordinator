@@ -352,9 +352,6 @@ struct ContentView: View {
                     // device that produced the adjectives.
                     if model.mouth == .neural, model.voiceState == .ready {
                         VStack(alignment: .leading, spacing: 2) {
-                            if let rates = model.voiceRates {
-                                Text(rates)
-                            }
                             if let margin = model.voiceMargin {
                                 Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
                                             margin.steadyRealTimeFactor,
