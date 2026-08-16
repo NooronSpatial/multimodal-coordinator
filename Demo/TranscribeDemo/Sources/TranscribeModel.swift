@@ -105,20 +105,47 @@ final class TranscribeModel {
         // enhanced or premium voice downloaded, this returns a compact
         // one and nothing changes — which is why the name is on screen.
         case .apple: AppleSpeechSynthesizer(
-            voiceIdentifier: AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
+            voiceIdentifier: appleVoiceIdentifier
+                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
         case .neural: neuralVoice
         }
     }
 
-    /// Which Apple voice this device will actually use, and how good it
-    /// is. On screen because a person who cannot see it has no way to
-    /// tell "the app ignored my download" from "this is as good as this
-    /// phone gets".
+    /// Every English voice this phone has, best quality first.
+    /// Computed once: the list only changes when someone downloads a
+    /// voice in Settings, which they cannot do without leaving the app.
+    let availableAppleVoices = AppleSpeechSynthesizer.installedVoices(matching: "en")
+
+    /// WHICH APPLE VOICE, chosen by the person rather than for them
+    /// (Ryad's request). `nil` means "let the library pick the best
+    /// installed one", which is what a fresh install starts from.
+    ///
+    /// Persisted like the gate, and for the same reason: a preference
+    /// that has to be re-entered after every build is a preference that
+    /// gets forgotten in the middle of a field run.
+    var appleVoiceIdentifier: String? = TranscribeModel.storedVoice {
+        didSet {
+            UserDefaults.standard.set(appleVoiceIdentifier, forKey: Self.voiceKey)
+            if isListening { restart() }
+        }
+    }
+    private static let voiceKey = "dev.nooron.demo.appleVoice"
+    private static var storedVoice: String? {
+        UserDefaults.standard.string(forKey: voiceKey)
+    }
+
+    /// What will actually speak, named. A person who cannot see
+    /// "compact" has no way to tell "the app ignored my download" from
+    /// "this is as good as this phone gets".
     var appleVoiceDescription: String {
+        if let appleVoiceIdentifier,
+           let chosen = availableAppleVoices.first(where: { $0.id == appleVoiceIdentifier }) {
+            return chosen.label
+        }
         guard let voice = AppleSpeechSynthesizer.bestInstalledVoice() else {
             return "no voice found"
         }
-        return AppleSpeechSynthesizer.describe(voice)
+        return AppleSpeechSynthesizer.describe(voice) + " (auto)"
     }
     private(set) var isListening = false
     private(set) var isSpeaking = false
@@ -217,6 +244,61 @@ final class TranscribeModel {
     /// appearing and vanishing with no error at all.
     private(set) var engineAlive = false
     private(set) var engineReconfigurations = 0
+    /// What calibration is doing or found. Nil when it has never run.
+    private(set) var calibrationStatus: String?
+    private(set) var isCalibrating = false
+
+    /// MEASURES THE GATE INSTEAD OF GUESSING IT (AC-97).
+    ///
+    /// A whole field session went into two failures that feel identical
+    /// — a gate above the voice (nothing ever opens) and a gate below
+    /// the room (nothing ever ends) — and both were fixed by moving one
+    /// slider to a value nobody could know without measuring. Worse, the
+    /// right value CHANGED with the mouth: the same phone and the same
+    /// voice measured a floor of 0.022–0.040 in one configuration and
+    /// 0.002 in another, because the gain control settles elsewhere when
+    /// the audio graph changes shape.
+    ///
+    /// So it is measured, here, on this device, in the configuration it
+    /// is actually in. Three seconds of silence, four of speech, and the
+    /// arithmetic lives in `GateCalibration` where it can be tested
+    /// without a microphone.
+    func calibrateGate() async {
+        guard isListening, !isCalibrating else {
+            calibrationStatus = "Tap Listen first."
+            return
+        }
+        isCalibrating = true
+        defer { isCalibrating = false }
+
+        func loudest(over samples: Int) async -> Float {
+            var peak: Float = 0
+            for _ in 0..<samples {
+                try? await Task.sleep(for: .milliseconds(100))
+                peak = max(peak, microphone?.inputLevel ?? 0)
+            }
+            return peak
+        }
+
+        calibrationStatus = "Stay quiet…"
+        let quiet = await loudest(over: 30)          // 3 s of room
+        calibrationStatus = "Now speak normally…"
+        let speech = await loudest(over: 40)         // 4 s of voice
+
+        switch GateCalibration.suggestedGate(quiet: quiet, speech: speech) {
+        case .gate(let suggested):
+            vadThreshold = suggested                  // persists, and restarts
+            calibrationStatus = String(
+                format: "gate %.3f — room %.3f, voice %.3f", suggested, quiet, speech)
+        case .tooClose(let quiet, let speech):
+            // NOT papered over with an invented number. A gate placed
+            // between two levels that are not apart is a coin toss
+            // wearing three decimal places.
+            calibrationStatus = String(
+                format: "room %.3f and voice %.3f are too close — "
+                      + "speak louder, or find a quieter place", quiet, speech)
+        }
+    }
 
     /// The echo probe's results (AC-96): what the microphone delivers in
     /// a quiet room, and what it delivers while the phone is speaking.

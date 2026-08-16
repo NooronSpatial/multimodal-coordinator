@@ -327,6 +327,19 @@ struct ContentView: View {
                     // the honest explanation for a robotic reply, and it
                     // points at a download rather than at a bug.
                     if model.mouth == .apple {
+                        // THE PERSON PICKS. A long list, so a menu rather
+                        // than a segmented control — and every row says
+                        // its quality, because "compact" is the honest
+                        // explanation for a robotic voice and it points
+                        // at a download rather than at a bug.
+                        Picker("Apple voice", selection: Bindable(model).appleVoiceIdentifier) {
+                            Text("Best installed (auto)").tag(String?.none)
+                            ForEach(model.availableAppleVoices) { voice in
+                                Text(voice.label).tag(String?.some(voice.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(model.isListening)
                         Text(model.appleVoiceDescription)
                             .font(.caption2.monospaced())
                             .foregroundStyle(.secondary)
@@ -400,6 +413,30 @@ struct ContentView: View {
                         }
                     }
                     .frame(height: 8)
+                }
+                .padding(.horizontal)
+            }
+
+            // CALIBRATE, so nobody has to guess this number again.
+            if model.isListening {
+                VStack(spacing: 4) {
+                    Button {
+                        Task { await model.calibrateGate() }
+                    } label: {
+                        Label(model.isCalibrating ? "Calibrating…" : "Calibrate gate",
+                              systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.isCalibrating)
+
+                    if let status = model.calibrationStatus {
+                        Text(status)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(model.isCalibrating
+                                             ? AnyShapeStyle(Color.orange)
+                                             : AnyShapeStyle(.secondary))
+                            .multilineTextAlignment(.center)
+                    }
                 }
                 .padding(.horizontal)
             }

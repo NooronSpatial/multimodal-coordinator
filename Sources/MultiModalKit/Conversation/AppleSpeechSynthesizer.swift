@@ -26,6 +26,58 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
         self.voiceIdentifier = voiceIdentifier
     }
 
+    /// One installed voice, in a shape a screen can list.
+    ///
+    /// Exists so an app can OFFER THE CHOICE rather than have one made
+    /// for it. `bestInstalledVoice` picks well, but "well" is a matter
+    /// of taste and of what the person downloaded, and neither is this
+    /// library's business to settle.
+    public struct InstalledVoice: Sendable, Identifiable, Equatable {
+        public let id: String
+        public let name: String
+        public let quality: String
+        public let language: String
+        /// `Samantha — compact, en-US`. The quality is in the label on
+        /// purpose: "compact" is the honest explanation for a robotic
+        /// voice, and seeing it points at a download rather than a bug.
+        public var label: String { "\(name) — \(quality), \(language)" }
+    }
+
+    /// Every installed voice, best first.
+    ///
+    /// Sorted by quality (premium → enhanced → compact) and then by
+    /// name, so the good ones are at the top of a long list. Filter by
+    /// language prefix — `"en"` for every English variant, `"en-GB"` for
+    /// one — or pass nil for all of them.
+    public static func installedVoices(matching language: String? = nil) -> [InstalledVoice] {
+        func rank(_ voice: AVSpeechSynthesisVoice) -> Int {
+            switch voice.quality {
+            case .premium: 0
+            case .enhanced: 1
+            default: 2
+            }
+        }
+        func qualityName(_ voice: AVSpeechSynthesisVoice) -> String {
+            switch voice.quality {
+            case .premium: "premium"
+            case .enhanced: "enhanced"
+            default: "compact"
+            }
+        }
+        return AVSpeechSynthesisVoice.speechVoices()
+            .filter { voice in
+                guard let language else { return true }
+                return voice.language.hasPrefix(language)
+            }
+            .sorted { a, b in
+                (rank(a), a.name) < (rank(b), b.name)
+            }
+            .map {
+                InstalledVoice(id: $0.identifier, name: $0.name,
+                               quality: qualityName($0), language: $0.language)
+            }
+    }
+
     /// Asks for a voice that does not sound like a robot.
     ///
     /// `nil` — what this type has always passed — means "system
