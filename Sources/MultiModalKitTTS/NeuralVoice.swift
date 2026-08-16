@@ -48,10 +48,36 @@ public actor NeuralVoice: SpeechSynthesizing {
     private let providedEngine: AVAudioEngine?
     private var ownEngine: AVAudioEngine?
 
+    /// How much audio to bank before the first sound (D-046 = A,
+    /// AC-107). AC-102 measured this voice decoding SLOWER than it
+    /// plays, so a renderer that starts on the first buffer gaps from
+    /// the first buffer. The sizing rule lives with the rule it sizes:
+    /// `PlaybackLead.deficit(forReplyOf:realTimeFactor:)`.
+    ///
+    /// Injected rather than fixed, because the right value is a property
+    /// of the MACHINE — a phone will need more of it than a Mac — and
+    /// because `.zero` reproduces AC-102's measured behaviour exactly,
+    /// which is how the before/after number stays honest.
+    public nonisolated let lead: Duration
+
+    /// The default, DERIVED rather than picked. AC-102 measured this
+    /// voice at RTF 1.09–1.23 on an M-series Mac; the sizing rule says a
+    /// reply of length L needs a cushion of L × (RTF − 1). Sized here for
+    /// a six-second reply at the worst measured factor.
+    ///
+    /// What that buys and what it does not: replies up to ~6 s play
+    /// gaplessly, longer ones still drain the cushion, because a FIXED
+    /// lead has a ceiling while RTF stays above 1.0. That is the honest
+    /// limit of option A, and it is why D-046 ruled B as well.
+    public nonisolated static let defaultLead = PlaybackLead.deficit(
+        forReplyOf: .seconds(6), realTimeFactor: 1.25)
+
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
-                renderingOn engine: AVAudioEngine? = nil) {
+                renderingOn engine: AVAudioEngine? = nil,
+                lead: Duration = NeuralVoice.defaultLead) {
         self.variant = variant
         self.providedEngine = engine
+        self.lead = lead
     }
 
     /// The seam (AC-101). One utterance, decoded by TTSKit and rendered
@@ -69,7 +95,8 @@ public actor NeuralVoice: SpeechSynthesizing {
             engine = fresh
         }
         return try NeuralVoiceRun(kit: kit, engine: engine,
-                                  sampleRate: Double(kit.sampleRate))
+                                  sampleRate: Double(kit.sampleRate),
+                                  lead: PlaybackLead(target: lead))
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not

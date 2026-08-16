@@ -1431,3 +1431,61 @@ reported as labelled opinion. *Rejected:* refusing to score quality at
 all (the easy way out, and it wastes an instrument already in the repo).
 *Rejected:* a subjective rating as the headline number — precisely what
 BAKEOFF.md exists to refuse.
+
+## D-046 — The neural mouth starves: buy a lead AND attack the decode (Milestone 4e, post-AC-102)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: A and B, in the
+order B then A**
+
+**What the measurement said.** AC-102 put the neural voice's real-time
+factor at **1.09–1.23** on an M-series Mac, release build (INSTRUMENTS
+§10). Above 1.0 means the decoder produces audio slower than the ear
+drinks it, so the player runs dry. The arithmetic proves it without an
+ear: the long sentence would end at first-audio + audio = 8466 ms if
+playback were gapless, and it ended at 9216 ms — decode wall time plus
+one buffer. Playback is gated by decode, from the very first buffer,
+because this integration starts with **zero lead**.
+
+**A — buy a lead.** Queue audio before starting playback. First audio
+rises from ~227 ms toward ~1 s; the gaps close for replies short enough
+that the lead outlasts them.
+
+**B — attack the decode speed first.** Find what TTSKit exposes that
+lowers RTF, and measure it, before hiding the deficit behind a buffer.
+
+**Both, B first.** B first because a faster decode shrinks the lead A
+has to buy, and a lead sized against an un-optimised decoder is a lead
+sized against a number we chose not to improve. A regardless of B's
+outcome, because a streaming render path with zero pre-roll is wrong for
+ANY mouth — the fault is structural, not particular to this voice.
+
+*Rejected:* **C — rule the neural voice non-conversational** and let the
+bake-off judge quality only. It costs nothing and it is honest, but it
+grades the wrong thing: with no lead, AC-103 would measure a stutter
+that is our bug, and AC-104 would measure it harder, because the phone
+is slower than the Mac. Quality cannot be judged through a defect we
+already know we own.
+
+*Rejected as sequencing:* **A before B**, and **iPhone before either**.
+A-first sizes a buffer against a decoder we have not tried to speed up.
+iPhone-first measures our missing buffer on slower silicon.
+
+### The correction this ruling carries — D-045 F-3 cannot be delivered as ruled
+
+D-045 F-3 chose `PlaybackStrategy.auto`, praised for measuring the first
+decode step and pre-buffering just enough. **It is unimplementable under
+F-1 = B.** `PlaybackStrategy` governs TTSKit's OWN playback, and F-1
+ruled that TTSKit never plays anything for us — it decodes, we render.
+Two rulings in the same decision, and only one of them can be true.
+
+F-1 wins, because its reason is measured (D-043: iOS voice processing
+cancels only what its own audio unit renders) while F-3's was a
+convenience. So F-3's ruling is void as written, and its INTENT — an
+adaptive pre-buffer, sized from what the decoder is actually doing —
+transfers to our code as option A. That is not a footnote to F-3; it is
+the whole content of A, and D-045 F-1 already named the bill:
+*"pre-buffering and resampling become ours to get wrong."*
+
+Per this log's rule, F-3 is not edited away. It stands as ruled, with
+this entry recording that it was ruled against a capability we had
+already given up in the fork above it.

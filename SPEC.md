@@ -1704,6 +1704,30 @@ phone.
   stable, map updated, and the demos let a listener switch mouths and
   hear the difference on real hardware.
 
+- **AC-106** (added after AC-102 measured, D-046 = B) **The decode
+  margin is attacked before it is hidden.** Every lever TTSKit exposes
+  that could lower RTF is enumerated with a citation, verified to be
+  real, public, and actually wired to the decode path, then MEASURED
+  serially — one machine, one run at a time, because parallel model runs
+  would corrupt the timings. The outcome is a number in INSTRUMENTS.md
+  whichever way it falls, including "nothing here gets RTF below 1.0",
+  which is a result and not a failure.
+- **AC-107** (added after AC-102 measured, D-046 = A) **The lead.** The
+  renderer does not start the player with zero pre-roll. The policy that
+  decides when to start is a PURE type with its own tests — the
+  `SpeechPhraser` shape — so the rule is provable without a speaker, a
+  model, or a clock. It must satisfy, deterministically: enough audio
+  queued starts playback; a reply that ENDS before the lead is reached
+  still plays and still terminates (the liveness promise — a short reply
+  must never wait for audio that will never come); a cancelled reply
+  starts nothing. Then the RTF measurement is re-run and INSTRUMENTS.md
+  records whether the gap arithmetic actually closed — total ≈
+  first-audio + audio, rather than ≈ decode wall time.
+
+  *Numbered after AC-105 because this list is append-only: the criteria
+  are numbered in the order they were ADDED, not in the order they will
+  be met, and AC-105's hygiene gate still closes the milestone last.*
+
 ## 65. Test matrix (4e)
 
 | Area | Tests |

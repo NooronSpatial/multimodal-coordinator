@@ -600,3 +600,52 @@ every ~80 ms from the start, not after 5 seconds. The reader now parks on
 the stream first and the feeding moves to a child task, gated on a fact
 rather than a sleep. **The corrected number is 21× smaller than the one
 this file nearly recorded.**
+
+## 11. The lead — the gaps closed, and what they cost (AC-107, D-046 = A)
+
+`PlaybackLead` banks audio before the player starts, sized by the rule
+`deficit = replyLength × (RTF − 1)`. Default: a six-second reply at the
+worst measured factor (1.25) → **1500 ms**.
+
+**Did the gaps close?** The arithmetic answers without an ear. Gapless
+playback ends at first-audio + audio; a starving player ends at decode
+wall time instead.
+
+| sentence | audio | first + audio | measured total | miss |
+|---|---|---|---|---|
+| How is the weather today? | 5760 ms | 7572 ms | 7594 ms | **22 ms** |
+| The audio travels through a ring b… | 6480 ms | 8384 ms | 8412 ms | **28 ms** |
+| Should I take a jacket? | 2240 ms | 4168 ms | 4190 ms | **22 ms** |
+
+Every miss is under a third of ONE 80 ms buffer. Before the lead, the
+long sentence missed by **750 ms**. The player no longer runs dry.
+
+**What it cost.**
+
+| | first audio | vs Apple |
+|---|---|---|
+| no lead (AC-102) | 227 ms | 8.3× |
+| 1500 ms lead | **1882 ms** | **61.8×** |
+
+1882 rather than 1500 because banking 1500 ms of audio takes 1500 × RTF
+of wall time, plus the first step's ~220 ms. The felt pause of a turn
+would go from ~743 ms to well over two seconds. **Gapless, and too slow
+— which is the whole argument for D-046's other half.** If B gets RTF
+below 1.0 the lead goes to zero and both numbers are won at once.
+
+**A limit, stated rather than discovered later:** a FIXED lead has a
+ceiling. While RTF stays above 1.0 a long enough reply drains any
+cushion; 1500 ms covers ~6 s of speech at RTF 1.25 and no more.
+
+**Two things this run also showed, recorded without explanation:**
+
+1. **The voice is non-deterministic in LENGTH.** The long sentence
+   produced 8240 ms of audio in the AC-102 run and 6480 ms here — same
+   text, same model, same machine. Sampling, presumably. It means every
+   number in this section is one draw, not a constant.
+2. **The weather anomaly is repeatable.** "How is the weather today?"
+   produced 5760 ms of audio in BOTH runs, where Apple speaks it in
+   1829 ms — 3.1×. Repeatable is worse than random: it is a property of
+   the voice on this input, and AC-103's round-trip WER is the
+   instrument that will say whether those extra seconds are silence,
+   drawl, or invention.

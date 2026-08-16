@@ -41,11 +41,11 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var scheduled = 0          // buffers handed to the player
         var played = 0             // buffers the player reported done
         var phrasesInFlight = 0    // decodes started but not finished
-        var startedReported = false
+        var lead: PlaybackLead
         var tokensFinished = false
         var cancelled = false
     }
-    private let state = Mutex(Guarded())
+    private let state: Mutex<Guarded>
     /// Step tracing, opt-in through the environment so it costs nothing
     /// when nobody is asking.
     static let traceSteps = ProcessInfo.processInfo.environment["MMK_TRACE_TTS"] == "1"
@@ -77,7 +77,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             audio, wall, wall / audio).utf8))
     }
 
-    init(kit: TTSKit, engine: AVAudioEngine, sampleRate: Double) throws {
+    init(kit: TTSKit, engine: AVAudioEngine, sampleRate: Double,
+         lead: PlaybackLead) throws {
+        self.state = Mutex(Guarded(lead: lead))
         self.kit = kit
         self.engine = engine
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
@@ -97,7 +99,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             engine.prepare()
             try engine.start()
         }
-        player.play()
+        // NOT `player.play()` — that was the bug AC-102 measured. The
+        // player starts when `PlaybackLead` says a cushion exists, and
+        // not one buffer sooner (D-046 = A).
     }
 
     // MARK: - the seam
@@ -136,6 +140,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         let already = state.withLock { s -> Bool in
             let was = s.cancelled
             s.cancelled = true
+            s.lead.abandon()      // same step, no gap: the ticket doctrine
             return was
         }
         guard !already else { return }
@@ -185,12 +190,37 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             let live = state.withLock { !$0.cancelled }
             if live { report(.failed("neural voice: \(error)"), terminal: true) }
         }
-        let done = state.withLock { s -> Bool in
+        // THE LIVENESS STEP. A reply shorter than the lead has queued
+        // everything it will ever queue, and the target will never be
+        // reached. If nothing released it here, the player would never
+        // start, no buffer would ever report played, `finished` would
+        // never fire, and the turn would hang — with the audio sitting
+        // complete and silent in the node.
+        enum After { case finish, release, nothing }
+        let after = state.withLock { s -> After in
             s.phrasesInFlight -= 1
-            return !s.cancelled && s.tokensFinished
-                && s.phrasesInFlight == 0 && s.scheduled == s.played
+            guard !s.cancelled, s.tokensFinished, s.phrasesInFlight == 0
+            else { return .nothing }
+            return s.scheduled == s.played ? .finish : .release
         }
-        if done { report(.finished, terminal: true) }
+        switch after {
+        case .finish: report(.finished, terminal: true)
+        case .release: mouth.async { [self] in releaseLead() }
+        case .nothing: break
+        }
+    }
+
+    /// The reply is complete: whatever is held is all there will ever be.
+    /// Runs on the mouth queue, like every other touch of the player.
+    private func releaseLead() {
+        let start = state.withLock { s -> Bool in
+            guard !s.cancelled else { return false }
+            return s.lead.noMoreAudio()
+        }
+        if start {
+            player.play()
+            report(.started, terminal: false)
+        }
     }
 
     /// One decode step's samples, handed to the player.
@@ -219,16 +249,21 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             player.scheduleBuffer(buffer) { [weak self] in
                 self?.bufferPlayed()
             }
-            // AUDIBLE means scheduled onto a running player, which is the
-            // closest honest moment we have to "sound is in the room"
-            // (D-045 F-2: not when generation started — nothing can be
-            // heard then).
-            let first = state.withLock { s -> Bool in
-                guard !s.cancelled, !s.startedReported else { return false }
-                s.startedReported = true
-                return true
+            // AUDIBLE now means THE PLAYER WAS STARTED, which is a
+            // stricter reading of D-045 F-2 than the one this file
+            // shipped with: scheduling a buffer onto a node that is not
+            // playing puts no sound in the room. `PlaybackLead` owns the
+            // once-only guarantee, so there is no separate flag to keep
+            // honest.
+            let start = state.withLock { s -> Bool in
+                guard !s.cancelled else { return false }
+                return s.lead.queue(.microseconds(
+                    Int((Double(samples.count) / format.sampleRate * 1_000_000).rounded())))
             }
-            if first { report(.started, terminal: false) }
+            if start {
+                player.play()
+                report(.started, terminal: false)
+            }
         }
     }
 
