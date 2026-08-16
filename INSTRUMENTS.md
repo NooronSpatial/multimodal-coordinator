@@ -740,3 +740,22 @@ or digits, any script) now answers first. That liveness test went from a
 lengths are plausible and more consistent than `.stepped`'s, which is
 weak evidence and labelled as such — AC-103's round-trip WER is the
 instrument, and no adoption should precede it.
+
+### Stability, and one measurement thrown away
+
+**20 × full suite: 20 passed, 0 failed** (200 tests, 23 suites), on a
+quiet machine.
+
+An earlier attempt reported 13 of 20 failing and was **discarded as
+invalid, because I caused it**: that loop ran while I was editing
+sources and running a release build against the same `.build`, and the
+check counted a build error as a test failure. It is recorded here
+rather than deleted, because a stability number measured under
+interference is worse than no number — it would have sent the next hour
+hunting a race that did not exist. The rule it earns: a stability loop
+owns the machine, exactly like a timing run.
+
+Note also that the whitespace fix above removed a REAL flake source —
+one whose failure rate depended on when a language model chose to stop.
+That is a different flake from the unexplained one recorded against 4d,
+and claiming otherwise would be tidy rather than true.
