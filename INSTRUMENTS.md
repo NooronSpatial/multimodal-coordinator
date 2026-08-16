@@ -759,3 +759,42 @@ Note also that the whitespace fix above removed a REAL flake source —
 one whose failure rate depended on when a language model chose to stop.
 That is a different flake from the unexplained one recorded against 4d,
 and claiming otherwise would be tidy rather than true.
+
+## 13. The listening test (AC-103, the opinion half) — a wash, and why that is useful
+
+Blind A/B, `.stepped` vs `.fused`, seeded order (20260816), Apple played
+first each round as an unblinded reference. One listener (Ryad), three
+rounds, on his own machine and speakers.
+
+| round | clip A was | clip B was | preferred |
+|---|---|---|---|
+| 1 — "How is the weather today?" | stepped | fused | **fused** |
+| 2 — "I can hear you. Say that again…" | stepped | fused | **no difference heard** |
+| 3 — the long technical sentence | fused | stepped | **stepped** |
+
+**fused 1 · stepped 1 · no difference 1.**
+
+**This is an OPINION from one listener over three rounds, and it is
+recorded as one.** It is not evidence that either decoder sounds better.
+
+**What it does establish, and it is the thing that mattered:** `.fused`
+is not audibly broken. It moves sampling inside the CoreML graph, so its
+draws differ from `.stepped`'s, and the real risk was a garbled or
+swallowed word rather than a different voice. A broken decoder loses
+3–0 to a working one. This one drew.
+
+**The limit of the design, stated because it is not obvious.** §11
+recorded this voice producing 8240 ms of audio for a sentence in one run
+and 6480 ms in the next — **the model is non-deterministic in length**,
+and the seed did not fix it (only greedy sampling did, and greedy was
+measurably slower). So each clip in this test is ONE DRAW. A listener
+comparing one draw against one draw is comparing draws at least as much
+as decoders. To hear a real preference you would need several draws per
+decoder per sentence, randomised — which is a bigger test than the
+question currently justifies.
+
+**The instrument that can settle it is the other half of AC-103**:
+round-trip WER (speak → record → transcribe → compare against the source
+text), which is a number, survives non-determinism by averaging, and
+measures the thing that actually matters in a conversation —
+intelligibility, not taste.
