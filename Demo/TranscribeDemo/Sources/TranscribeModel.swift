@@ -152,8 +152,34 @@ final class TranscribeModel {
     /// the reply leaks 0.0044–0.0094 on the receiver, so one run cleared
     /// 0.010 by six per cent. At 0.020 the leak has 2–4x headroom below
     /// and speech (0.05–0.26) has 2.5x above.
-    var vadThreshold: Float = 0.02 {
-        didSet { if isListening { restart() } }
+    /// **AND IT NOW SURVIVES A RELAUNCH** (Ryad's request, field
+    /// session 2026-08-16). A gate is the number a field run is ABOUT,
+    /// and re-typing it after every build is how a run gets done at the
+    /// wrong value and believed anyway. Persisted so the device keeps
+    /// what it earned.
+    ///
+    /// The default below is still 0.020 — the number D-042 earned on
+    /// the receiver route. The field then measured a noise floor of
+    /// 0.022–0.040 on this phone with the speaker on, so 0.020 silenced
+    /// the app entirely (INSTRUMENTS §16). The stored value is what the
+    /// device actually uses; the default is only what a fresh install
+    /// starts from.
+    var vadThreshold: Float = TranscribeModel.storedGate {
+        didSet {
+            UserDefaults.standard.set(vadThreshold, forKey: Self.gateKey)
+            if isListening { restart() }
+        }
+    }
+
+    private static let gateKey = "dev.nooron.demo.vadThreshold"
+    private static var storedGate: Float {
+        // `object(forKey:)` rather than `float(forKey:)`: the latter
+        // returns 0 for "never set", and a gate of ZERO would open an
+        // utterance on silence — a stored-default bug that looks exactly
+        // like a broken VAD.
+        guard let stored = UserDefaults.standard.object(forKey: gateKey) as? Float
+        else { return 0.02 }
+        return stored
     }
 
     /// The echo probe's results (AC-96): what the microphone delivers in

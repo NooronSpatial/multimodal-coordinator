@@ -104,6 +104,32 @@ public final class MicrophoneSource: AudioSource {
             try input.setVoiceProcessingEnabled(true)
             voiceProcessingActive = input.isVoiceProcessingEnabled
         }
+        // THE OUTPUT CHAIN IS BUILT BEFORE THE FORMAT IS READ, and the
+        // position of these two lines is the whole fix — twice over.
+        //
+        // Reading `mainMixerNode` is not a query: it CREATES the mixer
+        // and wires it to the output node. Until it existed at all, the
+        // first REPLY did that, building the output half of a live
+        // voice-processing unit while it rendered, and the phone logged
+        //     throwing -1 from AU (…): auou/vpio/appl, render err: -1
+        // over and over while the app sat in "thinking".
+        //
+        // Then it was added — below the tap — and the phone went
+        // completely DEAF. Same reason, one step later: changing the
+        // graph's shape renegotiates the I/O unit, and the tap had
+        // already been installed with a format the hardware no longer
+        // used. Both symptoms are one rule, learned from both sides:
+        //
+        //     build the whole graph FIRST, read formats SECOND,
+        //     install the tap THIRD, start LAST.
+        //
+        // Gated on `hostsPlayback` because a listen-only pipeline must
+        // not grow an output chain it never uses — that would change
+        // what every earlier measurement in this project was measuring.
+        if hostsPlayback {
+            _ = engine.mainMixerNode
+        }
+
         let format = input.inputFormat(forBus: 0)
         sampleRate = format.sampleRate
 
@@ -114,30 +140,6 @@ public final class MicrophoneSource: AudioSource {
             producer.write(UnsafeBufferPointer(start: channels[0], count: frames))
         }
 
-        // THE OUTPUT CHAIN IS BUILT BEFORE THE ENGINE STARTS, and this
-        // one line is a field fix. Ryad's iPhone logged, over and over:
-        //
-        //     throwing -1 from AU (…): auou/vpio/appl, render err: -1
-        //
-        // Reading `mainMixerNode` is not a query — it CREATES the mixer
-        // and wires it to the output node. Until this line existed, the
-        // first reply did that, which meant building the entire output
-        // half of a LIVE voice-processing unit while it was rendering.
-        // VPIO refuses, every render cycle, and the reply is never
-        // heard: the app sits in "thinking" forever.
-        //
-        // Done here, the chain is negotiated with the hardware at start
-        // time like every other format, and a reply later only adds an
-        // input bus to an existing mixer — an ordinary operation.
-        //
-        // This is the asymmetry AC-108 could not test: the plain host
-        // obeys "attach, connect, THEN start" because it owns its
-        // engine, and this one structurally cannot, because capture is
-        // already running by the time a reply exists. The answer is to
-        // move the part that must come first into `start`.
-        if hostsPlayback {
-            _ = engine.mainMixerNode
-        }
         engine.prepare()
         try engine.start()
         isRunning = true
