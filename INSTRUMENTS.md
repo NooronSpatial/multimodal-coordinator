@@ -508,3 +508,95 @@ neither          → the microphone never heard the voice
 
 Three different bugs, one glance — and AC-92 becomes a number instead of
 an impression.
+
+## 10. The second mouth's gates (AC-102) — and two corrections to get there
+
+**The question the ruling needs answered** (D-045): can the Qwen3 neural
+voice speak inside a conversation, where the felt pause is already
+~743 ms? Three gates: time to first audio, stop latency, thermal.
+
+**Setup.** M-series Mac, **release build**, `swift run -c release bakeoff
+voice-spike`. Qwen3-TTS 0.6B, 24 kHz, decoded by TTSKit and rendered by
+this project's own `AVAudioPlayerNode` (D-045 F-1 = B). Warm-up utterance
+excluded — the first load compiles CoreML graphs. Both mouths driven
+through the SAME `SpeechSynthesizing` seam, so the numbers are comparable
+by construction rather than by argument.
+
+### Gate 1 — time to first audio
+
+| sentence | mouth | first audio | total |
+|---|---|---|---|
+| How is the weather today? | neural | **218 ms** | 6347 ms |
+| How is the weather today? | Apple | **66 ms** | 1777 ms |
+| The audio travels through a ring b… | neural | **226 ms** | 9216 ms |
+| The audio travels through a ring b… | Apple | **8 ms** | 4598 ms |
+| Should I take a jacket? | neural | **238 ms** | 2987 ms |
+| Should I take a jacket? | Apple | **8 ms** | 1558 ms |
+
+**first-audio mean — neural 227 ms · Apple 28 ms · ratio 8.3×.**
+
+227 ms is a real cost against Apple's 28 ms, but it is not a
+disqualification: it adds ~200 ms to a pause already near 750 ms.
+
+### Gate 1b — the margin, which is the actual problem
+
+A streaming voice must decode audio at least as fast as the ear drinks
+it. The real-time factor is decode wall time ÷ audio produced.
+
+```
+MARGIN · 5760 ms audio decoded in 6258 ms wall · RTF 1.09
+MARGIN · 8240 ms audio decoded in 9129 ms wall · RTF 1.11
+MARGIN · 2400 ms audio decoded in 2889 ms wall · RTF 1.20
+```
+
+**RTF 1.09–1.23 — above 1.0 on a Mac.** The voice decodes SLOWER than it
+plays, so the player runs dry. The arithmetic says so without needing an
+ear: for the long sentence, gapless playback would end at first-audio +
+audio = 226 + 8240 = **8466 ms**. It ended at **9216 ms**, which is
+decode wall time (9129) plus one buffer. Playback is gated by decode —
+every ~80 ms buffer arrives ~10–18 ms late, from the first one, because
+this integration starts playing with ZERO lead.
+
+This is precisely the cost D-045 F-1 accepted when it chose to render the
+audio itself: *"pre-buffering and resampling become ours to get wrong."*
+It is ours, and this is it. iPhone is not measured yet and will be worse.
+
+### An anomaly, recorded rather than explained
+
+"How is the weather today?" produced **5760 ms of audio** — Apple speaks
+the same five words in 1777 ms. Two other sentences look normal. Whether
+this is trailing silence or the model rambling, this spike cannot say;
+AC-103's round-trip WER is the instrument that will. Recorded here so it
+is not discovered later as a surprise.
+
+### Not measured, and not claimed
+
+**Stop latency** (barge → the room actually quiet) and **thermal**. The
+seam reports its own bookkeeping instantly; proving SILENCE needs the
+microphone probe on the device. Both remain open against AC-102.
+
+### Two corrections, kept because the record is the point
+
+**1. A debug build.** The first run reported neural first-audio of
+**6066 ms** — a 217× ratio that would have condemned the voice on the
+spot. It was a debug build, which TTSKit's own docs name as a slow case.
+Caught before it was written down; the number above is release.
+
+**2. The harness was the slow part.** The first release run still said
+**4910 ms**, and it was wrong for a worse reason. `measure()` fed the
+whole sentence, closed it, and only THEN read the update stream:
+
+```swift
+await run.feed(text)                     // neural: does not return until decode ends
+await run.finishTokens()
+for await update in run.updates { … }    // .started stamped when READ, not when SENT
+```
+
+Apple's `feed` hands off and returns at once, so only the neural side
+paid. The tell was sitting in the table — **neural first-audio within
+~100 ms of neural total, on every row** — which is the signature of a
+number taken at the end. A per-step trace settled it: audio steps arrive
+every ~80 ms from the start, not after 5 seconds. The reader now parks on
+the stream first and the feeding moves to a child task, gated on a fact
+rather than a sleep. **The corrected number is 21× smaller than the one
+this file nearly recorded.**

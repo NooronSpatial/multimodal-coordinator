@@ -46,6 +46,36 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var cancelled = false
     }
     private let state = Mutex(Guarded())
+    /// Step tracing, opt-in through the environment so it costs nothing
+    /// when nobody is asking.
+    static let traceSteps = ProcessInfo.processInfo.environment["MMK_TRACE_TTS"] == "1"
+    private let stepClock = Mutex<ContinuousClock.Instant?>(nil)
+    private let birth = ContinuousClock().now
+    private struct Totals { var samples = 0 }
+    private let stepTotals = Mutex(Totals())
+
+    /// THE MARGIN QUESTION (AC-102). A streaming voice must decode audio
+    /// at least as fast as the ear drinks it. The real-time factor is
+    /// decode wall time divided by audio produced: below 1.0 the voice
+    /// runs ahead of the speaker, at 1.0 it is exactly keeping up —
+    /// which on a slower machine means silence gaps mid-sentence.
+    ///
+    /// It reports itself on stderr rather than through a return value,
+    /// and that is deliberate: this type is internal, and widening a
+    /// library's public surface to let a measuring tool peek in is a
+    /// worse trade than a printed line.
+    private func reportMargin() {
+        guard NeuralVoiceRun.traceSteps else { return }
+        let samples = stepTotals.withLock { $0.samples }
+        guard samples > 0, let last = stepClock.withLock({ $0 }) else { return }
+        let elapsed = birth.duration(to: last)
+        let wall = Double(elapsed.components.seconds) * 1000
+            + Double(elapsed.components.attoseconds) * 1e-15
+        let audio = Double(samples) / format.sampleRate * 1000
+        FileHandle.standardError.write(Data(String(
+            format: "   MARGIN · %.0f ms audio decoded in %.0f ms wall · RTF %.2f\n",
+            audio, wall, wall / audio).utf8))
+    }
 
     init(kit: TTSKit, engine: AVAudioEngine, sampleRate: Double) throws {
         self.kit = kit
@@ -131,6 +161,23 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
                 // stops it at the next step. The ticket upstream is still
                 // the guarantee; this only saves the compute.
                 guard self.state.withLock({ !$0.cancelled }) else { return false }
+                // DIAGNOSTIC (AC-102): is a slow first sound the MODEL's
+                // prefill or OUR integration? A step trace separates
+                // them — many fast steps means the model streams and we
+                // are holding it up somewhere; one long wait then a
+                // flood means the wait is prefill.
+                if NeuralVoiceRun.traceSteps {
+                    let now = ContinuousClock().now
+                    let since = self.stepClock.withLock { last -> Duration in
+                        let d = (last ?? self.birth).duration(to: now)
+                        last = now
+                        return d
+                    }
+                    let ms = Double(since.components.seconds) * 1000
+                        + Double(since.components.attoseconds) * 1e-15
+                    _ = ms
+                    self.stepTotals.withLock { $0.samples += progress.audio.count }
+                }
                 self.render(progress.audio)
                 return true
             }
@@ -195,6 +242,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     }
 
     private func report(_ update: SynthesisUpdate, terminal: Bool) {
+        if terminal { reportMargin() }
         out.yield(update)
         if terminal { out.finish() }
     }

@@ -16,6 +16,103 @@ setbuf(stdout, nil)
 
 let arguments = CommandLine.arguments
 
+// `swift run bakeoff voice-spike` — AC-102's gates, measured before any
+// adoption ruling (D-045, the D-023 discipline). Two mouths, the same
+// sentences, at the SEAM both implement, so the numbers are comparable
+// by construction rather than by argument.
+if arguments.count > 1, arguments[1] == "voice-spike" {
+    let sentences = [
+        "How is the weather today?",
+        "The audio travels through a ring buffer into a pump that cuts it into small chunks.",
+        "Should I take a jacket?",
+    ]
+
+    /// Drives one reply through a mouth and times the two moments that
+    /// matter: when sound STARTS, and when the room goes quiet.
+    func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
+        -> (firstAudio: Double, total: Double)
+    {
+        let run = try await mouth.openUtterance()
+        let clock = ContinuousClock()
+        let t0 = clock.now
+        var firstAudio: Duration?
+
+        // THE READER RUNS FIRST, AND THAT IS A CORRECTION.
+        //
+        // The first version of this function fed the whole sentence,
+        // closed it, and only THEN read the update stream. That is fair
+        // to Apple, whose `feed` hands the text to the framework and
+        // returns at once — and deeply unfair to the neural mouth, whose
+        // `feed` does not return until the decode is finished. Its
+        // `.started` was sent on time and sat buffered in the stream;
+        // this function stamped it when it finally READ it. The result
+        // was a first-audio number that was really a total, and a 202x
+        // ratio that measured a mistake.
+        //
+        // The tell was in the table: neural first-audio within ~100 ms
+        // of neural total, on every single row. A step trace settled it
+        // — audio steps arrive every ~80 ms from the start.
+        //
+        // So: this task parks on the stream, and the FEEDING moves to a
+        // child. The gate below is why there is no sleep here — the
+        // feeder waits for a fact, not for a guess (the determinism rule).
+        let gate = AsyncStream<Void>.makeStream()
+        let feeder = Task {
+            for await _ in gate.stream { break }
+            await run.feed(text)
+            await run.finishTokens()
+        }
+        gate.continuation.finish()      // opens the gate: the feeder may go
+        for await update in run.updates {
+            switch update {
+            case .started: if firstAudio == nil { firstAudio = t0.duration(to: clock.now) }
+            case .failed(let why): print("   ⚠️  \(why)")
+            case .finished: break
+            }
+        }
+        let total = t0.duration(to: clock.now)
+        await feeder.value
+        func ms(_ d: Duration) -> Double {
+            Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
+        }
+        return (firstAudio.map(ms) ?? -1, ms(total))
+    }
+
+    let voice = NeuralVoice()
+    guard await voice.modelInstalled() else {
+        print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
+        exit(1)
+    }
+
+    print("\n🎚  VOICE SPIKE (AC-102) — the numbers the adoption ruling needs")
+    print("    warm-up excluded, same rule as BAKEOFF.md: the first load compiles graphs")
+    _ = try? await measure(voice, "Warming up the neural pipeline.")   // excluded
+
+    print("\n| sentence | mouth | first audio | total | ")
+    print("|---|---|---|---|")
+    var neuralFirst: [Double] = []
+    var appleFirst: [Double] = []
+    for text in sentences {
+        let short = text.count > 34 ? String(text.prefix(34)) + "…" : text
+        if let n = try? await measure(voice, text) {
+            neuralFirst.append(n.firstAudio)
+            print(String(format: "| %@ | neural | **%.0f ms** | %.0f ms |", short, n.firstAudio, n.total))
+        }
+        if let a = try? await measure(AppleSpeechSynthesizer(), text) {
+            appleFirst.append(a.firstAudio)
+            print(String(format: "| %@ | Apple | **%.0f ms** | %.0f ms |", short, a.firstAudio, a.total))
+        }
+    }
+    func mean(_ xs: [Double]) -> Double { xs.isEmpty ? 0 : xs.reduce(0, +) / Double(xs.count) }
+    print(String(format: "\nfirst-audio mean — neural %.0f ms · Apple %.0f ms · ratio %.1fx",
+                 mean(neuralFirst), mean(appleFirst),
+                 mean(appleFirst) > 0 ? mean(neuralFirst) / mean(appleFirst) : 0))
+    print("\nNOT measured here, and not claimed: STOP latency (request → the room")
+    print("actually quiet). The seam reports its own bookkeeping instantly; proving")
+    print("silence needs the microphone probe, on the device. Thermal likewise.")
+    exit(0)
+}
+
 // `swift run bakeoff voice-install` — fetch the neural voice's model.
 // It lives here rather than in a throwaway script because this is where
 // the VOICE bake-off will run (AC-103), and the same tool should be able
