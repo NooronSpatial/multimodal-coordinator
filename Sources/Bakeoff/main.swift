@@ -11,6 +11,7 @@ import MultiModalKit
 import MultiModalKitTesting
 import MultiModalKitTTS
 import TTSKit
+import Synchronization
 import MultiModalKitWhisper
 
 setbuf(stdout, nil)
@@ -137,119 +138,248 @@ struct SeededRNG: RandomNumberGenerator {
     }
 }
 
-// `swift run bakeoff voice-listen` — AC-103's SUBJECTIVE half, run
-// honestly. D-045 and AC-103 both say the same thing: anything
-// subjective is reported as opinion and labelled as such, never dressed
-// as data. This is the instrument for collecting that opinion without
-// poisoning it.
+/// CAPTURING WHAT THE MOUTH ACTUALLY SAYS (AC-103, the objective half).
+///
+/// A tap on the engine's mixer, which is deliberately the LAST point
+/// before the speaker: it catches the audio including our own rendering,
+/// resampling and buffering, which is what a listener would really hear.
+/// Capturing the model's raw 24 kHz PCM instead would flatter us by
+/// measuring the decoder rather than the pipeline.
+///
+/// `@unchecked Sendable` with the usual proof: one `Mutex` owns every
+/// mutable byte, the tap closure only appends under it, and nothing
+/// suspends while it is held.
+final class MixerCapture: @unchecked Sendable {
+    private let collected = Mutex<(samples: [Float], rate: Double)>(([], 0))
+    private let engine: AVAudioEngine
+
+    /// THE ENGINE IS NOT STARTED HERE, and that is the whole lesson of
+    /// this type. The first version called `prepare()` and `start()` in
+    /// this initialiser, before any player node existed. An engine
+    /// started with no source node never pulls, so the player attached
+    /// afterwards never rendered — and because the buffers are now
+    /// scheduled with `.dataPlayedBack`, their completions correctly
+    /// never fired and the whole tool hung at 0% CPU.
+    ///
+    /// The old `.dataConsumed` callback would have reported those
+    /// buffers "done" and produced a table of silence. The hang was the
+    /// honest failure of a more honest callback.
+    ///
+    /// So: `NeuralVoiceRun` starts the engine, with its player already
+    /// attached, and the tap goes on afterwards.
+    init(engine: AVAudioEngine) {
+        self.engine = engine
+    }
+
+    /// The capture's true rate, learned from the first buffer rather
+    /// than asked of a node that may not be configured yet.
+    var sampleRate: Double { collected.withLock { $0.rate } }
+
+    func record() {
+        collected.withLock { $0 = ([], 0) }
+        // `self`, not the Mutex: a Mutex is non-copyable, so a capture
+        // list would try to consume it out of the object that owns it.
+        engine.mainMixerNode.installTap(onBus: 0, bufferSize: 4096, format: nil) {
+            [self] buffer, _ in
+            guard let channel = buffer.floatChannelData else { return }
+            let frames = Int(buffer.frameLength)
+            // Channel 0 only: the source is mono, so the mixer's second
+            // channel is a copy and averaging would buy nothing.
+            let slice = Array(UnsafeBufferPointer(start: channel[0], count: frames))
+            collected.withLock {
+                $0.samples.append(contentsOf: slice)
+                $0.rate = buffer.format.sampleRate
+            }
+        }
+    }
+
+    func stop() -> [Float] {
+        engine.mainMixerNode.removeTap(onBus: 0)
+        return collected.withLock { $0.samples }
+    }
+}
+
+/// Apple's mouth does NOT render through our engine, so the tap cannot
+/// see it. `write` is the framework's own offline path — same synthesis,
+/// no speaker. Stated as a caveat wherever its numbers appear: it is not
+/// the identical code path we ship, though it is the identical voice.
+func captureApple(_ text: String) async -> (samples: [Float], sampleRate: Double)? {
+    let synthesizer = AVSpeechSynthesizer()
+    let utterance = AVSpeechUtterance(string: text)
+    // One lock over everything mutable, `resumed` included: the callback
+    // arrives on the framework's thread, and a plain `var` flag read and
+    // written from there is a race that would eventually resume a
+    // continuation twice — which traps.
+    let box = Mutex<(samples: [Float], rate: Double, resumed: Bool)>(([], 0, false))
+
+    let result: (samples: [Float], sampleRate: Double)? = await withCheckedContinuation {
+        continuation in
+        synthesizer.write(utterance) { buffer in
+            // `synthesizer` is touched HERE ON PURPOSE. Nothing else
+            // retains it once this function's frame is gone, and a
+            // deallocated synthesizer simply never calls back — the
+            // continuation then waits forever. That is precisely how
+            // this tool hung the first time it ran, at 0% CPU on
+            // sentence 1, and `withExtendedLifetime` below is the belt
+            // to this closure's braces.
+            _ = synthesizer
+            guard let pcm = buffer as? AVAudioPCMBuffer else { return }
+            if pcm.frameLength == 0 {
+                let finished: (samples: [Float], sampleRate: Double)?? = box.withLock {
+                    guard !$0.resumed else { return .none }
+                    $0.resumed = true
+                    return .some($0.samples.isEmpty ? nil : ($0.samples, $0.rate))
+                }
+                if let finished { continuation.resume(returning: finished) }
+                return
+            }
+            guard let channel = pcm.floatChannelData else { return }
+            let slice = Array(UnsafeBufferPointer(start: channel[0],
+                                                  count: Int(pcm.frameLength)))
+            box.withLock {
+                $0.samples.append(contentsOf: slice)
+                $0.rate = pcm.format.sampleRate
+            }
+        }
+    }
+    withExtendedLifetime(synthesizer) {}
+    return result
+}
+
+// `swift run bakeoff voice-wer` — AC-103's OBJECTIVE half, and the
+// instrument the fused/stepped question actually needs.
 //
-// THE COMPARISON IS `.stepped` vs `.fused`, BLIND. Same model, same
-// voice, same text, same lead — only the decoder differs, which is the
-// one thing a listener cannot guess from the sound of the words. Apple
-// plays first as a REFERENCE and is deliberately NOT blinded: its voice
-// is recognisable in three syllables, so pretending otherwise would be
-// theatre rather than blinding.
+// speak → capture → transcribe → WER against the text we asked for.
+// Intelligibility as a NUMBER, using the two transcription engines this
+// repo already owns, which is the whole point: a pipeline that can
+// listen can grade its own mouth.
 //
-// Both neural clips get the SAME 800 ms lead. `.fused` does not need it
-// (AC-106: it decodes ahead of the ear) but `.stepped` does, and a test
-// where one candidate stutters because of OUR buffering would measure
-// the buffer, not the voice.
-if arguments.count > 1, arguments[1] == "voice-listen" {
+// WHY SEVERAL DRAWS PER SENTENCE. §11 and §13 both recorded it: this
+// model is non-deterministic in LENGTH — 8240 ms of audio for a sentence
+// one run, 6480 ms the next — and the seed did not fix it. One draw per
+// mouth would compare draws, not mouths. Averaging over draws is what
+// makes the comparison about the decoder.
+if arguments.count > 1, arguments[1] == "voice-wer" {
     let sentences = [
         "How is the weather today?",
         "I can hear you. Say that again and I will stop talking.",
         "The audio travels through a ring buffer into a pump that cuts it into small chunks.",
     ]
-    let seed: UInt64 = 20260816
+    let draws = 3
     let lead = Duration.milliseconds(800)
 
-    let apple = AppleSpeechSynthesizer()
-    let stepped = NeuralVoice(lead: lead, multiCodeDecoderMode: .stepped, seed: seed)
-    let fused = NeuralVoice(lead: lead, multiCodeDecoderMode: .fused, seed: seed)
+    // ONE ENGINE PER VOICE, and that is a correction. Sharing a single
+    // engine put every fused utterance immediately after a stepped
+    // teardown detaching a node from the same graph — and the three
+    // empty captures in the first run were all fused, all following a
+    // stepped draw. Whether or not that race is the cause, a measurement
+    // cannot be allowed to depend on it.
+    let steppedEngine = AVAudioEngine()
+    let fusedEngine = AVAudioEngine()
+    let steppedCapture = MixerCapture(engine: steppedEngine)
+    let fusedCapture = MixerCapture(engine: fusedEngine)
 
+    let stepped = NeuralVoice(renderingOn: steppedEngine, lead: lead,
+                              multiCodeDecoderMode: .stepped)
+    let fused = NeuralVoice(renderingOn: fusedEngine, lead: lead,
+                            multiCodeDecoderMode: .fused)
     guard await stepped.modelInstalled() else {
         print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
         exit(1)
     }
 
-    print("\n🎧  LISTENING TEST (AC-103, the opinion half)")
-    print("    Two neural decoders, blind, labelled A and B.")
-    print("    Apple plays first each round as a reference — not blinded,")
-    print("    because that voice gives itself away in three syllables.")
-    print("\n    Loading both decoders (this takes a moment)…")
-    do {
-        try await stepped.ensureModel()
-        try await fused.ensureModel()
-    } catch {
-        print("⚠️  load failed: \(error)")
+    let whisper = WhisperEngine()
+    guard await whisper.modelInstalled() else {
+        print("whisper's model is not installed — the grader is missing, so nothing is graded")
         exit(1)
     }
-    // Warm-ups, excluded and unheard-of-purpose: the first decode after a
-    // load compiles graphs, and a first clip that stumbles would bias the
-    // whole round against whichever mouth drew it.
+
+    print("\n📝  ROUND-TRIP WER (AC-103, the objective half)")
+    print("    speak → capture at the mixer → transcribe → WER")
+    print("    \(draws) draws per neural mouth per sentence, because the voice")
+    print("    is non-deterministic in length (INSTRUMENTS §11, §13).\n")
+
+    print("    loading…")
+    do { try await stepped.ensureModel(); try await fused.ensureModel() }
+    catch { print("load failed: \(error)"); exit(1) }
     _ = try? await measure(stepped, "Warming up.")
     _ = try? await measure(fused, "Warming up.")
+    _ = try? await BakeoffHarness.measure(engine: whisper, label: "warmup",
+                                          samples: [Float](repeating: 0, count: 16000),
+                                          sampleRate: 16000, reference: "warm up")
 
-    func ask(_ prompt: String) -> String? {
-        print(prompt, terminator: " ")
-        guard let line = readLine() else { return nil }
-        return line.trimmingCharacters(in: .whitespaces).uppercased()
+    struct Row { let mouth: String; let sentence: Int; let draw: Int
+                 let wer: Double; let heard: String }
+    var rows: [Row] = []
+
+    func grade(_ mouth: String, _ sentenceIndex: Int, _ draw: Int,
+               _ samples: [Float], _ rate: Double, _ reference: String) async {
+        // WHAT WAS ACTUALLY CAPTURED. An empty transcript can mean the
+        // voice was unintelligible or that the tap caught nothing, and
+        // those two lead to opposite conclusions. Length and peak
+        // amplitude separate them on sight, so they are always printed.
+        let peak = samples.map { abs($0) }.max() ?? 0
+        let seconds = rate > 0 ? Double(samples.count) / rate : 0
+        guard !samples.isEmpty, peak > 0.001 else {
+            print(String(format: "      %@: captured %.2f s, peak %.4f — SILENT, not graded",
+                         mouth, seconds, peak))
+            return
+        }
+        do {
+            let m = try await BakeoffHarness.measure(
+                engine: whisper, label: mouth,
+                samples: samples, sampleRate: rate, reference: reference)
+            rows.append(Row(mouth: mouth, sentence: sentenceIndex, draw: draw,
+                            wer: m.score.wer, heard: m.text))
+            print(String(format: "      %-8@ draw %d — WER %.3f — %.2f s, peak %.3f — \"%@\"",
+                         mouth as NSString, draw, m.score.wer, seconds, peak,
+                         m.text as NSString))
+        } catch {
+            print("      \(mouth): transcription failed — \(error)")
+        }
     }
-
-    var rng = SeededRNG(seed: seed)
-    var rounds: [(text: String, aWasFused: Bool, choice: String)] = []
 
     for (index, text) in sentences.enumerated() {
-        let aIsFused = Bool.random(using: &rng)
-        print("\n────────────────────────────────────────────────")
-        print("ROUND \(index + 1) of \(sentences.count): \"\(text)\"")
+        print("\n  sentence \(index + 1): \"\(text)\"")
 
-        var choice: String? = nil
-        while choice == nil {
-            print("\n  ▶ reference (Apple)…")
-            _ = try? await measure(apple, text)
-            print("  ▶ clip A…")
-            _ = try? await measure(aIsFused ? fused : stepped, text)
-            print("  ▶ clip B…")
-            _ = try? await measure(aIsFused ? stepped : fused, text)
-
-            guard let answer = ask("\n  Which neural clip sounded better? [A / B / S same / R replay / Q quit]")
-            else {
-                print("\n(no input — nothing recorded)")
-                exit(0)
-            }
-            switch answer {
-            case "A", "B", "S": choice = answer
-            case "Q": print("\nstopped early — \(rounds.count) round(s) recorded"); choice = "Q"
-            case "R": print("  replaying…")
-            default: print("  please answer A, B, S, R or Q")
-            }
+        // Apple's mouth, once: it is deterministic, so extra draws would
+        // measure nothing. Captured through `write` rather than the tap,
+        // because it does not render through our engine — same voice,
+        // not the identical code path we ship.
+        if let appleAudio = await captureApple(text) {
+            await grade("apple", index, 1, appleAudio.samples, appleAudio.sampleRate, text)
+        } else {
+            print("      apple: write produced nothing — not graded")
         }
-        if choice == "Q" { break }
-        rounds.append((text, aIsFused, choice!))
+
+        for draw in 1...draws {
+            steppedCapture.record()
+            _ = try? await measure(stepped, text)
+            let steppedAudio = steppedCapture.stop()
+            await grade("stepped", index, draw, steppedAudio,
+                        steppedCapture.sampleRate, text)
+
+            fusedCapture.record()
+            _ = try? await measure(fused, text)
+            let fusedAudio = fusedCapture.stop()
+            await grade("fused", index, draw, fusedAudio,
+                        fusedCapture.sampleRate, text)
+        }
     }
 
-    // THE REVEAL, only now.
     print("\n════════════════════════════════════════════════")
-    print("REVEAL (seed \(seed) — re-runnable, same order)\n")
-    print("| round | clip A was | clip B was | preferred |")
+    print("| mouth | draws graded | mean WER | worst |")
     print("|---|---|---|---|")
-    var fusedWins = 0, steppedWins = 0, ties = 0
-    for (i, r) in rounds.enumerated() {
-        let aName = r.aWasFused ? "fused" : "stepped"
-        let bName = r.aWasFused ? "stepped" : "fused"
-        let picked: String
-        switch r.choice {
-        case "A": picked = aName; if r.aWasFused { fusedWins += 1 } else { steppedWins += 1 }
-        case "B": picked = bName; if r.aWasFused { steppedWins += 1 } else { fusedWins += 1 }
-        default:  picked = "no difference heard"; ties += 1
-        }
-        print("| \(i + 1) | \(aName) | \(bName) | **\(picked)** |")
+    for mouth in ["apple", "stepped", "fused"] {
+        let mine = rows.filter { $0.mouth == mouth }
+        guard !mine.isEmpty else { print("| \(mouth) | 0 | — | — |"); continue }
+        let mean = mine.map(\.wer).reduce(0, +) / Double(mine.count)
+        let worst = mine.map(\.wer).max() ?? 0
+        print(String(format: "| %@ | %d | **%.3f** | %.3f |",
+                     mouth, mine.count, mean, worst))
     }
-    print("\nfused \(fusedWins) · stepped \(steppedWins) · no difference \(ties)")
-    print("\nThis is an OPINION from one listener over \(rounds.count) round(s),")
-    print("and it is recorded as one. It does not measure intelligibility —")
-    print("that is the round-trip WER half of AC-103, and it is a number.")
+    print("\n0.000 is perfect. WER can exceed 1.0 when the voice rambles")
+    print("and the transcriber hears words that were never asked for.")
     exit(0)
 }
 

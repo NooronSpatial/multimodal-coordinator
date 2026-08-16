@@ -798,3 +798,94 @@ round-trip WER (speak → record → transcribe → compare against the source
 text), which is a number, survives non-determinism by averaging, and
 measures the thing that actually matters in a conversation —
 intelligibility, not taste.
+
+## 14. Round-trip WER (AC-103, the objective half) — and why one run would have lied
+
+speak → capture at the mixer → transcribe with Whisper → WER against the
+text we asked for. Intelligibility as a NUMBER, graded by an engine this
+repo already owns: a pipeline that can listen can grade its own mouth.
+
+The capture is taken at the engine's mixer — the last point before the
+speaker — so it includes our own rendering, resampling and buffering.
+Capturing the model's raw 24 kHz PCM instead would have flattered us by
+measuring the decoder rather than the pipeline.
+
+Three sentences, **3 draws per neural mouth per sentence** because this
+voice is non-deterministic in length (§11, §13), and one draw for Apple
+because it is not.
+
+### The result, from TWO runs
+
+| | stepped | fused |
+|---|---|---|
+| run A (9 draws each) | 0.122 | **0.000** |
+| run B (9 draws each) | **0.044** | 0.148 |
+| **combined, 18 draws each** | **0.083** | **0.074** |
+
+Apple: **0.000** across all draws.
+
+**The two decoders are indistinguishable.** Between-RUN variance is
+larger than the difference between them, which is the only honest
+reading of a 0.122/0.000 result followed by a 0.044/0.148 one.
+
+**This is the finding, and it is about method rather than about TTS.**
+Run A alone says fused is flawless and stepped is flawed. Run B alone
+says the reverse. Either, written up on its own, would have been a clean
+convincing table supporting a conclusion that the next run destroys. The
+replication cost five minutes. It was the difference between a number
+and an opinion wearing a number's clothes.
+
+It also agrees with §13's listening test, which was a wash. Two
+independent instruments, one subjective and one objective, both say
+there is no quality difference to find here.
+
+### A discarded run, and the bug it was measuring
+
+An earlier run reported **fused 0.384 against stepped 0.058** — a
+6× difference that looked decisive. It was mine. Three of nine fused
+draws transcribed to the empty string, and all three followed a stepped
+draw, because both voices shared ONE `AVAudioEngine` and each reply's
+teardown detaches its player node from that graph. The measurement was
+of my race, not of a decoder.
+
+Two things came out of it, and they are the reason it is recorded rather
+than deleted:
+
+- **The tool now prints what it captured** — duration and peak amplitude
+  — beside every WER. An empty transcript can mean an unintelligible
+  voice or an empty capture, and those lead to opposite conclusions.
+  With peaks now all in 0.19–0.59, "the capture was fine" is evidence
+  rather than an assumption.
+- **A real leak in the library**: `NeuralVoiceRun` attached a player node
+  per reply and never detached one. A long conversation grew its audio
+  graph without bound, and an engine handed in by a caller collected
+  dead nodes for the life of the app.
+
+### One more library correction this work forced
+
+Buffers were scheduled with the legacy completion, which reports when the
+player has **consumed** data — up to a buffer before any of it reaches
+the room — and that count is what decides `.finished`, whose meaning
+under D-029 is "the room is quiet". Now `.dataPlayedBack`.
+
+The switch immediately hung this tool at 0% CPU, which was the callback
+being *correct*: the tool had started the engine before any player node
+existed, an engine with no source never pulls, so the node attached
+afterwards never rendered and its buffers were never played. The old
+callback would have reported them done and produced a table of silence.
+**The hang was the honest failure of a more honest callback.**
+
+### What the numbers do NOT settle
+
+- **The voice emits non-speech.** Whisper heard `*crying*`,
+  `(laughing)`, `"Ha,"` and `"Uh uh, uh,"` in draws from BOTH decoders.
+  That is a property of the model, not of a decoder, and for a
+  conversational assistant it is a real hazard. Unmeasured beyond
+  "it happens", and owed a decision.
+- **Speaking rate.** The neural voice takes 6.6–15.9 s for a sentence
+  Apple speaks in 4.29 s — roughly 2× slower, on both decoders.
+- **One grader.** Whisper only; the Apple transcription engine was not
+  used as a second opinion.
+- **Apple's capture is not our shipping path.** `AVSpeechSynthesizer`
+  does not render through our engine, so its audio comes from the
+  framework's offline `write` — the same voice, not the same code path.

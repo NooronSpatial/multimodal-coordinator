@@ -184,6 +184,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         mouth.async { [self] in
             player.stop()
             player.reset()
+            engine.detach(player)
         }
         out.finish()          // no terminal: the seam's cancel contract
     }
@@ -324,7 +325,14 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             samples.withUnsafeBufferPointer { source in
                 channel[0].update(from: source.baseAddress!, count: samples.count)
             }
-            player.scheduleBuffer(buffer) { [weak self] in
+            // `.dataPlayedBack`, not the default. The legacy overload
+            // reports when the player has CONSUMED a buffer, which can be
+            // a buffer or more before any of it reaches the room — and
+            // this count is what decides `.finished`, whose whole meaning
+            // under D-029 is "the room is quiet". Consumed is not quiet.
+            player.scheduleBuffer(buffer, at: nil, options: [],
+                                  completionCallbackType: .dataPlayedBack) {
+                [weak self] _ in
                 self?.bufferPlayed()
             }
             // AUDIBLE now means THE PLAYER WAS STARTED, which is a
@@ -357,6 +365,21 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     private func report(_ update: SynthesisUpdate, terminal: Bool) {
         if terminal { reportMargin() }
         out.yield(update)
-        if terminal { out.finish() }
+        if terminal { out.finish(); teardown() }
+    }
+
+    /// GIVE THE NODE BACK. Every reply attaches a fresh player to the
+    /// engine, and until now none of them was ever detached — so a long
+    /// conversation grew its audio graph without bound, and an engine
+    /// handed in by a caller (the `renderingOn:` case) kept collecting
+    /// dead nodes for as long as the app lived.
+    ///
+    /// On the mouth queue like every other touch of the player, and
+    /// after the stream has finished, so nothing is still counting on it.
+    private func teardown() {
+        mouth.async { [self] in
+            player.stop()
+            engine.detach(player)
+        }
     }
 }
