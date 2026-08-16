@@ -104,6 +104,7 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
     private struct Guarded {
         var capturing = false
         var hosted: [HostedNode] = []
+        var outputRate: Double = 0
     }
     private let state = Mutex(Guarded())
     /// Borrowed, never owned: `MicrophoneSource` starts and stops it.
@@ -120,9 +121,17 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
 
     public var isRendering: Bool { state.withLock { $0.capturing } }
 
-    public var outputSampleRate: Double {
-        engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
-    }
+    /// CACHED, NOT ASKED. Reading `engine.mainMixerNode` is not a free
+    /// query: the mixer is created lazily and creating it CONNECTS it to
+    /// the output node. On this host the engine is already running and
+    /// doing echo cancellation, so a getter that looks pure would be
+    /// quietly bringing the output half of a live voice-processing unit
+    /// up at a moment of its own choosing — and any A/B run with that
+    /// getter in it is no longer measuring the graph that produced the
+    /// field report. So the rate is recorded during `attachForPlayback`,
+    /// where the mixer is legitimately touched anyway, and `0` honestly
+    /// means "nothing has rendered here yet".
+    public var outputSampleRate: Double { state.withLock { $0.outputRate } }
 
     // MARK: - told by the microphone
 
@@ -152,6 +161,7 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
             guard s.capturing else { throw PlaybackHostFailure.notRendering }
             engine.attach(node)
             engine.connect(node, to: engine.mainMixerNode, format: format)
+            s.outputRate = engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
             s.hosted.append(HostedNode(node))
         }
     }

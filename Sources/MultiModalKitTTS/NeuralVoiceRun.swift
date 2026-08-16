@@ -255,23 +255,24 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
                     // them — many fast steps means the model streams and we
                     // are holding it up somewhere; one long wait then a
                     // flood means the wait is prefill.
-                    if NeuralVoiceRun.traceSteps {
-                        let now = ContinuousClock().now
-                        let since = self.stepClock.withLock { last -> Duration in
-                            let d = (last ?? self.birth).duration(to: now)
-                            last = now
-                            return d
+                    // ALWAYS COUNTED, never gated. This accumulation sat
+                    // inside `if traceSteps` for exactly one commit, and
+                    // that commit shipped a comment promising the
+                    // opposite — so on a phone, where no environment
+                    // variable can be set, `samples` stayed 0, the guard
+                    // in `reportMargin` returned early, and the screen
+                    // that was added to answer the field's question would
+                    // have stayed blank. A dead instrument costs a whole
+                    // field trip, which is the most expensive thing in
+                    // this project.
+                    let now = ContinuousClock().now
+                    self.stepClock.withLock { $0 = now }
+                    self.stepTotals.withLock {
+                        if $0.firstStep == nil {
+                            $0.firstStep = now
+                            $0.firstSamples = progress.audio.count
                         }
-                        let ms = Double(since.components.seconds) * 1000
-                            + Double(since.components.attoseconds) * 1e-15
-                        _ = ms
-                        self.stepTotals.withLock {
-                            if $0.firstStep == nil {
-                                $0.firstStep = now
-                                $0.firstSamples = progress.audio.count
-                            }
-                            $0.samples += progress.audio.count
-                        }
+                        $0.samples += progress.audio.count
                     }
                     self.render(progress.audio)
                     return true
