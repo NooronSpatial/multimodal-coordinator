@@ -45,6 +45,18 @@ public protocol PlaybackHost: AnyObject, Sendable {
     /// attached, and safe to call twice: a mouth tears itself down on
     /// cancel, on failure and on finish, and those paths overlap.
     func detachFromPlayback(_ node: AVAudioNode)
+
+    /// The rate the host's output actually runs at, READ BACK from the
+    /// graph rather than assumed.
+    ///
+    /// This exists because of a field report: on iPhone the neural voice
+    /// was described as "speaking in weird way like someone drunk". A
+    /// 24 kHz voice played as if it were 16 kHz sounds exactly like
+    /// that — slow, low, slurred — and an iOS session in `.voiceChat`
+    /// mode picks its own rate. Whether the graph resampled correctly is
+    /// therefore a QUESTION, and a question deserves a number on screen
+    /// rather than an assumption in a comment.
+    var outputSampleRate: Double { get }
 }
 
 /// A node carried under a lock.
@@ -107,6 +119,10 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
     public var hostedCount: Int { state.withLock { $0.hosted.count } }
 
     public var isRendering: Bool { state.withLock { $0.capturing } }
+
+    public var outputSampleRate: Double {
+        engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
+    }
 
     // MARK: - told by the microphone
 
@@ -171,6 +187,10 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
 
     public var isRendering: Bool { engine.isRunning }
     public var hostedCount: Int { state.withLock { $0.count } }
+
+    public var outputSampleRate: Double {
+        engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
+    }
 
     public func attachForPlayback(_ node: AVAudioNode, format: AVAudioFormat) throws {
         try state.withLock { hosted in

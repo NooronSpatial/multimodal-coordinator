@@ -75,6 +75,26 @@ final class TranscribeModel {
     /// a new one per turn would pay 1.1 GB of load again every time.
     private let neuralVoice = NeuralVoice()
 
+    /// VOICE FORENSICS (AC-104), added because a field run produced four
+    /// adjectives and no numbers: hot, late, worse, "drunk". Each of
+    /// these turns one adjective into something that can be read off a
+    /// screen and argued with.
+    ///
+    /// What one reply cost to decode. `steadyRealTimeFactor` at or above
+    /// 1.0 means this phone cannot decode as fast as it plays — and with
+    /// the lead derived to ZERO from a MAC measurement (D-047), that
+    /// means the player runs dry from the first buffer.
+    private(set) var voiceMargin: DecodeMargin?
+    /// The voice's own rate against the rate the audio graph actually
+    /// runs at, READ BACK rather than assumed. 24 kHz audio played as if
+    /// it were 16 kHz sounds slow, low and slurred — which is one honest
+    /// reading of "like someone drunk", and it is not the same fault as
+    /// starving.
+    private(set) var voiceRates: String?
+    // Thermal is NOT duplicated here. The health loop already reports it
+    // (D-027) and the toolbar already wears the badge; a second reading
+    // of the same fact is how two numbers start disagreeing.
+
     /// The mouth the coordinator gets. Apple's is cheap to build fresh;
     /// the neural one is the held instance for the reason above.
     private var currentMouth: any SpeechSynthesizing {
@@ -349,7 +369,20 @@ final class TranscribeModel {
             // be Sendable, and a capture object full of engine state is
             // not. The handle is.
             let host = microphone.playbackHost
-            Task { await neuralVoice.render(on: host) }
+            Task { [weak self] in
+                await self?.neuralVoice.render(on: host)
+                await self?.neuralVoice.reportMargins { margin in
+                    Task { @MainActor in self?.voiceMargin = margin }
+                }
+                // Read the graph's rate BACK, once it is running. The
+                // voice is 24 kHz; if these differ and the graph did not
+                // resample, that alone explains a drunk-sounding voice.
+                await MainActor.run {
+                    self?.voiceRates = String(
+                        format: "voice 24000 Hz → graph %.0f Hz",
+                        host.outputSampleRate)
+                }
+            }
         }
 
         let rate = microphone.sampleRate

@@ -23,6 +23,30 @@ import TTSKit
 /// An actor for the same reason `WhisperEngine` is one: it caches a
 /// loaded CoreML pipeline, and that is mutable state which must not be
 /// touched from two places at once.
+/// WHAT ONE REPLY COST TO DECODE (AC-102/AC-104).
+///
+/// The Mac could read these off stderr. A phone cannot, and the phone is
+/// where the question now lives: a field run reported the voice
+/// "speaking in weird way like someone drunk", and the two leading
+/// explanations — the decoder falling behind, or the audio playing at
+/// the wrong rate — are told apart by numbers, not by adjectives.
+public struct DecodeMargin: Sendable, Equatable {
+    /// Audio produced, in milliseconds.
+    public let audioMilliseconds: Double
+    /// Wall time from the run's birth to its last decode step.
+    public let wallMilliseconds: Double
+    /// The first step's cost, paid once per reply.
+    public let prefillMilliseconds: Double
+    /// Decode wall time ÷ audio produced, measured from the FIRST step
+    /// onward so the fixed prefill is not smeared across it. This is the
+    /// number that says whether the machine can stream this voice.
+    public let steadyRealTimeFactor: Double
+
+    /// Below 1.0 the decoder runs ahead of the ear. At or above it, the
+    /// player will run dry unless a lead was banked first.
+    public var keepsUp: Bool { steadyRealTimeFactor < 1.0 }
+}
+
 public actor NeuralVoice: SpeechSynthesizing {
     /// Which Qwen3 variant to speak with. 0.6B is the smaller, faster
     /// one; the bake-off's numbers decide whether the larger earns its
@@ -125,6 +149,18 @@ public actor NeuralVoice: SpeechSynthesizing {
         self.seed = seed
     }
 
+    /// Called with the decode margin at the end of every reply, if set.
+    private var marginHandler: (@Sendable (DecodeMargin) -> Void)?
+
+    /// Reports what each reply cost to decode.
+    ///
+    /// A separate call rather than an init parameter for the same reason
+    /// `render(on:)` is: the voice is built once and lives for the app's
+    /// lifetime, while whoever wants to watch it comes and goes.
+    public func reportMargins(to handler: @escaping @Sendable (DecodeMargin) -> Void) {
+        marginHandler = handler
+    }
+
     /// Renders replies on `host` from now on.
     ///
     /// Settable rather than fixed at init because the two lifetimes do
@@ -153,7 +189,8 @@ public actor NeuralVoice: SpeechSynthesizing {
         return try NeuralVoiceRun(kit: kit, host: host,
                                   sampleRate: Double(kit.sampleRate),
                                   lead: PlaybackLead(target: lead),
-                                  temperature: temperature)
+                                  temperature: temperature,
+                                  onMargin: marginHandler)
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not

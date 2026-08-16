@@ -322,6 +322,30 @@ struct ContentView: View {
                     case .checking, .ready:
                         EmptyView()
                     }
+
+                    // VOICE FORENSICS (AC-104). A field run came back
+                    // with four adjectives — hot, late, worse, "drunk" —
+                    // and no numbers. These are the numbers, on the
+                    // device that produced the adjectives.
+                    if model.mouth == .neural, model.voiceState == .ready {
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let rates = model.voiceRates {
+                                Text(rates)
+                            }
+                            if let margin = model.voiceMargin {
+                                Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
+                                            margin.steadyRealTimeFactor,
+                                            margin.keepsUp ? "" : "  ⚠️ TOO SLOW",
+                                            margin.prefillMilliseconds))
+                                    .foregroundStyle(margin.keepsUp
+                                                     ? AnyShapeStyle(.secondary)
+                                                     : AnyShapeStyle(Color.red))
+                            }
+                        }
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
                 }
                 .padding(.horizontal)
             }

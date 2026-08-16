@@ -84,7 +84,10 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// reported as itself, and STEADY RTF is measured from the first
     /// step onward, which is the only rate a decode lever can move.
     private func reportMargin() {
-        guard NeuralVoiceRun.traceSteps else { return }
+        // The HANDLER is not gated by the trace flag: a phone has no
+        // stderr to read, and the phone is where this number is now
+        // needed. The printing stays opt-in; the reporting does not.
+        guard NeuralVoiceRun.traceSteps || onMargin != nil else { return }
         let (samples, firstStep, firstSamples) = stepTotals.withLock {
             ($0.samples, $0.firstStep, $0.firstSamples)
         }
@@ -101,17 +104,27 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             let steadyWall = ms(first.duration(to: last))
             let steadyAudio = Double(samples - firstSamples) / format.sampleRate * 1000
             if steadyAudio > 0 {
-                line += String(format: " . prefill %.0f ms . STEADY %.3f",
-                               ms(birth.duration(to: first)), steadyWall / steadyAudio)
+                let prefill = ms(birth.duration(to: first))
+                let steady = steadyWall / steadyAudio
+                line += String(format: " . prefill %.0f ms . STEADY %.3f", prefill, steady)
+                onMargin?(DecodeMargin(audioMilliseconds: audio,
+                                       wallMilliseconds: wall,
+                                       prefillMilliseconds: prefill,
+                                       steadyRealTimeFactor: steady))
             }
         }
-        FileHandle.standardError.write(Data((line + "\n").utf8))
+        if NeuralVoiceRun.traceSteps {
+            FileHandle.standardError.write(Data((line + "\n").utf8))
+        }
     }
 
     private let temperature: Float?
+    private let onMargin: (@Sendable (DecodeMargin) -> Void)?
 
     init(kit: TTSKit, host: any PlaybackHost, sampleRate: Double,
-         lead: PlaybackLead, temperature: Float? = nil) throws {
+         lead: PlaybackLead, temperature: Float? = nil,
+         onMargin: (@Sendable (DecodeMargin) -> Void)? = nil) throws {
+        self.onMargin = onMargin
         self.state = Mutex(Guarded(lead: lead))
         self.temperature = temperature
         self.kit = kit
