@@ -144,9 +144,21 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
     func captureStopped() {
         state.withLock { s in
             s.capturing = false
-            for hosted in s.hosted { engine.detach(hosted.node) }
+            for hosted in s.hosted { detachIfStillOurs(hosted.node) }
             s.hosted = []
         }
+    }
+
+    /// `detach` ABORTS THE PROCESS on a node the engine no longer holds,
+    /// and it is an ObjC assertion, so there is nothing to catch. Our own
+    /// bookkeeping is not enough to know: the engine drops nodes on its
+    /// own whenever the graph is reconfigured — a route change, a session
+    /// interruption, the speaker being switched — and it does not ask us
+    /// first. So the engine's own list is consulted, every time, as the
+    /// last word before an irreversible call.
+    private func detachIfStillOurs(_ node: AVAudioNode) {
+        guard engine.attachedNodes.contains(node) else { return }
+        engine.detach(node)
     }
 
     // MARK: - the seam
@@ -170,7 +182,7 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
         state.withLock { s in
             guard s.hosted.contains(where: { $0.node === node }) else { return }
             s.hosted.removeAll { $0.node === node }
-            engine.detach(node)
+            detachIfStillOurs(node)
         }
     }
 }
@@ -228,14 +240,21 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
         state.withLock { hosted in
             guard hosted.contains(where: { $0.node === node }) else { return }
             hosted.removeAll { $0.node === node }
+            // Same guard, same reason as the capture host: `detach` on a
+            // node the engine has already dropped aborts the process.
+            guard engine.attachedNodes.contains(node) else { return }
             engine.detach(node)
         }
     }
 
-    /// Stops rendering and releases every hosted node.
+    /// Stops rendering and releases every hosted node. Nodes go BEFORE
+    /// the engine stops — after it, they are no longer in any chain and
+    /// detaching them asserts.
     public func stopRendering() {
         state.withLock { hosted in
-            for held in hosted { engine.detach(held.node) }
+            for held in hosted where engine.attachedNodes.contains(held.node) {
+                engine.detach(held.node)
+            }
             hosted.removeAll()
             engine.stop()
         }

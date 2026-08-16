@@ -117,11 +117,22 @@ public final class MicrophoneSource: AudioSource {
     public func stop() {
         guard isRunning else { return }
         engine.inputNode.removeTap(onBus: 0)
-        engine.stop()
-        // AFTER the engine is down, and before the session is released:
-        // a reply's node outliving the capture it was rendered on is
-        // exactly the leak AC-108 exists to prevent.
+        // BEFORE the engine stops, and that order is a CRASH FIX, not a
+        // preference. This line used to sit after `engine.stop()`, with
+        // a comment claiming that was the safe place. It is the exact
+        // opposite: once the engine has stopped, a reply's player node
+        // is no longer in the graph's input or output chain, and
+        // `AVAudioEngine.detach` asserts on precisely that —
+        //
+        //   required condition is false:
+        //   graphNode->IsNodeState(kAUGraphNodeState_InInputChain) ||
+        //   graphNode->IsNodeState(kAUGraphNodeState_InOutputChain)
+        //
+        // — which is an ObjC assertion, so it aborts the process rather
+        // than throwing something Swift could catch. Found on Ryad's
+        // iPhone, in the field, within minutes of the seam shipping.
         playbackHost.captureStopped()
+        engine.stop()
         isRunning = false
         // AFTER the engine has stopped, never before: releasing a session
         // out from under a running graph is the other half of the bug.

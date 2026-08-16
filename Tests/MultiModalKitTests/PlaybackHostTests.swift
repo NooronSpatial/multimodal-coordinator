@@ -92,6 +92,49 @@ struct PlaybackHostTests {
         #expect(host.hostedCount == 0, "every reply gives its node back")
     }
 
+    /// THE CRASH RYAD'S IPHONE FOUND, in the field, minutes after the
+    /// seam shipped:
+    ///
+    ///   required condition is false:
+    ///   graphNode->IsNodeState(kAUGraphNodeState_InInputChain) ||
+    ///   graphNode->IsNodeState(kAUGraphNodeState_InOutputChain)
+    ///
+    /// `AVAudioEngine.detach` ABORTS THE PROCESS when the node is no
+    /// longer in the graph, and it is an ObjC assertion, so Swift cannot
+    /// catch it. Our own list of hosted nodes is not enough to know: the
+    /// engine drops nodes on its own whenever the graph is reconfigured
+    /// — a route change, an interruption, the speaker being switched —
+    /// and it never asks us first.
+    @Test("detaching a node the engine already dropped is a no-op, not a crash")
+    func detachingAnAlreadyDroppedNodeIsSafe() throws {
+        let engine = AVAudioEngine()
+        let host = AudioEnginePlaybackHost(engine: engine)
+        let player = AVAudioPlayerNode()
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                   sampleRate: 24_000, channels: 1, interleaved: false)!
+        try host.attachForPlayback(player, format: format)
+
+        // The engine takes it back without telling us — exactly what a
+        // reconfiguration does on a phone.
+        engine.detach(player)
+
+        // This line aborted the process before the fix.
+        host.detachFromPlayback(player)
+        #expect(host.hostedCount == 0)
+    }
+
+    @Test("tearing down after the engine stopped is safe")
+    func teardownAfterEngineStopIsSafe() throws {
+        let engine = AVAudioEngine()
+        let host = AudioEnginePlaybackHost(engine: engine)
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                   sampleRate: 24_000, channels: 1, interleaved: false)!
+        try host.attachForPlayback(AVAudioPlayerNode(), format: format)
+        engine.stop()
+        host.stopRendering()
+        #expect(host.hostedCount == 0)
+    }
+
     /// The leak this seam exists to make impossible to forget. Before
     /// AC-108 the mouth attached a player per reply and detached none,
     /// so a long conversation grew its audio graph without bound
