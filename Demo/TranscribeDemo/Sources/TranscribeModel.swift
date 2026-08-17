@@ -215,6 +215,12 @@ final class TranscribeModel {
         }
     }
 
+    private static let engineKey = "dev.nooron.demo.engine"
+    private static var storedEngine: EngineChoice {
+        UserDefaults.standard.string(forKey: engineKey)
+            .flatMap(EngineChoice.init(rawValue:)) ?? .apple
+    }
+
     private static let gateKey = "dev.nooron.demo.vadThreshold"
     private static var storedGate: Float {
         // `object(forKey:)` rather than `float(forKey:)`: the latter
@@ -316,8 +322,15 @@ final class TranscribeModel {
     private var utteranceStartSeconds = 0.0
     private var utterancePeak: Float = 0
 
-    var choice: EngineChoice = .apple {
+    /// Persisted, like the gate and the voice, and for the same reason:
+    /// a choice that has to be re-made after every launch is a choice
+    /// that gets forgotten in the middle of a field run — or, on a
+    /// simulator, one that cannot be made at all, because the screen
+    /// that offers it is replaced by the download prompt for whichever
+    /// engine happened to be the default.
+    var choice: EngineChoice = TranscribeModel.storedEngine {
         didSet {
+            UserDefaults.standard.set(choice.rawValue, forKey: Self.engineKey)
             guard choice != oldValue, !isListening else { return }
             engineState = .checking
             Task { await checkModel() }

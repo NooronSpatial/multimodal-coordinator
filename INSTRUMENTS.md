@@ -1065,3 +1065,39 @@ exactly the reasoning D-049 rests on: not "this cannot work", but "I
 cannot test whether it works, and the person holding the phone should
 not be the harness". 4f inherits a real question and a real tool for
 asking it.
+
+## 18. The neural voice on iPhone — it speaks, and it still sounds wrong
+
+**D-049 validated in the field, 2026-08-16.** With the reply rendered on
+the voice's OWN engine and the gate calibrated on the device, Ryad's
+iPhone speaks with the Qwen3 neural mouth. The same `TurnCoordinator`,
+`TranscriptLedger`, `SpeechPhraser` and `SpeechSynthesizing` seam that
+drive Apple's mouth, driving a completely different one, on a phone,
+with no iOS variant of any of them. That was 4e's thesis and it holds.
+
+**And the voice still sounds wrong.** Ryad: *"after i changes the gate
+it worked but the voice still weired."*
+
+That is not a new fault and it is not fixable in this repo. It is the
+model, measured three separate times on a Mac where playback was proven
+gapless (§15: misses of 89/86/88 ms, within 3 ms of each other):
+
+| property | measurement | where |
+|---|---|---|
+| speaks ~2× slower than Apple | 6.6–15.9 s vs 4.29 s | §14 |
+| same words, different length | 8240 ms vs 6480 ms | §11 |
+| inserts non-speech | `*crying*`, `(laughing)`, `"Ha,"`, `"Uh uh, uh,"` | §14 |
+
+Half speed, uneven, with occasional laughing — on both decoders, on both
+platforms, with the audio pipeline proven clean. **The phone did not
+create this and no buffering will remove it.**
+
+### What the whole day actually established
+
+- The seam works, on two mouths, on two platforms. **Proven.**
+- The neural voice is intelligible: round-trip WER 0.074 against
+  Apple's 0.000, over 18 draws (§14). **Measured.**
+- It is not pleasant, and that is a property of the model. **Measured
+  three ways, and heard by the one person whose opinion this was.**
+- Rendering a reply on the capture engine is unsolved, and now has a
+  harness instead of a volunteer (§17, D-049).
