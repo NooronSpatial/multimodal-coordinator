@@ -1989,10 +1989,15 @@ closes afterwards, nothing releases the lead. **Measured, not argued**
 | 1500 ms | **after** the decode | **false** | **false** |
 | 1500 ms | before the decode ends | true | true |
 
-**It is pre-existing.** The `TTSDecoding` seam did not cause it — and the
-seam is the only reason it is reproducible, because making a decode finish
-ON COMMAND before the token stream closes needs an injectable decoder. The
-review that found it was reviewing the seam.
+**It is pre-existing, and that phrase needs sharpening.** The `TTSDecoding`
+seam did not cause it — and the seam is the only reason it is reproducible,
+because making a decode finish ON COMMAND before the token stream closes
+needs an injectable decoder. But "pre-existing" must not be read as
+"already shipped": `PlaybackLead` and `releaseLead` were both introduced by
+**`c7d772a`, in this milestone**, and `main` has neither. So **merging PR
+#13 is what would put this hole into `main`.** It is pre-existing relative
+to the seam commits and new relative to the product, which is the reading
+that matters for the merge decision.
 
 **Why it is not biting, and why that expires.** `defaultLead` is
 `deficit(forReplyOf: 6s, realTimeFactor: 0.752)`, and `deficit` returns
