@@ -53,7 +53,12 @@ struct ContentView: View {
                     .disabled(model.isListening || model.probeStatus != nil)
                 }
             }
-            .task { await model.checkModel() }
+            .task {
+                // Both models are asked about at launch: the transcriber's
+                // and the voice's. Asking never downloads either.
+                await model.checkModel()
+                await model.checkVoice()
+            }
         }
     }
 
@@ -275,6 +280,163 @@ struct ContentView: View {
             .pickerStyle(.segmented)
             .disabled(model.isListening)
             .padding(.horizontal)
+
+            // THE SECOND MOUTH, on screen (AC-105). Only shown when the
+            // app is actually talking — a mouth picker above a silent
+            // pipeline would be a control with nothing to control.
+            if model.talkEnabled {
+                VStack(spacing: 8) {
+                    Picker("Voice", selection: Bindable(model).mouth) {
+                        ForEach(TranscribeModel.MouthChoice.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(model.isListening)
+
+                    switch model.voiceState {
+                    case .modelMissing:
+                        VStack(spacing: 4) {
+                            Text("The neural voice needs a 1.1 GB download. "
+                                 + "One time, over Wi-Fi — then it runs on this phone.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                            Button("Install voice") {
+                                Task { await model.installVoice() }
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                    case .downloading:
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Downloading the voice — a silent minute is not a hang.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    case .failed(let why):
+                        Text("Voice unavailable: \(why)")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .multilineTextAlignment(.center)
+                    case .checking, .ready:
+                        EmptyView()
+                    }
+
+                    // WHICH APPLE VOICE, and how good. "compact" here is
+                    // the honest explanation for a robotic reply, and it
+                    // points at a download rather than at a bug.
+                    if model.mouth == .apple {
+                        // THE PERSON PICKS. A long list, so a menu rather
+                        // than a segmented control — and every row says
+                        // its quality, because "compact" is the honest
+                        // explanation for a robotic voice and it points
+                        // at a download rather than at a bug.
+                        Picker("Apple voice", selection: Bindable(model).appleVoiceIdentifier) {
+                            Text("Best installed (auto)").tag(String?.none)
+                            ForEach(model.availableAppleVoices) { voice in
+                                Text(voice.label).tag(String?.some(voice.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .disabled(model.isListening)
+                        Text(model.appleVoiceDescription)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    // VOICE FORENSICS (AC-104). A field run came back
+                    // with four adjectives — hot, late, worse, "drunk" —
+                    // and no numbers. These are the numbers, on the
+                    // device that produced the adjectives.
+                    if model.mouth == .neural, model.voiceState == .ready {
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let margin = model.voiceMargin {
+                                Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
+                                            margin.steadyRealTimeFactor,
+                                            margin.keepsUp ? "" : "  ⚠️ TOO SLOW",
+                                            margin.prefillMilliseconds))
+                                    .foregroundStyle(margin.keepsUp
+                                                     ? AnyShapeStyle(.secondary)
+                                                     : AnyShapeStyle(Color.red))
+                            }
+                        }
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(.horizontal)
+            }
+
+            // THE LEVEL METER, above everything the gate controls.
+            // Set the gate ABOVE the quiet number and BELOW the speaking
+            // one, and the app works; there is no third rule.
+            if model.isListening {
+                VStack(spacing: 2) {
+                    HStack {
+                        Text(String(format: "mic %.3f", model.inputLevel))
+                        Spacer()
+                        Text(String(format: "peak %.3f", model.inputPeak))
+                        Spacer()
+                        if !model.engineAlive {
+                            Text("ENGINE STOPPED")
+                                .foregroundStyle(Color.red)
+                        }
+                        if model.engineReconfigurations > 0 {
+                            Text("reconfig \(model.engineReconfigurations)")
+                                .foregroundStyle(Color.orange)
+                        }
+                        Text(String(format: "gate %.3f", model.vadThreshold))
+                            .foregroundStyle(model.inputLevel > model.vadThreshold
+                                             ? AnyShapeStyle(Color.green)
+                                             : AnyShapeStyle(.secondary))
+                    }
+                    .font(.caption2.monospaced())
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            Capsule().fill(.quaternary)
+                            Capsule()
+                                .fill(model.inputLevel > model.vadThreshold ? Color.green : Color.gray)
+                                .frame(width: geometry.size.width
+                                       * CGFloat(min(model.inputLevel / 0.3, 1)))
+                            // Where the gate sits, on the same scale.
+                            Rectangle()
+                                .fill(Color.orange)
+                                .frame(width: 2)
+                                .offset(x: geometry.size.width
+                                        * CGFloat(min(model.vadThreshold / 0.3, 1)))
+                        }
+                    }
+                    .frame(height: 8)
+                }
+                .padding(.horizontal)
+            }
+
+            // CALIBRATE, so nobody has to guess this number again.
+            if model.isListening {
+                VStack(spacing: 4) {
+                    Button {
+                        Task { await model.calibrateGate() }
+                    } label: {
+                        Label(model.isCalibrating ? "Calibrating…" : "Calibrate gate",
+                              systemImage: "slider.horizontal.3")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(model.isCalibrating)
+
+                    if let status = model.calibrationStatus {
+                        Text(status)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(model.isCalibrating
+                                             ? AnyShapeStyle(Color.orange)
+                                             : AnyShapeStyle(.secondary))
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .padding(.horizontal)
+            }
 
             conversation
 

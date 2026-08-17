@@ -578,7 +578,14 @@ struct TurnCoordinatorTests {
         #expect(events.contains(.turnCompleted(turn: 1)))
     }
 
-    @Test("A synthesizer failure mid-speech ends the turn; the reply run is cancelled")
+    /// BLOCKER 1'S SECOND HALF (D-051). This test asserted the reply run
+    /// was cancelled and said nothing about THE MOUTH — so the arm that
+    /// leaves a failed mouth running was unpinned while the fix for it was
+    /// already in the code. Harmless only while Apple's mouth was the sole
+    /// implementation, because it never emits `.failed`; the neural mouth
+    /// does, and a mouth left running still holds a decode task that
+    /// retains it, unreachable for ever with `current` already nil.
+    @Test("A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled")
     func synthesizerFailureEndsTheTurn() async {
         let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
@@ -598,6 +605,8 @@ struct TurnCoordinatorTests {
                 .turnFailed(.synthesisFailed("audio route died"), turn: 0)) })
             #expect(await Self.until { bench.generator.record(ofReply: 0)?.cancelled == true },
                     "the reply run must be cancelled with its turn")
+            #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.cancelled == true },
+                    "and the MOUTH that failed must be cancelled too, or it is left running and unreachable")
 
             bench.finishInputs()
             await bench.coordinator.stop()

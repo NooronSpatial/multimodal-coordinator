@@ -655,6 +655,15 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             let dying = current
             failTurn(turn, with: .synthesisFailed(reason))
             await dying?.replyRun?.cancel()
+            // AND THE MOUTH ITSELF. The reply's failure arm has always
+            // cancelled the synthesis run (above); this arm never
+            // cancelled anything of its own, so a mouth that reported
+            // `.failed` was left running with `current` already nil —
+            // unreachable for ever, and in the neural mouth's case still
+            // holding a decode task that retains it. Harmless only while
+            // Apple's mouth was the sole implementation, because it
+            // never emits `.failed`.
+            await dying?.synthesisRun?.cancel()
         }
     }
 

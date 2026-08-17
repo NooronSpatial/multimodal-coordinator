@@ -1,6 +1,7 @@
 import AVFAudio
 import MultiModalKit
 import MultiModalKitTesting
+import MultiModalKitTTS
 import MultiModalKitWhisper
 import Observation
 
@@ -13,6 +14,16 @@ import Observation
 @MainActor
 @Observable
 final class TranscribeModel {
+    /// WHICH MOUTH SPEAKS (AC-105). The milestone's whole thesis was
+    /// that a second implementation of `SpeechSynthesizing` needs no
+    /// change anywhere else; this picker is where a listener gets to
+    /// check that claim with their ears instead of reading it.
+    enum MouthChoice: String, CaseIterable, Identifiable {
+        case apple = "Apple"
+        case neural = "Neural"
+        var id: String { rawValue }
+    }
+
     enum EngineChoice: String, CaseIterable, Identifiable {
         case apple = "Apple"
         case whisper = "Whisper"
@@ -45,6 +56,108 @@ final class TranscribeModel {
     }
 
     private(set) var engineState: EngineState = .checking
+
+    /// The mouth. Changing it restarts the pipeline, like every other
+    /// choice that is baked into a running turn loop.
+    var mouth: MouthChoice = .apple {
+        didSet {
+            guard mouth != oldValue else { return }
+            if isListening { restart() }
+            Task { await checkVoice() }
+        }
+    }
+    /// The neural voice's own model state — SEPARATE from `engineState`,
+    /// which belongs to the transcriber. Two models, two downloads, two
+    /// ways to be missing; one shared state would have made "not ready"
+    /// ambiguous on a screen whose job is to remove ambiguity.
+    private(set) var voiceState: EngineState = .checking
+    /// Held, not rebuilt: the voice caches a loaded pipeline, and making
+    /// a new one per turn would pay 1.1 GB of load again every time.
+    /// The neural voice renders here, and THE DEMO OWNS IT so that it
+    /// can be stopped (4e review, blocker 2).
+    ///
+    /// Left to itself the voice builds its own host on the first reply,
+    /// starts that engine, and nothing ever stops it: `stopRendering()`
+    /// had no production caller anywhere. The consequence is not
+    /// abstract — an output unit running forever means
+    /// `setActive(false)` fails with `IsBusy`, `PhoneSession` swallows
+    /// it with `try?`, the `.playAndRecord` session is never released,
+    /// and the person's music never comes back after Stop.
+    private let neuralHost = AudioEnginePlaybackHost()
+    private let neuralVoice = NeuralVoice()
+
+    /// VOICE FORENSICS (AC-104), added because a field run produced four
+    /// adjectives and no numbers: hot, late, worse, "drunk". Each of
+    /// these turns one adjective into something that can be read off a
+    /// screen and argued with.
+    ///
+    /// What one reply cost to decode. `steadyRealTimeFactor` at or above
+    /// 1.0 means this phone cannot decode as fast as it plays — and with
+    /// the lead derived to ZERO from a MAC measurement (D-047), that
+    /// means the player runs dry from the first buffer.
+    private(set) var voiceMargin: DecodeMargin?
+    // The graph-rate line is GONE, not hidden. It was added to test a
+    // theory — that a 24 kHz voice was being played as 16 kHz — and the
+    // theory died: PlaybackHost passes an explicit format into connect,
+    // so a mismatch would crash rather than slur (INSTRUMENTS §14). A
+    // dead instrument left on screen is worse than none, because the
+    // next person reads it as evidence.
+    // Thermal is NOT duplicated here. The health loop already reports it
+    // (D-027) and the toolbar already wears the badge; a second reading
+    // of the same fact is how two numbers start disagreeing.
+
+    /// The mouth the coordinator gets. Apple's is cheap to build fresh;
+    /// the neural one is the held instance for the reason above.
+    private var currentMouth: any SpeechSynthesizing {
+        switch mouth {
+        // The BEST INSTALLED voice, not the system default. The default
+        // is a compact voice, which is why the field's verdict on this
+        // mouth was "like a robot" (AC-105). If the phone has no
+        // enhanced or premium voice downloaded, this returns a compact
+        // one and nothing changes — which is why the name is on screen.
+        case .apple: AppleSpeechSynthesizer(
+            voiceIdentifier: appleVoiceIdentifier
+                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
+        case .neural: neuralVoice
+        }
+    }
+
+    /// Every English voice this phone has, best quality first.
+    /// Computed once: the list only changes when someone downloads a
+    /// voice in Settings, which they cannot do without leaving the app.
+    let availableAppleVoices = AppleSpeechSynthesizer.installedVoices(matching: "en")
+
+    /// WHICH APPLE VOICE, chosen by the person rather than for them
+    /// (Ryad's request). `nil` means "let the library pick the best
+    /// installed one", which is what a fresh install starts from.
+    ///
+    /// Persisted like the gate, and for the same reason: a preference
+    /// that has to be re-entered after every build is a preference that
+    /// gets forgotten in the middle of a field run.
+    var appleVoiceIdentifier: String? = TranscribeModel.storedVoice {
+        didSet {
+            UserDefaults.standard.set(appleVoiceIdentifier, forKey: Self.voiceKey)
+            if isListening { restart() }
+        }
+    }
+    private static let voiceKey = "dev.nooron.demo.appleVoice"
+    private static var storedVoice: String? {
+        UserDefaults.standard.string(forKey: voiceKey)
+    }
+
+    /// What will actually speak, named. A person who cannot see
+    /// "compact" has no way to tell "the app ignored my download" from
+    /// "this is as good as this phone gets".
+    var appleVoiceDescription: String {
+        if let appleVoiceIdentifier,
+           let chosen = availableAppleVoices.first(where: { $0.id == appleVoiceIdentifier }) {
+            return chosen.label
+        }
+        guard let voice = AppleSpeechSynthesizer.bestInstalledVoice() else {
+            return "no voice found"
+        }
+        return AppleSpeechSynthesizer.describe(voice) + " (auto)"
+    }
     private(set) var isListening = false
     private(set) var isSpeaking = false
     private(set) var utterances: [Utterance] = []
@@ -94,8 +207,114 @@ final class TranscribeModel {
     /// the reply leaks 0.0044–0.0094 on the receiver, so one run cleared
     /// 0.010 by six per cent. At 0.020 the leak has 2–4x headroom below
     /// and speech (0.05–0.26) has 2.5x above.
-    var vadThreshold: Float = 0.02 {
-        didSet { if isListening { restart() } }
+    /// **AND IT NOW SURVIVES A RELAUNCH** (Ryad's request, field
+    /// session 2026-08-16). A gate is the number a field run is ABOUT,
+    /// and re-typing it after every build is how a run gets done at the
+    /// wrong value and believed anyway. Persisted so the device keeps
+    /// what it earned.
+    ///
+    /// The default below is still 0.020 — the number D-042 earned on
+    /// the receiver route. The field then measured a noise floor of
+    /// 0.022–0.040 on this phone with the speaker on, so 0.020 silenced
+    /// the app entirely (INSTRUMENTS §16). The stored value is what the
+    /// device actually uses; the default is only what a fresh install
+    /// starts from.
+    var vadThreshold: Float = TranscribeModel.storedGate {
+        didSet {
+            UserDefaults.standard.set(vadThreshold, forKey: Self.gateKey)
+            if isListening { restart() }
+        }
+    }
+
+    private static let engineKey = "dev.nooron.demo.engine"
+    private static var storedEngine: EngineChoice {
+        UserDefaults.standard.string(forKey: engineKey)
+            .flatMap(EngineChoice.init(rawValue:)) ?? .apple
+    }
+
+    private static let gateKey = "dev.nooron.demo.vadThreshold"
+    private static var storedGate: Float {
+        // `object(forKey:)` rather than `float(forKey:)`: the latter
+        // returns 0 for "never set", and a gate of ZERO would open an
+        // utterance on silence — a stored-default bug that looks exactly
+        // like a broken VAD.
+        guard let stored = UserDefaults.standard.object(forKey: gateKey) as? Float
+        else { return 0.02 }
+        return stored
+    }
+
+    /// THE RAW MICROPHONE LEVEL, ungated and always moving while the
+    /// pipeline runs. Everything else on this screen is downstream of
+    /// the gate, so when the gate is wrong there is nothing to look at —
+    /// and a gate can be wrong in two opposite ways that feel identical.
+    /// Too HIGH: no utterance ever opens. Too LOW: one opens, never
+    /// ends, and no reply is ever produced. Both are "I speak and
+    /// nothing happens". This is the number that tells them apart, and
+    /// it is what a person should set the gate ABOVE.
+    private(set) var inputLevel: Float = 0
+    /// The loudest thing heard since Listen was tapped. A moving level
+    /// is hard to read while speaking; the peak stays put.
+    private(set) var inputPeak: Float = 0
+    /// The ENGINE's own answer about whether it is running, not ours.
+    /// They disagree exactly when something has gone wrong behind our
+    /// back — which on this phone looked like the microphone indicator
+    /// appearing and vanishing with no error at all.
+    private(set) var engineAlive = false
+    private(set) var engineReconfigurations = 0
+    /// What calibration is doing or found. Nil when it has never run.
+    private(set) var calibrationStatus: String?
+    private(set) var isCalibrating = false
+
+    /// MEASURES THE GATE INSTEAD OF GUESSING IT (AC-97).
+    ///
+    /// A whole field session went into two failures that feel identical
+    /// — a gate above the voice (nothing ever opens) and a gate below
+    /// the room (nothing ever ends) — and both were fixed by moving one
+    /// slider to a value nobody could know without measuring. Worse, the
+    /// right value CHANGED with the mouth: the same phone and the same
+    /// voice measured a floor of 0.022–0.040 in one configuration and
+    /// 0.002 in another, because the gain control settles elsewhere when
+    /// the audio graph changes shape.
+    ///
+    /// So it is measured, here, on this device, in the configuration it
+    /// is actually in. Three seconds of silence, four of speech, and the
+    /// arithmetic lives in `GateCalibration` where it can be tested
+    /// without a microphone.
+    func calibrateGate() async {
+        guard isListening, !isCalibrating else {
+            calibrationStatus = "Tap Listen first."
+            return
+        }
+        isCalibrating = true
+        defer { isCalibrating = false }
+
+        func loudest(over samples: Int) async -> Float {
+            var peak: Float = 0
+            for _ in 0..<samples {
+                try? await Task.sleep(for: .milliseconds(100))
+                peak = max(peak, microphone?.inputLevel ?? 0)
+            }
+            return peak
+        }
+
+        calibrationStatus = "Stay quiet…"
+        let quiet = await loudest(over: 30)          // 3 s of room
+        calibrationStatus = "Now speak normally…"
+        let speech = await loudest(over: 40)         // 4 s of voice
+
+        switch GateCalibration.suggestedGate(quiet: quiet, speech: speech) {
+        case .gate(let suggested):
+            vadThreshold = suggested                  // persists, and restarts
+            calibrationStatus = String(
+                format: "gate %.3f — room %.3f, voice %.3f", suggested, quiet, speech)
+        case .tooClose(let quiet, let speech):
+            // NOT papered over with an invented number. A gate placed
+            // between two levels that are not apart is a coin toss
+            // wearing three decimal places.
+            calibrationStatus = String(
+                format: "room %.3f and voice %.3f are too close — "
+                      + "speak louder, or find a quieter place", quiet, speech)
+        }
     }
 
     /// The echo probe's results (AC-96): what the microphone delivers in
@@ -114,8 +333,15 @@ final class TranscribeModel {
     private var utteranceStartSeconds = 0.0
     private var utterancePeak: Float = 0
 
-    var choice: EngineChoice = .apple {
+    /// Persisted, like the gate and the voice, and for the same reason:
+    /// a choice that has to be re-made after every launch is a choice
+    /// that gets forgotten in the middle of a field run — or, on a
+    /// simulator, one that cannot be made at all, because the screen
+    /// that offers it is replaced by the download prompt for whichever
+    /// engine happened to be the default.
+    var choice: EngineChoice = TranscribeModel.storedEngine {
         didSet {
+            UserDefaults.standard.set(choice.rawValue, forKey: Self.engineKey)
             guard choice != oldValue, !isListening else { return }
             engineState = .checking
             Task { await checkModel() }
@@ -154,6 +380,55 @@ final class TranscribeModel {
         case .whisper: await whisperEngine.modelInstalled()
         }
         engineState = installed ? .ready : .modelMissing
+    }
+
+    /// Honest disk check for the VOICE. Asking never downloads.
+    func checkVoice() async {
+        guard mouth == .neural else { voiceState = .ready; return }
+        guard await neuralVoice.modelInstalled() else {
+            voiceState = .modelMissing
+            return
+        }
+        // ON DISK IS NOT LOADED, and the difference is a frozen
+        // conversation. `modelInstalled` only stats files; the pipeline
+        // is built lazily by the first `openUtterance`, which the
+        // coordinator awaits INLINE on its one serial loop. So the first
+        // reply after launch would compile six CoreML components — tens
+        // of seconds — while speech onsets, transcripts and barges piled
+        // up unprocessed behind it, and the first turn's felt-pause
+        // number would silently contain the model load.
+        //
+        // The 4e review found this one call above the identical fault
+        // already fixed in `feed`. Warming here closes it completely
+        // rather than shrinking it, because `start()` refuses to run
+        // until this says ready.
+        voiceState = .downloading
+        do {
+            try await neuralVoice.ensureModel()
+            voiceState = .ready
+        } catch {
+            voiceState = .failed(String(describing: error))
+        }
+    }
+
+    /// The voice's 1.1 GB, fetched once. Deliberately a separate button
+    /// from the transcriber's download: they are different models, they
+    /// fail for different reasons, and a single "Download" that could
+    /// mean either would be a worse screen.
+    func installVoice() async {
+        voiceState = .downloading
+        do {
+            try await neuralVoice.ensureModel()
+            // Trust the DISK, not the call returning. Phase 2's lesson,
+            // and the one that caught a wrong model path in this very
+            // milestone: a load can succeed against files the check
+            // cannot find.
+            voiceState = await neuralVoice.modelInstalled()
+                ? .ready
+                : .failed("loaded, but the disk check disagrees")
+        } catch {
+            voiceState = .failed(String(describing: error))
+        }
     }
 
     func downloadModel() async {
@@ -234,7 +509,12 @@ final class TranscribeModel {
         // reconfigured it under a live tap and then released it under a
         // running graph — verbatim both failures the seam exists to
         // prevent.
-        guard engineState == .ready, !isListening, probeStatus == nil else { return }
+        // The VOICE must be ready too, or the first reply fails
+        // mid-turn with a missing model — a failure the screen would
+        // report as a turn error when it is really a setup problem.
+        guard engineState == .ready, !isListening, probeStatus == nil,
+              !(talkEnabled && mouth == .neural && voiceState != .ready)
+        else { return }
         utterances.removeAll()
         droppedFrames = 0
         reply = ""
@@ -253,7 +533,16 @@ final class TranscribeModel {
             // iPhone over Continuity — none of them transfer, so AC-96
             // re-measures here or claims nothing.
             voiceProcessing: talkEnabled,
-            session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker))
+            session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker),
+            // FALSE, BY RULING (D-049). Rendering the reply on the
+            // capture engine is reversed: voice processing and an output
+            // chain cannot coexist on one engine (INSTRUMENTS §17), so
+            // asking for one stopped capture from starting at all — the
+            // phone's "state is always idle". The neural voice now uses
+            // its own engine, its reply is not echo-cancelled on iOS
+            // (D-043's cost, accepted again), and the capture-side host
+            // waits for 4f behind the Mac harness that now exists.
+            hostsPlayback: false)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -262,6 +551,17 @@ final class TranscribeModel {
         }
         self.microphone = microphone
         observeInterruptions()
+
+        // THE POINT OF AC-104 (D-048, AC-108). The reply renders on the
+        // CAPTURE engine — the one whose audio unit does the echo
+        // cancelling — because D-043 measured that iOS voice processing
+        // removes only what that unit itself renders. Every earlier
+        // reply, Apple's included, was rendered somewhere the canceller
+        // could not see, which is why the probe read 0.94-1.00 with the
+        // canceller demonstrably working on everything else.
+        //
+        // AFTER `start`, never before: the host refuses to attach to a
+        // microphone that is not capturing, and it is right to.
 
         let rate = microphone.sampleRate
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
@@ -298,15 +598,35 @@ final class TranscribeModel {
                 replyGenerator: PhoneEchoReply(onThought: { [weak self] thought in
                     Task { @MainActor in self?.wholeThought = thought }
                 }),
-                synthesizer: AppleSpeechSynthesizer(),
+                synthesizer: currentMouth,
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self))
             : nil
         self.coordinator = coordinator
 
         isListening = true
+        inputPeak = 0
         let diagnostics = diagnostics
+        // NO HOST IS INSTALLED (D-049). The voice makes its own engine,
+        // which is the configuration that has worked since the hour it
+        // was written. What stays is the margin reporting: the decode
+        // numbers are how anyone will know whether this phone can run
+        // this voice at all, and they do not depend on where it renders.
         pipeline = Task { [weak self] in
+            if let self, mouth == .neural {
+                await neuralVoice.render(on: neuralHost)
+                await neuralVoice.reportMargins { margin in
+                    // The graph's rate is refreshed HERE, with the
+                    // margin, because it only becomes real when a reply
+                    // has actually rendered: the host records it during
+                    // attach rather than by poking a mixer that may not
+                    // exist yet. Asking at start-up would have printed
+                    // "not rendered yet" forever, which is the same
+                    // family of mistake as the instrument that shipped
+                    // dead an hour ago.
+                    Task { @MainActor in self.voiceMargin = margin }
+                }
+            }
             // Listeners are taken BEFORE the pumps run: no event is missed.
             let audioForSession = await pump.listen()
             let audioForUI = await pump.listen()          // the multicast, used for real
@@ -345,6 +665,28 @@ final class TranscribeModel {
                         await self?.show(audio: event)
                     }
                 }
+                // THE LEVEL METER. A poll, deliberately: the level is a
+                // lock-free atomic written by the audio thread, and the
+                // screen only needs it as fast as a person can read it.
+                // Nothing downstream depends on this task, and it ends
+                // with the group like everything else here.
+                group.addTask { [weak self] in
+                    while !Task.isCancelled {
+                        guard let self else { return }
+                        let (level, alive, reconfigs) = await MainActor.run {
+                            (self.microphone?.inputLevel ?? 0,
+                             self.microphone?.engineIsRunning ?? false,
+                             self.microphone?.configurationChanges ?? 0)
+                        }
+                        await MainActor.run {
+                            self.inputLevel = level
+                            self.inputPeak = max(self.inputPeak, level)
+                            self.engineAlive = alive
+                            self.engineReconfigurations = reconfigs
+                        }
+                        try? await Task.sleep(for: .milliseconds(100))
+                    }
+                }
                 group.addTask { [weak self] in
                     for await event in transcripts.events {
                         await self?.show(transcript: event)
@@ -365,10 +707,33 @@ final class TranscribeModel {
         isListening = false
         isSpeaking = false
         turnState = .idle
-        microphone?.stop()          // the library releases the session, in order
-        microphone = nil
-        pipeline?.cancel()
+        // THE ORDER HERE IS THE FIX (4e review, blocker 2), and it has
+        // three steps that cannot be swapped:
+        //
+        //   1. the pipeline dies      — so no reply is still speaking
+        //   2. the render engine stops — its nodes go, safely, after 1
+        //   3. the session is released — it cannot be, before 2
+        //
+        // Step 2 was missing entirely: nothing ever stopped the engine
+        // the neural voice renders on, so `setActive(false)` failed with
+        // `IsBusy`, `PhoneSession` swallowed it with `try?`, and the
+        // .playAndRecord session stayed held for the life of the app —
+        // the person's music never came back.
+        //
+        // Step 2 WAITS for step 1 rather than racing it: `stopRendering`
+        // detaches nodes, and a reply still calling `play()` on a
+        // detached node aborts the process. That is the same abort as
+        // blocker 1, reached from the other side.
+        let dying = pipeline
         pipeline = nil
+        dying?.cancel()
+        let host = neuralHost
+        Task {
+            await dying?.value               // the pipeline has drained
+            host.stopRendering()             // now the nodes are nobody's
+            await MainActor.run { microphone?.stop() }   // and the session goes
+            await MainActor.run { microphone = nil }
+        }
         coordinator = nil
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)

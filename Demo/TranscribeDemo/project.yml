@@ -30,6 +30,11 @@ targets:
         product: MultiModalKitTesting
       - package: multimodal-coordinator
         product: MultiModalKitWhisper
+      # The second mouth (4e). An OPT-IN product, so the demo asking for
+      # it is exactly the shape D-045 F-4 intended: apps choose, the core
+      # never learns that TTSKit exists.
+      - package: multimodal-coordinator
+        product: MultiModalKitTTS
     settings:
       base:
         CODE_SIGN_STYLE: Automatic

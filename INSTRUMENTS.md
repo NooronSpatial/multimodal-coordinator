@@ -508,3 +508,780 @@ neither          → the microphone never heard the voice
 
 Three different bugs, one glance — and AC-92 becomes a number instead of
 an impression.
+
+## 10. The second mouth's gates (AC-102) — and two corrections to get there
+
+**The question the ruling needs answered** (D-045): can the Qwen3 neural
+voice speak inside a conversation, where the felt pause is already
+~743 ms? Three gates: time to first audio, stop latency, thermal.
+
+**Setup.** M-series Mac, **release build**, `swift run -c release bakeoff
+voice-spike`. Qwen3-TTS 0.6B, 24 kHz, decoded by TTSKit and rendered by
+this project's own `AVAudioPlayerNode` (D-045 F-1 = B). Warm-up utterance
+excluded — the first load compiles CoreML graphs. Both mouths driven
+through the SAME `SpeechSynthesizing` seam, so the numbers are comparable
+by construction rather than by argument.
+
+### Gate 1 — time to first audio
+
+| sentence | mouth | first audio | total |
+|---|---|---|---|
+| How is the weather today? | neural | **218 ms** | 6347 ms |
+| How is the weather today? | Apple | **66 ms** | 1777 ms |
+| The audio travels through a ring b… | neural | **226 ms** | 9216 ms |
+| The audio travels through a ring b… | Apple | **8 ms** | 4598 ms |
+| Should I take a jacket? | neural | **238 ms** | 2987 ms |
+| Should I take a jacket? | Apple | **8 ms** | 1558 ms |
+
+**first-audio mean — neural 227 ms · Apple 28 ms · ratio 8.3×.**
+
+227 ms is a real cost against Apple's 28 ms, but it is not a
+disqualification: it adds ~200 ms to a pause already near 750 ms.
+
+### Gate 1b — the margin, which is the actual problem
+
+A streaming voice must decode audio at least as fast as the ear drinks
+it. The real-time factor is decode wall time ÷ audio produced.
+
+```
+MARGIN · 5760 ms audio decoded in 6258 ms wall · RTF 1.09
+MARGIN · 8240 ms audio decoded in 9129 ms wall · RTF 1.11
+MARGIN · 2400 ms audio decoded in 2889 ms wall · RTF 1.20
+```
+
+**RTF 1.09–1.23 — above 1.0 on a Mac.** The voice decodes SLOWER than it
+plays, so the player runs dry. The arithmetic says so without needing an
+ear: for the long sentence, gapless playback would end at first-audio +
+audio = 226 + 8240 = **8466 ms**. It ended at **9216 ms**, which is
+decode wall time (9129) plus one buffer. Playback is gated by decode —
+every ~80 ms buffer arrives ~10–18 ms late, from the first one, because
+this integration starts playing with ZERO lead.
+
+This is precisely the cost D-045 F-1 accepted when it chose to render the
+audio itself: *"pre-buffering and resampling become ours to get wrong."*
+It is ours, and this is it. iPhone is not measured yet and will be worse.
+
+### An anomaly, recorded rather than explained
+
+"How is the weather today?" produced **5760 ms of audio** — Apple speaks
+the same five words in 1777 ms. Two other sentences look normal. Whether
+this is trailing silence or the model rambling, this spike cannot say;
+AC-103's round-trip WER is the instrument that will. Recorded here so it
+is not discovered later as a surprise.
+
+### Not measured, and not claimed
+
+**Stop latency** (barge → the room actually quiet) and **thermal**. The
+seam reports its own bookkeeping instantly; proving SILENCE needs the
+microphone probe on the device. Both remain open against AC-102.
+
+### Two corrections, kept because the record is the point
+
+**1. A debug build.** The first run reported neural first-audio of
+**6066 ms** — a 217× ratio that would have condemned the voice on the
+spot. It was a debug build, which TTSKit's own docs name as a slow case.
+Caught before it was written down; the number above is release.
+
+**2. The harness was the slow part.** The first release run still said
+**4910 ms**, and it was wrong for a worse reason. `measure()` fed the
+whole sentence, closed it, and only THEN read the update stream:
+
+```swift
+await run.feed(text)                     // neural: does not return until decode ends
+await run.finishTokens()
+for await update in run.updates { … }    // .started stamped when READ, not when SENT
+```
+
+Apple's `feed` hands off and returns at once, so only the neural side
+paid. The tell was sitting in the table — **neural first-audio within
+~100 ms of neural total, on every row** — which is the signature of a
+number taken at the end. A per-step trace settled it: audio steps arrive
+every ~80 ms from the start, not after 5 seconds. The reader now parks on
+the stream first and the feeding moves to a child task, gated on a fact
+rather than a sleep. **The corrected number is 21× smaller than the one
+this file nearly recorded.**
+
+## 11. The lead — the gaps closed, and what they cost (AC-107, D-046 = A)
+
+`PlaybackLead` banks audio before the player starts, sized by the rule
+`deficit = replyLength × (RTF − 1)`. Default: a six-second reply at the
+worst measured factor (1.25) → **1500 ms**.
+
+**Did the gaps close?** The arithmetic answers without an ear. Gapless
+playback ends at first-audio + audio; a starving player ends at decode
+wall time instead.
+
+| sentence | audio | first + audio | measured total | miss |
+|---|---|---|---|---|
+| How is the weather today? | 5760 ms | 7572 ms | 7594 ms | **22 ms** |
+| The audio travels through a ring b… | 6480 ms | 8384 ms | 8412 ms | **28 ms** |
+| Should I take a jacket? | 2240 ms | 4168 ms | 4190 ms | **22 ms** |
+
+Every miss is under a third of ONE 80 ms buffer. Before the lead, the
+long sentence missed by **750 ms**. The player no longer runs dry.
+
+**What it cost.**
+
+| | first audio | vs Apple |
+|---|---|---|
+| no lead (AC-102) | 227 ms | 8.3× |
+| 1500 ms lead | **1882 ms** | **61.8×** |
+
+1882 rather than 1500 because banking 1500 ms of audio takes 1500 × RTF
+of wall time, plus the first step's ~220 ms. The felt pause of a turn
+would go from ~743 ms to well over two seconds. **Gapless, and too slow
+— which is the whole argument for D-046's other half.** If B gets RTF
+below 1.0 the lead goes to zero and both numbers are won at once.
+
+**A limit, stated rather than discovered later:** a FIXED lead has a
+ceiling. While RTF stays above 1.0 a long enough reply drains any
+cushion; 1500 ms covers ~6 s of speech at RTF 1.25 and no more.
+
+**Two things this run also showed, recorded without explanation:**
+
+1. **The voice is non-deterministic in LENGTH.** The long sentence
+   produced 8240 ms of audio in the AC-102 run and 6480 ms here — same
+   text, same model, same machine. Sampling, presumably. It means every
+   number in this section is one draw, not a constant.
+2. **The weather anomaly is repeatable.** "How is the weather today?"
+   produced 5760 ms of audio in BOTH runs, where Apple speaks it in
+   1829 ms — 3.1×. Repeatable is worse than random: it is a property of
+   the voice on this input, and AC-103's round-trip WER is the
+   instrument that will say whether those extra seconds are silence,
+   drawl, or invention.
+
+## 12. Attacking the decode (AC-106, D-046 = B) — one lever won, one vendor claim died
+
+Nine candidate levers survived adversarial verification against the
+pinned `argmax-oss-swift` checkout; five families were closed on paper
+(no smaller model exists — the only other variant is the 1.7B; no faster
+asset string; the prompt cache is already optimally placed; `prewarm`
+compiles and discards; logging has no per-step cost). The rest were
+measured serially — one machine, one run at a time, because two models
+decoding at once would corrupt both timings.
+
+### First, a correction to our own instrument
+
+`reportMargin` clocked from the run's BIRTH, so every factor carried a
+fixed ~210 ms of prefill. Divide one fixed cost by three different audio
+lengths and you get three different factors for one decoder: **AC-102's
+"RTF 1.09–1.23" was largely the shortest sentence failing to amortise
+prefill, not a decoder that changes speed.** Prefill and STEADY rate are
+now reported separately. The steady baseline is **1.066**, not 1.25 —
+which means §11's lead was sized against a number that was partly an
+artefact of how we measured.
+
+### The matrix — median STEADY of 3 runs, release, M-series Mac
+
+| config | steady RTF | prefill | verdict |
+|---|---|---|---|
+| baseline (`.stepped` + `.latencyOptimized`) | 1.066 | 207 ms | — |
+| **`.fused`** | **0.752** | **171 ms** | **the win** |
+| `.throughputOptimized` | 1.148 | 535 ms | worse on both |
+| `.fused` + `.throughputOptimized` | 0.766 | 386 ms | worse than fused alone |
+| temperature 0 (on `.stepped`) | 1.036 | 217 ms | inside noise |
+| temperature 0 (on `.fused`) | 0.815 | 165 ms | worse than fused alone |
+
+**`.fused` takes the decoder below 1.0.** It replaces ~35 CoreML
+predictions per 80 ms frame with about 5, doing the whole 15-code frame
+in one prediction with in-graph sampling. Dispatch overhead, not matrix
+maths, was where our time was going.
+
+**A vendor claim, refuted on our hardware.** Argmax's own table (M4,
+default compute units) reports `.throughputOptimized` as the faster
+vocoder path — 1.32× against 1.18×. On this machine it is **slower**
+(1.148 vs 1.066) and its prefill is 2.6× worse. Their number is not
+wrong; it is theirs. This is why the spike discipline exists.
+
+### End to end, with `.fused` and the lead at ZERO
+
+| sentence | audio | decode wall | first + audio | measured total | miss |
+|---|---|---|---|---|---|
+| How is the weather today? | 3600 | 2929 | 3822 | 3870 | 48 ms |
+| The audio travels through a ring b… | 9360 | **7190** | 9529 | 9567 | 38 ms |
+| Should I take a jacket? | 3040 | 2591 | 3336 | 3391 | 55 ms |
+
+**first-audio mean — neural 229 ms · Apple 32 ms · ratio 7.1×.**
+
+Every miss is under ONE 80 ms buffer, and decode wall now finishes
+*before* the audio does — 2.2 s early on the long sentence. With the
+decoder ahead of the ear there is no deficit to bank, so §11's 1500 ms
+cushion is not needed on this Mac: **gapless AND 229 ms, together.**
+
+### Two bugs the investigation found, neither of them a speed knob
+
+**1. Our streaming was one long phrase away from silently stopping.**
+`GenerationOptions.concurrentWorkerCount` defaults to 0, "all chunks
+concurrently in one batch". On that path TTSKit hands the streaming
+callback `audio: []` on every step and delivers real samples only after
+the whole batch finishes. Any reply long enough to split into two chunks
+would have stopped streaming — no lead, first-audio back to full decode
+time — and only for long replies, which is why every sentence measured
+so far missed it. TTSKit's own `play()` sets this to 1 for exactly this
+reason. Now so do we.
+
+**2. A phrase with nothing to say cost up to 19.6 seconds.**
+The conformance kit's liveness promise feeds whitespace. The phraser
+cuts it into whitespace-only phrases, and an autoregressive voice given
+no letters to end on decodes toward its 245-step cap — ~19.6 s of audio
+for a phrase containing nothing. Several in a row pushed the suite past
+its four-minute limit; other times the model stopped early and the test
+passed in 9 s. **A test whose duration depends on when a model feels
+like stopping is flaky by construction**, and it was a product fault
+first: the turn loop waits inline, so one stray whitespace phrase buys
+twenty seconds of dead air. `SpeechPhraser.hasSpeakableContent` (letters
+or digits, any script) now answers first. That liveness test went from a
+240-second timeout to **0.001 s**, and the suite from 251 s to 7.5 s.
+
+### Not measured, still not claimed
+
+**iPhone** (slower silicon, and `.fused` needs iOS 18), **thermal**,
+**stop latency**, and **whether `.fused` SOUNDS right**. Its audio
+lengths are plausible and more consistent than `.stepped`'s, which is
+weak evidence and labelled as such — AC-103's round-trip WER is the
+instrument, and no adoption should precede it.
+
+### Stability, and one measurement thrown away
+
+**20 × full suite: 20 passed, 0 failed** (200 tests, 23 suites), on a
+quiet machine.
+
+An earlier attempt reported 13 of 20 failing and was **discarded as
+invalid, because I caused it**: that loop ran while I was editing
+sources and running a release build against the same `.build`, and the
+check counted a build error as a test failure. It is recorded here
+rather than deleted, because a stability number measured under
+interference is worse than no number — it would have sent the next hour
+hunting a race that did not exist. The rule it earns: a stability loop
+owns the machine, exactly like a timing run.
+
+Note also that the whitespace fix above removed a REAL flake source —
+one whose failure rate depended on when a language model chose to stop.
+That is a different flake from the unexplained one recorded against 4d,
+and claiming otherwise would be tidy rather than true.
+
+## 13. The listening test (AC-103, the opinion half) — a wash, and why that is useful
+
+Blind A/B, `.stepped` vs `.fused`, seeded order (20260816), Apple played
+first each round as an unblinded reference. One listener (Ryad), three
+rounds, on his own machine and speakers.
+
+| round | clip A was | clip B was | preferred |
+|---|---|---|---|
+| 1 — "How is the weather today?" | stepped | fused | **fused** |
+| 2 — "I can hear you. Say that again…" | stepped | fused | **no difference heard** |
+| 3 — the long technical sentence | fused | stepped | **stepped** |
+
+**fused 1 · stepped 1 · no difference 1.**
+
+**This is an OPINION from one listener over three rounds, and it is
+recorded as one.** It is not evidence that either decoder sounds better.
+
+**What it does establish, and it is the thing that mattered:** `.fused`
+is not audibly broken. It moves sampling inside the CoreML graph, so its
+draws differ from `.stepped`'s, and the real risk was a garbled or
+swallowed word rather than a different voice. A broken decoder loses
+3–0 to a working one. This one drew.
+
+**The limit of the design, stated because it is not obvious.** §11
+recorded this voice producing 8240 ms of audio for a sentence in one run
+and 6480 ms in the next — **the model is non-deterministic in length**,
+and the seed did not fix it (only greedy sampling did, and greedy was
+measurably slower). So each clip in this test is ONE DRAW. A listener
+comparing one draw against one draw is comparing draws at least as much
+as decoders. To hear a real preference you would need several draws per
+decoder per sentence, randomised — which is a bigger test than the
+question currently justifies.
+
+**The instrument that can settle it is the other half of AC-103**:
+round-trip WER (speak → record → transcribe → compare against the source
+text), which is a number, survives non-determinism by averaging, and
+measures the thing that actually matters in a conversation —
+intelligibility, not taste.
+
+## 14. Round-trip WER (AC-103, the objective half) — and why one run would have lied
+
+speak → capture at the mixer → transcribe with Whisper → WER against the
+text we asked for. Intelligibility as a NUMBER, graded by an engine this
+repo already owns: a pipeline that can listen can grade its own mouth.
+
+The capture is taken at the engine's mixer — the last point before the
+speaker — so it includes our own rendering, resampling and buffering.
+Capturing the model's raw 24 kHz PCM instead would have flattered us by
+measuring the decoder rather than the pipeline.
+
+Three sentences, **3 draws per neural mouth per sentence** because this
+voice is non-deterministic in length (§11, §13), and one draw for Apple
+because it is not.
+
+### The result, from TWO runs
+
+| | stepped | fused |
+|---|---|---|
+| run A (9 draws each) | 0.122 | **0.000** |
+| run B (9 draws each) | **0.044** | 0.148 |
+| **combined, 18 draws each** | **0.083** | **0.074** |
+
+Apple: **0.000** across all draws.
+
+**The two decoders are indistinguishable.** Between-RUN variance is
+larger than the difference between them, which is the only honest
+reading of a 0.122/0.000 result followed by a 0.044/0.148 one.
+
+**This is the finding, and it is about method rather than about TTS.**
+Run A alone says fused is flawless and stepped is flawed. Run B alone
+says the reverse. Either, written up on its own, would have been a clean
+convincing table supporting a conclusion that the next run destroys. The
+replication cost five minutes. It was the difference between a number
+and an opinion wearing a number's clothes.
+
+It also agrees with §13's listening test, which was a wash. Two
+independent instruments, one subjective and one objective, both say
+there is no quality difference to find here.
+
+### A discarded run, and the bug it was measuring
+
+An earlier run reported **fused 0.384 against stepped 0.058** — a
+6× difference that looked decisive. It was mine. Three of nine fused
+draws transcribed to the empty string, and all three followed a stepped
+draw, because both voices shared ONE `AVAudioEngine` and each reply's
+teardown detaches its player node from that graph. The measurement was
+of my race, not of a decoder.
+
+Two things came out of it, and they are the reason it is recorded rather
+than deleted:
+
+- **The tool now prints what it captured** — duration and peak amplitude
+  — beside every WER. An empty transcript can mean an unintelligible
+  voice or an empty capture, and those lead to opposite conclusions.
+  With peaks now all in 0.19–0.59, "the capture was fine" is evidence
+  rather than an assumption.
+- **A real leak in the library**: `NeuralVoiceRun` attached a player node
+  per reply and never detached one. A long conversation grew its audio
+  graph without bound, and an engine handed in by a caller collected
+  dead nodes for the life of the app.
+
+### One more library correction this work forced
+
+Buffers were scheduled with the legacy completion, which reports when the
+player has **consumed** data — up to a buffer before any of it reaches
+the room — and that count is what decides `.finished`, whose meaning
+under D-029 is "the room is quiet". Now `.dataPlayedBack`.
+
+The switch immediately hung this tool at 0% CPU, which was the callback
+being *correct*: the tool had started the engine before any player node
+existed, an engine with no source never pulls, so the node attached
+afterwards never rendered and its buffers were never played. The old
+callback would have reported them done and produced a table of silence.
+**The hang was the honest failure of a more honest callback.**
+
+### What the numbers do NOT settle
+
+- **The voice emits non-speech.** Whisper heard `*crying*`,
+  `(laughing)`, `"Ha,"` and `"Uh uh, uh,"` in draws from BOTH decoders.
+  That is a property of the model, not of a decoder, and for a
+  conversational assistant it is a real hazard. Unmeasured beyond
+  "it happens", and owed a decision.
+- **Speaking rate.** The neural voice takes 6.6–15.9 s for a sentence
+  Apple speaks in 4.29 s — roughly 2× slower, on both decoders.
+- **One grader.** Whisper only; the Apple transcription engine was not
+  used as a second opinion.
+- **Apple's capture is not our shipping path.** `AVSpeechSynthesizer`
+  does not render through our engine, so its audio comes from the
+  framework's offline `write` — the same voice, not the same code path.
+
+## 15. The shipped configuration (D-047) — what the default actually does now
+
+`.fused`, lead **0 ms** (derived from the measured 0.752, not chosen).
+
+| sentence | first audio | audio | first + audio | measured total | miss |
+|---|---|---|---|---|---|
+| How is the weather today? | 162 ms | 2880 | 3042 | 3131 | 89 ms |
+| The audio travels through a ring b… | 168 ms | 6240 | 6408 | 6494 | 86 ms |
+| Should I take a jacket? | 294 ms | 3680 | 3974 | 4062 | 88 ms |
+
+**first-audio mean — neural 208 ms · Apple 30 ms · ratio 7.0×.**
+Steady RTF 0.765–0.797.
+
+The whole journey of one number:
+
+| | first audio | gapless | steady RTF |
+|---|---|---|---|
+| AC-102, as found | 227 ms | **no** | 1.066 |
+| + the lead (D-046 A) | 1882 ms | yes | 1.066 |
+| + fused (D-046 B, D-047) | **208 ms** | yes | **0.765** |
+
+**On the misses being 86–89 rather than 38–55.** That is not a
+regression, it is `.dataPlayedBack`: the completion now waits for audio
+to actually play, so the device's own output latency is inside the
+number. What matters is that the three misses are within 3 ms of each
+other — a starving player produces misses that are large and variable,
+like the 750 ms one in §10.
+
+**Still unmeasured, and the lead's zero is measured only here:** the
+iPhone (AC-104), thermal, and stop latency. `NeuralVoice`'s sizing rule
+reads one named constant, so a slower measurement puts the cushion back
+by changing that constant rather than by re-deriving the argument.
+
+## 16. The phone's gate, earned the hard way (AC-97, AC-104)
+
+**0.020 was too low on this iPhone, and it silenced the app completely.**
+
+Field, 2026-08-16, iPhone, speaker on, Apple STT + neural voice. The
+screen showed utterances opening at **peak 0.022, 0.030, 0.040** against
+a gate of **0.020** — room noise, barely over the line. Every one of
+those was an onset, and an onset while the app is thinking is a barge.
+So every reply was cancelled before it made a sound, and the state sat
+at "thinking" forever. Ryad's words: "i hear nothing and the state is
+thinking!"
+
+**Raising the gate to 0.060 made it speak.** One slider, and the
+symptom went.
+
+Two things worth separating, because they arrived together:
+
+- **The gate is the cause.** 0.020 was earned in Phase 2 on a Mac, when
+  this app only LISTENED. AC-97 already said the phone earns its own,
+  and this is the phone earning it: 3× the Mac's value, on hardware
+  where the noise floor sits at 0.02–0.04.
+- **The barge fix made it VISIBLE.** Until `feed` handed off, a barge
+  queued behind a whole phrase decode, so a false onset often arrived
+  too late to kill the reply. Making barge-in correct is what turned an
+  intermittent annoyance into total silence. A fix that exposes a
+  second fault is still a fix; it is not the cause.
+
+### Two real crashes and one refusal, found in the same session
+
+**`detach` aborts the process.** `AVAudioEngine.detach` asserts when the
+node is no longer in the graph, and it is an ObjC assertion, so nothing
+can catch it. Two causes, both ours: nodes were detached AFTER
+`engine.stop()` (they are in no chain by then), and our own bookkeeping
+was trusted over the engine's — `AVAudioEngine` drops nodes by itself on
+any reconfiguration, including the speaker being switched, and never
+says so. Fixed, with a regression test that lets the engine take a node
+back behind our back.
+
+**`auou/vpio/appl, render err: -1`, repeating.** The capture engine
+started with a microphone tap and NO output chain. The first reply then
+called `engine.connect(player, to: engine.mainMixerNode)` — and touching
+`mainMixerNode` for the first time creates it and wires it to the output
+node. So the entire output half of a LIVE voice-processing unit was
+being built while it was rendering, which VPIO refuses, every cycle.
+The chain is now established inside `start`, before the engine runs, so
+a reply only adds an input bus to a mixer that already exists.
+
+**Honest status: that last fix is UNVERIFIED on hardware.** The gate
+change is what made the phone speak, on the build without it. Whether
+the render errors stop is the next thing to look at, and it is not
+claimed here.
+
+## 17. Why the neural voice would not talk — measured on a Mac, not on Ryad
+
+Five field runs, five faults, and each time I answered with a hypothesis
+and sent Ryad back to his phone. That was the wrong shape. **This Mac
+has a microphone and voice processing**, so it can run the exact path
+the phone runs — a live capture engine with a reply rendered onto it —
+and it took one command to reproduce.
+
+`swift run bakeoff voice-onmic`, one variable:
+
+| output chain on the capture engine | capture starts? | input format |
+|---|---|---|
+| **yes** (the neural path, AC-108) | **NO** | 0 Hz, 0 channels |
+| no (the pre-AC-108 path) | yes | 48000 Hz |
+
+Then the full truth table, four combinations:
+
+| voice processing | output chain | result |
+|---|---|---|
+| on | **on** | **FAILS — `-10875` at `PerformCommand(*outputNode, kAUInitialize)`** |
+| on | off | starts, 48000 Hz / 3 ch |
+| off | on | starts, 48000 Hz / 1 ch |
+| off | off | starts, 48000 Hz / 1 ch |
+
+**Voice processing and an output chain on the same engine cannot both
+exist here.** That is precisely the AC-108 configuration. Capture never
+starts, so the state can only ever read `idle` — which is exactly what
+the phone showed.
+
+### Two mechanisms, separated
+
+**1. Touching `mainMixerNode` invalidates `inputFormat`.**
+
+```
+after voice processing   input 48000 Hz/3ch   inputNode.output 48000 Hz/3ch
+after mainMixerNode      input     0 Hz/0ch   inputNode.output 48000 Hz/3ch
+after prepare            input     0 Hz/0ch   inputNode.output 48000 Hz/3ch
+```
+
+`inputFormat` collapses; `outputFormat` does not. A tap observes what a
+node PRODUCES, so `outputFormat` was the correct property all along —
+this code had been reading the other one, and the difference only shows
+when something else touches the graph.
+
+**2. Handing an invalid format to `installTap` is not an error, it is an
+ABORT** — `IsFormatSampleRateAndChannelCountValid`. A microphone that is
+merely unavailable became a crash report. It is now
+`AudioSourceFailure.inputUnavailable(sampleRate:channels:)`, which a
+screen can show in words.
+
+### What this does NOT prove
+
+**That iOS behaves the same way.** `-10875` on a Mac is consistent with
+voice processing requiring one device for input and output, and a Mac
+routinely has two. A phone has one. So the Mac reproduces the SYMPTOM
+and names two real bugs, but it cannot convict iOS of the same cause —
+and the iPhone's five faults are equally consistent with the ordering
+bugs found and fixed along the way.
+
+Recorded plainly because the temptation is to call this settled. It is
+not. What is settled: two real bugs, a path that is un-runnable on this
+Mac, and a harness that can test it here instead of on a person.
+
+### A late measurement that complicates §17, recorded because it does
+
+After D-049 was ruled, the same harness was run once more with the
+mixer created LAZILY — at the first reply, the way AC-108 originally
+did it — instead of at capture start:
+
+```
+capture running: true · voice processing: true · input rate 48000 Hz
+utterance 1: started YES · finished YES · 4986 ms · reconfigs 0
+```
+
+**It worked.** The neural voice rendered onto a live capture engine with
+voice processing active, on this Mac, and both the start and the finish
+arrived.
+
+So the truth table above is narrower than it first reads. What it
+proves is that creating the output chain **before `engine.start()`**
+cannot coexist with voice processing here. It does NOT prove that
+rendering onto the capture engine is impossible — the original lazy
+arrangement is fine on this machine, and it was the phone, not the Mac,
+that answered it with `vpio render err: -1`.
+
+Which means the Mac still cannot settle the deciding case, and that is
+exactly the reasoning D-049 rests on: not "this cannot work", but "I
+cannot test whether it works, and the person holding the phone should
+not be the harness". 4f inherits a real question and a real tool for
+asking it.
+
+## 18. The neural voice on iPhone — it speaks, and it still sounds wrong
+
+**D-049 validated in the field, 2026-08-16.** With the reply rendered on
+the voice's OWN engine and the gate calibrated on the device, Ryad's
+iPhone speaks with the Qwen3 neural mouth. The same `TurnCoordinator`,
+`TranscriptLedger`, `SpeechPhraser` and `SpeechSynthesizing` seam that
+drive Apple's mouth, driving a completely different one, on a phone,
+with no iOS variant of any of them. That was 4e's thesis and it holds.
+
+**And the voice still sounds wrong.** Ryad: *"after i changes the gate
+it worked but the voice still weired."*
+
+That is not a new fault and it is not fixable in this repo. It is the
+model, measured three separate times on a Mac where playback was proven
+gapless (§15: misses of 89/86/88 ms, within 3 ms of each other):
+
+| property | measurement | where |
+|---|---|---|
+| speaks ~2× slower than Apple | 6.6–15.9 s vs 4.29 s | §14 |
+| same words, different length | 8240 ms vs 6480 ms | §11 |
+| inserts non-speech | `*crying*`, `(laughing)`, `"Ha,"`, `"Uh uh, uh,"` | §14 |
+
+Half speed, uneven, with occasional laughing — on both decoders, on both
+platforms, with the audio pipeline proven clean. **The phone did not
+create this and no buffering will remove it.**
+
+### What the whole day actually established
+
+- The seam works, on two mouths, on two platforms. **Proven.**
+- The neural voice is intelligible: round-trip WER 0.074 against
+  Apple's 0.000, over 18 draws (§14). **Measured.**
+- It is not pleasant, and that is a property of the model. **Measured
+  three ways, and heard by the one person whose opinion this was.**
+- Rendering a reply on the capture engine is unsolved, and now has a
+  harness instead of a volunteer (§17, D-049).
+
+## 19. The stability loop caught a process abort I had introduced
+
+**19/40, then 39 of 40 failing** — and none of them a race.
+
+The 4e hygiene gate ran 20× and lost one round. A second 20× passed
+clean. A third run of 40 lost 39. That pattern — clean, then near-total
+failure — is not what a race looks like, and chasing it as one would
+have wasted the evening. The signal was in the crash reason, which my
+first loop never captured because its grep matched test NAMES containing
+the word "failed":
+
+```
+required condition is false: format.sampleRate == inputHWFormat.sampleRate
+  AudioSessionSeamTests.theSessionIsActivatedFirstAndAlwaysReleased
+  → MicrophoneSource.start → installTapOnBus → signal 6
+```
+
+**`installTap` asserts on the INPUT HARDWARE format**, and an ObjC
+assertion aborts the process rather than failing a test.
+
+**The bug was a correction of mine, aimed at a configuration that no
+longer existed.** Earlier that day the tap format was changed from
+`inputFormat` to `outputFormat` on the reasoning that a tap observes
+what a node PRODUCES. That sounds right and is wrong. The observation
+behind it was real — `inputFormat` collapses to 0 Hz once
+`mainMixerNode` is touched — but that only happened in the
+`hostsPlayback` arrangement, which D-049 then removed. The fix outlived
+the problem and broke the path that remained.
+
+**Why it hid:** the assertion only fires when the node's output format
+and the input hardware format DISAGREE. They agreed on this Mac all day.
+They stopped agreeing when an iOS Simulator was booted running the demo
+app, which changed the machine's audio configuration — so a bug that had
+been silently present became 39 failures in 40.
+
+Restored to `inputFormat`, guard kept: **20/20 clean.**
+
+**Two lessons, both cheap and both mine:**
+
+1. **A stability loop must capture the FAILURE, not the fact of it.**
+   The first loop printed `grep -E "✘|failed"`, which matched a test
+   called *"A failed turn keeps its words"* and told me nothing. Three
+   runs were spent before the reason was ever read.
+2. **A test that opens real hardware is environment-sensitive by
+   construction.** `theSessionIsActivatedFirstAndAlwaysReleased` starts
+   a real `MicrophoneSource`; anything else on the machine holding audio
+   can change what it sees. That is a plausible candidate for the
+   unexplained 4d flake too — plausible, not proven, and recorded as
+   the former.
+
+## 20. The graph probe (D-054) — measuring instead of arguing, and one belief refuted
+
+`swift run bakeoff graph-probe`
+
+**Why it exists.** Milestone 4e produced five faults in one afternoon,
+each introduced while fixing the previous one, every one a guess about
+what a live `AVAudioEngine` would do, every one paid for by Ryad
+rebuilding onto his phone. D-054 makes the harness come BEFORE the fix.
+This is the harness for the graph.
+
+**One case per process, on purpose.** AVFoundation does not throw when a
+node is misused — it raises an ObjC exception and the process dies. A
+single-process probe would report its first fault and silently hide every
+case after it, which is the failure mode that makes an instrument worse
+than none. The parent re-executes itself once per case and reads the exit
+status; a child that never prints `SURVIVED` aborted.
+
+**Its first job** was to decide whether AC-109's failure-path tests could
+run headlessly: they use a spy `PlaybackHost` that starts no engine, so
+every verb `NeuralVoiceRun` calls on its player node became a question.
+
+Release build, this Mac (M-series, macOS 26), 2026-08-17:
+
+| case | path | expected | measured |
+|---|---|---|---|
+| 1 | never attached → `stop()` | survives | survives |
+| 2 | never attached → `reset()` | survives | survives |
+| 3 | never attached → `stop()`, `reset()` — the cancel + teardown path | survives | survives |
+| 4 | attached to an engine NEVER started → `stop()`, `reset()`, `detach` | survives | survives |
+| 5 | **CONTROL** — attach, connect, start, `engine.stop()`, `detach` | 4e fault #1 says ABORT | **survives** |
+| 6 | never attached → `play()` | ABORT | **ABORT** · `required condition is false: _engine != nil` |
+| 7 | never attached → `scheduleBuffer` | ABORT | **ABORT** · `required condition is false: _outputFormat.channelCount == buffer.format.channelCount` |
+| 8 | attached to an engine never started → `scheduleBuffer`, `play()` | survives | survives |
+
+**What that bought.** Cases 1–4 are exactly what the run's cancel and
+failure paths do, so those paths test on any machine with no model and no
+speaker. Cases 6 and 7 are why `ScriptedDecoder` has **no way** to emit a
+non-empty sample: `render` would reach an aborting verb. The rule is
+enforced by the type rather than by a comment asking a reader to remember
+it.
+
+**And what it refuted — mine.** Case 5 is fault one of that afternoon, a
+detach after `engine.stop()`. On a plain engine on this Mac it **does not
+abort.** The probe is not blind — cases 6 and 7 aborted in the same run,
+which is why it prints `DETECTION PROVEN` from evidence rather than from
+hope — so the honest reading is that *this abort was never a property of a
+plain engine.* It needed the capture engine's voice-processing unit, or a
+session teardown, and the iPhone is where it was found.
+
+**Consequences, stated rather than acted on.** The guards in
+`MicrophonePlaybackHost.detachIfStillOurs` and
+`AudioEnginePlaybackHost.stopRendering` **stay**: they cost nothing, and
+the phone's evidence stands. What changes is the CLAIM. The comment above
+those guards reads as though detaching a stopped node aborts in general;
+it does not, on this configuration. The general statement is unproven and
+the specific one — under VPIO, on a phone — is what was measured in §17.
+
+**What this probe does NOT measure, and does not claim:** voice
+processing, an iOS audio session, a real capture engine, or the Simulator.
+Case 5 under VPIO is the case that matters for 4f and it needs hardware.
+That is named here as a gap, before anyone reads the table as a clean bill
+of health.
+
+## 21. The stranded reply (D-055) — a liveness hole the seam made visible
+
+**Why it exists.** The adversarial review of the `TTSDecoding` seam claimed
+that `finishTokens()` can strand a reply. Two verifiers split one-for-one,
+so it was neither confirmed nor refuted by vote — and a liveness claim is
+not something to settle by vote. D-054 rule 1 says measure it.
+
+**How.** A decoder that emits real (silent) samples on command and reports
+when it has finished decoding, rendering on a real `AudioEnginePlaybackHost`,
+with the only variable being the lead target and WHEN the token stream
+closes. This is the measurement the seam made possible: before it, no test
+could make a decode finish at a chosen moment.
+
+`PlaybackLeadStrandTests`, this Mac, 2026-08-17 — 400 ms of audio per case:
+
+| lead target | `finishTokens()` called | `.started` | `.finished` |
+|---|---|---|---|
+| `.zero` — the shipped default | after the decode completed | true | true |
+| 1500 ms | **after** the decode completed | **false** | **false** |
+| 1500 ms | before the decode ended | true | true |
+
+**Read it as:** row two is a hung turn. The reply is fully decoded and
+sitting complete and silent in the player node, the lead was never
+released, so the player is never started, no buffer ever reports played,
+and `.finished` never fires. Row three is the same lead with the opposite
+ordering, and it is fine — which localises the fault precisely: not the
+lead, not the decoder, but WHICH of the two places that learn "the reply is
+complete" bothers to release it.
+
+**What it does NOT say.** Nothing here is reachable from any caller in this
+repo today, because `defaultLead` is `.zero` at the measured RTF of 0.752.
+The row that matters is a machine with RTF above 1.0, and **this Mac is not
+that machine**. The iPhone might be, and nobody knows, because AC-104 never
+happened. So this table is a proof that the hole exists, not a report that
+it has bitten.
+
+**Still open as D-055.** The fix is a fork — one arm, one funnel, or a
+purer `PlaybackLead` — and it moves when a reply starts speaking, which is
+D-046's ground and Ryad's ruling. Recorded rather than patched.
+
+**And the first version of this measurement FLAKED, 3 times in 20.** It
+waited on the decoder's own "I have finished decoding" flag, which is set
+from INSIDE `decode` — before `speak()`'s liveness step has run. In the
+three runs where `finishTokens()` won that window, `tokensFinished` was
+already true when the accounting happened, `speak()`'s `.release` arm fired
+exactly as designed, and the reply played perfectly. A test that passes
+because the bug did not happen this time is worse than no test.
+
+The fix was to gate on the FACT rather than on a proxy: `phrasesInFlight`
+returning to zero is the observable that the liveness step has run, and
+`NeuralVoiceRun.counters` exists to expose it (internal, like the type).
+One flake is not done — and finding this race also sharpened the finding:
+the hole is not "a non-zero lead strands replies", it is "a non-zero lead
+strands a reply whose token stream closes in one specific window". That is
+a narrower and truer claim than the review's original wording.
+
+**AFTER THE FIX (D-055 = B, one funnel).** Same instrument, same machine,
+same three cases — the middle row is what moved:
+
+| lead target | `finishTokens()` called | `.started` | `.finished` | wall |
+|---|---|---|---|---|
+| `.zero` — the shipped default | after the decode completed | true | true | 0.59 s |
+| 1500 ms | **after** the decode completed | **true** | **true** | **0.53 s** |
+| 1500 ms | before the decode ended | true | true | 0.53 s |
+
+The wall-clock column is the honest part. Before the fix the middle case
+took **3.054 s** — the whole bounded window, spent waiting for a
+`.finished` that was never coming — and afterwards it takes 0.53 s, the
+same as the two cases that always worked. A hang does not look like a
+failed assertion; it looks like time.

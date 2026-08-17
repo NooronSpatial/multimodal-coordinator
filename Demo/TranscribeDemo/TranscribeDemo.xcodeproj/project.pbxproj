@@ -13,6 +13,7 @@
 		310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */ = {isa = PBXBuildFile; productRef = 91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */; };
 		423F679D2CB7551AB7C0EC22 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55B6AEB6559E79DEDA042A8 /* ContentView.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
+		6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */ = {isa = PBXBuildFile; productRef = B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */; };
 		91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */; };
 		DFBA24BA87E376099A8AD354 /* TranscribeDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */; };
 		FEE72793A1C59D5217C79633 /* PhoneSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28BDC7531D2E15DC9EF02ABF /* PhoneSession.swift */; };
@@ -37,6 +38,7 @@
 				2C4BDC794DC39DAD662681F3 /* MultiModalKit in Frameworks */,
 				20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */,
 				310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */,
+				6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -118,6 +120,7 @@
 				AC3E96CBCF532F30A024E805 /* MultiModalKit */,
 				0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */,
 				91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */,
+				B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */,
 			);
 			productName = TranscribeDemo;
 			productReference = 085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */;
@@ -395,6 +398,10 @@
 		AC3E96CBCF532F30A024E805 /* MultiModalKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MultiModalKit;
+		};
+		B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MultiModalKitTTS;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

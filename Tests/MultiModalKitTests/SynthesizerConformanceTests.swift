@@ -77,6 +77,51 @@ enum SynthesizerConformanceKit {
                 "a cancelled reply must not report completion, however late the feed")
     }
 
+    /// Promise 6 — THE BARGE PROMISE: **`feed` HANDS OFF; it does not
+    /// wait for audio.**
+    ///
+    /// The coordinator drains ONE serial loop and awaits its handlers
+    /// inline. That is deliberate — it is what stops an audio event
+    /// interleaving in the middle of a handler — but it means a mouth
+    /// that blocks inside `feed` blocks the whole conversation. The
+    /// user's speech onset, the very event that should cancel the reply,
+    /// queues behind it.
+    ///
+    /// Apple's mouth never had this problem: its `speak` is not `async`
+    /// at all, just an enqueue onto a serial queue. The neural mouth
+    /// awaited a whole phrase decode — seconds — and the field found it
+    /// before any test did: "barge in to late".
+    ///
+    /// The assertion is event-based, not timed. Feed a sentence long
+    /// enough that decoding it takes real work, then cancel IMMEDIATELY.
+    /// A mouth that hands off is still holding an undecoded phrase, so
+    /// nothing was ever audible. A mouth that blocks has already decoded
+    /// and scheduled the whole thing, so `.started` has fired — and the
+    /// listener heard a reply they had already interrupted.
+    ///
+    /// Scoped to mouths that DECODE. Apple's hands text to a framework
+    /// that starts speaking on a thread of its own, so `started` there
+    /// is a race with the platform rather than a statement about our
+    /// hand-off — the kit excludes it for the same reason it excludes
+    /// the scripted synthesizer.
+    static func verifyFeedHandsOffRatherThanDecoding(
+        _ synthesizer: any SpeechSynthesizing
+    ) async throws {
+        let run = try await synthesizer.openUtterance()
+        await run.feed("This is a deliberately long sentence, "
+                       + "long enough that decoding all of it takes real work.")
+        // THE BARGE, at the worst possible moment: the instant after the
+        // text arrives. No sleep, no timing guess — the point is that
+        // this line is REACHED at all while the phrase is undecoded.
+        await run.cancel()
+
+        let updates = await drain(run)
+        #expect(!updates.contains(.started),
+                "feed must hand off: a reply cancelled this early was never audible")
+        #expect(!updates.contains(.finished),
+                "a cancelled reply must not claim completion")
+    }
+
     /// Promise 4 — THE LIVENESS PROMISE: a reply always terminates. Every
     /// piece the mouth accepts must eventually be accounted for, so the
     /// coordinator can never be stranded mid-turn waiting for a `finished`
@@ -142,3 +187,121 @@ struct AppleSynthesizerConformanceTests {
         try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(AppleSpeechSynthesizer())
     }
 }
+
+#if canImport(MultiModalKitTTS)
+import MultiModalKitTTS
+import TTSKit
+
+/// THE KIT'S REASON TO EXIST, finally exercised. It was written in 4b
+/// against "a second mouth we do not have yet"; this is that mouth.
+///
+/// Model-gated like the engine suites: a machine without the 1.1 GB of
+/// weights skips honestly rather than failing for the wrong reason. The
+/// audible promises additionally need `MMK_LIVE_SYNTH=1`, because they
+/// make the machine SPEAK and a headless runner's audio is not ours to
+/// assume (D-022).
+///
+/// **This suite is not the only place the neural mouth is held to
+/// account, and it is no longer the strongest (AC-109).** Everything here
+/// is gated, which means every promise below is unproven on a machine
+/// without the weights — including, until now, the FAILURE path, which
+/// could not be tested at all. `NeuralVoiceFailurePathTests` runs
+/// ungated, against a scripted `TTSDecoding`, on every machine. Read that
+/// file first; this one covers what only a real model and a real speaker
+/// can show.
+@Suite(.timeLimit(.minutes(4)), .serialized)
+struct NeuralVoiceConformanceTests {
+    static var liveAudioAllowed: Bool {
+        ProcessInfo.processInfo.environment["MMK_LIVE_SYNTH"] == "1"
+    }
+
+    /// ONE VOICE PER DECODER, SHARED. Each `NeuralVoice` caches its own
+    /// loaded pipeline, so a fresh one per test meant a fresh 1.1 GB of
+    /// CoreML per test. Three of them in one process was enough to turn
+    /// a 9-second liveness test into a 243-second time-limit failure —
+    /// not a hang, just a machine out of room. Sharing is also how an
+    /// app uses a voice: one mouth, many utterances.
+    static let stepped = NeuralVoice(multiCodeDecoderMode: .stepped)
+    static let fused = NeuralVoice(multiCodeDecoderMode: .fused)   // also the default (D-047)
+
+    @Test("a silent reply completes without speaking (model required; skips if absent)")
+    func silentReply() async throws {
+        let voice = Self.stepped
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifySilentReplyCompletesWithoutSpeaking(voice)
+    }
+
+    @Test("an unspeakable reply still terminates — liveness (model required; skips if absent)")
+    func unspeakableStillTerminates() async throws {
+        let voice = Self.stepped
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(voice)
+    }
+
+    @Test("started once, finished once, in order (model + MMK_LIVE_SYNTH=1)")
+    func startedThenFinished() async throws {
+        let voice = Self.stepped
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyStartedThenFinished(voice)
+    }
+
+    @Test("cancel silences and ends without a terminal (model + MMK_LIVE_SYNTH=1)")
+    func cancelWithoutTerminal() async throws {
+        let voice = Self.stepped
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(voice)
+    }
+
+    @Test("nothing survives the cancel — late feeds are silent (model + MMK_LIVE_SYNTH=1)")
+    func nothingSurvivesTheCancel() async throws {
+        let voice = Self.stepped
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(voice)
+    }
+
+    /// THE FUSED DECODER, held to the same promises (AC-106). AC-106
+    /// measured `.fused` at steady RTF 0.752 against `.stepped`'s 1.066
+    /// — it is the lever that took this voice below real time. A faster
+    /// decoder that broke the seam's contract would be worth nothing, so
+    /// it faces the same kit rather than a speed number alone.
+    ///
+    /// This also PROVES THE ASSET: `.fused` needs the multifunction
+    /// CoreML model on disk, and TTSKit throws `invalidConfiguration` if
+    /// what is there is the legacy single-function one. A load that
+    /// succeeds here is that check, run on whatever machine runs the
+    /// suite rather than assumed from the one that measured it.
+    @Test("the fused decoder keeps the same promises (model required; skips if absent)")
+    func fusedKeepsThePromises() async throws {
+        let voice = Self.fused
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifySilentReplyCompletesWithoutSpeaking(voice)
+        try await SynthesizerConformanceKit.verifyUnspeakableContentStillTerminates(voice)
+    }
+
+    /// THE BARGE PROMISE (found by the field, not by this suite). Needs
+    /// the model because the whole question is whether a real decode is
+    /// awaited inline; a mock that returns instantly cannot fail it.
+    ///
+    /// **AMENDED by AC-109:** that reasoning was half right. A mock that
+    /// returns instantly cannot fail it — but a mock that never returns
+    /// can, and `NeuralVoiceFailurePathTests.feedHandsOffRatherThanDecoding`
+    /// is that test, ungated and model-free. This case stays because it
+    /// exercises the real decoder on the real path; it is no longer the
+    /// only thing standing between this promise and a regression.
+    @Test("feed hands off — an immediate cancel is never heard (model required)")
+    func feedHandsOff() async throws {
+        let voice = Self.fused
+        guard await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyFeedHandsOffRatherThanDecoding(voice)
+    }
+
+    @Test("the fused decoder speaks and stops (model + MMK_LIVE_SYNTH=1)")
+    func fusedSpeaksAndStops() async throws {
+        let voice = Self.fused
+        guard Self.liveAudioAllowed, await voice.modelInstalled() else { return }
+        try await SynthesizerConformanceKit.verifyStartedThenFinished(voice)
+        try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(voice)
+        try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(voice)
+    }
+}
+#endif

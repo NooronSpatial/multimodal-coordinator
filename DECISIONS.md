@@ -1370,3 +1370,690 @@ are stated in `AudioSessionSeamTests.swift` beside the invariant, not
 only here, so the next person to touch that `defer` meets the warning in
 the file they are editing. The original note is kept above the ruling —
 its FACTS did not change, only the reasoning that followed them.
+
+---
+
+## D-045 — The second mouth: five rulings (Milestone 4e, forks F-1..F-5)
+
+**Date:** 2026-08-15 · **Decided by:** Ryad
+
+Every seam in this library has two real implementations except one, so
+"we can switch mouths" was a CLAIM where the input side had a PROOF.
+4e closes it with TTSKit's neural voice (Qwen3, CoreML) from the
+`argmax-oss-swift` package already resolved for WhisperKit.
+
+**F-1 = B — we render the audio, TTSKit only decodes.** `generate`
+hands back PCM chunk by chunk; `play` would render through TTSKit's own
+output. B is the only path that can make the reply CANCELLABLE on iOS:
+D-043 measured that voice processing removes only what its own audio
+unit renders, so a reply we render ourselves is the first one the
+canceller can see. It also makes `.started` real evidence (a buffer
+actually scheduled) and makes `cancel()` something we can measure rather
+than request. *Rejected:* `play()` — least code, and it inherits 4d's
+echo problem unchanged, with `.started` degraded to "their callback
+fired" and cancellation to a hope. *Rejected:* a platform split
+(`play` on macOS, render on iOS) — one seam with two behaviours, and
+`.started` meaning different things per platform.
+**The cost, accepted knowingly:** we take back the problem TTSKit had
+already solved — pre-buffering against underruns, and a 24 kHz source
+feeding an engine at 48 kHz. If our rendering is choppy the neural mouth
+is WORSE than Apple's for no gain. AC-102's spike measures exactly that,
+and option A stays documented as the fallback.
+
+**F-2 = A — `.started` is the first PCM actually rendered.** D-029's
+rule survives the change of mouth: state follows what is AUDIBLE.
+*Rejected:* reporting at generation start — earlier, and a lie, because
+nothing can be heard yet; it would also corrupt the felt-pause number
+that INSTRUMENTS.md has tracked since 4b.
+
+**F-3 = A — `PlaybackStrategy.auto`.** It measures the first decode step
+and pre-buffers just enough, re-assessed per chunk. *Rejected:*
+`.stream` (lowest latency, choppy wherever the device cannot generate
+faster than real time) and `.generateFirst` (smooth, but the felt pause
+swallows the whole generation). The number is recorded either way — this
+is a latency/robustness trade the spike settles, not taste.
+
+**F-4 = A — its own opt-in product, `MultiModalKitTTS`.** Mirrors
+`MultiModalKitWhisper` (D-016 tier 2, D-023's four questions). The core
+keeps zero runtime dependencies. *Rejected:* folding it into the Whisper
+module because both come from one package — it implements a DIFFERENT
+seam, and an app that wants a voice should not be made to pull a speech
+recogniser.
+
+**F-5 = A — the bake-off measures intelligibility, and labels opinion as
+opinion.** Voice quality cannot be scored honestly by assertion, but it
+CAN be measured indirectly: speak the text, record it, transcribe it
+with the two engines this repo already owns, and score WER against the
+source. That is a real instrument, with real caveats (it measures what a
+RECOGNISER understands, not what a human enjoys). Latency, size and
+thermal are objective and reported directly. Anything subjective is
+reported as labelled opinion. *Rejected:* refusing to score quality at
+all (the easy way out, and it wastes an instrument already in the repo).
+*Rejected:* a subjective rating as the headline number — precisely what
+BAKEOFF.md exists to refuse.
+
+## D-046 — The neural mouth starves: buy a lead AND attack the decode (Milestone 4e, post-AC-102)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: A and B, in the
+order B then A**
+
+**What the measurement said.** AC-102 put the neural voice's real-time
+factor at **1.09–1.23** on an M-series Mac, release build (INSTRUMENTS
+§10). Above 1.0 means the decoder produces audio slower than the ear
+drinks it, so the player runs dry. The arithmetic proves it without an
+ear: the long sentence would end at first-audio + audio = 8466 ms if
+playback were gapless, and it ended at 9216 ms — decode wall time plus
+one buffer. Playback is gated by decode, from the very first buffer,
+because this integration starts with **zero lead**.
+
+**A — buy a lead.** Queue audio before starting playback. First audio
+rises from ~227 ms toward ~1 s; the gaps close for replies short enough
+that the lead outlasts them.
+
+**B — attack the decode speed first.** Find what TTSKit exposes that
+lowers RTF, and measure it, before hiding the deficit behind a buffer.
+
+**Both, B first.** B first because a faster decode shrinks the lead A
+has to buy, and a lead sized against an un-optimised decoder is a lead
+sized against a number we chose not to improve. A regardless of B's
+outcome, because a streaming render path with zero pre-roll is wrong for
+ANY mouth — the fault is structural, not particular to this voice.
+
+*Rejected:* **C — rule the neural voice non-conversational** and let the
+bake-off judge quality only. It costs nothing and it is honest, but it
+grades the wrong thing: with no lead, AC-103 would measure a stutter
+that is our bug, and AC-104 would measure it harder, because the phone
+is slower than the Mac. Quality cannot be judged through a defect we
+already know we own.
+
+*Rejected as sequencing:* **A before B**, and **iPhone before either**.
+A-first sizes a buffer against a decoder we have not tried to speed up.
+iPhone-first measures our missing buffer on slower silicon.
+
+### The correction this ruling carries — D-045 F-3 cannot be delivered as ruled
+
+D-045 F-3 chose `PlaybackStrategy.auto`, praised for measuring the first
+decode step and pre-buffering just enough. **It is unimplementable under
+F-1 = B.** `PlaybackStrategy` governs TTSKit's OWN playback, and F-1
+ruled that TTSKit never plays anything for us — it decodes, we render.
+Two rulings in the same decision, and only one of them can be true.
+
+F-1 wins, because its reason is measured (D-043: iOS voice processing
+cancels only what its own audio unit renders) while F-3's was a
+convenience. So F-3's ruling is void as written, and its INTENT — an
+adaptive pre-buffer, sized from what the decoder is actually doing —
+transfers to our code as option A. That is not a footnote to F-3; it is
+the whole content of A, and D-045 F-1 already named the bill:
+*"pre-buffering and resampling become ours to get wrong."*
+
+Per this log's rule, F-3 is not edited away. It stands as ruled, with
+this entry recording that it was ruled against a capability we had
+already given up in the fork above it.
+
+## D-047 — `.fused` becomes the neural voice's default, and the lead returns to zero (Milestone 4e, post-AC-103/106)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: A**
+
+**The evidence this rests on**, all in INSTRUMENTS §12–§14:
+
+| | `.stepped` | `.fused` |
+|---|---|---|
+| steady RTF (AC-106) | 1.066 | **0.752** |
+| round-trip WER, 18 draws (AC-103) | 0.083 | 0.074 |
+| blind listening, 3 rounds (AC-103) | 1 win | 1 win, 1 tie |
+
+**29% faster, and no quality difference that two independent instruments
+could find** — one subjective, one objective, neither looking for the
+same thing. `.fused` replaces ~35 CoreML predictions per 80 ms frame
+with about 5.
+
+**THE LEAD GOES TO ZERO BY DERIVATION, NOT BY PREFERENCE.** The sizing
+rule is `deficit = replyLength × (RTF − 1)`, and at 0.752 it returns
+zero: the decoder runs ahead of the ear, so there is no shortfall to
+bank. `NeuralVoice.defaultLead` is still computed from that rule against
+a named measured factor, so the day a slower machine is measured, the
+constant changes and the cushion reappears on its own. First audio
+returns from 1882 ms to **229 ms**, gapless.
+
+*Rejected:* **B — keep `.stepped` until the iPhone is measured.** It was
+the strictest reading of D-045, and its bar has now been cleared on the
+Mac by both instruments. Holding on would mean every remaining 4e
+measurement — AC-104's iPhone numbers, the demos, the review — is taken
+against a configuration we already intend to replace, which measures the
+wrong thing carefully.
+
+*Rejected:* **C — adopt `.fused` but keep a ~250 ms cushion as
+insurance** for the unmeasured phone. It buys protection against a risk
+nobody has measured, which is the same "insurance, not a measured cure"
+label D-028's thermal policy has carried honestly since Phase 3. The
+sizing rule makes the cushion one line the moment AC-104 produces a
+number that asks for one. Guessing it now would only make that number
+harder to read.
+
+**Costs accepted knowingly:**
+- **iOS 18 / macOS 15 floor.** `.fused` needs the multifunction CoreML
+  asset and a modern runtime. The conformance kit proves the asset on
+  whatever machine runs the suite rather than assuming it.
+- **Undocumented path.** The mode appears in Argmax's CLI and example
+  app, not their README. A package bump could change it without a
+  release note, so the conformance test that loads it is the guard.
+- **Output is not bit-identical** to `.stepped`: sampling moves inside
+  the graph. Measured as indistinguishable, not as identical.
+
+**What this ruling does NOT do.** It does not adopt the neural voice as
+the conversational mouth — D-045 and AC-102 still require iPhone numbers,
+stop latency and thermal, and none of those exist yet. This chooses which
+decoder the neural voice uses when it is used at all, so that every
+remaining measurement is taken against the real candidate.
+
+**An open hazard, recorded here because it belongs to the voice and not
+to either decoder.** In AC-103's draws Whisper heard `*crying*`,
+`(laughing)`, `"Ha,"` and `"Uh uh, uh,"` — the model emits non-speech
+vocalisations, on BOTH decoders. For an assistant that talks to people
+that is a real problem, and it is owed its own fork rather than a
+footnote. It does not block this ruling because it is unaffected by it.
+
+## D-048 — AC-104 needs the capture engine, so 4f's engine sharing is pulled forward, scoped (Milestone 4e)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: B**
+
+**Why the question forced it.** AC-104 asks whether a reply rendered
+through the pipeline's OWN engine falls under the gate. D-043 measured
+that iOS voice processing removes only what its own audio unit renders,
+and that unit lives on `MicrophoneSource`'s engine — which is `private`.
+So the reply must render *there*, or the hypothesis is not being tested.
+
+*Rejected:* **A — the partial test**, neural voice on its own separate
+engine. It is runnable the moment the demo is wired, and it would cost a
+1.1 GB download and a field session to re-confirm D-043: an engine the
+voice-processing unit does not render cannot be cancelled by it. A
+measurement whose result is known in advance is not a measurement.
+
+**Scoped, and the scope is the point.** ONLY the engine sharing moves
+into 4e — enough for a reply to render where the canceller can see it.
+4f keeps the rest of the routing fix, and keeps Apple's mouth, whose
+echo problem D-043 documented and which this does not touch.
+
+`NeuralVoice(renderingOn:)` already exists for exactly this. Its own
+doc comment, written in this milestone, says: *"Sharing the CAPTURE
+engine is not yet possible — `MicrophoneSource` keeps its own private —
+and that is exactly the work milestone 4f carries."* This ruling is that
+sentence coming due earlier than expected, which is a reason to record
+it rather than to quietly delete the comment.
+
+## D-049 — Reversing D-048: the neural voice renders on its own engine (Milestone 4e)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: A — reverse**
+
+**This overturns D-048, which Ryad ruled B on my recommendation eight
+hours earlier.** The recommendation was wrong, and it was wrong in a
+specific way worth naming: I argued that option A "would cost a 1.1 GB
+download and a field session to re-confirm D-043", and that a
+measurement whose result is known in advance is not a measurement. What
+I did not weigh was that **I had no way to test option B**, and that
+every step of it would therefore be tested by a person holding a phone.
+
+**What it cost, honestly counted.** One afternoon, five rebuilds, and
+these faults — every one of them introduced by me while fixing the
+previous one:
+
+| fault | how it showed |
+|---|---|
+| `detach` after `engine.stop()` | process abort |
+| guarded *attached* instead of *in a chain* | process abort, inside the first guard |
+| no output chain at all | `vpio render err: -1`, forever, state "thinking" |
+| output chain built after the tap | phone completely deaf |
+| output chain at all, with voice processing | capture cannot start, state "idle" |
+
+**The measurement that ended it** (INSTRUMENTS §17). Once the path was
+finally run on a Mac — which took one command, and which I should have
+written first:
+
+| voice processing | output chain | result |
+|---|---|---|
+| on | **on** | **cannot start: `-10875` at `kAUInitialize`** |
+| on | off | starts |
+| off | on | starts |
+| off | off | starts |
+
+Voice processing and an output chain cannot coexist on one engine here.
+That is the AC-108 configuration exactly.
+
+**The ruling.** The neural voice renders on its OWN engine —
+`AudioEnginePlaybackHost`, the seam's second implementation, which has
+worked since the hour it was written. Its reply is therefore NOT
+echo-cancelled on iOS, which is D-043's measured cost, accepted again
+and knowingly.
+
+*Rejected:* **B — keep going.** Real apps do run duplex voice processing
+on iOS, so this is possible. But the deciding case cannot be tested on
+this Mac (`-10875` is consistent with voice processing needing one
+device for input and output; a Mac has two, a phone has one), which
+means every further attempt is tested by Ryad. That is the exact
+arrangement that produced the table above.
+
+### What survives, and it is most of it
+
+The seam is not deleted. `PlaybackHost` has two implementations, eleven
+tests, and it now encodes rules that were learned the hard way. The
+capture-side host stays, unused by the demo, waiting for 4f — where it
+belongs, behind a harness that now exists.
+
+**And the harness is the real deliverable of this reversal.** `bakeoff
+voice-onmic` runs the capture path on a machine I control, with one
+variable. Everything above was findable in one command. 4f starts there,
+not on a phone.
+
+### Bugs found on the way that have nothing to do with the ruling
+
+They stay fixed, and they were worth the afternoon on their own:
+
+- the tap was installed with `inputFormat` when a tap observes what a
+  node PRODUCES — `outputFormat` is correct, and the two disagree the
+  moment anything else touches the graph
+- an invalid format handed to `installTap` ABORTS rather than throws;
+  now `AudioSourceFailure.inputUnavailable`
+- `AVAudioEngineConfigurationChange` was never observed, so an engine
+  that killed its own graph looked like a dead microphone
+- `feed` blocked the coordinator's loop for a whole phrase decode, which
+  is why barge-in was late
+- the gate was a guess; it is now measured, and the level is on screen
+
+## D-050 — Qwen3 stays; its voice quality is deferred, not accepted (Milestone 4e)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: keep it, revisit later**
+
+The neural mouth speaks on both platforms and it does not sound good.
+Both halves are measured, and neither cancels the other:
+
+| | |
+|---|---|
+| intelligible | round-trip WER **0.074** over 18 draws, against Apple's 0.000 (§14) |
+| slow | ~2× Apple's duration for the same sentence (§14) |
+| inconsistent | the same words, 8240 ms one draw and 6480 ms the next (§11) |
+| strange | `*crying*`, `(laughing)`, `"Ha,"` transcribed out of its own output (§14) |
+
+**What "keep" means here, stated so nobody has to guess later.** Both
+mouths ship. The demo lets a listener switch between them and the
+library's conversational default is UNCHANGED — Apple's mouth, which is
+fast and robotic, remains what a fresh install talks with. The neural
+voice is the seam's second real implementation, which is the thing 4e
+set out to prove and did.
+
+**What is deferred, and is now owed work rather than a closed question:**
+whether this voice can be made pleasant. The levers already measured and
+rejected are recorded so the next attempt does not repeat them —
+temperature 0 is slower and rambles longer (§12), `.throughputOptimized`
+is slower here than the vendor's own table claims (§12), and the only
+other variant is the 1.7B, which is strictly more compute on a device
+that already runs hot. What has NOT been tried: the voice/speaker
+conditioning TTSKit exposes, and a different TTS engine entirely.
+
+**Not rejected, because it was never proposed as an alternative:** the
+milestone's claim was never "Qwen3 sounds good". It was "this pipeline
+does not care which mouth you plug in", and that is now proven with two
+implementations, a conformance kit, a bake-off, and field validation on
+Mac and iPhone. Recording the voice as unpleasant costs that claim
+nothing — and pretending otherwise would cost it everything.
+
+
+## Corrections to the 4e record — found by a document-versus-code audit
+
+**Date:** 2026-08-16 · Not a ruling. A list of places where this log said
+something the code contradicts, recorded here rather than edited away,
+because a decision log that quietly fixes itself is worth nothing.
+
+Found by an adversarial audit of every document against the tree, run
+before the 4e review. Nothing here was found by a test.
+
+**1. D-049's bug list is wrong about `inputFormat` / `outputFormat`.** It
+says the tap "was installed with `inputFormat` when a tap observes what a
+node PRODUCES — `outputFormat` is correct". **The opposite is true.**
+`installTap` asserts on the INPUT HARDWARE format
+(`format.sampleRate == inputHWFormat.sampleRate`), that "fix" aborted 39
+of 40 test rounds, and commit `fdf9fb7` reverted it. INSTRUMENTS §19
+carries the real account. The bullet was written in the same session that
+disproved it.
+
+**2. D-049's bug list claims a watch that had been deleted.** It says
+`AVAudioEngineConfigurationChange` "was never observed" and is now
+observed. The registration was in fact removed when `start()` was
+rewritten, leaving `removeObserver` in `stop()`, a counter with no
+writer, and a screen reporting `reconfig 0` as evidence. Restored, with
+`isWatchingConfiguration` so the instrument can be asked whether it is
+switched on — because this milestone has now shipped a dead instrument
+three separate times.
+
+**3. D-045 F-5 asked for two graders; one was used.** The ruling says
+round-trip WER is scored with "the two engines this repo already owns".
+`bakeoff voice-wer` grades with Whisper alone. INSTRUMENTS §14 admits it
+in its own caveats; this log did not, and the difference matters because
+a single grader's bias is unmeasured.
+
+**4. D-046's headline factor was later shown to be partly an artefact.**
+It quotes RTF 1.09–1.23 as the decoder's rate. AC-106 then found that
+number carried a fixed ~210 ms of prefill, and the steady rate was 1.066.
+Recorded in INSTRUMENTS §12 and in the code; never in the log until now.
+
+**5. Two counts in D-049 and D-050 are wrong.** "Eleven tests" for the
+`PlaybackHost` seam was eight at the time of writing (nine now), and
+D-050 attributes "rambles longer" to §12, which measures no such thing.
+
+The rulings themselves — D-045 through D-050 — stand. What was wrong was
+the supporting prose, which is exactly the part nobody re-reads.
+
+## D-051 — The 4e review's three blockers, fixed; two notes accepted (Milestone 4e)
+
+**Date:** 2026-08-16 · **Review by:** adversarial multi-agent pass
+(D-041's rule: the review happens BEFORE merge, and every finding is
+fixed or accepted in writing — never carried silently)
+
+Thirty-four agents across five dimensions; most findings did not survive
+verification. Three did, and all three were mine.
+
+**Blocker 1 — a failed decode kept running and aborted the process.**
+`report(_:terminal:)` handed the player node back to the engine and did
+NOT raise the run's flag; only `cancel()` did. The drain loop re-reads
+only that flag, so after `.failed` it popped the next phrase and called
+`play()` on a node with no engine — which AVFoundation aborts on rather
+than throwing. It also broke the doctrine written twenty lines above it:
+**a run that has reported a terminal must not act again, and the flag is
+the guarantee.** Fixed with one `retire()` that latches, empties the
+queue and stops the worker in a single locked step, called by every
+terminal path and by `cancel()`.
+Second half, same blocker: the coordinator's synthesis `.failed` arm
+cancelled the reply run but never the mouth, while the reply's arm has
+always cancelled the mouth. Harmless only while Apple's mouth was the
+only implementation, because it never emits `.failed`.
+
+**Blocker 2 — the neural voice's engine was never stopped.** It built
+its own host on the first reply, started that engine, and
+`stopRendering()` had no production caller anywhere. An output unit
+running forever means `setActive(false)` fails with `IsBusy`,
+`PhoneSession` swallows it with `try?`, and the `.playAndRecord` session
+is held for the life of the app — **the person's music never comes back
+after Stop.** Fixed app-side: the demo owns the host and stops it, in an
+order that cannot be swapped — the pipeline dies, THEN the engine stops,
+THEN the session is released. Step two *waits* for step one rather than
+racing it, because detaching a node under a reply that is still playing
+reaches blocker 1's abort from the other side.
+
+**Blocker 3 — the first reply loaded 1.1 GB on the coordinator's loop.**
+`modelInstalled()` only stats files; the pipeline was built lazily by the
+first `openUtterance`, which the coordinator awaits INLINE. So the first
+turn after launch froze the whole conversation for tens of seconds —
+onsets, transcripts and barges piling up unprocessed — and its felt-pause
+number silently contained the model load. This is the identical fault
+already fixed one call lower in `feed`, and the review found it sitting
+one call higher. Fixed by warming the model in `checkVoice()`, which
+`start()` already refuses to proceed without.
+
+### Accepted, with the note written rather than implied
+
+**The neural failure path ships UNPINNED.** `NeuralVoiceRun` holds a
+concrete `TTSKit`, so no test can make a decode throw, and blocker 1's
+fix could not be red-before-green. That is a departure from this repo's
+rule and it is recorded as one. A `TTSDecoding` seam would fix it and is
+4f work; until then the guarantee rests on reading, not on a test.
+
+**`PlaybackHost` has no stop verb.** Blocker 2 was fixed in the demo, so
+any OTHER caller who lets `NeuralVoice` build its own host inherits the
+same unstoppable engine. Whether the seam should grow a stop — or whether
+`NeuralVoice` should stop a host it created itself — is a change to a
+seam's shape and therefore a fork for Ryad, logged here rather than
+decided quietly.
+
+## D-052 — Whoever makes the engine stops it (Milestone 4e, the review's second accepted note)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: B**
+
+The 4e review found that `NeuralVoice` started an audio engine on its
+first reply and nothing ever stopped it. Blocker 2 fixed the demo by
+giving it a host of its own; this closes the same trap for every other
+caller.
+
+**The rule: ownership.** A host handed in by a caller belongs to that
+caller and is never stopped from inside. A host that built its own engine
+stops that engine. `NeuralVoice.shutdown()` stops only what the voice
+made for itself.
+
+**And the rule lives in the TYPE, not in a caller's memory.**
+`AudioEnginePlaybackHost` now has two initialisers — one that makes an
+engine and one that borrows — and `stopRendering()` consults which. That
+matters because a caller who forgets this gets no error: they get an
+audio session held for the life of the app, `setActive(false)` failing
+with `IsBusy`, and a person whose music never comes back.
+
+Both halves are tested, and the second half is the one that would have
+broken quietly: the bake-off hands in its own engine BECAUSE it also taps
+the mixer to capture what was said, so an engine stopped underneath that
+tap would end the measurement rather than the reply.
+
+*Rejected:* **A — put `stopRendering` in the protocol.** Every host would
+have to implement it, and the microphone's host borrows an engine it does
+not own — so its version would have to do nothing, or something wrong.
+One verb meaning two things is the shallow-wrapper smell this repo
+refactors away.
+
+*Rejected:* **C — the owned engine runs only while something renders**,
+stopping itself when its last node leaves. Fully automatic and genuinely
+tempting, but it starts and stops the engine once per reply. Route churn
+on a live graph is what cost this milestone an entire afternoon
+(INSTRUMENTS §16–§19), and buying tidiness with more of it is the wrong
+trade.
+
+**Still open after this, and the one thing left before merge:** the
+neural failure path ships unpinned, because `NeuralVoiceRun` holds a
+concrete `TTSKit` and no test can make a decode throw (D-051). A
+`TTSDecoding` seam fixes it and would also answer D-023's fourth question
+— *could we remove this dependency in a day, because it lives behind one
+of our protocols?* — which is currently **no** for TTSKit and yes for
+every other dependency in the repo.
+
+*(Closed by D-053, which also corrects the last sentence: the seam
+answers that fourth question for the DECODE path only.)*
+
+## D-053 — The `TTSDecoding` seam: our own types, and the run only (Milestone 4e, AC-109)
+
+**Date:** 2026-08-17 · **Decided by:** Ryad · **Rulings: F-6 = B, F-7 = A**
+
+This closes the debt D-051 accepted in writing and D-052 named as the one
+thing left before merge. It does not edit either of them — they record
+what was true when they were written.
+
+### F-6 — what language the seam speaks. Ruling: B, our own value types.
+
+`TTSDecoding` is two members: a sample rate, and
+`decode(text:temperature:onStep:)` handing back `[Float]` per step and
+taking a `Bool` back to say whether to continue. TTSKit's `generate`,
+`GenerationOptions`, `SpeechProgress` and `SpeechCallback` appear in ONE
+file, the adapter — and the `concurrentWorkerCount = 1` correctness pin
+moves there with the comment that explains it, because that pin is about
+the vendor's batching branch and belongs beside the vendor.
+
+*Rejected:* **A — the protocol names the vendor's types.** Less code, and
+that is the whole of its case. A protocol whose signatures are
+`GenerationOptions` and `SpeechProgress` is a shallow wrapper around
+another library's shape — the §4.0 smell this repo refactors away — and it
+leaves a test double needing `import TTSKit` to fake a decode. Under B the
+scripted decoder imports nothing.
+
+**The protocol is INTERNAL.** Its second implementation is a test double,
+not a shipping product, and this repo's rule (D-017) is that public
+surface is earned by a second REAL implementation. Tests reach it with
+`@testable import`. If a consumer ever wants to put a different decoder
+behind our rendering machinery, that is the day it becomes public, and the
+day it needs a written contract rather than an internal one.
+
+### F-7 — how far the seam reaches. Ruling: A, the run only.
+
+`NeuralVoiceRun` takes the protocol. `NeuralVoice` keeps
+`TTSModelVariant`, `TTSKitConfig`, `Qwen3MultiCodeDecoderMode` and
+`Qwen3SpeechDecoderMode` in its public API.
+
+*Rejected:* **B — hide the model lifecycle too**, so no signature names
+TTSKit. It breaks public API the demo and the bake-off depend on, and it
+does it to hide the exact levers AC-106 measured: `.fused` versus
+`.stepped` is a published number — 1.066 → 0.752 — and a caller who
+cannot name the decoder cannot reproduce the measurement. Hiding a
+dependency is worth less than reproducing a result.
+
+**And the correction this ruling forces.** D-052's closing paragraph says
+the seam would answer D-023's fourth question. Under A it answers **half**
+of it: TTSKit is removable-in-a-day behind a protocol for the DECODE, and
+still not for the model lifecycle. The half-answer is what goes in the
+record, because the fuller claim would be the more flattering one and it
+would be false.
+
+## D-054 — Audio graphs are MEASURED, never reasoned about (standing rule, all milestones)
+
+**Date:** 2026-08-17 · **Decided by:** Ryad · **A process pivot, logged
+because process pivots get their own entry**
+
+The bill this pays: in one 4e afternoon, five separate faults, **each
+introduced while fixing the previous one** — a detach after
+`engine.stop()`; a guard on "attached" when the assertion asks "in a
+chain"; no output chain at all; an output chain built after the tap; and
+an output chain at all. Every one was a guess about what a live
+`AVAudioEngine` would do. Every one was tested by Ryad rebuilding onto his
+phone. What ended it was not insight: it was `swift run bakeoff
+voice-onmic` — the same path, on this Mac, with one variable. All five
+were findable that way, in minutes.
+
+**The rule, in five parts.**
+
+1. Before ANY change to `MicrophoneSource`, `PlaybackHost`, an
+   `AVAudioEngine` graph or an `AVAudioSession`: write or extend a harness
+   that runs that path HERE, with one variable, and run it. **The harness
+   comes before the fix** — not after the failure report.
+2. Never ask Ryad to test a hypothesis the machine can test itself. That
+   includes the iOS Simulator: boot it, build and install the demo, copy
+   the model into the app container, tap the UI, screenshot it. His phone
+   is for what only real hardware can answer — routing, echo cancellation,
+   thermals — never for choosing between two orderings.
+3. "I cannot test this here" is an INPUT to the ruling, said before the
+   proposal, together with who pays if the guess is wrong. Not a footnote
+   after it.
+4. When a field report arrives, the first move is a measurement that could
+   REFUTE the favourite explanation — not a fix. Four of the five faults
+   above were the fix arriving before the measurement.
+5. An instrument that shows a number must have a WRITER, and must be able
+   to say whether it is switched on. Three instruments shipped dead in 4e
+   — the margin counters, the graph-rate line, the reconfiguration watch —
+   and each cost a field run before anyone noticed it reported nothing.
+
+**Its first application, in the same hour it was ruled.** AC-109's tests
+need a spy `PlaybackHost` that starts no engine, which makes every verb the
+run calls on its player node a graph question. `bakeoff graph-probe`
+answered it — eight cases, one process each, because an abort ends a
+process. `stop()` and `reset()` off a running engine are safe;
+**`play()` and `scheduleBuffer` abort**. That measurement is what makes
+"the scripted decoder emits empty sample arrays" a load-bearing rule
+instead of a style choice.
+
+**And the probe refuted something I believed.** Its CONTROL case — detach
+after `engine.stop()`, fault one of that afternoon — **did not abort** on a
+plain macOS engine. The harness can plainly see aborts, since two other
+cases produced them, so this is not a dead instrument: it means that abort
+was never a property of a plain engine. It needed the capture engine's
+voice-processing unit, or a session teardown. The guards in
+`MicrophonePlaybackHost` and `AudioEnginePlaybackHost` STAY — they cost
+nothing and the iPhone's evidence stands — but the comment claiming the
+general case is narrower than it reads, and INSTRUMENTS §20 now carries
+the number instead of the belief.
+
+## D-055 — One funnel for the lead's liveness escape (Milestone 4e, found by the re-review)
+
+**Date:** 2026-08-17 · **Decided by:** Ryad · **Ruling: B** · Recorded
+under D-041's rule that every review finding is fixed or accepted in
+writing, never carried silently.
+
+**The finding.** `PlaybackLead` banks audio before the first sound. Two
+places can learn that *the reply is complete, so the lead's target will
+never be reached*:
+
+- `NeuralVoiceRun.speak()`'s liveness step, which HAS a `.release` arm and
+  says why in its own comment: *"If nothing released it here, the player
+  would never start, no buffer would ever report played, `finished` would
+  never fire, and the turn would hang."*
+- `finishTokens()`, which has **no such arm** — its last line is
+  `(phrasesInFlight == 0 && scheduled == played) ? .finishNow : .wait`.
+
+So if the last phrase's decode has already completed and the token stream
+closes afterwards, nothing releases the lead. **Measured, not argued**
+(`PlaybackLeadStrandTests`, and INSTRUMENTS §21):
+
+| lead target | `finishTokens` | started | finished |
+|---|---|---|---|
+| `.zero` (shipped) | after the decode | true | true |
+| 1500 ms | **after** the decode | **false** | **false** |
+| 1500 ms | before the decode ends | true | true |
+
+**It is pre-existing, and that phrase needs sharpening.** The `TTSDecoding`
+seam did not cause it — and the seam is the only reason it is reproducible,
+because making a decode finish ON COMMAND before the token stream closes
+needs an injectable decoder. But "pre-existing" must not be read as
+"already shipped": `PlaybackLead` and `releaseLead` were both introduced by
+**`c7d772a`, in this milestone**, and `main` has neither. So **merging PR
+#13 is what would put this hole into `main`.** It is pre-existing relative
+to the seam commits and new relative to the product, which is the reading
+that matters for the merge decision.
+
+**Why it is not biting, and why that expires.** `defaultLead` is
+`deficit(forReplyOf: 6s, realTimeFactor: 0.752)`, and `deficit` returns
+`.zero` for any RTF at or below 1.0, so every caller in this repo runs a
+zero lead where the first buffer starts the player. **The hole opens the
+moment RTF exceeds 1.0**, which is a slower machine — and **the iPhone's
+RTF has never been measured, because AC-104 did not happen.** A phone that
+decodes slower than it plays, answering with a reply short enough to fit
+inside its own lead, hangs the turn. That is 4f's territory.
+
+### The fork — Ryad's to rule
+
+- **A: give `finishTokens()` a `.release` arm**, mirroring `speak()`.
+  Smallest diff, and it fixes the measured case. But it leaves the liveness
+  escape written twice, in two arms that must be kept in agreement by
+  whoever reads them next — which is how it came to be missing in one of
+  them.
+- **B: one funnel.** Both paths compute the same "is this reply complete,
+  and if so must the lead be released?" question through a single function,
+  the way `TranscriptionSession` and `TurnCoordinator` both put every state
+  write through one transition funnel. More diff, and it puts the invariant
+  somewhere it cannot be half-applied.
+- **C: make the lead refuse an unreachable target** — `PlaybackLead` itself
+  releases when it learns no more audio is coming, so no caller can forget.
+  Purest, and it moves policy into the pure type where this repo likes it,
+  but `PlaybackLead` currently learns that only from `noMoreAudio()`, whose
+  single caller is the arm that already works.
+
+### The ruling: B, and it found a THIRD site
+
+The bug is not that one arm is missing a line; it is that one question had
+more than one answering site, which is precisely the shape this repo
+funnels everywhere else. A is a patch on the symptom. C is attractive and
+may still fall out of a later change, but on its own it alters a pure
+type's contract to fix a caller's asymmetry.
+
+**Writing the funnel found a third site the fork had not named.**
+`bufferPlayed()` was asking its own inline version of the same question
+too — so the count was not two sites but three, and the fork's own framing
+("lives in one place and is needed in two") was understated. That is the
+argument for B making itself: a question with three askers had already
+drifted once, and nothing structural was stopping the fourth.
+
+`NeuralVoiceRun.owed(by:)` is now the single answer — pure, computed under
+the caller's lock, returning `.nothing`, `.finish` or `.releaseLead` — and
+`settle(_:)` acts on it outside the lock, because `report` finishes a
+stream and `releaseLead` touches the player, and nothing may reach either
+under the mutex. All three sites route through it. `bufferPlayed()` can
+only ever receive `.finish` or `.nothing` in practice, since arriving there
+means a buffer was HEARD, so the player was started, so
+`PlaybackLead.noMoreAudio()` has already spent its one `true`. It is routed
+anyway: a site does not get to decide which answers are possible.
+
+**Red before green, and the wall clock shows it.** The strand test's middle
+case asserted the BUG while this was open — the honest way to keep CI green
+without deleting the evidence. Its expectations were flipped for the fix
+and it failed first with `updates → []` (the reply produced nothing at
+all), then passed. Its duration went from **3.054 s** — waiting out the
+bounded window for a `.finished` that never came — to **0.525 s**.

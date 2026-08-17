@@ -19,6 +19,11 @@ let package = Package(
         // runtime dependencies; only consumers who import this product pull
         // WhisperKit.
         .library(name: "MultiModalKitWhisper", targets: ["MultiModalKitWhisper"]),
+        // The second MOUTH (D-045 F-4): opt-in for the same reason, and
+        // its OWN product rather than a corner of the Whisper module —
+        // it implements a different seam, and an app that wants a voice
+        // should not be made to pull a speech recogniser.
+        .library(name: "MultiModalKitTTS", targets: ["MultiModalKitTTS"]),
         .executable(name: "audio-demo", targets: ["AudioDemo"]),
         .executable(name: "bakeoff", targets: ["Bakeoff"]),
     ],
@@ -36,6 +41,13 @@ let package = Package(
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
             ]
         ),
+        .target(
+            name: "MultiModalKitTTS",
+            dependencies: [
+                "MultiModalKit",
+                .product(name: "TTSKit", package: "argmax-oss-swift"),
+            ]
+        ),
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
         .executableTarget(
             name: "AudioDemo",
@@ -43,11 +55,28 @@ let package = Package(
         ),
         .executableTarget(
             name: "Bakeoff",
-            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
+            dependencies: [
+                "MultiModalKit", "MultiModalKitTesting",
+                "MultiModalKitWhisper", "MultiModalKitTTS",
+                // Direct, so `voice-levers` can name the decoder modes it
+                // is comparing (AC-106). A TOOL target, tier 2 of D-016 —
+                // the core still knows nothing about any of this.
+                .product(name: "TTSKit", package: "argmax-oss-swift"),
+            ]
         ),
         .testTarget(
             name: "MultiModalKitTests",
-            dependencies: ["MultiModalKit", "MultiModalKitTesting", "MultiModalKitWhisper"]
+            dependencies: [
+                "MultiModalKit", "MultiModalKitTesting",
+                "MultiModalKitWhisper", "MultiModalKitTTS",
+                // DECLARED, not borrowed. `SynthesizerConformanceTests`
+                // imports TTSKit to name `.stepped` and `.fused`, and that
+                // import worked only through transitive module visibility —
+                // an undeclared dependency that compiles until the search
+                // path tightens. The Bakeoff target declares it for the same
+                // reason (above); tests get the same honesty.
+                .product(name: "TTSKit", package: "argmax-oss-swift"),
+            ]
         ),
     ]
 )

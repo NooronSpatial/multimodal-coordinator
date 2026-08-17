@@ -6,36 +6,42 @@ repo's own rule that the repo is the memory.
 
 Division of labor between the documents: the code says **what**,
 [DECISIONS.md](DECISIONS.md) says **why** (and what was rejected),
-[SPEC.md](SPEC.md) says **what was promised**. This page says **where**.
+[SPEC.md](SPEC.md) says **what was promised**,
+[INSTRUMENTS.md](INSTRUMENTS.md) says **what it cost, measured**. This
+page says **where**.
 
-Line counts are as of Phase 3 (milestone 3a). They will drift; the shape
+Line counts are as of Phase 4 (milestone 4e). They will drift; the shape
 should not. Any PR that adds a box or moves an arrow updates this page.
 
-## The spine — sound to text
+## The spine — sound to text to speech
 
 Everything the library does is one journey. A spoken sentence enters at
-the top and leaves as text at the bottom.
+the top, and — when the app is talking back — a spoken reply leaves at
+the bottom.
 
 ```
- microphone ──► MicrophoneSource (74)      the mic tap. The ONLY code that
+ microphone ──► MicrophoneSource (296)     the mic tap. The ONLY code that
                      │ writes frames       runs on the audio thread: view
-                     │                     the buffer, copy, return. Can ask
-                     │                     for the platform's voice-processing
-                     │                     unit — the echo canceller (4b).
+                     │                     the buffer, copy, return. Owns
+                     │                     the ORDER of the session seam,
+                     │                     the platform's voice-processing
+                     │                     unit (4b), an ungated input
+                     │                     level (4e), and it watches for
+                     │                     the engine killing its own graph.
                      ▼
                 AudioRingBuffer (199)      lock-free SPSC ring; the one
                      │                     bridge off the audio thread;
                      │ drains              every dropped frame counted,
                      ▼                     exactly.
-                AudioPump (237)  actor     wakes on an injected clock,
+                AudioPump (244)  actor     wakes on an injected clock,
                      │                     drains the ring, asks
-                     │                     EnergyVAD (99) "speech?" — onset
-                     │                     window in, hangover out — adds
-                     │                     200 ms pre-roll.
+                     │                     EnergyVAD (99) "speech?" —
+                     │                     hangover out — adds 200 ms
+                     │                     pre-roll.
                      ▼  AudioEvents:  speechStarted / audioSegment /
                      │                speechEnded / dropped
                      ▼
-                TranscriptionSession (336) THE HEART. One loop, one truth:
+                TranscriptionSession (366) One loop, one truth:
                      │                     utterance tickets, barge-in,
                      │                     settling decodes (D-024),
                      │                     the single transition funnel.
@@ -50,7 +56,7 @@ the top and leaves as text at the bottom.
                 TranscriptEvents:  partial / final / failed / truncated
                      │                 ──► the app's screen
                      ▼
-                TurnCoordinator (566)      THE NAMESAKE. The conversation
+                TurnCoordinator (676)      THE NAMESAKE. The conversation
                      │                     above the text: turn ticket,
                      │                     barge-in across the whole chain,
                      │                     the funnel + legal-pair table,
@@ -64,14 +70,56 @@ the top and leaves as text at the bottom.
                      ▼  via the turn seams (TurnCoordination, 91)
                   ├─ ReplyGenerating       final text in, reply tokens out
                   └─ SpeechSynthesizing    tokens in, spoken EVIDENCE out
-                     │  └─ AppleSpeech-    the first real mouth (4b): thin,
-                     │     Synthesizer     delegate evidence only — the
-                     │     (151)           phrasing lives in SpeechPhraser
-                     │                     (88), pure and clockless.
+                     │                     TWO real mouths since 4e, which
+                     │                     is what turned "we can switch
+                     │                     mouths" from a claim into a
+                     │                     proof. Both pass one kit.
+                     │
+                     ├─ AppleSpeechSynthesizer (306)   thin: hand text to
+                     │     the framework, report delegate evidence. Picks
+                     │     the best INSTALLED voice — the default is a
+                     │     compact one, which is why it sounds robotic.
+                     │
+                     └─ NeuralVoice (307) ─► NeuralVoiceRun (491)
+                           MultiModalKitTTS, an OPT-IN product. Qwen3 via
+                           CoreML. The DECODER decodes; WE render, onto a
+                           PlaybackHost. `feed` hands off and returns —
+                           it must never block the coordinator's loop.
+                              │
+                              └─► TTSDecoding (60)   a seam of our own, so
+                                    ├─ TTSKitDecoder (73)   the vendor's
+                                    │    DECODE lives in ONE file. Its model
+                                    │    lifecycle does not, by ruling
+                                    │    (D-053 F-7 = A).
+                                    └─ a scripted decoder in the tests, which
+                                         is how the FAILURE path is pinned at
+                                         all (AC-109) — a real model cannot be
+                                         asked to fail on command.
+                     │
+                     │  the phrasing for both lives in SpeechPhraser
+                     │  (130), pure and clockless; when to START lives in
+                     │  PlaybackLead (118), also pure.
                      ▼
                 TurnEvents:  stateChanged / replyToken / completed /
                              barged / failed  ──► the app's screen
 ```
+
+## The seams — each one has two real implementations
+
+That rule is the design story. An interface with one implementation is a
+guess; two is a proof, and every one of these has been swapped in anger.
+
+| Seam | Implementations |
+|---|---|
+| `AudioSource` | `MicrophoneSource` · `FakeMicrophone` |
+| `TranscriptionEngine` | `AppleSpeechEngine` · `WhisperEngine` · `ScriptedTranscriber` |
+| `ReplyGenerating` | the demos' generators · `ScriptedReplyGenerator` |
+| `SpeechSynthesizing` | `AppleSpeechSynthesizer` · `NeuralVoice` · `ScriptedSynthesizer` |
+| `AudioSessionConfiguring` (4d) | the app's `PhoneSession` · `nil` on macOS |
+| `PlaybackHost` (4e) | `AudioEnginePlaybackHost` · `MicrophonePlaybackHost` |
+| `TTSDecoding` (4e, internal) | `TTSKitDecoder` · a scripted decoder in the tests |
+| `ThermalStateProviding` | `ProcessInfo` · a test provider |
+| `Clock` | `ContinuousClock` · `ManualClock` |
 
 ## The rails — cross-cutting, everything rides on them
 
@@ -86,7 +134,16 @@ the top and leaves as text at the bottom.
                            ProcessInfo provider.
  ThermalPolicy (40)        D-028: one question at one moment — may this
                            settling decode keep its ticket? The shipped
-                           default is dormant below .serious.
+                           default is dormant below .serious. NOTE: it
+                           governs transcription only; nothing in the TTS
+                           path reads thermal state (4e, open).
+ AudioSessionConfiguring   4d: the library calls the platform's steps in
+   (42)                    ORDER; the app supplies their contents.
+ PlaybackHost (287)        4e: WHERE a reply renders. Two verbs, and the
+                           host keeps the ordering rules — attach,
+                           connect, THEN start.
+ GateCalibration (69)      4e: where to put the VAD gate, computed from a
+                           measured room and voice instead of guessed.
 ```
 
 Diagnostics is optional everywhere (`nil` by default): the library never
@@ -101,13 +158,35 @@ requires observation, it offers it.
                            WER scorer, BakeoffHarness.
  AudioDemo (339)           terminal demo:
                            swift run audio-demo [apple|whisper] [--talk]
- TranscribeDemo (~485)     the iPhone app (Demo/TranscribeDemo).
- Bakeoff (78)              the WER bake-off:  swift run bakeoff
+ TranscribeDemo            the iPhone app (Demo/TranscribeDemo): two
+                           transcribers, two mouths, an Apple-voice
+                           picker, gate calibration, a live level meter,
+                           the echo probe, and the barge counters.
+  Bakeoff (825)            the measurement tools:
+                             swift run bakeoff                 WER, transcribers
+                             swift run bakeoff voice-install   fetch the voice
+                             swift run bakeoff voice-spike     first-audio, RTF
+                             swift run bakeoff voice-levers    decoder matrix
+                             swift run bakeoff voice-wer       speak→hear→score
+                             swift run bakeoff voice-onmic     a reply rendered
+                                                               on a LIVE capture
+                                                               engine — the path
+                                                               a phone runs
+                             swift run bakeoff graph-probe     what a live graph
+                                                               tolerates, one
+                                                               case per process
+                                                               (D-054)
 ```
 
 The demos are deliberately thin: they wire the spine and draw it. What
-they own — permissions, the audio session, model download UI — is what
-apps must own (AC-22); everything else is the library, unchanged.
+they own — permissions, the audio session's VALUES, model download UI —
+is what apps must own (AC-22); everything else is the library, unchanged.
+
+**`voice-onmic` is the newest and the most important of those tools.**
+Milestone 4e spent an afternoon debugging a live audio graph through a
+person holding a phone. That tool runs the same path here, with one
+variable, and every fault of that afternoon was findable in one command
+(INSTRUMENTS §17, D-049).
 
 ## Where is …? — the geography table
 
@@ -115,32 +194,60 @@ apps must own (AC-22); everything else is the library, unchanged.
 |---|---|
 | The audio-thread code (all of it) | `Audio/MicrophoneSource.swift` — the tap closure |
 | The iron laws' one crossing; drop counting | `Audio/AudioRingBuffer.swift` |
-| "Is this speech?" — gate, onset window, hangover, pre-roll | `Audio/AudioPump.swift` + `Audio/EnergyVAD.swift` |
+| "Is this speech?" — gate, hangover, pre-roll | `Audio/AudioPump.swift` + `Audio/EnergyVAD.swift` |
+| Where to PUT the gate, measured | `Audio/GateCalibration.swift` |
+| The raw, ungated input level | `Audio/MicrophoneSource.swift` — `inputLevel` |
+| The session's ORDER (activate, capture, release) | `Audio/AudioSessionConfiguring.swift` + `MicrophoneSource.start/stop` |
 | Barge-in, utterance tickets, settling table | `Transcription/TranscriptionSession.swift` |
 | The engine seam and capabilities | `Transcription/TranscriptionEngine.swift` |
 | Apple streaming, partials, segment joining | `Transcription/AppleSpeechEngine.swift` |
 | Whisper decode, waiter queue, offline load | `MultiModalKitWhisper/WhisperEngine.swift` |
 | One-to-many events, listener drop counting | `Concurrency/Broadcast.swift` |
 | Thermal + health events | `Diagnostics/PipelineDiagnostics.swift`, `Diagnostics/Thermal.swift` |
-| The heat ruling — who may keep settling | `Diagnostics/ThermalPolicy.swift`; its one consultation lives in the session's `speechStarted` branch |
+| The heat ruling — who may keep settling | `Diagnostics/ThermalPolicy.swift` |
 | The turn loop, barge-in, the turn ticket | `Conversation/TurnCoordinator.swift` |
-| The reply gate — "did the user yield the floor?" | `Conversation/TurnCoordinator.swift` — `Config.replyGate`, `handleGateExpired` |
-| The whole thought — what the speaker said, kept | `Conversation/TranscriptLedger.swift`; recorded before the input door, emptied only at `turnCompleted` |
+| The reply gate — "did the user yield the floor?" | `Conversation/TurnCoordinator.swift` — `Config.replyGate` |
+| The whole thought — what the speaker said, kept | `Conversation/TranscriptLedger.swift` |
 | The reply + synthesis seams | `Conversation/TurnCoordination.swift` |
 | Tokens → speakable phrases (subwords joined) | `Conversation/SpeechPhraser.swift` |
-| The real mouth; delegate evidence → seam updates | `Conversation/AppleSpeechSynthesizer.swift` |
-| The echo canceller switch, and what it measured | `Audio/MicrophoneSource.swift`, `INSTRUMENTS.md` §6 |
+| "Is there anything worth speaking?" | `Conversation/SpeechPhraser.swift` — `hasSpeakableContent` |
+| WHEN it is safe to start speaking (pre-roll) | `Conversation/PlaybackLead.swift` |
+| WHERE a reply renders | `Audio/PlaybackHost.swift` |
+| Apple's mouth; delegate evidence → seam updates | `Conversation/AppleSpeechSynthesizer.swift` |
+| Which Apple voice, and how good it is | `Conversation/AppleSpeechSynthesizer.swift` — `installedVoices` |
+| The neural mouth; decode, render, count buffers | `MultiModalKitTTS/NeuralVoice.swift`, `NeuralVoiceRun.swift` |
+| What a DECODER owes the mouth (the seam) | `MultiModalKitTTS/TTSDecoding.swift` |
+| TTSKit's DECODE api, confined to one file | `MultiModalKitTTS/TTSKitDecoder.swift` |
+| TTSKit's model lifecycle, still in the open (D-053 F-7 = A) | `MultiModalKitTTS/NeuralVoice.swift` |
+| The echo canceller switch, and what it measured | `Audio/MicrophoneSource.swift`, `INSTRUMENTS.md` §6, §8 |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
 | The pipeline wired for real | `Demo/TranscribeDemo/Sources/TranscribeModel.swift`, `Sources/AudioDemo/AudioDemo.swift` |
 
 ## The shape in numbers
 
-The whole system is ~5,100 lines; the library core is ~3,000. The
-biggest file on the spine is 526 lines. The test folder mirrors this
-map roughly one suite per box — 18 suites, 134 tests, all deterministic
-(injected clocks, no sleeps, event-gated); the two that touch real
-speakers are gated behind `MMK_LIVE_SYNTH=1` and skip honestly.
+Everything that is not a test is 9,201 lines; the library core is 4,012,
+and the tests are 6,374 — more test than library, which is the point. The
+biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
+`find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
+the untracked `local_clone/`.)
+
+*Two corrections live in that paragraph, and the second one is worse than
+the first.* It used to claim ~7,100 total against a breakdown of
+4,000 + 5,600, which cannot both be true. The version that fixed that then
+stated 6,127 tests and 667 lines of `TurnCoordinator` — and **both were
+wrong too**: 6,127 was counted mid-edit, before the same commit's own test
+file landed, and 667 was copied unchanged out of the paragraph being
+corrected, where it had never been right. An adversarial reviewer found it
+by running the command this paragraph hands the reader. A page that fixes
+un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
+is about, committed inside the correction for it.
+
+The test folder mirrors this map roughly one suite per box — **27 suites,
+231 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+run 20× before any milestone closes. The suites that touch real speakers
+or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
+skip honestly rather than failing for the wrong reason.
 
 If a box on this map ever stops being explainable in one sitting, that
 is a design smell, not a documentation problem — see the deep-module

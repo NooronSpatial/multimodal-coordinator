@@ -5,3 +5,8 @@ xcuserdata/
 DerivedData/
 .swiftpm/
 .netrc
+
+# A local clone of this repo that dev tooling drops here. 500 MB, not
+# ours to version, and it was committed once as a stray gitlink (fixed
+# forward in the commit below). Ignored so it cannot happen twice.
+local_clone/

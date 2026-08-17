@@ -26,7 +26,7 @@ struct PhoneSession: AudioSessionConfiguring {
         // INCLUDING automatic gain, and the lesson was immediate — "I must
         // speak loud and be near the phone".
         if talking {
-            var options: AVAudioSession.CategoryOptions = [.allowBluetooth]
+            var options: AVAudioSession.CategoryOptions = [AVAudioSession.CategoryOptions.allowBluetoothHFP]
             if useSpeaker { options.insert(.defaultToSpeaker) }
             // MODE, and it is not cosmetic. The device probe measured the
             // reply arriving at the microphone at peak 1.0000 — full
