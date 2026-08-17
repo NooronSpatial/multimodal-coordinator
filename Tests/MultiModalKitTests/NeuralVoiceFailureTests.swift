@@ -182,6 +182,17 @@ struct NeuralVoiceFailurePathTests {
         /// decoder's 24 kHz — nothing here may quietly assume they match.
         let outputSampleRate: Double = 48_000
 
+        /// Refuses to host anything, like a stopped microphone.
+        ///
+        /// The real hosts THROW `PlaybackHostFailure.notRendering` rather
+        /// than attaching to a graph nobody pulls, because a silent attach
+        /// leaves the caller waiting forever for audio that will never
+        /// play. A spy that could only succeed would have made every test
+        /// here unrepresentative of that path.
+        let refusing: Bool
+
+        init(refusing: Bool = false) { self.refusing = refusing }
+
         var attachCount: Int { state.withLock { $0.attachCount } }
         var detachCount: Int { state.withLock { $0.detachCount } }
         var liveNodeCount: Int { state.withLock { $0.live.count } }
@@ -190,6 +201,7 @@ struct NeuralVoiceFailurePathTests {
         var formatRates: [Double] { state.withLock { $0.formatRates } }
 
         func attachForPlayback(_ node: AVAudioNode, format: AVAudioFormat) throws {
+            if refusing { throw PlaybackHostFailure.notRendering }
             state.withLock {
                 $0.attachCount += 1
                 $0.live.insert(ObjectIdentifier(node))
@@ -352,8 +364,28 @@ struct NeuralVoiceFailurePathTests {
         await run.cancel()
 
         #expect(await Self.until { decoder.threw }, "the decode must really have failed")
+        #expect(!decoder.capExhausted, "the stop must arrive, not be waited out")
         let updates = await Self.drain(run)
         #expect(!updates.contains { if case .failed = $0 { true } else { false } })
+    }
+
+    /// A HOST THAT CANNOT RENDER IS A NAMED FAILURE, not silence.
+    ///
+    /// `PlaybackHost` throws `.notRendering` rather than attaching a node to
+    /// a graph nobody pulls, because a silent attach leaves the caller
+    /// waiting forever for audio that will never play — a hang that once
+    /// cost twenty minutes of a measurement run (INSTRUMENTS §14). The
+    /// promise is tested at the host level; this pins that the RUN
+    /// propagates it instead of returning a run that can never speak.
+    @Test("a host that refuses to render makes the run fail loudly at construction")
+    func aRefusingHostFailsLoudly() async throws {
+        let decoder = ScriptedDecoder([])
+        let host = SpyPlaybackHost(refusing: true)
+
+        #expect(throws: PlaybackHostFailure.notRendering) {
+            _ = try Self.makeRun(decoder, host)
+        }
+        #expect(decoder.decodedTexts.isEmpty, "and nothing was decoded on the way there")
     }
 
     // MARK: - what the seam also made testable

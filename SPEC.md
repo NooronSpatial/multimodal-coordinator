@@ -1764,12 +1764,37 @@ phone.
   1. a throwing decode reports `.failed` **once**, terminal, and the
      update stream finishes;
   2. **the run is retired** — a phrase already queued behind the failure
-     is never decoded, and the player is never touched again;
-  3. a throwing phrase still decrements the in-flight count, so the
-     liveness promise survives a failure rather than hanging on it;
+     is never decoded, and the node goes back exactly once;
+  3. an unspeakable phrase is never handed to the decoder AT ALL, and the
+     reply still reports `.finished` — the in-flight count staying honest,
+     observed. This is AC-106's guard, which until now could only be
+     tested where the weights were installed, and the bug it prevents is
+     19.6 seconds of audio for a phrase containing nothing;
   4. `cancel()` during a decode makes the step callback return `false` —
      the decode's own channel — and reports no terminal;
-  5. a decode that throws AFTER a cancel is silent.
+  5. a decode that throws AFTER a cancel reports nothing. **Half-provable,
+     and the test says so:** `cancel()` has already finished the stream, so
+     a late `.failed` would be dropped whether the production guard exists
+     or not. What is pinned is that the throw happens and no terminal is
+     observed; what is not pinned is the second `teardown()` the guard
+     avoids, because asserting "this never happens later" needs a timing
+     guess and this repo does not allow one.
+
+  And four promises the seam made testable in passing, none of which
+  needed a model or a speaker:
+
+  6. `feed` HANDS OFF rather than decoding — the barge fault the field
+     found before the suite did. The suite that owns this promise says a
+     mock cannot fail it; a mock that never *returns* can;
+  7. the run's render format comes from its DECODER, not from a second
+     argument beside it and not from the host — the host's graph runs at a
+     deliberately different rate in the test, because 24 kHz played as
+     16 kHz is the "drunk voice" the field reported;
+  8. `NeuralVoice.shutdown()` (D-052) is safe on a voice that never spoke,
+     and safe twice — a public verb that shipped with zero callers and no
+     test;
+  9. a host that REFUSES to render makes the run fail loudly at
+     construction rather than returning a run that can never speak.
 
   Fact 2 is the one that earns the seam. It is blocker 1 of the 4e review
   (D-051): a `.failed` decode used to keep running and call `play()` on a
@@ -1804,7 +1829,7 @@ phone.
 | Liveness | an unspeakable reply still terminates (the promise the Apple mouth already keeps) |
 | Coordinator | the whole 4a–4d suite green with the neural mouth substituted in the scripted places it can be |
 | Bake-off | the round-trip WER harness itself: a known-good pair scores 0 %, a scrambled pair scores high |
-| Neural failure path (AC-109) | a scripted decoder that throws: `.failed` once and terminal · the run is RETIRED, so a queued phrase behind the failure is never decoded · the in-flight count still balances · cancel mid-decode returns `false` and reports no terminal · a throw after a cancel is silent. Headless — no model, no speaker |
+| Neural failure path (AC-109) | `NeuralVoiceFailurePathTests`, nine cases, one per numbered fact above, all headless — no model, no speaker, no environment gate |
 | Coordinator, the other half of blocker 1 | the synthesis-`.failed` arm cancels THE MOUTH, not only the reply run |
 | The graph itself (D-054) | `bakeoff graph-probe` — one case per process, because an abort ends a process: what a player node off a running engine tolerates, and one CONTROL case that must fail so the instrument proves it can see a failure |
 

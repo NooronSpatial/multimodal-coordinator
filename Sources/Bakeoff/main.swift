@@ -700,6 +700,17 @@ if arguments.count > 1, arguments[1] == "graph-probe" {
             let out = String(decoding: data, as: UTF8.self)
             if child.terminationStatus == 0, out.contains("SURVIVED") {
                 verdict = "survives"
+            } else if out.contains("THREW") {
+                // A THROWN SWIFT ERROR IS NOT AN ABORT, and conflating them
+                // would make this instrument lie. Case 5 calls
+                // `try engine.start()`, which throws on a machine with no
+                // usable output device — a CI runner, or a laptop with the
+                // audio device taken. Reported as an abort, that would read
+                // as "detach after stop aborts here", the exact belief §20
+                // refuted. Reported as untested, it says what happened.
+                verdict = "did not run · " + (out.split(separator: "\n")
+                    .first(where: { $0.hasPrefix("THREW") })
+                    .map(String.init) ?? "threw")
             } else {
                 verdict = "**ABORT**"
                 aborted.append(probe.number)
@@ -733,6 +744,12 @@ if arguments.count > 1, arguments[1] == "graph-probe" {
     } else {
         print("✅ DETECTION PROVEN — cases \(aborted.map(String.init).joined(separator: ", ")) "
               + "aborted, so this probe can see a fault.")
+    }
+    let unrun = rows.filter { $0.contains("did not run") }.count
+    if unrun > 0 {
+        print("⚠️  \(unrun) case(s) DID NOT RUN — they threw before measuring anything.")
+        print("    Read those rows as absent data, not as a verdict. The usual cause is")
+        print("    a machine with no usable audio output device.")
     }
     print("\nREAD IT AS: the surviving verbs are the ones a test double may call on a")
     print("node that is on no running engine. That is what makes AC-109's headless")

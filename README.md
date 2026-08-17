@@ -46,7 +46,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   227 tests in 26 suites, green, run 20× before any milestone closes
+swift test   →   228 tests in 26 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -154,7 +154,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 227 tests, deterministic
+swift test                          # 228 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)

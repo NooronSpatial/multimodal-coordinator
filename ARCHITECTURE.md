@@ -80,11 +80,19 @@ the bottom.
                      │     the best INSTALLED voice — the default is a
                      │     compact one, which is why it sounds robotic.
                      │
-                     └─ NeuralVoice (286) ─► NeuralVoiceRun (467)
+                     └─ NeuralVoice (307) ─► NeuralVoiceRun (491)
                            MultiModalKitTTS, an OPT-IN product. Qwen3 via
-                           TTSKit/CoreML. TTSKit decodes; WE render, onto
-                           a PlaybackHost. `feed` hands off and returns —
+                           CoreML. The DECODER decodes; WE render, onto a
+                           PlaybackHost. `feed` hands off and returns —
                            it must never block the coordinator's loop.
+                              │
+                              └─► TTSDecoding (60)   a seam of our own, so
+                                    ├─ TTSKitDecoder (73)   the vendor lives
+                                    │    in ONE file (D-053 F-6)
+                                    └─ a scripted decoder in the tests, which
+                                         is how the FAILURE path is pinned at
+                                         all (AC-109) — a real model cannot be
+                                         asked to fail on command.
                      │
                      │  the phrasing for both lives in SpeechPhraser
                      │  (130), pure and clockless; when to START lives in
@@ -107,6 +115,7 @@ guess; two is a proof, and every one of these has been swapped in anger.
 | `SpeechSynthesizing` | `AppleSpeechSynthesizer` · `NeuralVoice` · `ScriptedSynthesizer` |
 | `AudioSessionConfiguring` (4d) | the app's `PhoneSession` · `nil` on macOS |
 | `PlaybackHost` (4e) | `AudioEnginePlaybackHost` · `MicrophonePlaybackHost` |
+| `TTSDecoding` (4e, internal) | `TTSKitDecoder` · a scripted decoder in the tests |
 | `ThermalStateProviding` | `ProcessInfo` · a test provider |
 | `Clock` | `ContinuousClock` · `ManualClock` |
 
@@ -223,7 +232,7 @@ untracked `local_clone/`. The previous version of this paragraph claimed
 true — a stated number nobody re-ran.)
 
 The test folder mirrors this map roughly one suite per box — **26 suites,
-227 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+228 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.
