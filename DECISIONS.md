@@ -1961,3 +1961,74 @@ voice-processing unit, or a session teardown. The guards in
 nothing and the iPhone's evidence stands — but the comment claiming the
 general case is narrower than it reads, and INSTRUMENTS §20 now carries
 the number instead of the belief.
+
+## D-055 — OPEN, for Ryad: the lead's liveness escape lives in one place and is needed in two (found by the 4e re-review)
+
+**Date:** 2026-08-17 · **Status: OPEN — not decided, not fixed.** Recorded
+under D-041's rule that every review finding is fixed or accepted in
+writing, never carried silently.
+
+**The finding.** `PlaybackLead` banks audio before the first sound. Two
+places can learn that *the reply is complete, so the lead's target will
+never be reached*:
+
+- `NeuralVoiceRun.speak()`'s liveness step, which HAS a `.release` arm and
+  says why in its own comment: *"If nothing released it here, the player
+  would never start, no buffer would ever report played, `finished` would
+  never fire, and the turn would hang."*
+- `finishTokens()`, which has **no such arm** — its last line is
+  `(phrasesInFlight == 0 && scheduled == played) ? .finishNow : .wait`.
+
+So if the last phrase's decode has already completed and the token stream
+closes afterwards, nothing releases the lead. **Measured, not argued**
+(`PlaybackLeadStrandTests`, and INSTRUMENTS §21):
+
+| lead target | `finishTokens` | started | finished |
+|---|---|---|---|
+| `.zero` (shipped) | after the decode | true | true |
+| 1500 ms | **after** the decode | **false** | **false** |
+| 1500 ms | before the decode ends | true | true |
+
+**It is pre-existing.** The `TTSDecoding` seam did not cause it — and the
+seam is the only reason it is reproducible, because making a decode finish
+ON COMMAND before the token stream closes needs an injectable decoder. The
+review that found it was reviewing the seam.
+
+**Why it is not biting, and why that expires.** `defaultLead` is
+`deficit(forReplyOf: 6s, realTimeFactor: 0.752)`, and `deficit` returns
+`.zero` for any RTF at or below 1.0, so every caller in this repo runs a
+zero lead where the first buffer starts the player. **The hole opens the
+moment RTF exceeds 1.0**, which is a slower machine — and **the iPhone's
+RTF has never been measured, because AC-104 did not happen.** A phone that
+decodes slower than it plays, answering with a reply short enough to fit
+inside its own lead, hangs the turn. That is 4f's territory.
+
+### The fork — Ryad's to rule
+
+- **A: give `finishTokens()` a `.release` arm**, mirroring `speak()`.
+  Smallest diff, and it fixes the measured case. But it leaves the liveness
+  escape written twice, in two arms that must be kept in agreement by
+  whoever reads them next — which is how it came to be missing in one of
+  them.
+- **B: one funnel.** Both paths compute the same "is this reply complete,
+  and if so must the lead be released?" question through a single function,
+  the way `TranscriptionSession` and `TurnCoordinator` both put every state
+  write through one transition funnel. More diff, and it puts the invariant
+  somewhere it cannot be half-applied.
+- **C: make the lead refuse an unreachable target** — `PlaybackLead` itself
+  releases when it learns no more audio is coming, so no caller can forget.
+  Purest, and it moves policy into the pure type where this repo likes it,
+  but `PlaybackLead` currently learns that only from `noMoreAudio()`, whose
+  single caller is the arm that already works.
+
+**Recommendation: B.** The bug is not that one arm is missing a line; it is
+that one question has two answering sites, which is precisely the shape
+this repo funnels everywhere else. A is a patch on the symptom. C is
+attractive and may fall out of B, but on its own it changes a pure type's
+contract to fix a caller's asymmetry.
+
+**Not decided here, and deliberately not fixed:** the fix changes when a
+reply starts speaking, which is D-046's territory, and D-046 = A was
+Ryad's ruling. `PlaybackLeadStrandTests` pins the hole in the meantime —
+its middle case asserts the BUG on purpose, so that the day this is fixed
+that expectation flips and the test becomes the fix's proof.

@@ -46,7 +46,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   228 tests in 26 suites, green, run 20× before any milestone closes
+swift test   →   231 tests in 27 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -55,14 +55,17 @@ The deterministic core runs on fake time and fake audio: same result on any
 machine, under any load. No sleeps, no "wait a bit and hope", no count-based
 waits.
 
-**Two suites are exceptions, and they are ungated** — they run on a plain
-`swift test`: `AudioSessionSeamTests` starts a REAL microphone, and
-`PlaybackHostTests` starts a REAL audio engine, because the invariants they
-guard (the session's ordering, and where a reply may render) do not exist
-anywhere else. The cost is real and is written down: a machine whose audio
-configuration changes underneath the run can **abort the process** rather than
-fail a test, and [INSTRUMENTS.md](INSTRUMENTS.md) §19 records the run where
-that happened 39 times in 40.
+**Three suites are exceptions, and they are ungated** — they run on a plain
+`swift test`: `AudioSessionSeamTests` starts a REAL microphone,
+`PlaybackHostTests` starts a REAL audio engine, and
+`PlaybackLeadStrandTests` renders real (silent) samples through one, because
+the invariants they guard (the session's ordering, where a reply may render,
+and whether a reply can be stranded unplayed) do not exist anywhere else.
+They skip honestly when the machine has no engine to render on. The cost is
+real and is written down: a machine whose audio configuration changes
+underneath the run can **abort the process** rather than fail a test, and
+[INSTRUMENTS.md](INSTRUMENTS.md) §19 records the run where that happened 39
+times in 40.
 
 ## The hardest problem: the crossing
 
@@ -154,7 +157,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 228 tests, deterministic
+swift test                          # 231 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
@@ -229,6 +232,13 @@ synthesizers behind their seams.
   reproduce on a plain Mac engine** (INSTRUMENTS §20). The abort that cost 4e
   an afternoon needed voice processing or a session teardown, so that one
   case still needs a phone.
+- **A liveness hole, measured and left open as D-055.** If the playback lead
+  is larger than a whole reply AND the token stream closes after the last
+  decode finished, nothing releases the lead and the turn hangs
+  (INSTRUMENTS §21). Unreachable today only because the shipped lead is
+  `.zero` at the measured RTF of 0.752 — it opens on any machine where RTF
+  exceeds 1.0, which the iPhone has never been measured for. Found by the
+  adversarial review of the TTS seam; the fix is a fork, not a patch.
 
-See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-054 carry
-this milestone's rulings.
+See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-055 carry
+this milestone's rulings, and **D-055 is open**.

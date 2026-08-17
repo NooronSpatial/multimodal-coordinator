@@ -56,7 +56,7 @@ the bottom.
                 TranscriptEvents:  partial / final / failed / truncated
                      │                 ──► the app's screen
                      ▼
-                TurnCoordinator (667)      THE NAMESAKE. The conversation
+                TurnCoordinator (676)      THE NAMESAKE. The conversation
                      │                     above the text: turn ticket,
                      │                     barge-in across the whole chain,
                      │                     the funnel + legal-pair table,
@@ -87,8 +87,10 @@ the bottom.
                            it must never block the coordinator's loop.
                               │
                               └─► TTSDecoding (60)   a seam of our own, so
-                                    ├─ TTSKitDecoder (73)   the vendor lives
-                                    │    in ONE file (D-053 F-6)
+                                    ├─ TTSKitDecoder (73)   the vendor's
+                                    │    DECODE lives in ONE file. Its model
+                                    │    lifecycle does not, by ruling
+                                    │    (D-053 F-7 = A).
                                     └─ a scripted decoder in the tests, which
                                          is how the FAILURE path is pinned at
                                          all (AC-109) — a real model cannot be
@@ -160,7 +162,7 @@ requires observation, it offers it.
                            transcribers, two mouths, an Apple-voice
                            picker, gate calibration, a live level meter,
                            the echo probe, and the barge counters.
- Bakeoff (808)             the measurement tools:
+  Bakeoff (825)            the measurement tools:
                              swift run bakeoff                 WER, transcribers
                              swift run bakeoff voice-install   fetch the voice
                              swift run bakeoff voice-spike     first-audio, RTF
@@ -215,7 +217,8 @@ variable, and every fault of that afternoon was findable in one command
 | Which Apple voice, and how good it is | `Conversation/AppleSpeechSynthesizer.swift` — `installedVoices` |
 | The neural mouth; decode, render, count buffers | `MultiModalKitTTS/NeuralVoice.swift`, `NeuralVoiceRun.swift` |
 | What a DECODER owes the mouth (the seam) | `MultiModalKitTTS/TTSDecoding.swift` |
-| TTSKit, confined to one file | `MultiModalKitTTS/TTSKitDecoder.swift` |
+| TTSKit's DECODE api, confined to one file | `MultiModalKitTTS/TTSKitDecoder.swift` |
+| TTSKit's model lifecycle, still in the open (D-053 F-7 = A) | `MultiModalKitTTS/NeuralVoice.swift` |
 | The echo canceller switch, and what it measured | `Audio/MicrophoneSource.swift`, `INSTRUMENTS.md` §6, §8 |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
@@ -223,16 +226,25 @@ variable, and every fault of that afternoon was findable in one command
 
 ## The shape in numbers
 
-Everything that is not a test is ~9,200 lines; the library core is 4,012,
-and the tests are 6,127 — more test than library, which is the point. The
-biggest file on the spine is `TurnCoordinator` at 667 lines. (Counted with
-`find Sources Tests Demo -name '*.swift' | xargs wc -l`, excluding the
-untracked `local_clone/`. The previous version of this paragraph claimed
-~7,100 total against a breakdown of 4,000 + 5,600, which cannot both be
-true — a stated number nobody re-ran.)
+Everything that is not a test is 9,201 lines; the library core is 4,012,
+and the tests are 6,355 — more test than library, which is the point. The
+biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
+`find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
+the untracked `local_clone/`.)
 
-The test folder mirrors this map roughly one suite per box — **26 suites,
-228 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+*Two corrections live in that paragraph, and the second one is worse than
+the first.* It used to claim ~7,100 total against a breakdown of
+4,000 + 5,600, which cannot both be true. The version that fixed that then
+stated 6,127 tests and 667 lines of `TurnCoordinator` — and **both were
+wrong too**: 6,127 was counted mid-edit, before the same commit's own test
+file landed, and 667 was copied unchanged out of the paragraph being
+corrected, where it had never been right. An adversarial reviewer found it
+by running the command this paragraph hands the reader. A page that fixes
+un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
+is about, committed inside the correction for it.
+
+The test folder mirrors this map roughly one suite per box — **27 suites,
+231 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

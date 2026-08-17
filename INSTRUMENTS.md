@@ -1214,3 +1214,59 @@ processing, an iOS audio session, a real capture engine, or the Simulator.
 Case 5 under VPIO is the case that matters for 4f and it needs hardware.
 That is named here as a gap, before anyone reads the table as a clean bill
 of health.
+
+## 21. The stranded reply (D-055) — a liveness hole the seam made visible
+
+**Why it exists.** The adversarial review of the `TTSDecoding` seam claimed
+that `finishTokens()` can strand a reply. Two verifiers split one-for-one,
+so it was neither confirmed nor refuted by vote — and a liveness claim is
+not something to settle by vote. D-054 rule 1 says measure it.
+
+**How.** A decoder that emits real (silent) samples on command and reports
+when it has finished decoding, rendering on a real `AudioEnginePlaybackHost`,
+with the only variable being the lead target and WHEN the token stream
+closes. This is the measurement the seam made possible: before it, no test
+could make a decode finish at a chosen moment.
+
+`PlaybackLeadStrandTests`, this Mac, 2026-08-17 — 400 ms of audio per case:
+
+| lead target | `finishTokens()` called | `.started` | `.finished` |
+|---|---|---|---|
+| `.zero` — the shipped default | after the decode completed | true | true |
+| 1500 ms | **after** the decode completed | **false** | **false** |
+| 1500 ms | before the decode ended | true | true |
+
+**Read it as:** row two is a hung turn. The reply is fully decoded and
+sitting complete and silent in the player node, the lead was never
+released, so the player is never started, no buffer ever reports played,
+and `.finished` never fires. Row three is the same lead with the opposite
+ordering, and it is fine — which localises the fault precisely: not the
+lead, not the decoder, but WHICH of the two places that learn "the reply is
+complete" bothers to release it.
+
+**What it does NOT say.** Nothing here is reachable from any caller in this
+repo today, because `defaultLead` is `.zero` at the measured RTF of 0.752.
+The row that matters is a machine with RTF above 1.0, and **this Mac is not
+that machine**. The iPhone might be, and nobody knows, because AC-104 never
+happened. So this table is a proof that the hole exists, not a report that
+it has bitten.
+
+**Still open as D-055.** The fix is a fork — one arm, one funnel, or a
+purer `PlaybackLead` — and it moves when a reply starts speaking, which is
+D-046's ground and Ryad's ruling. Recorded rather than patched.
+
+**And the first version of this measurement FLAKED, 3 times in 20.** It
+waited on the decoder's own "I have finished decoding" flag, which is set
+from INSIDE `decode` — before `speak()`'s liveness step has run. In the
+three runs where `finishTokens()` won that window, `tokensFinished` was
+already true when the accounting happened, `speak()`'s `.release` arm fired
+exactly as designed, and the reply played perfectly. A test that passes
+because the bug did not happen this time is worse than no test.
+
+The fix was to gate on the FACT rather than on a proxy: `phrasesInFlight`
+returning to zero is the observable that the liveness step has run, and
+`NeuralVoiceRun.counters` exists to expose it (internal, like the type).
+One flake is not done — and finding this race also sharpened the finding:
+the hole is not "a non-zero lead strands replies", it is "a non-zero lead
+strands a reply whose token stream closes in one specific window". That is
+a narrower and truer claim than the review's original wording.

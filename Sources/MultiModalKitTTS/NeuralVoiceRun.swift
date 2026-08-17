@@ -172,6 +172,26 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         // not one buffer sooner (D-046 = A).
     }
 
+    /// A SNAPSHOT OF THE COUNTERS, for tests that must gate on an ordering
+    /// rather than guess at it.
+    ///
+    /// `PlaybackLeadStrandTests` (D-055) needs to act at one exact moment:
+    /// after the last phrase's decode has been ACCOUNTED FOR — its
+    /// `phrasesInFlight` decrement is what proves the liveness step already
+    /// ran — and before the token stream closes. Waiting on the decoder
+    /// instead was a race, and it flaked 3 times in 20: the decoder reports
+    /// done from INSIDE `decode`, so `finishTokens()` could arrive before
+    /// the accounting, where `speak()`'s own `.release` arm correctly saves
+    /// the reply and the hole never opens.
+    ///
+    /// Internal, like the type, so it widens no public surface — the same
+    /// bargain as `AudioEnginePlaybackHost.hostedCount`.
+    var counters: (phrasesInFlight: Int, scheduled: Int, played: Int, tokensFinished: Bool) {
+        state.withLock {
+            ($0.phrasesInFlight, $0.scheduled, $0.played, $0.tokensFinished)
+        }
+    }
+
     // MARK: - the seam
 
     /// HANDS OFF. DOES NOT DECODE. (Conformance promise 6.)
