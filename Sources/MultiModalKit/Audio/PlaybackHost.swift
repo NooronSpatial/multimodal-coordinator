@@ -219,12 +219,26 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
 public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
     private let state = Mutex<[HostedNode]>([])
     private let engine: AVAudioEngine
+    /// WHOEVER MAKES THE ENGINE STOPS IT (D-052). Recorded here, in the
+    /// type, rather than left to a caller to remember — because a caller
+    /// who forgets does not get an error, they get an audio session held
+    /// for the life of the app and a person whose music never comes back.
+    private let ownsEngine: Bool
 
-    /// `nil` builds its own. Handing one in is for a caller that already
-    /// has an engine and wants the reply on it — the bake-off does that,
-    /// because it also taps the mixer to capture what was said.
-    public init(engine: AVAudioEngine = AVAudioEngine()) {
+    /// Builds its own engine — and therefore stops it.
+    public init() {
+        self.engine = AVAudioEngine()
+        self.ownsEngine = true
+    }
+
+    /// Renders onto an engine somebody else owns, and never stops it.
+    /// For a caller that already has one and wants the reply on it — the
+    /// bake-off does exactly this, because it also taps the mixer to
+    /// capture what was said, and having its engine stopped underneath
+    /// that tap would end the measurement rather than the reply.
+    public init(engine: AVAudioEngine) {
         self.engine = engine
+        self.ownsEngine = false
     }
 
     public var isRendering: Bool { engine.isRunning }
@@ -270,9 +284,12 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
         }
     }
 
-    /// Stops rendering and releases every hosted node. Nodes go BEFORE
-    /// the engine stops — after it, they are no longer in any chain and
-    /// detaching them asserts.
+    /// Releases every hosted node, and stops the engine **only if this
+    /// host made it** (D-052).
+    ///
+    /// Nodes go BEFORE the engine stops — after it, they are in no chain
+    /// and detaching them asserts, which is the abort this milestone hit
+    /// from two directions.
     public func stopRendering() {
         state.withLock { hosted in
             for held in hosted
@@ -281,6 +298,11 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
                 engine.detach(held.node)
             }
             hosted.removeAll()
+            // A borrowed engine belongs to whoever started it. Stopping
+            // it here would be this type reaching outside its own
+            // ownership — the exact class of mistake the seam exists to
+            // prevent in the other direction.
+            guard ownsEngine else { return }
             engine.stop()
         }
     }

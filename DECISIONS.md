@@ -1802,3 +1802,50 @@ same unstoppable engine. Whether the seam should grow a stop — or whether
 `NeuralVoice` should stop a host it created itself — is a change to a
 seam's shape and therefore a fork for Ryad, logged here rather than
 decided quietly.
+
+## D-052 — Whoever makes the engine stops it (Milestone 4e, the review's second accepted note)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: B**
+
+The 4e review found that `NeuralVoice` started an audio engine on its
+first reply and nothing ever stopped it. Blocker 2 fixed the demo by
+giving it a host of its own; this closes the same trap for every other
+caller.
+
+**The rule: ownership.** A host handed in by a caller belongs to that
+caller and is never stopped from inside. A host that built its own engine
+stops that engine. `NeuralVoice.shutdown()` stops only what the voice
+made for itself.
+
+**And the rule lives in the TYPE, not in a caller's memory.**
+`AudioEnginePlaybackHost` now has two initialisers — one that makes an
+engine and one that borrows — and `stopRendering()` consults which. That
+matters because a caller who forgets this gets no error: they get an
+audio session held for the life of the app, `setActive(false)` failing
+with `IsBusy`, and a person whose music never comes back.
+
+Both halves are tested, and the second half is the one that would have
+broken quietly: the bake-off hands in its own engine BECAUSE it also taps
+the mixer to capture what was said, so an engine stopped underneath that
+tap would end the measurement rather than the reply.
+
+*Rejected:* **A — put `stopRendering` in the protocol.** Every host would
+have to implement it, and the microphone's host borrows an engine it does
+not own — so its version would have to do nothing, or something wrong.
+One verb meaning two things is the shallow-wrapper smell this repo
+refactors away.
+
+*Rejected:* **C — the owned engine runs only while something renders**,
+stopping itself when its last node leaves. Fully automatic and genuinely
+tempting, but it starts and stops the engine once per reply. Route churn
+on a live graph is what cost this milestone an entire afternoon
+(INSTRUMENTS §16–§19), and buying tidiness with more of it is the wrong
+trade.
+
+**Still open after this, and the one thing left before merge:** the
+neural failure path ships unpinned, because `NeuralVoiceRun` holds a
+concrete `TTSKit` and no test can make a decode throw (D-051). A
+`TTSDecoding` seam fixes it and would also answer D-023's fourth question
+— *could we remove this dependency in a day, because it lives behind one
+of our protocols?* — which is currently **no** for TTSKit and yes for
+every other dependency in the repo.

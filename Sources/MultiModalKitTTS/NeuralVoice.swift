@@ -161,6 +161,24 @@ public actor NeuralVoice: SpeechSynthesizing {
         marginHandler = handler
     }
 
+    /// Stops anything THIS VOICE started (D-052).
+    ///
+    /// The rule is ownership: a host handed in by a caller belongs to
+    /// that caller and is never touched here; a host this voice built for
+    /// itself is this voice's to stop. Without it, a caller who simply
+    /// used `NeuralVoice()` and never thought about audio graphs got an
+    /// engine that ran for the life of the process — which on iOS means
+    /// `setActive(false)` fails with `IsBusy` and the person's music
+    /// never returns. The 4e review found it; the demo was fixed by
+    /// owning its own host, and this closes it for everybody else.
+    ///
+    /// Safe to call more than once, and safe to call on a voice that
+    /// never spoke.
+    public func shutdown() {
+        ownHost?.stopRendering()
+        ownHost = nil
+    }
+
     /// Renders replies on `host` from now on.
     ///
     /// Settable rather than fixed at init because the two lifetimes do

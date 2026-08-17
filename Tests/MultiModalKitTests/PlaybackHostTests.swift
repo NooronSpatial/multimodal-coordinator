@@ -174,6 +174,46 @@ struct PlaybackHostTests {
         #expect(host.hostedCount == 0)
     }
 
+    /// WHOEVER MAKES THE ENGINE STOPS IT (D-052, Ryad's ruling).
+    ///
+    /// The rule is in the TYPE rather than in a caller's memory, because
+    /// a caller who forgets gets no error — they get an audio session
+    /// held for the life of the app and a person whose music never comes
+    /// back. The 4e review found exactly that: `NeuralVoice` started an
+    /// engine on its first reply and nothing ever stopped it.
+    @Test("a host that made its own engine stops it")
+    func anOwnedEngineIsStopped() throws {
+        let host = AudioEnginePlaybackHost()          // makes its own
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                   sampleRate: 24_000, channels: 1, interleaved: false)!
+        try host.attachForPlayback(AVAudioPlayerNode(), format: format)
+        #expect(host.isRendering)
+
+        host.stopRendering()
+        #expect(!host.isRendering, "an engine this host made is this host's to stop")
+        #expect(host.hostedCount == 0)
+    }
+
+    /// The other half, and the half that would break a caller silently:
+    /// the bake-off hands in its own engine BECAUSE it also taps the
+    /// mixer to capture what was said. An engine stopped underneath that
+    /// tap ends the measurement rather than the reply.
+    @Test("a host that borrowed an engine never stops it")
+    func aBorrowedEngineIsLeftRunning() throws {
+        let engine = AVAudioEngine()
+        let host = AudioEnginePlaybackHost(engine: engine)   // borrowed
+        let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                   sampleRate: 24_000, channels: 1, interleaved: false)!
+        try host.attachForPlayback(AVAudioPlayerNode(), format: format)
+        #expect(engine.isRunning)
+
+        host.stopRendering()
+        #expect(engine.isRunning,
+                "a borrowed engine belongs to whoever started it")
+        #expect(host.hostedCount == 0, "the nodes still go back")
+        engine.stop()
+    }
+
     /// The leak this seam exists to make impossible to forget. Before
     /// AC-108 the mouth attached a player per reply and detached none,
     /// so a long conversation grew its audio graph without bound
