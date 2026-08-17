@@ -69,6 +69,13 @@ let package = Package(
             dependencies: [
                 "MultiModalKit", "MultiModalKitTesting",
                 "MultiModalKitWhisper", "MultiModalKitTTS",
+                // DECLARED, not borrowed. `SynthesizerConformanceTests`
+                // imports TTSKit to name `.stepped` and `.fused`, and that
+                // import worked only through transitive module visibility —
+                // an undeclared dependency that compiles until the search
+                // path tightens. The Bakeoff target declares it for the same
+                // reason (above); tests get the same honesty.
+                .product(name: "TTSKit", package: "argmax-oss-swift"),
             ]
         ),
     ]

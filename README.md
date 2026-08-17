@@ -46,7 +46,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   216 tests in 25 suites, green, run 20× before any milestone closes
+swift test   →   227 tests in 26 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -154,7 +154,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 216 tests, deterministic
+swift test                          # 227 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
@@ -167,10 +167,16 @@ into [INSTRUMENTS.md](INSTRUMENTS.md):
 swift run bakeoff voice-install   # fetch the neural voice's model (1.1 GB, once)
 swift run bakeoff voice-spike     # time to first audio, and the real-time factor
 swift run bakeoff voice-levers    # every decoder setting, measured serially
-swift run bakeoff voice-listen    # a BLIND A/B between decoders, judged by ear
 swift run bakeoff voice-wer       # speak → record → transcribe → score
 swift run bakeoff voice-onmic     # a reply rendered on a LIVE capture engine
+swift run bakeoff graph-probe     # what a live audio graph actually tolerates
 ```
+
+`voice-listen` used to be in that list and **is not any more** — it was
+deleted in `0331534`, a commit about something else, while all three
+documents kept advertising it. INSTRUMENTS §13's blind A/B numbers came
+from it, so they are recorded but no longer reproducible from this tool.
+Named here rather than quietly dropped.
 
 `Demo/TranscribeDemo` is the iPhone app: two transcribers, two mouths, an
 Apple-voice picker, a live microphone level with the gate marked on it, a
@@ -215,6 +221,14 @@ synthesizers behind their seams.
   (`voice-onmic`) instead of a volunteer with a phone.
 - AC-102 still owes an iPhone stop-latency number and a thermal number. The
   phone gets hot; how hot has not been written down.
+- The neural decode's **batching pin** (`concurrentWorkerCount = 1`) is still
+  untested, and the `TTSDecoding` seam does not change that: the fault it
+  prevents lives in the vendor's own branching, which a scripted decoder
+  cannot reproduce. Its guarantee rests on reading TTSKit's source.
+- `graph-probe`'s control case — detach after `engine.stop()` — **does not
+  reproduce on a plain Mac engine** (INSTRUMENTS §20). The abort that cost 4e
+  an afternoon needed voice processing or a session teardown, so that one
+  case still needs a phone.
 
-See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-050 carry
+See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-054 carry
 this milestone's rulings.

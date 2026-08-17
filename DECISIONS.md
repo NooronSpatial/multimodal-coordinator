@@ -1849,3 +1849,115 @@ concrete `TTSKit` and no test can make a decode throw (D-051). A
 — *could we remove this dependency in a day, because it lives behind one
 of our protocols?* — which is currently **no** for TTSKit and yes for
 every other dependency in the repo.
+
+*(Closed by D-053, which also corrects the last sentence: the seam
+answers that fourth question for the DECODE path only.)*
+
+## D-053 — The `TTSDecoding` seam: our own types, and the run only (Milestone 4e, AC-109)
+
+**Date:** 2026-08-17 · **Decided by:** Ryad · **Rulings: F-6 = B, F-7 = A**
+
+This closes the debt D-051 accepted in writing and D-052 named as the one
+thing left before merge. It does not edit either of them — they record
+what was true when they were written.
+
+### F-6 — what language the seam speaks. Ruling: B, our own value types.
+
+`TTSDecoding` is two members: a sample rate, and
+`decode(text:temperature:onStep:)` handing back `[Float]` per step and
+taking a `Bool` back to say whether to continue. TTSKit's `generate`,
+`GenerationOptions`, `SpeechProgress` and `SpeechCallback` appear in ONE
+file, the adapter — and the `concurrentWorkerCount = 1` correctness pin
+moves there with the comment that explains it, because that pin is about
+the vendor's batching branch and belongs beside the vendor.
+
+*Rejected:* **A — the protocol names the vendor's types.** Less code, and
+that is the whole of its case. A protocol whose signatures are
+`GenerationOptions` and `SpeechProgress` is a shallow wrapper around
+another library's shape — the §4.0 smell this repo refactors away — and it
+leaves a test double needing `import TTSKit` to fake a decode. Under B the
+scripted decoder imports nothing.
+
+**The protocol is INTERNAL.** Its second implementation is a test double,
+not a shipping product, and this repo's rule (D-017) is that public
+surface is earned by a second REAL implementation. Tests reach it with
+`@testable import`. If a consumer ever wants to put a different decoder
+behind our rendering machinery, that is the day it becomes public, and the
+day it needs a written contract rather than an internal one.
+
+### F-7 — how far the seam reaches. Ruling: A, the run only.
+
+`NeuralVoiceRun` takes the protocol. `NeuralVoice` keeps
+`TTSModelVariant`, `TTSKitConfig`, `Qwen3MultiCodeDecoderMode` and
+`Qwen3SpeechDecoderMode` in its public API.
+
+*Rejected:* **B — hide the model lifecycle too**, so no signature names
+TTSKit. It breaks public API the demo and the bake-off depend on, and it
+does it to hide the exact levers AC-106 measured: `.fused` versus
+`.stepped` is a published number — 1.066 → 0.752 — and a caller who
+cannot name the decoder cannot reproduce the measurement. Hiding a
+dependency is worth less than reproducing a result.
+
+**And the correction this ruling forces.** D-052's closing paragraph says
+the seam would answer D-023's fourth question. Under A it answers **half**
+of it: TTSKit is removable-in-a-day behind a protocol for the DECODE, and
+still not for the model lifecycle. The half-answer is what goes in the
+record, because the fuller claim would be the more flattering one and it
+would be false.
+
+## D-054 — Audio graphs are MEASURED, never reasoned about (standing rule, all milestones)
+
+**Date:** 2026-08-17 · **Decided by:** Ryad · **A process pivot, logged
+because process pivots get their own entry**
+
+The bill this pays: in one 4e afternoon, five separate faults, **each
+introduced while fixing the previous one** — a detach after
+`engine.stop()`; a guard on "attached" when the assertion asks "in a
+chain"; no output chain at all; an output chain built after the tap; and
+an output chain at all. Every one was a guess about what a live
+`AVAudioEngine` would do. Every one was tested by Ryad rebuilding onto his
+phone. What ended it was not insight: it was `swift run bakeoff
+voice-onmic` — the same path, on this Mac, with one variable. All five
+were findable that way, in minutes.
+
+**The rule, in five parts.**
+
+1. Before ANY change to `MicrophoneSource`, `PlaybackHost`, an
+   `AVAudioEngine` graph or an `AVAudioSession`: write or extend a harness
+   that runs that path HERE, with one variable, and run it. **The harness
+   comes before the fix** — not after the failure report.
+2. Never ask Ryad to test a hypothesis the machine can test itself. That
+   includes the iOS Simulator: boot it, build and install the demo, copy
+   the model into the app container, tap the UI, screenshot it. His phone
+   is for what only real hardware can answer — routing, echo cancellation,
+   thermals — never for choosing between two orderings.
+3. "I cannot test this here" is an INPUT to the ruling, said before the
+   proposal, together with who pays if the guess is wrong. Not a footnote
+   after it.
+4. When a field report arrives, the first move is a measurement that could
+   REFUTE the favourite explanation — not a fix. Four of the five faults
+   above were the fix arriving before the measurement.
+5. An instrument that shows a number must have a WRITER, and must be able
+   to say whether it is switched on. Three instruments shipped dead in 4e
+   — the margin counters, the graph-rate line, the reconfiguration watch —
+   and each cost a field run before anyone noticed it reported nothing.
+
+**Its first application, in the same hour it was ruled.** AC-109's tests
+need a spy `PlaybackHost` that starts no engine, which makes every verb the
+run calls on its player node a graph question. `bakeoff graph-probe`
+answered it — eight cases, one process each, because an abort ends a
+process. `stop()` and `reset()` off a running engine are safe;
+**`play()` and `scheduleBuffer` abort**. That measurement is what makes
+"the scripted decoder emits empty sample arrays" a load-bearing rule
+instead of a style choice.
+
+**And the probe refuted something I believed.** Its CONTROL case — detach
+after `engine.stop()`, fault one of that afternoon — **did not abort** on a
+plain macOS engine. The harness can plainly see aborts, since two other
+cases produced them, so this is not a dead instrument: it means that abort
+was never a property of a plain engine. It needed the capture engine's
+voice-processing unit, or a session teardown. The guards in
+`MicrophonePlaybackHost` and `AudioEnginePlaybackHost` STAY — they cost
+nothing and the iPhone's evidence stands — but the comment claiming the
+general case is narrower than it reads, and INSTRUMENTS §20 now carries
+the number instead of the belief.

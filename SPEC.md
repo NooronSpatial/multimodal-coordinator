@@ -1755,6 +1755,45 @@ phone.
   `hostsPlayback` switch stays in the code, defaulting off, because 4f
   will need it and because deleting it would erase the measurement.
 
+- **AC-109** (added by D-052, ruled as D-053) **The decode lives behind a
+  seam, and the failure path is PINNED rather than argued.**
+  `NeuralVoiceRun` holds a `TTSDecoding` — ours — instead of a concrete
+  `TTSKit`, so a scripted decoder can make a decode **throw** and make it
+  **block**. That turns five claims into red-before-green facts:
+
+  1. a throwing decode reports `.failed` **once**, terminal, and the
+     update stream finishes;
+  2. **the run is retired** — a phrase already queued behind the failure
+     is never decoded, and the player is never touched again;
+  3. a throwing phrase still decrements the in-flight count, so the
+     liveness promise survives a failure rather than hanging on it;
+  4. `cancel()` during a decode makes the step callback return `false` —
+     the decode's own channel — and reports no terminal;
+  5. a decode that throws AFTER a cancel is silent.
+
+  Fact 2 is the one that earns the seam. It is blocker 1 of the 4e review
+  (D-051): a `.failed` decode used to keep running and call `play()` on a
+  node whose engine had already been handed back, and AVFoundation does
+  not throw there — **it aborts the process**. That fix shipped
+  green-only, because nothing could make a real 1.1 GB model fail on
+  demand. This criterion is the debt being paid.
+
+  **The honest limit, measured rather than assumed (D-054).** Only paths
+  that emit NO audio test headlessly. `bakeoff graph-probe` measured what
+  a player node off a running engine tolerates: `stop()` and `reset()`
+  survive, and **`play()` and `scheduleBuffer` abort the process**. So the
+  scripted decoder emits empty sample arrays, and everything that actually
+  renders stays where it already is — live-audio gated, model-gated. This
+  criterion pins the FAILURE path; it does not pretend to pin playback.
+
+  **What it does NOT claim.** D-052 said this seam would answer D-023's
+  fourth question — *could we remove this dependency in a day, because it
+  lives behind one of our protocols?* Under the D-053 ruling it answers
+  **half**: yes for the decode path, still **no** for the model lifecycle,
+  where `TTSModelVariant`, `TTSKitConfig` and the two decoder-mode enums
+  remain in `NeuralVoice`'s public API on purpose — `.fused` versus
+  `.stepped` is a PUBLISHED NUMBER (AC-106), not an internal detail.
+
 ## 65. Test matrix (4e)
 
 | Area | Tests |
@@ -1765,6 +1804,9 @@ phone.
 | Liveness | an unspeakable reply still terminates (the promise the Apple mouth already keeps) |
 | Coordinator | the whole 4a–4d suite green with the neural mouth substituted in the scripted places it can be |
 | Bake-off | the round-trip WER harness itself: a known-good pair scores 0 %, a scrambled pair scores high |
+| Neural failure path (AC-109) | a scripted decoder that throws: `.failed` once and terminal · the run is RETIRED, so a queued phrase behind the failure is never decoded · the in-flight count still balances · cancel mid-decode returns `false` and reports no terminal · a throw after a cancel is silent. Headless — no model, no speaker |
+| Coordinator, the other half of blocker 1 | the synthesis-`.failed` arm cancels THE MOUTH, not only the reply run |
+| The graph itself (D-054) | `bakeoff graph-probe` — one case per process, because an abort ends a process: what a player node off a running engine tolerates, and one CONTROL case that must fail so the instrument proves it can see a failure |
 
 ## 66. The design forks (4e) — for Ryad to rule
 

@@ -2,7 +2,6 @@ import AVFAudio
 import Foundation
 import MultiModalKit
 import Synchronization
-import TTSKit
 
 /// ONE spoken reply from the neural voice (SPEC AC-101, D-045).
 ///
@@ -11,13 +10,20 @@ import TTSKit
 /// queued/finished count deciding when the room is quiet. What differs
 /// is who renders — and that difference is the milestone's second prize.
 ///
-/// **We render, TTSKit only decodes (D-045 F-1 = B).** `generate` hands
-/// back ~80 ms of PCM per step; those samples are scheduled on a player
-/// node on an `AVAudioEngine` we control. D-043 measured that iOS voice
+/// **We render, the decoder only decodes (D-045 F-1 = B).** A decode step
+/// hands back ~80 ms of PCM; those samples are scheduled on a player node
+/// on an `AVAudioEngine` we control. D-043 measured that iOS voice
 /// processing cancels only what its OWN audio unit renders, so a reply
 /// rendered here is the first one the canceller can possibly see. The
 /// cost, accepted in the ruling: pre-buffering and resampling become
 /// ours to get wrong.
+///
+/// **And the decoder is a SEAM, not a vendor (AC-109, D-053 F-6).** This
+/// file named `TTSKit` until the 4e review found that a failed decode
+/// aborted the process and the fix could not be tested — nothing can make
+/// a real 1.1 GB model fail on command. It holds `any TTSDecoding` now, so
+/// a scripted decoder makes decodes throw and block, and the guarantees
+/// below are pinned rather than argued.
 ///
 /// `@unchecked Sendable`, with the same proof shape as the Apple mouth:
 /// all mutable state lives behind one `Mutex`, nothing suspends under
@@ -27,7 +33,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     let updates: AsyncStream<SynthesisUpdate>
     private let out: AsyncStream<SynthesisUpdate>.Continuation
 
-    private let kit: TTSKit
+    private let decoder: any TTSDecoding
     private let host: any PlaybackHost
     private let player = AVAudioPlayerNode()
     private let format: AVAudioFormat
@@ -130,16 +136,22 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     private let temperature: Float?
     private let onMargin: (@Sendable (DecodeMargin) -> Void)?
 
-    init(kit: TTSKit, host: any PlaybackHost, sampleRate: Double,
+    /// The sample rate comes from the DECODER, not from a parameter beside
+    /// it. It used to be passed in — always as `Double(kit.sampleRate)`,
+    /// from the one call site — which left two ways to state one fact.
+    /// Since the format built below is what the samples are played at, two
+    /// ways to state it is exactly how a 24 kHz voice ends up played as
+    /// 16 kHz, which is the "drunk" voice the field reported.
+    init(decoder: any TTSDecoding, host: any PlaybackHost,
          lead: PlaybackLead, temperature: Float? = nil,
          onMargin: (@Sendable (DecodeMargin) -> Void)? = nil) throws {
         self.onMargin = onMargin
         self.state = Mutex(Guarded(lead: lead))
         self.temperature = temperature
-        self.kit = kit
+        self.decoder = decoder
         self.host = host
         guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                         sampleRate: sampleRate,
+                                         sampleRate: Double(decoder.sampleRate),
                                          channels: 1, interleaved: false) else {
             throw TurnFailure.synthesisFailed("the neural voice's format was refused")
         }
@@ -312,31 +324,13 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         // it is proven, and it costs nothing there.
         if SpeechPhraser.hasSpeakableContent(text) {
             do {
-                var options = GenerationOptions()
-                // NOT A TUNING KNOB - A CORRECTNESS PIN, and TTSKit proves it
-                // by doing the same thing in its own `play()`.
-                //
-                // The default is 0, "all chunks run concurrently in one
-                // batch". On that path the streaming callback is handed
-                // `audio: []` on every single step, and the real samples
-                // arrive only after the WHOLE batch finishes decoding
-                // (TTSKit.swift:910-919 and :958-972). A renderer like ours
-                // would receive nothing to play until the entire reply was
-                // decoded - no streaming, no lead, first-audio back to full
-                // decode time - and it would happen silently, only for
-                // replies long enough to split into two chunks. Every
-                // sentence measured so far is one chunk, which is exactly
-                // why this never showed.
-                //
-                // `1` takes the sequential branch, which passes the real
-                // callback through untouched (TTSKit.swift:858-880). The
-                // library's own real-time path sets the same value for the
-                // same reason (TTSKit.swift:1046).
-                options.concurrentWorkerCount = 1
-                if let temperature { options.temperature = temperature }
-                _ = try await kit.generate(
-                    text: text, voice: nil, language: nil, options: options
-                ) { [weak self] progress in
+                // The batching pin that used to sit here moved to
+                // `TTSKitDecoder` with the comment that explains it: it is
+                // about the VENDOR's own branching, so it belongs beside
+                // the vendor (D-053 F-6).
+                try await decoder.decode(
+                    text, temperature: temperature
+                ) { [weak self] samples in
                     guard let self else { return false }
                     // The decode's own cancellation channel: returning false
                     // stops it at the next step. The ticket upstream is still
@@ -362,11 +356,11 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
                     self.stepTotals.withLock {
                         if $0.firstStep == nil {
                             $0.firstStep = now
-                            $0.firstSamples = progress.audio.count
+                            $0.firstSamples = samples.count
                         }
-                        $0.samples += progress.audio.count
+                        $0.samples += samples.count
                     }
-                    self.render(progress.audio)
+                    self.render(samples)
                     return true
                 }
             } catch {

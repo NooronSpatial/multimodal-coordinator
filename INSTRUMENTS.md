@@ -1151,3 +1151,66 @@ Restored to `inputFormat`, guard kept: **20/20 clean.**
    can change what it sees. That is a plausible candidate for the
    unexplained 4d flake too — plausible, not proven, and recorded as
    the former.
+
+## 20. The graph probe (D-054) — measuring instead of arguing, and one belief refuted
+
+`swift run bakeoff graph-probe`
+
+**Why it exists.** Milestone 4e produced five faults in one afternoon,
+each introduced while fixing the previous one, every one a guess about
+what a live `AVAudioEngine` would do, every one paid for by Ryad
+rebuilding onto his phone. D-054 makes the harness come BEFORE the fix.
+This is the harness for the graph.
+
+**One case per process, on purpose.** AVFoundation does not throw when a
+node is misused — it raises an ObjC exception and the process dies. A
+single-process probe would report its first fault and silently hide every
+case after it, which is the failure mode that makes an instrument worse
+than none. The parent re-executes itself once per case and reads the exit
+status; a child that never prints `SURVIVED` aborted.
+
+**Its first job** was to decide whether AC-109's failure-path tests could
+run headlessly: they use a spy `PlaybackHost` that starts no engine, so
+every verb `NeuralVoiceRun` calls on its player node became a question.
+
+Release build, this Mac (M-series, macOS 26), 2026-08-17:
+
+| case | path | expected | measured |
+|---|---|---|---|
+| 1 | never attached → `stop()` | survives | survives |
+| 2 | never attached → `reset()` | survives | survives |
+| 3 | never attached → `stop()`, `reset()` — the cancel + teardown path | survives | survives |
+| 4 | attached to an engine NEVER started → `stop()`, `reset()`, `detach` | survives | survives |
+| 5 | **CONTROL** — attach, connect, start, `engine.stop()`, `detach` | 4e fault #1 says ABORT | **survives** |
+| 6 | never attached → `play()` | ABORT | **ABORT** · `required condition is false: _engine != nil` |
+| 7 | never attached → `scheduleBuffer` | ABORT | **ABORT** · `required condition is false: _outputFormat.channelCount == buffer.format.channelCount` |
+| 8 | attached to an engine never started → `scheduleBuffer`, `play()` | survives | survives |
+
+**What that bought.** Cases 1–4 are exactly what the run's cancel and
+failure paths do, so those paths test on any machine with no model and no
+speaker. Cases 6 and 7 are why `ScriptedDecoder` has **no way** to emit a
+non-empty sample: `render` would reach an aborting verb. The rule is
+enforced by the type rather than by a comment asking a reader to remember
+it.
+
+**And what it refuted — mine.** Case 5 is fault one of that afternoon, a
+detach after `engine.stop()`. On a plain engine on this Mac it **does not
+abort.** The probe is not blind — cases 6 and 7 aborted in the same run,
+which is why it prints `DETECTION PROVEN` from evidence rather than from
+hope — so the honest reading is that *this abort was never a property of a
+plain engine.* It needed the capture engine's voice-processing unit, or a
+session teardown, and the iPhone is where it was found.
+
+**Consequences, stated rather than acted on.** The guards in
+`MicrophonePlaybackHost.detachIfStillOurs` and
+`AudioEnginePlaybackHost.stopRendering` **stay**: they cost nothing, and
+the phone's evidence stands. What changes is the CLAIM. The comment above
+those guards reads as though detaching a stopped node aborts in general;
+it does not, on this configuration. The general statement is unproven and
+the specific one — under VPIO, on a phone — is what was measured in §17.
+
+**What this probe does NOT measure, and does not claim:** voice
+processing, an iOS audio session, a real capture engine, or the Simulator.
+Case 5 under VPIO is the case that matters for 4f and it needs hardware.
+That is named here as a gap, before anyone reads the table as a clean bill
+of health.

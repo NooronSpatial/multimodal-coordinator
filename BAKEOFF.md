@@ -129,10 +129,18 @@ question, and each writes to [INSTRUMENTS.md](INSTRUMENTS.md):
 swift run bakeoff voice-install   # fetch the neural voice's model (1.1 GB, once)
 swift run bakeoff voice-spike     # time to first audio, and the real-time factor
 swift run bakeoff voice-levers    # every decoder setting, measured serially
-swift run bakeoff voice-listen    # a BLIND A/B between decoders, judged by ear
 swift run bakeoff voice-wer       # speak → record → transcribe → score
 swift run bakeoff voice-onmic     # a reply rendered on a LIVE capture engine
+swift run bakeoff graph-probe     # what a live audio graph actually tolerates
 ```
+
+**`voice-listen` is gone, and that is a gap rather than a tidy-up.** It ran
+AC-103's blind A/B — the numbers in INSTRUMENTS §13 — and was deleted in
+`0331534`, a commit about round-trip WER that never mentioned removing it.
+Three documents went on advertising it. So §13 is a recorded measurement
+that this tool can no longer reproduce, and `struct SeededRNG` in
+`main.swift` is its orphaned helper. Whether to restore the command or
+retire §13's claim is a decision, not a cleanup.
 
 **`voice-wer` grades with Whisper alone**, and that is a known gap
 against D-045 F-5, which asked for both engines. A single grader's bias

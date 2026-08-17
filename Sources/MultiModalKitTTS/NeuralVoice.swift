@@ -204,8 +204,11 @@ public actor NeuralVoice: SpeechSynthesizing {
             ownHost = fresh
             host = fresh
         }
-        return try NeuralVoiceRun(kit: kit, host: host,
-                                  sampleRate: Double(kit.sampleRate),
+        // The vendor becomes a `TTSDecoding` here, and that is the whole of
+        // the seam at this level (AC-109, D-053 F-6). Below this line
+        // nothing names TTSKit's decode API; above it, the model lifecycle
+        // still does, deliberately (F-7 = A).
+        return try NeuralVoiceRun(decoder: TTSKitDecoder(kit: kit), host: host,
                                   lead: PlaybackLead(target: lead),
                                   temperature: temperature,
                                   onMargin: marginHandler)

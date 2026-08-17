@@ -151,17 +151,20 @@ requires observation, it offers it.
                            transcribers, two mouths, an Apple-voice
                            picker, gate calibration, a live level meter,
                            the echo probe, and the barge counters.
- Bakeoff (640)             the measurement tools:
+ Bakeoff (808)             the measurement tools:
                              swift run bakeoff                 WER, transcribers
                              swift run bakeoff voice-install   fetch the voice
                              swift run bakeoff voice-spike     first-audio, RTF
                              swift run bakeoff voice-levers    decoder matrix
-                             swift run bakeoff voice-listen    blind A/B, by ear
                              swift run bakeoff voice-wer       speak→hear→score
                              swift run bakeoff voice-onmic     a reply rendered
                                                                on a LIVE capture
                                                                engine — the path
                                                                a phone runs
+                             swift run bakeoff graph-probe     what a live graph
+                                                               tolerates, one
+                                                               case per process
+                                                               (D-054)
 ```
 
 The demos are deliberately thin: they wire the spine and draw it. What
@@ -202,6 +205,8 @@ variable, and every fault of that afternoon was findable in one command
 | Apple's mouth; delegate evidence → seam updates | `Conversation/AppleSpeechSynthesizer.swift` |
 | Which Apple voice, and how good it is | `Conversation/AppleSpeechSynthesizer.swift` — `installedVoices` |
 | The neural mouth; decode, render, count buffers | `MultiModalKitTTS/NeuralVoice.swift`, `NeuralVoiceRun.swift` |
+| What a DECODER owes the mouth (the seam) | `MultiModalKitTTS/TTSDecoding.swift` |
+| TTSKit, confined to one file | `MultiModalKitTTS/TTSKitDecoder.swift` |
 | The echo canceller switch, and what it measured | `Audio/MicrophoneSource.swift`, `INSTRUMENTS.md` §6, §8 |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
@@ -209,12 +214,16 @@ variable, and every fault of that afternoon was findable in one command
 
 ## The shape in numbers
 
-The whole system is ~7,100 lines; the library core is ~4,000, and the
-tests are ~5,600 — more test than library, which is the point. The
-biggest file on the spine is `TurnCoordinator` at 667 lines.
+Everything that is not a test is ~9,200 lines; the library core is 4,012,
+and the tests are 6,127 — more test than library, which is the point. The
+biggest file on the spine is `TurnCoordinator` at 667 lines. (Counted with
+`find Sources Tests Demo -name '*.swift' | xargs wc -l`, excluding the
+untracked `local_clone/`. The previous version of this paragraph claimed
+~7,100 total against a breakdown of 4,000 + 5,600, which cannot both be
+true — a stated number nobody re-ran.)
 
-The test folder mirrors this map roughly one suite per box — **25 suites,
-216 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+The test folder mirrors this map roughly one suite per box — **26 suites,
+227 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

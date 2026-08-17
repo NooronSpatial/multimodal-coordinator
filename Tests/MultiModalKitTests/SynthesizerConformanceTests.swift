@@ -200,6 +200,15 @@ import TTSKit
 /// audible promises additionally need `MMK_LIVE_SYNTH=1`, because they
 /// make the machine SPEAK and a headless runner's audio is not ours to
 /// assume (D-022).
+///
+/// **This suite is not the only place the neural mouth is held to
+/// account, and it is no longer the strongest (AC-109).** Everything here
+/// is gated, which means every promise below is unproven on a machine
+/// without the weights — including, until now, the FAILURE path, which
+/// could not be tested at all. `NeuralVoiceFailurePathTests` runs
+/// ungated, against a scripted `TTSDecoding`, on every machine. Read that
+/// file first; this one covers what only a real model and a real speaker
+/// can show.
 @Suite(.timeLimit(.minutes(4)), .serialized)
 struct NeuralVoiceConformanceTests {
     static var liveAudioAllowed: Bool {
@@ -272,6 +281,13 @@ struct NeuralVoiceConformanceTests {
     /// THE BARGE PROMISE (found by the field, not by this suite). Needs
     /// the model because the whole question is whether a real decode is
     /// awaited inline; a mock that returns instantly cannot fail it.
+    ///
+    /// **AMENDED by AC-109:** that reasoning was half right. A mock that
+    /// returns instantly cannot fail it — but a mock that never returns
+    /// can, and `NeuralVoiceFailurePathTests.feedHandsOffRatherThanDecoding`
+    /// is that test, ungated and model-free. This case stays because it
+    /// exercises the real decoder on the real path; it is no longer the
+    /// only thing standing between this promise and a regression.
     @Test("feed hands off — an immediate cancel is never heard (model required)")
     func feedHandsOff() async throws {
         let voice = Self.fused
