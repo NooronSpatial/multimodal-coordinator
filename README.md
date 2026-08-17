@@ -232,13 +232,13 @@ synthesizers behind their seams.
   reproduce on a plain Mac engine** (INSTRUMENTS §20). The abort that cost 4e
   an afternoon needed voice processing or a session teardown, so that one
   case still needs a phone.
-- **A liveness hole, measured and left open as D-055.** If the playback lead
-  is larger than a whole reply AND the token stream closes after the last
-  decode finished, nothing releases the lead and the turn hangs
-  (INSTRUMENTS §21). Unreachable today only because the shipped lead is
-  `.zero` at the measured RTF of 0.752 — it opens on any machine where RTF
-  exceeds 1.0, which the iPhone has never been measured for. Found by the
-  adversarial review of the TTS seam; the fix is a fork, not a patch.
+- ~~A liveness hole (D-055)~~ **— found, measured, and CLOSED before the
+  merge.** A reply could be stranded, fully decoded and silent, if the
+  playback lead was larger than the whole reply and the token stream closed
+  after the last decode. Three separate places were answering one question
+  and one of them asked a smaller version of it; they now go through a
+  single funnel (D-055 = B, INSTRUMENTS §21). Found by the adversarial
+  review of the TTS seam, which is the argument for D-041 in one line.
 
 See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-055 carry
-this milestone's rulings, and **D-055 is open**.
+this milestone's rulings.

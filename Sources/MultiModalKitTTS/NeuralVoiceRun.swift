@@ -172,6 +172,54 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         // not one buffer sooner (D-046 = A).
     }
 
+    // MARK: - the funnel: what a complete reply owes (D-055 = B)
+
+    /// What the reply owes right now — **asked in ONE place.**
+    private enum Owed {
+        /// Not complete, or already dead. Nothing to do.
+        case nothing
+        /// Everything queued has been HEARD. Report the terminal.
+        case finish
+        /// Everything that will ever be queued IS queued, and the lead's
+        /// target will never be reached. Release it, or nothing ever plays.
+        case releaseLead
+    }
+
+    /// THE SINGLE ANSWER. Pure, and computed under the caller's lock.
+    ///
+    /// Three places can learn that a reply became complete — the last
+    /// decode finishing (`speak`), the token stream closing
+    /// (`finishTokens`), and the last buffer being heard (`bufferPlayed`)
+    /// — and ANY of them may be the last to arrive. Before D-055 each
+    /// asked its own version of the question and one of them asked a
+    /// smaller one: `finishTokens` could only report a finish, never
+    /// release a lead. So a reply whose tokens closed AFTER its final
+    /// decode was stranded — fully decoded, never started, `.finished`
+    /// never fired, the turn hung (INSTRUMENTS §21).
+    ///
+    /// D-055 = B: not "add the missing arm" but "stop having three sites
+    /// answer one question", which is the funnel doctrine this repo
+    /// already applies to every state write in `TranscriptionSession` and
+    /// `TurnCoordinator`. A fourth caller cannot half-apply an invariant
+    /// that lives in one function.
+    private static func owed(by s: Guarded) -> Owed {
+        guard !s.cancelled, s.tokensFinished, s.phrasesInFlight == 0
+        else { return .nothing }
+        return s.scheduled == s.played ? .finish : .releaseLead
+    }
+
+    /// Acts on the funnel's answer. **Never called while the lock is
+    /// held** — `report` finishes a stream and `releaseLead` touches the
+    /// player, and this file's whole safety proof is that nothing
+    /// suspends or reaches hardware under the mutex.
+    private func settle(_ owed: Owed) {
+        switch owed {
+        case .nothing: break
+        case .finish: report(.finished, terminal: true)
+        case .releaseLead: mouth.async { [self] in releaseLead() }
+        }
+    }
+
     /// A SNAPSHOT OF THE COUNTERS, for tests that must gate on an ordering
     /// rather than guess at it.
     ///
@@ -227,25 +275,33 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// the single longest decode of the turn, covering nearly all of the
     /// audible reply, which is exactly the window a human interrupts in.
     func finishTokens() async {
-        enum Outcome { case startDrain, finishNow, wait }
+        enum Outcome { case startDrain, settle(Owed) }
         let outcome = state.withLock { s -> Outcome in
-            guard !s.cancelled, !s.tokensFinished else { return .wait }
+            guard !s.cancelled, !s.tokensFinished else { return .settle(.nothing) }
             s.tokensFinished = true
             if let rest = s.phraser.flush() {
                 s.phrasesInFlight += 1
                 s.pending.append(rest)
-                guard !s.draining else { return .wait }
+                guard !s.draining else { return .settle(.nothing) }
                 s.draining = true
                 return .startDrain
             }
-            // Nothing left to say, and nothing still sounding: a reply of
-            // pure whitespace ends here, silently.
-            return (s.phrasesInFlight == 0 && s.scheduled == s.played) ? .finishNow : .wait
+            // THROUGH THE FUNNEL (D-055 = B). This used to ask a smaller
+            // question — "may I report finished?" — and answer `.wait` to
+            // everything else. But closing the token stream is one of the
+            // three ways a reply becomes complete, and when it is the LAST
+            // of them to arrive it must be able to release a lead that can
+            // no longer be reached. It could not, so the reply was
+            // stranded: decoded, silent, and never finishing.
+            //
+            // A reply of pure whitespace still ends here silently — the
+            // funnel returns `.finish` for it, because nothing was queued
+            // and so `scheduled == played`.
+            return .settle(Self.owed(by: s))
         }
         switch outcome {
         case .startDrain: beginDraining()
-        case .finishNow: report(.finished, terminal: true)
-        case .wait: break
+        case .settle(let owed): settle(owed)
         }
     }
 
@@ -395,18 +451,16 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         // start, no buffer would ever report played, `finished` would
         // never fire, and the turn would hang — with the audio sitting
         // complete and silent in the node.
-        enum After { case finish, release, nothing }
-        let after = state.withLock { s -> After in
+        //
+        // This was the ONLY site that asked the full question, which is
+        // exactly why D-055's hole opened in the other one. The question
+        // lives in `owed(by:)` now; this site's remaining job is the
+        // decrement that makes the answer true.
+        let owed = state.withLock { s -> Owed in
             s.phrasesInFlight -= 1
-            guard !s.cancelled, s.tokensFinished, s.phrasesInFlight == 0
-            else { return .nothing }
-            return s.scheduled == s.played ? .finish : .release
+            return Self.owed(by: s)
         }
-        switch after {
-        case .finish: report(.finished, terminal: true)
-        case .release: mouth.async { [self] in releaseLead() }
-        case .nothing: break
-        }
+        settle(owed)
     }
 
     /// The reply is complete: whatever is held is all there will ever be.
@@ -473,13 +527,22 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         }
     }
 
+    /// The third site that learns a reply became complete, and the third
+    /// through the funnel (D-055 = B).
+    ///
+    /// Its answer can only be `.finish` or `.nothing` in practice: reaching
+    /// here means a buffer was HEARD, so the player was started, so
+    /// `PlaybackLead.noMoreAudio()` already returned its one `true` and a
+    /// `.releaseLead` answer would do nothing. Routing it anyway is the
+    /// point of a funnel — the site does not get to decide which answers
+    /// are possible, and a future change to the counters cannot leave this
+    /// one behind.
     private func bufferPlayed() {
-        let done = state.withLock { s -> Bool in
+        let owed = state.withLock { s -> Owed in
             s.played += 1
-            return !s.cancelled && s.tokensFinished
-                && s.phrasesInFlight == 0 && s.scheduled == s.played
+            return Self.owed(by: s)
         }
-        if done { report(.finished, terminal: true) }
+        settle(owed)
     }
 
     private func report(_ update: SynthesisUpdate, terminal: Bool) {

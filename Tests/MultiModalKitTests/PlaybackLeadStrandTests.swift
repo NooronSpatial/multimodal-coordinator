@@ -7,7 +7,7 @@ import Testing
 #if canImport(MultiModalKitTTS)
 @testable import MultiModalKitTTS
 
-/// A LIVENESS HOLE, PINNED WHERE IT CAN BE SEEN (D-055, open).
+/// A LIVENESS HOLE, FOUND, MEASURED AND CLOSED (D-055 = B).
 ///
 /// Found by the adversarial review of the `TTSDecoding` seam, and then
 /// MEASURED here rather than argued (D-054). It is **pre-existing** — the
@@ -50,14 +50,20 @@ import Testing
 /// decodes slower than it plays, with a reply short enough to fit inside
 /// the lead, hangs the turn. That is 4f's territory exactly.
 ///
-/// ## Why case B asserts the BUG
+/// ## The fix, and why this file is its proof
 ///
-/// Deliberately, and this is the only honest option that keeps CI green
-/// without deleting the evidence. Asserting the hole means it cannot be
-/// forgotten, and when D-055 is ruled and fixed, **case B's expectation
-/// flips from `false` to `true` and this file becomes the fix's proof.**
-/// A test that asserted the desired behaviour today would simply be red,
-/// and a deleted probe would leave nothing but a paragraph.
+/// Ruled **B — one funnel**: not "add the missing arm" but "stop having
+/// three sites answer one question". `NeuralVoiceRun.owed(by:)` is now the
+/// single answer to *is this reply complete, and if so does it owe a
+/// terminal or a released lead?*, and all three sites that can learn a
+/// reply became complete — the last decode, the closing token stream, the
+/// last buffer heard — go through it. A fourth caller cannot half-apply an
+/// invariant that lives in one function.
+///
+/// The middle test below asserted the BUG while D-055 was open, so the hole
+/// could not be forgotten. Its expectations were flipped when the funnel
+/// landed, and it went red before the fix and green after — the wall time
+/// says it too: 3.054 s of waiting out the window before, 0.525 s after.
 @Suite(.timeLimit(.minutes(1)), .serialized)
 struct PlaybackLeadStrandTests {
 
@@ -137,7 +143,7 @@ struct PlaybackLeadStrandTests {
                 "the configuration this library actually ships must never strand a reply")
     }
 
-    @Test("THE HOLE (D-055) — a lead larger than the reply strands it when tokens close last")
+    @Test("THE HOLE, CLOSED (D-055) — a lead larger than the reply, tokens closing last")
     func nonZeroLeadStrandsWhenTokensCloseAfterTheDecode() async throws {
         let decoder = RenderingDecoder(steps: 4, perStep: 2400)      // 400 ms << 1500 ms
         guard let (run, host) = Self.makeRun(decoder, lead: .milliseconds(1500))
@@ -161,14 +167,15 @@ struct PlaybackLeadStrandTests {
 
         await run.finishTokens()
 
-        let updates = await Self.drainBounded(run, within: .seconds(2))
-        // ASSERTING THE BUG, ON PURPOSE. See this suite's note: when D-055
-        // is ruled and fixed, both of these flip to `#expect(contains)` and
-        // this test becomes the proof of the fix.
-        #expect(!updates.contains(.started),
-                "TODAY: nothing releases the lead, so the player never starts")
-        #expect(!updates.contains(.finished),
-                "TODAY: and therefore the turn would hang — this is D-055, open")
+        let updates = await Self.drainBounded(run, within: .seconds(3))
+        // THE FLIP. These two expectations asserted the BUG until D-055 was
+        // ruled (= B, one funnel). They now assert the fix, and they are the
+        // proof of it: before the funnel they fail here, exactly as the
+        // measurement in INSTRUMENTS §21 recorded.
+        #expect(updates.contains(.started),
+                "the funnel must release a lead the reply can never reach")
+        #expect(updates.contains(.finished),
+                "and the turn must end rather than hang — D-055")
         await run.cancel()
     }
 

@@ -1962,9 +1962,9 @@ nothing and the iPhone's evidence stands — but the comment claiming the
 general case is narrower than it reads, and INSTRUMENTS §20 now carries
 the number instead of the belief.
 
-## D-055 — OPEN, for Ryad: the lead's liveness escape lives in one place and is needed in two (found by the 4e re-review)
+## D-055 — One funnel for the lead's liveness escape (Milestone 4e, found by the re-review)
 
-**Date:** 2026-08-17 · **Status: OPEN — not decided, not fixed.** Recorded
+**Date:** 2026-08-17 · **Decided by:** Ryad · **Ruling: B** · Recorded
 under D-041's rule that every review finding is fixed or accepted in
 writing, never carried silently.
 
@@ -2026,14 +2026,34 @@ inside its own lead, hangs the turn. That is 4f's territory.
   but `PlaybackLead` currently learns that only from `noMoreAudio()`, whose
   single caller is the arm that already works.
 
-**Recommendation: B.** The bug is not that one arm is missing a line; it is
-that one question has two answering sites, which is precisely the shape
-this repo funnels everywhere else. A is a patch on the symptom. C is
-attractive and may fall out of B, but on its own it changes a pure type's
-contract to fix a caller's asymmetry.
+### The ruling: B, and it found a THIRD site
 
-**Not decided here, and deliberately not fixed:** the fix changes when a
-reply starts speaking, which is D-046's territory, and D-046 = A was
-Ryad's ruling. `PlaybackLeadStrandTests` pins the hole in the meantime —
-its middle case asserts the BUG on purpose, so that the day this is fixed
-that expectation flips and the test becomes the fix's proof.
+The bug is not that one arm is missing a line; it is that one question had
+more than one answering site, which is precisely the shape this repo
+funnels everywhere else. A is a patch on the symptom. C is attractive and
+may still fall out of a later change, but on its own it alters a pure
+type's contract to fix a caller's asymmetry.
+
+**Writing the funnel found a third site the fork had not named.**
+`bufferPlayed()` was asking its own inline version of the same question
+too — so the count was not two sites but three, and the fork's own framing
+("lives in one place and is needed in two") was understated. That is the
+argument for B making itself: a question with three askers had already
+drifted once, and nothing structural was stopping the fourth.
+
+`NeuralVoiceRun.owed(by:)` is now the single answer — pure, computed under
+the caller's lock, returning `.nothing`, `.finish` or `.releaseLead` — and
+`settle(_:)` acts on it outside the lock, because `report` finishes a
+stream and `releaseLead` touches the player, and nothing may reach either
+under the mutex. All three sites route through it. `bufferPlayed()` can
+only ever receive `.finish` or `.nothing` in practice, since arriving there
+means a buffer was HEARD, so the player was started, so
+`PlaybackLead.noMoreAudio()` has already spent its one `true`. It is routed
+anyway: a site does not get to decide which answers are possible.
+
+**Red before green, and the wall clock shows it.** The strand test's middle
+case asserted the BUG while this was open — the honest way to keep CI green
+without deleting the evidence. Its expectations were flipped for the fix
+and it failed first with `updates → []` (the reply produced nothing at
+all), then passed. Its duration went from **3.054 s** — waiting out the
+bounded window for a `.finished` that never came — to **0.525 s**.

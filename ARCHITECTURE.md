@@ -227,7 +227,7 @@ variable, and every fault of that afternoon was findable in one command
 ## The shape in numbers
 
 Everything that is not a test is 9,201 lines; the library core is 4,012,
-and the tests are 6,355 — more test than library, which is the point. The
+and the tests are 6,374 — more test than library, which is the point. The
 biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
 `find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
 the untracked `local_clone/`.)

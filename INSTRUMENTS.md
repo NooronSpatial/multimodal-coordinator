@@ -1270,3 +1270,18 @@ One flake is not done — and finding this race also sharpened the finding:
 the hole is not "a non-zero lead strands replies", it is "a non-zero lead
 strands a reply whose token stream closes in one specific window". That is
 a narrower and truer claim than the review's original wording.
+
+**AFTER THE FIX (D-055 = B, one funnel).** Same instrument, same machine,
+same three cases — the middle row is what moved:
+
+| lead target | `finishTokens()` called | `.started` | `.finished` | wall |
+|---|---|---|---|---|
+| `.zero` — the shipped default | after the decode completed | true | true | 0.59 s |
+| 1500 ms | **after** the decode completed | **true** | **true** | **0.53 s** |
+| 1500 ms | before the decode ended | true | true | 0.53 s |
+
+The wall-clock column is the honest part. Before the fix the middle case
+took **3.054 s** — the whole bounded window, spent waiting for a
+`.finished` that was never coming — and afterwards it takes 0.53 s, the
+same as the two cases that always worked. A hang does not look like a
+failed assertion; it looks like time.

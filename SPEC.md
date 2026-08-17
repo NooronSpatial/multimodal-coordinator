@@ -1831,7 +1831,8 @@ phone.
 | Bake-off | the round-trip WER harness itself: a known-good pair scores 0 %, a scrambled pair scores high |
 | Neural failure path (AC-109) | `NeuralVoiceFailurePathTests`, nine cases, one per numbered fact above, all headless — no model, no speaker, no environment gate |
 | Coordinator, the other half of blocker 1 | the synthesis-`.failed` arm cancels THE MOUTH, not only the reply run |
-| The graph itself (D-054) | `bakeoff graph-probe` — one case per process, because an abort ends a process: what a player node off a running engine tolerates, and one CONTROL case that must fail so the instrument proves it can see a failure |
+| The graph itself (D-054) | `bakeoff graph-probe` — one case per process, because an abort ends a process: what a player node off a running engine tolerates, and one CONTROL case whose failure is what proves the instrument can see a failure |
+| The lead's liveness funnel (D-055) | `PlaybackLeadStrandTests` — a decoder that emits real samples on command, on a real engine, one variable: WHEN the token stream closes. The shipped zero lead, the stranding case, and the ordering that always worked |
 
 ## 66. The design forks (4e) — for Ryad to rule
 
