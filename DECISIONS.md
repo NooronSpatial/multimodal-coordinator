@@ -1658,3 +1658,40 @@ They stay fixed, and they were worth the afternoon on their own:
 - `feed` blocked the coordinator's loop for a whole phrase decode, which
   is why barge-in was late
 - the gate was a guess; it is now measured, and the level is on screen
+
+## D-050 — Qwen3 stays; its voice quality is deferred, not accepted (Milestone 4e)
+
+**Date:** 2026-08-16 · **Decided by:** Ryad · **Ruling: keep it, revisit later**
+
+The neural mouth speaks on both platforms and it does not sound good.
+Both halves are measured, and neither cancels the other:
+
+| | |
+|---|---|
+| intelligible | round-trip WER **0.074** over 18 draws, against Apple's 0.000 (§14) |
+| slow | ~2× Apple's duration for the same sentence (§14) |
+| inconsistent | the same words, 8240 ms one draw and 6480 ms the next (§11) |
+| strange | `*crying*`, `(laughing)`, `"Ha,"` transcribed out of its own output (§14) |
+
+**What "keep" means here, stated so nobody has to guess later.** Both
+mouths ship. The demo lets a listener switch between them and the
+library's conversational default is UNCHANGED — Apple's mouth, which is
+fast and robotic, remains what a fresh install talks with. The neural
+voice is the seam's second real implementation, which is the thing 4e
+set out to prove and did.
+
+**What is deferred, and is now owed work rather than a closed question:**
+whether this voice can be made pleasant. The levers already measured and
+rejected are recorded so the next attempt does not repeat them —
+temperature 0 is slower and rambles longer (§12), `.throughputOptimized`
+is slower here than the vendor's own table claims (§12), and the only
+other variant is the 1.7B, which is strictly more compute on a device
+that already runs hot. What has NOT been tried: the voice/speaker
+conditioning TTSKit exposes, and a different TTS engine entirely.
+
+**Not rejected, because it was never proposed as an alternative:** the
+milestone's claim was never "Qwen3 sounds good". It was "this pipeline
+does not care which mouth you plug in", and that is now proven with two
+implementations, a conformance kit, a bake-off, and field validation on
+Mac and iPhone. Recording the voice as unpleasant costs that claim
+nothing — and pretending otherwise would cost it everything.

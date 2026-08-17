@@ -176,13 +176,28 @@ public final class MicrophoneSource: AudioSource {
         }
         engine.prepare()
 
-        // `outputFormat`, NOT `inputFormat`, and that is a correction.
-        // A tap observes what a node PRODUCES, so the node's output
-        // format is the one it must be installed with — and measurement
-        // showed the difference matters: touching `mainMixerNode`
-        // invalidates `inputFormat` (0 Hz / 0 ch) while `outputFormat`
-        // stays at 48000 Hz / 3 ch on the same engine, same instant.
-        let format = input.outputFormat(forBus: 0)
+        // `inputFormat`, AND A CORRECTION OF MY OWN CORRECTION.
+        //
+        // This was briefly changed to `outputFormat`, on the reasoning
+        // that a tap observes what a node PRODUCES — which sounds right
+        // and is wrong. `installTap` asserts on the INPUT HARDWARE
+        // format, in those words:
+        //
+        //   required condition is false:
+        //   format.sampleRate == inputHWFormat.sampleRate
+        //
+        // and an ObjC assertion aborts the process. It only fires when
+        // the two formats disagree, which is why it passed every local
+        // run and then killed 39 of 40 rounds the moment something else
+        // on the machine changed the audio configuration.
+        //
+        // The observation that motivated the change was real —
+        // `inputFormat` collapses to 0 Hz once `mainMixerNode` is
+        // touched — but that only happened in the `hostsPlayback`
+        // arrangement, which D-049 removed. A fix aimed at a
+        // configuration that no longer exists, breaking the one that
+        // does.
+        let format = input.inputFormat(forBus: 0)
         // VALIDATED, because the alternative is not an error — it is an
         // ABORT. `installTap` asserts on a format with no rate or no
         // channels and takes the process with it, which is how a

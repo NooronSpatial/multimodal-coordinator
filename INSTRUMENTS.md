@@ -1101,3 +1101,53 @@ create this and no buffering will remove it.**
   three ways, and heard by the one person whose opinion this was.**
 - Rendering a reply on the capture engine is unsolved, and now has a
   harness instead of a volunteer (§17, D-049).
+
+## 19. The stability loop caught a process abort I had introduced
+
+**19/40, then 39 of 40 failing** — and none of them a race.
+
+The 4e hygiene gate ran 20× and lost one round. A second 20× passed
+clean. A third run of 40 lost 39. That pattern — clean, then near-total
+failure — is not what a race looks like, and chasing it as one would
+have wasted the evening. The signal was in the crash reason, which my
+first loop never captured because its grep matched test NAMES containing
+the word "failed":
+
+```
+required condition is false: format.sampleRate == inputHWFormat.sampleRate
+  AudioSessionSeamTests.theSessionIsActivatedFirstAndAlwaysReleased
+  → MicrophoneSource.start → installTapOnBus → signal 6
+```
+
+**`installTap` asserts on the INPUT HARDWARE format**, and an ObjC
+assertion aborts the process rather than failing a test.
+
+**The bug was a correction of mine, aimed at a configuration that no
+longer existed.** Earlier that day the tap format was changed from
+`inputFormat` to `outputFormat` on the reasoning that a tap observes
+what a node PRODUCES. That sounds right and is wrong. The observation
+behind it was real — `inputFormat` collapses to 0 Hz once
+`mainMixerNode` is touched — but that only happened in the
+`hostsPlayback` arrangement, which D-049 then removed. The fix outlived
+the problem and broke the path that remained.
+
+**Why it hid:** the assertion only fires when the node's output format
+and the input hardware format DISAGREE. They agreed on this Mac all day.
+They stopped agreeing when an iOS Simulator was booted running the demo
+app, which changed the machine's audio configuration — so a bug that had
+been silently present became 39 failures in 40.
+
+Restored to `inputFormat`, guard kept: **20/20 clean.**
+
+**Two lessons, both cheap and both mine:**
+
+1. **A stability loop must capture the FAILURE, not the fact of it.**
+   The first loop printed `grep -E "✘|failed"`, which matched a test
+   called *"A failed turn keeps its words"* and told me nothing. Three
+   runs were spent before the reason was ever read.
+2. **A test that opens real hardware is environment-sensitive by
+   construction.** `theSessionIsActivatedFirstAndAlwaysReleased` starts
+   a real `MicrophoneSource`; anything else on the machine holding audio
+   can change what it sees. That is a plausible candidate for the
+   unexplained 4d flake too — plausible, not proven, and recorded as
+   the former.
