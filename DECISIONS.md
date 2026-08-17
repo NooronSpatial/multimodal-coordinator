@@ -1741,3 +1741,64 @@ D-050 attributes "rambles longer" to §12, which measures no such thing.
 
 The rulings themselves — D-045 through D-050 — stand. What was wrong was
 the supporting prose, which is exactly the part nobody re-reads.
+
+## D-051 — The 4e review's three blockers, fixed; two notes accepted (Milestone 4e)
+
+**Date:** 2026-08-16 · **Review by:** adversarial multi-agent pass
+(D-041's rule: the review happens BEFORE merge, and every finding is
+fixed or accepted in writing — never carried silently)
+
+Thirty-four agents across five dimensions; most findings did not survive
+verification. Three did, and all three were mine.
+
+**Blocker 1 — a failed decode kept running and aborted the process.**
+`report(_:terminal:)` handed the player node back to the engine and did
+NOT raise the run's flag; only `cancel()` did. The drain loop re-reads
+only that flag, so after `.failed` it popped the next phrase and called
+`play()` on a node with no engine — which AVFoundation aborts on rather
+than throwing. It also broke the doctrine written twenty lines above it:
+**a run that has reported a terminal must not act again, and the flag is
+the guarantee.** Fixed with one `retire()` that latches, empties the
+queue and stops the worker in a single locked step, called by every
+terminal path and by `cancel()`.
+Second half, same blocker: the coordinator's synthesis `.failed` arm
+cancelled the reply run but never the mouth, while the reply's arm has
+always cancelled the mouth. Harmless only while Apple's mouth was the
+only implementation, because it never emits `.failed`.
+
+**Blocker 2 — the neural voice's engine was never stopped.** It built
+its own host on the first reply, started that engine, and
+`stopRendering()` had no production caller anywhere. An output unit
+running forever means `setActive(false)` fails with `IsBusy`,
+`PhoneSession` swallows it with `try?`, and the `.playAndRecord` session
+is held for the life of the app — **the person's music never comes back
+after Stop.** Fixed app-side: the demo owns the host and stops it, in an
+order that cannot be swapped — the pipeline dies, THEN the engine stops,
+THEN the session is released. Step two *waits* for step one rather than
+racing it, because detaching a node under a reply that is still playing
+reaches blocker 1's abort from the other side.
+
+**Blocker 3 — the first reply loaded 1.1 GB on the coordinator's loop.**
+`modelInstalled()` only stats files; the pipeline was built lazily by the
+first `openUtterance`, which the coordinator awaits INLINE. So the first
+turn after launch froze the whole conversation for tens of seconds —
+onsets, transcripts and barges piling up unprocessed — and its felt-pause
+number silently contained the model load. This is the identical fault
+already fixed one call lower in `feed`, and the review found it sitting
+one call higher. Fixed by warming the model in `checkVoice()`, which
+`start()` already refuses to proceed without.
+
+### Accepted, with the note written rather than implied
+
+**The neural failure path ships UNPINNED.** `NeuralVoiceRun` holds a
+concrete `TTSKit`, so no test can make a decode throw, and blocker 1's
+fix could not be red-before-green. That is a departure from this repo's
+rule and it is recorded as one. A `TTSDecoding` seam would fix it and is
+4f work; until then the guarantee rests on reading, not on a test.
+
+**`PlaybackHost` has no stop verb.** Blocker 2 was fixed in the demo, so
+any OTHER caller who lets `NeuralVoice` build its own host inherits the
+same unstoppable engine. Whether the seam should grow a stop — or whether
+`NeuralVoice` should stop a host it created itself — is a change to a
+seam's shape and therefore a fork for Ryad, logged here rather than
+decided quietly.

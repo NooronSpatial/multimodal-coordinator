@@ -73,6 +73,17 @@ final class TranscribeModel {
     private(set) var voiceState: EngineState = .checking
     /// Held, not rebuilt: the voice caches a loaded pipeline, and making
     /// a new one per turn would pay 1.1 GB of load again every time.
+    /// The neural voice renders here, and THE DEMO OWNS IT so that it
+    /// can be stopped (4e review, blocker 2).
+    ///
+    /// Left to itself the voice builds its own host on the first reply,
+    /// starts that engine, and nothing ever stops it: `stopRendering()`
+    /// had no production caller anywhere. The consequence is not
+    /// abstract — an output unit running forever means
+    /// `setActive(false)` fails with `IsBusy`, `PhoneSession` swallows
+    /// it with `try?`, the `.playAndRecord` session is never released,
+    /// and the person's music never comes back after Stop.
+    private let neuralHost = AudioEnginePlaybackHost()
     private let neuralVoice = NeuralVoice()
 
     /// VOICE FORENSICS (AC-104), added because a field run produced four
@@ -374,7 +385,30 @@ final class TranscribeModel {
     /// Honest disk check for the VOICE. Asking never downloads.
     func checkVoice() async {
         guard mouth == .neural else { voiceState = .ready; return }
-        voiceState = await neuralVoice.modelInstalled() ? .ready : .modelMissing
+        guard await neuralVoice.modelInstalled() else {
+            voiceState = .modelMissing
+            return
+        }
+        // ON DISK IS NOT LOADED, and the difference is a frozen
+        // conversation. `modelInstalled` only stats files; the pipeline
+        // is built lazily by the first `openUtterance`, which the
+        // coordinator awaits INLINE on its one serial loop. So the first
+        // reply after launch would compile six CoreML components — tens
+        // of seconds — while speech onsets, transcripts and barges piled
+        // up unprocessed behind it, and the first turn's felt-pause
+        // number would silently contain the model load.
+        //
+        // The 4e review found this one call above the identical fault
+        // already fixed in `feed`. Warming here closes it completely
+        // rather than shrinking it, because `start()` refuses to run
+        // until this says ready.
+        voiceState = .downloading
+        do {
+            try await neuralVoice.ensureModel()
+            voiceState = .ready
+        } catch {
+            voiceState = .failed(String(describing: error))
+        }
     }
 
     /// The voice's 1.1 GB, fetched once. Deliberately a separate button
@@ -580,6 +614,7 @@ final class TranscribeModel {
         // this voice at all, and they do not depend on where it renders.
         pipeline = Task { [weak self] in
             if let self, mouth == .neural {
+                await neuralVoice.render(on: neuralHost)
                 await neuralVoice.reportMargins { margin in
                     // The graph's rate is refreshed HERE, with the
                     // margin, because it only becomes real when a reply
@@ -672,10 +707,33 @@ final class TranscribeModel {
         isListening = false
         isSpeaking = false
         turnState = .idle
-        microphone?.stop()          // the library releases the session, in order
-        microphone = nil
-        pipeline?.cancel()
+        // THE ORDER HERE IS THE FIX (4e review, blocker 2), and it has
+        // three steps that cannot be swapped:
+        //
+        //   1. the pipeline dies      — so no reply is still speaking
+        //   2. the render engine stops — its nodes go, safely, after 1
+        //   3. the session is released — it cannot be, before 2
+        //
+        // Step 2 was missing entirely: nothing ever stopped the engine
+        // the neural voice renders on, so `setActive(false)` failed with
+        // `IsBusy`, `PhoneSession` swallowed it with `try?`, and the
+        // .playAndRecord session stayed held for the life of the app —
+        // the person's music never came back.
+        //
+        // Step 2 WAITS for step 1 rather than racing it: `stopRendering`
+        // detaches nodes, and a reply still calling `play()` on a
+        // detached node aborts the process. That is the same abort as
+        // blocker 1, reached from the other side.
+        let dying = pipeline
         pipeline = nil
+        dying?.cancel()
+        let host = neuralHost
+        Task {
+            await dying?.value               // the pipeline has drained
+            host.stopRendering()             // now the nodes are nobody's
+            await MainActor.run { microphone?.stop() }   // and the session goes
+            await MainActor.run { microphone = nil }
+        }
         coordinator = nil
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)

@@ -246,7 +246,25 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         drainTask.withLock { $0 = task }
     }
 
-    func cancel() async {
+    /// THE RUN IS OVER — latch it, in ONE locked step.
+    ///
+    /// Every terminal path ends here, and that is a correction the 4e
+    /// review forced. Only `cancel()` used to raise this flag, so a
+    /// `.failed` decode reported its terminal, handed the player node
+    /// back to the engine in `teardown()`, and then **kept going**: the
+    /// drain loop re-reads only `cancelled`, so it popped the next
+    /// phrase, decoded it, and called `play()` / `scheduleBuffer` on a
+    /// node with no engine. AVFoundation does not throw there — it
+    /// aborts the process.
+    ///
+    /// It also broke this repo's own doctrine, written twenty lines
+    /// above: a run that has reported a terminal must not act again, and
+    /// the flag is the guarantee. Cancelling the drain task is the
+    /// optimisation.
+    ///
+    /// - Returns: true if this call is the one that retired the run.
+    @discardableResult
+    private func retire() -> Bool {
         let already = state.withLock { s -> Bool in
             let was = s.cancelled
             s.cancelled = true
@@ -254,11 +272,17 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             s.pending.removeAll() // nothing queued will ever be spoken
             return was
         }
-        guard !already else { return }
-        // Stops the worker from picking up more work. The decode already
-        // in flight stops at its next step, because its callback reads
-        // the flag that was raised above.
+        guard !already else { return false }
         drainTask.withLock { $0 }?.cancel()
+        return true
+    }
+
+    func cancel() async {
+        // `retire` raises the flag, empties the queue and stops the
+        // worker, and reports whether THIS call was the one that did it.
+        // A second cancel — or a cancel after the run already reported a
+        // terminal — has nothing left to do.
+        guard retire() else { return }
         // The flag is up BEFORE the stop is enqueued, so a decode still
         // running sees it at its next step and returns false, and any
         // hand-off already queued finds it and stays silent.
@@ -447,7 +471,13 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     private func report(_ update: SynthesisUpdate, terminal: Bool) {
         if terminal { reportMargin() }
         out.yield(update)
-        if terminal { out.finish(); teardown() }
+        guard terminal else { return }
+        // LATCH BEFORE TEARDOWN. `teardown` gives the player node back to
+        // the engine, so anything still willing to touch that node after
+        // this line aborts the process — see `retire`.
+        retire()
+        out.finish()
+        teardown()
     }
 
     /// GIVE THE NODE BACK. Every reply attaches a fresh player to the
