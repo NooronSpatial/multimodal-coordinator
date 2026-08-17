@@ -1,4 +1,12 @@
-# The engine bake-off
+# The bake-offs
+
+**Two of them now.** This document is the TRANSCRIPTION bake-off — two
+speech engines, one contract, the same recorded voice. Milestone 4e added
+a second one, of VOICES, and its numbers live in
+[INSTRUMENTS.md](INSTRUMENTS.md) §13–§14 rather than here: two mouths
+speaking the same sentences, captured at the mixer, transcribed back by
+this repo's own engines, and scored. A pipeline that can listen can grade
+its own mouth.
 
 Two speech engines, one contract, the same recorded voice — measured, not
 argued. The experiment exists because of a field finding (milestone 2a): the
@@ -113,3 +121,20 @@ a measurement, not a decision) · streaming latency of the Apple engine
 swift run bakeoff                       # committed fixtures
 swift run bakeoff my.wav my-ref.txt     # your own voice, your own reference
 ```
+
+The same tool grew the voice measurements in 4e. Each answers one
+question, and each writes to [INSTRUMENTS.md](INSTRUMENTS.md):
+
+```bash
+swift run bakeoff voice-install   # fetch the neural voice's model (1.1 GB, once)
+swift run bakeoff voice-spike     # time to first audio, and the real-time factor
+swift run bakeoff voice-levers    # every decoder setting, measured serially
+swift run bakeoff voice-listen    # a BLIND A/B between decoders, judged by ear
+swift run bakeoff voice-wer       # speak → record → transcribe → score
+swift run bakeoff voice-onmic     # a reply rendered on a LIVE capture engine
+```
+
+**`voice-wer` grades with Whisper alone**, and that is a known gap
+against D-045 F-5, which asked for both engines. A single grader's bias
+is unmeasured; the number is reported with that caveat rather than
+without it.

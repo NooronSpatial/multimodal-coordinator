@@ -51,6 +51,22 @@ struct PlaybackHostTests {
         #expect(microphone.playbackHost.hostedCount == 0)
     }
 
+    /// A COUNTER WITH NO WRITER IS WORSE THAN NO COUNTER, because a
+    /// screen shows it as evidence. `MicrophoneSource.configurationChanges`
+    /// was orphaned for several commits when `start()` was rewritten and
+    /// the observer registration went with it — `removeObserver` survived
+    /// in `stop()`, nothing ever incremented, and both the demo and
+    /// `bakeoff voice-onmic` reported a confident `reconfig 0`.
+    ///
+    /// Before capture starts nobody is watching, and saying so is the
+    /// point: this asserts the HONEST state rather than a comfortable one.
+    @Test("a microphone that has not started is not watching, and says so")
+    func anIdleMicrophoneAdmitsItIsNotWatching() {
+        let microphone = MicrophoneSource()
+        #expect(!microphone.isWatchingConfiguration)
+        #expect(microphone.configurationChanges == 0)
+    }
+
     // MARK: - the plain engine host
 
     /// The seam's SECOND implementation, which is why this is a seam and

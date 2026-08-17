@@ -57,6 +57,11 @@ public final class MicrophoneSource: AudioSource {
     /// Counting it does not fix it. It makes it VISIBLE, which is the
     /// difference between a bug and a mystery.
     public var configurationChanges: Int { reconfigurations.count }
+    /// Whether the reconfiguration watch is actually installed. Public
+    /// because the counter above was silently orphaned once: a reader
+    /// who can see `0` but cannot see whether anyone is counting has no
+    /// way to tell "nothing happened" from "nobody is watching".
+    public var isWatchingConfiguration: Bool { configurationObserver != nil }
     /// Boxed for the same reason the level is: a notification closure is
     /// `@Sendable`, and this class is not — so what crosses into it is a
     /// tiny object holding one atomic, never `self`.
@@ -225,6 +230,28 @@ public final class MicrophoneSource: AudioSource {
             }
             let rms = (sumOfSquares / Float(max(frames, 1))).squareRoot()
             latestLevel.store(rms)
+        }
+
+        // WATCH FOR THE ENGINE KILLING ITS OWN GRAPH. Installed before
+        // `start`, because a reconfiguration provoked BY starting is
+        // exactly the one that was invisible.
+        //
+        // This registration was deleted once, silently, when `start` was
+        // rewritten — leaving `removeObserver` in `stop`, a counter with
+        // no writer, and a screen showing "reconfig 0" as if it were
+        // evidence. A doc-versus-code audit found it, no test could
+        // have, and it is the same dead-instrument fault this milestone
+        // has now committed three times. Hence the property below: an
+        // instrument that cannot be asked whether it is switched on is
+        // an instrument that will be switched off again.
+        configurationObserver = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange,
+            object: engine, queue: nil
+        ) { [reconfigurations] _ in
+            // Counts; does not restart. Restarting a graph from inside
+            // its own reconfiguration notification is how a loop gets
+            // built, and a measurement comes before a cure.
+            reconfigurations.increment()
         }
 
         // Already prepared above, before the format was read.

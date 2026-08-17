@@ -1695,3 +1695,49 @@ does not care which mouth you plug in", and that is now proven with two
 implementations, a conformance kit, a bake-off, and field validation on
 Mac and iPhone. Recording the voice as unpleasant costs that claim
 nothing — and pretending otherwise would cost it everything.
+
+
+## Corrections to the 4e record — found by a document-versus-code audit
+
+**Date:** 2026-08-16 · Not a ruling. A list of places where this log said
+something the code contradicts, recorded here rather than edited away,
+because a decision log that quietly fixes itself is worth nothing.
+
+Found by an adversarial audit of every document against the tree, run
+before the 4e review. Nothing here was found by a test.
+
+**1. D-049's bug list is wrong about `inputFormat` / `outputFormat`.** It
+says the tap "was installed with `inputFormat` when a tap observes what a
+node PRODUCES — `outputFormat` is correct". **The opposite is true.**
+`installTap` asserts on the INPUT HARDWARE format
+(`format.sampleRate == inputHWFormat.sampleRate`), that "fix" aborted 39
+of 40 test rounds, and commit `fdf9fb7` reverted it. INSTRUMENTS §19
+carries the real account. The bullet was written in the same session that
+disproved it.
+
+**2. D-049's bug list claims a watch that had been deleted.** It says
+`AVAudioEngineConfigurationChange` "was never observed" and is now
+observed. The registration was in fact removed when `start()` was
+rewritten, leaving `removeObserver` in `stop()`, a counter with no
+writer, and a screen reporting `reconfig 0` as evidence. Restored, with
+`isWatchingConfiguration` so the instrument can be asked whether it is
+switched on — because this milestone has now shipped a dead instrument
+three separate times.
+
+**3. D-045 F-5 asked for two graders; one was used.** The ruling says
+round-trip WER is scored with "the two engines this repo already owns".
+`bakeoff voice-wer` grades with Whisper alone. INSTRUMENTS §14 admits it
+in its own caveats; this log did not, and the difference matters because
+a single grader's bias is unmeasured.
+
+**4. D-046's headline factor was later shown to be partly an artefact.**
+It quotes RTF 1.09–1.23 as the decoder's rate. AC-106 then found that
+number carried a fixed ~210 ms of prefill, and the steady rate was 1.066.
+Recorded in INSTRUMENTS §12 and in the code; never in the log until now.
+
+**5. Two counts in D-049 and D-050 are wrong.** "Eleven tests" for the
+`PlaybackHost` seam was eight at the time of writing (nine now), and
+D-050 attributes "rambles longer" to §12, which measures no such thing.
+
+The rulings themselves — D-045 through D-050 — stand. What was wrong was
+the supporting prose, which is exactly the part nobody re-reads.

@@ -1685,7 +1685,12 @@ phone.
   the existing `SynthesizerConformanceKit` unchanged: that kit was
   written for "a second mouth we do not have yet", and this is the
   milestone that makes it earn its keep.
-- **AC-102** THE SPIKE GATES, measured before any adoption ruling
+- **AC-102** *(status: PARTLY MET — time-to-first-audio is measured on a
+  Mac in INSTRUMENTS §10, §15; **stop latency and thermal were never
+  measured, on either machine**, and the iPhone numbers this criterion
+  demands do not exist. The phone was observed to get hot; how hot was
+  never written down. Carried into 4f rather than counted as done.)*
+  THE SPIKE GATES, measured before any adoption ruling
   (D-023's discipline, as D-037 promised): **time-to-first-audio**,
   **stop latency** (barge → silence), and **thermal** under sustained
   use with D-028's policy watching. Numbers in INSTRUMENTS.md, on both
@@ -1738,6 +1743,17 @@ phone.
   repo's standard for calling something a seam — the microphone, and a
   plain engine for machines with no capture in the picture. What cannot
   be proven without hardware is stated as such and measured in AC-104.
+
+  **STATUS, AMENDED BY D-049 — built, tested, and SWITCHED OFF in the
+  only place that mattered.** The seam exists with two implementations
+  and its own tests, and the demo no longer uses the capture-side one:
+  voice processing and an output chain could not coexist on one engine
+  (INSTRUMENTS §17). So the criterion's stated PURPOSE — the echo
+  canceller seeing the reply — is **not met**, and it moves to 4f.
+  AC-104, which this criterion existed to enable, **did not happen**.
+  Both are recorded as unmet rather than quietly re-scoped, and the
+  `hostsPlayback` switch stays in the code, defaulting off, because 4f
+  will need it and because deleting it would erase the measurement.
 
 ## 65. Test matrix (4e)
 
