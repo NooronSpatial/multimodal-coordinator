@@ -1987,6 +1987,20 @@ a measurement rather than an assumption.
   `UnavailableReason` cases are handled and shown honestly in the demo —
   a person whose device cannot run the model is told which of the three
   reasons applies, not given a silent dead button.
+- **AC-110 STATUS NOTE, measured en route (2026-08-18, iOS Simulator):**
+  **the availability enum can LIE.** A Simulator running this Mac's SDK
+  answered `.available` — and then EVERY generation threw:
+  `GenerationError` wrapping `SensitiveContentAnalysisML Code=15` wrapping
+  `ModelManagerServices.ModelManagerError Code=1026`, which is the model
+  manager failing to produce assets the availability check had just
+  vouched for. So availability is a NECESSARY gate, not a SUFFICIENT one:
+  the adapter must treat a failed generation as its own unavailability
+  signal, and the demo must not promise a mind it has not heard speak.
+  Found by the probe's FIRST run — which also caught the probe itself
+  showing a green "strictly extending ✓" over ZERO snapshots, a verdict
+  with no evidence. Both are fixed and the probe now refuses to speak
+  under two snapshots.
+
 - **AC-111 THE STREAM SHAPE, MEASURED — the milestone's gating number.**
   On real hardware, over a set of prompts: is `Snapshot.content`
   cumulative? Does every snapshot strictly extend its predecessor

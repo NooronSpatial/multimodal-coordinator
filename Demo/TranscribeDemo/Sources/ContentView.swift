@@ -2,6 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var model = TranscribeModel()
+    // The 4f measurement instrument, held beside the model rather than
+    // inside it: it probes a SYSTEM service, touches nothing on the
+    // pipeline, and leaves with the milestone-gating numbers (AC-110/111).
+    @State private var mindProbe = MindProbe()
+    @State private var showMindProbe = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +48,20 @@ struct ContentView: View {
             }
             .navigationTitle("MultiModalKit")
             .toolbar {
+                // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
+                // engine state for the echo probe's reason, one item over:
+                // it measures a SYSTEM service, and the devices where a
+                // model refuses to install are exactly the ones where the
+                // availability enum matters most. In the toolbar because
+                // that is where this app has PROVEN taps fire.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showMindProbe = true
+                    } label: {
+                        Label("Mind probe", systemImage: "brain")
+                    }
+                    .disabled(model.isListening)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await model.runEchoProbe() }
@@ -51,6 +70,12 @@ struct ContentView: View {
                               systemImage: "waveform.badge.magnifyingglass")
                     }
                     .disabled(model.isListening || model.probeStatus != nil)
+                }
+            }
+            .sheet(isPresented: $showMindProbe) {
+                NavigationStack {
+                    List { MindProbeSection(probe: mindProbe) }
+                        .navigationTitle("Mind probe")
                 }
             }
             .task {

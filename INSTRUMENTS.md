@@ -1285,3 +1285,42 @@ took **3.054 s** — the whole bounded window, spent waiting for a
 `.finished` that was never coming — and afterwards it takes 0.53 s, the
 same as the two cases that always worked. A hang does not look like a
 failed assertion; it looks like time.
+
+## 22. The mind probe (4f, AC-110/AC-111) — availability and stream shape, per device
+
+**The instrument.** The demo app grew a toolbar brain: reachable in EVERY
+engine state (the echo probe's lesson — the devices where a model refuses
+to install are exactly where the enum matters most), it reads
+`SystemLanguageModel.default.availability` as the enum says it, then
+streams four prompts and grades the snapshots: cumulative? strictly
+extending? any revision of already-emitted text? any grapheme split? The
+whole trace leaves the phone as markdown via ShareLink, because a phone
+has no stderr (§18's lesson) and a verdict without its evidence is an
+adjective. The Mac runs the same measurement as a compiled probe.
+
+**What is measured so far (2026-08-18, milestone in flight):**
+
+| device | availability says | and then |
+|---|---|---|
+| dev Mac (M2 Pro, macOS 26.6.1) | `unavailable(appleIntelligenceNotEnabled)` → after the toggle: `unavailable(modelNotReady)` | download running; a watcher re-checks every 60 s and fires the full measurement when it flips |
+| iOS Simulator (iPhone 17 Pro, same Mac) | **`.available`** | **every generation THREW**: `GenerationError` → `SensitiveContentAnalysisML Code=15` → `ModelManagerError Code=1026`. Zero snapshots produced |
+| Ryad's iPhone | *pending — the next demo build carries the probe* | — |
+
+**The simulator row is the finding.** An availability check that vouches
+for a model the model manager then cannot produce means the enum is a
+NECESSARY gate, not a sufficient one. The adapter (AC-112) must treat a
+failed generation as its own unavailability signal. Recorded as a status
+note on AC-110.
+
+**And the probe lied once itself, on its first run.** With zero snapshots
+the per-prompt verdict still showed "strictly extending ✓" in green —
+vacuously true over no evidence, the exact class D-054 rule 5 exists for.
+It now refuses to speak under two snapshots ("shape: no data"), and the
+run-level verdict distinguishes "every pair extended" from "nothing
+streamed, so the question is UNANSWERED — and if you are reading this, the
+availability line above it lied."
+
+**Not yet in this table, by design:** the stream-shape verdicts
+themselves. They arrive when a device that can actually generate runs the
+probe — the Mac when its download completes, the iPhone on the next build.
+F-1 stays unruled until then.
