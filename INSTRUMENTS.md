@@ -1304,7 +1304,7 @@ adjective. The Mac runs the same measurement as a compiled probe.
 |---|---|---|
 | dev Mac (M2 Pro, macOS 26.6.1) | `unavailable(appleIntelligenceNotEnabled)` → after the toggle: `unavailable(modelNotReady)` | download running; a watcher re-checks every 60 s and fires the full measurement when it flips |
 | iOS Simulator (iPhone 17 Pro, same Mac) | **`.available`** | **every generation THREW**: `GenerationError` → `SensitiveContentAnalysisML Code=15` → `ModelManagerError Code=1026`. Zero snapshots produced |
-| Ryad's iPhone | *pending — the next demo build carries the probe* | — |
+| Ryad's iPhone | **`.available`** | **generated on every prompt** — the first device that can actually think |
 
 **The simulator row is the finding.** An availability check that vouches
 for a model the model manager then cannot produce means the enum is a
@@ -1324,3 +1324,49 @@ availability line above it lied."
 themselves. They arrive when a device that can actually generate runs the
 probe — the Mac when its download completes, the iPhone on the next build.
 F-1 stays unruled until then.
+
+### The iPhone's run (2026-08-18) — AC-110 answered, AC-111's first real numbers
+
+Shared off the phone as markdown by the probe's own ShareLink. Four
+prompts, every snapshot pair graded:
+
+| prompt | snapshots | first | total | cumulative | strictly extending | grapheme split |
+|---|---|---|---|---|---|---|
+| capital of France (2 sentences) | 3 | **1839 ms** | 2044 ms | yes | **yes** | no |
+| count one to ten | 6 | 274 ms | 810 ms | yes | **yes** | no |
+| three sentences, the sea | 7 | 301 ms | 1076 ms | yes | **yes** | no |
+| four sentences, blue sky | 7 | 282 ms | 1151 ms | yes | **yes** | no |
+
+**VERDICT of this run: every snapshot strictly extended its predecessor.**
+No revision of already-emitted text, no suspected grapheme split, across
+23 snapshot pairs. One run is evidence, not proof — the probe's own trace
+says so — but it is the evidence F-1 asked for, and it points at the
+plain diff.
+
+**Four more things this run said, beyond what it was asked:**
+
+1. **Snapshots are CHUNKS, not tokens.** A 50-word reply arrived in 7
+   snapshots — several words per step, not subword fragments. The phraser
+   handles any granularity (it cuts at clause marks, not at token edges),
+   but the mental model "the model streams tokens" is wrong for this API
+   on this device: it streams sentences-in-progress, a handful of times
+   per reply.
+2. **The first prompt of the session paid 1839 ms to first snapshot; the
+   warm ones paid ~280 ms.** That ~1.5 s gap is AC-115's whole case:
+   session warm-up exists, it is big enough to feel, and it must not land
+   inside the first turn's felt pause. `prewarm()` placement is real work,
+   not hygiene.
+3. **The count-to-ten reply came back as a MARKDOWN LIST** — "Sure, here
+   are the numbers…" then "1. One" line by line. Nothing revised, so the
+   shape verdict stands — but a mouth would SPEAK that formatting. This is
+   F-3 = A's evidence arriving unasked: the told-it-is-speaking
+   instruction is not a nicety, it is what stands between the pipeline
+   and a voice reading list numbering aloud.
+4. **`contextSize` on the phone: 4096** — same as the Mac. AC-116's
+   budget is confirmed cross-device.
+
+**Still missing from the table:** the Mac's own run (watcher armed,
+`modelNotReady` at check 33, ~33 minutes into the system download) — it
+becomes the second device the day the download completes. And every
+number here is ONE run on the main actor of an idle app; the latency
+column is indicative, the shape column is the load-bearing one.

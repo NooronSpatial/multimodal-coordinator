@@ -2002,6 +2002,10 @@ a measurement rather than an assumption.
   under two snapshots.
 
 - **AC-111 THE STREAM SHAPE, MEASURED — the milestone's gating number.**
+  *(status: MEASURED on the iPhone, 2026-08-18 — one run, four prompts,
+  23 snapshot pairs: cumulative, strictly extending, zero revisions, zero
+  grapheme splits. INSTRUMENTS §22. The Mac joins when its download
+  completes. F-1 is now READY FOR RULING on this number.)*
   On real hardware, over a set of prompts: is `Snapshot.content`
   cumulative? Does every snapshot strictly extend its predecessor
   (`new.hasPrefix(old)`)? Does a revision EVER occur? Does a snapshot ever
