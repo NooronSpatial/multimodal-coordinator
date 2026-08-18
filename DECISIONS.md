@@ -2105,3 +2105,58 @@ Foundation Models is `unavailable(appleIntelligenceNotEnabled)` on the
 development Mac — measured 2026-08-18, not remembered. If it is also
 unavailable on the iPhone, 4f has no engine and F-6's deferral of MLX
 reverses. AC-110 exists to answer that before any adapter is written.
+
+## D-057 — 4f's five open forks, ruled (Milestone 4f)
+
+**Date:** 2026-08-18 · **Decided by:** Ryad · **Rulings: F-2 = A, F-3 = A,
+F-4 = A, F-5 = A, F-6 = A** — all five on the spec's recommendations,
+ruled in one message. F-1 is deliberately NOT here: the spec gates it on
+AC-111's measurement, and ruling it on an argument today would be exactly
+the guess §71 warns about.
+
+**F-2 = A — one `LanguageModelSession` per turn, stateless.** The
+`TranscriptLedger` already carries the whole thought, so the context the
+model needs is assembled by us and visible. *Rejected:* **B, one
+long-lived session with multi-turn memory** — the budget is a hard 4096
+tokens (read from the machine, AC-116), a barge can collide with
+`concurrentRequests`, and a cancelled turn may still spend budget. Memory
+across turns is its own later milestone, named rather than smuggled in.
+
+**F-3 = A — the model is told it is SPEAKING.** A short instruction
+shaping replies for speech: brief, no markdown, no lists, no headings —
+this reply is heard, never read. The instruction TEXT lives in the app,
+not the library: mechanism, not policy (D-027's rule, applied again).
+*Rejected:* **B, no instructions** — the default shapes replies for a
+screen.
+
+**F-4 = A — a refusal is spoken, and the turn completes normally.**
+`guardrailViolation` and `refusal` are ordinary outcomes of a supervised
+model, not crashes. *Rejected:* **B, refusal as turn failure** — silence,
+and the person cannot tell a refusal from a bug.
+
+**F-5 = A — the adapter lives in core, beside `AppleSpeechEngine`.**
+Foundation Models is a SYSTEM framework in an OS the platform floor
+already requires (D-017), so the zero-runtime-dependency vow (D-016) is
+untouched and the precedent is exact. *Rejected:* **B, a new opt-in
+product** — that shape exists to quarantine PACKAGE dependencies
+(WhisperKit, TTSKit); there is nothing here to opt out of.
+
+**F-6 = A — MLX is deferred, behind a time-boxed spike gate.** The spike
+already ran and its finding stands: MLX builds Swift 6 clean and then
+**cannot run from a SwiftPM binary** (`Failed to load the default
+metallib`; the vendor's own README says SwiftPM cannot build Metal
+shaders). This repo's CI and bake-off ARE SwiftPM. A green build that
+cannot generate one token is a lying instrument, and D-023's fourth
+question fails in a new way: the code is removable in a day, the build
+system is not behind the protocol at all. The gate's demands are in the
+spec (§74); the result is logged as a D-entry either way. *Rejected:*
+**B, adopt now and change the CI story** — trading the machine that
+guards everything for a second engine, in the milestone that does not yet
+have a first. **The honest cost of A, carried knowingly: 4f ships the
+reply seam with ONE real citizen, below this repo's own
+two-implementations standard, until the bake-off milestone.**
+
+**Still gating everything, unchanged from D-056:** Apple Intelligence is
+OFF on the development Mac, so the floor engine is `unavailable` here
+until the setting is flipped — and the iPhone has not been asked at all.
+AC-110 runs before any adapter code.
