@@ -1883,3 +1883,246 @@ devices BEFORE the adoption ruling · the bake-off written with its
 caveats · code adversarially reviewed BEFORE the merge (D-041) · PR
 merged with the map updated · the forks logged as D-entries ·
 teach-back survived.
+
+# SPEC — Milestone 4f: the mind (a reply that is thought, not echoed)
+
+*(Numbering note, third one — and it settles a contradiction this file has
+been carrying. §48 called the language model "4d"; the 2026-08-14 ruling
+renumbered it **4f**; but two later passages (§54's out-of-scope line and
+§67's) went on calling 4f "the echo ROUTING fix" and the language model
+"4g". Both readings are in the file. **Ryad's ruling of 2026-08-18 settles
+it: the language model is 4f, and the echo routing fix becomes 4g**
+(D-056). The contradicting sentences are left where they were written;
+nothing is edited away.)*
+
+## 69. What 4f builds, and why it is next
+
+Today the pipeline listens, understands, decides whose turn it is, and
+speaks — and what it speaks is **your own words back at you**.
+`PacedEchoReply` on the Mac, `PhoneEchoReply` on the phone. Every other
+organ on the spine is real; this one is a placeholder.
+
+4f replaces it with a real on-device language model behind the
+`ReplyGenerating` seam that has been waiting for it since 4b. Nothing else
+on the spine changes. The turn ticket, the reply gate, the ledger, the
+phraser, both mouths — all of it already speaks the language a generator
+talks in.
+
+**The seam was built for this, and the record proves it.** `SpeechPhraser`
+exists because D-037's F-1 was ruled TWICE: Ryad first ruled per-token
+utterances, then re-opened it himself and switched, because a language
+model emits SUBWORD fragments — `"con"` / `"curr"` / `"ency"` — so
+per-token utterances would be *wrong*, not merely choppy. That ruling was
+made for a producer that did not exist yet. 4f is that producer arriving.
+
+**The floor is Apple's Foundation Models**, and it costs **no dependency at
+all**: the platform floor is already macOS 26 / iOS 26 (D-017), and
+`FoundationModels.framework` is a system framework in that SDK — verified
+present on this machine, not remembered. That is the same shape as
+`AppleSpeechEngine`, which lives in core for the same reason.
+
+## 70. THE GATE, stated before anything is promised
+
+**The model is NOT available on this development Mac.** Measured, on
+2026-08-18, with a four-line probe compiled against the real SDK:
+
+```
+availability: unavailable(UnavailableReason.appleIntelligenceNotEnabled)
+isAvailable: false
+```
+
+Apple Intelligence is switched off at the system level. The framework is
+present and the probe builds and runs; the model is simply not there.
+
+This is the same class of finding as the one already in the README about
+Apple's speech models failing on this Mac, and it must be ruled BEFORE the
+adapter is written, not discovered inside it:
+
+- If Apple Intelligence can be enabled here and on the iPhone, 4f proceeds
+  as specified.
+- **If it cannot be enabled on the iPhone, 4f has no engine**, the floor
+  argument collapses, and the MLX contender (F-6) stops being deferred and
+  becomes the milestone. That reversal is cheap to make now and expensive
+  to make in week two.
+
+Three `UnavailableReason` cases exist and all three are real on a user's
+device: `deviceNotEligible`, `appleIntelligenceNotEnabled`, `modelNotReady`.
+**Unavailability is a first-class state of this seam, not an error path.**
+
+## 71. The one hard problem: a stream that can unsay what it already said
+
+`SpeechPhraser` concatenates **verbatim** — `buffer += token`. That is not
+an implementation detail; it is the contract that lets a reply be spoken
+without lying about what was generated.
+
+Apple's `streamResponse` does not yield tokens. It yields
+`ResponseStream<String>.Snapshot`, and `Snapshot.content` for `String` is
+a `String` (because `PartiallyGenerated` defaults to `Self`). The
+swiftinterface carries **zero doc comments**, so the shape is not stated
+anywhere Apple ships — it must be measured.
+
+If snapshots are cumulative — `"The"`, `"The capital"`, `"The capital of"`
+— then feeding them verbatim would speak:
+
+```
+   "The"  "The capital"  "The capital of"  "The capital of France"
+   → spoken: "The The capital The capital of The capital of France"
+```
+
+So an adapter must DIFF consecutive snapshots and emit only the new
+suffix. And that diff is safe **only if every snapshot strictly extends
+the one before it.** If the model can ever revise text it already emitted,
+the adapter may have already handed those words to a mouth — and **audio
+cannot be unsaid.** A reply is spoken into a room in real time; there is
+no backspace.
+
+That is this milestone's D-015-shaped question, and AC-111 answers it with
+a measurement rather than an assumption.
+
+## 72. Acceptance criteria (4f)
+
+- **AC-110 THE AVAILABILITY GATE, on BOTH machines, before any adapter
+  code.** The probe runs on this Mac and on the iPhone, and both answers
+  are recorded in INSTRUMENTS.md whichever way they fall. All three
+  `UnavailableReason` cases are handled and shown honestly in the demo —
+  a person whose device cannot run the model is told which of the three
+  reasons applies, not given a silent dead button.
+- **AC-111 THE STREAM SHAPE, MEASURED — the milestone's gating number.**
+  On real hardware, over a set of prompts: is `Snapshot.content`
+  cumulative? Does every snapshot strictly extend its predecessor
+  (`new.hasPrefix(old)`)? Does a revision EVER occur? Does a snapshot ever
+  split a grapheme cluster? The result is recorded either way, including
+  "it revises, so the naive diff is unsafe", which is a result and not a
+  failure. **F-1 cannot be ruled until this is measured.**
+- **AC-112 The adapter behind the seam.** A `ReplyGenerating` /
+  `ReplyRun` implementation over `LanguageModelSession` that emits
+  `.token` updates the phraser can concatenate verbatim, then exactly ONE
+  terminal, then ends its stream — the same contract every other run in
+  this library keeps.
+- **AC-113 Cancellation obeys the turn ticket, and it is MEASURED.** A
+  barge kills the generation. Does cancelling the iterating task actually
+  stop the model, or does it keep computing? How long until `isResponding`
+  clears, after a normal end and after a cancel? Does a cancelled partial
+  turn still consume the context budget? The ticket remains the guarantee
+  (D-034's law, for the third time); cancellation is the optimisation, and
+  a defiant-mock test proves a dead turn's late token cannot reach a mouth.
+- **AC-114 The failure surface is mapped, not swallowed.** All NINE
+  `GenerationError` cases — `exceededContextWindowSize`,
+  `assetsUnavailable`, `guardrailViolation`, `unsupportedGuide`,
+  `unsupportedLanguageOrLocale`, `decodingFailure`, `rateLimited`,
+  `concurrentRequests`, `refusal` — reach an honest outcome. Both that
+  enum and `UnavailableReason` are **non-frozen**, so every switch carries
+  `@unknown default` or the build fails under warnings-as-errors. No test
+  asserts on `Context.debugDescription`: it is an unlocalised string Apple
+  may change.
+- **AC-115 The first reply does not freeze the turn loop.** This is 4e's
+  blocker 3 arriving one seam over: `modelInstalled()` only stats files,
+  the pipeline was built lazily by the first call, and the coordinator
+  awaits its handlers INLINE on one serial loop — so the first turn froze
+  the whole conversation. `prewarm(promptPrefix:)` exists; where it is
+  called is a correctness question, and the felt-pause number must not
+  silently contain a model warm-up.
+- **AC-116 The context budget is known, not discovered.** `contextSize` is
+  **4096**, read from the machine. A conversation that exceeds it must
+  fail honestly and recoverably rather than dying mid-turn, and what the
+  person sees is specified.
+- **AC-117 The slice, on real hardware (§3.7).** The iPhone hears a spoken
+  question, thinks on-device, and answers out loud through either mouth,
+  with the felt pause measured and written down — and with the whole reply
+  cancellable by a barge, proven in the field, not only in tests.
+- **AC-118 Hygiene.** Swift 6 strict, zero warnings in debug AND release
+  with `-warnings-as-errors`, 20× stable, ARCHITECTURE.md updated, and the
+  code adversarially reviewed BEFORE the merge (D-041).
+
+## 73. Test matrix (4f)
+
+| Area | Tests |
+|---|---|
+| The seam contract | a reply conformance kit — the `EngineConformanceKit`/`SynthesizerConformanceKit` pattern, one seam over: tokens then exactly one terminal, cancel ends without a terminal, nothing survives the cancel |
+| The snapshot diff | a scripted snapshot source (the `TTSDecoding` precedent — an injectable seam so the vendor is not required to misbehave on demand): cumulative snapshots become correct deltas · a REVISING snapshot is handled per the F-1 ruling · an empty reply terminates |
+| Availability | each of the three `UnavailableReason` cases produces an honest, named outcome · `@unknown default` is exercised |
+| Failure surface | each `GenerationError` case mapped, guardrail refusal treated as a legitimate reply per F-4 · unknown-case bucket |
+| Cancellation | a barge mid-generation: the turn ticket kills it, a defiant late token reaches no mouth |
+| Liveness | a reply that ends before any token still terminates the turn — the promise the phraser and both mouths already keep |
+| Coordinator | the whole 4a–4e suite green with the real generator substituted where it can be |
+| Warm-up | the first reply does not block the coordinator's serial loop (AC-115) |
+
+## 74. The design forks (4f) — for Ryad to rule
+
+- **F-1 HOW A SNAPSHOT BECOMES A TOKEN.** A: diff consecutive snapshots
+  and emit the new suffix — smallest, and correct *only if* the stream is
+  strictly prefix-extending. B: do not stream at all, use `respond` and
+  emit the whole reply as one token — safe against revision, but the felt
+  pause absorbs the entire generation and the `SpeechPhraser`'s whole
+  reason to exist dies with it. C: diff, but hold back the tail — emit
+  only up to the last SAFE boundary (a completed word or clause) and let
+  the next snapshot confirm it — costs a little latency, buys immunity to
+  a late revision. **Recommendation: ruled by AC-111's measurement, not
+  now.** If the stream strictly extends, A. If it ever revises, C. B is
+  the fallback if the phone's latency makes streaming pointless. *A fork
+  whose ruling is gated on a number is the honest shape here; guessing it
+  is exactly how a reply speaks a word it must then contradict.*
+- **F-2 WHERE THE SESSION LIVES.** A: one `LanguageModelSession` per
+  turn — stateless, and the `TranscriptLedger` already holds the whole
+  thought, so the context the model needs is assembled by us and visible.
+  B: one long-lived session carrying multi-turn memory — richer, but the
+  budget is 4096 tokens, a barge can collide with `concurrentRequests`,
+  and a cancelled turn may still consume budget. **Recommendation: A**,
+  with multi-turn memory named as its own later milestone rather than
+  smuggled in here.
+- **F-3 WHAT THE MODEL IS TOLD.** A: a short instruction shaping replies
+  for SPEECH — brief, no markdown, no bullet lists, no headings — because
+  this reply is spoken aloud, never read. B: no instructions, take the
+  default. **Recommendation: A.** A spoken reply has different constraints
+  from a written one, and this is the one place that difference can live.
+  The instruction text itself belongs in the app, not the library
+  (mechanism, not policy — D-027's rule).
+- **F-4 WHAT A REFUSAL SOUNDS LIKE.** The model can refuse, and
+  `guardrailViolation` / `refusal` are ordinary outcomes, not crashes.
+  A: speak an honest short sentence and complete the turn normally. B:
+  treat it as a turn failure — silence, and the person cannot tell a
+  refusal from a bug. **Recommendation: A.**
+- **F-5 WHERE IT LIVES.** A: in core `MultiModalKit`, beside
+  `AppleSpeechEngine` — Foundation Models is a SYSTEM framework, not a
+  package dependency, so the "core keeps zero runtime dependencies" vow
+  (D-016) is untouched, and the precedent is exact. B: a new opt-in
+  product. **Recommendation: A**, on the `AppleSpeechEngine` precedent.
+- **F-6 THE MLX CONTENDER — deferred, and here is the measured reason.**
+  D-017's doctrine says two real implementations turn a seam from a claim
+  into a proof, so a second engine is wanted. But MLX was spiked and
+  **it cannot run from a SwiftPM command-line binary**: `swift run` dies
+  with `Failed to load the default metallib`, and mlx-swift's own README
+  says SwiftPM cannot build the Metal shaders. This repo's CI *is*
+  `swift build` + `swift test -Xswiftc -warnings-as-errors`, and the
+  bake-off is a SwiftPM executable. So MLX would compile everywhere and
+  RUN nowhere in the current toolchain — a green build that cannot
+  generate one token, which is the lying-instrument problem this repo
+  names. D-023's fourth question fails in a new way: the *code* is
+  removable in a day behind `ReplyGenerating`, but the *build system* is
+  not behind the protocol at all. A: defer MLX to a later bake-off
+  milestone behind a time-boxed spike gate — run OUTSIDE the repo, no
+  `Package.swift` line until it passes, result logged as a D-entry
+  either way. B: adopt it in 4f and change the CI story now.
+  **Recommendation: A.** The honest cost of A, stated: 4f ships a seam
+  with ONE real citizen, which is weaker than this repo's own standard,
+  and a hostile reviewer may say so. *Watch item:* `mlx-swift-lm` now
+  ships `MLXFoundationModels`, which drives an MLX model through Apple's
+  own `LanguageModelSession` — if that matures, the bake-off gets one
+  adapter and two backends, which is the shape this repo argues for. It
+  needs the 27.0 SDK and does not build against the current beta.
+
+## 75. Out of scope for 4f (deliberately)
+
+Multi-turn conversational memory (its own milestone, per F-2) · tool
+calling and `@Generable` structured output · the echo ROUTING fix, which
+is now **4g** (D-056) · MLX adoption beyond the spike gate · reply quality
+scoring or a model bake-off · SpeakerKit · anything served from a network.
+
+## 76. Definition of done (4f)
+
+The availability probe run on BOTH devices and recorded BEFORE any adapter
+code (AC-110) · the stream shape measured and F-1 ruled on that number,
+not on an argument (AC-111) · all ACs green · 20× stable · zero warnings
+debug and release · code adversarially reviewed BEFORE the merge (D-041) ·
+PR merged with the map updated · the forks logged as D-entries ·
+teach-back survived.

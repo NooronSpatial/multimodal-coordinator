@@ -2057,3 +2057,51 @@ without deleting the evidence. Its expectations were flipped for the fix
 and it failed first with `updates → []` (the reply produced nothing at
 all), then passed. Its duration went from **3.054 s** — waiting out the
 bounded window for a `.finished` that never came — to **0.525 s**.
+
+## D-056 — The language model is 4f; the echo routing fix becomes 4g (milestone order)
+
+**Date:** 2026-08-18 · **Decided by:** Ryad
+
+**And it settles a contradiction the SPEC has been carrying.** §48 called
+the language model "4d". The 2026-08-14 ruling renumbered it **4f** (see
+the note under 4d's banner). But two later passages went on saying the
+opposite — §54's out-of-scope line reads *"the routing fix becomes
+milestone 4f, after TTSKit (4e)"*, and §67's reads *"the language model
+(4g)"*. Both readings sat in one file, written at different times, never
+reconciled. That is the same documents-disagree-with-themselves class the
+4e review caught in ARCHITECTURE.md's line counts.
+
+**The ruling: the language model is 4f. The echo ROUTING fix is 4g.** The
+contradicting sentences stay where they were written; a numbering note
+under 4f's banner names them and points here.
+
+**Why the reply, not the routing.** Three reasons, and the third is the one
+that decided it:
+
+1. The reply generator is the spine's last placeholder. Every other organ
+   is real; a conversation that answers with your own words is a
+   demonstration of plumbing, not of a product.
+2. The seam is already cut for it. `SpeechPhraser` exists BECAUSE D-037's
+   F-1 was ruled twice — a language model emits subword fragments, so
+   per-token utterances would be wrong rather than merely choppy. That
+   ruling was made in 4b for a producer that did not exist yet.
+3. **The routing fix cannot honestly start yet.** Its whole purpose is the
+   echo canceller seeing the reply, and whether that works is AC-104 —
+   which never happened, and which the SPEC itself says would *reshape*
+   the work. Starting 4g now would mean building before the measurement
+   that decides its shape, which is exactly what D-054 rule 4 forbids.
+
+*Rejected:* **the routing fix first** — it has the warmer harness
+(`voice-onmic`, `graph-probe`) and closes 4e's loudest unmet criterion, but
+it is gated on a phone measurement nobody has taken.
+
+*Rejected:* **a phone-truth pass first** (AC-104, AC-102's stop-latency and
+thermal numbers, the `voice-listen` decision) — genuinely useful, and it
+de-risks 4g. It loses because it is debt-paying rather than building, and
+4f's own AC-110 forces a phone trip anyway.
+
+**One thing this ruling does NOT settle, and it is load-bearing:** Apple's
+Foundation Models is `unavailable(appleIntelligenceNotEnabled)` on the
+development Mac — measured 2026-08-18, not remembered. If it is also
+unavailable on the iPhone, 4f has no engine and F-6's deferral of MLX
+reverses. AC-110 exists to answer that before any adapter is written.
