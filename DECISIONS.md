@@ -2160,3 +2160,42 @@ two-implementations standard, until the bake-off milestone.**
 OFF on the development Mac, so the floor engine is `unavailable` here
 until the setting is flipped — and the iPhone has not been asked at all.
 AC-110 runs before any adapter code.
+
+## D-058 — F-1 ruled on the phone's number: the diff, with a tripwire (Milestone 4f)
+
+**Date:** 2026-08-18 · **Decided by:** Ryad · **Ruling: A + tripwire**
+
+The spec refused to rule this fork on an argument (D-057 left it out on
+purpose), and the measurement arrived: on Ryad's iPhone, four prompts, 23
+snapshot pairs — every snapshot cumulative, every one strictly extending
+its predecessor, zero revisions, zero grapheme splits (INSTRUMENTS §22).
+
+**The ruling.** The adapter diffs consecutive snapshots and emits the new
+suffix — and **every snapshot is CHECKED**: if one ever fails
+`hasPrefix(previous)`, the run reports a named failure and a health event,
+and nothing is handed to a mouth. The property the diff depends on is
+asserted where it is depended on, every time, at the cost of one string
+compare per snapshot — about seven per reply.
+
+**Why the tripwire is not decoration.** Two facts from this same
+milestone: one run of "never revised" is evidence, not a law — the
+probe's own trace says so — and the Simulator had JUST shown this
+platform vouching for a model it could not produce (AC-110's status
+note). A platform that can lie about availability earns a check on its
+stream shape. The failure the tripwire prevents is the worst one this
+pipeline can produce: **spoken garbage with no alarm** — words in the
+room that the model then contradicted, detectable by nobody but the
+person listening.
+
+*Rejected:* **A pure — trust the property.** Smallest code, and exactly
+what was measured. But its failure mode is audible and silent at once,
+and the check that removes it costs seven string compares.
+
+*Rejected:* **C — hold back the unconfirmed tail.** Immune to revision,
+but it prices insurance above the measured risk: latency on EVERY reply
+against an event never observed in 23 pairs. If the tripwire ever FIRES,
+C is the fallback already designed, and this entry is where its price was
+written down in advance.
+
+*Rejected:* **B — do not stream.** Dead on the numbers: a warm first
+snapshot lands in ~280 ms, and a whole-reply wait would throw that away.

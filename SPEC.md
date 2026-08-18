@@ -2068,8 +2068,10 @@ a measurement rather than an assumption.
 ## 74. The design forks (4f) — for Ryad to rule
 
 *(Ruled 2026-08-18, D-057: F-2 = A, F-3 = A, F-4 = A, F-5 = A,
-F-6 = A — all five on the recommendations. F-1 stays open on purpose:
-AC-111's measurement rules it, not an argument.)*
+F-6 = A — all five on the recommendations. F-1 was ruled the same day
+the iPhone's measurement arrived: **A + tripwire**, D-058 — the diff,
+with every snapshot CHECKED, because a platform that can lie about
+availability earns a check on its stream shape.)*
 
 - **F-1 HOW A SNAPSHOT BECOMES A TOKEN.** A: diff consecutive snapshots
   and emit the new suffix — smallest, and correct *only if* the stream is
