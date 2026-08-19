@@ -1402,6 +1402,17 @@ loop, invisible to every scripted test — the mind's equivalent risk
 (generation blocking `openReply`) was designed out (AC-115's hand-off)
 and the field just confirmed it with a human interruption.
 
-**Still owed to AC-117/AC-115:** the FIRST-turn-after-a-fresh-launch
-felt pause — the specific case `prewarm()` exists to win. 567 ms is a
-warm-or-unknown turn until that run happens.
+**The first turn after a fresh launch: 542 ms** — all-Apple engines
+(transcriber, mind, mouth), and the field's own words: "it feels fast."
+That is AC-115 PROVEN where it matters: the model's cold start costs
+1839 ms on this same phone, and the first felt pause a person meets is
+542 ms — statistically the same as the warm turn's 567 ms. The warm-up
+is being paid where it was designed to be paid: in `refreshMind()`, at
+launch and picker-flip, never inside anyone's first question.
+
+**AC-117's field evidence is COMPLETE:** offline answers · felt pause
+567 ms warm and 542 ms first-turn · a barge kills a thinking reply
+immediately and the pipeline listens until the speaker finishes. What
+remains for the milestone is machinery, not evidence: the adversarial
+review (D-041), the live conformance-kit run (gated on a Mac whose
+model download is still stuck), and the merge.
