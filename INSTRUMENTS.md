@@ -1384,8 +1384,16 @@ thought, no voice. The library's founding bias — on-device first, the
 server a compromise to be minimized (§4.3 of the working method) — is now
 a fact a person can verify by flipping airplane mode.
 
-**What this run did NOT measure, still owed to AC-117:** the felt-pause
-number on screen (AC-115's prewarm placement is judged by it), and the
-barge — does interrupting a THINKING reply kill it mid-generation, in the
-field, not only in the conformance kit? Both are one field run away, on
-the same build.
+**The felt pause, measured in the field:** "tell me the capital of
+Italy" → **567 ms** on screen. For scale: the model's COLD first
+snapshot alone costs 1839 ms (measured, this same phone), so that cost
+is demonstrably not inside this number — and the whole loop (gate +
+model + phraser + mouth first-audio) landing under 600 ms is faster
+than the Mac's echo-era pipeline share from 4b (749 ms, INSTRUMENTS
+history). What the single number does not yet say: whether it was the
+FIRST turn after a fresh launch (the specific case AC-115's prewarm
+placement must win) and which mouth spoke it.
+
+**Still owed to AC-117:** the first-turn-after-launch felt pause, and
+the field barge — does interrupting a THINKING reply kill it
+mid-generation, in the field, not only in the conformance kit?
