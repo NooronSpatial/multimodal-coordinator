@@ -69,6 +69,13 @@ the bottom.
                      │                     costs the first half (4c).
                      ▼  via the turn seams (TurnCoordination, 91)
                   ├─ ReplyGenerating       final text in, reply tokens out
+                  │    └─ AppleReplyGenerator (305)   THE MIND (4f): Apple's
+                  │         on-device model, a SYSTEM framework, so core's
+                  │         zero-dependency vow holds (D-057 F-5). One
+                  │         session per turn; snapshots → SnapshotDiffer
+                  │         (70), the pure tripwire (D-058) — a revision
+                  │         of spoken text is a named failure, never
+                  │         spoken garbage. Refusals are SPOKEN (F-4).
                   └─ SpeechSynthesizing    tokens in, spoken EVIDENCE out
                      │                     TWO real mouths since 4e, which
                      │                     is what turned "we can switch
@@ -113,7 +120,8 @@ guess; two is a proof, and every one of these has been swapped in anger.
 |---|---|
 | `AudioSource` | `MicrophoneSource` · `FakeMicrophone` |
 | `TranscriptionEngine` | `AppleSpeechEngine` · `WhisperEngine` · `ScriptedTranscriber` |
-| `ReplyGenerating` | the demos' generators · `ScriptedReplyGenerator` |
+| `ReplyGenerating` | `AppleReplyGenerator` · the demos' generators · `ScriptedReplyGenerator` |
+| `ReplySnapshotStreaming` (4f, internal) | `FoundationModelSnapshots` · a scripted source in the tests |
 | `SpeechSynthesizing` | `AppleSpeechSynthesizer` · `NeuralVoice` · `ScriptedSynthesizer` |
 | `AudioSessionConfiguring` (4d) | the app's `PhoneSession` · `nil` on macOS |
 | `PlaybackHost` (4e) | `AudioEnginePlaybackHost` · `MicrophonePlaybackHost` |
@@ -215,6 +223,7 @@ variable, and every fault of that afternoon was findable in one command
 | WHERE a reply renders | `Audio/PlaybackHost.swift` |
 | Apple's mouth; delegate evidence → seam updates | `Conversation/AppleSpeechSynthesizer.swift` |
 | Which Apple voice, and how good it is | `Conversation/AppleSpeechSynthesizer.swift` — `installedVoices` |
+| The mind: snapshots → suffix tokens, the tripwire | `Conversation/SnapshotDiffer.swift`, `AppleReplyGenerator.swift` |
 | The neural mouth; decode, render, count buffers | `MultiModalKitTTS/NeuralVoice.swift`, `NeuralVoiceRun.swift` |
 | What a DECODER owes the mouth (the seam) | `MultiModalKitTTS/TTSDecoding.swift` |
 | TTSKit's DECODE api, confined to one file | `MultiModalKitTTS/TTSKitDecoder.swift` |
@@ -226,8 +235,8 @@ variable, and every fault of that afternoon was findable in one command
 
 ## The shape in numbers
 
-Everything that is not a test is 9,201 lines; the library core is 4,012,
-and the tests are 6,374 — more test than library, which is the point. The
+Everything that is not a test is 9,924 lines; the library core is 4,387,
+and the tests are 6,808 — more test than library, which is the point. The
 biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
 `find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
 the untracked `local_clone/`.)
@@ -243,8 +252,8 @@ by running the command this paragraph hands the reader. A page that fixes
 un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
 is about, committed inside the correction for it.
 
-The test folder mirrors this map roughly one suite per box — **27 suites,
-231 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+The test folder mirrors this map roughly one suite per box — **29 suites,
+252 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.
