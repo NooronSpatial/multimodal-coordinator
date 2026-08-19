@@ -83,6 +83,7 @@ struct ContentView: View {
                 // and the voice's. Asking never downloads either.
                 await model.checkModel()
                 await model.checkVoice()
+                model.refreshMind()
             }
         }
     }
@@ -311,6 +312,31 @@ struct ContentView: View {
             // pipeline would be a control with nothing to control.
             if model.talkEnabled {
                 VStack(spacing: 8) {
+                    // THE MIND (4f, AC-117): what ANSWERS, above what
+                    // SPEAKS — the same swap-an-organ claim the mouth
+                    // picker makes, one seam up.
+                    Picker("Mind", selection: Bindable(model).mind) {
+                        ForEach(TranscribeModel.MindChoice.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(model.isListening)
+                    if model.mind == .apple {
+                        // AC-110 on the main screen: the enum's reason in
+                        // words, never a silent dead Listen button. And
+                        // "ready" stays modest — availability is necessary,
+                        // not sufficient (the Simulator lied, INSTRUMENTS
+                        // §22); a failed first turn still tells the truth.
+                        Text(model.mindUnavailable
+                             ?? "on-device model ready · answers are spoken, one session per turn")
+                            .font(.caption2)
+                            .foregroundStyle(model.mindUnavailable == nil
+                                             ? AnyShapeStyle(.secondary)
+                                             : AnyShapeStyle(Color.red))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     Picker("Voice", selection: Bindable(model).mouth) {
                         ForEach(TranscribeModel.MouthChoice.allCases) { choice in
                             Text(choice.rawValue).tag(choice)
