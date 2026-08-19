@@ -1394,6 +1394,14 @@ history). What the single number does not yet say: whether it was the
 FIRST turn after a fresh launch (the specific case AC-115's prewarm
 placement must win) and which mouth spoke it.
 
-**Still owed to AC-117:** the first-turn-after-launch felt pause, and
-the field barge — does interrupting a THINKING reply kill it
-mid-generation, in the field, not only in the conformance kit?
+**The field barge — WORKS.** Interrupting a thinking reply mid-sentence
+stops it immediately, and the pipeline listens until the speaker
+finishes. That is the first field barge against a mind that genuinely
+GENERATES: 4e's barge bug was a mouth that blocked the coordinator's
+loop, invisible to every scripted test — the mind's equivalent risk
+(generation blocking `openReply`) was designed out (AC-115's hand-off)
+and the field just confirmed it with a human interruption.
+
+**Still owed to AC-117/AC-115:** the FIRST-turn-after-a-fresh-launch
+felt pause — the specific case `prewarm()` exists to win. 567 ms is a
+warm-or-unknown turn until that run happens.
