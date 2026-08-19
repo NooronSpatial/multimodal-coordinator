@@ -1370,3 +1370,22 @@ plain diff.
 becomes the second device the day the download completes. And every
 number here is ONE run on the main actor of an idle app; the latency
 column is indicative, the shape column is the load-bearing one.
+
+### The first field run of the mind (2026-08-19, Ryad's iPhone, field report)
+
+The whole loop ran on the phone: microphone → transcription → **the
+on-device language model** → a spoken reply — with the Mind picker on
+Apple, and then **with the network off**. Answers kept coming.
+
+**Offline answers are the strongest sentence this project can say.** They
+prove, by demonstration rather than by privacy-policy prose, that nothing
+in the conversation leaves the device: no speech, no transcript, no
+thought, no voice. The library's founding bias — on-device first, the
+server a compromise to be minimized (§4.3 of the working method) — is now
+a fact a person can verify by flipping airplane mode.
+
+**What this run did NOT measure, still owed to AC-117:** the felt-pause
+number on screen (AC-115's prewarm placement is judged by it), and the
+barge — does interrupting a THINKING reply kill it mid-generation, in the
+field, not only in the conformance kit? Both are one field run away, on
+the same build.
