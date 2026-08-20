@@ -1744,3 +1744,53 @@ half is refuted by measurement; the second half stands but shrinks to
 one CI step. What remains genuinely unmeasured is the PHONE: a token,
 its time-to-first-token, and peak memory — the numbers that decide
 whether a second mind feels alive rather than merely compiles.
+
+### STAGE 2: a real token, on this Mac, from Ryad's own weights (2026-08-20)
+
+Qwen3-0.6B-4bit, loaded from the cache it has sat in since 2026-06-12,
+built through Xcode, run on this M-series Mac:
+
+| measurement | value |
+|---|---|
+| model load | **311 ms** |
+| **time to first token** | **67 ms** |
+| steady rate | 66.9 chunks/s (40 chunks in 650 ms) |
+| peak GPU memory | **368 MB** (cache limit set to 20 MB, the examples' value) |
+
+What it said, verbatim: *":<think> Okay, so I need to figure out the
+capital of France. Let me start by recalling what I know…"*
+
+**Read those numbers against the mind already shipped.** Apple's
+Foundation Models measured, on the iPhone, **1839 ms** to a cold first
+snapshot and ~280 ms warm (§22). This 0.6B model answered in **67 ms**
+on a Mac — a different device and a smaller model, so not a fair race
+yet, but the first evidence that a second mind could be FASTER rather
+than merely different. The phone's numbers are the ones that matter and
+are not taken.
+
+**Three caveats, stated rather than buried:**
+
+1. **The tokenizer is approximate.** `mlx-swift-lm` ships the `Tokenizer`
+   protocol and no implementation; the spike wrote a longest-match
+   encoder over `tokenizer.json` rather than pull a package for a
+   throwaway. Token ids are VALID but not necessarily the ones a real
+   BPE tokenizer would choose, so the leading `:` and the doubled
+   `<think>` are artefacts of the spike, not of the model. Any judgement
+   of reply QUALITY from this run would be dishonest.
+2. **The model thinks out loud.** Qwen3 emits `<think>` reasoning before
+   its answer — a real design question for a SPOKEN assistant, since a
+   mouth would read the deliberation aloud. Noted for the milestone, not
+   solved here.
+3. **A silent segfault cost an hour.** The first run exited 139 with NO
+   output: the crash discarded buffered stdout, so the trail vanished
+   with it. `setbuf(stdout, nil)` and the same binary ran clean — the
+   crash was never real, only invisible. A measurement tool must flush.
+
+**Dependency count, corrected by reading rather than by memory:** the
+earlier research said 3 packages minimum and 5 realistic, because
+`Tokenizer` was assumed to come from swift-transformers. It does not —
+`MLXLMCommon` defines its own, and depends only on mlx-swift. The
+resolved graph here is **mlx-swift-lm + mlx-swift**, with swift-numerics,
+swift-argument-parser and swift-syntax pulled transitively. A production
+adapter still needs a real tokenizer, which is where a HuggingFace
+package would come back — but that is one dependency, not three.
