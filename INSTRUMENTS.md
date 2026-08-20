@@ -1547,3 +1547,31 @@ arrangement behavior differs from the device): arrangements 1–3 ran with
 frames counted; its arrangement 4 died (`running NO`) — plausibly the
 Simulator cannot do output-node voice processing at all. The device's
 own table is the evidence that counts, and it is one tap away.
+
+### Matrix v1's phone table, and matrix v2
+
+The phone's v1 run (fresh app, one tap, NO beeps heard):
+
+| arrangement | frames | running at end | mixer |
+|---|---|---|---|
+| 1 shipping (vp, no chain) | 120000, peak 0.0178 | yes | — |
+| 2 vp + chain | **0** | **NO** | 44100 Hz |
+| 3 no vp + chain | 124800, peak 0.0090 | yes | 48000 Hz |
+| 4 vp in+out + chain | **0** | **NO** | 44100 Hz |
+
+**The engine lies twice:** `start()` returns, and the engine is dead by
+the read — self-stopped inside the window, the 4e
+"engine killing its own graph" class. The tell is the mixer stuck at
+44100 Hz against the session's 48000. The duplex-vp hypothesis
+(arrangement 4) is REFUTED — it dies the same death. And arrangement 3's
+tone was inaudible despite a live engine, plus two identical v1 taps
+heard different beeps: arrangements contaminate each other through the
+shared session.
+
+**Matrix v2** (one tap, four isolated arrangements — session cycled
+between them): the control · vp+chain plain (reproduce, now with
+config-change counts and alive-at-0.5s/end) · vp+chain with
+RESTART-on-configuration-change (the 4e watch, finally acting) ·
+chain-built-BEFORE-vp (order swap). Simulator shakedown: mechanics
+green, and one preview worth carrying — the order swap binds the mixer
+at the session's 48000 where vp-first leaves it at 44100.

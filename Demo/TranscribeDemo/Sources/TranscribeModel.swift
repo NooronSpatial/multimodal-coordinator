@@ -919,79 +919,101 @@ final class TranscribeModel {
         probeStatus = nil
     }
 
-    /// THE SHIELD MATRIX (4g, AC-119 — third iteration of the harness).
+    /// THE SHIELD MATRIX v2 (4g, AC-119 — fourth iteration of the harness).
     ///
-    /// The first phone run said STARTED and then delivered NOTHING: zero
-    /// frames, a tap that never fired, a tone consumed but never heard,
-    /// a mixer at 44100 Hz while capture claimed 48000. So "does the
-    /// hosted arrangement work" became FOUR questions, and this asks all
-    /// of them in one tap — each with its own engine, built by hand,
-    /// because this is an instrument and the product path changes only
-    /// after a number says which arrangement is true.
+    /// v1's phone run caught the engine LYING TWICE: `start()` returned,
+    /// the report said STARTED — and `running NO` at read time. With
+    /// voice processing plus an output chain the engine starts and then
+    /// kills itself inside the window, the 4e "engine killing its own
+    /// graph" class; the tell is a mixer stuck at 44100 Hz against the
+    /// session's 48000. v1 also contaminated arrangements through the
+    /// shared session (two identical taps, different beeps heard), so v2
+    /// cycles the session between arrangements — isolation, one variable.
     ///
-    /// The candidate fix is arrangement 4: iOS voice processing is a
-    /// DUPLEX unit, and `MicrophoneSource` enables it on the INPUT node
-    /// only — it predates any output chain. Whether the output node must
-    /// be enabled too is a hypothesis this run MEASURES, not a fact.
-    ///
-    /// Each arrangement with an output chain beeps at its OWN pitch —
-    /// low 440, mid 660, high 880 — so one pair of ears can say which
-    /// arrangements actually sounded.
+    /// The new candidate encodes the known cure as a MEASUREMENT: observe
+    /// the configuration change and RESTART the engine — 4e's
+    /// reconfiguration watch counts these but never restarts. Witnesses
+    /// per arrangement: session rate, engine alive at 0.5 s AND at the
+    /// end, configuration changes counted, restarts attempted, frames,
+    /// peak, mixer rate.
     func runShieldProbe() async {
         guard !isListening, probeStatus == nil, shieldStatus == nil else { return }
         shieldReport = []
+        shieldReport.append("route: \(useSpeaker ? "speaker" : "receiver") · matrix v2 · beeps: LOW=plain MID=restart HIGH=order-swap")
 
         struct Arrangement {
             let name: String
             let vpInput: Bool
-            let vpOutput: Bool
             let outputChain: Bool
+            let chainBeforeVP: Bool
+            let restartOnChange: Bool
             let toneHz: Float
         }
         let arrangements: [Arrangement] = [
-            .init(name: "1 shipping: vp-in, no chain", vpInput: true,
-                  vpOutput: false, outputChain: false, toneHz: 0),
-            .init(name: "2 fault: vp-in + chain (LOW beep)", vpInput: true,
-                  vpOutput: false, outputChain: true, toneHz: 440),
-            .init(name: "3 no vp + chain (MID beep)", vpInput: false,
-                  vpOutput: false, outputChain: true, toneHz: 660),
-            .init(name: "4 CANDIDATE: vp-in+out + chain (HIGH beep)", vpInput: true,
-                  vpOutput: true, outputChain: true, toneHz: 880),
+            .init(name: "1 shipping", vpInput: true, outputChain: false,
+                  chainBeforeVP: false, restartOnChange: false, toneHz: 0),
+            .init(name: "2 vp+chain plain (LOW)", vpInput: true, outputChain: true,
+                  chainBeforeVP: false, restartOnChange: false, toneHz: 440),
+            .init(name: "3 vp+chain RESTART (MID)", vpInput: true, outputChain: true,
+                  chainBeforeVP: false, restartOnChange: true, toneHz: 660),
+            .init(name: "4 chain-then-vp (HIGH)", vpInput: true, outputChain: true,
+                  chainBeforeVP: true, restartOnChange: false, toneHz: 880),
         ]
-
-        let session = PhoneSession(talking: true, useSpeaker: useSpeaker)
-        do { try session.activate() } catch {
-            shieldReport = ["session: REFUSED — \(error.localizedDescription)"]
-            return
-        }
-        defer { session.deactivate() }
-        shieldReport.append("route: \(useSpeaker ? "speaker" : "receiver") · 4 arrangements, ~15 s · which beeps do you HEAR?")
 
         for arrangement in arrangements {
             shieldStatus = "arrangement \(arrangement.name)…"
+            // ISOLATION: each arrangement gets a fresh session activation,
+            // so one arrangement's route renegotiation cannot poison the
+            // next — v1's two identical taps heard different beeps.
+            let session = PhoneSession(talking: true, useSpeaker: useSpeaker)
+            do { try session.activate() } catch {
+                shieldReport.append("\(arrangement.name): session REFUSED — \(error.localizedDescription)")
+                continue
+            }
             shieldReport.append(await Self.probeArrangement(
-                vpInput: arrangement.vpInput, vpOutput: arrangement.vpOutput,
-                outputChain: arrangement.outputChain, toneHz: arrangement.toneHz,
-                name: arrangement.name))
+                vpInput: arrangement.vpInput, outputChain: arrangement.outputChain,
+                chainBeforeVP: arrangement.chainBeforeVP,
+                restartOnChange: arrangement.restartOnChange,
+                toneHz: arrangement.toneHz, name: arrangement.name))
+            session.deactivate()
+            try? await Task.sleep(for: .milliseconds(300))
         }
         shieldStatus = nil
     }
 
-    /// One raw-engine arrangement: build, tap, start, (tone), count, stop.
-    /// The teardown keeps the 4e guards: player stopped, then detached only
-    /// while attached AND wired, then the engine stopped.
+    /// Restarts a self-stopping engine from the configuration-change
+    /// notification. `@unchecked Sendable` demo-tier box: the engine is
+    /// touched only from the notification queue and the probe's own
+    /// teardown, which orders after removal of the observer.
+    private final class EngineRestarter: @unchecked Sendable {
+        let engine: AVAudioEngine
+        let counts = Mutex<(changes: Int, restarts: Int)>((0, 0))
+        init(_ engine: AVAudioEngine) { self.engine = engine }
+        func noteChangeAndMaybeRestart(_ restart: Bool) {
+            counts.withLock { $0.changes += 1 }
+            guard restart, !engine.isRunning else { return }
+            if (try? engine.start()) != nil {
+                counts.withLock { $0.restarts += 1 }
+            }
+        }
+    }
+
     private nonisolated static func probeArrangement(
-        vpInput: Bool, vpOutput: Bool, outputChain: Bool, toneHz: Float,
-        name: String
+        vpInput: Bool, outputChain: Bool, chainBeforeVP: Bool,
+        restartOnChange: Bool, toneHz: Float, name: String
     ) async -> String {
         let engine = AVAudioEngine()
         do {
-            if vpInput { try engine.inputNode.setVoiceProcessingEnabled(true) }
-            if vpOutput { try engine.outputNode.setVoiceProcessingEnabled(true) }
+            if chainBeforeVP {
+                if outputChain { _ = engine.mainMixerNode }
+                if vpInput { try engine.inputNode.setVoiceProcessingEnabled(true) }
+            } else {
+                if vpInput { try engine.inputNode.setVoiceProcessingEnabled(true) }
+                if outputChain { _ = engine.mainMixerNode }
+            }
         } catch {
             return "\(name): vp REFUSED — \(error.localizedDescription)"
         }
-        if outputChain { _ = engine.mainMixerNode }
 
         let format = engine.inputNode.inputFormat(forBus: 0)
         guard format.sampleRate > 0, format.channelCount > 0 else {
@@ -1007,6 +1029,16 @@ final class TranscribeModel {
                 $0.peak = max($0.peak, peak)
             }
         }
+
+        let restarter = EngineRestarter(engine)
+        let observer = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine,
+            queue: nil
+        ) { _ in
+            restarter.noteChangeAndMaybeRestart(restartOnChange)
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
         engine.prepare()
         do { try engine.start() } catch {
             engine.inputNode.removeTap(onBus: 0)
@@ -1016,7 +1048,8 @@ final class TranscribeModel {
         var player: AVAudioPlayerNode?
         if outputChain {
             let mixerRate = engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
-            if let toneFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+            if mixerRate > 0,
+               let toneFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                               sampleRate: mixerRate, channels: 1,
                                               interleaved: false),
                let buffer = AVAudioPCMBuffer(pcmFormat: toneFormat,
@@ -1031,14 +1064,18 @@ final class TranscribeModel {
                 engine.attach(p)
                 engine.connect(p, to: engine.mainMixerNode, format: toneFormat)
                 p.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
-                p.play()
+                if engine.isRunning { p.play() }
                 player = p
             }
         }
 
-        try? await Task.sleep(for: .milliseconds(2500))
+        try? await Task.sleep(for: .milliseconds(500))
+        let aliveEarly = engine.isRunning
+        try? await Task.sleep(for: .milliseconds(2000))
         let (frames, peak) = meter.withLock { $0 }
-        let running = engine.isRunning
+        let aliveEnd = engine.isRunning
+        let (changes, restarts) = restarter.counts.withLock { $0 }
+        let sessionRate = AVAudioSession.sharedInstance().sampleRate
         let mixerRate = outputChain
             ? engine.mainMixerNode.outputFormat(forBus: 0).sampleRate : 0
 
@@ -1052,9 +1089,11 @@ final class TranscribeModel {
         engine.inputNode.removeTap(onBus: 0)
         engine.stop()
 
-        var line = String(format: "%@: frames %d · peak %.4f · running %@",
-                          name, frames, peak, running ? "yes" : "NO")
-        if outputChain { line += String(format: " · mixer %.0f Hz", mixerRate) }
+        var line = String(format: "%@: frames %d · peak %.4f · alive %@/%@ · cfg %d · restarts %d · session %.0f",
+                          name, frames, peak,
+                          aliveEarly ? "y" : "N", aliveEnd ? "y" : "N",
+                          changes, restarts, sessionRate)
+        if outputChain { line += String(format: " · mixer %.0f", mixerRate) }
         return line
     }
 
