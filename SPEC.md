@@ -2221,7 +2221,11 @@ is exactly what D-054 exists to prevent.**
   **is the hosted reply removed by the canceller?** The numbers land in
   INSTRUMENTS whichever way they fall. A negative answer reshapes the
   milestone into F-1's fallbacks and is a result, not a failure.
-- **AC-120 The slice: the neural mouth on the speaker route.** The
+- **AC-120 The slice: the neural mouth on the speaker route.**
+  *(status: FIELD-PROVEN, 2026-08-20 — "it works, no self barge, i can
+  still interrupt it." The reply's residual stayed under the 0.021 gate
+  for a whole conversation on the loudspeaker, and a human barge still
+  landed. INSTRUMENTS §23.)* The
   neural voice already renders through `PlaybackHost`; behind the
   switch it renders on the capture host. On the phone, on SPEAKER: a
   reply does not barge itself, a human barge still lands, and the felt

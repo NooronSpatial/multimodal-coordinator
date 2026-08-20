@@ -1605,3 +1605,23 @@ restart-on-configuration-change, measured working in arrangement 3.
 identical taps (run 1: LOW+MID; run 2: all three). The product path runs
 one arrangement per session start, so this sequencing variance does not
 gate AC-120 — recorded so nobody mistakes it for settled.
+
+### AC-120: FIELD-PROVEN — the shielded conversation on the loudspeaker
+
+The real thing, not a tone: Mind = Apple, Voice = Neural, Speaker ON,
+Shield ON, phone on the table. The field's words: **"it works, no self
+barge, I can still interrupt it."**
+
+- Before the shield, the speaker route self-barged in ~1 ms (4b's field
+  find) and the reply reached the mic at peak 1.0000 (D-043).
+- With the shield: no self-barge across the conversation — the reply's
+  residual stayed under the 0.021 gate, or the onset counters would
+  have said so — and a human barge still killed the reply immediately.
+- The same session's matrix run read tone residuals 0.0036–0.0549,
+  every arrangement alive, sessions at 48000.
+
+The mechanism is exactly what the record demanded since D-043: the
+canceller removes what its own unit renders, so the reply now renders
+there. What remains in 4g: the Apple mouth's PCM through the same host
+(AC-121, `write()`), the loud fallback when a hosted graph refuses
+(AC-123), the label rewritten with these numbers (AC-124), review, merge.
