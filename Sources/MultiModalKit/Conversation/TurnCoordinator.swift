@@ -96,6 +96,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     }
 
     private let replyGenerator: any ReplyGenerating
+    /// THE HEALTH ROAD (D-059 = A). Optional like the clock: nil injected
+    /// means byte-for-byte the pre-4f coordinator — measurement and
+    /// monitoring are opt-in, never ambient (D-026/D-028 precedents).
+    private let diagnostics: PipelineDiagnostics?
     private let synthesizer: any SpeechSynthesizing
     private let config: Config
     private let broadcast: Broadcast<TurnEvent>
@@ -149,13 +153,15 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         synthesizer: any SpeechSynthesizing,
         config: Config = Config(),
         clock: C,
-        latencyReporter: any LatencyReporter
+        latencyReporter: any LatencyReporter,
+        diagnostics: PipelineDiagnostics? = nil
     ) {
         self.replyGenerator = replyGenerator
         self.synthesizer = synthesizer
         self.config = config
         self.clock = clock
         self.latencyReporter = latencyReporter
+        self.diagnostics = diagnostics
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
         self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
     }
@@ -165,7 +171,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     public init(
         replyGenerator: any ReplyGenerating,
         synthesizer: any SpeechSynthesizing,
-        config: Config = Config()
+        config: Config = Config(),
+        diagnostics: PipelineDiagnostics? = nil
     ) where C == ContinuousClock {
         precondition(config.replyGate == .zero,
                      "a reply gate needs time — use the clocked initializer")
@@ -174,6 +181,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         self.config = config
         self.clock = nil
         self.latencyReporter = nil
+        self.diagnostics = diagnostics
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
         self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
     }
@@ -671,6 +679,14 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     private func failTurn(_ turn: Int, with failure: TurnFailure) {
         current = nil
         broadcast.publish(.turnFailed(failure, turn: turn))
+        // THE HEALTH-SIDE RECORD (D-059 = A), published from the ONE
+        // funnel every turn death passes through — so the mind's tripwire
+        // alarm (D-058's promise, which the 4f review proved unbuilt)
+        // cannot miss the road. Same fact, two audiences: the
+        // conversation stream serves whoever follows THIS conversation;
+        // this serves whoever watches the pipeline's wellbeing across all
+        // of them.
+        diagnostics?.noteTurnFailed(turn: turn, failure: failure)
         transition(to: .idle, turn: turn)
     }
 }

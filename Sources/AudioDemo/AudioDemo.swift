@@ -316,6 +316,10 @@ struct AudioDemo {
                 await screen.log("🩺 settling decodes: \(count)")
             case .settlingDecodeRefused(let utterance, let thermal):
                 await screen.log("🩺 [\(utterance)] settling decode refused (thermal: \(thermal))")
+            case .turnFailed(let turn, let failure):
+                // D-059: the health-side record of a dead turn — the road
+                // the mind's tripwire alarm rides.
+                await screen.log("🩺 turn \(turn) FAILED: \(failure)")
             }
         }
     }

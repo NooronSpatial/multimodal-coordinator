@@ -136,7 +136,8 @@ guess; two is a proof, and every one of these has been swapped in anger.
                            buffers, drop-oldest, every drop counted.
  StopSignal (71)           clean shutdown, no leaked tasks.
  PipelineDiagnostics (81)  health events: thermal, ring drops, listener
-                           losses, settling-decode count.
+                           losses, settling-decode count — and dead
+                           TURNS (D-059), the mind's tripwire among them.
  PipelineSignposter (58)   the os_signpost spans Instruments shows.
  Thermal (54)              ThermalStateProviding seam + the real
                            ProcessInfo provider.
@@ -235,8 +236,8 @@ variable, and every fault of that afternoon was findable in one command
 
 ## The shape in numbers
 
-Everything that is not a test is 10,065 lines; the library core is 4,408,
-and the tests are 6,928 — more test than library, which is the point. The
+Everything that is not a test is 10,106 lines; the library core is 4,438,
+and the tests are 6,996 — more test than library, which is the point. The
 biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
 `find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
 the untracked `local_clone/`.)
@@ -252,8 +253,8 @@ by running the command this paragraph hands the reader. A page that fixes
 un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
 is about, committed inside the correction for it.
 
-The test folder mirrors this map roughly one suite per box — **30 suites,
-253 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+The test folder mirrors this map roughly one suite per box — **31 suites,
+254 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

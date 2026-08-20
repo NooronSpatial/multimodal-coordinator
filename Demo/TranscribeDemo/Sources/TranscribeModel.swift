@@ -672,7 +672,10 @@ final class TranscribeModel {
                 replyGenerator: currentGenerator,
                 synthesizer: currentMouth,
                 clock: ContinuousClock(),
-                latencyReporter: PhoneLatency(model: self))
+                latencyReporter: PhoneLatency(model: self),
+                // D-059 = A: dead turns reach the health stream — the road
+                // the mind's tripwire alarm rides.
+                diagnostics: diagnostics)
             : nil
         self.coordinator = coordinator
 
@@ -967,6 +970,10 @@ final class TranscribeModel {
         case .settlingDecodes(let count): settlingCount = count
         case .ringDropped, .listenerFellBehind: break   // drops already on screen
         case .settlingDecodeRefused: break   // the failed row says it in words
+        case .turnFailed: break   // the utterance's failure line says it in
+                                  // words (D-059's road exists for listeners
+                                  // OUTSIDE one conversation; this screen IS
+                                  // the conversation)
         }
     }
 

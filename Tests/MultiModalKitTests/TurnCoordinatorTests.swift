@@ -1953,3 +1953,71 @@ struct TurnCoordinatorTests {
                 "…and when its turn comes it is answered exactly once, not repeated")
     }
 }
+
+/// D-059 = A: a dead turn is a HEALTH event too — the road the mind's
+/// tripwire alarm rides (D-058's promise, which the 4f review proved was
+/// never built; the correction entry in DECISIONS.md tells that story).
+/// Nil diagnostics stays byte-for-byte: every other test in this file
+/// runs without one, which is that proof, free.
+@Suite(.timeLimit(.minutes(1)))
+struct TurnHealthTests {
+    static func until(_ condition: () async -> Bool, within: Duration = .seconds(10)) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: within)
+        while clock.now < deadline {
+            if await condition() { return true }
+            await Task.yield()
+        }
+        return false
+    }
+
+    actor HealthBox {
+        private(set) var events: [HealthEvent] = []
+        func append(_ event: HealthEvent) { events.append(event) }
+    }
+
+    @Test("a failed turn reaches the HEALTH stream, typed, with its turn number")
+    func failedTurnReachesHealth() async {
+        let diagnostics = PipelineDiagnostics()
+        let generator = ScriptedReplyGenerator(plans: [.failOnOpen("no brain today")])
+        let synthesizer = ScriptedSynthesizer(plans: [])
+        let coordinator = TurnCoordinator(
+            replyGenerator: generator, synthesizer: synthesizer,
+            diagnostics: diagnostics)
+        let turnListener = await coordinator.listen()
+        let health = diagnostics.health()
+
+        let collected = HealthBox()
+        let audio = AsyncStream<AudioEvent>.makeStream()
+        let transcripts = AsyncStream<TranscriptEvent>.makeStream()
+
+        // Bound locals before the group, the bench's own pattern: a tuple
+        // member captured inside a sending closure trips the race checker.
+        let audioStream = audio.stream
+        let transcriptStream = transcripts.stream
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask {
+                await coordinator.run(audio: audioStream, transcripts: transcriptStream)
+            }
+            group.addTask {
+                for await event in health.events { await collected.append(event) }
+            }
+            group.addTask { for await _ in turnListener.events {} }
+
+            audio.continuation.yield(.speechStarted(utterance: 0, at: TurnCoordinatorTests.t(0)))
+            transcripts.continuation.yield(.final("speak", utterance: 0, at: TurnCoordinatorTests.t(960)))
+
+            #expect(await Self.until({
+                await collected.events.contains {
+                    if case .turnFailed(0, .generationFailed) = $0 { return true }
+                    return false
+                }
+            }), "the coordinator's failure funnel must report to the health stream")
+
+            audio.continuation.finish()
+            transcripts.continuation.finish()
+            await coordinator.stop()
+            diagnostics.stop()
+        }
+    }
+}

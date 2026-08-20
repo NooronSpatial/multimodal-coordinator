@@ -2222,4 +2222,33 @@ A — thread `PipelineDiagnostics` into `TurnCoordinator` so reply failures
 can publish health events (the mind's tripwire among them). B — accept the
 conversation stream's `turnFailed` as the alarm and amend D-058's wording.
 Until ruled, D-058's promise is read MINUS the health event, and this
-entry is the honest record of the difference.
+entry is the honest record of the difference. *(Ruled the same day:
+**A**, D-059 below — the promise stands, the code rose to it.)*
+
+## D-059 — The health road: dead turns reach the diagnostics stream (Milestone 4f)
+
+**Date:** 2026-08-19 · **Decided by:** Ryad · **Ruling: A** (of the fork the
+D-058 correction opened)
+
+`TurnCoordinator` now takes an optional `PipelineDiagnostics`, like the
+clock: nil injected is byte-for-byte the old coordinator — monitoring is
+opt-in, never ambient (the D-026/D-028 precedents). `failTurn`, the ONE
+funnel every turn death already passes through, publishes
+`HealthEvent.turnFailed(turn:failure:)` — typed, not stringly. Same fact,
+two audiences: the conversation stream serves whoever follows one
+conversation; the health stream serves whoever watches the pipeline's
+wellbeing across all of them. **D-058's tripwire alarm now exists**: a
+snapshot revision fails the turn through this funnel and rides this road.
+
+Red before green: the test asserting the health event ran and FAILED
+before the funnel published, then passed on the one-line wiring. Every
+other coordinator test runs with nil injected, which is the
+byte-for-byte proof, free.
+
+*Rejected:* **B — amend D-058's wording and accept the conversation
+stream's `turnFailed` as the alarm.** It was my recommendation, on the
+argument that no health-event consumer exists yet. Ryad overruled it:
+the ruling's promise stands and the code rises to it, rather than the
+words sinking to the code. The demos already listen to the health stream
+(the Mac's 🩺 line now prints dead turns), so the consumer argument was
+weaker than claimed.

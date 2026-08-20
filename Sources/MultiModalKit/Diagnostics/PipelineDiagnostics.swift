@@ -14,6 +14,13 @@ public enum HealthEvent: Sendable, Equatable {
     /// also surfaced `.failed(.declinedUnderThermalPressure)` — this event
     /// is the health-side record: one per refusal, counts exact (AC-56).
     case settlingDecodeRefused(utterance: Int, thermal: ThermalState)
+    /// A turn died (4f, D-059 = A). The conversation stream already carries
+    /// `.turnFailed` with this same typed failure, for whoever follows ONE
+    /// conversation; this is the health-side record for whoever watches the
+    /// pipeline's wellbeing across many — and it is the road D-058's
+    /// tripwire alarm rides, as that ruling promised and the 4f review
+    /// found missing (the correction entry above D-059 tells that story).
+    case turnFailed(turn: Int, failure: TurnFailure)
 }
 
 /// The injected diagnostics seam (D-026 F5): owned by the consumer, handed
@@ -86,5 +93,12 @@ public final class PipelineDiagnostics: Sendable {
     /// Wired into a component's Broadcast so slow listeners become visible.
     public func noteListenerLoss(listenerID: Int, totalDropped: Int) {
         broadcast.publish(.listenerFellBehind(listenerID: listenerID, totalDropped: totalDropped))
+    }
+
+    /// One dead turn, one event (D-059 = A): the coordinator's failure
+    /// funnel reports here when a diagnostics seam was injected. Not
+    /// injected = byte-for-byte identical behavior, the D-028 precedent.
+    public func noteTurnFailed(turn: Int, failure: TurnFailure) {
+        broadcast.publish(.turnFailed(turn: turn, failure: failure))
     }
 }
