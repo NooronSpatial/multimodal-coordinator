@@ -46,7 +46,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   254 tests in 31 suites, green, run 20× before any milestone closes
+swift test   →   259 tests in 33 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -157,7 +157,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 254 tests, deterministic
+swift test                          # 259 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
@@ -222,8 +222,12 @@ synthesizers behind their seams.
   already measured and rejected written down so the next attempt does not
   repeat them.
 - A reply rendered on the **capture** engine — so the platform's echo canceller
-  can see it — is unsolved on iOS (D-043, D-049). It now has a harness
-  (`voice-onmic`) instead of a volunteer with a phone.
+  can see it — is SOLVED on iOS (4g): the shield matrix measured the graph
+  arrangement, the canceller took an audible tone from the disease's 1.0 down
+  to 0.004–0.08, and a field conversation on the loudspeaker no longer barges
+  itself. Two honest residues: Apple's mouth (via `write()`) still self-barges
+  INTERMITTENTLY — suspects and instruments recorded, investigation open — and
+  the fallback-loudly path (AC-123) is not built.
 - AC-102 still owes an iPhone stop-latency number and a thermal number. The
   phone gets hot; how hot has not been written down.
 - The neural decode's **batching pin** (`concurrentWorkerCount = 1`) is still
@@ -242,5 +246,5 @@ synthesizers behind their seams.
   single funnel (D-055 = B, INSTRUMENTS §21). Found by the adversarial
   review of the TTS seam, which is the argument for D-041 in one line.
 
-See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-055 carry
-this milestone's rulings.
+See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-060 carry
+phase 4's rulings.

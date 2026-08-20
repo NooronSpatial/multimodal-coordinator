@@ -45,6 +45,29 @@ struct ContentView: View {
                         .padding(.horizontal)
                         .padding(.vertical, 10)
                 }
+                if model.shieldStatus != nil || !model.shieldReport.isEmpty {
+                    Divider()
+                    // A SCROLL VIEW, from the field: matrix v2's eight
+                    // witness columns outgrew the strip and pushed the
+                    // last arrangements off screen — a report you cannot
+                    // read is a dead instrument with extra steps.
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let status = model.shieldStatus {
+                                Label(status, systemImage: "hourglass")
+                                    .foregroundStyle(.secondary)
+                            }
+                            ForEach(model.shieldReport, id: \.self) { line in
+                                Text(line)
+                            }
+                        }
+                        .font(.caption2.monospaced())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
+                    }
+                    .frame(maxHeight: 230)
+                }
             }
             .navigationTitle("MultiModalKit")
             .toolbar {
@@ -62,6 +85,18 @@ struct ContentView: View {
                     }
                     .disabled(model.isListening)
                 }
+                // THE SHIELD PROBE (4g, AC-119): reachable in every state,
+                // like its two siblings, and for the same reason.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await model.runShieldProbe() }
+                    } label: {
+                        Label(model.shieldStatus == nil ? "Shield probe" : "measuring…",
+                              systemImage: "shield.lefthalf.filled")
+                    }
+                    .disabled(model.isListening || model.shieldStatus != nil
+                              || model.probeStatus != nil)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await model.runEchoProbe() }
@@ -69,7 +104,8 @@ struct ContentView: View {
                         Label(model.probeStatus == nil ? "Echo probe" : "measuring…",
                               systemImage: "waveform.badge.magnifyingglass")
                     }
-                    .disabled(model.isListening || model.probeStatus != nil)
+                    .disabled(model.isListening || model.probeStatus != nil
+                              || model.shieldStatus != nil)
                 }
             }
             .sheet(isPresented: $showMindProbe) {
@@ -124,14 +160,30 @@ struct ContentView: View {
             .toggleStyle(.switch)
             .font(.subheadline)
 
+            if model.talkEnabled {
+                Toggle("Speaker shield (4g) — reply rendered where the canceller sees it",
+                       isOn: Bindable(model).speakerShield)
+                    .toggleStyle(.switch)
+                    .font(.caption)
+                    .disabled(model.isListening)
+            }
+
             // The known limit, said plainly where it bites — not buried in
             // a document the person holding the phone will never open.
+            // With the shield ON the old sentence would be a stale claim:
+            // the label switches to the honest in-between state until
+            // AC-124 rewrites it with the measured reply number.
             if model.talkEnabled && model.useSpeaker {
-                Label("On speaker the reply is not cancelled (measured peak 1.0) — "
-                      + "it will interrupt itself. Receiver or headphones work.",
-                      systemImage: "exclamationmark.triangle")
+                Label(model.speakerShield
+                      ? "Shield ON: the probe measured a tone cancelled to 0.004–0.08 "
+                        + "(vs 1.0 unshielded, INSTRUMENTS §23). The reply's own number is "
+                        + "still being measured — the barge counters below tell the truth."
+                      : "On speaker the reply is not cancelled (measured peak 1.0) — "
+                        + "it will interrupt itself. Receiver or headphones work.",
+                      systemImage: model.speakerShield
+                      ? "shield.lefthalf.filled" : "exclamationmark.triangle")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(model.speakerShield ? .blue : .orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 

@@ -1,4 +1,5 @@
 import AVFAudio
+import Synchronization
 import MultiModalKit
 import MultiModalKitTesting
 import MultiModalKitTTS
@@ -119,7 +120,7 @@ final class TranscribeModel {
 
     /// The mouth the coordinator gets. Apple's is cheap to build fresh;
     /// the neural one is the held instance for the reason above.
-    private var currentMouth: any SpeechSynthesizing {
+    private func currentMouth(shieldHost: (any PlaybackHost)?) -> any SpeechSynthesizing {
         switch mouth {
         // The BEST INSTALLED voice, not the system default. The default
         // is a compact voice, which is why the field's verdict on this
@@ -128,7 +129,11 @@ final class TranscribeModel {
         // one and nothing changes — which is why the name is on screen.
         case .apple: AppleSpeechSynthesizer(
             voiceIdentifier: appleVoiceIdentifier
-                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
+                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier,
+            // BEHIND THE SHIELD (4g, AC-121): Apple's PCM renders on the
+            // capture engine too — both mouths, one road, the canceller
+            // sees them all.
+            renderingOn: shieldHost)
         case .neural: neuralVoice
         }
     }
@@ -146,6 +151,20 @@ final class TranscribeModel {
     /// device cannot run the model needs different words from one whose
     /// download is still running.
     private(set) var mindUnavailable: String?
+    /// The shield probe's label-and-latch (the echo probe's law: one
+    /// field is both, so a parked error cannot disable the instrument).
+    private(set) var shieldStatus: String?
+    private(set) var shieldReport: [String] = []
+    /// THE SPEAKER SHIELD (4g, AC-120): replies render on the capture
+    /// engine, where the canceller can see them. OPT-IN per D-060 F-4 —
+    /// the library default stays off; this app chooses. Restart-like the
+    /// other choices: it reshapes a running graph.
+    var speakerShield = false {
+        didSet {
+            guard speakerShield != oldValue else { return }
+            if isListening { restart() }
+        }
+    }
     /// ONE generator, held: `prewarm()` pays the measured ~1.5 s model
     /// warm-up (INSTRUMENTS §22) once, outside anyone's first turn
     /// (AC-115). The INSTRUCTIONS are the app's text, not the library's
@@ -586,6 +605,7 @@ final class TranscribeModel {
         // the download may have finished since the last look.
         refreshMind()
         guard engineState == .ready, !isListening, probeStatus == nil,
+              shieldStatus == nil,
               !(talkEnabled && mouth == .neural && voiceState != .ready),
               !(talkEnabled && mind == .apple && mindUnavailable != nil)
         else { return }
@@ -608,15 +628,14 @@ final class TranscribeModel {
             // re-measures here or claims nothing.
             voiceProcessing: talkEnabled,
             session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker),
-            // FALSE, BY RULING (D-049). Rendering the reply on the
-            // capture engine is reversed: voice processing and an output
-            // chain cannot coexist on one engine (INSTRUMENTS §17), so
-            // asking for one stopped capture from starting at all — the
-            // phone's "state is always idle". The neural voice now uses
-            // its own engine, its reply is not echo-cancelled on iOS
-            // (D-043's cost, accepted again), and the capture-side host
-            // waits for 4f behind the Mac harness that now exists.
-            hostsPlayback: false)
+            // THE SHIELD (4g, AC-120). D-049 turned this off when the
+            // hosted arrangement killed capture; the shield matrix then
+            // measured WHY (a Mac fact plus an ordering bug plus session
+            // contamination) and found the calm arrangement — chain
+            // before vp, restart as the belt (INSTRUMENTS §23). Opt-in
+            // by ruling (D-060 F-4): the person flips it, the library
+            // never assumes it.
+            hostsPlayback: talkEnabled && speakerShield)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -670,7 +689,7 @@ final class TranscribeModel {
         let coordinator: TurnCoordinator<ContinuousClock>? = talkEnabled
             ? TurnCoordinator(
                 replyGenerator: currentGenerator,
-                synthesizer: currentMouth,
+                synthesizer: currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road
@@ -687,9 +706,14 @@ final class TranscribeModel {
         // was written. What stays is the margin reporting: the decode
         // numbers are how anyone will know whether this phone can run
         // this voice at all, and they do not depend on where it renders.
+        let captureHost = microphone.playbackHost
         pipeline = Task { [weak self] in
             if let self, mouth == .neural {
-                await neuralVoice.render(on: neuralHost)
+                // WHERE THE REPLY RENDERS (4g): behind the shield it
+                // goes to the CAPTURE engine's host — the whole point,
+                // the canceller can only remove what its own unit
+                // renders (D-043). Unshielded, the 4e arrangement stands.
+                await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
                 await neuralVoice.reportMargins { margin in
                     // The graph's rate is refreshed HERE, with the
                     // margin, because it only becomes real when a reply
@@ -845,7 +869,12 @@ final class TranscribeModel {
     /// while measuring again. The difference between those two numbers,
     /// against the gate, is the whole echo question.
     func runEchoProbe() async {
-        guard !isListening, probeStatus == nil else { return }
+        // SYMMETRIC with the shield probe (the 4d mutual-exclusion lesson,
+        // third instrument): both act on the process-wide session, so
+        // neither may run under the other. The 4g review flagged the
+        // missing half; confirmed by reading — the shield checked the
+        // echo's latch, the echo never checked the shield's.
+        guard !isListening, probeStatus == nil, shieldStatus == nil else { return }
         probeStatus = "measuring the quiet room…"
         probeSilence = nil
         probeWhileSpeaking = nil
@@ -911,6 +940,184 @@ final class TranscribeModel {
         synthesizer.stopSpeaking(at: .immediate)
 
         probeStatus = nil
+    }
+
+    /// THE SHIELD MATRIX v2 (4g, AC-119 — fourth iteration of the harness).
+    ///
+    /// v1's phone run caught the engine LYING TWICE: `start()` returned,
+    /// the report said STARTED — and `running NO` at read time. With
+    /// voice processing plus an output chain the engine starts and then
+    /// kills itself inside the window, the 4e "engine killing its own
+    /// graph" class; the tell is a mixer stuck at 44100 Hz against the
+    /// session's 48000. v1 also contaminated arrangements through the
+    /// shared session (two identical taps, different beeps heard), so v2
+    /// cycles the session between arrangements — isolation, one variable.
+    ///
+    /// The new candidate encodes the known cure as a MEASUREMENT: observe
+    /// the configuration change and RESTART the engine — 4e's
+    /// reconfiguration watch counts these but never restarts. Witnesses
+    /// per arrangement: session rate, engine alive at 0.5 s AND at the
+    /// end, configuration changes counted, restarts attempted, frames,
+    /// peak, mixer rate.
+    func runShieldProbe() async {
+        guard !isListening, probeStatus == nil, shieldStatus == nil else { return }
+        shieldReport = []
+        shieldReport.append("route: \(useSpeaker ? "speaker" : "receiver") · matrix v2 · beeps: LOW=plain MID=restart HIGH=order-swap")
+
+        struct Arrangement {
+            let name: String
+            let vpInput: Bool
+            let outputChain: Bool
+            let chainBeforeVP: Bool
+            let restartOnChange: Bool
+            let toneHz: Float
+        }
+        let arrangements: [Arrangement] = [
+            .init(name: "1 shipping", vpInput: true, outputChain: false,
+                  chainBeforeVP: false, restartOnChange: false, toneHz: 0),
+            .init(name: "2 vp+chain plain (LOW)", vpInput: true, outputChain: true,
+                  chainBeforeVP: false, restartOnChange: false, toneHz: 440),
+            .init(name: "3 vp+chain RESTART (MID)", vpInput: true, outputChain: true,
+                  chainBeforeVP: false, restartOnChange: true, toneHz: 660),
+            .init(name: "4 chain-then-vp (HIGH)", vpInput: true, outputChain: true,
+                  chainBeforeVP: true, restartOnChange: false, toneHz: 880),
+        ]
+
+        for arrangement in arrangements {
+            shieldStatus = "arrangement \(arrangement.name)…"
+            // ISOLATION: each arrangement gets a fresh session activation,
+            // so one arrangement's route renegotiation cannot poison the
+            // next — v1's two identical taps heard different beeps.
+            let session = PhoneSession(talking: true, useSpeaker: useSpeaker)
+            do { try session.activate() } catch {
+                shieldReport.append("\(arrangement.name): session REFUSED — \(error.localizedDescription)")
+                continue
+            }
+            shieldReport.append(await Self.probeArrangement(
+                vpInput: arrangement.vpInput, outputChain: arrangement.outputChain,
+                chainBeforeVP: arrangement.chainBeforeVP,
+                restartOnChange: arrangement.restartOnChange,
+                toneHz: arrangement.toneHz, name: arrangement.name))
+            session.deactivate()
+            try? await Task.sleep(for: .milliseconds(300))
+        }
+        shieldStatus = nil
+    }
+
+    /// Restarts a self-stopping engine from the configuration-change
+    /// notification. `@unchecked Sendable` demo-tier box: the engine is
+    /// touched only from the notification queue and the probe's own
+    /// teardown, which orders after removal of the observer.
+    private final class EngineRestarter: @unchecked Sendable {
+        let engine: AVAudioEngine
+        let counts = Mutex<(changes: Int, restarts: Int)>((0, 0))
+        init(_ engine: AVAudioEngine) { self.engine = engine }
+        func noteChangeAndMaybeRestart(_ restart: Bool) {
+            counts.withLock { $0.changes += 1 }
+            guard restart, !engine.isRunning else { return }
+            if (try? engine.start()) != nil {
+                counts.withLock { $0.restarts += 1 }
+            }
+        }
+    }
+
+    private nonisolated static func probeArrangement(
+        vpInput: Bool, outputChain: Bool, chainBeforeVP: Bool,
+        restartOnChange: Bool, toneHz: Float, name: String
+    ) async -> String {
+        let engine = AVAudioEngine()
+        do {
+            if chainBeforeVP {
+                if outputChain { _ = engine.mainMixerNode }
+                if vpInput { try engine.inputNode.setVoiceProcessingEnabled(true) }
+            } else {
+                if vpInput { try engine.inputNode.setVoiceProcessingEnabled(true) }
+                if outputChain { _ = engine.mainMixerNode }
+            }
+        } catch {
+            return "\(name): vp REFUSED — \(error.localizedDescription)"
+        }
+
+        let format = engine.inputNode.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            return "\(name): input format INVALID (\(Int(format.sampleRate)) Hz)"
+        }
+        let meter = Mutex<(frames: Int, peak: Float)>((0, 0))
+        engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            guard let data = buffer.floatChannelData else { return }
+            var peak: Float = 0
+            for i in 0..<Int(buffer.frameLength) { peak = max(peak, abs(data[0][i])) }
+            meter.withLock {
+                $0.frames += Int(buffer.frameLength)
+                $0.peak = max($0.peak, peak)
+            }
+        }
+
+        let restarter = EngineRestarter(engine)
+        let observer = NotificationCenter.default.addObserver(
+            forName: .AVAudioEngineConfigurationChange, object: engine,
+            queue: nil
+        ) { _ in
+            restarter.noteChangeAndMaybeRestart(restartOnChange)
+        }
+        defer { NotificationCenter.default.removeObserver(observer) }
+
+        engine.prepare()
+        do { try engine.start() } catch {
+            engine.inputNode.removeTap(onBus: 0)
+            return "\(name): start REFUSED — \(error.localizedDescription)"
+        }
+
+        var player: AVAudioPlayerNode?
+        if outputChain {
+            let mixerRate = engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
+            if mixerRate > 0,
+               let toneFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                              sampleRate: mixerRate, channels: 1,
+                                              interleaved: false),
+               let buffer = AVAudioPCMBuffer(pcmFormat: toneFormat,
+                                             frameCapacity: AVAudioFrameCount(mixerRate * 2)) {
+                buffer.frameLength = AVAudioFrameCount(mixerRate * 2)
+                if let channel = buffer.floatChannelData {
+                    for i in 0..<Int(buffer.frameLength) {
+                        channel[0][i] = 0.4 * sinf(2 * .pi * toneHz * Float(i) / Float(mixerRate))
+                    }
+                }
+                let p = AVAudioPlayerNode()
+                engine.attach(p)
+                engine.connect(p, to: engine.mainMixerNode, format: toneFormat)
+                p.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+                if engine.isRunning { p.play() }
+                player = p
+            }
+        }
+
+        try? await Task.sleep(for: .milliseconds(500))
+        let aliveEarly = engine.isRunning
+        try? await Task.sleep(for: .milliseconds(2000))
+        let (frames, peak) = meter.withLock { $0 }
+        let aliveEnd = engine.isRunning
+        let (changes, restarts) = restarter.counts.withLock { $0 }
+        let sessionRate = AVAudioSession.sharedInstance().sampleRate
+        let mixerRate = outputChain
+            ? engine.mainMixerNode.outputFormat(forBus: 0).sampleRate : 0
+
+        if let p = player {
+            p.stop()
+            if engine.attachedNodes.contains(p),
+               !engine.outputConnectionPoints(for: p, outputBus: 0).isEmpty {
+                engine.detach(p)
+            }
+        }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+
+        var line = String(format: "%@: frames %d · peak %.4f · alive %@/%@ · cfg %d · restarts %d · session %.0f",
+                          name, frames, peak,
+                          aliveEarly ? "y" : "N", aliveEnd ? "y" : "N",
+                          changes, restarts, sessionRate)
+        if outputChain { line += String(format: " · mixer %.0f", mixerRate) }
+        return line
     }
 
     // MARK: - interruptions (AC-94, D-042 F-2 = A and F-5 = B)

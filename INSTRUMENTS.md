@@ -1462,3 +1462,193 @@ phone-measured lead through the demo is the voice-quality milestone's
 work (deferred by D-050), and its number is now waiting for it. Thermal
 "hot" during neural+mind is likewise recorded as observed, not yet as a
 measured stop-latency/thermal table — that half of AC-102's debt stands.
+
+## 23. The shield probe (4g, AC-119) — AC-104 finally asked, one variable at a time
+
+**The instrument.** A third toolbar probe beside its siblings, reachable
+in every app state for the same reason they are. It starts capture WITH
+the output chain (`hostsPlayback: true` — the exact configuration D-049
+switched off), renders a pure 440 Hz tone through the capture engine's
+own unit, and reads what the microphone hears. A TONE, not a voice: no
+phraser, no mouth, no model — one variable. Refusal to start is reported
+as a RESULT, not retried.
+
+**First run — the Simulator, machine-driven (2026-08-19):**
+
+```
+capture with output chain: STARTED · 48000 Hz
+voice processing active: true · route: receiver
+```
+
+**The graph question is answered, and the Mac's verdict does not
+transfer.** Voice processing and an output chain on one engine — the
+arrangement this Mac refuses with `-10875` (§17) — STARTS on iOS. §17's
+own caveat ("a two-device Mac cannot convict a one-device phone") was
+the truth. 4e's five faults are now fully accounted for as the ordering
+bugs that were found and fixed, not as a platform impossibility.
+
+**What the Simulator's LEVEL numbers are worth: nothing, and said so.**
+Its microphone is the host Mac's, its speaker path is virtual, and the
+quiet-room peak of 0.8579 is this room, not a canceller verdict. The
+one number that decides AC-119 — the tone's residual under the phone's
+canceller — needs Ryad's iPhone, twice: once on the receiver route,
+once with Speaker on. Near the quiet room's numbers = the canceller
+sees the hosted tone and F-1 = A proceeds; near full scale = D-043's
+disease unmoved by routing, and the spec's fallbacks take over.
+
+### The phone's first shield runs — and the probe's own blind spot (2026-08-20)
+
+Both routes, receiver and speaker, on Ryad's iPhone:
+
+```
+capture with output chain: STARTED · 48000 Hz     ← D-049's "cannot
+voice processing active: true                        coexist" is DEAD on iOS
+quiet room:  peak 0.0000 · rms 0.0000              ← a real room is NEVER
+during tone: peak 0.0000 · rms 0.0000                digital zero
+```
+
+**Two findings in one screenshot.** The graph result stands — the hosted
+arrangement starts on the device that matters, both routes, voice
+processing active. And the all-zero levels are a NEW fault: the phone's
+own echo probe measured this room at peak 0.0030 in 4d, so zeros mean
+the capture side went silent under the output chain — or the ring never
+received a frame. **The probe could not tell those apart**, which is
+D-054 rule 5 violated by the very instrument built to honor it: it could
+not say whether it was switched on.
+
+**The probe grew eyes before the phone was asked again:** frame counts
+on every measurement (frames-of-silence vs no-frames-at-all), the 4e
+ungated tap level as a cross-instrument (dead tap vs dead ring path),
+tone-consumed and player-playing witnesses on the render side, and the
+host graph rate read back. Verified machine-driven on the Simulator:
+100800/201600 frames counted, tap level 0.0131, tone consumed. The
+witness only Ryad has: whether the tone was AUDIBLE in the room.
+
+### The shield becomes a MATRIX (third iteration): four arrangements, one tap
+
+The dead-capture finding turned one question into four, so the probe now
+builds four raw engines in sequence — each its own arrangement, each
+with an output chain beeping at its OWN pitch, so one pair of ears can
+say which arrangements actually sounded:
+
+| # | arrangement | beep |
+|---|---|---|
+| 1 | shipping: vp on input, no output chain (the control that must work) | none |
+| 2 | today's fault: vp on input + output chain | LOW 440 Hz |
+| 3 | no vp + output chain (is vp the killer?) | MID 660 Hz |
+| 4 | THE CANDIDATE: vp on input AND OUTPUT + chain | HIGH 880 Hz |
+
+The candidate encodes the hypothesis: iOS voice processing is a DUPLEX
+unit, and `MicrophoneSource` enables it on the input node only — it
+predates any output chain. Measured, not assumed.
+
+Simulator shakedown (mechanics only; its mic is the host's and its
+arrangement behavior differs from the device): arrangements 1–3 ran with
+frames counted; its arrangement 4 died (`running NO`) — plausibly the
+Simulator cannot do output-node voice processing at all. The device's
+own table is the evidence that counts, and it is one tap away.
+
+### Matrix v1's phone table, and matrix v2
+
+The phone's v1 run (fresh app, one tap, NO beeps heard):
+
+| arrangement | frames | running at end | mixer |
+|---|---|---|---|
+| 1 shipping (vp, no chain) | 120000, peak 0.0178 | yes | — |
+| 2 vp + chain | **0** | **NO** | 44100 Hz |
+| 3 no vp + chain | 124800, peak 0.0090 | yes | 48000 Hz |
+| 4 vp in+out + chain | **0** | **NO** | 44100 Hz |
+
+**The engine lies twice:** `start()` returns, and the engine is dead by
+the read — self-stopped inside the window, the 4e
+"engine killing its own graph" class. The tell is the mixer stuck at
+44100 Hz against the session's 48000. The duplex-vp hypothesis
+(arrangement 4) is REFUTED — it dies the same death. And arrangement 3's
+tone was inaudible despite a live engine, plus two identical v1 taps
+heard different beeps: arrangements contaminate each other through the
+shared session.
+
+**Matrix v2** (one tap, four isolated arrangements — session cycled
+between them): the control · vp+chain plain (reproduce, now with
+config-change counts and alive-at-0.5s/end) · vp+chain with
+RESTART-on-configuration-change (the 4e watch, finally acting) ·
+chain-built-BEFORE-vp (order swap). Simulator shakedown: mechanics
+green, and one preview worth carrying — the order swap binds the mixer
+at the session's 48000 where vp-first leaves it at 44100.
+
+### AC-119: PASSED — the canceller sees what the capture engine renders
+
+Matrix v2 on the phone, speaker route, two taps:
+
+| arrangement | mic read (peak) | audible? | alive | notes |
+|---|---|---|---|---|
+| 1 shipping, no tone | 0.0031 | — | y/y | the quiet room |
+| 2 vp+chain plain | 0.0396 | **LOW heard** | y/y | cfg 1, survived |
+| 3 vp+chain restart | 0.0112 | **MID heard** | y/y | cfg 1, **restarts 1** — the cure fires and holds |
+| 4 chain-then-vp | 0.0650 | run 1 silent, **run 2 HIGH heard** | y/y | cfg 0 |
+
+**The number that closes the gate:** a beep loud enough to hear across
+the room reached the microphone at peak 0.01–0.07 — against D-043's
+disease, where the uncancelled reply hit **1.0000**. That is a 25–90×
+reduction: **iOS voice processing removes audio rendered on its own
+engine.** F-1 = A is validated on the device that matters.
+
+**What the earlier deaths were:** v1 ran four arrangements on ONE
+session activation and the vp+chain engines died; v2 cycles the session
+per engine and everything lives. The very first (single) probe also
+died with an isolated session — its player was attached at the MIC's
+48 kHz into a 44.1 kHz mixer mid-run, the suspected killer; v2 attaches
+at the mixer's own rate. Both suspects are covered by one hardening:
+restart-on-configuration-change, measured working in arrangement 3.
+
+**Observed, not explained:** beep audibility varied between two
+identical taps (run 1: LOW+MID; run 2: all three). The product path runs
+one arrangement per session start, so this sequencing variance does not
+gate AC-120 — recorded so nobody mistakes it for settled.
+
+### AC-120: FIELD-PROVEN — the shielded conversation on the loudspeaker
+
+The real thing, not a tone: Mind = Apple, Voice = Neural, Speaker ON,
+Shield ON, phone on the table. The field's words: **"it works, no self
+barge, I can still interrupt it."**
+
+- Before the shield, the speaker route self-barged in ~1 ms (4b's field
+  find) and the reply reached the mic at peak 1.0000 (D-043).
+- With the shield: no self-barge across the conversation — the reply's
+  residual stayed under the 0.021 gate, or the onset counters would
+  have said so — and a human barge still killed the reply immediately.
+- The same session's matrix run read tone residuals 0.0036–0.0549,
+  every arrangement alive, sessions at 48000.
+
+The mechanism is exactly what the record demanded since D-043: the
+canceller removes what its own unit renders, so the reply now renders
+there. What remains in 4g: the Apple mouth's PCM through the same host
+(AC-121, `write()`), the loud fallback when a hosted graph refuses
+(AC-123), the label rewritten with these numbers (AC-124), review, merge.
+
+### AC-121 in the field: works — with an intermittent self-barge
+
+The shielded APPLE mouth on the loudspeaker: "working most of the time,
+but sometimes it barges itself." Recorded before any fix, with the
+suspects and what would convict each (D-054 rule 4):
+
+1. **Residual over the gate.** The canceller attenuates, it does not
+   erase — the matrix read tone residuals 0.0036–0.0766, and the demo's
+   gate is 0.021: the upper end of measured residual is ABOVE it. Speech
+   is burstier than a tone. Convicted by: `echo?` rows with peaks just
+   above the gate (0.02–0.08).
+2. **Canceller convergence at reply onset.** Adaptive filters take a
+   moment; leaks would cluster at the START of replies.
+3. **The lazy attach.** The written run attaches its player at the first
+   buffer, mid-run on a live voice-processing engine; a transient there
+   would also cluster at reply starts, first reply especially.
+4. **The 22.05 kHz path.** Apple's written voices deliver ~22 kHz PCM
+   into a 48 kHz chain; resampling delay can mis-align the canceller's
+   reference — which would make Apple's mouth leak more than the neural
+   one (24 kHz) does. Convicted by: neural clean, Apple leaky, same
+   session.
+
+The instruments to convict are ALREADY ON SCREEN: the per-utterance
+`peak · ms · echo?` rows, and the gate slider — 0.021 was earned on the
+receiver route in 4d's era, and AC-97's own law says every device AND
+route earns its number from a run, not by inheritance.

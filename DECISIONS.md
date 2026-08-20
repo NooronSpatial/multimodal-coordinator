@@ -2252,3 +2252,33 @@ the ruling's promise stands and the code rises to it, rather than the
 words sinking to the code. The demos already listen to the health stream
 (the Mac's 🩺 line now prints dead turns), so the consumer argument was
 weaker than claimed.
+
+## D-060 — 4g's four forks: the canceller sees every mouth, always, opt-in (Milestone 4g)
+
+**Date:** 2026-08-19 · **Decided by:** Ryad · **Rulings: F-1 = A, F-2 = A,
+F-3 = B, F-4 = A** — all four on the recommendations.
+
+**F-1 = A — replies render on the capture engine's voice-processing
+unit.** The only mechanism D-043's measurement endorses. *Rejected:*
+**B, raise the gate while speaking** — the echo arrives at peak 1.0,
+indistinguishable by level from a human barge, so B stops self-barging by
+killing speaker barge-in, the product's soul. *Rejected:* **C,
+half-duplex** — kills barge-in entirely. Both stay priced in the spec as
+fallbacks if AC-119's phone measurement refutes A on this hardware.
+
+**F-2 = A — Apple's mouth routes its PCM through our host** via
+`AVSpeechSynthesizer.write(toBufferCallback:)`: one rendering path for
+every mouth, and the canceller sees them all. Gated on AC-119/120.
+*Rejected:* **B, receiver-only documented** — not a fix, a smaller
+warning label.
+
+**F-3 = B — hosted rendering runs for the WHOLE conversation**, one
+configuration. *Rejected:* **A, per-route swapping** — route churn on a
+live graph is what cost 4e an afternoon; the D-052 rejection said
+exactly this, and it holds one seam over.
+
+**F-4 = A — `hostsPlayback` stays default-off; the app opts in.** 4g
+proves the arrangement on ONE device; a library default claims every
+device (D-027: mechanism in the library, policy in the app). *Rejected:*
+**B, default-on once proven** — a bolder claim than one phone's evidence
+supports.
