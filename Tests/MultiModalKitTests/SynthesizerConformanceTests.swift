@@ -1,6 +1,8 @@
-import Testing
-import MultiModalKit
+import AVFAudio
 import Foundation
+import MultiModalKit
+import Synchronization
+import Testing
 
 /// THE SYNTHESIS CONFORMANCE KIT (SPEC AC-80, the D-017 pattern one seam
 /// over): the promises every self-speaking `SynthesisRun` must keep —
@@ -305,3 +307,91 @@ struct NeuralVoiceConformanceTests {
     }
 }
 #endif
+
+/// THE WRITTEN RUN's headless promises (4g, AC-121). The audible ones —
+/// started-then-finished, cancel mid-speech — live in the gated suite
+/// below with the delegate run's; these two need no speaker and no gate,
+/// because nothing in them ever schedules a real buffer:
+/// - an unspeakable reply never reaches `write()` and still terminates
+///   (the liveness law, third mouth to keep it);
+/// - a cancel before anything spoken ends the stream silently, with the
+///   host never touched (the spy from the 4f suite proves the negative).
+@Suite(.timeLimit(.minutes(1)))
+struct WrittenSynthesisHeadlessTests {
+    @Test("an unspeakable reply terminates without touching write() or the host")
+    func unspeakableStillTerminates() async throws {
+        let host = SpyWrittenHost()
+        let run = try await AppleSpeechSynthesizer(renderingOn: host).openUtterance()
+        await run.feed(String(repeating: " ", count: 200))
+        await run.feed("   ...   ")
+        await run.finishTokens()
+        var updates: [SynthesisUpdate] = []
+        for await update in run.updates { updates.append(update) }
+        #expect(updates.last == .finished, "an unspeakable reply must still end")
+        #expect(host.attachCount == 0, "nothing speakable, so the host is never touched")
+    }
+
+    @Test("cancel before anything spoken: silent end, host untouched")
+    func earlyCancelIsSilent() async throws {
+        let host = SpyWrittenHost()
+        let run = try await AppleSpeechSynthesizer(renderingOn: host).openUtterance()
+        await run.cancel()
+        var updates: [SynthesisUpdate] = []
+        for await update in run.updates { updates.append(update) }
+        #expect(updates.isEmpty)
+        #expect(host.attachCount == 0)
+    }
+}
+
+/// A host that records and starts nothing — the graph-probe measurement
+/// (INSTRUMENTS §20) makes this legitimate: `stop()`/`reset()`/detach on
+/// a node off any engine survive; these tests never let a buffer reach
+/// `play()`/`scheduleBuffer`, the verbs that abort.
+final class SpyWrittenHost: PlaybackHost, @unchecked Sendable {
+    private let counts = Mutex(0)
+    var attachCount: Int { counts.withLock { $0 } }
+    var outputSampleRate: Double { 48_000 }
+    func attachForPlayback(_ node: AVAudioNode, format: AVAudioFormat) throws {
+        counts.withLock { $0 += 1 }
+    }
+    func detachFromPlayback(_ node: AVAudioNode) {}
+}
+
+/// The WRITTEN run under the full kit — live-audio gated like its
+/// delegate sibling: these make the machine SPEAK through `write()` and
+/// a real engine, which is the entire point of the path (4g, AC-121).
+@Suite(.timeLimit(.minutes(2)), .serialized)
+struct WrittenSynthesizerLiveTests {
+    static var liveAudioAllowed: Bool {
+        ProcessInfo.processInfo.environment["MMK_LIVE_SYNTH"] == "1"
+    }
+
+    static func written() -> (AppleSpeechSynthesizer, AudioEnginePlaybackHost) {
+        let host = AudioEnginePlaybackHost()
+        return (AppleSpeechSynthesizer(renderingOn: host), host)
+    }
+
+    @Test("written run: started once, finished once, in order (MMK_LIVE_SYNTH=1)")
+    func startedThenFinished() async throws {
+        guard Self.liveAudioAllowed else { return }
+        let (mouth, host) = Self.written()
+        defer { host.stopRendering() }
+        try await SynthesizerConformanceKit.verifyStartedThenFinished(mouth)
+    }
+
+    @Test("written run: cancel ends without a terminal (MMK_LIVE_SYNTH=1)")
+    func cancelWithoutTerminal() async throws {
+        guard Self.liveAudioAllowed else { return }
+        let (mouth, host) = Self.written()
+        defer { host.stopRendering() }
+        try await SynthesizerConformanceKit.verifyCancelEndsWithoutATerminal(mouth)
+    }
+
+    @Test("written run: nothing survives the cancel (MMK_LIVE_SYNTH=1)")
+    func nothingSurvivesTheCancel() async throws {
+        guard Self.liveAudioAllowed else { return }
+        let (mouth, host) = Self.written()
+        defer { host.stopRendering() }
+        try await SynthesizerConformanceKit.verifyNothingSurvivesTheCancel(mouth)
+    }
+}

@@ -21,9 +21,19 @@ import Synchronization
 public final class AppleSpeechSynthesizer: SpeechSynthesizing {
     /// A specific voice identifier, or nil for the system default.
     private let voiceIdentifier: String?
+    /// WHERE THE REPLY RENDERS (4g, AC-121, D-060 F-2 = A). nil — the
+    /// path this mouth has always taken: the OS plays on its private
+    /// route, which the canceller cannot see (D-043's measured peak
+    /// 1.0000 on speaker). Non-nil: `write()` hands us the PCM and the
+    /// reply renders on this host — behind the shield, the capture
+    /// engine's, where the canceller removes it like everything else its
+    /// unit renders.
+    private let host: (any PlaybackHost)?
 
-    public init(voiceIdentifier: String? = nil) {
+    public init(voiceIdentifier: String? = nil,
+                renderingOn host: (any PlaybackHost)? = nil) {
         self.voiceIdentifier = voiceIdentifier
+        self.host = host
     }
 
     /// One installed voice, in a shape a screen can list.
@@ -138,7 +148,11 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
     }
 
     public func openUtterance() async throws -> any SynthesisRun {
-        AppleSynthesisRun(voiceIdentifier: voiceIdentifier)
+        if let host {
+            AppleWrittenSynthesisRun(voiceIdentifier: voiceIdentifier, host: host)
+        } else {
+            AppleSynthesisRun(voiceIdentifier: voiceIdentifier)
+        }
     }
 }
 

@@ -82,10 +82,13 @@ the bottom.
                      │                     mouths" from a claim into a
                      │                     proof. Both pass one kit.
                      │
-                     ├─ AppleSpeechSynthesizer (306)   thin: hand text to
+                     ├─ AppleSpeechSynthesizer (326)   thin: hand text to
                      │     the framework, report delegate evidence. Picks
-                     │     the best INSTALLED voice — the default is a
-                     │     compact one, which is why it sounds robotic.
+                     │     the best INSTALLED voice. Behind the 4g shield
+                     │     it opens AppleWrittenSynthesisRun (287) instead:
+                     │     write() hands us the PCM and the reply renders
+                     │     on the capture host — both mouths, one road,
+                     │     the canceller sees them all (AC-121).
                      │
                      └─ NeuralVoice (307) ─► NeuralVoiceRun (491)
                            MultiModalKitTTS, an OPT-IN product. Qwen3 via
@@ -236,8 +239,8 @@ variable, and every fault of that afternoon was findable in one command
 
 ## The shape in numbers
 
-Everything that is not a test is 10,106 lines; the library core is 4,438,
-and the tests are 6,996 — more test than library, which is the point. The
+Everything that is not a test is 10,693 lines; the library core is 4,773,
+and the tests are 7,086 — more test than library, which is the point. The
 biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
 `find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
 the untracked `local_clone/`.)
@@ -253,8 +256,8 @@ by running the command this paragraph hands the reader. A page that fixes
 un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
 is about, committed inside the correction for it.
 
-The test folder mirrors this map roughly one suite per box — **31 suites,
-254 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+The test folder mirrors this map roughly one suite per box — **33 suites,
+259 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

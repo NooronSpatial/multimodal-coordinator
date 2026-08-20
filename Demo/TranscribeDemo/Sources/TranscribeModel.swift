@@ -120,7 +120,7 @@ final class TranscribeModel {
 
     /// The mouth the coordinator gets. Apple's is cheap to build fresh;
     /// the neural one is the held instance for the reason above.
-    private var currentMouth: any SpeechSynthesizing {
+    private func currentMouth(shieldHost: (any PlaybackHost)?) -> any SpeechSynthesizing {
         switch mouth {
         // The BEST INSTALLED voice, not the system default. The default
         // is a compact voice, which is why the field's verdict on this
@@ -129,7 +129,11 @@ final class TranscribeModel {
         // one and nothing changes — which is why the name is on screen.
         case .apple: AppleSpeechSynthesizer(
             voiceIdentifier: appleVoiceIdentifier
-                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
+                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier,
+            // BEHIND THE SHIELD (4g, AC-121): Apple's PCM renders on the
+            // capture engine too — both mouths, one road, the canceller
+            // sees them all.
+            renderingOn: shieldHost)
         case .neural: neuralVoice
         }
     }
@@ -685,7 +689,7 @@ final class TranscribeModel {
         let coordinator: TurnCoordinator<ContinuousClock>? = talkEnabled
             ? TurnCoordinator(
                 replyGenerator: currentGenerator,
-                synthesizer: currentMouth,
+                synthesizer: currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road
