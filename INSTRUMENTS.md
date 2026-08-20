@@ -1794,3 +1794,92 @@ resolved graph here is **mlx-swift-lm + mlx-swift**, with swift-numerics,
 swift-argument-parser and swift-syntax pulled transitively. A production
 adapter still needs a real tokenizer, which is where a HuggingFace
 package would come back — but that is one dependency, not three.
+
+### STAGE 3: the phone token — BLOCKED, and the blockage is structural (2026-08-20)
+
+The Mac's number is taken. The phone's is not, and this section records
+WHY rather than promising it later. The short version: **MLX cannot run
+on the iOS Simulator at all.** Not because of my code, not because of a
+missing metallib, and not because of a flag I failed to set. The
+Simulator's Metal driver and MLX's memory design contradict each other.
+
+```
+  MLX's design                    MTLSimDevice's rule
+  ------------                    -------------------
+  one memory, shared by           the simulator's GPU is the MAC's GPU,
+  CPU and GPU (real Apple         reached through a translation layer —
+  silicon: unified memory)        it does NOT share memory with the app
+
+  heap_desc->setResourceOptions(         "MTLStorageModePrivate is
+    ResourceStorageModeShared)  ---X--->  required for heaps"
+       allocator.cpp:15, :63              MTLSimDriver, assertion at :1226
+```
+
+**How it was found, in the order it actually happened.** Two runs died
+with `libc++ Hardening assertion __s != nullptr failed` and NO output at
+all — the same failure the Mac spike had taught me to distrust, so the
+first fix was to the instrument, not the code: `log()` now writes to
+stderr as well as to the view, because the first two crashes killed the
+view that held the evidence. An instrument whose trail dies with the
+crash it is measuring is not an instrument.
+
+With a step-0 matmul isolated ahead of any model or tokenizer work, the
+crash report named its own cause four frames below my line:
+
+```
+  Probe.run() + 1400 (App.swift:56)        <- the matmul, my code
+    MLXArray.init                          <- allocating one array
+      mlx::core::allocator::malloc
+        metal::MetalAllocator::MetalAllocator()
+          mlx::core::metal::Device::Device() + 500  (device.cpp:328)
+            std::basic_string(char const*) detected nullptr   <- ABORT
+```
+
+device.cpp:328 is `arch_ = std::string(device_->architecture()->name()
+->utf8String())`. The Simulator's Metal device returns a **null**
+architecture name and MLX hands it straight to `std::string`.
+
+**That first wall has a door, and taking it was worth doing.** The line
+above 328 is `arch_ = env::metal_gpu_arch()`, read from
+`MLX_METAL_GPU_ARCH` (utils.h:173) and only falling through to the null
+read when empty. Launching with `SIMCTL_CHILD_MLX_METAL_GPU_ARCH=
+applegpu_g15` cured that crash outright — step 0 printed for the first
+time — and the run reached the **real** wall one layer deeper:
+
+```
+  device: iPhone · iOS 26.5
+  step 0: matmul…
+  -[MTLSimDevice newHeapWithDescriptor:]:1226: failed assertion
+     `MTLStorageModePrivate is required for heaps'
+```
+
+**Why no further flag helps.** MLX's heap storage mode is a constant
+(`allocator.cpp:15`), not a setting. And `Device.cpu` does not route
+around it: the generic `allocator()` is chosen at BUILD time — there is
+one in `backend/metal/`, one in `backend/no_gpu/`, one in
+`backend/cuda/` — and mlx-swift compiles the Metal one for iOS. So on
+the Simulator EVERY array allocation, on any device, goes through a
+heap the driver refuses to make. Running MLX there would need MLX
+rebuilt against `no_gpu`, which measures nothing anyone cares about.
+
+**What this costs the gate, stated plainly.** The phone number is the
+one that matters — thermals, memory pressure and a real Neural
+Engine-class GPU are exactly what a Mac cannot stand in for — and it now
+requires a build signed for Ryad's device. That is the one step in this
+whole gate I cannot take for him: it needs his signing team. Everything
+that could be measured without his hands has been.
+
+**And an honest correction to §24's own headline.** F-6's objection was
+"compiles everywhere, runs nowhere." §24 recorded that as half refuted,
+and it stays half refuted — but the halves are now sharper than the
+word "half" suggests:
+
+| where                | compiles | runs  | evidence                          |
+|----------------------|----------|-------|-----------------------------------|
+| `swift test` on Mac  | yes      | yes   | STAGE 1/2 — 67 ms to first token  |
+| hosted CI (macos-26) | yes      | yes   | toolchain preinstalled, links     |
+| iOS Simulator        | yes      | **no**| this section — structural         |
+| iOS device           | yes      | ?     | untaken, needs signing            |
+
+For the Simulator, F-6 was exactly right, and said so before I measured
+it. Recording that costs nothing and keeps the ruling honest.
