@@ -1462,3 +1462,36 @@ phone-measured lead through the demo is the voice-quality milestone's
 work (deferred by D-050), and its number is now waiting for it. Thermal
 "hot" during neural+mind is likewise recorded as observed, not yet as a
 measured stop-latency/thermal table — that half of AC-102's debt stands.
+
+## 23. The shield probe (4g, AC-119) — AC-104 finally asked, one variable at a time
+
+**The instrument.** A third toolbar probe beside its siblings, reachable
+in every app state for the same reason they are. It starts capture WITH
+the output chain (`hostsPlayback: true` — the exact configuration D-049
+switched off), renders a pure 440 Hz tone through the capture engine's
+own unit, and reads what the microphone hears. A TONE, not a voice: no
+phraser, no mouth, no model — one variable. Refusal to start is reported
+as a RESULT, not retried.
+
+**First run — the Simulator, machine-driven (2026-08-19):**
+
+```
+capture with output chain: STARTED · 48000 Hz
+voice processing active: true · route: receiver
+```
+
+**The graph question is answered, and the Mac's verdict does not
+transfer.** Voice processing and an output chain on one engine — the
+arrangement this Mac refuses with `-10875` (§17) — STARTS on iOS. §17's
+own caveat ("a two-device Mac cannot convict a one-device phone") was
+the truth. 4e's five faults are now fully accounted for as the ordering
+bugs that were found and fixed, not as a platform impossibility.
+
+**What the Simulator's LEVEL numbers are worth: nothing, and said so.**
+Its microphone is the host Mac's, its speaker path is virtual, and the
+quiet-room peak of 0.8579 is this room, not a canceller verdict. The
+one number that decides AC-119 — the tone's residual under the phone's
+canceller — needs Ryad's iPhone, twice: once on the receiver route,
+once with Speaker on. Near the quiet room's numbers = the canceller
+sees the hosted tone and F-1 = A proceeds; near full scale = D-043's
+disease unmoved by routing, and the spec's fallbacks take over.

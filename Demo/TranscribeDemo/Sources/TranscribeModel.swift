@@ -146,6 +146,10 @@ final class TranscribeModel {
     /// device cannot run the model needs different words from one whose
     /// download is still running.
     private(set) var mindUnavailable: String?
+    /// The shield probe's label-and-latch (the echo probe's law: one
+    /// field is both, so a parked error cannot disable the instrument).
+    private(set) var shieldStatus: String?
+    private(set) var shieldReport: [String] = []
     /// ONE generator, held: `prewarm()` pays the measured ~1.5 s model
     /// warm-up (INSTRUMENTS §22) once, outside anyone's first turn
     /// (AC-115). The INSTRUCTIONS are the app's text, not the library's
@@ -586,6 +590,7 @@ final class TranscribeModel {
         // the download may have finished since the last look.
         refreshMind()
         guard engineState == .ready, !isListening, probeStatus == nil,
+              shieldStatus == nil,
               !(talkEnabled && mouth == .neural && voiceState != .ready),
               !(talkEnabled && mind == .apple && mindUnavailable != nil)
         else { return }
@@ -911,6 +916,119 @@ final class TranscribeModel {
         synthesizer.stopSpeaking(at: .immediate)
 
         probeStatus = nil
+    }
+
+    /// THE SHIELD PROBE (4g, AC-119 — which is AC-104 finally asked, with
+    /// one variable). Starts capture WITH the output chain
+    /// (`hostsPlayback: true`), renders a pure tone through the capture
+    /// engine's own unit, and reads what the microphone hears.
+    ///
+    /// On a Simulator it answers the GRAPH question: does this arrangement
+    /// start at all? The Mac says `-10875` (INSTRUMENTS §17), but a
+    /// two-device Mac cannot convict a one-device phone — §17's own words.
+    /// On the phone it answers the CANCELLATION question: a tone the
+    /// canceller sees should leave the room's numbers barely moved; a
+    /// full-scale residual is D-043's disease, unmoved by the routing.
+    /// A TONE, not a voice: no phraser, no mouth, no model — one variable.
+    ///
+    /// Needs no speech model, so it runs even where an engine will not —
+    /// the echo probe's law, inherited.
+    func runShieldProbe() async {
+        guard !isListening, probeStatus == nil, shieldStatus == nil else { return }
+        shieldReport = []
+        shieldStatus = "starting capture WITH the output chain…"
+
+        let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 16)
+        let microphone = MicrophoneSource(
+            voiceProcessing: true,
+            session: PhoneSession(talking: true, useSpeaker: useSpeaker),
+            // THE WHOLE QUESTION. false is D-049's ruling for the product;
+            // true, here, inside an instrument, is how 4g finds out
+            // whether that ruling was about iOS or about a Mac.
+            hostsPlayback: true)
+        do {
+            try microphone.start(into: producer)
+        } catch {
+            // A refusal IS the graph answer, and it is a RESULT: the
+            // hosted arrangement cannot start on this device. Recorded,
+            // not retried — F-1's fallbacks are priced for exactly this.
+            shieldReport = ["capture with output chain: REFUSED — \(error.localizedDescription)",
+                            "verdict: the hosted arrangement cannot start here (the §17 class)"]
+            shieldStatus = nil
+            return
+        }
+        defer { microphone.stop() }
+        shieldReport.append("capture with output chain: STARTED · "
+            + String(format: "%.0f Hz", microphone.sampleRate))
+        shieldReport.append("voice processing active: \(microphone.voiceProcessingActive) · "
+            + "route: \(useSpeaker ? "speaker" : "receiver")")
+
+        var scratch = [Float](repeating: 0, count: consumer.capacity)
+        func measure(for seconds: Double) async -> (peak: Float, rms: Float) {
+            var peak: Float = 0
+            var sumOfSquares: Float = 0
+            var total = 0
+            for _ in 0..<max(Int(seconds * 4), 1) {
+                try? await Task.sleep(for: .milliseconds(250))
+                scratch.withUnsafeMutableBufferPointer { buffer in
+                    let result = consumer.read(into: buffer)
+                    for i in 0..<result.framesRead {
+                        peak = max(peak, abs(buffer[i]))
+                        sumOfSquares += buffer[i] * buffer[i]
+                    }
+                    total += result.framesRead
+                }
+            }
+            return (peak, (sumOfSquares / Float(max(total, 1))).squareRoot())
+        }
+
+        shieldStatus = "measuring the quiet room…"
+        let quiet = await measure(for: 2)
+        shieldReport.append(String(format: "quiet room: peak %.4f · rms %.4f",
+                                   quiet.peak, quiet.rms))
+
+        // The tone, rendered where the canceller can see it — THE point.
+        shieldStatus = "tone through the capture engine — stay quiet…"
+        let player = AVAudioPlayerNode()
+        let rate = microphone.sampleRate
+        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                         sampleRate: rate, channels: 1,
+                                         interleaved: false),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format,
+                                            frameCapacity: AVAudioFrameCount(rate * 5))
+        else {
+            shieldReport.append("tone: could not build the buffer — probe incomplete")
+            shieldStatus = nil
+            return
+        }
+        buffer.frameLength = AVAudioFrameCount(rate * 5)
+        if let channel = buffer.floatChannelData {
+            for i in 0..<Int(buffer.frameLength) {
+                channel[0][i] = 0.5 * sinf(2 * .pi * 440 * Float(i) / Float(rate))
+            }
+        }
+        do {
+            try microphone.playbackHost.attachForPlayback(player, format: format)
+        } catch {
+            shieldReport.append("attach for playback: REFUSED — \(error)")
+            shieldStatus = nil
+            return
+        }
+        defer { microphone.playbackHost.detachFromPlayback(player) }
+        player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+        player.play()
+        let toned = await measure(for: 4)
+        player.stop()
+        shieldReport.append(String(format: "during tone: peak %.4f · rms %.4f",
+                                   toned.peak, toned.rms))
+        // The verdict states the COMPARISON, not a conclusion the numbers
+        // do not carry: on a Simulator the mic is the host's and the
+        // speaker path is virtual, so only the phone's numbers convict.
+        shieldReport.append(String(format:
+            "residual vs quiet: %.1f× — read on the PHONE: near 1× means the "
+            + "canceller sees the tone; near full scale means D-043 unmoved",
+            toned.peak / max(quiet.peak, 0.0001)))
+        shieldStatus = nil
     }
 
     // MARK: - interruptions (AC-94, D-042 F-2 = A and F-5 = B)

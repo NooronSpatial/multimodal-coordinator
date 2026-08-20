@@ -45,6 +45,22 @@ struct ContentView: View {
                         .padding(.horizontal)
                         .padding(.vertical, 10)
                 }
+                if model.shieldStatus != nil || !model.shieldReport.isEmpty {
+                    Divider()
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let status = model.shieldStatus {
+                            Label(status, systemImage: "hourglass")
+                                .foregroundStyle(.secondary)
+                        }
+                        ForEach(model.shieldReport, id: \.self) { line in
+                            Text(line)
+                        }
+                    }
+                    .font(.caption2.monospaced())
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal)
+                    .padding(.vertical, 10)
+                }
             }
             .navigationTitle("MultiModalKit")
             .toolbar {
@@ -61,6 +77,17 @@ struct ContentView: View {
                         Label("Mind probe", systemImage: "brain")
                     }
                     .disabled(model.isListening)
+                }
+                // THE SHIELD PROBE (4g, AC-119): reachable in every state,
+                // like its two siblings, and for the same reason.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await model.runShieldProbe() }
+                    } label: {
+                        Label(model.shieldStatus == nil ? "Shield probe" : "measuring…",
+                              systemImage: "shield.lefthalf.filled")
+                    }
+                    .disabled(model.isListening || model.shieldStatus != nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
