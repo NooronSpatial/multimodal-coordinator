@@ -1652,3 +1652,57 @@ The instruments to convict are ALREADY ON SCREEN: the per-utterance
 `peak · ms · echo?` rows, and the gate slider — 0.021 was earned on the
 receiver route in 4d's era, and AC-97's own law says every device AND
 route earns its number from a run, not by inheritance.
+
+## 24. The MLX spike gate (D-057 F-6) — the CI objection, re-measured and HALF REFUTED
+
+F-6 deferred MLX on a measurement: it builds Swift 6 clean and then
+`swift run` dies with *"Failed to load the default metallib"*, so a
+second mind would compile everywhere and generate nothing — a green
+build that cannot produce one token. The gate demanded four answers
+before any `Package.swift` line. Three are now in.
+
+**1. The Metal toolchain (688 MB, `Metal Toolchain 17F109`) is installed**
+— and it is NECESSARY BUT NOT SUFFICIENT. With `metal --version`
+working and a clean rebuild, `swift run` still failed identically. The
+toolchain was never the whole story: SwiftPM does not build MLX's
+shaders at all (mlx-swift excludes the kernels from its own build; the
+vendor's README says the same).
+
+*(An aside worth keeping: the download produced NOTHING for 24 minutes
+in the background — 0% CPU, zero bytes — and then completed in 90
+seconds when run in the foreground. Two Apple asset downloads had
+looked identically wedged; only one of them actually was.)*
+
+**2. Xcode builds it, and MLX then computes:**
+
+```
+xcodebuild → MetalLink … default.metallib   ← the freshly installed
+                                               toolchain, invoked
+run the binary → matmul [[19,22],[43,50]]   ← STAGE 1 PASSED
+```
+
+**3. THE CI QUESTION — and the answer is not what F-6 assumed.**
+`swift test` CAN run MLX. The vendor's loader searches five places, and
+the fifth is `default.metallib` **relative to the working directory**:
+
+| arrangement | `swift test` |
+|---|---|
+| as-is | **FAILS** — hard MLX abort mid-test, not an assertion |
+| `default.metallib` (3.6 MB) placed in the working directory | **PASSES** |
+| removed again (the control) | **FAILS** again |
+| the repo's exact pair, `swift build` + `swift test -Xswiftc -warnings-as-errors` | **both green** |
+
+So MLX does not require abandoning `swift test`. It requires ONE
+prebuilt 3.6 MB artefact to be present — produced by an Xcode build, or
+vendored, or built in CI by the toolchain.
+
+**What remains unmeasured, and it is the whole remaining risk:** whether
+the GitHub `macos-26` runner has the Metal toolchain, or would have to
+download 688 MB per run — or whether the metallib should be committed as
+a binary artefact, which is its own decision. That is testable by
+pushing one CI job, and it is the only gate item left besides the phone.
+
+**4. The models were already here.** Ryad downloaded MLX weights on
+2026-06-12: Qwen3-0.6B-4bit (334 MB), Qwen3-4B-4bit (2.1 GB),
+Qwen3-8B-4bit (4.3 GB), whisper-large-v3-turbo (1.5 GB). The second
+mind's model needs no download.
