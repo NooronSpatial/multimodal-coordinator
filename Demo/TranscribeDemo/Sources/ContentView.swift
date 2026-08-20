@@ -2,6 +2,11 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var model = TranscribeModel()
+    // The 4f measurement instrument, held beside the model rather than
+    // inside it: it probes a SYSTEM service, touches nothing on the
+    // pipeline, and leaves with the milestone-gating numbers (AC-110/111).
+    @State private var mindProbe = MindProbe()
+    @State private var showMindProbe = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +48,20 @@ struct ContentView: View {
             }
             .navigationTitle("MultiModalKit")
             .toolbar {
+                // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
+                // engine state for the echo probe's reason, one item over:
+                // it measures a SYSTEM service, and the devices where a
+                // model refuses to install are exactly the ones where the
+                // availability enum matters most. In the toolbar because
+                // that is where this app has PROVEN taps fire.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showMindProbe = true
+                    } label: {
+                        Label("Mind probe", systemImage: "brain")
+                    }
+                    .disabled(model.isListening)
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await model.runEchoProbe() }
@@ -53,11 +72,18 @@ struct ContentView: View {
                     .disabled(model.isListening || model.probeStatus != nil)
                 }
             }
+            .sheet(isPresented: $showMindProbe) {
+                NavigationStack {
+                    List { MindProbeSection(probe: mindProbe) }
+                        .navigationTitle("Mind probe")
+                }
+            }
             .task {
                 // Both models are asked about at launch: the transcriber's
                 // and the voice's. Asking never downloads either.
                 await model.checkModel()
                 await model.checkVoice()
+                model.refreshMind()
             }
         }
     }
@@ -286,6 +312,31 @@ struct ContentView: View {
             // pipeline would be a control with nothing to control.
             if model.talkEnabled {
                 VStack(spacing: 8) {
+                    // THE MIND (4f, AC-117): what ANSWERS, above what
+                    // SPEAKS — the same swap-an-organ claim the mouth
+                    // picker makes, one seam up.
+                    Picker("Mind", selection: Bindable(model).mind) {
+                        ForEach(TranscribeModel.MindChoice.allCases) { choice in
+                            Text(choice.rawValue).tag(choice)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .disabled(model.isListening)
+                    if model.mind == .apple {
+                        // AC-110 on the main screen: the enum's reason in
+                        // words, never a silent dead Listen button. And
+                        // "ready" stays modest — availability is necessary,
+                        // not sufficient (the Simulator lied, INSTRUMENTS
+                        // §22); a failed first turn still tells the truth.
+                        Text(model.mindUnavailable
+                             ?? "on-device model ready · answers are spoken, one session per turn")
+                            .font(.caption2)
+                            .foregroundStyle(model.mindUnavailable == nil
+                                             ? AnyShapeStyle(.secondary)
+                                             : AnyShapeStyle(Color.red))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
                     Picker("Voice", selection: Bindable(model).mouth) {
                         ForEach(TranscribeModel.MouthChoice.allCases) { choice in
                             Text(choice.rawValue).tag(choice)
@@ -535,7 +586,14 @@ struct ContentView: View {
             // probe already refused to start while listening, but nothing
             // stopped listening from starting while a probe held the
             // process-wide session.
-            .disabled(model.probeStatus != nil)
+            // And the MIND's gate (AC-110, found by the 4f review): when
+            // the Apple mind is selected and unavailable, start() refuses
+            // silently — so without this, tapping Listen did NOTHING, the
+            // exact silent dead button AC-110 forbids. Disabled + the red
+            // caption naming the reason = honest.
+            .disabled(model.probeStatus != nil
+                      || (model.talkEnabled && model.mind == .apple
+                          && model.mindUnavailable != nil))
             .padding(.horizontal)
             .padding(.bottom, 8)
         }

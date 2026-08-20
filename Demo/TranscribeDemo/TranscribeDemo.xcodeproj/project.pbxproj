@@ -12,6 +12,7 @@
 		2C4BDC794DC39DAD662681F3 /* MultiModalKit in Frameworks */ = {isa = PBXBuildFile; productRef = AC3E96CBCF532F30A024E805 /* MultiModalKit */; };
 		310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */ = {isa = PBXBuildFile; productRef = 91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */; };
 		423F679D2CB7551AB7C0EC22 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55B6AEB6559E79DEDA042A8 /* ContentView.swift */; };
+		49044073EF00007DA65DD31C /* MindProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39C15A8522E79D78F4D795AD /* MindProbe.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
 		6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */ = {isa = PBXBuildFile; productRef = B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */; };
 		91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */; };
@@ -23,6 +24,7 @@
 		06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeDemoApp.swift; sourceTree = "<group>"; };
 		085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranscribeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		28BDC7531D2E15DC9EF02ABF /* PhoneSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSession.swift; sourceTree = "<group>"; };
+		39C15A8522E79D78F4D795AD /* MindProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindProbe.swift; sourceTree = "<group>"; };
 		40D158610A62F1FCD2DBDE41 /* ryad-en.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "ryad-en.wav"; sourceTree = "<group>"; };
 		62811A7E85B37A1A75B7AA6F /* bakeoff-reference.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "bakeoff-reference.txt"; sourceTree = "<group>"; };
 		E9370469C1D7537FC640A814 /* multimodal-coordinator */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "multimodal-coordinator"; path = ../..; sourceTree = SOURCE_ROOT; };
@@ -93,6 +95,7 @@
 			isa = PBXGroup;
 			children = (
 				F55B6AEB6559E79DEDA042A8 /* ContentView.swift */,
+				39C15A8522E79D78F4D795AD /* MindProbe.swift */,
 				28BDC7531D2E15DC9EF02ABF /* PhoneSession.swift */,
 				06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */,
 				F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */,
@@ -180,6 +183,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				423F679D2CB7551AB7C0EC22 /* ContentView.swift in Sources */,
+				49044073EF00007DA65DD31C /* MindProbe.swift in Sources */,
 				FEE72793A1C59D5217C79633 /* PhoneSession.swift in Sources */,
 				DFBA24BA87E376099A8AD354 /* TranscribeDemoApp.swift in Sources */,
 				91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */,

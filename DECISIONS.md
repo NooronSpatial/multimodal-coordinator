@@ -2057,3 +2057,198 @@ without deleting the evidence. Its expectations were flipped for the fix
 and it failed first with `updates → []` (the reply produced nothing at
 all), then passed. Its duration went from **3.054 s** — waiting out the
 bounded window for a `.finished` that never came — to **0.525 s**.
+
+## D-056 — The language model is 4f; the echo routing fix becomes 4g (milestone order)
+
+**Date:** 2026-08-18 · **Decided by:** Ryad
+
+**And it settles a contradiction the SPEC has been carrying.** §48 called
+the language model "4d". The 2026-08-14 ruling renumbered it **4f** (see
+the note under 4d's banner). But two later passages went on saying the
+opposite — §54's out-of-scope line reads *"the routing fix becomes
+milestone 4f, after TTSKit (4e)"*, and §67's reads *"the language model
+(4g)"*. Both readings sat in one file, written at different times, never
+reconciled. That is the same documents-disagree-with-themselves class the
+4e review caught in ARCHITECTURE.md's line counts.
+
+**The ruling: the language model is 4f. The echo ROUTING fix is 4g.** The
+contradicting sentences stay where they were written; a numbering note
+under 4f's banner names them and points here.
+
+**Why the reply, not the routing.** Three reasons, and the third is the one
+that decided it:
+
+1. The reply generator is the spine's last placeholder. Every other organ
+   is real; a conversation that answers with your own words is a
+   demonstration of plumbing, not of a product.
+2. The seam is already cut for it. `SpeechPhraser` exists BECAUSE D-037's
+   F-1 was ruled twice — a language model emits subword fragments, so
+   per-token utterances would be wrong rather than merely choppy. That
+   ruling was made in 4b for a producer that did not exist yet.
+3. **The routing fix cannot honestly start yet.** Its whole purpose is the
+   echo canceller seeing the reply, and whether that works is AC-104 —
+   which never happened, and which the SPEC itself says would *reshape*
+   the work. Starting 4g now would mean building before the measurement
+   that decides its shape, which is exactly what D-054 rule 4 forbids.
+
+*Rejected:* **the routing fix first** — it has the warmer harness
+(`voice-onmic`, `graph-probe`) and closes 4e's loudest unmet criterion, but
+it is gated on a phone measurement nobody has taken.
+
+*Rejected:* **a phone-truth pass first** (AC-104, AC-102's stop-latency and
+thermal numbers, the `voice-listen` decision) — genuinely useful, and it
+de-risks 4g. It loses because it is debt-paying rather than building, and
+4f's own AC-110 forces a phone trip anyway.
+
+**One thing this ruling does NOT settle, and it is load-bearing:** Apple's
+Foundation Models is `unavailable(appleIntelligenceNotEnabled)` on the
+development Mac — measured 2026-08-18, not remembered. If it is also
+unavailable on the iPhone, 4f has no engine and F-6's deferral of MLX
+reverses. AC-110 exists to answer that before any adapter is written.
+
+## D-057 — 4f's five open forks, ruled (Milestone 4f)
+
+**Date:** 2026-08-18 · **Decided by:** Ryad · **Rulings: F-2 = A, F-3 = A,
+F-4 = A, F-5 = A, F-6 = A** — all five on the spec's recommendations,
+ruled in one message. F-1 is deliberately NOT here: the spec gates it on
+AC-111's measurement, and ruling it on an argument today would be exactly
+the guess §71 warns about.
+
+**F-2 = A — one `LanguageModelSession` per turn, stateless.** The
+`TranscriptLedger` already carries the whole thought, so the context the
+model needs is assembled by us and visible. *Rejected:* **B, one
+long-lived session with multi-turn memory** — the budget is a hard 4096
+tokens (read from the machine, AC-116), a barge can collide with
+`concurrentRequests`, and a cancelled turn may still spend budget. Memory
+across turns is its own later milestone, named rather than smuggled in.
+
+**F-3 = A — the model is told it is SPEAKING.** A short instruction
+shaping replies for speech: brief, no markdown, no lists, no headings —
+this reply is heard, never read. The instruction TEXT lives in the app,
+not the library: mechanism, not policy (D-027's rule, applied again).
+*Rejected:* **B, no instructions** — the default shapes replies for a
+screen.
+
+**F-4 = A — a refusal is spoken, and the turn completes normally.**
+`guardrailViolation` and `refusal` are ordinary outcomes of a supervised
+model, not crashes. *Rejected:* **B, refusal as turn failure** — silence,
+and the person cannot tell a refusal from a bug.
+
+**F-5 = A — the adapter lives in core, beside `AppleSpeechEngine`.**
+Foundation Models is a SYSTEM framework in an OS the platform floor
+already requires (D-017), so the zero-runtime-dependency vow (D-016) is
+untouched and the precedent is exact. *Rejected:* **B, a new opt-in
+product** — that shape exists to quarantine PACKAGE dependencies
+(WhisperKit, TTSKit); there is nothing here to opt out of.
+
+**F-6 = A — MLX is deferred, behind a time-boxed spike gate.** The spike
+already ran and its finding stands: MLX builds Swift 6 clean and then
+**cannot run from a SwiftPM binary** (`Failed to load the default
+metallib`; the vendor's own README says SwiftPM cannot build Metal
+shaders). This repo's CI and bake-off ARE SwiftPM. A green build that
+cannot generate one token is a lying instrument, and D-023's fourth
+question fails in a new way: the code is removable in a day, the build
+system is not behind the protocol at all. The gate's demands are in the
+spec (§74); the result is logged as a D-entry either way. *Rejected:*
+**B, adopt now and change the CI story** — trading the machine that
+guards everything for a second engine, in the milestone that does not yet
+have a first. **The honest cost of A, carried knowingly: 4f ships the
+reply seam with ONE real citizen, below this repo's own
+two-implementations standard, until the bake-off milestone.**
+
+**Still gating everything, unchanged from D-056:** Apple Intelligence is
+OFF on the development Mac, so the floor engine is `unavailable` here
+until the setting is flipped — and the iPhone has not been asked at all.
+AC-110 runs before any adapter code.
+
+## D-058 — F-1 ruled on the phone's number: the diff, with a tripwire (Milestone 4f)
+
+**Date:** 2026-08-18 · **Decided by:** Ryad · **Ruling: A + tripwire**
+
+The spec refused to rule this fork on an argument (D-057 left it out on
+purpose), and the measurement arrived: on Ryad's iPhone, four prompts, 23
+snapshot pairs — every snapshot cumulative, every one strictly extending
+its predecessor, zero revisions, zero grapheme splits (INSTRUMENTS §22).
+
+**The ruling.** The adapter diffs consecutive snapshots and emits the new
+suffix — and **every snapshot is CHECKED**: if one ever fails
+`hasPrefix(previous)`, the run reports a named failure and a health event,
+and nothing is handed to a mouth. The property the diff depends on is
+asserted where it is depended on, every time, at the cost of one string
+compare per snapshot — about seven per reply.
+
+**Why the tripwire is not decoration.** Two facts from this same
+milestone: one run of "never revised" is evidence, not a law — the
+probe's own trace says so — and the Simulator had JUST shown this
+platform vouching for a model it could not produce (AC-110's status
+note). A platform that can lie about availability earns a check on its
+stream shape. The failure the tripwire prevents is the worst one this
+pipeline can produce: **spoken garbage with no alarm** — words in the
+room that the model then contradicted, detectable by nobody but the
+person listening.
+
+*Rejected:* **A pure — trust the property.** Smallest code, and exactly
+what was measured. But its failure mode is audible and silent at once,
+and the check that removes it costs seven string compares.
+
+*Rejected:* **C — hold back the unconfirmed tail.** Immune to revision,
+but it prices insurance above the measured risk: latency on EVERY reply
+against an event never observed in 23 pairs. If the tripwire ever FIRES,
+C is the fallback already designed, and this entry is where its price was
+written down in advance.
+
+*Rejected:* **B — do not stream.** Dead on the numbers: a warm first
+snapshot lands in ~280 ms, and a whole-reply wait would throw that away.
+
+## Corrections to D-058, from the 4f review — and one fork it opens
+
+**Date:** 2026-08-19 · The ruling stands; one sentence in it promised more
+than the code delivers, and the review proved it with a grep.
+
+**D-058 says the tripwire's violation becomes "a named failure and a
+health event."** The named failure exists and is pinned by test; the
+silence guarantee exists and is pinned; **no health event exists.**
+`HealthEvent` has no case for a reply revision, and nothing in the
+Conversation layer holds a diagnostics handle to publish one through. The
+failure does reach the ledger as `turnFailed` on the conversation stream —
+an alarm, but not the HEALTH alarm the entry names, and in this repo
+"named failure + health event" is precise vocabulary from the D-028
+precedent, where both surfaces literally exist.
+
+**Why it is not being quietly built:** the reply path has NO diagnostics
+seam today, and growing one is a change to a seam's shape — Ryad's to
+rule, not a review fix (the D-051 precedent, exactly). **The fork, open:**
+A — thread `PipelineDiagnostics` into `TurnCoordinator` so reply failures
+can publish health events (the mind's tripwire among them). B — accept the
+conversation stream's `turnFailed` as the alarm and amend D-058's wording.
+Until ruled, D-058's promise is read MINUS the health event, and this
+entry is the honest record of the difference. *(Ruled the same day:
+**A**, D-059 below — the promise stands, the code rose to it.)*
+
+## D-059 — The health road: dead turns reach the diagnostics stream (Milestone 4f)
+
+**Date:** 2026-08-19 · **Decided by:** Ryad · **Ruling: A** (of the fork the
+D-058 correction opened)
+
+`TurnCoordinator` now takes an optional `PipelineDiagnostics`, like the
+clock: nil injected is byte-for-byte the old coordinator — monitoring is
+opt-in, never ambient (the D-026/D-028 precedents). `failTurn`, the ONE
+funnel every turn death already passes through, publishes
+`HealthEvent.turnFailed(turn:failure:)` — typed, not stringly. Same fact,
+two audiences: the conversation stream serves whoever follows one
+conversation; the health stream serves whoever watches the pipeline's
+wellbeing across all of them. **D-058's tripwire alarm now exists**: a
+snapshot revision fails the turn through this funnel and rides this road.
+
+Red before green: the test asserting the health event ran and FAILED
+before the funnel published, then passed on the one-line wiring. Every
+other coordinator test runs with nil injected, which is the
+byte-for-byte proof, free.
+
+*Rejected:* **B — amend D-058's wording and accept the conversation
+stream's `turnFailed` as the alarm.** It was my recommendation, on the
+argument that no health-event consumer exists yet. Ryad overruled it:
+the ruling's promise stands and the code rises to it, rather than the
+words sinking to the code. The demos already listen to the health stream
+(the Mac's 🩺 line now prints dead turns), so the consumer argument was
+weaker than claimed.

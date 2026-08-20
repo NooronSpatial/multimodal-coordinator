@@ -24,6 +24,17 @@ final class TranscribeModel {
         var id: String { rawValue }
     }
 
+    /// WHICH MIND ANSWERS (AC-117). The echo stays: it is the seam's
+    /// scripted citizen, deterministic, offline, and the control group
+    /// every real generator is compared against. The picker is the same
+    /// claim the mouth picker makes one seam over — swapping the organ
+    /// changes NOTHING else on the spine.
+    enum MindChoice: String, CaseIterable, Identifiable {
+        case echo = "Echo"
+        case apple = "Apple"
+        var id: String { rawValue }
+    }
+
     enum EngineChoice: String, CaseIterable, Identifiable {
         case apple = "Apple"
         case whisper = "Whisper"
@@ -119,6 +130,63 @@ final class TranscribeModel {
             voiceIdentifier: appleVoiceIdentifier
                 ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
         case .neural: neuralVoice
+        }
+    }
+
+    /// The mind. Changing it restarts the pipeline, like the mouth.
+    var mind: MindChoice = .echo {
+        didSet {
+            guard mind != oldValue else { return }
+            if isListening { restart() }
+            refreshMind()
+        }
+    }
+    /// Why the Apple mind cannot answer right now, or nil (AC-110). The
+    /// three reasons are different sentences on purpose: a person whose
+    /// device cannot run the model needs different words from one whose
+    /// download is still running.
+    private(set) var mindUnavailable: String?
+    /// ONE generator, held: `prewarm()` pays the measured ~1.5 s model
+    /// warm-up (INSTRUMENTS §22) once, outside anyone's first turn
+    /// (AC-115). The INSTRUCTIONS are the app's text, not the library's
+    /// (D-057 F-3, mechanism-not-policy): this reply is spoken, never
+    /// read — the probe's count-to-ten came back as a markdown list, and
+    /// without this sentence a voice would read list numbering aloud.
+    private let appleMind = AppleReplyGenerator(
+        instructions: "Your reply will be spoken aloud by a synthetic voice "
+            + "and never shown as text. Answer in one to three short, plain "
+            + "sentences. Never use lists, bullet points, numbered items, "
+            + "markdown, code, or headings.",
+        spokenRefusal: "I can't help with that one.")
+
+    /// The generator the coordinator gets. BOTH minds keep 4c's honest
+    /// witness — the 🧠 line shows what the ledger delivered across the
+    /// seam, whichever brain answers (AC-91's proof duty, unchanged).
+    private var currentGenerator: any ReplyGenerating {
+        let witness: @Sendable (String) -> Void = { [weak self] thought in
+            Task { @MainActor in self?.wholeThought = thought }
+        }
+        switch mind {
+        case .echo: return PhoneEchoReply(onThought: witness)
+        case .apple: return ThoughtWitness(wrapped: appleMind, onThought: witness)
+        }
+    }
+
+    /// Reads the availability enum FRESH — a download can complete
+    /// between two turns, and caching "unavailable" would turn a
+    /// temporary state into a permanent verdict. When the mind is ready,
+    /// the warm-up is paid here, not inside the first felt pause.
+    func refreshMind() {
+        guard mind == .apple else { mindUnavailable = nil; return }
+        switch AppleReplyGenerator.availability {
+        case nil:
+            mindUnavailable = nil
+            appleMind.prewarm()
+        case .some(let reason):
+            // THE LIBRARY OWNS THE WORDS (4f review): the same sentence a
+            // mid-session failure prints is the one this caption shows, so
+            // the two surfaces cannot drift apart.
+            mindUnavailable = String(describing: reason)
         }
     }
 
@@ -512,8 +580,14 @@ final class TranscribeModel {
         // The VOICE must be ready too, or the first reply fails
         // mid-turn with a missing model — a failure the screen would
         // report as a turn error when it is really a setup problem.
+        // The MIND must be ready too, symmetrically with the voice: a
+        // turn that dies on .modelNotReady is a setup problem the screen
+        // would misreport as a turn error. Availability is read fresh —
+        // the download may have finished since the last look.
+        refreshMind()
         guard engineState == .ready, !isListening, probeStatus == nil,
-              !(talkEnabled && mouth == .neural && voiceState != .ready)
+              !(talkEnabled && mouth == .neural && voiceState != .ready),
+              !(talkEnabled && mind == .apple && mindUnavailable != nil)
         else { return }
         utterances.removeAll()
         droppedFrames = 0
@@ -595,12 +669,13 @@ final class TranscribeModel {
         // point is that none of them needed an iOS variant.
         let coordinator: TurnCoordinator<ContinuousClock>? = talkEnabled
             ? TurnCoordinator(
-                replyGenerator: PhoneEchoReply(onThought: { [weak self] thought in
-                    Task { @MainActor in self?.wholeThought = thought }
-                }),
+                replyGenerator: currentGenerator,
                 synthesizer: currentMouth,
                 clock: ContinuousClock(),
-                latencyReporter: PhoneLatency(model: self))
+                latencyReporter: PhoneLatency(model: self),
+                // D-059 = A: dead turns reach the health stream — the road
+                // the mind's tripwire alarm rides.
+                diagnostics: diagnostics)
             : nil
         self.coordinator = coordinator
 
@@ -895,6 +970,10 @@ final class TranscribeModel {
         case .settlingDecodes(let count): settlingCount = count
         case .ringDropped, .listenerFellBehind: break   // drops already on screen
         case .settlingDecodeRefused: break   // the failed row says it in words
+        case .turnFailed: break   // the utterance's failure line says it in
+                                  // words (D-059's road exists for listeners
+                                  // OUTSIDE one conversation; this screen IS
+                                  // the conversation)
         }
     }
 

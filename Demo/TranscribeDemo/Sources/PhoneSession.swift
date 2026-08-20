@@ -56,6 +56,21 @@ struct PhoneSession: AudioSessionConfiguring {
     }
 }
 
+/// Keeps 4c's honest witness when a REAL mind replaces the echo: the 🧠
+/// line shows what the ledger delivered across the seam, whichever brain
+/// answers. Reporting is the demo's concern, so the wrapper lives here
+/// rather than growing the library's generator a callback it does not
+/// need (AC-91's proof duty, unchanged by 4f).
+struct ThoughtWitness: ReplyGenerating {
+    let wrapped: any ReplyGenerating
+    let onThought: @Sendable (String) -> Void
+
+    func openReply(to transcript: String) async throws -> any ReplyRun {
+        onThought(transcript)
+        return try await wrapped.openReply(to: transcript)
+    }
+}
+
 /// The phone's stand-in brain, identical in spirit to the Mac demo's:
 /// it echoes the thought back, one token at a time, paced so the reply
 /// FEELS generated and is slow enough to barge into. Tokens carry their

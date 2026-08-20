@@ -46,7 +46,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   231 tests in 27 suites, green, run 20× before any milestone closes
+swift test   →   254 tests in 31 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -157,7 +157,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 231 tests, deterministic
+swift test                          # 254 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
@@ -181,7 +181,9 @@ documents kept advertising it. INSTRUMENTS §13's blind A/B numbers came
 from it, so they are recorded but no longer reproducible from this tool.
 Named here rather than quietly dropped.
 
-`Demo/TranscribeDemo` is the iPhone app: two transcribers, two mouths, an
+`Demo/TranscribeDemo` is the iPhone app: two transcribers, two MINDS (the
+echo control and the on-device language model, with honest availability
+words and a mind probe in the toolbar), two mouths, an
 Apple-voice picker, a live microphone level with the gate marked on it, a
 one-tap gate calibration, the echo probe, and barge counters that fail apart so
 three different bugs can be told apart at a glance.
