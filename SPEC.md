@@ -2166,3 +2166,129 @@ not on an argument (AC-111) · all ACs green · 20× stable · zero warnings
 debug and release · code adversarially reviewed BEFORE the merge (D-041) ·
 PR merged with the map updated · the forks logged as D-entries ·
 teach-back survived.
+
+# SPEC — Milestone 4g: the speaker route (the echo canceller finally sees the reply)
+
+## 77. What 4g builds, and why it is next
+
+The demo carries a warning label written by a measurement: *"On speaker
+the reply is not cancelled (measured peak 1.0) — it will interrupt
+itself."* D-043 measured the disease exactly: the iPhone's echo canceller
+works — it took the quiet room from peak 0.0092 to 0.0030 — and the reply
+on the loudspeaker reaches the microphone at **full scale, untouched**,
+because iOS voice processing cancels only what its OWN audio unit
+renders. Both mouths render elsewhere: the neural voice on its own
+engine, Apple's inside `AVSpeechSynthesizer`'s private route.
+
+4g routes the reply onto the capture engine's voice-processing unit so
+the canceller can see it. The seam already exists — AC-108 built
+`MicrophonePlaybackHost` and the `hostsPlayback` switch in 4e, and D-049
+switched it off after five faults on real hardware. What was never taken
+is the measurement that decides everything: **AC-104, "does a reply
+rendered through the pipeline's own engine fall under the gate?" — asked
+in 4e, never answered.** This milestone begins by answering it.
+
+## 78. What is KNOWN, what is GUESSED, and what only a phone can say
+
+Known, measured: the disease (D-043) · the Mac cannot host voice
+processing and an output chain on one engine (`-10875`, INSTRUMENTS §17)
+· §17's own caveat that a two-device Mac cannot convict a one-device
+phone · the graph-order faults of 4e, each named and fixed.
+
+Unknown, and stated before proposing (D-054 rule 3): **(a)** whether an
+iPhone accepts voice processing + an output chain on one engine at all —
+the five faults are equally consistent with the ordering bugs that were
+found and fixed; **(b)** whether a reply rendered there is actually
+CANCELLED (AC-104 proper); **(c)** whether the Simulator's voice
+processing behaves like the device's. The Simulator can answer the GRAPH
+question (does it start, are formats sane) and I can drive it myself;
+only the phone can answer the CANCELLATION question, and if (a) or (b)
+comes back negative, F-1's fallbacks are already priced. **Who pays if
+the guess is wrong without the measurement: Ryad, in field trips — which
+is exactly what D-054 exists to prevent.**
+
+## 79. Acceptance criteria (4g)
+
+- **AC-119 THE GATE, measured before any fix (AC-104 at last).** First
+  the Simulator, driven by the machine: `hostsPlayback` on, capture
+  running, a reply rendered on the capture engine — does the graph START,
+  with sane formats? Then the phone, once, with the echo probe:
+  **is the hosted reply removed by the canceller?** The numbers land in
+  INSTRUMENTS whichever way they fall. A negative answer reshapes the
+  milestone into F-1's fallbacks and is a result, not a failure.
+- **AC-120 The slice: the neural mouth on the speaker route.** The
+  neural voice already renders through `PlaybackHost`; behind the
+  switch it renders on the capture host. On the phone, on SPEAKER: a
+  reply does not barge itself, a human barge still lands, and the felt
+  pause is re-measured on that route.
+- **AC-121 The Apple mouth follows, via its PCM.**
+  `AVSpeechSynthesizer.write(toBufferCallback:)` hands us buffers
+  instead of playing them; a run renders them through the same host.
+  `.started`/`.finished` become OUR rendering evidence (D-029's rules),
+  the conformance kit applies unchanged, and the write-path's timing
+  quirks are measured on the Mac before any phone build.
+- **AC-122 The graph laws under voice processing are pinned by harness.**
+  `voice-onmic` (and a Simulator probe where the Mac's two-device
+  reality lies) carries the hosted arrangement as permanent regression
+  checks: the §16–§19 faults must stay findable in minutes, never again
+  by field trip.
+- **AC-123 Honest degradation.** On a device where the hosted graph
+  cannot start, the pipeline falls back to today's arrangement LOUDLY —
+  a health event and a visible caption ("speaker route unprotected") —
+  never a silent difference in behavior.
+- **AC-124 Hygiene + the label.** The demo's speaker warning is
+  rewritten by MEASUREMENT — the new peak-under-cancellation number next
+  to the old 1.0, not a deleted sentence. Swift 6 strict, zero warnings,
+  20× stable, map updated, review before merge (D-041), teach-back.
+
+## 80. Test matrix (4g)
+
+| Area | Tests |
+|---|---|
+| Graph mechanics | Simulator probe: hosted arrangement starts, formats valid, capture alive — machine-driven, before any phone build |
+| The canceller | the phone's echo probe on the hosted route (AC-119): peak while speaking, before/after — the one number that decides the milestone |
+| Neural on capture host | existing `NeuralVoiceConformanceTests` + `PlaybackHostTests` unchanged — the host swap must change NOTHING behind the seam |
+| Apple mouth via write() | conformance kit against the write-path run (Mac-testable: write() exists on macOS) · evidence timing measured, not assumed |
+| Degradation | a scripted host that refuses: the pipeline falls back loudly, health event published (D-059's road, reused) |
+| Regression | voice-onmic keeps the §17 truth table; the -10875 row stays recorded as this Mac's fact |
+
+## 81. The design forks (4g) — for Ryad to rule
+
+- **F-1 THE MECHANISM.** A: render replies on the capture engine's
+  voice-processing unit — the only path D-043's measurement endorses,
+  and AC-108 already built its seam. B: software suppression — raise the
+  VAD gate while the assistant speaks. Honest cost: the echo arrives at
+  peak 1.0, indistinguishable by level from a human barge, so B kills
+  speaker barge-in — the product's soul — to stop self-barging. C:
+  half-duplex — mute the mic while speaking. Kills barge-in entirely.
+  **Recommendation: A**, with B recorded as the fallback if AC-119
+  refutes A on this hardware — and if it comes to B, the label must say
+  what was traded.
+- **F-2 THE APPLE MOUTH.** A: route its PCM through our host via
+  `write(toBufferCallback:)` — one rendering path for every mouth,
+  forever, and the canceller sees them all. B: leave Apple's mouth
+  receiver-only, documented. **Recommendation: A, gated on AC-119/120
+  succeeding** — B is not a fix, it is a smaller warning label.
+- **F-3 WHEN THE HOST IS THE CAPTURE ENGINE.** A: per-route — hosted on
+  speaker, today's arrangement on receiver. B: hosted whenever the
+  conversation runs, one configuration. **Recommendation: B.** Route
+  churn on a live graph is what cost 4e an afternoon (the D-052
+  rejection said exactly this), and one arrangement is one set of bugs.
+- **F-4 WHAT THE SWITCH DEFAULTS TO in the library.** A: `hostsPlayback`
+  stays default-off; the app opts in (mechanism/policy, D-027). B:
+  default-on once proven. **Recommendation: A** — 4g proves it on ONE
+  device; a library default claims every device, and that claim needs
+  more phones than this project owns.
+
+## 82. Out of scope for 4g (deliberately)
+
+Voice quality and the phone-derived lead (D-050's milestone, its number
+waiting) · multi-turn memory · MLX · SpeakerKit · AC-113's numbers and
+the over-budget prompt (carried, named) · the Mac's stuck model download.
+
+## 83. Definition of done (4g)
+
+AC-119's numbers recorded BEFORE any fix lands (D-054's order) · all ACs
+green or honestly re-scoped by AC-119's answer · 20× stable · zero
+warnings both configurations · the label rewritten by measurement ·
+review before merge (D-041) · forks logged · teach-back survived.
