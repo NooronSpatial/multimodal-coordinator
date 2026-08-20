@@ -274,7 +274,30 @@ public final class MicrophoneSource: AudioSource {
         }
 
         // Already prepared above, before the format was read.
-        try engine.start()
+        //
+        // AND THE THROW PATH CLEANS UP ITS OWN ARMS — the 4g review's one
+        // confirmed finding, reproduced in a harness before it was fixed:
+        // if start() threw here, the tap and the configuration observer
+        // survived, `isRunning` never became true, so `stop()`'s guard
+        // meant nothing could EVER remove them. Pre-4g that leak merely
+        // miscounted reconfigurations; with a hosting engine the leaked
+        // observer holds an ARMED restart box — a later route change
+        // could start capture with a stale tap into the old ring, no
+        // session of ours active, while this type reports stopped. A
+        // microphone that records while the app says it does not is the
+        // one bug this project must never ship. (The second half of the
+        // reproduction: a retry would not have rescued it — the leaked
+        // tap makes the next installTap abort the process.)
+        do {
+            try engine.start()
+        } catch {
+            if let configurationObserver {
+                NotificationCenter.default.removeObserver(configurationObserver)
+            }
+            configurationObserver = nil
+            input.removeTap(onBus: 0)
+            throw error
+        }
         isRunning = true
         // The host may take replies only now: it refuses to attach to an
         // engine that is not pulling, and until this line it was not.

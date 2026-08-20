@@ -2222,30 +2222,51 @@ is exactly what D-054 exists to prevent.**
   INSTRUMENTS whichever way they fall. A negative answer reshapes the
   milestone into F-1's fallbacks and is a result, not a failure.
 - **AC-120 The slice: the neural mouth on the speaker route.**
-  *(status: FIELD-PROVEN, 2026-08-20 — "it works, no self barge, i can
-  still interrupt it." The reply's residual stayed under the 0.021 gate
-  for a whole conversation on the loudspeaker, and a human barge still
-  landed. INSTRUMENTS §23.)* The
+  *(status: FIELD-PROVEN for its first two clauses, 2026-08-20 — "it
+  works, no self barge, i can still interrupt it"; the residual stayed
+  under the 0.021 gate for a whole conversation. The third clause — the
+  felt pause RE-MEASURED on this route — was flagged by the review as
+  unrecorded, truthfully: it rides the parked field investigation.
+  INSTRUMENTS §23.)* The
   neural voice already renders through `PlaybackHost`; behind the
   switch it renders on the capture host. On the phone, on SPEAKER: a
   reply does not barge itself, a human barge still lands, and the felt
   pause is re-measured on that route.
 - **AC-121 The Apple mouth follows, via its PCM.**
+  *(status: BUILT and kit-certified live on the Mac; field: works on the
+  shielded loudspeaker with an INTERMITTENT self-barge — suspects and the
+  convicting instruments recorded in INSTRUMENTS §23, investigation
+  parked with Ryad. The stranded-write leak a review claimed was MEASURED
+  real — stopSpeaking delivers no terminator — and fixed with a take-once
+  continuation.)*
   `AVSpeechSynthesizer.write(toBufferCallback:)` hands us buffers
   instead of playing them; a run renders them through the same host.
   `.started`/`.finished` become OUR rendering evidence (D-029's rules),
   the conformance kit applies unchanged, and the write-path's timing
   quirks are measured on the Mac before any phone build.
 - **AC-122 The graph laws under voice processing are pinned by harness.**
+  *(status: MET — the shield matrix lives in the demo toolbar as the
+  permanent regression harness; voice-onmic keeps the Mac's §17 truth
+  table; graph-probe keeps the node laws.)*
   `voice-onmic` (and a Simulator probe where the Mac's two-device
   reality lies) carries the hosted arrangement as permanent regression
   checks: the §16–§19 faults must stay findable in minutes, never again
   by field trip.
-- **AC-123 Honest degradation.** On a device where the hosted graph
+- **AC-123 Honest degradation.**
+  *(status: NOT MET, carried openly — the fallback-to-unhosted path is
+  not built. What exists instead: a hosted graph that fails to START now
+  cleans up its arms and surfaces the error visibly (the review's one
+  confirmed finding, the zombie restart box, fixed), and a mid-run stop
+  is counted and restarted. Falling back LOUDLY to the unshielded
+  arrangement remains future work, recorded here rather than re-scoped.)* On a device where the hosted graph
   cannot start, the pipeline falls back to today's arrangement LOUDLY —
   a health event and a visible caption ("speaker route unprotected") —
   never a silent difference in behavior.
-- **AC-124 Hygiene + the label.** The demo's speaker warning is
+- **AC-124 Hygiene + the label.**
+  *(status: PARTLY — the label now states the honest in-between: the
+  probe's measured range beside the old 1.0, and that the reply's own
+  number is still owed. The full rewrite waits on the parked field
+  investigation (gate experiment, echo? peaks). Hygiene gates all green.)* The demo's speaker warning is
   rewritten by MEASUREMENT — the new peak-under-cancellation number next
   to the old 1.0, not a deleted sentence. Swift 6 strict, zero warnings,
   20× stable, map updated, review before merge (D-041), teach-back.

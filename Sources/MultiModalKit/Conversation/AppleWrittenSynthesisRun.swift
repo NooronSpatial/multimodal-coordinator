@@ -57,6 +57,14 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
         var attached = false
         var tokensFinished = false
         var retired = false
+        /// The in-flight write's continuation, stored so `cancel()` can
+        /// resume it. MEASURED, not assumed: `stopSpeaking(.immediate)`
+        /// mid-write never delivers the zero-length terminator — the
+        /// callback simply goes silent (scratch harness, this Mac,
+        /// 2026-08-20) — so without this hand-off every cancelled reply
+        /// stranded its drain task forever, the leaked-task class this
+        /// repo bans. Take-once under the lock; resume outside it.
+        var writeDone: CheckedContinuation<Void, Never>?
     }
     private let state: Mutex<Guarded>
     private let work = Mutex<Task<Void, Never>?>(nil)
@@ -108,12 +116,18 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     }
 
     func cancel() async {
-        let first = state.withLock { s -> Bool in
+        let (first, pendingWrite) = state.withLock {
+            s -> (Bool, CheckedContinuation<Void, Never>?) in
             let was = s.retired
             s.retired = true
             s.pending.removeAll()
-            return !was
+            let write = s.writeDone
+            s.writeDone = nil
+            return (!was, write)
         }
+        // The stranded-write cure (measured above): the framework will
+        // not resume us after a stop, so the cancel does.
+        pendingWrite?.resume()
         work.withLock { $0 }?.cancel()
         mouth.async { [self] in
             synthesizer.stopSpeaking(at: .immediate)
@@ -184,22 +198,33 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
         // nothing to say must still be ACCOUNTED for, never synthesized.
         if SpeechPhraser.hasSpeakableContent(text) {
             await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+                let proceed = state.withLock { s -> Bool in
+                    guard !s.retired else { return false }
+                    s.writeDone = done
+                    return true
+                }
+                guard proceed else {
+                    done.resume()   // cancelled before the write began
+                    return
+                }
                 let utterance = AVSpeechUtterance(string: text)
                 if let voice { utterance.voice = voice }
-                let finished = Mutex(false)
                 // Handed across ONCE, never touched again by this thread.
                 let handed = WrittenHandOff(utterance)
                 mouth.async { [self] in
                     synthesizer.write(handed.value) { [weak self] buffer in
                         guard let self else { return }
-                        // frameLength == 0 is the utterance's END marker —
-                        // resuming exactly once is guarded, because the
-                        // callback's threading is the framework's business,
-                        // not a promise.
+                        // frameLength == 0 is the utterance's END marker.
+                        // Take-once from the shared slot: the terminator
+                        // and a racing cancel() cannot both resume.
                         guard let pcm = buffer as? AVAudioPCMBuffer, pcm.frameLength > 0 else {
-                            if !finished.withLock({ let was = $0; $0 = true; return was }) {
-                                done.resume()
+                            let taken = self.state.withLock {
+                                s -> CheckedContinuation<Void, Never>? in
+                                let write = s.writeDone
+                                s.writeDone = nil
+                                return write
                             }
+                            taken?.resume()
                             return
                         }
                         self.render(pcm)

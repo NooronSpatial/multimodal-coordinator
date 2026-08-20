@@ -20,7 +20,7 @@ the top, and — when the app is talking back — a spoken reply leaves at
 the bottom.
 
 ```
- microphone ──► MicrophoneSource (296)     the mic tap. The ONLY code that
+ microphone ──► MicrophoneSource (385)     the mic tap. The ONLY code that
                      │ writes frames       runs on the audio thread: view
                      │                     the buffer, copy, return. Owns
                      │                     the ORDER of the session seam,
@@ -46,7 +46,7 @@ the bottom.
                      │                     settling decodes (D-024),
                      │                     the single transition funnel.
                      ▼  via the engine seam
-                TranscriptionEngine (96)   the protocol: capabilities +
+                TranscriptionEngine (99)   the protocol: capabilities +
                   ├─ AppleSpeechEngine     openRun / feed / finishAudio.
                   │    (254)               streaming, emits partials.
                   └─ WhisperEngine (267)   whole-utterance, one-decode-
@@ -56,7 +56,7 @@ the bottom.
                 TranscriptEvents:  partial / final / failed / truncated
                      │                 ──► the app's screen
                      ▼
-                TurnCoordinator (676)      THE NAMESAKE. The conversation
+                TurnCoordinator (692)      THE NAMESAKE. The conversation
                      │                     above the text: turn ticket,
                      │                     barge-in across the whole chain,
                      │                     the funnel + legal-pair table,
@@ -82,15 +82,15 @@ the bottom.
                      │                     mouths" from a claim into a
                      │                     proof. Both pass one kit.
                      │
-                     ├─ AppleSpeechSynthesizer (326)   thin: hand text to
+                     ├─ AppleSpeechSynthesizer (320)   thin: hand text to
                      │     the framework, report delegate evidence. Picks
                      │     the best INSTALLED voice. Behind the 4g shield
-                     │     it opens AppleWrittenSynthesisRun (282) instead:
+                     │     it opens AppleWrittenSynthesisRun (307) instead:
                      │     write() hands us the PCM and the reply renders
                      │     on the capture host — both mouths, one road,
                      │     the canceller sees them all (AC-121).
                      │
-                     └─ NeuralVoice (307) ─► NeuralVoiceRun (491)
+                     └─ NeuralVoice (307) ─► NeuralVoiceRun (574)
                            MultiModalKitTTS, an OPT-IN product. Qwen3 via
                            CoreML. The DECODER decodes; WE render, onto a
                            PlaybackHost. `feed` hands off and returns —
@@ -138,7 +138,7 @@ guess; two is a proof, and every one of these has been swapped in anger.
  Broadcast (140)           one event stream → many listeners; bounded
                            buffers, drop-oldest, every drop counted.
  StopSignal (71)           clean shutdown, no leaked tasks.
- PipelineDiagnostics (81)  health events: thermal, ring drops, listener
+ PipelineDiagnostics (104)  health events: thermal, ring drops, listener
                            losses, settling-decode count — and dead
                            TURNS (D-059), the mind's tripwire among them.
  PipelineSignposter (58)   the os_signpost spans Instruments shows.
@@ -151,7 +151,7 @@ guess; two is a proof, and every one of these has been swapped in anger.
                            path reads thermal state (4e, open).
  AudioSessionConfiguring   4d: the library calls the platform's steps in
    (42)                    ORDER; the app supplies their contents.
- PlaybackHost (287)        4e: WHERE a reply renders. Two verbs, and the
+ PlaybackHost (309)        4e: WHERE a reply renders. Two verbs, and the
                            host keeps the ordering rules — attach,
                            connect, THEN start.
  GateCalibration (69)      4e: where to put the VAD gate, computed from a

@@ -94,7 +94,8 @@ struct ContentView: View {
                         Label(model.shieldStatus == nil ? "Shield probe" : "measuring…",
                               systemImage: "shield.lefthalf.filled")
                     }
-                    .disabled(model.isListening || model.shieldStatus != nil)
+                    .disabled(model.isListening || model.shieldStatus != nil
+                              || model.probeStatus != nil)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -103,7 +104,8 @@ struct ContentView: View {
                         Label(model.probeStatus == nil ? "Echo probe" : "measuring…",
                               systemImage: "waveform.badge.magnifyingglass")
                     }
-                    .disabled(model.isListening || model.probeStatus != nil)
+                    .disabled(model.isListening || model.probeStatus != nil
+                              || model.shieldStatus != nil)
                 }
             }
             .sheet(isPresented: $showMindProbe) {
@@ -173,9 +175,9 @@ struct ContentView: View {
             // AC-124 rewrites it with the measured reply number.
             if model.talkEnabled && model.useSpeaker {
                 Label(model.speakerShield
-                      ? "Shield ON: the probe measured a tone cancelled to 0.03–0.08 "
-                        + "(vs 1.0 unshielded). The real reply's number is being measured — "
-                        + "the barge counters below tell the truth."
+                      ? "Shield ON: the probe measured a tone cancelled to 0.004–0.08 "
+                        + "(vs 1.0 unshielded, INSTRUMENTS §23). The reply's own number is "
+                        + "still being measured — the barge counters below tell the truth."
                       : "On speaker the reply is not cancelled (measured peak 1.0) — "
                         + "it will interrupt itself. Receiver or headphones work.",
                       systemImage: model.speakerShield

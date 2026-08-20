@@ -869,7 +869,12 @@ final class TranscribeModel {
     /// while measuring again. The difference between those two numbers,
     /// against the gate, is the whole echo question.
     func runEchoProbe() async {
-        guard !isListening, probeStatus == nil else { return }
+        // SYMMETRIC with the shield probe (the 4d mutual-exclusion lesson,
+        // third instrument): both act on the process-wide session, so
+        // neither may run under the other. The 4g review flagged the
+        // missing half; confirmed by reading — the shield checked the
+        // echo's latch, the echo never checked the shield's.
+        guard !isListening, probeStatus == nil, shieldStatus == nil else { return }
         probeStatus = "measuring the quiet room…"
         probeSilence = nil
         probeWhileSpeaking = nil
