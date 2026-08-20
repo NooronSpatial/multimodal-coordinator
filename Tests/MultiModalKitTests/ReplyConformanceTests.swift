@@ -68,18 +68,74 @@ enum ReplyConformanceKit {
                 "a cancelled reply reports no terminal — the seam's contract")
     }
 
-    /// Promise 3: NOTHING survives the cancel — a defiant source that
-    /// keeps producing snapshots into a dead run reaches no listener.
-    /// The flag is the guarantee; cancelling the work is the optimisation.
-    static func verifyNothingSurvivesTheCancel(
-        _ generator: any ReplyGenerating
+    /// Spins until `condition` is true or the deadline passes — the house
+    /// until, so a red here dies in seconds, never at the suite limit.
+    @discardableResult
+    static func until(_ condition: @Sendable () -> Bool,
+                      within: Duration = .seconds(5)) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: within)
+        while clock.now < deadline {
+            if condition() { return true }
+            await Task.yield()
+        }
+        return false
+    }
+
+    /// Promise 3, made DETERMINISTIC by the review: nothing AFTER the
+    /// cancel reaches a listener.
+    ///
+    /// The first shape of this promise asserted `updates.isEmpty` with no
+    /// ordering between the worker's first yield and the cancel — and the
+    /// review MEASURED the flake: about 1 leak in 800 runs across five
+    /// independent 20,000-run probes, because a PRE-cancel token is legal
+    /// under the seam contract, sits in the stream's buffer, and outlives
+    /// `finish()`. Production was right; the assertion conflated "nothing
+    /// after cancel" with "nothing at all". Now every step is event-gated:
+    /// the legitimate token is AWAITED and asserted PRESENT, the cancel
+    /// returns, the gate opens, the source defiantly yields more — and
+    /// none of it may arrive.
+    static func verifyNothingAfterTheCancelSurvives(
+        _ generator: any ReplyGenerating,
+        releaseDefiance: @escaping @Sendable () -> Void,
+        cancellationSeen: @escaping @Sendable () -> Bool
     ) async throws {
         let run = try await generator.openReply(to: "the ghost's transcript")
-        await run.cancel()
-        guard let updates = await drainBounded(run) else {
-            Issue.record("a cancelled reply's stream must END"); return
+        let collected = Mutex<[ReplyUpdate]>([])
+        let ended = Mutex(false)
+        // ONE consumer for the whole stream — AsyncStream is single-
+        // consumer, so the mid-test observation points are reads of this
+        // shared record, never a second iterator.
+        let collector = Task {
+            for await update in run.updates {
+                collected.withLock { $0.append(update) }
+            }
+            ended.withLock { $0 = true }
         }
-        #expect(updates.isEmpty, "a dead run must be SILENT, not merely terminal-free")
+        defer { collector.cancel() }
+
+        // EVENT-GATED: the pre-cancel token must arrive before the cancel
+        // means anything.
+        #expect(await until({ !collected.withLock { $0.isEmpty } }),
+                "the legitimate pre-cancel token must arrive")
+        #expect(collected.withLock { $0.first } == .token("before"),
+                "the pre-cancel token is LEGAL — the run was still alive")
+
+        await run.cancel()
+        // THE DETERMINISTIC CANCEL-PROPAGATION FACT. The old assertion
+        // (`!capExhausted`) was measured INERT: deleting the run's
+        // work.cancel() left every test green, because the bounded drain
+        // returned long before the spin cap tripped. This one cannot pass
+        // by timing: it waits for the source to REPORT the cancellation.
+        #expect(await until(cancellationSeen),
+                "the cancel must actually reach the source's task")
+
+        releaseDefiance()
+        #expect(await until({ ended.withLock { $0 } }),
+                "a cancelled reply's stream must END")
+        let updates = collected.withLock { $0 }
+        #expect(updates == [.token("before")],
+                "nothing AFTER the cancel may reach a listener")
     }
 
     /// Promise 4: `openReply` HANDS OFF. The coordinator awaits it inline
@@ -129,22 +185,45 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
         /// Spins until the run's task is cancelled — the hands-off and
         /// cancel cases. Capped, so a red test dies fast, never hangs.
         case spinsUntilCancelled
-        /// DEFIANT: ignores cancellation and keeps yielding — proof duty
-        /// for the retired flag, the same job the defiant mocks do for
-        /// the turn ticket.
-        case defiantSnapshots([String])
+        /// GATED DEFIANCE. Yields `before`, then holds until the TEST
+        /// calls `release()` — which the test does only AFTER its cancel
+        /// has returned — then defiantly yields `after`, ignoring
+        /// cancellation. The gate is what makes the promise DETERMINISTIC:
+        /// the first shape of this test asserted `updates.isEmpty` with no
+        /// ordering between the worker's first yield and the cancel, and
+        /// the review MEASURED the flake — ~1 leak in 800 runs, five
+        /// independent 20,000-run probes — because a PRE-cancel token is
+        /// legal under the seam contract and survives `finish()` in the
+        /// stream's buffer. Production was right; the assertion conflated
+        /// "nothing after cancel" with "nothing at all".
+        case gatedDefiance(before: String, after: String)
     }
 
     var unavailable: (any Error)? { nil }
 
     private let plan: Plan
-    private struct Counts { var yielded = 0; var capExhausted = false }
+    private struct Counts {
+        var yielded = 0
+        var capExhausted = false
+        var released = false
+        var sawCancellation = false
+    }
     private let counts = Mutex(Counts())
 
     init(_ plan: Plan) { self.plan = plan }
 
     var snapshotsYielded: Int { counts.withLock { $0.yielded } }
     var capExhausted: Bool { counts.withLock { $0.capExhausted } }
+    /// True once this source OBSERVED the run's cancellation reach its
+    /// task — the deterministic fact that replaced the inert
+    /// `!capExhausted` assertion: deleting the run's `work.cancel()` was
+    /// measured leaving all 13 tests green, because the bounded drain
+    /// returned long before the spin cap could trip. THIS flag cannot be
+    /// mistaken that way: it is set only by cancellation actually
+    /// arriving.
+    var sawCancellation: Bool { counts.withLock { $0.sawCancellation } }
+    /// Opens the gate: the defiant `after` snapshots may now flow.
+    func release() { counts.withLock { $0.released = true } }
 
     func snapshots(for prompt: String) -> AsyncThrowingStream<String, any Error> {
         AsyncThrowingStream { continuation in
@@ -165,6 +244,7 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
                 case .spinsUntilCancelled:
                     for _ in 0..<100_000 {
                         if Task.isCancelled {
+                            counts.withLock { $0.sawCancellation = true }
                             continuation.finish()
                             return
                         }
@@ -172,13 +252,24 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
                     }
                     counts.withLock { $0.capExhausted = true }
                     continuation.finish()
-                case .defiantSnapshots(let all):
-                    // No cancellation check anywhere — deliberately.
-                    for s in all {
-                        continuation.yield(s)
-                        counts.withLock { $0.yielded += 1 }
+                case .gatedDefiance(let before, let after):
+                    continuation.yield(before)
+                    counts.withLock { $0.yielded += 1 }
+                    // Hold at the gate. Cancellation is RECORDED here (the
+                    // deterministic cancel-propagation fact) but NOT obeyed
+                    // — that is the defiance. Capped so a red dies fast.
+                    var opened = false
+                    for _ in 0..<200_000 {
+                        if Task.isCancelled {
+                            counts.withLock { $0.sawCancellation = true }
+                        }
+                        if counts.withLock({ $0.released }) { opened = true; break }
                         await Task.yield()
                     }
+                    if !opened { counts.withLock { $0.capExhausted = true } }
+                    // THE DEFIANT YIELD, after the test's cancel returned.
+                    continuation.yield(after)
+                    counts.withLock { $0.yielded += 1 }
                     continuation.finish()
                 }
             }
@@ -216,10 +307,14 @@ struct AppleReplyGeneratorTests {
             Self.generator(.spinsUntilCancelled))
     }
 
-    @Test("nothing survives the cancel — a defiant source reaches nobody")
+    @Test("nothing AFTER the cancel survives — gated defiance, event-gated end to end")
     func nothingSurvivesCancel() async throws {
-        try await ReplyConformanceKit.verifyNothingSurvivesTheCancel(
-            Self.generator(.defiantSnapshots(["ghost", "ghost words"])))
+        let source = ScriptedSnapshotSource(.gatedDefiance(before: "before", after: "before, and a ghost"))
+        try await ReplyConformanceKit.verifyNothingAfterTheCancelSurvives(
+            AppleReplyGenerator(source: source),
+            releaseDefiance: { source.release() },
+            cancellationSeen: { source.sawCancellation })
+        #expect(!source.capExhausted, "the gate must be OPENED, not waited out")
     }
 
     @Test("openReply hands off — generation never blocks the opener")
@@ -227,7 +322,13 @@ struct AppleReplyGeneratorTests {
         let source = ScriptedSnapshotSource(.spinsUntilCancelled)
         let generator = AppleReplyGenerator(source: source)
         try await ReplyConformanceKit.verifyOpenReplyHandsOff(generator)
-        #expect(!source.capExhausted, "the cancel must arrive, not be waited out")
+        // DETERMINISTIC, where `!capExhausted` was measured INERT (the
+        // review deleted work.cancel() and all 13 tests stayed green —
+        // the bounded drain returned before the spin cap could trip).
+        // Waiting for the source to REPORT the cancellation cannot pass
+        // by timing.
+        #expect(await ReplyConformanceKit.until({ source.sawCancellation }),
+                "the cancel must actually reach the source's task")
     }
 
     @Test("a throwing source is one .failed, terminal")
@@ -348,5 +449,24 @@ struct AppleReplyGeneratorTests {
         await #expect(throws: AppleReplyGenerator.Unavailable.self) {
             _ = try await AppleReplyGenerator().openReply(to: "anything")
         }
+    }
+}
+
+/// AC-110's words, pinned: when the model vanishes BETWEEN turns,
+/// `openReply` throws `Unavailable` mid-session and the coordinator's
+/// failure text carries `String(describing:)` of it — which for a bare
+/// enum was "modelNotReady", gibberish on a screen. Found by the 4f
+/// review. The library owns the sentence so no screen can drift from it.
+@Suite struct UnavailableWordsTests {
+    @Test("every unavailability reason describes itself in honest words")
+    func reasonsSpeak() {
+        #expect(String(describing: AppleReplyGenerator.Unavailable.modelNotReady)
+            == "the on-device model is still downloading — try later")
+        #expect(String(describing: AppleReplyGenerator.Unavailable.appleIntelligenceNotEnabled)
+            == "Apple Intelligence is switched off in Settings")
+        #expect(String(describing: AppleReplyGenerator.Unavailable.deviceNotEligible)
+            == "this device cannot run the on-device model")
+        #expect(String(describing: AppleReplyGenerator.Unavailable.unknown("case 9"))
+            .contains("case 9"))
     }
 }

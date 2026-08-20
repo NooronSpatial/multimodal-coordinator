@@ -182,14 +182,11 @@ final class TranscribeModel {
         case nil:
             mindUnavailable = nil
             appleMind.prewarm()
-        case .modelNotReady:
-            mindUnavailable = "the on-device model is still downloading — try later"
-        case .appleIntelligenceNotEnabled:
-            mindUnavailable = "Apple Intelligence is switched off in Settings"
-        case .deviceNotEligible:
-            mindUnavailable = "this device cannot run the on-device model"
-        case .unknown(let reason):
-            mindUnavailable = "unavailable: \(reason)"
+        case .some(let reason):
+            // THE LIBRARY OWNS THE WORDS (4f review): the same sentence a
+            // mid-session failure prints is the one this caption shows, so
+            // the two surfaces cannot drift apart.
+            mindUnavailable = String(describing: reason)
         }
     }
 

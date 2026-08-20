@@ -2199,3 +2199,27 @@ written down in advance.
 
 *Rejected:* **B — do not stream.** Dead on the numbers: a warm first
 snapshot lands in ~280 ms, and a whole-reply wait would throw that away.
+
+## Corrections to D-058, from the 4f review — and one fork it opens
+
+**Date:** 2026-08-19 · The ruling stands; one sentence in it promised more
+than the code delivers, and the review proved it with a grep.
+
+**D-058 says the tripwire's violation becomes "a named failure and a
+health event."** The named failure exists and is pinned by test; the
+silence guarantee exists and is pinned; **no health event exists.**
+`HealthEvent` has no case for a reply revision, and nothing in the
+Conversation layer holds a diagnostics handle to publish one through. The
+failure does reach the ledger as `turnFailed` on the conversation stream —
+an alarm, but not the HEALTH alarm the entry names, and in this repo
+"named failure + health event" is precise vocabulary from the D-028
+precedent, where both surfaces literally exist.
+
+**Why it is not being quietly built:** the reply path has NO diagnostics
+seam today, and growing one is a change to a seam's shape — Ryad's to
+rule, not a review fix (the D-051 precedent, exactly). **The fork, open:**
+A — thread `PipelineDiagnostics` into `TurnCoordinator` so reply failures
+can publish health events (the mind's tripwire among them). B — accept the
+conversation stream's `turnFailed` as the alarm and amend D-058's wording.
+Until ruled, D-058's promise is read MINUS the health event, and this
+entry is the honest record of the difference.

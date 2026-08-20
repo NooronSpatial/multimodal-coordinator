@@ -2044,6 +2044,16 @@ a measurement rather than an assumption.
   **4096**, read from the machine. A conversation that exceeds it must
   fail honestly and recoverably rather than dying mid-turn, and what the
   person sees is specified.
+  *(status note, forced by the 4f review, which found the specification
+  promised here written NOWHERE: here it is. On `exceededContextWindowSize`
+  the run reports one `.failed` whose text names the context window; the
+  coordinator ends the turn as `turnFailed`, which the demo shows as the
+  utterance's failure line. RECOVERY is structural: sessions are per-turn
+  (D-057 F-2 = A), so the next turn starts with a fresh budget — only a
+  single thought too large for 4096 tokens can never be answered, and it
+  fails with the same named text every time rather than dying mid-turn.
+  Pinned by the forged-error test; not yet produced with a REAL over-long
+  prompt on hardware, and that is owed alongside AC-113's numbers.)*
 - **AC-117 The slice, on real hardware (§3.7).** The iPhone hears a spoken
   question, thinks on-device, and answers out loud through either mouth,
   with the felt pause measured and written down — and with the whole reply

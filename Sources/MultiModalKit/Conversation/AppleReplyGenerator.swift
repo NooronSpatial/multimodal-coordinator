@@ -77,7 +77,15 @@ public struct AppleReplyGenerator: ReplyGenerating {
 
     /// Why a reply cannot start. The three cases are real states of a
     /// user's device, each needing different words on screen (AC-110).
-    public enum Unavailable: Error, Sendable, Equatable {
+    ///
+    /// `CustomStringConvertible` because this error CAN reach a screen:
+    /// when the model goes unavailable BETWEEN turns, `openReply` throws
+    /// it mid-session and the coordinator's failure text carries whatever
+    /// `String(describing:)` yields — which for a bare enum is
+    /// "modelNotReady", gibberish to the person holding the phone. Found
+    /// by the 4f review; the words below are the same ones the demo's
+    /// caption uses, so the two surfaces cannot drift apart.
+    public enum Unavailable: Error, Sendable, Equatable, CustomStringConvertible {
         case deviceNotEligible
         case appleIntelligenceNotEnabled
         case modelNotReady
@@ -85,6 +93,19 @@ public struct AppleReplyGenerator: ReplyGenerating {
         /// is non-frozen, and pretending otherwise is a build break under
         /// warnings-as-errors the day Apple adds a case (AC-114).
         case unknown(String)
+
+        public var description: String {
+            switch self {
+            case .deviceNotEligible:
+                "this device cannot run the on-device model"
+            case .appleIntelligenceNotEnabled:
+                "Apple Intelligence is switched off in Settings"
+            case .modelNotReady:
+                "the on-device model is still downloading — try later"
+            case .unknown(let reason):
+                "the model is unavailable: \(reason)"
+            }
+        }
     }
 
     /// The app's told-it-is-speaking instruction (D-057 F-3 = A). The

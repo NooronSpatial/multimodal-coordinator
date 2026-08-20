@@ -1410,9 +1410,15 @@ That is AC-115 PROVEN where it matters: the model's cold start costs
 is being paid where it was designed to be paid: in `refreshMind()`, at
 launch and picker-flip, never inside anyone's first question.
 
-**AC-117's field evidence is COMPLETE:** offline answers · felt pause
-567 ms warm and 542 ms first-turn · a barge kills a thinking reply
-immediately and the pipeline listens until the speaker finishes. What
-remains for the milestone is machinery, not evidence: the adversarial
-review (D-041), the live conformance-kit run (gated on a Mac whose
-model download is still stuck), and the merge.
+**AC-117's field evidence, precisely** (the 4f review caught the first
+version of this paragraph saying "COMPLETE" and "machinery, not
+evidence", both overstated): offline answers · felt pause 567 ms warm
+and 542 ms first-turn · a barge kills a thinking reply immediately and
+the pipeline listens until the speaker finishes — all with the APPLE
+mouth. Still owed as EVIDENCE, not machinery: the neural-mouth run
+(AC-117 says "either mouth" and only one has been heard with the mind),
+AC-113's measured numbers (how long until `isResponding` clears after a
+normal end and after a cancel; whether a cancelled turn spends context
+budget), a real over-budget prompt for AC-116, and the live
+conformance-kit run (gated on a Mac whose model download is still
+stuck). Then the machinery: the review's findings closed, and the merge.

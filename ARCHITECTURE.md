@@ -69,7 +69,7 @@ the bottom.
                      │                     costs the first half (4c).
                      ▼  via the turn seams (TurnCoordination, 91)
                   ├─ ReplyGenerating       final text in, reply tokens out
-                  │    └─ AppleReplyGenerator (305)   THE MIND (4f): Apple's
+                  │    └─ AppleReplyGenerator (326)   THE MIND (4f): Apple's
                   │         on-device model, a SYSTEM framework, so core's
                   │         zero-dependency vow holds (D-057 F-5). One
                   │         session per turn; snapshots → SnapshotDiffer
@@ -235,8 +235,8 @@ variable, and every fault of that afternoon was findable in one command
 
 ## The shape in numbers
 
-Everything that is not a test is 9,924 lines; the library core is 4,387,
-and the tests are 6,808 — more test than library, which is the point. The
+Everything that is not a test is 10,065 lines; the library core is 4,408,
+and the tests are 6,928 — more test than library, which is the point. The
 biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
 `find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
 the untracked `local_clone/`.)
@@ -252,8 +252,8 @@ by running the command this paragraph hands the reader. A page that fixes
 un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
 is about, committed inside the correction for it.
 
-The test folder mirrors this map roughly one suite per box — **29 suites,
-252 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+The test folder mirrors this map roughly one suite per box — **30 suites,
+253 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

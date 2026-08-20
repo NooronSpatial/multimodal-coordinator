@@ -586,7 +586,14 @@ struct ContentView: View {
             // probe already refused to start while listening, but nothing
             // stopped listening from starting while a probe held the
             // process-wide session.
-            .disabled(model.probeStatus != nil)
+            // And the MIND's gate (AC-110, found by the 4f review): when
+            // the Apple mind is selected and unavailable, start() refuses
+            // silently — so without this, tapping Listen did NOTHING, the
+            // exact silent dead button AC-110 forbids. Disabled + the red
+            // caption naming the reason = honest.
+            .disabled(model.probeStatus != nil
+                      || (model.talkEnabled && model.mind == .apple
+                          && model.mindUnavailable != nil))
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
