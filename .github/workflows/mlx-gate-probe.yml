@@ -1,0 +1,76 @@
+# THE MLX GATE'S LAST UNKNOWN (D-057 F-6, INSTRUMENTS §24).
+#
+# The spike proved on Ryad's Mac that `swift test` CAN run MLX once a
+# 3.6 MB `default.metallib` sits in the working directory — so adopting a
+# second mind does not mean abandoning `swift test`, which was F-6's
+# whole objection. What no Mac in this house can answer is what the
+# HOSTED runner has: does `macos-26` ship the Metal toolchain, or would
+# every CI run pay 688 MB to build that artefact?
+#
+# This job asks, and nothing else. It never builds the library, never
+# runs the suite, and lives on spike branches only — the real CI
+# (ci.yml) is untouched by design, because a probe that can break the
+# thing it is measuring is not a probe.
+name: MLX gate probe
+
+on:
+  push:
+    branches: ['spike/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  metal-toolchain:
+    name: does macos-26 have the Metal toolchain?
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - name: The environment, stated before anything is asked
+        run: |
+          echo "xcode: $(xcodebuild -version | head -1)"
+          echo "swift: $(swift --version 2>&1 | head -1)"
+          echo "disk:  $(df -h / | tail -1 | awk '{print $4}') free"
+
+      # THE QUESTION. `metal` exists as a stub even when the toolchain is
+      # absent — Ryad's Mac had the binary and still refused — so the
+      # honest test is running it, not finding it.
+      - name: Is `metal` usable out of the box?
+        id: preinstalled
+        run: |
+          if xcrun metal --version 2>&1 | tee /tmp/metal.txt; then
+            echo "verdict=preinstalled" >> "$GITHUB_OUTPUT"
+            echo "PREINSTALLED — no download, no CI cost"
+          else
+            echo "verdict=absent" >> "$GITHUB_OUTPUT"
+            echo "ABSENT — the runner would have to fetch it"
+            cat /tmp/metal.txt
+          fi
+
+      # Only if absent: what would it COST every run? Timed, because
+      # "it works" and "it works in 90 seconds" are different answers
+      # for a CI that runs on every push.
+      - name: If absent, time the download
+        if: steps.preinstalled.outputs.verdict == 'absent'
+        run: |
+          start=$(date +%s)
+          xcodebuild -downloadComponent MetalToolchain 2>&1 | tail -3
+          echo "download took $(( $(date +%s) - start ))s"
+          xcrun metal --version 2>&1 | head -2
+
+      # And the real proof: with the toolchain present, can this runner
+      # actually LINK a metallib? Nothing else in the gate matters if
+      # the answer here is no.
+      - name: Can this runner link a trivial metallib?
+        run: |
+          cat > /tmp/probe.metal <<'METAL'
+          #include <metal_stdlib>
+          using namespace metal;
+          kernel void add(device float* out [[buffer(0)]],
+                          uint i [[thread_position_in_grid]]) { out[i] += 1.0; }
+          METAL
+          xcrun metal -c /tmp/probe.metal -o /tmp/probe.air
+          xcrun metallib /tmp/probe.air -o /tmp/probe.metallib
+          ls -la /tmp/probe.metallib
+          echo "VERDICT: this runner can build Metal shaders"
