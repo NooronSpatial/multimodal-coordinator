@@ -85,7 +85,7 @@ the bottom.
                      ├─ AppleSpeechSynthesizer (326)   thin: hand text to
                      │     the framework, report delegate evidence. Picks
                      │     the best INSTALLED voice. Behind the 4g shield
-                     │     it opens AppleWrittenSynthesisRun (287) instead:
+                     │     it opens AppleWrittenSynthesisRun (282) instead:
                      │     write() hands us the PCM and the reply renders
                      │     on the capture host — both mouths, one road,
                      │     the canceller sees them all (AC-121).
