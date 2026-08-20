@@ -1625,3 +1625,30 @@ canceller removes what its own unit renders, so the reply now renders
 there. What remains in 4g: the Apple mouth's PCM through the same host
 (AC-121, `write()`), the loud fallback when a hosted graph refuses
 (AC-123), the label rewritten with these numbers (AC-124), review, merge.
+
+### AC-121 in the field: works — with an intermittent self-barge
+
+The shielded APPLE mouth on the loudspeaker: "working most of the time,
+but sometimes it barges itself." Recorded before any fix, with the
+suspects and what would convict each (D-054 rule 4):
+
+1. **Residual over the gate.** The canceller attenuates, it does not
+   erase — the matrix read tone residuals 0.0036–0.0766, and the demo's
+   gate is 0.021: the upper end of measured residual is ABOVE it. Speech
+   is burstier than a tone. Convicted by: `echo?` rows with peaks just
+   above the gate (0.02–0.08).
+2. **Canceller convergence at reply onset.** Adaptive filters take a
+   moment; leaks would cluster at the START of replies.
+3. **The lazy attach.** The written run attaches its player at the first
+   buffer, mid-run on a live voice-processing engine; a transient there
+   would also cluster at reply starts, first reply especially.
+4. **The 22.05 kHz path.** Apple's written voices deliver ~22 kHz PCM
+   into a 48 kHz chain; resampling delay can mis-align the canceller's
+   reference — which would make Apple's mouth leak more than the neural
+   one (24 kHz) does. Convicted by: neural clean, Apple leaky, same
+   session.
+
+The instruments to convict are ALREADY ON SCREEN: the per-utterance
+`peak · ms · echo?` rows, and the gate slider — 0.021 was earned on the
+receiver route in 4d's era, and AC-97's own law says every device AND
+route earns its number from a run, not by inheritance.
