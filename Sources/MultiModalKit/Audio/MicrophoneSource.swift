@@ -57,6 +57,11 @@ public final class MicrophoneSource: AudioSource {
     /// Counting it does not fix it. It makes it VISIBLE, which is the
     /// difference between a bug and a mystery.
     public var configurationChanges: Int { reconfigurations.count }
+    /// How many times a hosting engine was restarted after stopping
+    /// itself on a configuration change (4g, INSTRUMENTS §23). Zero on
+    /// every non-hosting engine, by construction — the cure exists only
+    /// where the measurement said it works.
+    public var engineRestarts: Int { restarts.count }
     /// Whether the reconfiguration watch is actually installed. Public
     /// because the counter above was silently orphaned once: a reader
     /// who can see `0` but cannot see whether anyone is counting has no
@@ -66,6 +71,7 @@ public final class MicrophoneSource: AudioSource {
     /// `@Sendable`, and this class is not — so what crosses into it is a
     /// tiny object holding one atomic, never `self`.
     private let reconfigurations = ReconfigurationCount()
+    private let restarts = ReconfigurationCount()
     /// True while the engine's graph is actually running. `isRunning`
     /// above is OUR intent; this is the engine's own answer, and they
     /// disagree exactly when something has gone wrong behind our back.
@@ -150,34 +156,38 @@ public final class MicrophoneSource: AudioSource {
         }
 
         let input = engine.inputNode
+        // THE ORDER, FOURTH ATTEMPT — and this one was measured on the
+        // PHONE, by the 4g shield matrix, not inferred from a Mac. The
+        // history, kept because each line cost a field trip:
+        //
+        //   format → tap → mixer   the phone went DEAF: creating the
+        //                          mixer renegotiates the unit, and the
+        //                          tap was already holding a dead format
+        //   mixer → format → tap   (Mac) inputFormat returned 0 Hz and
+        //                          capture could not start at all
+        //   vp → mixer → …         (the third attempt) STARTS — and on
+        //                          the phone the mixer binds at 44100 Hz
+        //                          against a 48000 Hz session, a
+        //                          configuration change fires, and in
+        //                          one measured shape the engine stopped
+        //                          itself dead (INSTRUMENTS §23)
+        //   MIXER → VP → …         zero configuration changes, mixer at
+        //                          the session's own rate, tone audible
+        //                          AND cancelled to peak 0.03–0.08
+        //                          against the disease's 1.0 — the
+        //                          calmest graph the matrix found
+        //
+        // So when this engine hosts playback, the output half is built
+        // FIRST and the voice-processing unit second — it then
+        // negotiates against a graph whose output side already exists.
+        if hostsPlayback {
+            _ = engine.mainMixerNode
+        }
         if voiceProcessing {
             // BEFORE the format read: the unit re-negotiates the input format
             // (this Mac: 48 kHz stays, but that is a measurement, not a law).
             try input.setVoiceProcessingEnabled(true)
             voiceProcessingActive = input.isVoiceProcessingEnabled
-        }
-        // THE ORDER, THIRD ATTEMPT — and this time it is measured, not
-        // reasoned about. `bakeoff voice-onmic` runs this exact path on
-        // a Mac with one variable, and the first two attempts died in
-        // ways a person had to discover on a phone:
-        //
-        //   format → tap → mixer   the phone went DEAF: creating the
-        //                          mixer renegotiates the unit, and the
-        //                          tap was already holding a dead format
-        //   mixer → format → tap   inputFormat returns 0 Hz / 0 channels
-        //                          and capture cannot start at all —
-        //                          "the state is always idle"
-        //
-        // The mixer must exist before the engine is prepared, because
-        // the output half of a voice-processing unit cannot be built
-        // while it renders. And the input format is only valid AFTER
-        // `prepare`, because that is when the graph is resolved against
-        // the hardware. So both go before it, and everything that reads
-        // a format goes after:
-        //
-        //   mixer → prepare → read format → tap → start
-        if hostsPlayback {
-            _ = engine.mainMixerNode
         }
         engine.prepare()
 
@@ -244,14 +254,23 @@ public final class MicrophoneSource: AudioSource {
         // has now committed three times. Hence the property below: an
         // instrument that cannot be asked whether it is switched on is
         // an instrument that will be switched off again.
+        let restartBox: EngineRestartBox? = hostsPlayback
+            ? EngineRestartBox(engine: engine, restarts: restarts) : nil
         configurationObserver = NotificationCenter.default.addObserver(
             forName: .AVAudioEngineConfigurationChange,
             object: engine, queue: nil
         ) { [reconfigurations] _ in
-            // Counts; does not restart. Restarting a graph from inside
-            // its own reconfiguration notification is how a loop gets
-            // built, and a measurement comes before a cure.
             reconfigurations.increment()
+            // THE CURE, measured before it was written (D-054's order):
+            // the 4g matrix ran an arrangement whose only difference was
+            // restart-on-change, and it fired once and HELD — capture
+            // alive, tone audible, canceller working (INSTRUMENTS §23).
+            // Hosting engines only: the shipping arrangement keeps the
+            // watch-and-count behavior it has had since 4e, byte for
+            // byte. The old warning stands for the rest: restarting a
+            // graph from inside its own notification is how a loop gets
+            // built, so the box refuses when the engine already runs.
+            restartBox?.restartIfStopped()
         }
 
         // Already prepared above, before the format was read.
@@ -311,6 +330,26 @@ final class ReconfigurationCount: @unchecked Sendable {
     private let value = Atomic<Int>(0)
     func increment() { value.wrappingAdd(1, ordering: .relaxed) }
     var count: Int { value.load(ordering: .relaxed) }
+}
+
+/// The engine and the restart counter, boxed for the notification
+/// closure (4g). `@unchecked Sendable` with the proof written out: the
+/// engine is touched from exactly one place here — the configuration-
+/// change notification, which AVFoundation serializes per engine — and
+/// only when it is NOT running, so the box never races the render thread
+/// of a live graph. `isRunning`/`start` are the same calls the probe's
+/// arrangement made, measured working (INSTRUMENTS §23).
+final class EngineRestartBox: @unchecked Sendable {
+    private let engine: AVAudioEngine
+    private let restarts: ReconfigurationCount
+    init(engine: AVAudioEngine, restarts: ReconfigurationCount) {
+        self.engine = engine
+        self.restarts = restarts
+    }
+    func restartIfStopped() {
+        guard !engine.isRunning else { return }
+        if (try? engine.start()) != nil { restarts.increment() }
+    }
 }
 
 final class InputLevelBox: @unchecked Sendable {

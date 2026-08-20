@@ -151,6 +151,16 @@ final class TranscribeModel {
     /// field is both, so a parked error cannot disable the instrument).
     private(set) var shieldStatus: String?
     private(set) var shieldReport: [String] = []
+    /// THE SPEAKER SHIELD (4g, AC-120): replies render on the capture
+    /// engine, where the canceller can see them. OPT-IN per D-060 F-4 —
+    /// the library default stays off; this app chooses. Restart-like the
+    /// other choices: it reshapes a running graph.
+    var speakerShield = false {
+        didSet {
+            guard speakerShield != oldValue else { return }
+            if isListening { restart() }
+        }
+    }
     /// ONE generator, held: `prewarm()` pays the measured ~1.5 s model
     /// warm-up (INSTRUMENTS §22) once, outside anyone's first turn
     /// (AC-115). The INSTRUCTIONS are the app's text, not the library's
@@ -614,15 +624,14 @@ final class TranscribeModel {
             // re-measures here or claims nothing.
             voiceProcessing: talkEnabled,
             session: PhoneSession(talking: talkEnabled, useSpeaker: useSpeaker),
-            // FALSE, BY RULING (D-049). Rendering the reply on the
-            // capture engine is reversed: voice processing and an output
-            // chain cannot coexist on one engine (INSTRUMENTS §17), so
-            // asking for one stopped capture from starting at all — the
-            // phone's "state is always idle". The neural voice now uses
-            // its own engine, its reply is not echo-cancelled on iOS
-            // (D-043's cost, accepted again), and the capture-side host
-            // waits for 4f behind the Mac harness that now exists.
-            hostsPlayback: false)
+            // THE SHIELD (4g, AC-120). D-049 turned this off when the
+            // hosted arrangement killed capture; the shield matrix then
+            // measured WHY (a Mac fact plus an ordering bug plus session
+            // contamination) and found the calm arrangement — chain
+            // before vp, restart as the belt (INSTRUMENTS §23). Opt-in
+            // by ruling (D-060 F-4): the person flips it, the library
+            // never assumes it.
+            hostsPlayback: talkEnabled && speakerShield)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -693,9 +702,14 @@ final class TranscribeModel {
         // was written. What stays is the margin reporting: the decode
         // numbers are how anyone will know whether this phone can run
         // this voice at all, and they do not depend on where it renders.
+        let captureHost = microphone.playbackHost
         pipeline = Task { [weak self] in
             if let self, mouth == .neural {
-                await neuralVoice.render(on: neuralHost)
+                // WHERE THE REPLY RENDERS (4g): behind the shield it
+                // goes to the CAPTURE engine's host — the whole point,
+                // the canceller can only remove what its own unit
+                // renders (D-043). Unshielded, the 4e arrangement stands.
+                await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
                 await neuralVoice.reportMargins { margin in
                     // The graph's rate is refreshed HERE, with the
                     // margin, because it only becomes real when a reply

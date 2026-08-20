@@ -158,14 +158,30 @@ struct ContentView: View {
             .toggleStyle(.switch)
             .font(.subheadline)
 
+            if model.talkEnabled {
+                Toggle("Speaker shield (4g) — reply rendered where the canceller sees it",
+                       isOn: Bindable(model).speakerShield)
+                    .toggleStyle(.switch)
+                    .font(.caption)
+                    .disabled(model.isListening)
+            }
+
             // The known limit, said plainly where it bites — not buried in
             // a document the person holding the phone will never open.
+            // With the shield ON the old sentence would be a stale claim:
+            // the label switches to the honest in-between state until
+            // AC-124 rewrites it with the measured reply number.
             if model.talkEnabled && model.useSpeaker {
-                Label("On speaker the reply is not cancelled (measured peak 1.0) — "
-                      + "it will interrupt itself. Receiver or headphones work.",
-                      systemImage: "exclamationmark.triangle")
+                Label(model.speakerShield
+                      ? "Shield ON: the probe measured a tone cancelled to 0.03–0.08 "
+                        + "(vs 1.0 unshielded). The real reply's number is being measured — "
+                        + "the barge counters below tell the truth."
+                      : "On speaker the reply is not cancelled (measured peak 1.0) — "
+                        + "it will interrupt itself. Receiver or headphones work.",
+                      systemImage: model.speakerShield
+                      ? "shield.lefthalf.filled" : "exclamationmark.triangle")
                     .font(.caption2)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(model.speakerShield ? .blue : .orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
