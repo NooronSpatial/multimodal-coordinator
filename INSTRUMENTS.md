@@ -1575,3 +1575,33 @@ RESTART-on-configuration-change (the 4e watch, finally acting) ·
 chain-built-BEFORE-vp (order swap). Simulator shakedown: mechanics
 green, and one preview worth carrying — the order swap binds the mixer
 at the session's 48000 where vp-first leaves it at 44100.
+
+### AC-119: PASSED — the canceller sees what the capture engine renders
+
+Matrix v2 on the phone, speaker route, two taps:
+
+| arrangement | mic read (peak) | audible? | alive | notes |
+|---|---|---|---|---|
+| 1 shipping, no tone | 0.0031 | — | y/y | the quiet room |
+| 2 vp+chain plain | 0.0396 | **LOW heard** | y/y | cfg 1, survived |
+| 3 vp+chain restart | 0.0112 | **MID heard** | y/y | cfg 1, **restarts 1** — the cure fires and holds |
+| 4 chain-then-vp | 0.0650 | run 1 silent, **run 2 HIGH heard** | y/y | cfg 0 |
+
+**The number that closes the gate:** a beep loud enough to hear across
+the room reached the microphone at peak 0.01–0.07 — against D-043's
+disease, where the uncancelled reply hit **1.0000**. That is a 25–90×
+reduction: **iOS voice processing removes audio rendered on its own
+engine.** F-1 = A is validated on the device that matters.
+
+**What the earlier deaths were:** v1 ran four arrangements on ONE
+session activation and the vp+chain engines died; v2 cycles the session
+per engine and everything lives. The very first (single) probe also
+died with an isolated session — its player was attached at the MIC's
+48 kHz into a 44.1 kHz mixer mid-run, the suspected killer; v2 attaches
+at the mixer's own rate. Both suspects are covered by one hardening:
+restart-on-configuration-change, measured working in arrangement 3.
+
+**Observed, not explained:** beep audibility varied between two
+identical taps (run 1: LOW+MID; run 2: all three). The product path runs
+one arrangement per session start, so this sequencing variance does not
+gate AC-120 — recorded so nobody mistakes it for settled.

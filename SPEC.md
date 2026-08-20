@@ -2209,7 +2209,12 @@ is exactly what D-054 exists to prevent.**
 
 ## 79. Acceptance criteria (4g)
 
-- **AC-119 THE GATE, measured before any fix (AC-104 at last).** First
+- **AC-119 THE GATE, measured before any fix (AC-104 at last).**
+  *(status: PASSED, 2026-08-20, on the phone — the graph runs isolated,
+  and an audible tone rendered on the capture engine reached the mic at
+  peak 0.01–0.07 against the disease's 1.0000. INSTRUMENTS §23. The
+  mechanism for AC-120 is arrangement 3's: hosted rendering plus
+  restart-on-configuration-change.)* First
   the Simulator, driven by the machine: `hostsPlayback` on, capture
   running, a reply rendered on the capture engine — does the graph START,
   with sane formats? Then the phone, once, with the echo probe:
