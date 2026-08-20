@@ -1,4 +1,5 @@
 import AVFAudio
+import Synchronization
 import MultiModalKit
 import MultiModalKitTesting
 import MultiModalKitTTS
@@ -964,7 +965,14 @@ final class TranscribeModel {
             + "route: \(useSpeaker ? "speaker" : "receiver")")
 
         var scratch = [Float](repeating: 0, count: consumer.capacity)
-        func measure(for seconds: Double) async -> (peak: Float, rms: Float) {
+        // FRAMES ARE REPORTED, not only levels. The first phone run of
+        // this probe printed peak 0.0000 on BOTH routes — and this
+        // instrument could not say whether that was FRAMES OF SILENCE (a
+        // capture side muted by the output chain, a new fault) or NO
+        // FRAMES AT ALL (a tap that never fired). An instrument that
+        // cannot tell those apart cannot say whether it is switched on —
+        // D-054 rule 5, violated by my own probe on its first field run.
+        func measure(for seconds: Double) async -> (peak: Float, rms: Float, frames: Int) {
             var peak: Float = 0
             var sumOfSquares: Float = 0
             var total = 0
@@ -979,13 +987,15 @@ final class TranscribeModel {
                     total += result.framesRead
                 }
             }
-            return (peak, (sumOfSquares / Float(max(total, 1))).squareRoot())
+            return (peak, (sumOfSquares / Float(max(total, 1))).squareRoot(), total)
         }
 
         shieldStatus = "measuring the quiet room…"
         let quiet = await measure(for: 2)
-        shieldReport.append(String(format: "quiet room: peak %.4f · rms %.4f",
-                                   quiet.peak, quiet.rms))
+        shieldReport.append(String(format: "quiet room: peak %.4f · rms %.4f · frames %d",
+                                   quiet.peak, quiet.rms, quiet.frames))
+        shieldReport.append(String(format: "tap's own level (4e instrument): %.4f",
+                                   microphone.inputLevel))
 
         // The tone, rendered where the canceller can see it — THE point.
         shieldStatus = "tone through the capture engine — stay quiet…"
@@ -1015,12 +1025,25 @@ final class TranscribeModel {
             return
         }
         defer { microphone.playbackHost.detachFromPlayback(player) }
-        player.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+        // The render side gets witnesses too: was the buffer ever CONSUMED,
+        // and what does the graph say mid-tone. (Plus the one witness only
+        // Ryad has: was the tone AUDIBLE in the room?)
+        let toneConsumed = Mutex(false)
+        player.scheduleBuffer(buffer, at: nil, options: []) {
+            toneConsumed.withLock { $0 = true }
+        }
         player.play()
         let toned = await measure(for: 4)
+        let playerStillPlaying = player.isPlaying
+        let hostRate = microphone.playbackHost.outputSampleRate
         player.stop()
-        shieldReport.append(String(format: "during tone: peak %.4f · rms %.4f",
-                                   toned.peak, toned.rms))
+        shieldReport.append(String(format: "during tone: peak %.4f · rms %.4f · frames %d",
+                                   toned.peak, toned.rms, toned.frames))
+        shieldReport.append(String(format: "tap level mid-run: %.4f · tone consumed: %@ · "
+            + "player playing at end: %@ · host graph rate: %.0f Hz",
+            microphone.inputLevel,
+            toneConsumed.withLock { $0 } ? "yes" : "NO" as NSString,
+            playerStillPlaying ? "yes" : "NO" as NSString, hostRate))
         // The verdict states the COMPARISON, not a conclusion the numbers
         // do not carry: on a Simulator the mic is the host's and the
         // speaker path is virtual, so only the phone's numbers convict.

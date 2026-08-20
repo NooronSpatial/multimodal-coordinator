@@ -1495,3 +1495,31 @@ canceller — needs Ryad's iPhone, twice: once on the receiver route,
 once with Speaker on. Near the quiet room's numbers = the canceller
 sees the hosted tone and F-1 = A proceeds; near full scale = D-043's
 disease unmoved by routing, and the spec's fallbacks take over.
+
+### The phone's first shield runs — and the probe's own blind spot (2026-08-20)
+
+Both routes, receiver and speaker, on Ryad's iPhone:
+
+```
+capture with output chain: STARTED · 48000 Hz     ← D-049's "cannot
+voice processing active: true                        coexist" is DEAD on iOS
+quiet room:  peak 0.0000 · rms 0.0000              ← a real room is NEVER
+during tone: peak 0.0000 · rms 0.0000                digital zero
+```
+
+**Two findings in one screenshot.** The graph result stands — the hosted
+arrangement starts on the device that matters, both routes, voice
+processing active. And the all-zero levels are a NEW fault: the phone's
+own echo probe measured this room at peak 0.0030 in 4d, so zeros mean
+the capture side went silent under the output chain — or the ring never
+received a frame. **The probe could not tell those apart**, which is
+D-054 rule 5 violated by the very instrument built to honor it: it could
+not say whether it was switched on.
+
+**The probe grew eyes before the phone was asked again:** frame counts
+on every measurement (frames-of-silence vs no-frames-at-all), the 4e
+ungated tap level as a cross-instrument (dead tap vs dead ring path),
+tone-consumed and player-playing witnesses on the render side, and the
+host graph rate read back. Verified machine-driven on the Simulator:
+100800/201600 frames counted, tap level 0.0131, tone consumed. The
+witness only Ryad has: whether the tone was AUDIBLE in the room.
