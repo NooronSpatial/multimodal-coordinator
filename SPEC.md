@@ -2254,6 +2254,9 @@ is exactly what D-054 exists to prevent.**
 
 ## 81. The design forks (4g) — for Ryad to rule
 
+*(Ruled 2026-08-19, D-060: F-1 = A, F-2 = A, F-3 = B, F-4 = A — all on
+the recommendations. AC-119 measures before anything ships.)*
+
 - **F-1 THE MECHANISM.** A: render replies on the capture engine's
   voice-processing unit — the only path D-043's measurement endorses,
   and AC-108 already built its seam. B: software suppression — raise the
