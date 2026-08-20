@@ -1523,3 +1523,27 @@ tone-consumed and player-playing witnesses on the render side, and the
 host graph rate read back. Verified machine-driven on the Simulator:
 100800/201600 frames counted, tap level 0.0131, tone consumed. The
 witness only Ryad has: whether the tone was AUDIBLE in the room.
+
+### The shield becomes a MATRIX (third iteration): four arrangements, one tap
+
+The dead-capture finding turned one question into four, so the probe now
+builds four raw engines in sequence — each its own arrangement, each
+with an output chain beeping at its OWN pitch, so one pair of ears can
+say which arrangements actually sounded:
+
+| # | arrangement | beep |
+|---|---|---|
+| 1 | shipping: vp on input, no output chain (the control that must work) | none |
+| 2 | today's fault: vp on input + output chain | LOW 440 Hz |
+| 3 | no vp + output chain (is vp the killer?) | MID 660 Hz |
+| 4 | THE CANDIDATE: vp on input AND OUTPUT + chain | HIGH 880 Hz |
+
+The candidate encodes the hypothesis: iOS voice processing is a DUPLEX
+unit, and `MicrophoneSource` enables it on the input node only — it
+predates any output chain. Measured, not assumed.
+
+Simulator shakedown (mechanics only; its mic is the host's and its
+arrangement behavior differs from the device): arrangements 1–3 ran with
+frames counted; its arrangement 4 died (`running NO`) — plausibly the
+Simulator cannot do output-node voice processing at all. The device's
+own table is the evidence that counts, and it is one tap away.

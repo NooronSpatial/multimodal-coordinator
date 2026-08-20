@@ -919,139 +919,143 @@ final class TranscribeModel {
         probeStatus = nil
     }
 
-    /// THE SHIELD PROBE (4g, AC-119 — which is AC-104 finally asked, with
-    /// one variable). Starts capture WITH the output chain
-    /// (`hostsPlayback: true`), renders a pure tone through the capture
-    /// engine's own unit, and reads what the microphone hears.
+    /// THE SHIELD MATRIX (4g, AC-119 — third iteration of the harness).
     ///
-    /// On a Simulator it answers the GRAPH question: does this arrangement
-    /// start at all? The Mac says `-10875` (INSTRUMENTS §17), but a
-    /// two-device Mac cannot convict a one-device phone — §17's own words.
-    /// On the phone it answers the CANCELLATION question: a tone the
-    /// canceller sees should leave the room's numbers barely moved; a
-    /// full-scale residual is D-043's disease, unmoved by the routing.
-    /// A TONE, not a voice: no phraser, no mouth, no model — one variable.
+    /// The first phone run said STARTED and then delivered NOTHING: zero
+    /// frames, a tap that never fired, a tone consumed but never heard,
+    /// a mixer at 44100 Hz while capture claimed 48000. So "does the
+    /// hosted arrangement work" became FOUR questions, and this asks all
+    /// of them in one tap — each with its own engine, built by hand,
+    /// because this is an instrument and the product path changes only
+    /// after a number says which arrangement is true.
     ///
-    /// Needs no speech model, so it runs even where an engine will not —
-    /// the echo probe's law, inherited.
+    /// The candidate fix is arrangement 4: iOS voice processing is a
+    /// DUPLEX unit, and `MicrophoneSource` enables it on the INPUT node
+    /// only — it predates any output chain. Whether the output node must
+    /// be enabled too is a hypothesis this run MEASURES, not a fact.
+    ///
+    /// Each arrangement with an output chain beeps at its OWN pitch —
+    /// low 440, mid 660, high 880 — so one pair of ears can say which
+    /// arrangements actually sounded.
     func runShieldProbe() async {
         guard !isListening, probeStatus == nil, shieldStatus == nil else { return }
         shieldReport = []
-        shieldStatus = "starting capture WITH the output chain…"
 
-        let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 16)
-        let microphone = MicrophoneSource(
-            voiceProcessing: true,
-            session: PhoneSession(talking: true, useSpeaker: useSpeaker),
-            // THE WHOLE QUESTION. false is D-049's ruling for the product;
-            // true, here, inside an instrument, is how 4g finds out
-            // whether that ruling was about iOS or about a Mac.
-            hostsPlayback: true)
-        do {
-            try microphone.start(into: producer)
-        } catch {
-            // A refusal IS the graph answer, and it is a RESULT: the
-            // hosted arrangement cannot start on this device. Recorded,
-            // not retried — F-1's fallbacks are priced for exactly this.
-            shieldReport = ["capture with output chain: REFUSED — \(error.localizedDescription)",
-                            "verdict: the hosted arrangement cannot start here (the §17 class)"]
-            shieldStatus = nil
+        struct Arrangement {
+            let name: String
+            let vpInput: Bool
+            let vpOutput: Bool
+            let outputChain: Bool
+            let toneHz: Float
+        }
+        let arrangements: [Arrangement] = [
+            .init(name: "1 shipping: vp-in, no chain", vpInput: true,
+                  vpOutput: false, outputChain: false, toneHz: 0),
+            .init(name: "2 fault: vp-in + chain (LOW beep)", vpInput: true,
+                  vpOutput: false, outputChain: true, toneHz: 440),
+            .init(name: "3 no vp + chain (MID beep)", vpInput: false,
+                  vpOutput: false, outputChain: true, toneHz: 660),
+            .init(name: "4 CANDIDATE: vp-in+out + chain (HIGH beep)", vpInput: true,
+                  vpOutput: true, outputChain: true, toneHz: 880),
+        ]
+
+        let session = PhoneSession(talking: true, useSpeaker: useSpeaker)
+        do { try session.activate() } catch {
+            shieldReport = ["session: REFUSED — \(error.localizedDescription)"]
             return
         }
-        defer { microphone.stop() }
-        shieldReport.append("capture with output chain: STARTED · "
-            + String(format: "%.0f Hz", microphone.sampleRate))
-        shieldReport.append("voice processing active: \(microphone.voiceProcessingActive) · "
-            + "route: \(useSpeaker ? "speaker" : "receiver")")
+        defer { session.deactivate() }
+        shieldReport.append("route: \(useSpeaker ? "speaker" : "receiver") · 4 arrangements, ~15 s · which beeps do you HEAR?")
 
-        var scratch = [Float](repeating: 0, count: consumer.capacity)
-        // FRAMES ARE REPORTED, not only levels. The first phone run of
-        // this probe printed peak 0.0000 on BOTH routes — and this
-        // instrument could not say whether that was FRAMES OF SILENCE (a
-        // capture side muted by the output chain, a new fault) or NO
-        // FRAMES AT ALL (a tap that never fired). An instrument that
-        // cannot tell those apart cannot say whether it is switched on —
-        // D-054 rule 5, violated by my own probe on its first field run.
-        func measure(for seconds: Double) async -> (peak: Float, rms: Float, frames: Int) {
-            var peak: Float = 0
-            var sumOfSquares: Float = 0
-            var total = 0
-            for _ in 0..<max(Int(seconds * 4), 1) {
-                try? await Task.sleep(for: .milliseconds(250))
-                scratch.withUnsafeMutableBufferPointer { buffer in
-                    let result = consumer.read(into: buffer)
-                    for i in 0..<result.framesRead {
-                        peak = max(peak, abs(buffer[i]))
-                        sumOfSquares += buffer[i] * buffer[i]
-                    }
-                    total += result.framesRead
-                }
-            }
-            return (peak, (sumOfSquares / Float(max(total, 1))).squareRoot(), total)
+        for arrangement in arrangements {
+            shieldStatus = "arrangement \(arrangement.name)…"
+            shieldReport.append(await Self.probeArrangement(
+                vpInput: arrangement.vpInput, vpOutput: arrangement.vpOutput,
+                outputChain: arrangement.outputChain, toneHz: arrangement.toneHz,
+                name: arrangement.name))
         }
-
-        shieldStatus = "measuring the quiet room…"
-        let quiet = await measure(for: 2)
-        shieldReport.append(String(format: "quiet room: peak %.4f · rms %.4f · frames %d",
-                                   quiet.peak, quiet.rms, quiet.frames))
-        shieldReport.append(String(format: "tap's own level (4e instrument): %.4f",
-                                   microphone.inputLevel))
-
-        // The tone, rendered where the canceller can see it — THE point.
-        shieldStatus = "tone through the capture engine — stay quiet…"
-        let player = AVAudioPlayerNode()
-        let rate = microphone.sampleRate
-        guard let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
-                                         sampleRate: rate, channels: 1,
-                                         interleaved: false),
-              let buffer = AVAudioPCMBuffer(pcmFormat: format,
-                                            frameCapacity: AVAudioFrameCount(rate * 5))
-        else {
-            shieldReport.append("tone: could not build the buffer — probe incomplete")
-            shieldStatus = nil
-            return
-        }
-        buffer.frameLength = AVAudioFrameCount(rate * 5)
-        if let channel = buffer.floatChannelData {
-            for i in 0..<Int(buffer.frameLength) {
-                channel[0][i] = 0.5 * sinf(2 * .pi * 440 * Float(i) / Float(rate))
-            }
-        }
-        do {
-            try microphone.playbackHost.attachForPlayback(player, format: format)
-        } catch {
-            shieldReport.append("attach for playback: REFUSED — \(error)")
-            shieldStatus = nil
-            return
-        }
-        defer { microphone.playbackHost.detachFromPlayback(player) }
-        // The render side gets witnesses too: was the buffer ever CONSUMED,
-        // and what does the graph say mid-tone. (Plus the one witness only
-        // Ryad has: was the tone AUDIBLE in the room?)
-        let toneConsumed = Mutex(false)
-        player.scheduleBuffer(buffer, at: nil, options: []) {
-            toneConsumed.withLock { $0 = true }
-        }
-        player.play()
-        let toned = await measure(for: 4)
-        let playerStillPlaying = player.isPlaying
-        let hostRate = microphone.playbackHost.outputSampleRate
-        player.stop()
-        shieldReport.append(String(format: "during tone: peak %.4f · rms %.4f · frames %d",
-                                   toned.peak, toned.rms, toned.frames))
-        shieldReport.append(String(format: "tap level mid-run: %.4f · tone consumed: %@ · "
-            + "player playing at end: %@ · host graph rate: %.0f Hz",
-            microphone.inputLevel,
-            toneConsumed.withLock { $0 } ? "yes" : "NO" as NSString,
-            playerStillPlaying ? "yes" : "NO" as NSString, hostRate))
-        // The verdict states the COMPARISON, not a conclusion the numbers
-        // do not carry: on a Simulator the mic is the host's and the
-        // speaker path is virtual, so only the phone's numbers convict.
-        shieldReport.append(String(format:
-            "residual vs quiet: %.1f× — read on the PHONE: near 1× means the "
-            + "canceller sees the tone; near full scale means D-043 unmoved",
-            toned.peak / max(quiet.peak, 0.0001)))
         shieldStatus = nil
+    }
+
+    /// One raw-engine arrangement: build, tap, start, (tone), count, stop.
+    /// The teardown keeps the 4e guards: player stopped, then detached only
+    /// while attached AND wired, then the engine stopped.
+    private nonisolated static func probeArrangement(
+        vpInput: Bool, vpOutput: Bool, outputChain: Bool, toneHz: Float,
+        name: String
+    ) async -> String {
+        let engine = AVAudioEngine()
+        do {
+            if vpInput { try engine.inputNode.setVoiceProcessingEnabled(true) }
+            if vpOutput { try engine.outputNode.setVoiceProcessingEnabled(true) }
+        } catch {
+            return "\(name): vp REFUSED — \(error.localizedDescription)"
+        }
+        if outputChain { _ = engine.mainMixerNode }
+
+        let format = engine.inputNode.inputFormat(forBus: 0)
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            return "\(name): input format INVALID (\(Int(format.sampleRate)) Hz)"
+        }
+        let meter = Mutex<(frames: Int, peak: Float)>((0, 0))
+        engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
+            guard let data = buffer.floatChannelData else { return }
+            var peak: Float = 0
+            for i in 0..<Int(buffer.frameLength) { peak = max(peak, abs(data[0][i])) }
+            meter.withLock {
+                $0.frames += Int(buffer.frameLength)
+                $0.peak = max($0.peak, peak)
+            }
+        }
+        engine.prepare()
+        do { try engine.start() } catch {
+            engine.inputNode.removeTap(onBus: 0)
+            return "\(name): start REFUSED — \(error.localizedDescription)"
+        }
+
+        var player: AVAudioPlayerNode?
+        if outputChain {
+            let mixerRate = engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
+            if let toneFormat = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                              sampleRate: mixerRate, channels: 1,
+                                              interleaved: false),
+               let buffer = AVAudioPCMBuffer(pcmFormat: toneFormat,
+                                             frameCapacity: AVAudioFrameCount(mixerRate * 2)) {
+                buffer.frameLength = AVAudioFrameCount(mixerRate * 2)
+                if let channel = buffer.floatChannelData {
+                    for i in 0..<Int(buffer.frameLength) {
+                        channel[0][i] = 0.4 * sinf(2 * .pi * toneHz * Float(i) / Float(mixerRate))
+                    }
+                }
+                let p = AVAudioPlayerNode()
+                engine.attach(p)
+                engine.connect(p, to: engine.mainMixerNode, format: toneFormat)
+                p.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+                p.play()
+                player = p
+            }
+        }
+
+        try? await Task.sleep(for: .milliseconds(2500))
+        let (frames, peak) = meter.withLock { $0 }
+        let running = engine.isRunning
+        let mixerRate = outputChain
+            ? engine.mainMixerNode.outputFormat(forBus: 0).sampleRate : 0
+
+        if let p = player {
+            p.stop()
+            if engine.attachedNodes.contains(p),
+               !engine.outputConnectionPoints(for: p, outputBus: 0).isEmpty {
+                engine.detach(p)
+            }
+        }
+        engine.inputNode.removeTap(onBus: 0)
+        engine.stop()
+
+        var line = String(format: "%@: frames %d · peak %.4f · running %@",
+                          name, frames, peak, running ? "yes" : "NO")
+        if outputChain { line += String(format: " · mixer %.0f Hz", mixerRate) }
+        return line
     }
 
     // MARK: - interruptions (AC-94, D-042 F-2 = A and F-5 = B)
