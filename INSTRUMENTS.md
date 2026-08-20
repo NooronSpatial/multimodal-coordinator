@@ -1706,3 +1706,41 @@ pushing one CI job, and it is the only gate item left besides the phone.
 2026-06-12: Qwen3-0.6B-4bit (334 MB), Qwen3-4B-4bit (2.1 GB),
 Qwen3-8B-4bit (4.3 GB), whisper-large-v3-turbo (1.5 GB). The second
 mind's model needs no download.
+
+### The runner's answer (2026-08-20) — the gate's last unknown, closed
+
+Pushed a probe job to `macos-26`, the repo's own CI runner, asking one
+question and building nothing else:
+
+```
+xcode: Xcode 26.6 · swift 6.3.3 · 96 Gi free
+metal: PREINSTALLED — "Apple metal version 32023.883"
+proof: compiled a .metal and linked probe.metallib (3,481 bytes) ON THE RUNNER
+```
+
+**The runner ships the Metal toolchain.** No 688 MB download per run, no
+vendored binary artefact required, and no committed blob in a repo whose
+method is reproducibility. A CI step can BUILD the metallib from source
+on the runner and place it where `swift test` finds it — the same
+working-directory trick measured in §24.
+
+`metal` was tested by RUNNING it, not by finding it: this Mac had the
+binary present and still refused, so presence is not the question.
+
+**All four gate items now have answers:**
+
+| item | answer |
+|---|---|
+| Metal toolchain on the dev Mac | installed (688 MB); necessary, not sufficient |
+| MLX computes | yes, via an Xcode build |
+| `swift test` runs MLX | **yes**, with a 3.6 MB `default.metallib` in the working directory |
+| the CI runner | **has the toolchain preinstalled** and can link a metallib |
+| the models | already on disk since 2026-06-12 |
+
+**What F-6's deferral rested on no longer holds.** The ruling said MLX
+"would compile everywhere and RUN nowhere in the current toolchain" and
+that the build system "is not behind the protocol at all". The first
+half is refuted by measurement; the second half stands but shrinks to
+one CI step. What remains genuinely unmeasured is the PHONE: a token,
+its time-to-first-token, and peak memory — the numbers that decide
+whether a second mind feels alive rather than merely compiles.
