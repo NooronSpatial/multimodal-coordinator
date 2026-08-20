@@ -2058,6 +2058,12 @@ a measurement rather than an assumption.
   question, thinks on-device, and answers out loud through either mouth,
   with the felt pause measured and written down — and with the whole reply
   cancellable by a barge, proven in the field, not only in tests.
+  *(status: MET, both mouths, in the field — Apple mouth 542/567 ms felt
+  pause, neural mouth 524 ms, barges landing through both, offline
+  answers proven. The same run finally measured the iPhone's neural RTF
+  at 1.21 — the number 4e's AC-102/AC-104 owed — and it is above 1.0,
+  which validates D-055 and names the voice milestone's first task.
+  INSTRUMENTS §22.)*
 - **AC-118 Hygiene.** Swift 6 strict, zero warnings in debug AND release
   with `-warnings-as-errors`, 20× stable, ARCHITECTURE.md updated, and the
   code adversarially reviewed BEFORE the merge (D-041).

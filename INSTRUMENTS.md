@@ -1415,10 +1415,50 @@ version of this paragraph saying "COMPLETE" and "machinery, not
 evidence", both overstated): offline answers · felt pause 567 ms warm
 and 542 ms first-turn · a barge kills a thinking reply immediately and
 the pipeline listens until the speaker finishes — all with the APPLE
-mouth. Still owed as EVIDENCE, not machinery: the neural-mouth run
-(AC-117 says "either mouth" and only one has been heard with the mind),
-AC-113's measured numbers (how long until `isResponding` clears after a
+mouth. Still owed as EVIDENCE, not machinery *(amended 08-19: the neural-mouth
+run HAPPENED — the next section carries it — leaving the rest)*: AC-113's measured numbers (how long until `isResponding` clears after a
 normal end and after a cancel; whether a cancelled turn spends context
 budget), a real over-budget prompt for AC-116, and the live
 conformance-kit run (gated on a Mac whose model download is still
 stuck). Then the machinery: the review's findings closed, and the merge.
+
+### The second field run: the mind through the NEURAL mouth (2026-08-19, Ryad's iPhone)
+
+The pair AC-117 demanded and the first run did not cover. Mind = Apple,
+Voice = Neural, receiver route, real questions, real barges. Screenshot
+numbers, read off the device:
+
+| fact | number |
+|---|---|
+| felt pause (mind + neural mouth) | **524 ms** |
+| felt pause (mind + Apple mouth, prior runs) | 542 / 567 ms |
+| neural decode, steady | **1.21× real time — TOO SLOW, the screen's own words** |
+| neural prefill | 751 ms |
+| barges | 2 onsets while speaking, 2 barges — every interruption landed |
+| thermal badge during the run | **hot** |
+| the ear's verdict | "voice still sounds slow" |
+
+**Three debts paid by one screenshot:**
+
+1. **AC-117 is met on both mouths.** The felt pause barely moves between
+   mouths (524 vs 542) because it measures to FIRST audio, and the
+   phraser hands the first clause over quickly either way.
+2. **The iPhone's neural RTF — owed since 4e's AC-102/AC-104 — is 1.21.**
+   The Mac measured 0.752 and the phone was never measured; now it is,
+   in the field, with the mind feeding it. Above 1.0 means this phone
+   cannot decode as fast as it plays, so the voice runs dry mid-reply —
+   the ear's "still sounds slow" is the number, heard.
+3. **D-055 was prophetic, and the funnel fix mattered.** The stranding
+   hole opened only on a machine with RTF above 1.0, and this phone IS
+   that machine. Had the lead been derived from the phone's own number,
+   the pre-fix `finishTokens()` could have stranded replies here.
+
+**The consequence, recorded rather than built:** `NeuralVoice.defaultLead`
+derives from the MAC's 0.752, so the phone runs a ZERO lead and starves.
+The sizing rule already exists and is injectable — at RTF 1.21 it asks
+for roughly 1.3 s of lead on a 6 s reply
+(`PlaybackLead.deficit(forReplyOf:realTimeFactor:)`). Wiring a
+phone-measured lead through the demo is the voice-quality milestone's
+work (deferred by D-050), and its number is now waiting for it. Thermal
+"hot" during neural+mind is likewise recorded as observed, not yet as a
+measured stop-latency/thermal table — that half of AC-102's debt stands.
