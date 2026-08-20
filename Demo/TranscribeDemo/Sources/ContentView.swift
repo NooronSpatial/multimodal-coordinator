@@ -47,19 +47,26 @@ struct ContentView: View {
                 }
                 if model.shieldStatus != nil || !model.shieldReport.isEmpty {
                     Divider()
-                    VStack(alignment: .leading, spacing: 2) {
-                        if let status = model.shieldStatus {
-                            Label(status, systemImage: "hourglass")
-                                .foregroundStyle(.secondary)
+                    // A SCROLL VIEW, from the field: matrix v2's eight
+                    // witness columns outgrew the strip and pushed the
+                    // last arrangements off screen — a report you cannot
+                    // read is a dead instrument with extra steps.
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 2) {
+                            if let status = model.shieldStatus {
+                                Label(status, systemImage: "hourglass")
+                                    .foregroundStyle(.secondary)
+                            }
+                            ForEach(model.shieldReport, id: \.self) { line in
+                                Text(line)
+                            }
                         }
-                        ForEach(model.shieldReport, id: \.self) { line in
-                            Text(line)
-                        }
+                        .font(.caption2.monospaced())
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal)
+                        .padding(.vertical, 10)
                     }
-                    .font(.caption2.monospaced())
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal)
-                    .padding(.vertical, 10)
+                    .frame(maxHeight: 230)
                 }
             }
             .navigationTitle("MultiModalKit")
