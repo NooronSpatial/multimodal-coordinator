@@ -1653,12 +1653,244 @@ The instruments to convict are ALREADY ON SCREEN: the per-utterance
 receiver route in 4d's era, and AC-97's own law says every device AND
 route earns its number from a run, not by inheritance.
 
+## 24. The MLX spike gate (D-057 F-6) — the CI objection, re-measured and HALF REFUTED
+
+F-6 deferred MLX on a measurement: it builds Swift 6 clean and then
+`swift run` dies with *"Failed to load the default metallib"*, so a
+second mind would compile everywhere and generate nothing — a green
+build that cannot produce one token. The gate demanded four answers
+before any `Package.swift` line. Three are now in.
+
+**1. The Metal toolchain (688 MB, `Metal Toolchain 17F109`) is installed**
+— and it is NECESSARY BUT NOT SUFFICIENT. With `metal --version`
+working and a clean rebuild, `swift run` still failed identically. The
+toolchain was never the whole story: SwiftPM does not build MLX's
+shaders at all (mlx-swift excludes the kernels from its own build; the
+vendor's README says the same).
+
+*(An aside worth keeping: the download produced NOTHING for 24 minutes
+in the background — 0% CPU, zero bytes — and then completed in 90
+seconds when run in the foreground. Two Apple asset downloads had
+looked identically wedged; only one of them actually was.)*
+
+**2. Xcode builds it, and MLX then computes:**
+
+```
+xcodebuild → MetalLink … default.metallib   ← the freshly installed
+                                               toolchain, invoked
+run the binary → matmul [[19,22],[43,50]]   ← STAGE 1 PASSED
+```
+
+**3. THE CI QUESTION — and the answer is not what F-6 assumed.**
+`swift test` CAN run MLX. The vendor's loader searches five places, and
+the fifth is `default.metallib` **relative to the working directory**:
+
+| arrangement | `swift test` |
+|---|---|
+| as-is | **FAILS** — hard MLX abort mid-test, not an assertion |
+| `default.metallib` (3.6 MB) placed in the working directory | **PASSES** |
+| removed again (the control) | **FAILS** again |
+| the repo's exact pair, `swift build` + `swift test -Xswiftc -warnings-as-errors` | **both green** |
+
+So MLX does not require abandoning `swift test`. It requires ONE
+prebuilt 3.6 MB artefact to be present — produced by an Xcode build, or
+vendored, or built in CI by the toolchain.
+
+**What remains unmeasured, and it is the whole remaining risk:** whether
+the GitHub `macos-26` runner has the Metal toolchain, or would have to
+download 688 MB per run — or whether the metallib should be committed as
+a binary artefact, which is its own decision. That is testable by
+pushing one CI job, and it is the only gate item left besides the phone.
+
+**4. The models were already here.** Ryad downloaded MLX weights on
+2026-06-12: Qwen3-0.6B-4bit (334 MB), Qwen3-4B-4bit (2.1 GB),
+Qwen3-8B-4bit (4.3 GB), whisper-large-v3-turbo (1.5 GB). The second
+mind's model needs no download.
+
+### The runner's answer (2026-08-20) — the gate's last unknown, closed
+
+Pushed a probe job to `macos-26`, the repo's own CI runner, asking one
+question and building nothing else:
+
+```
+xcode: Xcode 26.6 · swift 6.3.3 · 96 Gi free
+metal: PREINSTALLED — "Apple metal version 32023.883"
+proof: compiled a .metal and linked probe.metallib (3,481 bytes) ON THE RUNNER
+```
+
+**The runner ships the Metal toolchain.** No 688 MB download per run, no
+vendored binary artefact required, and no committed blob in a repo whose
+method is reproducibility. A CI step can BUILD the metallib from source
+on the runner and place it where `swift test` finds it — the same
+working-directory trick measured in §24.
+
+`metal` was tested by RUNNING it, not by finding it: this Mac had the
+binary present and still refused, so presence is not the question.
+
+**All four gate items now have answers:**
+
+| item | answer |
+|---|---|
+| Metal toolchain on the dev Mac | installed (688 MB); necessary, not sufficient |
+| MLX computes | yes, via an Xcode build |
+| `swift test` runs MLX | **yes**, with a 3.6 MB `default.metallib` in the working directory |
+| the CI runner | **has the toolchain preinstalled** and can link a metallib |
+| the models | already on disk since 2026-06-12 |
+
+**What F-6's deferral rested on no longer holds.** The ruling said MLX
+"would compile everywhere and RUN nowhere in the current toolchain" and
+that the build system "is not behind the protocol at all". The first
+half is refuted by measurement; the second half stands but shrinks to
+one CI step. What remains genuinely unmeasured is the PHONE: a token,
+its time-to-first-token, and peak memory — the numbers that decide
+whether a second mind feels alive rather than merely compiles.
+
+### STAGE 2: a real token, on this Mac, from Ryad's own weights (2026-08-20)
+
+Qwen3-0.6B-4bit, loaded from the cache it has sat in since 2026-06-12,
+built through Xcode, run on this M-series Mac:
+
+| measurement | value |
+|---|---|
+| model load | **311 ms** |
+| **time to first token** | **67 ms** |
+| steady rate | 66.9 chunks/s (40 chunks in 650 ms) |
+| peak GPU memory | **368 MB** (cache limit set to 20 MB, the examples' value) |
+
+What it said, verbatim: *":<think> Okay, so I need to figure out the
+capital of France. Let me start by recalling what I know…"*
+
+**Read those numbers against the mind already shipped.** Apple's
+Foundation Models measured, on the iPhone, **1839 ms** to a cold first
+snapshot and ~280 ms warm (§22). This 0.6B model answered in **67 ms**
+on a Mac — a different device and a smaller model, so not a fair race
+yet, but the first evidence that a second mind could be FASTER rather
+than merely different. The phone's numbers are the ones that matter and
+are not taken.
+
+**Three caveats, stated rather than buried:**
+
+1. **The tokenizer is approximate.** `mlx-swift-lm` ships the `Tokenizer`
+   protocol and no implementation; the spike wrote a longest-match
+   encoder over `tokenizer.json` rather than pull a package for a
+   throwaway. Token ids are VALID but not necessarily the ones a real
+   BPE tokenizer would choose, so the leading `:` and the doubled
+   `<think>` are artefacts of the spike, not of the model. Any judgement
+   of reply QUALITY from this run would be dishonest.
+2. **The model thinks out loud.** Qwen3 emits `<think>` reasoning before
+   its answer — a real design question for a SPOKEN assistant, since a
+   mouth would read the deliberation aloud. Noted for the milestone, not
+   solved here.
+3. **A silent segfault cost an hour.** The first run exited 139 with NO
+   output: the crash discarded buffered stdout, so the trail vanished
+   with it. `setbuf(stdout, nil)` and the same binary ran clean — the
+   crash was never real, only invisible. A measurement tool must flush.
+
+**Dependency count, corrected by reading rather than by memory:** the
+earlier research said 3 packages minimum and 5 realistic, because
+`Tokenizer` was assumed to come from swift-transformers. It does not —
+`MLXLMCommon` defines its own, and depends only on mlx-swift. The
+resolved graph here is **mlx-swift-lm + mlx-swift**, with swift-numerics,
+swift-argument-parser and swift-syntax pulled transitively. A production
+adapter still needs a real tokenizer, which is where a HuggingFace
+package would come back — but that is one dependency, not three.
+
+### STAGE 3: the phone token — BLOCKED, and the blockage is structural (2026-08-20)
+
+The Mac's number is taken. The phone's is not, and this section records
+WHY rather than promising it later. The short version: **MLX cannot run
+on the iOS Simulator at all.** Not because of my code, not because of a
+missing metallib, and not because of a flag I failed to set. The
+Simulator's Metal driver and MLX's memory design contradict each other.
+
+```
+  MLX's design                    MTLSimDevice's rule
+  ------------                    -------------------
+  one memory, shared by           the simulator's GPU is the MAC's GPU,
+  CPU and GPU (real Apple         reached through a translation layer —
+  silicon: unified memory)        it does NOT share memory with the app
+
+  heap_desc->setResourceOptions(         "MTLStorageModePrivate is
+    ResourceStorageModeShared)  ---X--->  required for heaps"
+       allocator.cpp:15, :63              MTLSimDriver, assertion at :1226
+```
+
+**How it was found, in the order it actually happened.** Two runs died
+with `libc++ Hardening assertion __s != nullptr failed` and NO output at
+all — the same failure the Mac spike had taught me to distrust, so the
+first fix was to the instrument, not the code: `log()` now writes to
+stderr as well as to the view, because the first two crashes killed the
+view that held the evidence. An instrument whose trail dies with the
+crash it is measuring is not an instrument.
+
+With a step-0 matmul isolated ahead of any model or tokenizer work, the
+crash report named its own cause four frames below my line:
+
+```
+  Probe.run() + 1400 (App.swift:56)        <- the matmul, my code
+    MLXArray.init                          <- allocating one array
+      mlx::core::allocator::malloc
+        metal::MetalAllocator::MetalAllocator()
+          mlx::core::metal::Device::Device() + 500  (device.cpp:328)
+            std::basic_string(char const*) detected nullptr   <- ABORT
+```
+
+device.cpp:328 is `arch_ = std::string(device_->architecture()->name()
+->utf8String())`. The Simulator's Metal device returns a **null**
+architecture name and MLX hands it straight to `std::string`.
+
+**That first wall has a door, and taking it was worth doing.** The line
+above 328 is `arch_ = env::metal_gpu_arch()`, read from
+`MLX_METAL_GPU_ARCH` (utils.h:173) and only falling through to the null
+read when empty. Launching with `SIMCTL_CHILD_MLX_METAL_GPU_ARCH=
+applegpu_g15` cured that crash outright — step 0 printed for the first
+time — and the run reached the **real** wall one layer deeper:
+
+```
+  device: iPhone · iOS 26.5
+  step 0: matmul…
+  -[MTLSimDevice newHeapWithDescriptor:]:1226: failed assertion
+     `MTLStorageModePrivate is required for heaps'
+```
+
+**Why no further flag helps.** MLX's heap storage mode is a constant
+(`allocator.cpp:15`), not a setting. And `Device.cpu` does not route
+around it: the generic `allocator()` is chosen at BUILD time — there is
+one in `backend/metal/`, one in `backend/no_gpu/`, one in
+`backend/cuda/` — and mlx-swift compiles the Metal one for iOS. So on
+the Simulator EVERY array allocation, on any device, goes through a
+heap the driver refuses to make. Running MLX there would need MLX
+rebuilt against `no_gpu`, which measures nothing anyone cares about.
+
+**What this costs the gate, stated plainly.** The phone number is the
+one that matters — thermals, memory pressure and a real Neural
+Engine-class GPU are exactly what a Mac cannot stand in for — and it now
+requires a build signed for Ryad's device. That is the one step in this
+whole gate I cannot take for him: it needs his signing team. Everything
+that could be measured without his hands has been.
+
+**And an honest correction to §24's own headline.** F-6's objection was
+"compiles everywhere, runs nowhere." §24 recorded that as half refuted,
+and it stays half refuted — but the halves are now sharper than the
+word "half" suggests:
+
+| where                | compiles | runs  | evidence                          |
+|----------------------|----------|-------|-----------------------------------|
+| `swift test` on Mac  | yes      | yes   | STAGE 1/2 — 67 ms to first token  |
+| hosted CI (macos-26) | yes      | yes   | toolchain preinstalled, links     |
+| iOS Simulator        | yes      | **no**| this section — structural         |
+| iOS device           | yes      | ?     | untaken, needs signing            |
+
+For the Simulator, F-6 was exactly right, and said so before I measured
+it. Recording that costs nothing and keeps the ruling honest.
 ## 25. The second mind's own numbers (4h) — the bill, and what mutation caught
 
-*(Numbering note: §24 is the MLX spike gate. It is not in this file on
-this branch on purpose — it arrives with PR #16, which carries the gate's
-evidence to `main` and touches no source. The gap is reserved, not
-skipped.)*
+*(Numbering note, now closed: §24 is the MLX spike gate. While 4h was
+being built it lived on `spike/mlx-gate` and this section reserved the
+number rather than skipping it. PR #16 merged the gate to `main` on
+2026-08-21 and `main` was merged back into this branch, so §24 is
+directly above — read it first, because everything below depends on the
+question it answered.)*
 
 ### The dependency bill, in seconds rather than in adjectives
 
