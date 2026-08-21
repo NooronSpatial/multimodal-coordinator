@@ -2032,3 +2032,67 @@ Difference between RAM and storage?    → 27 words
 Short where short is right, fuller where the question earns it. Applied
 to BOTH minds, because the constraint is the MEDIUM — this reply is
 heard, never read — and not the model.
+
+## 26. The 0 Hz crash (4h field report) — reproduced in a harness, then fixed
+
+Ryad's phone died mid-session, hard:
+
+```
+AURemoteIO.cpp:1135  failed: -66635 (enable 3, outf< 1 ch, 0 Hz, Float32> inf< 1 ch, 0 Hz, Float32>)
+AVAudioEngineGraph.mm:2161:_Connect: (IsFormatSampleRateAndChannelCountValid(format))
+*** Terminating app due to uncaught exception 'com.apple.coreaudio.avfaudio'
+```
+
+**0 Hz.** The engine had no valid hardware format — what an engine reports
+when the session is not active or the route has gone — and something
+connected a node with it anyway.
+
+**The harness came before the fix (D-054).** A standalone one-case
+process attached a deliberately built 0 Hz format
+(`AVAudioFormat(standardFormatWithSampleRate: 0, channels: 1)` — which,
+usefully, is NOT nil) to `AudioEnginePlaybackHost`:
+
+```
+built 0 Hz format: 0.0 Hz, 1 ch
+  5  AVFAudio  -[AVAudioEngine connect:to:format:] + 124
+  6  AudioEnginePlaybackHost.attachForPlayback(_:format:)
+libc++abi: terminating due to uncaught exception of type NSException
+```
+
+The same death, on this Mac, in ten lines. After the guard, the same
+harness prints:
+
+```
+RESULT: threw honestly — unusableFormat(rate: 0.0, channels: 1)
+```
+
+**Why it was unguarded, and this is the uncomfortable part.**
+`MicrophoneSource` has carried this exact guard for milestones, with a
+comment saying `inputFormat` "collapses to 0 Hz once `mainMixerNode` is
+touched — but that only happened in the `hostsPlayback` arrangement,
+which D-049 removed."
+
+**4g put `hostsPlayback` back** (D-060 F-3 = B, the speaker shield), and
+Ryad's log says `speaker shield=true`. The comment describing the hazard
+as historical was true when written and became false one milestone later,
+and nobody — me included — re-read it when the arrangement returned. The
+microphone kept its guard. The playback host never had one.
+
+**The fix.** `PlaybackHostFailure.unusableFormat(rate:channels:)`, and
+both hosts now check the caller's format AND the mixer's own output
+format before connecting. The order matters: reading `mainMixerNode` is
+what forces the mixer→output connection, and a dead route shows up there
+rather than in the caller's argument.
+
+**A suspicion, recorded as a suspicion.** The crash arrived in the same
+session that made 4B the default, and prewarming now loads 2.1 GB at
+launch. That is heavy work next to session activation and could widen a
+race that always existed. NOT measured — the stack shows only that a UI
+event reached our code — and it does not change the fix, which is correct
+regardless of what made the format invalid.
+
+**Still open:** the guard turns a crash into an honest failure, not into
+a working reply. If the session genuinely is not ready when a reply
+starts, the turn now fails cleanly instead of killing the app — better,
+but not yet right. Making the attach wait for a usable route is its own
+change and its own measurement.
