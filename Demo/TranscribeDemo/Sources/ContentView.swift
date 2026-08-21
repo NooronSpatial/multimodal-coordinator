@@ -418,16 +418,28 @@ struct ContentView: View {
                                              ? AnyShapeStyle(.secondary)
                                              : AnyShapeStyle(Color.orange))
                             .frame(maxWidth: .infinity, alignment: .leading)
+                        // The status line is ALWAYS shown once there is
+                        // one, whether the download is running, finished
+                        // or failed. A tap must never be able to look
+                        // like nothing happened.
+                        if let status = model.localDownloadStatus {
+                            Text(status)
+                                .font(.caption2)
+                                .foregroundStyle(status.contains("FAILED")
+                                                 || status.contains("NOT usable")
+                                                 ? AnyShapeStyle(Color.red)
+                                                 : AnyShapeStyle(.secondary))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
                         if let fraction = model.localDownloadProgress {
-                            ProgressView(value: fraction) {
-                                Text("downloading the local model…").font(.caption2)
-                            }
+                            ProgressView(value: fraction)
                         } else if model.mindUnavailable?.contains("not downloaded") == true {
-                            Button("Download the local model") {
+                            Button("Download \(model.localModelChoice.rawValue) · \(model.localModelChoice.sizeOnDisk)") {
                                 model.downloadLocalMind()
                             }
                             .font(.caption)
-                            .buttonStyle(.bordered)
+                            .buttonStyle(.borderedProminent)
                         }
                     }
                     if model.mind == .apple {

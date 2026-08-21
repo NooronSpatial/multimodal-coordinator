@@ -284,6 +284,8 @@ final class TranscribeModel {
             out += "\(MLXRuntime.peakMemoryBytes / 1_048_576) MB\n"
         }
         if let why = mindUnavailable { out += "mind unavailable: \(why)\n" }
+        if let status = localDownloadStatus { out += "download: \(status)\n" }
+        out += "weights expected at: \(localModel.weights.path)\n"
         out += "\nNOTE: the `mind:` line under each turn is the brain that\n"
         out += "ACTUALLY answered, taken from the generator the coordinator\n"
         out += "held — not from the picker above. If they disagree, that is\n"
@@ -308,19 +310,48 @@ final class TranscribeModel {
     private(set) var localDownloadProgress: Double?
 
     /// Fetches the weights. EXPLICIT — a person taps, nothing else.
+    /// What the download is doing, in words, at every stage.
+    ///
+    /// STICKY on purpose, and it exists because of a field report:
+    /// "downloading is not starting after i klick the button". The old
+    /// version reported only through `localDownloadProgress`, so a
+    /// failure BEFORE the first progress callback showed as a flicker and
+    /// the button coming back — visually identical to the tap doing
+    /// nothing. A silent failure and an ignored tap must never look the
+    /// same. `refreshMind()` deliberately does not clear this.
+    private(set) var localDownloadStatus: String?
+
     func downloadLocalMind() {
-        guard localDownloadProgress == nil else { return }
+        guard localDownloadProgress == nil else {
+            localDownloadStatus = "already downloading — ignoring the tap."
+            return
+        }
+        let wanted = localModelChoice
         localDownloadProgress = 0
+        localDownloadStatus = "starting \(wanted.rawValue) (\(wanted.sizeOnDisk))…"
         Task { [localModel] in
             do {
+                self.localDownloadStatus = "asking Hugging Face for \(wanted.repoID)…"
                 try await localModel.download { fraction in
-                    Task { @MainActor in self.localDownloadProgress = fraction }
+                    Task { @MainActor in
+                        self.localDownloadProgress = fraction
+                        self.localDownloadStatus = String(
+                            format: "downloading %@ — %.0f%%", wanted.rawValue,
+                            fraction * 100)
+                    }
                 }
                 self.localDownloadProgress = nil
+                // Proof, not hope: the download returning is not the same
+                // as the files being usable.
+                let installed = self.localModel.modelInstalled()
+                self.localDownloadStatus = installed
+                    ? "\(wanted.rawValue) installed at \(self.localModel.weights.lastPathComponent)."
+                    : "download finished but the files are NOT usable — "
+                        + "expected them at \(self.localModel.weights.path)"
                 self.refreshMind()
             } catch {
                 self.localDownloadProgress = nil
-                self.mindUnavailable = "download failed: \(error)"
+                self.localDownloadStatus = "download FAILED: \(error)"
             }
         }
     }

@@ -128,11 +128,14 @@ public enum MLXRuntime {
 /// one: `modelInstalled()` never triggers work, and `ensureModel()` is
 /// idempotent.
 public actor LocalMindModel {
-    public let weights: URL
+    /// Nonisolated: it never changes, and a caller needs the path to say
+    /// WHERE it is looking — a question that should not require awaiting
+    /// an actor that may be busy loading 2 GB.
+    public nonisolated let weights: URL
     /// The Hugging Face repo these weights come from, when the app wants
     /// the library to be able to FETCH them. `nil` means bring-your-own:
     /// the caller placed the files and no download will ever happen.
-    public let repoID: String?
+    public nonisolated let repoID: String?
     private var container: ModelContainer?
     private var think: ThinkTokens??      // nil = unread, .some(nil) = none declared
 
@@ -182,33 +185,29 @@ public actor LocalMindModel {
             throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
         }
         let hub = HubApi(downloadBase: weights.deletingLastPathComponent())
-        _ = try await hub.snapshot(
+        // The hub returns WHERE it put the snapshot. Use that.
+        //
+        // The first version of this searched the download base for any
+        // `config.json` and moved the folder containing it. That was
+        // dangerous rather than merely imprecise: an app's Documents
+        // directory holds other models — this demo keeps Whisper's under
+        // `huggingface/models/openai/…`, and those have a `config.json`
+        // too. Directory enumeration has no defined order, so that code
+        // could have moved somebody else's model. Never go looking for a
+        // file when the API already told you the path.
+        let snapshot = try await hub.snapshot(
             from: repoID,
             matching: ["*.safetensors", "*.json", "*.txt"]
         ) { p in progress(p.fractionCompleted) }
-        // The hub lays the files out under its own folder shape; the
-        // model directory is wherever config.json actually landed.
-        try relocateIfNeeded()
-    }
 
-    /// The hub nests its snapshot under `models/<org>/<repo>`; this model
-    /// wants ONE directory. Moving is cheaper than teaching every caller
-    /// the hub's layout, and doing it here keeps `weights` honest.
-    private func relocateIfNeeded() throws {
+        guard snapshot != weights else { return }
         let files = FileManager.default
-        guard !modelInstalled() else { return }
-        let base = weights.deletingLastPathComponent()
-        guard let walker = files.enumerator(at: base, includingPropertiesForKeys: nil)
-        else { return }
-        for case let url as URL in walker where url.lastPathComponent == "config.json" {
-            let found = url.deletingLastPathComponent()
-            guard found != weights else { return }
-            if files.fileExists(atPath: weights.path) {
-                try files.removeItem(at: weights)
-            }
-            try files.moveItem(at: found, to: weights)
-            return
+        if files.fileExists(atPath: weights.path) {
+            try files.removeItem(at: weights)
         }
+        try files.createDirectory(at: weights.deletingLastPathComponent(),
+                                  withIntermediateDirectories: true)
+        try files.moveItem(at: snapshot, to: weights)
     }
 
     /// Loads the weights. Idempotent; the load half is skipped when the
