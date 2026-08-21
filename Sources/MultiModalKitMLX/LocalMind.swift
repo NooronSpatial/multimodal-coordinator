@@ -136,13 +136,41 @@ public actor LocalMindModel {
     /// the library to be able to FETCH them. `nil` means bring-your-own:
     /// the caller placed the files and no download will ever happen.
     public nonisolated let repoID: String?
+    /// MLX's buffer-cache ceiling, process-global, settable by the app.
+    public nonisolated let cacheLimitBytes: Int
     private var container: ModelContainer?
+    /// ONE load at a time — enforced, not assumed.
+    ///
+    /// The 4h review caught this: `ensureModel()` checked `container`,
+    /// then `await`ed `loadModelContainer`, and an actor does NOT hold
+    /// isolation across an await. A prewarm in flight plus a first turn
+    /// (or a Listen tap inside the measured 1.7 s load) both passed the
+    /// nil check and each allocated a full copy — 2 × 2239 MB, and iOS
+    /// kills this app near 3351 MB (INSTRUMENTS §27). The doc promise
+    /// "the load half is skipped when the model is already resident" was
+    /// true only for strictly sequential callers.
+    ///
+    /// The shape is `WhisperEngine.decode`'s, deliberately: a busy flag
+    /// plus a FIFO waiter queue, re-checked in a WHILE loop after every
+    /// wake — the reentrancy law — and released on every exit via defer.
+    private var loadBusy = false
+    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
+    /// The warm-up, OWNED so it can be stopped.
+    ///
+    /// The review found the first version leaking an unstructured
+    /// `Task {}` with no handle: switching the picker from 4B to 0.6B —
+    /// the very act of trying to use less memory — left the 4B load
+    /// running to completion beside the new one. Held here so `retire()`
+    /// can cancel it, because the object that owns the weights is the
+    /// only one that can honestly own the work that loads them.
+    private var warmTask: Task<Void, Never>?
     private var think: ThinkTokens??      // nil = unread, .some(nil) = none declared
 
     /// Weights already on disk. Nothing is ever downloaded.
-    public init(weights: URL) {
+    public init(weights: URL, cacheLimitBytes: Int = 20 * 1024 * 1024) {
         self.weights = weights
         self.repoID = nil
+        self.cacheLimitBytes = cacheLimitBytes
     }
 
     /// Weights this model may fetch if they are missing — Whisper's
@@ -150,8 +178,10 @@ public actor LocalMindModel {
     ///
     /// The default directory is the app's Documents, which is where a
     /// person can also drop the folder by hand over USB.
-    public init(repoID: String, in directory: URL = URL.documentsDirectory) {
+    public init(repoID: String, in directory: URL = URL.documentsDirectory,
+                cacheLimitBytes: Int = 20 * 1024 * 1024) {
         self.repoID = repoID
+        self.cacheLimitBytes = cacheLimitBytes
         self.weights = directory.appending(
             path: repoID.split(separator: "/").last.map(String.init) ?? repoID)
     }
@@ -215,6 +245,13 @@ public actor LocalMindModel {
     @discardableResult
     public func ensureModel() async throws -> ModelContainer {
         if let container { return container }
+        // Someone else may already be loading these 2.2 GB. Wait for them
+        // rather than starting a second copy, and RE-CHECK after every
+        // wake: the winner may have finished, or failed.
+        while loadBusy {
+            await withCheckedContinuation { loadWaiters.append($0) }
+            if let container { return container }
+        }
         guard MLXRuntime.isAvailable else { throw MLXUnavailable.platformCannotRunMLX }
         guard modelInstalled() else {
             throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
@@ -223,11 +260,59 @@ public actor LocalMindModel {
         // into jetsam. Measured note (INSTRUMENTS §25): MLX does not mmap
         // its safetensors, so the weights are RESIDENT — on a phone this
         // sits beside a live audio graph, a recogniser and a mouth.
-        MLX.Memory.cacheLimit = 20 * 1024 * 1024
+        // POLICY, and it is the app's (D-027). This writes a
+        // PROCESS-GLOBAL MLX setting, so a library choosing it decides
+        // for every other MLX user in the app. The default matches the
+        // vendor examples — small enough that a buffer cache cannot push
+        // a phone into jetsam — and `cacheLimitBytes` lets the app
+        // overrule it.
+        MLX.Memory.cacheLimit = cacheLimitBytes
+        loadBusy = true
+        defer {
+            loadBusy = false
+            if !loadWaiters.isEmpty { loadWaiters.removeFirst().resume() }
+        }
         let loaded = try await loadModelContainer(
             from: weights, using: #huggingFaceTokenizerLoader())
+        // The reentrancy law: the await above released the actor. If a
+        // waiter somehow completed a load meanwhile, keep THAT one — two
+        // containers must never both be reachable.
+        if let container { return container }
         container = loaded
         return loaded
+    }
+
+    /// Start the warm-up, at most one at a time.
+    func startPrewarm(instructions: String?, maxTokens: Int) {
+        guard warmTask == nil, container == nil else { return }
+        warmTask = Task { [weak self] in
+            guard let self else { return }
+            _ = try? await self.ensureModel()
+            // LOADING IS NOT WARMING (INSTRUMENTS §25): with the weights
+            // resident the FIRST generation still paid 1911 ms of Metal
+            // pipeline warm-up while the second took 82 ms. One throwaway
+            // token buys that here, off-turn.
+            guard !Task.isCancelled else { return }
+            let sacrifice = MLXTokenSource(model: self, instructions: instructions,
+                                           maxTokens: 1)
+            do {
+                for try await _ in sacrifice.tokens(for: "hi") { break }
+            } catch { /* a warm-up that fails is not a turn that fails */ }
+            await self.clearWarmTask()
+        }
+    }
+
+    private func clearWarmTask() { warmTask = nil }
+
+    /// Stop warming and drop the weights.
+    ///
+    /// The app calls this before replacing one model with another, so the
+    /// retired 2.2 GB is released rather than living beside its
+    /// replacement — which on a phone is the whole point (INSTRUMENTS §27).
+    public func retire() {
+        warmTask?.cancel()
+        warmTask = nil
+        container = nil
     }
 
     /// The vocabulary's reasoning markers, read once and remembered.
@@ -341,22 +426,15 @@ extension MLXReplyGenerator {
     /// place that reports honestly, every turn.
     public func prewarm() {
         guard let source = source as? MLXTokenSource else { return }
-        Task {
-            _ = try? await source.model.ensureModel()
-            // LOADING IS NOT WARMING — measured by the bake-off (AC-130).
-            // With the weights already resident, the FIRST generation
-            // still took 1911 ms while the second took 82 ms and the
-            // third 267 ms. The extra 1.8 s is Metal pipeline and graph
-            // warm-up, and it is paid by whoever generates first. So this
-            // burns one throwaway token here, off-turn, rather than
-            // letting a person pay it in front of their first answer.
-            let sacrifice = MLXTokenSource(model: source.model,
-                                           instructions: nil,
-                                           maxTokens: 1)
-            do {
-                for try await _ in sacrifice.tokens(for: "hi") { break }
-            } catch { /* a warm-up that fails is not a turn that fails */ }
-        }
+        let model = source.model
+        let instructions = source.instructions
+        let maxTokens = source.maxTokens
+        // The hop is unavoidable — `prewarm()` is synchronous so it
+        // matches `AppleReplyGenerator.prewarm()` — but it does nothing
+        // except hand the work to the ACTOR, which owns the handle and
+        // can cancel it. Nothing long-running is left un-owned here.
+        Task { await model.startPrewarm(instructions: instructions,
+                                        maxTokens: maxTokens) }
     }
 
     /// The second mind, ready to answer.

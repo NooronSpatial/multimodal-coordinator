@@ -247,6 +247,13 @@ final class TranscribeModel {
             guard localModelChoice != oldValue else { return }
             UserDefaults.standard.set(localModelChoice.rawValue,
                                       forKey: Self.localModelKey)
+            // RETIRE the old one before replacing it. The review found
+            // that the previous version left the retired model's warm-up
+            // running and its weights resident, so switching 4B -> 0.6B
+            // briefly held BOTH — the opposite of what the person just
+            // asked for, at the one moment memory matters most.
+            let retiring = localModel
+            Task { await retiring.retire() }
             localModel = LocalMindModel(repoID: localModelChoice.repoID)
             if isListening { restart() }
             refreshMind()
@@ -282,7 +289,11 @@ final class TranscribeModel {
             id: turns.count + 1, mind: turn.mind, heard: turn.heard,
             reply: turn.reply, firstTokenMs: turn.firstTokenMs,
             totalMs: turn.totalMs, failure: turn.failure,
-            peakMemoryMB: MLXRuntime.isAvailable
+            // ONLY when the local mind answered. MLX's peak is
+            // process-wide, so stamping it on an Apple or Echo turn
+            // reported a number that turn had nothing to do with — an
+            // instrument answering a question it was not asked.
+            peakMemoryMB: (turn.mind.hasPrefix("Local") && MLXRuntime.isAvailable)
                 ? MLXRuntime.peakMemoryBytes / 1_048_576 : nil,
             bargedIn: turn.bargedIn))
     }
@@ -381,12 +392,16 @@ final class TranscribeModel {
                 }
                 self.localDownloadProgress = nil
                 // Proof, not hope: the download returning is not the same
-                // as the files being usable.
-                let installed = self.localModel.modelInstalled()
+                // as the files being usable. And it must judge the model
+                // it actually DOWNLOADED — `localModel` may have been
+                // replaced by the picker meanwhile, and the review caught
+                // the first version reporting a perfectly good download as
+                // broken because it asked the wrong object.
+                let installed = localModel.modelInstalled()
                 self.localDownloadStatus = installed
-                    ? "\(wanted.rawValue) installed at \(self.localModel.weights.lastPathComponent)."
+                    ? "\(wanted.rawValue) installed at \(localModel.weights.lastPathComponent)."
                     : "download finished but the files are NOT usable — "
-                        + "expected them at \(self.localModel.weights.path)"
+                        + "expected them at \(localModel.weights.path)"
                 self.refreshMind()
             } catch {
                 self.localDownloadProgress = nil
@@ -425,6 +440,21 @@ final class TranscribeModel {
     /// the warm-up is paid here, not inside the first felt pause.
     func refreshMind() {
         if mind == .local {
+            // THE GUARD BELONGS HERE, not only on the Listen button.
+            //
+            // The review caught this and it was a blocker of my own
+            // making: LOADING is what costs the memory, and both models
+            // load at LAUNCH — checkVoice() prepares the voice, this
+            // prewarms the mind — long before anyone can tap anything.
+            // Guarding the button stopped nothing. Worse, once the mind
+            // and mouth started persisting, the forbidden pair survived a
+            // restart, so the app would be killed on every cold start
+            // with the picker permanently out of reach: a crash loop the
+            // person could not escape from inside the app.
+            guard memoryConflict == nil else {
+                mindUnavailable = memoryConflict
+                return                      // load NOTHING
+            }
             // The simulator answer is STRUCTURAL, not a missing file
             // (D-061): MLX wants a shared-storage Metal heap and the
             // simulator's driver refuses. Saying so beats a dead button.
@@ -750,6 +780,13 @@ final class TranscribeModel {
     /// Honest disk check for the VOICE. Asking never downloads.
     func checkVoice() async {
         guard mouth == .neural else { voiceState = .ready; return }
+        // The mouth's half of the same guard. Preparing the voice is a
+        // 1.1 GB load, and it must not happen when the mind has already
+        // claimed 2.2 GB (INSTRUMENTS §27).
+        guard memoryConflict == nil else {
+            voiceState = .failed(memoryConflict ?? "")
+            return
+        }
         guard await neuralVoice.modelInstalled() else {
             voiceState = .modelMissing
             return

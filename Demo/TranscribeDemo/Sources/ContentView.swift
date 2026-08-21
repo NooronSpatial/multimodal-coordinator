@@ -90,10 +90,16 @@ struct ContentView: View {
                 // It carries the brain that ACTUALLY answered each turn,
                 // which is the one fact a screenshot cannot show.
                 ToolbarItem(placement: .topBarTrailing) {
+                    // NEVER disabled on "no turns". The review caught the
+                    // irony: the log was built to diagnose failures, and
+                    // the worst failures — a mind that refuses at the
+                    // door, a memory conflict, a session that never
+                    // started — produce ZERO turns, which is exactly when
+                    // the header (models, memory, install state, download
+                    // status) is the evidence worth sending.
                     ShareLink(item: model.conversationLog) {
                         Label("Share the conversation", systemImage: "text.bubble")
                     }
-                    .disabled(model.turns.isEmpty)
                 }
                 // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
                 // engine state for the echo probe's reason, one item over:
@@ -783,7 +789,11 @@ struct ContentView: View {
             // exact silent dead button AC-110 forbids. Disabled + the red
             // caption naming the reason = honest.
             .disabled(model.probeStatus != nil
-                      || (model.talkEnabled && model.mind == .apple
+                      // ANY mind that cannot answer, not just Apple's.
+                      // The review found the Local mind able to start a
+                      // session in which every single turn fails at the
+                      // door — a dead conversation that looks alive.
+                      || (model.talkEnabled && model.mind != .echo
                           && model.mindUnavailable != nil)
                       // Measured, not feared: 2239 MB + 1112 MB = 3351 MB,
                       // and jetsam killed exactly this on the phone.
