@@ -2169,3 +2169,46 @@ Switzerland big as Portugal?" → "No, Switzerland is larger in area than
 Portugal" (Portugal is roughly twice Switzerland). A 4-billion-parameter
 model on a phone gets facts wrong; the seam cannot fix that and should
 not pretend to.
+
+## 27. Two field reports: a voice that was never downloading, and a pair that does not fit
+
+**"Every time I start the app I see downloading the voice!"** He was
+right to ask, and the screen was lying. `checkVoice()` calls
+`modelInstalled()`, finds the 1.1 GB present, and then sets
+`voiceState = .downloading` before `ensureModel()` — which its own doc
+comment describes as *"Idempotent: with the assets on disk this is a
+load, not a fetch."* The work is real (CoreML compiles six components,
+tens of seconds, once per launch) but the WORD was false. A screen whose
+stated job is removing ambiguity was manufacturing it. There is now a
+`.preparing` state that says what is actually happening.
+
+**"Terminated due to memory issue" — the local 4B mind with the NEURAL
+voice.** Jetsam. Measured with `bakeoff memory-fit`, which loads each and
+reports `phys_footprint` (the figure iOS judges, not resident size):
+
+| loaded | footprint |
+|---|---|
+| baseline | 3 MB |
+| + local mind (Qwen3-4B-4bit) | **2239 MB** |
+| + neural voice | **3351 MB** |
+
+The voice costs about **1112 MB** on top of the mind, and 3.35 GB is over
+what iOS will host beside an audio graph and a recogniser.
+
+*A measurement that flattered the answer, caught and corrected.* The
+first version of `memory-fit` let the mind go out of scope, so the
+footprint went DOWN after adding the voice — 2239 → 1610 MB — which
+would have "proved" they fit. The model is now held to the last line.
+
+**The demo refuses the combination instead of dying.** `memoryConflict`
+names it before the tap, in numbers, and disables Listen. That is a demo
+POLICY (D-027): the library ships no such rule, because the budget
+belongs to the app that spends it. It is a guard, not a cure — the two
+still cannot run together, and what SHOULD happen is a fork.
+
+**Also fixed, from the same message: every picker persists.** The ear and
+the Apple voice already did; the mind, the mouth, the shield and the two
+toggles reset at every launch, so the app re-chose for him from a screen
+that looked like it remembered. A control that forgets is a control that
+lies about its own state — the same fault as the voice label, one screen
+over.

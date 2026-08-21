@@ -79,6 +79,16 @@ final class TranscribeModel {
         case checking
         case modelMissing
         case downloading
+        /// ON DISK, being made ready — NOT fetched.
+        ///
+        /// From a field report: "every time i start the app i see
+        /// downloading the voice!" He was right to ask. The files were
+        /// already there; `ensureModel()` was compiling six CoreML
+        /// components, which takes tens of seconds every launch, and the
+        /// screen called that "Downloading". The work was real; the word
+        /// was false — and a screen whose job is removing ambiguity had
+        /// been the thing creating it.
+        case preparing
         case ready
         case failed(String)
     }
@@ -104,8 +114,9 @@ final class TranscribeModel {
 
     /// The mouth. Changing it restarts the pipeline, like every other
     /// choice that is baked into a running turn loop.
-    var mouth: MouthChoice = .apple {
+    var mouth: MouthChoice = TranscribeModel.storedMouth {
         didSet {
+            UserDefaults.standard.set(mouth.rawValue, forKey: Self.mouthKey)
             guard mouth != oldValue else { return }
             if isListening { restart() }
             Task { await checkVoice() }
@@ -172,8 +183,9 @@ final class TranscribeModel {
     }
 
     /// The mind. Changing it restarts the pipeline, like the mouth.
-    var mind: MindChoice = .echo {
+    var mind: MindChoice = TranscribeModel.storedMind {
         didSet {
+            UserDefaults.standard.set(mind.rawValue, forKey: Self.mindKey)
             guard mind != oldValue else { return }
             if isListening { restart() }
             refreshMind()
@@ -192,8 +204,10 @@ final class TranscribeModel {
     /// engine, where the canceller can see them. OPT-IN per D-060 F-4 —
     /// the library default stays off; this app chooses. Restart-like the
     /// other choices: it reshapes a running graph.
-    var speakerShield = false {
+    var speakerShield = TranscribeModel.storedFlag(
+        TranscribeModel.shieldKey, default: false) {
         didSet {
+            UserDefaults.standard.set(speakerShield, forKey: Self.shieldKey)
             guard speakerShield != oldValue else { return }
             if isListening { restart() }
         }
@@ -311,6 +325,24 @@ final class TranscribeModel {
             out += "\n\n"
         }
         return out
+    }
+
+    /// The combination iOS refuses to host, named BEFORE it kills the app.
+    ///
+    /// MEASURED, not feared (INSTRUMENTS §27): the 4B mind is 2239 MB and
+    /// the neural voice adds ~1112 MB, so together they ask for 3351 MB.
+    /// Ryad's phone answered that with "Terminated due to memory issue" —
+    /// jetsam does not negotiate and gives no chance to recover.
+    ///
+    /// A refusal that explains itself beats a crash that does not, and
+    /// this is a demo POLICY (D-027): the library ships no such rule,
+    /// because the budget belongs to the app that spends it.
+    var memoryConflict: String? {
+        guard mind == .local, localModelChoice == .big, mouth == .neural
+        else { return nil }
+        return "The 4B mind (2.2 GB) and the neural voice (1.1 GB) do not "
+            + "fit together — iOS kills the app near 3.3 GB. Choose the "
+            + "0.6B mind, or the Apple voice."
     }
 
     /// Fraction complete while the weights come down, or nil.
@@ -468,8 +500,12 @@ final class TranscribeModel {
     /// Speak the replies aloud. OFF puts the app back in its Phase 2
     /// shape — record-only session, no mouth — which is also the honest
     /// A/B for what the talking session costs.
-    var talkEnabled = true {
-        didSet { if isListening { restart() } }
+    var talkEnabled = TranscribeModel.storedFlag(
+        TranscribeModel.talkKey, default: true) {
+        didSet {
+            UserDefaults.standard.set(talkEnabled, forKey: Self.talkKey)
+            if isListening { restart() }
+        }
     }
     /// F-4, AMENDED BY MEASUREMENT (D-043). It was ruled speaker-default
     /// because that is the honest hard case; the device then measured the
@@ -478,8 +514,12 @@ final class TranscribeModel {
     /// ship a demo that barges itself out of the box. The default is now
     /// the route that works; the speaker is one toggle away, for
     /// measurement, and the screen says why.
-    var useSpeaker = false {
-        didSet { if isListening { restart() } }
+    var useSpeaker = TranscribeModel.storedFlag(
+        TranscribeModel.speakerKey, default: false) {
+        didSet {
+            UserDefaults.standard.set(useSpeaker, forKey: Self.speakerKey)
+            if isListening { restart() }
+        }
     }
     private(set) var turnState: TurnState = .idle
     private(set) var reply = ""
@@ -524,6 +564,31 @@ final class TranscribeModel {
             UserDefaults.standard.set(vadThreshold, forKey: Self.gateKey)
             if isListening { restart() }
         }
+    }
+
+    // EVERY PICKER PERSISTS (Ryad). The ear and the Apple voice already
+    // did; the mind, the mouth, the shield and the two toggles did not,
+    // so every launch quietly reset them and the person re-chose from a
+    // screen that looked like it remembered. A control that forgets is a
+    // control that lies about its own state.
+    private static let mindKey = "dev.nooron.demo.mind"
+    private static var storedMind: MindChoice {
+        UserDefaults.standard.string(forKey: mindKey)
+            .flatMap(MindChoice.init(rawValue:)) ?? .echo
+    }
+    private static let mouthKey = "dev.nooron.demo.mouth"
+    private static var storedMouth: MouthChoice {
+        UserDefaults.standard.string(forKey: mouthKey)
+            .flatMap(MouthChoice.init(rawValue:)) ?? .apple
+    }
+    private static let shieldKey = "dev.nooron.demo.speakerShield"
+    private static let talkKey = "dev.nooron.demo.talkEnabled"
+    private static let speakerKey = "dev.nooron.demo.useSpeaker"
+    /// `object(forKey:)` and not `bool(forKey:)`: the latter answers
+    /// `false` for "never set", which would silently flip a default that
+    /// is deliberately `true`.
+    private static func storedFlag(_ key: String, default value: Bool) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? value
     }
 
     private static let engineKey = "dev.nooron.demo.engine"
@@ -702,7 +767,12 @@ final class TranscribeModel {
         // already fixed in `feed`. Warming here closes it completely
         // rather than shrinking it, because `start()` refuses to run
         // until this says ready.
-        voiceState = .downloading
+        //
+        // PREPARING, not downloading: `modelInstalled()` just said the
+        // files are here, so this call is a load. Saying otherwise is how
+        // a person comes to believe their phone re-downloads 1.1 GB at
+        // every launch.
+        voiceState = .preparing
         do {
             try await neuralVoice.ensureModel()
             voiceState = .ready

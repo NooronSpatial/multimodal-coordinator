@@ -20,6 +20,13 @@ struct ContentView: View {
                     case .downloading:
                         ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
                             .multilineTextAlignment(.center)
+                    // The transcriber never enters `.preparing` — only the
+                    // voice does — but the compiler is right to demand an
+                    // answer rather than let a future state fall silently
+                    // through a screen.
+                    case .preparing:
+                        ProgressView("Preparing the speech model…")
+                            .multilineTextAlignment(.center)
                     case .failed(let reason):
                         failed(reason)
                     case .ready:
@@ -521,6 +528,18 @@ struct ContentView: View {
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
+                    case .preparing:
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            // The honest sentence. Nothing is being
+                            // fetched: the 1.1 GB is already on the phone
+                            // and CoreML is compiling it, which happens
+                            // once per launch.
+                            Text("Preparing the voice — already downloaded, "
+                                 + "compiling it for this device.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     case .failed(let why):
                         Text("Voice unavailable: \(why)")
                             .font(.caption)
@@ -734,6 +753,16 @@ struct ContentView: View {
 
             statusBar
 
+            // The combination that gets the app KILLED, said before the
+            // tap rather than found in a crash log (INSTRUMENTS §27).
+            if let conflict = model.memoryConflict {
+                Text(conflict)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
             Button {
                 model.isListening ? model.stop() : model.start()
             } label: {
@@ -755,7 +784,10 @@ struct ContentView: View {
             // caption naming the reason = honest.
             .disabled(model.probeStatus != nil
                       || (model.talkEnabled && model.mind == .apple
-                          && model.mindUnavailable != nil))
+                          && model.mindUnavailable != nil)
+                      // Measured, not feared: 2239 MB + 1112 MB = 3351 MB,
+                      // and jetsam killed exactly this on the phone.
+                      || model.memoryConflict != nil)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }
