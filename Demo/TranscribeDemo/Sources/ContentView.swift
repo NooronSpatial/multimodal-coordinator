@@ -69,7 +69,11 @@ struct ContentView: View {
                     .frame(maxHeight: 230)
                 }
             }
-            .navigationTitle("MultiModalKit")
+            // NO TITLE (Ryad): a large title spent a third of a phone
+            // screen saying the app's own name to the person who just
+            // opened it. The toolbar stays — that is where the probes and
+            // the log live, and taps are proven to fire there.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 // THE CONVERSATION LOG. Reachable in every state, like the
                 // probes, and for the same reason: the moment worth
@@ -362,14 +366,31 @@ struct ContentView: View {
     }
 
     private var transcriber: some View {
-        VStack(spacing: 16) {
-            Picker("Engine", selection: Bindable(model).choice) {
-                ForEach(TranscribeModel.EngineChoice.allCases) { choice in
-                    Text(choice.rawValue).tag(choice)
+        VStack(spacing: 12) {
+            // THE SETTINGS SCROLL (Ryad). Five pickers, four toggles and
+            // their captions outgrew the screen once the local model
+            // picker arrived, and controls you cannot reach are controls
+            // you do not have. Capped rather than greedy, so the
+            // transcript — the thing people actually watch — keeps room.
+            ScrollView {
+                VStack(spacing: 14) {
+            // INLINE ROWS (Ryad): label on the left, current value on the
+            // right, one line each. Five full-width segmented bars had
+            // pushed the transcript off the screen. `.labelsHidden()` is
+            // deliberate — the Text carries the name, so the menu button
+            // shows only the VALUE and every row reads the same way.
+            HStack {
+                Text("Ear").font(.subheadline)
+                Spacer()
+                Picker("Engine", selection: Bindable(model).choice) {
+                    ForEach(TranscribeModel.EngineChoice.allCases) { choice in
+                        Text(choice.rawValue).tag(choice)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .disabled(model.isListening)
             }
-            .pickerStyle(.segmented)
-            .disabled(model.isListening)
             .padding(.horizontal)
 
             // THE SECOND MOUTH, on screen (AC-105). Only shown when the
@@ -380,13 +401,18 @@ struct ContentView: View {
                     // THE MIND (4f, AC-117): what ANSWERS, above what
                     // SPEAKS — the same swap-an-organ claim the mouth
                     // picker makes, one seam up.
-                    Picker("Mind", selection: Bindable(model).mind) {
-                        ForEach(TranscribeModel.MindChoice.allCases) { choice in
-                            Text(choice.rawValue).tag(choice)
+                    HStack {
+                        Text("Mind").font(.subheadline)
+                        Spacer()
+                        Picker("Mind", selection: Bindable(model).mind) {
+                            ForEach(TranscribeModel.MindChoice.allCases) { choice in
+                                Text(choice.rawValue).tag(choice)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .disabled(model.isListening)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(model.isListening)
                     if model.mind == .local {
                         // F-1 = C: WHICH local model, chosen here so the
                         // phone can answer what the Mac cannot. MLX keeps
@@ -394,14 +420,19 @@ struct ContentView: View {
                         // is a real question and this is the instrument
                         // that asks it. The caption carries MAC numbers
                         // and says so — they are not a phone's.
-                        Picker("Local model",
-                               selection: Bindable(model).localModelChoice) {
-                            ForEach(TranscribeModel.LocalModelChoice.allCases) { size in
-                                Text(size.rawValue).tag(size)
+                        HStack {
+                            Text("Local model").font(.subheadline)
+                            Spacer()
+                            Picker("Local model",
+                                   selection: Bindable(model).localModelChoice) {
+                                ForEach(TranscribeModel.LocalModelChoice.allCases) { size in
+                                    Text(size.rawValue).tag(size)
+                                }
                             }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .disabled(model.isListening)
                         }
-                        .pickerStyle(.segmented)
-                        .disabled(model.isListening)
                         Text("\(model.localModelChoice.sizeOnDisk) · on a Mac: "
                              + model.localModelChoice.macBehaviour)
                             .font(.caption2)
@@ -457,13 +488,18 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Picker("Voice", selection: Bindable(model).mouth) {
-                        ForEach(TranscribeModel.MouthChoice.allCases) { choice in
-                            Text(choice.rawValue).tag(choice)
+                    HStack {
+                        Text("Voice").font(.subheadline)
+                        Spacer()
+                        Picker("Voice", selection: Bindable(model).mouth) {
+                            ForEach(TranscribeModel.MouthChoice.allCases) { choice in
+                                Text(choice.rawValue).tag(choice)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .disabled(model.isListening)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(model.isListening)
 
                     switch model.voiceState {
                     case .modelMissing:
@@ -608,6 +644,12 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
             }
+
+                }
+                .padding(.top, 4)
+            }
+            .frame(maxHeight: 300)
+            .scrollBounceBehavior(.basedOnSize)
 
             conversation
 
