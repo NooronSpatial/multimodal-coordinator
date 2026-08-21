@@ -1914,3 +1914,30 @@ question, and it is the fork's real cost.
 
 `--system=` was added to `bakeoff ask` so a candidate prompt can be
 measured against the same inputs before anyone ships it.
+
+### F-1 = C: the model picker, and the Mac's memory baseline
+
+Ryad ruled F-1 = C — put the choice in the demo so the PHONE answers the
+question the Mac cannot. The picker alone would not have done that: the
+fork turns on resident memory, so the log had to learn to report it.
+
+`MLXRuntime.activeMemoryBytes` / `peakMemoryBytes` now surface MLX's own
+accounting, and every logged turn carries the peak. Reading them is
+guarded by `isAvailable`, because touching MLX's allocator on a machine
+with no metallib aborts the process — the same trap AC-129 exists for.
+
+**This Mac's baseline, for comparison against a phone:**
+
+| | on disk | active | peak | first word |
+|---|---|---|---|---|
+| Qwen3-0.6B-4bit | 334 MB | 349 MB | **420 MB** | 76 ms |
+| Qwen3-4B-4bit | 2.1 GB | 2198 MB | **2340 MB** | 376 ms |
+
+Active tracks the weights almost exactly, which is what "no mmap" means
+in practice: the file is not mapped, it is held.
+
+**What this does NOT tell us.** A Mac has no jetsam. The phone must carry
+2.3 GB *beside* the audio graph, the recogniser and the mouth, and
+whether iOS tolerates that is not a thing this room can measure. That is
+precisely why the ruling was C: the demo now records `MLX peak N MB` on
+every turn, so one shared log answers it.

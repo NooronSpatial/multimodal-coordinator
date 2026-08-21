@@ -40,6 +40,35 @@ final class TranscribeModel {
         var id: String { rawValue }
     }
 
+    /// WHICH LOCAL MODEL (4h, F-1 = C). The picker exists so the phone
+    /// can ANSWER the question the Mac cannot: 2.1 GB is nothing here and
+    /// may be fatal there, because MLX keeps its weights resident.
+    enum LocalModelChoice: String, CaseIterable, Identifiable {
+        case small = "0.6B"
+        case big = "4B"
+        var id: String { rawValue }
+        var repoID: String {
+            switch self {
+            case .small: "mlx-community/Qwen3-0.6B-4bit"
+            case .big: "mlx-community/Qwen3-4B-4bit"
+            }
+        }
+        /// Honest sizes, so a person on cellular knows before tapping.
+        var sizeOnDisk: String {
+            switch self {
+            case .small: "about 400 MB"
+            case .big: "about 2.2 GB"
+            }
+        }
+        /// Measured on the Mac (INSTRUMENTS §25) — NOT on a phone.
+        var macBehaviour: String {
+            switch self {
+            case .small: "51–78 ms first word · parrots interrupted speech"
+            case .big: "249–374 ms first word · reads through disfluency"
+            }
+        }
+    }
+
     enum EngineChoice: String, CaseIterable, Identifiable {
         case apple = "Apple"
         case whisper = "Whisper"
@@ -186,7 +215,26 @@ final class TranscribeModel {
     /// app may FETCH them — Whisper's shape, ruled by F-4 = A — but only
     /// when a person taps Download. Asking whether it is installed never
     /// starts anything.
-    private let localModel = LocalMindModel(repoID: "mlx-community/Qwen3-0.6B-4bit")
+    private static let localModelKey = "dev.nooron.demo.localModel"
+    private static var storedLocalModel: LocalModelChoice {
+        UserDefaults.standard.string(forKey: localModelKey)
+            .flatMap(LocalModelChoice.init(rawValue:)) ?? .small
+    }
+    /// Changing this REPLACES the host, so the old weights are dropped
+    /// rather than kept alive beside the new ones — which on a phone is
+    /// the difference the whole fork is about.
+    var localModelChoice: LocalModelChoice = TranscribeModel.storedLocalModel {
+        didSet {
+            guard localModelChoice != oldValue else { return }
+            UserDefaults.standard.set(localModelChoice.rawValue,
+                                      forKey: Self.localModelKey)
+            localModel = LocalMindModel(repoID: localModelChoice.repoID)
+            if isListening { restart() }
+            refreshMind()
+        }
+    }
+    private var localModel = LocalMindModel(
+        repoID: TranscribeModel.storedLocalModel.repoID)
     /// Instructions are the APP's text, not the library's (D-027). The
     /// same sentence the Apple mind gets, because the constraint is the
     /// medium — this reply is heard, never read — not the model.
@@ -213,6 +261,8 @@ final class TranscribeModel {
             id: turns.count + 1, mind: turn.mind, heard: turn.heard,
             reply: turn.reply, firstTokenMs: turn.firstTokenMs,
             totalMs: turn.totalMs, failure: turn.failure,
+            peakMemoryMB: MLXRuntime.isAvailable
+                ? MLXRuntime.peakMemoryBytes / 1_048_576 : nil,
             bargedIn: turn.bargedIn))
     }
 
@@ -224,8 +274,15 @@ final class TranscribeModel {
         var out = "# Conversation log — MultiModalKit demo\n\n"
         out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
         out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
-        out += "local model installed: \(localModel.modelInstalled()) · "
-        out += "MLX runnable here: \(MLXRuntime.isAvailable)\n"
+        out += "local model: \(localModelChoice.rawValue) "
+        out += "(\(localModelChoice.repoID)) · installed: "
+        out += "\(localModel.modelInstalled()) · MLX runnable here: "
+        out += "\(MLXRuntime.isAvailable)\n"
+        if MLXRuntime.isAvailable {
+            out += "MLX memory now: active "
+            out += "\(MLXRuntime.activeMemoryBytes / 1_048_576) MB · peak "
+            out += "\(MLXRuntime.peakMemoryBytes / 1_048_576) MB\n"
+        }
         if let why = mindUnavailable { out += "mind unavailable: \(why)\n" }
         out += "\nNOTE: the `mind:` line under each turn is the brain that\n"
         out += "ACTUALLY answered, taken from the generator the coordinator\n"
@@ -239,6 +296,7 @@ final class TranscribeModel {
             out += "reply: \(turn.reply.isEmpty ? "_(no words)_" : turn.reply)\n\n"
             let first = turn.firstTokenMs.map { "\($0) ms" } ?? "never"
             out += "first word \(first) · total \(turn.totalMs) ms"
+            if let mb = turn.peakMemoryMB { out += " · MLX peak \(mb) MB" }
             if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
             if let failure = turn.failure { out += " · FAILED: \(failure)" }
             out += "\n\n"
@@ -305,8 +363,8 @@ final class TranscribeModel {
                 return
             }
             guard localModel.modelInstalled() else {
-                mindUnavailable = "the local model is not downloaded yet — "
-                    + "tap Download (about 400 MB, once)."
+                mindUnavailable = "\(localModelChoice.rawValue) is not downloaded "
+                    + "yet — tap Download (\(localModelChoice.sizeOnDisk), once)."
                 return
             }
             mindUnavailable = nil

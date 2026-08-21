@@ -90,6 +90,10 @@ struct ConversationTurn: Sendable, Identifiable {
     let firstTokenMs: Int?
     let totalMs: Int
     let failure: String?
+    /// What MLX was holding when this turn ended, in MB. THE number the
+    /// model fork turns on: MLX does not mmap, so weights are resident,
+    /// and a phone has a budget a Mac does not.
+    let peakMemoryMB: Int?
     /// True when the stream ended with NO terminal — a barge, which is
     /// success, not a fault. Without this field a cut-off reply reads
     /// like a bug in the log.
@@ -137,7 +141,7 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
             report(ConversationTurn(
                 id: 0, mind: mind, heard: heard, reply: text,
                 firstTokenMs: first.map(ms), totalMs: ms(total),
-                failure: failure, bargedIn: !sawTerminal))
+                failure: failure, peakMemoryMB: nil, bargedIn: !sawTerminal))
         }
     }
 

@@ -138,6 +138,9 @@ if arguments.count > 1, arguments[1] == "ask" {
         await warm.cancel()
     }
     let ready = loadStart.duration(to: clock.now)
+    print(String(format: "MLX memory: active %d MB · peak %d MB (RESIDENT — MLX does not mmap)",
+                 MLXRuntime.activeMemoryBytes / 1_048_576,
+                 MLXRuntime.peakMemoryBytes / 1_048_576))
     print(String(format: "ready in %.1f s · everything below runs on this Mac, offline\n",
                  Double(ready.components.seconds)
                      + Double(ready.components.attoseconds) * 1e-18))

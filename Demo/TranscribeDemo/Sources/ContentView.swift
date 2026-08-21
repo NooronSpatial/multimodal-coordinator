@@ -388,6 +388,25 @@ struct ContentView: View {
                     .pickerStyle(.segmented)
                     .disabled(model.isListening)
                     if model.mind == .local {
+                        // F-1 = C: WHICH local model, chosen here so the
+                        // phone can answer what the Mac cannot. MLX keeps
+                        // weights resident (no mmap), so 2.1 GB on a phone
+                        // is a real question and this is the instrument
+                        // that asks it. The caption carries MAC numbers
+                        // and says so — they are not a phone's.
+                        Picker("Local model",
+                               selection: Bindable(model).localModelChoice) {
+                            ForEach(TranscribeModel.LocalModelChoice.allCases) { size in
+                                Text(size.rawValue).tag(size)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .disabled(model.isListening)
+                        Text("\(model.localModelChoice.sizeOnDisk) · on a Mac: "
+                             + model.localModelChoice.macBehaviour)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                         // AC-131: the third mind never vanishes and never
                         // dies silently. On a simulator it says WHY it
                         // cannot run (D-061, structural); with no weights

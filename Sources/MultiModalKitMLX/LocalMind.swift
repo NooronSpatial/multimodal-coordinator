@@ -82,6 +82,21 @@ public enum MLXRuntime {
         return files.fileExists(atPath: cwd.path) ? cwd : nil
     }
 
+    /// What MLX is holding, in bytes — the number that decides whether a
+    /// model fits on a PHONE.
+    ///
+    /// It matters because MLX does not memory-map its weights: there is
+    /// no `mmap` anywhere in its C++ core (measured, INSTRUMENTS §25), so
+    /// everything loaded is RESIDENT, beside the audio graph, the
+    /// recogniser and the mouth. On a Mac that is invisible. On a phone
+    /// it is the difference between a working app and one jetsam kills.
+    ///
+    /// Reading these NEVER touches the GPU, but it does construct MLX's
+    /// allocator — so `isAvailable` is checked first, or the process
+    /// would abort on a machine with no metallib.
+    public static var activeMemoryBytes: Int { isAvailable ? MLX.Memory.activeMemory : 0 }
+    public static var peakMemoryBytes: Int { isAvailable ? MLX.Memory.peakMemory : 0 }
+
     /// True when MLX may be called. `false` means SKIP — never "try and
     /// see", because trying is what aborts the process.
     ///
