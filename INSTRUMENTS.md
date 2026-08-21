@@ -2096,3 +2096,76 @@ a working reply. If the session genuinely is not ready when a reply
 starts, the turn now fails cleanly instead of killing the app — better,
 but not yet right. Making the attach wait for a usable route is its own
 change and its own measurement.
+
+### The 38-turn field session (4h) — what it settled, and the switch nobody turned on
+
+Ryad's longest real conversation with the second mind. Three questions
+this project had left open are now answered by it.
+
+**1. Endurance — answered.** No crash across 38 turns, and memory did not
+run away:
+
+```
+turn 1  MLX peak 2292 MB
+turn 38 MLX peak 2320 MB      +28 MB over the whole session
+```
+
+**2. Sustained latency — answered.** First word stayed at **285–323 ms**
+across all 38 turns, with two outliers (775 ms, 633 ms). No thermal
+decay visible at this length. A twenty-minute session is still untested.
+
+**3. Reply length — the fix holds.** "Rome." · "Yes." · "Italy is bigger
+than Switzerland." Short enough to listen to, and still full sentences
+where the question earned one (the visa answers ran to 25–30 words).
+
+**And the real finding, which is not about the model at all.**
+
+Six of the thirty-eight turns (16%) produced `_(no words)_` and
+`BARGED IN` — a turn was OPENED on a fragment and then killed by the
+speaker continuing:
+
+```
+turn 31  heard: "Okay, and uh,"                    → _(no words)_, barged at 76 ms
+turn 32  heard: "Okay, and uh, And if I just want to visit United States as a tourist,"
+turn 33  heard: "...Do I need visa as a German?"   → answered
+turn 34  heard: "...Do I need visa as a German? Yeah."      → answered AGAIN
+turn 35  heard: "...Yeah. Yeah, I'm waiting."               → answered AGAIN
+```
+
+Twelve of thirty-eight turns (32%) carried a previous turn's words.
+
+**Two mechanisms, one of them switched off:**
+
+| | value | effect |
+|---|---|---|
+| VAD hangover | `Int(rate * 0.3)` = **300 ms** | 300 ms of quiet ends the utterance |
+| `config.replyGate` | **`.zero`** — the demo never sets it | the reply fires the INSTANT a final arrives |
+
+So the total wait between Ryad stopping and the assistant committing is
+about 300 ms. A person thinking mid-sentence ("Okay, and uh,") pauses
+longer than that, every time.
+
+**The cure already exists and was built for exactly this.** AC-81's
+reply gate holds the reply after a final, and `handleGateExpired` builds
+the prompt when the gate EXPIRES rather than when it was armed:
+
+> "Built HERE, not when the gate was armed: anything the speaker added
+> during the gate belongs to the same thought."
+
+A continued sentence is absorbed into the SAME turn instead of starting a
+new one — and if a new utterance begins during the gate, the stamp check
+fails and no turn fires at all. It has been sitting at zero.
+
+**The ledger repetition is downstream of this, not a separate bug.**
+D-040 F-2 says a thought is forgotten only when its reply was fully
+SPOKEN; every other ending keeps the words because they went unanswered.
+Barging a spoken answer therefore carries it forward — which is why 34
+and 35 re-answered 33. Correct by that ruling, and the repetition mostly
+disappears if turns stop firing on fragments in the first place.
+
+**Model errors, recorded without excuse:** "The 2nd big city in Italy" →
+"Roma." (it is Milan, and turn 9 said Milan for the 3rd), and "Is
+Switzerland big as Portugal?" → "No, Switzerland is larger in area than
+Portugal" (Portugal is roughly twice Switzerland). A 4-billion-parameter
+model on a phone gets facts wrong; the seam cannot fix that and should
+not pretend to.
