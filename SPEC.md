@@ -2401,51 +2401,80 @@ cannot be taken by the machine, and AC-130 is written so the milestone
 still lands if it is never taken — the bake-off records the Mac's
 numbers and says plainly that the phone's are missing.
 
-## 86. The one hard problem: a token, once emitted, has already been spoken
+## 86. The one hard problem: the seam has no undo — three layers, not one heroic filter
 
-Apple's mind is supervised. It answers. A raw open-weights model does
-something else first: Qwen3 emits its reasoning between `<think>` and
-`</think>`, and only then the answer. For a thing that is READ, that is
-a feature. For a thing that is HEARD it is a defect — the mouth would
-speak the deliberation aloud.
+*(Rewritten 2026-08-21, after measurement. The first draft of this
+section — preserved in commit `ae78681` — built the milestone around a
+case this model's vocabulary makes impossible. A second agent's review
+put the question, the machine answered it, and the answer is below. The
+spec is normally append-only; this section was still unsigned, so it is
+corrected in place rather than left standing as a known error.)*
 
-So the adapter must filter. And here is why filtering is the hard part
-rather than a `replacingOccurrences` call:
+**What stands.** `ReplyUpdate` has no retraction, by design, because the
+token has already left for the mouth. Whatever the adapter emits is
+spoken. That is still the law this milestone is built on.
+
+**What does NOT stand.** The first draft said the filter must reassemble
+a tag split across deltas — `<`, `th`, `ink`, `>` — and made that
+reassembly the milestone's hard problem. Measured in the model's own
+`tokenizer_config.json`:
 
 ```
-  the mind emits deltas          the mouth speaks each one
-  ────────────────────           ──────────────────────────
-   "<"        ──────────────────▶  spoken.  too late.
-   "think"                          you cannot unspeak it.
-   ">"
-
-  so the filter must decide BEFORE emitting, knowing only the past:
-
-   "<"      → hold. it MIGHT be a tag.
-   "<th"    → hold. still might.
-   "<the"   → release "<the" — it can no longer become <think>
-   "<think>"→ swallow, and swallow everything until "</think>"
+  <think>   = token 151667   ── single special tokens in the vocabulary.
+  </think>  = token 151668      the tokenizer emits each as ONE unit,
+                                so they are never split across deltas.
 ```
 
-The rule the component must keep is one sentence: **never emit anything
-you might need to take back.** There is no retraction in this seam —
-`ReplyUpdate` has no "undo", by design, because the token has already
-left for the mouth. Held text must be released the moment it can no
-longer become a tag, and flushed honestly if the stream ends mid-hold.
+and `MLXLMCommon`'s `TokenIterator.next() -> Int?` is public, so the
+adapter sees those ids **before any text exists**. For this model the
+split-tag case cannot occur. It was reasoned, not measured, and D-054
+exists precisely to stop that.
 
-This is exactly the shape of `SnapshotDiffer`: a pure component, no
-clock, no dependency, forced into existence by a vendor's stream shape
-and solved with logic instead of hope. It is testable to death with zero
-MLX installed, which is the point — the hardest part of this milestone
-does not need a GPU to prove.
+**The measured answer is three cheap layers, not one clever one.** They
+fail in different directions, which is why they are worth having
+together rather than choosing between:
 
-Second hard problem, smaller but real, and it is a BUILD problem rather
-than a code problem — F-6 named it precisely: *"the code is removable in
-a day behind `ReplyGenerating`, but the build system is not behind the
-protocol at all."* Without the metallib, MLX does not fail a test — it
-**aborts the process mid-run**. A crashing runner is a different animal
-from a red test, and AC-129 exists because a harness that dies is a
-harness that cannot report.
+```
+  LAYER 1 — do not think at all.          cost: nothing.
+    Qwen3's chat template:                fails if: the model ignores
+      {%- if enable_thinking is false %}            the convention.
+          {{- '<think>\n\n</think>\n\n' }}
+    It PRE-FILLS a closed block so the model starts past its reasoning.
+    A convention, NOT a decoding constraint. Nothing structurally
+    prevents a second <think>.
+                    │
+                    ▼
+  LAYER 2 — the exact net, at token ID.   cost: backend-specific.
+    if id == 151667 { swallowing = true } fails if: the marker is not
+    if id == 151668 { swallowing = false }         a special token.
+    Impossible to bypass by tokenisation. No string ever forms.
+                    │
+                    ▼
+  LAYER 3 — the general net, on text.     cost: LATENCY.
+    Only for models whose markers are     fails if: nothing — but see
+    ordinary text. THIS is where "never             the cost.
+    emit what you might retract" lives.
+```
+
+**Layer 3's cost is the one this project cares about most.** Holding
+`<` back to see whether it becomes `<think>` delays the mouth. This repo
+has spent two milestones measuring a felt pause of 542–567 ms; a filter
+that buys safety with milliseconds of hold is not free here, and it must
+be paid for only when a model actually needs it.
+
+**So the milestone's difficulty moved, and that is an honest gain rather
+than a loss.** The reasoning problem got small and exact. What is left
+genuinely hard in 4h is not the filter at all:
+
+1. **The build system, which is not behind the protocol.** F-6 said it
+   first and it is still true: without a metallib MLX does not fail a
+   test, it **aborts the process mid-run**. A crashing runner cannot
+   report, which is why AC-129 exists.
+2. **334 MB, resident.** Measured: there is no `mmap` anywhere in MLX's
+   C++ core — it does not memory-map safetensors. The weights sit in
+   memory beside a live audio graph, a recogniser and a mouth. On a Mac
+   that is nothing. On a phone it is a real question, and it is one more
+   thing only a device can answer.
 
 ## 87. Acceptance criteria (4h)
 
@@ -2517,61 +2546,115 @@ only its speed claims go unproven.
 
 ## 89. The design forks (4h) — for Ryad to rule
 
+*(Rewritten 2026-08-21. The first draft's F-2 rested on §86's refuted
+premise, and its F-4 contradicted this repo's own Whisper precedent. A
+second agent's review raised eleven further options; the ones that
+survived measurement are folded in below and credited where they won.
+The original list stands in commit `ae78681`.)*
+
 - **F-1 WHICH SECOND MIND.** A: MLX directly — `MLXLLM` +
-  `MLXLMCommon` from mlx-swift-lm, plus a real tokenizer. B: wait for
+  `MLXLMCommon`, plus a real tokenizer. B: wait for
   `MLXFoundationModels`, which would drive an MLX model through Apple's
-  own `LanguageModelSession` and collapse the two minds into one adapter
-  with two backends — the shape this repo argues for, and F-6's watch
-  item. C: defer the second mind again and spend 4h elsewhere.
+  own `LanguageModelSession` — one adapter, two backends, the shape this
+  repo argues for. C: **llama.cpp** instead of MLX. D: defer the second
+  mind again.
   **Recommendation: A.** B was checked rather than assumed: the module
-  is ABSENT from mlx-swift-lm 3.31.4, so B is not a choice today, it is
-  a wish. The honest cost of A is that if B ships later, this adapter
-  becomes the thing it replaces — acceptable, because the seam is what
-  we are proving, not the adapter.
-- **F-2 WHERE THE THINK-FILTER LIVES, and who decides to install it.**
-  A: the FILTER is a pure component in core beside `SnapshotDiffer`, and
-  the MLX adapter installs it by default with the app able to turn it
-  off. B: the filter lives inside the MLX product. C: the library never
-  filters; the app does. **Recommendation: A.** The component contains
-  no MLX and is useful to any raw model, which is exactly why
-  `SnapshotDiffer` sits in core. On the default: D-027 says mechanism
-  not policy, and a filter that must be switched ON by every caller will
-  one day not be, and a phone will read its own reasoning aloud. So the
-  MECHANISM is the component, and the adapter's default is a
-  configuration the app can change — policy stays reachable.
+  is ABSENT from mlx-swift-lm 3.31.4, read from the checkout. It is not
+  a choice today, it is a wish. C deserves more than the dismissal it
+  usually gets, and its real argument is NOT the one usually offered:
+  claims about thermals and Metal integration are asserted without
+  evidence and are ignored here. Its one serious advantage is that
+  llama.cpp compiles its Metal shaders from embedded source **at
+  runtime**, which would make F-3 — this milestone's genuine build
+  problem — disappear entirely. **That advantage is UNMEASURED.** It is
+  written here as a claim, not a finding, and it must not be ruled on as
+  if it were evidence. If it matters to the ruling, it is gated exactly
+  as MLX was gated: spiked outside the repo first, result logged either
+  way. The honest costs of C, if it were taken: C++ interop inside a
+  Swift 6 strict-concurrency library, and a second build system to
+  learn — against a stack that is Apple-native everywhere else.
+- **F-2 HOW THE REPLY IS MADE SPEAKABLE.** *(options replaced — the old
+  A/B/C were built on §86's refuted premise.)* A: all three of §86's
+  layers. B: layers 1+2 only — the prompt switch, plus the token-ID gate
+  inside the MLX adapter; no core component at all. C: layer 3 only — a
+  string filter in core, which is the first draft's answer and is now
+  known to be redoing work the vocabulary already does exactly. D:
+  layer 1 only — trust `enable_thinking` and filter nothing.
+  **Recommendation: B, with layer 3 deferred until a model needs it.**
+  Layers 1 and 2 are small, exact and measurable today. Layer 3 is a
+  general solution to a problem no model in this project currently has,
+  and this repo has a rule for exactly that: D-053's "public surface is
+  earned by a second REAL one." A general text filter is earned by a
+  second model whose markers are ordinary text — not by imagining one.
+  D is rejected on its failure mode: a convention is one model update
+  away from a phone reading its own reasoning aloud, and the cost of
+  layer 2 is a single integer comparison.
 - **F-3 THE METALLIB — where the 3.6 MB artefact comes from.** A: built
-  in CI by the preinstalled toolchain, and produced locally by a
-  documented script; live tests skip when it is absent. B: vendor the
-  binary into the repository. C: no live MLX tests at all — only the
-  demo ever runs it. **Recommendation: A.** §24 already argued against
-  B in a repo whose method is reproducibility, and C means the adapter's
-  real path is never machine-checked. Honest cost of A: CI gains a build
-  step, and a contributor without the toolchain sees skips rather than
-  proofs — which AC-129 makes visible instead of silent.
-- **F-4 THE WEIGHTS — 334 MB has to come from somewhere.** A: the
-  caller supplies a path; the library never reaches the network. B: the
-  library downloads from HuggingFace on first use. **Recommendation:
-  A** — D-027 again, and the product bias: a library that opens a
-  network connection by itself is a surprise, and this project's whole
-  argument is on-device. It also keeps 334 MB out of every CI run.
-- **F-5 THE DEPENDENCY BILL, stated before it is paid.** Adopting MLX
-  is not one package. Measured from the spike's resolved graph:
-  `mlx-swift-lm` 3.31.4, `mlx-swift` 0.31.6, transitively
-  `swift-numerics` 1.1.1, `swift-argument-parser` 1.8.2 and
-  `swift-syntax` 603.0.2 — and a real tokenizer besides, because
-  mlx-swift-lm deliberately does NOT depend on swift-transformers; it
-  ships `#huggingFaceTokenizerLoader()`, a macro that wraps YOUR
-  `Tokenizers.Tokenizer`. So the true bill is **three direct packages**,
-  one of them swift-syntax, which is a slow build. A: pay it, inside the
-  opt-in product only, exactly as WhisperKit and TTSKit are paid for.
-  B: write our own tokenizer to avoid swift-transformers. C: refuse the
-  bill and rule F-1 = C. **Recommendation: A.** D-023's four questions
-  still pass for A — it is not the point of the project, it is Swift 6
-  clean, it is maintained, and it is removable in a day because it lives
+  in CI by the preinstalled toolchain and by a documented local script;
+  live tests skip when it is absent. B: vendor the binary into git.
+  C: no live MLX tests — only the demo runs it. D: host the artefact
+  outside git (a release asset) and fetch it in a build step.
+  **Recommendation: A, with D as the named fallback** if contributor
+  friction turns out to be real. §24 already argued against B in a repo
+  whose method is reproducibility, and C leaves the adapter's real path
+  never machine-checked. D's honest costs, stated because they are easy
+  to miss: it puts a network fetch inside the build, and the artefact
+  must match the mlx-swift version EXACTLY — so it needs a checksum and
+  a version pin, or it becomes a machine that returns wrong answers
+  quietly. Two further options were raised and are rejected on
+  measurement rather than taste: compiling the shaders at launch is not
+  available for MLX — the kernels are excluded from the SwiftPM build
+  and are not exposed as source to compile (that trick belongs to
+  llama.cpp, see F-1 C); and shipping an xcframework does not fit,
+  because SwiftPM's checksummed binary mechanism takes xcframeworks and
+  artifact bundles, not a bare shader library.
+- **F-4 THE WEIGHTS — and a correction to the first draft.** The first
+  draft recommended "the library never reaches the network." That was
+  wrong **on this repo's own terms**, and the review caught it.
+  `MultiModalKitWhisper` already downloads ~142 MB from Hugging Face,
+  and its `modelInstalled()` doc states the doctrine precisely: *"no
+  download is ever triggered by asking"*, and "installed" means
+  OFFLINE-CAPABLE — it checks the tokenizer files too, because an audit
+  found WhisperKit silently falling back to the network. So the real
+  rule here is not abstinence. It is: **a download is allowed inside an
+  opt-in product when it is explicit, idempotent, and never provoked by
+  a question.** A: the MLX product follows Whisper exactly — its own
+  `modelInstalled()` and `ensureModel()`, same semantics, same honesty
+  about what "installed" means. B: caller supplies a path, no download
+  anywhere. C: a separate models package serving both engines.
+  **Recommendation: A.** The precedent exists, it has already been
+  audited once in the field, and one shape is one set of bugs — which is
+  D-060 F-3's reasoning applied again. C is the tidier architecture and
+  is rejected for the same reason: a new shape earns its place when two
+  citizens actually need it, and today they do not share a byte.
+  **A new unknown, named rather than discovered later:** measured, there
+  is no `mmap` anywhere in MLX's C++ core — safetensors are not
+  memory-mapped, so 334 MB stays resident beside the audio graph, the
+  recogniser and the mouth. On the Mac this is invisible. On a phone it
+  is a real risk, and it joins the short list of things only a device
+  can answer.
+- **F-5 THE DEPENDENCY BILL, stated before it is paid.** Measured from
+  the spike's resolved graph: `mlx-swift-lm` 3.31.4, `mlx-swift` 0.31.6,
+  transitively `swift-numerics` 1.1.1, `swift-argument-parser` 1.8.2 and
+  `swift-syntax` 603.0.2 — plus a real tokenizer, because mlx-swift-lm
+  deliberately does NOT depend on swift-transformers; it ships
+  `#huggingFaceTokenizerLoader()`, a macro that wraps YOUR
+  `Tokenizers.Tokenizer`. **Three direct packages, not one.**
+  A: pay it, inside the opt-in product only, exactly as WhisperKit and
+  TTSKit are paid for. B: hand-write a tokenizer. C: refuse the bill and
+  rule F-1 = D. **Recommendation: A, unchanged** — D-023's four
+  questions still pass, and the fourth passes because the code lives
   behind `ReplyGenerating` in a product nobody is forced to import.
-  B fails the fourth question in the direction that matters: a
-  hand-written BPE tokenizer is OUR bug forever, and the spike already
-  proved a lazy one produces token ids that are valid but wrong.
+  B is rejected: the spike already proved a lazy tokenizer yields ids
+  that are valid but wrong, and Qwen3 is `Qwen2Tokenizer` — BPE, not
+  SentencePiece, so "it is only 200 lines of SentencePiece" is not the
+  bill either. Two escape hatches were proposed and do not work:
+  vendoring the macro's expansion does not drop swift-transformers,
+  because the macro WRAPS a `Tokenizers.Tokenizer` rather than
+  generating one; and swift-syntax is a build-time dependency of macro
+  expansion that is never in the runtime graph at all — so there is
+  nothing to remove there, and its true cost is CI build TIME, which is
+  a reason to measure that time, not to redesign around a ghost.
 
 ## 90. Out of scope for 4h (deliberately)
 
