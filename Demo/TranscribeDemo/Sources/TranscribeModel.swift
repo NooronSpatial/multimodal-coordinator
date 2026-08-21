@@ -206,8 +206,9 @@ final class TranscribeModel {
     /// without this sentence a voice would read list numbering aloud.
     private let appleMind = AppleReplyGenerator(
         instructions: "Your reply will be spoken aloud by a synthetic voice "
-            + "and never shown as text. Answer in one to three short, plain "
-            + "sentences. Never use lists, bullet points, numbered items, "
+            + "and never shown as text. Answer in ONE short sentence. Do not "
+            + "add extra facts, background or explanation unless the person "
+            + "asks for them. Never use lists, bullet points, numbered items, "
             + "markdown, code, or headings.",
         spokenRefusal: "I can't help with that one.")
 
@@ -218,7 +219,11 @@ final class TranscribeModel {
     private static let localModelKey = "dev.nooron.demo.localModel"
     private static var storedLocalModel: LocalModelChoice {
         UserDefaults.standard.string(forKey: localModelKey)
-            .flatMap(LocalModelChoice.init(rawValue:)) ?? .small
+            // F-1 = B (2026-08-21): 4B is the DEFAULT, ruled on the
+            // phone's own measurement — 2288 MB peak, no kill, 291-315 ms
+            // to the first word, and none of 0.6B's parroting. The picker
+            // stays, because one device is one device.
+            .flatMap(LocalModelChoice.init(rawValue:)) ?? .big
     }
     /// Changing this REPLACES the host, so the old weights are dropped
     /// rather than kept alive beside the new ones — which on a phone is
@@ -235,6 +240,7 @@ final class TranscribeModel {
     }
     private var localModel = LocalMindModel(
         repoID: TranscribeModel.storedLocalModel.repoID)
+    // (default is .big — see storedLocalModel, ruled F-1 = B)
     /// Instructions are the APP's text, not the library's (D-027). The
     /// same sentence the Apple mind gets, because the constraint is the
     /// medium — this reply is heard, never read — not the model.
@@ -245,9 +251,10 @@ final class TranscribeModel {
         MLXReplyGenerator(
             model: localModel,
             instructions: "Your reply will be spoken aloud by a synthetic voice "
-                + "and never shown as text. Answer in one to three short, plain "
-                + "sentences. Never use lists, bullet points, numbered items, "
-                + "markdown, code, or headings.",
+                + "and never shown as text. Answer in ONE short sentence. Do "
+                + "not add extra facts, background or explanation unless the "
+                + "person asks for them. Never use lists, bullet points, "
+                + "numbered items, markdown, code, or headings.",
             maxTokens: 160)
     }
     /// THE CONVERSATION LOG. Built because a field report — "sometimes it

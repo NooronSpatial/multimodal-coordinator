@@ -1986,3 +1986,49 @@ different lever and has not been tuned.
 Thermals are also untested: eight turns is not a long conversation, and
 sustained GPU work on a phone throttles. Nothing here should be read as a
 claim about a twenty-minute session.
+
+### F-1 = B, and the reply-length fix — measured, not phrased
+
+Ryad ruled **F-1 = B**: 4B is the default, on the phone's own evidence
+(2288 MB peak, no kill, 291–315 ms first word, none of 0.6B's parroting).
+The picker stays, because one device is one device.
+
+**The reply-length problem, stated correctly.** The 4.2 s in his log was
+GENERATION time, not the real cost. Turn 6's reply was 29 words — roughly
+twelve seconds of speech. First-word latency was never the fault; length
+was, and nobody had tuned it.
+
+Three instructions, same six prompts from his log, same model:
+
+| instruction | mean words | verdict |
+|---|---|---|
+| A: current — "one to three short, plain sentences" | **19.7** | the baseline that produced the complaint |
+| B: "ONE short sentence. Do not add extra facts…" | **7.0** | shipped |
+| C: "answer ONLY what was asked, at most fifteen words" | 9.8 | rejected — longer AND worse |
+
+C looked plausible and measured badly, which is the point of measuring.
+It produced self-contradiction — *"Approximately 450 miles. The distance
+between Hamburg and Paris is abo…"* — and bare fragments that read
+strangely aloud: *"Madrid. It is the capital city of Spain."*
+
+**B's replies, at 7.0 words mean:**
+
+```
+Hello, my friend, how are you?   → "I'm doing well, thank you! How about you?"
+what is the capital of Spain?    → "The capital of Spain is Madrid."
+Okay, thank you.                 → "You're welcome!"
+```
+
+**And the check that mattered before shipping it:** does "ONE short
+sentence" make it useless when a question genuinely needs explaining? It
+does not — the model adapts rather than truncating:
+
+```
+Why is the sky blue?                   → 25 words, one sentence, correct
+Explain how a microphone works.        → 33 words
+Difference between RAM and storage?    → 27 words
+```
+
+Short where short is right, fuller where the question earns it. Applied
+to BOTH minds, because the constraint is the MEDIUM — this reply is
+heard, never read — and not the model.

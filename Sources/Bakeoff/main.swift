@@ -165,8 +165,9 @@ if arguments.count > 1, arguments[1] == "ask" {
         instructions: arguments.first(where: { $0.hasPrefix("--system=") })
             .map { String($0.dropFirst("--system=".count)) }
             ?? "Your reply will be spoken aloud by a synthetic voice "
-            + "and never shown as text. Answer in one to three short, plain "
-            + "sentences. Never use lists, bullet points, numbered items, "
+            + "and never shown as text. Answer in ONE short sentence. Do not "
+            + "add extra facts, background or explanation unless the person "
+            + "asks for them. Never use lists, bullet points, numbered items, "
             + "markdown, code, or headings.",
         maxTokens: 160)
 
