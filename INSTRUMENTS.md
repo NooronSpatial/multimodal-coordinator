@@ -1652,3 +1652,78 @@ The instruments to convict are ALREADY ON SCREEN: the per-utterance
 `peak · ms · echo?` rows, and the gate slider — 0.021 was earned on the
 receiver route in 4d's era, and AC-97's own law says every device AND
 route earns its number from a run, not by inheritance.
+
+## 25. The second mind's own numbers (4h) — the bill, and what mutation caught
+
+*(Numbering note: §24 is the MLX spike gate. It is not in this file on
+this branch on purpose — it arrives with PR #16, which carries the gate's
+evidence to `main` and touches no source. The gap is reserved, not
+skipped.)*
+
+### The dependency bill, in seconds rather than in adjectives
+
+D-062's F-5 = A priced MLX at three direct packages and said the honest
+cost is CI build TIME, "which is a reason to measure that time, not to
+redesign around a ghost." Measured on this Mac:
+
+| what | before | after |
+|---|---|---|
+| `swift build --target MultiModalKit` (the vow's proof) | 1.72 s | **1.56 s** |
+| full `swift build -Xswiftc -warnings-as-errors`, cold | — | **39.65 s** (412 steps) |
+| full suite | 259 tests / 33 suites | **279 / 36** |
+| stability, the new suites | — | **60 runs, 0 failures** |
+
+Sixty runs rather than the house twenty, because promise 3 is the exact
+test whose Apple-seam twin was measured flaking ~1 in 800 — and a
+twenty-run pass would have said nothing about a fault of that size. Sixty
+says little more, honestly; what makes this version deterministic is the
+GATE, not the repetitions: the defiant token cannot race the cancel
+because the test opens the gate only after `cancel()` has returned.
+
+The core-alone number is the one that matters, and it did not move: the
+zero-dependency vow is enforced mechanically by CI building that target
+BEFORE anything else, and MLX is not reachable from it. The 39.65 s is
+the whole graph from cold, warnings-as-errors clean — cheaper than the
+"slow build" the fork discussion feared, because the swift-syntax cost is
+paid only by macro expansion we do not currently use.
+
+### The mutation log — five that bit, one that did not
+
+Tests here were written ALONGSIDE the implementation rather than watched
+failing first. That is a departure from red-then-green, so red was proven
+afterwards by mutation instead of claimed:
+
+| mutation | result |
+|---|---|
+| the gate admits everything | 5 of 6 gate tests RED |
+| the CLOSE marker is admitted | the 6th RED |
+| the real-vocabulary test expects the wrong ids | RED — so its silent skip is not hiding a dead assertion |
+| `cancel()` emits a terminal | promises 2, 3, 4 RED |
+| `cancel()` stops finishing the stream | promises 2, 3, 4 and the race test RED (in 5.000 s, the `until` bound) |
+| **the retire latch removed from `report`** | **NOTHING RED — masked** |
+
+The masked one is recorded rather than dressed up. `report` cannot be
+called twice by construction, and in the cancel-then-finish race
+`out.finish()` has already run, and a finished `AsyncStream` drops every
+later yield. So the FINISH is load-bearing and the latch is the belt. It
+stays — `AppleReplyRun` needed exactly this latch forced onto it by 4e's
+review after a failed decode kept running and aborted the process, and
+the structure that masks it here is not guaranteed to survive the next
+change. This is the 4b precedent: record redundancy, do not pretend every
+line is load-bearing alone.
+
+### Two defects in my own tests, found by measuring instead of trusting
+
+1. **A control that survived the mutation it existed to catch.** The
+   removed-gate control first asserted only that gated output DIFFERED
+   from ungated. With the gate neutered it still passed, because the
+   close marker alone made the two differ. Both halves are now exact, and
+   the ungated half runs a FOREIGN vocabulary through the same code path
+   rather than skipping the gate — so it proves the gate acts on THESE
+   ids, not on tokens in general.
+2. **A red that hung instead of failing.** The cancel-then-finish test
+   first awaited its collector task's result. With `out.finish()` mutated
+   away the stream never ended, and the run took **ten minutes and
+   produced no verdict** before it was killed. Rewritten on the house
+   `until` bound, the same mutation now reddens it in 5.000 s. A red that
+   hangs is a red nobody reads.
