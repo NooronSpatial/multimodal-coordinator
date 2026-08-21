@@ -2478,7 +2478,12 @@ genuinely hard in 4h is not the filter at all:
 
 ## 87. Acceptance criteria (4h)
 
-- **AC-125 The reply is speakable at the TOKEN, not the string.** Layers
+- **AC-125 The reply is speakable at the TOKEN, not the string.**
+  *(status: MET — `ThinkGate` green and proven non-inert by three
+  mutations; ids READ from `tokenizer_config.json`. PARTIAL on one point
+  the 4h review raised and D-063 accepts as open: the gate is proven in
+  isolation and its door proven wired, but no test drives a defiant
+  `<think>` from the REAL model through the REAL detokenizer.)* Layers
   1 and 2 of §86, and deliberately nothing more. The adapter asks the
   model not to think — `enable_thinking` false, which pre-fills a closed
   block — and gates on the vocabulary's own ids so reasoning never
@@ -2491,7 +2496,11 @@ genuinely hard in 4h is not the filter at all:
   load (151667 / 151668 for this model), never hard-coded: a model whose
   vocabulary differs must fail loudly rather than quietly speak its
   reasoning aloud.
-- **AC-126 The MLX mind is the seam's second REAL citizen.** An
+- **AC-126 The MLX mind is the seam's second REAL citizen.**
+  *(status: MET — all five `ReplyConformanceKit` promises pass with the
+  kit UNCHANGED and no argument the Apple mind did not also pass. Four
+  mutations bite; the fifth, the retire latch, is masked by `finish()`
+  and recorded as measured redundancy rather than dressed up.)* An
   `MLXReplyGenerator: ReplyGenerating` in its own opt-in product. It
   passes all FIVE promises of `ReplyConformanceKit` — tokens then
   exactly one terminal; cancel ends the stream without a terminal;
@@ -2500,31 +2509,50 @@ genuinely hard in 4h is not the filter at all:
   the Apple mind passes, with the kit unchanged. If the kit needs a
   change to admit the second citizen, that change is a finding about the
   kit and gets written down.
-- **AC-127 The core's zero-dependency vow survives, mechanically.** CI
+- **AC-127 The core's zero-dependency vow survives, mechanically.**
+  *(status: MET, and the guard itself was tested after the review claimed
+  it could not fail: adding `import MLXLLM` to a core file makes
+  `swift build --target MultiModalKit` fail. Core-alone build 1.08–2.84 s
+  throughout.)* CI
   already builds the core ALONE (`swift build --target MultiModalKit
   -Xswiftc -warnings-as-errors`) before anything else, which is the
   vow's enforcement rather than its restatement. That step stays green,
   and no MLX symbol is reachable from `MultiModalKit`. D-016's tier 1 is
   untouched: the new dependencies live only in the opt-in product.
 - **AC-128 A real token, from the real model, inside `swift test`.**
+  *(status: MET — "The capital of Italy is Rome." from Ryad's own weights.
+  Cold 1.93 s, WARM 0.27 s, and the field session on the phone gave
+  291–315 ms across 38 turns. Skips now ANNOUNCE themselves; they used to
+  print "passed".)*
   Env-gated the way this repo already gates live tests ("model required;
   skips if absent", `MMK_LIVE_SYNTH`'s pattern): with metallib and
   weights present, the MLX mind generates and the conformance promises
   hold against the REAL model, not a script. The numbers land in
   INSTRUMENTS.
 - **AC-129 A missing metallib SKIPS; it does not kill the runner.**
+  *(status: MET, and the guard was WRONG TWICE before it was right — both
+  times a false positive, once accepting `Vision.framework`'s own
+  metallib. Control run both ways: removed → 5 skip, green in 0.140 s;
+  restored → real reply.)*
   §24's C1 measured that MLX aborts the process when the artefact is
   absent. Proven by running the suite deliberately WITHOUT it and
   observing a clean skip and a green run — the control that proves the
   guard is switched on, in the shape D-054 requires of any instrument.
-- **AC-130 The bake-off: two minds, one question, measured.** The
+- **AC-130 The bake-off: two minds, one question, measured.**
+  *(status: MET — `bakeoff mind-off`, and it found something the spec had
+  not anticipated: loading is not warming. Apple's rows are empty and say
+  why, which is a result rather than a gap.)* The
   existing `bakeoff` tool gains a mind comparison: Apple against MLX on
   identical prompts — time to first token, tokens per second, and
   whether the reply is speakable at all (how much of it was `<think>`).
   Recorded with the caveats §24 already wrote about tokenizer fidelity,
   and with the phone's absence stated rather than implied.
 - **AC-131 The demo offers the third mind, and says honestly when it
-  cannot run it.** `MindChoice` gains a local case. On a platform that
+  cannot run it.**
+  *(status: MET and field-proven — the picker, the honest simulator
+  refusal at COMPILE time, and the model chooser F-1 = C added. The
+  review found the memory guard on the button rather than the load, which
+  was a crash loop; fixed.)* `MindChoice` gains a local case. On a platform that
   structurally cannot run MLX (the Simulator, §24 STAGE 3) it reports an
   unavailable sentence through the machinery AC-110 already built — it
   does not vanish from the picker and it does not crash. An instrument
