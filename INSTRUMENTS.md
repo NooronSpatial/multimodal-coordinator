@@ -1941,3 +1941,48 @@ in practice: the file is not mapped, it is held.
 whether iOS tolerates that is not a thing this room can measure. That is
 precisely why the ruling was C: the demo now records `MLX peak N MB` on
 every turn, so one shared log answers it.
+
+### The phone's answer to F-1 (2026-08-21) — 4B fits, and it behaves
+
+F-1 = C existed to get one number that no Mac could produce: whether
+2.1 GB of resident weights survives on a phone beside a live audio graph,
+a recogniser and a mouth. Ryad ran the picker on his iPhone with the 4B
+model and shared the log. It survives.
+
+```
+local model: 4B (mlx-community/Qwen3-4B-4bit) · installed: true
+MLX memory now: active 2159 MB · peak 2288 MB
+ear=Apple · mouth=Apple · speaker shield=true
+```
+
+Eight turns, no kill, and memory settled rather than climbed: peak went
+2277 → 2283 → 2288 MB over the first three turns and then stopped.
+
+**The phone matches the Mac, which was not guaranteed:**
+
+| | this Mac | iPhone |
+|---|---|---|
+| first word | 249–376 ms | **291–315 ms** |
+| MLX peak | 2340 MB | **2288 MB** |
+| parrots fragments | no | no |
+
+**Every 0.6B failure case is gone**, including the accumulating-ledger
+inputs that produced them. The same shape that made the small model echo
+verbatim now gets answered:
+
+| heard | 0.6B | 4B on the phone |
+|---|---|---|
+| `Hello, my friend, how are you?` | "Hello! How are you?" | "I'm doing well, thank you! How about you?" |
+| `…how are you? Can you hear me?` | echoed | "Hello! I can hear you. I'm doing well…" |
+| `How much countries do those exist in Europe?` | — | "There are 47 countries in Europe…" |
+
+**What this does NOT settle.** Total reply time ran to 4.2 s on the two
+longest answers, because the model writes three sentences where the
+instruction allows "one to three". Spoken, that is four seconds of
+talking before the person can reply. First-word latency is the number
+this project has been optimising, and it is fine; reply LENGTH is a
+different lever and has not been tuned.
+
+Thermals are also untested: eight turns is not a long conversation, and
+sustained GPU work on a phone throttles. Nothing here should be read as a
+claim about a twenty-minute session.
