@@ -145,6 +145,29 @@ struct MLXMindLiveTests {
         #expect(!spoken.contains("<think>"))
     }
 
+    /// PARTIALLY closes the review's "the gate is never proven WIRED"
+    /// finding: nothing in the suite constructed the real `MLXTokenSource`
+    /// at all, so even its door was unproven. This constructs it and
+    /// exercises the door on EVERY machine — no weights, no metallib, no
+    /// GPU — which is the half that needs no hardware.
+    ///
+    /// The other half (a defiant `<think>` from the real model reaching
+    /// the real detokenizer) still needs weights AND a model that ignores
+    /// `enable_thinking`, and stays open in D-063.
+    @Test("the REAL source is wired to the door — it refuses what is not installed")
+    func theRealSourceRefusesAtTheDoor() {
+        let absent = LocalMindModel(weights: URL(filePath: "/nowhere/no-model"))
+        let source = MLXTokenSource(model: absent, instructions: nil, maxTokens: 8)
+        guard let refusal = source.unavailable else {
+            Issue.record("a source with no weights must refuse at the door")
+            return
+        }
+        // The reason must be SPECIFIC. "Something went wrong" would pass a
+        // weaker assertion and tell a person nothing.
+        #expect(refusal is MLXUnavailable)
+        #expect(String(describing: refusal).isEmpty == false)
+    }
+
     @Test("a cancelled REAL reply ends without a terminal")
     func aRealCancel() async throws {
         guard let weights = Self.weights, MLXRuntime.isAvailable else {
