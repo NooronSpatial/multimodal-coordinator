@@ -74,6 +74,113 @@ func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
 // adoption ruling (D-045, the D-023 discipline). Two mouths, the same
 // sentences, at the SEAM both implement, so the numbers are comparable
 // by construction rather than by argument.
+// MARK: - ask: talk to the second mind on this Mac
+
+/// The Mac's way of USING the second mind rather than measuring it.
+///
+///   swift run bakeoff ask "what is the capital of italy?"   one question
+///   swift run bakeoff ask                                   keep asking
+///
+/// The weights default to the Hugging Face cache, so there is nothing to
+/// type on a machine that already has them. Tokens print AS THEY ARRIVE,
+/// which is the seam's whole point made visible: the mouth would be
+/// speaking these before the sentence exists.
+if arguments.count > 1, arguments[1] == "ask" {
+    func defaultWeights() -> URL? {
+        if let given = arguments.first(where: { $0.hasPrefix("--model=") }) {
+            return URL(filePath: String(given.dropFirst("--model=".count)))
+        }
+        let cache = FileManager.default.homeDirectoryForCurrentUser.appending(
+            path: ".cache/huggingface/hub/models--mlx-community--Qwen3-0.6B-4bit/snapshots")
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: cache, includingPropertiesForKeys: nil) else { return nil }
+        return entries.first
+    }
+
+    guard MLXRuntime.isAvailable else {
+        print("no Metal shader library reachable, so MLX cannot be touched at all.")
+        print("MLX ABORTS the process rather than failing (D-061), so this stops here.")
+        print("fix it with:  Scripts/metallib.sh")
+        exit(2)
+    }
+    guard let weights = defaultWeights(),
+          FileManager.default.fileExists(atPath: weights.path) else {
+        print("no weights found. pass --model=/path/to/Qwen3-0.6B-4bit")
+        exit(2)
+    }
+
+    let model = LocalMindModel(weights: weights)
+    let mind = MLXReplyGenerator(
+        model: model,
+        instructions: "Answer in one to three short, plain sentences. "
+            + "No lists, no markdown, no headings.",
+        maxTokens: 200)
+
+    let clock = ContinuousClock()
+    let loadStart = clock.now
+    print("loading \(weights.lastPathComponent)…")
+    do { _ = try await model.ensureModel() } catch {
+        print("could not load the model: \(error)"); exit(2)
+    }
+    // LOADING IS NOT WARMING (INSTRUMENTS §25) — burn the pipeline cost
+    // here, so the first real question is as fast as the second.
+    if let warm = try? await mind.openReply(to: "hi") {
+        for await _ in warm.updates { break }
+        await warm.cancel()
+    }
+    let ready = loadStart.duration(to: clock.now)
+    print(String(format: "ready in %.1f s · everything below runs on this Mac, offline\n",
+                 Double(ready.components.seconds)
+                     + Double(ready.components.attoseconds) * 1e-18))
+
+    func answer(_ question: String) async {
+        let start = clock.now
+        var first: Duration?
+        var pieces = 0
+        do {
+            let reply = try await mind.openReply(to: question)
+            for await update in reply.updates {
+                switch update {
+                case .token(let t):
+                    if first == nil { first = start.duration(to: clock.now) }
+                    pieces += 1
+                    FileHandle.standardOutput.write(Data(t.utf8))   // AS IT ARRIVES
+                case .failed(let why): print("\n  ✗ \(why)")
+                case .finished: break
+                }
+            }
+        } catch {
+            print("  ✗ refused at the door: \(error)")
+            return
+        }
+        let ms = { (d: Duration) in
+            Double(d.components.seconds) * 1000
+                + Double(d.components.attoseconds) * 1e-15
+        }
+        let total = start.duration(to: clock.now)
+        let after = max(ms(total) - ms(first ?? total), 0.001)
+        print(String(format: "\n   [first word %.0f ms · %d pieces · %.0f/s]\n",
+                     ms(first ?? total), pieces,
+                     Double(max(pieces - 1, 0)) / (after / 1000)))
+    }
+
+    // One question on the command line, or keep asking until ctrl-D.
+    let asked = arguments.dropFirst(2).filter { !$0.hasPrefix("--") }
+    if !asked.isEmpty {
+        await answer(asked.joined(separator: " "))
+        exit(0)
+    }
+    print("type a question, or ctrl-D to stop.")
+    while true {
+        FileHandle.standardOutput.write(Data("> ".utf8))
+        guard let line = readLine(), !line.trimmingCharacters(in: .whitespaces).isEmpty
+        else { break }
+        await answer(line)
+    }
+    print("bye.")
+    exit(0)
+}
+
 // MARK: - mind-off (AC-130): two minds, one question, measured
 
 /// Puts the seam's two real citizens on identical prompts and reports the
