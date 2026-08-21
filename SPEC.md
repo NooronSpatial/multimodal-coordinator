@@ -2478,15 +2478,19 @@ genuinely hard in 4h is not the filter at all:
 
 ## 87. Acceptance criteria (4h)
 
-- **AC-125 The think-filter never retracts.** A pure, clockless
-  component in core — no MLX, no I/O — that turns a raw token stream
-  into a speakable one. Its invariant is checked directly: everything it
-  has emitted so far is always a prefix of everything it will have
-  emitted. Adversarial cases, each its own test: a tag split across many
-  tokens (`<`, `th`, `ink`, `>`); a `<` that never becomes a tag; an
-  unclosed think block that runs to end-of-stream; repeated blocks; a
-  stream that ends mid-hold; and a `</think>` that arrives with the
-  answer's first word glued to it.
+- **AC-125 The reply is speakable at the TOKEN, not the string.** Layers
+  1 and 2 of §86, and deliberately nothing more. The adapter asks the
+  model not to think — `enable_thinking` false, which pre-fills a closed
+  block — and gates on the vocabulary's own ids so reasoning never
+  becomes a string at all. Three proofs, and the third is the one that
+  matters: thinking suppressed end to end on the real model; a DEFIANT
+  `<think>` emitted anyway is still swallowed, because layer 1 is only a
+  convention and layer 2 is the net; and the gate's own control — remove
+  the gate and reasoning MUST reach the output, or the test was proving
+  nothing. The ids are READ from the model's `tokenizer_config.json` at
+  load (151667 / 151668 for this model), never hard-coded: a model whose
+  vocabulary differs must fail loudly rather than quietly speak its
+  reasoning aloud.
 - **AC-126 The MLX mind is the seam's second REAL citizen.** An
   `MLXReplyGenerator: ReplyGenerating` in its own opt-in product. It
   passes all FIVE promises of `ReplyConformanceKit` — tokens then
@@ -2530,21 +2534,29 @@ genuinely hard in 4h is not the filter at all:
 
 | Criterion | Test | Needs a model? |
 |---|---|---|
-| AC-125 | `ThinkFilterTests` — invariant + six adversarial streams | no |
-| AC-125 | prefix-monotonicity property test over generated streams | no |
+| AC-125 | `ThinkGateTests` — a defiant `<think>` is swallowed (scripted ids) | no |
+| AC-125 | the removed-gate control — without it, reasoning reaches output | no |
+| AC-125 | ids READ from `tokenizer_config.json`, never hard-coded | config only |
 | AC-126 | `ReplyConformanceKit`'s five promises, scripted MLX source | no |
 | AC-127 | CI's core-alone build step; a test that core imports nothing | no |
-| AC-128 | `MLXMindLiveTests` — env-gated, real weights | **yes** |
+| AC-128 | `MLXMindLiveTests` — env-gated, real weights; thinking suppressed end to end | **yes** |
 | AC-129 | suite run with the metallib absent → skip, not abort | no (proves absence) |
 | AC-130 | `bakeoff mind-off` output recorded in INSTRUMENTS | **yes** |
 | AC-131 | demo picker unavailability sentence; Simulator run | no |
 
-The column on the right is the honest one: **six of eight rows need no
-model at all.** That is deliberate. If a reviewer's machine has no
-metallib and no weights, the milestone's logic is still machine-checked;
-only its speed claims go unproven.
+The column on the right is the honest one: **seven of nine rows need no
+weights at all** — six need nothing but source, and one needs only the
+tokenizer's small config file, not the 334 MB. That is deliberate. If a
+reviewer's machine has no metallib and no weights, the milestone's logic
+is still machine-checked; only its speed claims and the live end-to-end
+suppression go unproven.
 
-## 89. The design forks (4h) — for Ryad to rule
+## 89. The design forks (4h) — ruled
+
+*(RULED 2026-08-21, D-062: F-1 = A, F-2 = B, F-3 = A, F-4 = A,
+F-5 = A — all five on the recommendations, and on the MEASURED
+versions below rather than the first draft's. The gate itself is
+closed by D-061.)*
 
 *(Rewritten 2026-08-21. The first draft's F-2 rested on §86's refuted
 premise, and its F-4 contradicted this repo's own Whisper precedent. A
