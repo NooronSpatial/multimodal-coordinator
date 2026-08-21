@@ -10,3 +10,4 @@ DerivedData/
 # ours to version, and it was committed once as a stray gitlink (fixed
 # forward in the commit below). Ignored so it cannot happen twice.
 local_clone/
+*.profraw
