@@ -202,6 +202,50 @@ final class TranscribeModel {
                 + "markdown, code, or headings.",
             maxTokens: 160)
     }
+    /// THE CONVERSATION LOG. Built because a field report — "sometimes it
+    /// just replies my question" — cannot be chased without the real
+    /// exchange, and because the one fact that separates the two likely
+    /// causes is WHICH BRAIN answered, which no screenshot shows.
+    private(set) var turns: [ConversationTurn] = []
+
+    private func record(_ turn: ConversationTurn) {
+        turns.append(ConversationTurn(
+            id: turns.count + 1, mind: turn.mind, heard: turn.heard,
+            reply: turn.reply, firstTokenMs: turn.firstTokenMs,
+            totalMs: turn.totalMs, failure: turn.failure,
+            bargedIn: turn.bargedIn))
+    }
+
+    func clearLog() { turns.removeAll() }
+
+    /// The log as markdown, so it leaves the phone as DATA rather than as
+    /// a photograph of a screen.
+    var conversationLog: String {
+        var out = "# Conversation log — MultiModalKit demo\n\n"
+        out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
+        out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
+        out += "local model installed: \(localModel.modelInstalled()) · "
+        out += "MLX runnable here: \(MLXRuntime.isAvailable)\n"
+        if let why = mindUnavailable { out += "mind unavailable: \(why)\n" }
+        out += "\nNOTE: the `mind:` line under each turn is the brain that\n"
+        out += "ACTUALLY answered, taken from the generator the coordinator\n"
+        out += "held — not from the picker above. If they disagree, that is\n"
+        out += "the finding.\n\n"
+        if turns.isEmpty { out += "_(no turns recorded yet)_\n" }
+        for turn in turns {
+            out += "## turn \(turn.id)\n"
+            out += "mind: **\(turn.mind)**\n\n"
+            out += "heard: \(turn.heard.isEmpty ? "_(nothing)_" : turn.heard)\n\n"
+            out += "reply: \(turn.reply.isEmpty ? "_(no words)_" : turn.reply)\n\n"
+            let first = turn.firstTokenMs.map { "\($0) ms" } ?? "never"
+            out += "first word \(first) · total \(turn.totalMs) ms"
+            if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
+            if let failure = turn.failure { out += " · FAILED: \(failure)" }
+            out += "\n\n"
+        }
+        return out
+    }
+
     /// Fraction complete while the weights come down, or nil.
     private(set) var localDownloadProgress: Double?
 
@@ -230,10 +274,20 @@ final class TranscribeModel {
         let witness: @Sendable (String) -> Void = { [weak self] thought in
             Task { @MainActor in self?.wholeThought = thought }
         }
+        let sink: @Sendable (ConversationTurn) -> Void = { [weak self] turn in
+            Task { @MainActor in self?.record(turn) }
+        }
         switch mind {
-        case .echo: return PhoneEchoReply(onThought: witness)
-        case .apple: return ThoughtWitness(wrapped: appleMind, onThought: witness)
-        case .local: return ThoughtWitness(wrapped: localMind, onThought: witness)
+        case .echo:
+            return ThoughtWitness(wrapped: PhoneEchoReply(onThought: witness),
+                                  mindLabel: "Echo (a stand-in that REPEATS your words)",
+                                  onThought: { _ in }, onTurn: sink)
+        case .apple:
+            return ThoughtWitness(wrapped: appleMind, mindLabel: "Apple",
+                                  onThought: witness, onTurn: sink)
+        case .local:
+            return ThoughtWitness(wrapped: localMind, mindLabel: "Local (MLX)",
+                                  onThought: witness, onTurn: sink)
         }
     }
 

@@ -15,3 +15,6 @@ local_clone/
 # Scripts/metallib.sh. A 3.6 MB binary has no business in a repo whose
 # method is reproducibility.
 default.metallib
+
+# A local conversation log, for sharing a session — not history.
+mind-log.md

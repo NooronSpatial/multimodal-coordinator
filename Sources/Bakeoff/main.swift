@@ -112,9 +112,14 @@ if arguments.count > 1, arguments[1] == "ask" {
     let model = LocalMindModel(weights: weights)
     let mind = MLXReplyGenerator(
         model: model,
-        instructions: "Answer in one to three short, plain sentences. "
-            + "No lists, no markdown, no headings.",
-        maxTokens: 200)
+        // WORD FOR WORD the demo's text, so this tool reproduces the
+        // phone rather than approximating it. A field report cannot be
+        // chased with a different prompt than the one that produced it.
+        instructions: "Your reply will be spoken aloud by a synthetic voice "
+            + "and never shown as text. Answer in one to three short, plain "
+            + "sentences. Never use lists, bullet points, numbered items, "
+            + "markdown, code, or headings.",
+        maxTokens: 160)
 
     let clock = ContinuousClock()
     let loadStart = clock.now
@@ -133,10 +138,19 @@ if arguments.count > 1, arguments[1] == "ask" {
                  Double(ready.components.seconds)
                      + Double(ready.components.attoseconds) * 1e-18))
 
+    // THE LOG, so a Mac session can be shared the same way the phone's
+    // can. Written after every turn rather than at exit: the turn worth
+    // sharing is often the one before something hangs.
+    let logURL = URL(filePath: FileManager.default.currentDirectoryPath)
+        .appending(path: "mind-log.md")
+    var log = "# Conversation log — bakeoff ask (Mac)\n\n"
+    log += "model: \(weights.lastPathComponent)\nmind: Local (MLX)\n\n"
+
     func answer(_ question: String) async {
         let start = clock.now
         var first: Duration?
         var pieces = 0
+        var said = ""
         do {
             let reply = try await mind.openReply(to: question)
             for await update in reply.updates {
@@ -144,6 +158,7 @@ if arguments.count > 1, arguments[1] == "ask" {
                 case .token(let t):
                     if first == nil { first = start.duration(to: clock.now) }
                     pieces += 1
+                    said += t
                     FileHandle.standardOutput.write(Data(t.utf8))   // AS IT ARRIVES
                 case .failed(let why): print("\n  ✗ \(why)")
                 case .finished: break
@@ -162,6 +177,10 @@ if arguments.count > 1, arguments[1] == "ask" {
         print(String(format: "\n   [first word %.0f ms · %d pieces · %.0f/s]\n",
                      ms(first ?? total), pieces,
                      Double(max(pieces - 1, 0)) / (after / 1000)))
+        log += "## \(question)\n\n\(said.isEmpty ? "_(no words)_" : said)\n\n"
+        log += String(format: "first word %.0f ms · %d pieces\n\n",
+                      ms(first ?? total), pieces)
+        try? Data(log.utf8).write(to: logURL)
     }
 
     // One question on the command line, or keep asking until ctrl-D.
@@ -177,7 +196,7 @@ if arguments.count > 1, arguments[1] == "ask" {
         else { break }
         await answer(line)
     }
-    print("bye.")
+    print("bye. log written to \(logURL.path)")
     exit(0)
 }
 

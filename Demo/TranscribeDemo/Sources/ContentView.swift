@@ -71,6 +71,19 @@ struct ContentView: View {
             }
             .navigationTitle("MultiModalKit")
             .toolbar {
+                // THE CONVERSATION LOG. Reachable in every state, like the
+                // probes, and for the same reason: the moment worth
+                // sharing is usually the moment something went wrong, and
+                // a log you cannot reach then is not a log.
+                //
+                // It carries the brain that ACTUALLY answered each turn,
+                // which is the one fact a screenshot cannot show.
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(item: model.conversationLog) {
+                        Label("Share the conversation", systemImage: "text.bubble")
+                    }
+                    .disabled(model.turns.isEmpty)
+                }
                 // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
                 // engine state for the echo probe's reason, one item over:
                 // it measures a SYSTEM service, and the devices where a
