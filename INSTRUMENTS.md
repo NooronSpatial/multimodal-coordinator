@@ -1883,3 +1883,576 @@ word "half" suggests:
 
 For the Simulator, F-6 was exactly right, and said so before I measured
 it. Recording that costs nothing and keeps the ruling honest.
+## 25. The second mind's own numbers (4h) — the bill, and what mutation caught
+
+*(Numbering note, now closed: §24 is the MLX spike gate. While 4h was
+being built it lived on `spike/mlx-gate` and this section reserved the
+number rather than skipping it. PR #16 merged the gate to `main` on
+2026-08-21 and `main` was merged back into this branch, so §24 is
+directly above — read it first, because everything below depends on the
+question it answered.)*
+
+### The dependency bill, in seconds rather than in adjectives
+
+D-062's F-5 = A priced MLX at three direct packages and said the honest
+cost is CI build TIME, "which is a reason to measure that time, not to
+redesign around a ghost." Measured on this Mac:
+
+| what | before | after |
+|---|---|---|
+| `swift build --target MultiModalKit` (the vow's proof) | 1.72 s | **1.56 s** |
+| full `swift build -Xswiftc -warnings-as-errors`, cold | — | **39.65 s** (412 steps) |
+| full suite | 259 tests / 33 suites | **279 / 36** |
+| stability, the new suites | — | **60 runs, 0 failures** |
+
+Sixty runs rather than the house twenty, because promise 3 is the exact
+test whose Apple-seam twin was measured flaking ~1 in 800 — and a
+twenty-run pass would have said nothing about a fault of that size. Sixty
+says little more, honestly; what makes this version deterministic is the
+GATE, not the repetitions: the defiant token cannot race the cancel
+because the test opens the gate only after `cancel()` has returned.
+
+The core-alone number is the one that matters, and it did not move: the
+zero-dependency vow is enforced mechanically by CI building that target
+BEFORE anything else, and MLX is not reachable from it. The 39.65 s is
+the whole graph from cold, warnings-as-errors clean — cheaper than the
+"slow build" the fork discussion feared, because at that moment nothing
+used the macro.
+
+*(Corrected by the 4h review: `LocalMind.swift` now calls
+`#huggingFaceTokenizerLoader()`, so the macro — and swift-syntax — IS
+built. The 39.65 s figure predates the tokenizer landing and must not be
+quoted as the cost of the finished milestone. The number that has been
+re-measured since is the core-alone build, which is what the vow turns
+on, and it did not move.)*
+
+### The mutation log — five that bit, one that did not
+
+Tests here were written ALONGSIDE the implementation rather than watched
+failing first. That is a departure from red-then-green, so red was proven
+afterwards by mutation instead of claimed:
+
+| mutation | result |
+|---|---|
+| the gate admits everything | 5 of 6 gate tests RED |
+| the CLOSE marker is admitted | the 6th RED |
+| the real-vocabulary test expects the wrong ids | RED — so its silent skip is not hiding a dead assertion |
+| `cancel()` emits a terminal | promises 2, 3, 4 RED |
+| `cancel()` stops finishing the stream | promises 2, 3, 4 and the race test RED (in 5.000 s, the `until` bound) |
+| **the retire latch removed from `report`** | **NOTHING RED — masked** |
+
+The masked one is recorded rather than dressed up. `report` cannot be
+called twice by construction, and in the cancel-then-finish race
+`out.finish()` has already run, and a finished `AsyncStream` drops every
+later yield. So the FINISH is load-bearing and the latch is the belt. It
+stays — `AppleReplyRun` needed exactly this latch forced onto it by 4e's
+review after a failed decode kept running and aborted the process, and
+the structure that masks it here is not guaranteed to survive the next
+change. This is the 4b precedent: record redundancy, do not pretend every
+line is load-bearing alone.
+
+### Two defects in my own tests, found by measuring instead of trusting
+
+1. **A control that survived the mutation it existed to catch.** The
+   removed-gate control first asserted only that gated output DIFFERED
+   from ungated. With the gate neutered it still passed, because the
+   close marker alone made the two differ. Both halves are now exact, and
+   the ungated half runs a FOREIGN vocabulary through the same code path
+   rather than skipping the gate — so it proves the gate acts on THESE
+   ids, not on tokens in general.
+2. **A red that hung instead of failing.** The cancel-then-finish test
+   first awaited its collector task's result. With `out.finish()` mutated
+   away the stream never ended, and the run took **ten minutes and
+   produced no verdict** before it was killed. Rewritten on the house
+   `until` bound, the same mutation now reddens it in 5.000 s. A red that
+   hangs is a red nobody reads.
+
+### The real model, in `swift test` (AC-128/129) — and a guard that lied twice
+
+The second mind answering, on this Mac, inside the ordinary test runner:
+
+```
+AC-128 · first token in 1.926 s · said: The capital of Italy is Rome.
+AC-128 WARM · model load 1.717 s · first token 0.272 s · said: The capital of France is Paris.
+```
+
+| what | measured |
+|---|---|
+| cold first token (load included) | **1.93 s** |
+| model load alone | **1.72 s** |
+| **warm first token** | **0.27 s** |
+
+The split is the whole story: essentially ALL of the cold number is
+loading 334 MB, so `prewarm()` exists for the same reason the Apple
+mind's does. For scale, this project's measured felt pause with all-Apple
+engines was 542–567 ms; a warm local first token at 272 ms is inside
+that, and a cold one at 1.9 s is not remotely.
+
+(The spike's 67 ms in §24 is not this number and should not be compared
+to it: that measured raw generation on a bare prompt, while this includes
+the chat template, a system instruction and prefill.)
+
+### AC-129: the guard that must never say yes wrongly
+
+Without a `default.metallib`, MLX aborts the PROCESS. So the guard is
+asked with Foundation before MLX is touched at all. It was wrong twice,
+and only the control caught it — reasoning would not have:
+
+| attempt | what it accepted | result |
+|---|---|---|
+| 1 | a nested Cmlx bundle found via `url(forResource:)` | said yes, **process died** |
+| 2 | any bundle's `Resources/default.metallib` | matched **`Vision.framework`'s own metallib** — said yes, **process died** |
+| 3 | nested `mlx-swift_Cmlx.bundle`, frameworks only when the bundle IDENTIFIER matches, else cwd | **correct** |
+
+Attempt 2 is the instructive one. Apple ships `default.metallib` inside
+`Vision.framework`, and a check that merely looks for a file by that name
+will find someone else's. MLX itself only accepts a framework whose
+identifier is its own — mirroring that rule is what fixed it.
+
+The control, run both ways:
+
+```
+metallib removed  → guard nil, 5 tests SKIP, green in 0.140 s, no abort
+metallib restored → real reply, 6 tests green
+```
+
+The colocated `mlx.metallib` arrangements are deliberately NOT checked.
+They belong to non-SwiftPM builds this package does not produce, and
+every extra place to look is another chance to say yes wrongly. The cost
+is a false NEGATIVE — skipping where MLX could have run — which is the
+direction this check is allowed to be wrong in.
+
+### AC-130, the mind-off — and the discovery that LOADING IS NOT WARMING
+
+`swift run bakeoff mind-off --model=<weights>` puts both citizens of the
+seam on the same three questions. The first run said something the spec
+had not anticipated:
+
+```
+(model load: 2318 ms)
+first token  1911 ms ·  7 pieces · 32.2/s   "The capital of Italy is Rome."
+first token    82 ms · 10 pieces · 30.6/s   "A microphone is used to ..."
+first token   267 ms · 17 pieces · 35.7/s   "The sky is blue because ..."
+```
+
+The weights were ALREADY resident when question 1 was asked — the load
+had finished. So the 1911 ms was not loading. It was the first
+**generation**: Metal pipelines and graph warm-up, paid by whoever asks
+first. `prewarm()` was loading and calling it done, which would have put
+that 1.8 s in front of a person's first question on the phone.
+
+Burning one throwaway token off-turn fixes it, and the second effect was
+bigger than the first:
+
+```
+(model load 1457 ms + pipeline warm-up 84 ms — both paid ONCE, off-turn)
+first token 51 ms ·  7 pieces · 65.0/s   "The capital of Italy is Rome."
+first token 50 ms ·  8 pieces · 67.8/s   "A microphone is used to capture sound."
+first token 50 ms · 29 pieces · 75.0/s   "The sky appears blue because ..."
+```
+
+| | before the warm-up | after |
+|---|---|---|
+| first token | 1911 / 82 / 267 ms | **51 / 50 / 50 ms** |
+| throughput | 30–36 tok/s | **65–75 tok/s** |
+| cost | — | 84 ms, once, off-turn |
+
+Throughput roughly DOUBLED as well, which is the same cause seen from the
+other side: the first run was compiling kernels while it generated. For
+scale, this project's measured felt pause with all-Apple engines was
+542–567 ms end to end; a warm local first token is 50 ms.
+
+**The Apple rows are empty, and that is a result rather than a gap.** All
+three refused at the door with *"the on-device model is still
+downloading"* — the Mac's Foundation Models asset has been stuck for
+days (its daemon idle at 0.0% CPU). The tool prints refusals as rows on
+purpose: a table that silently omitted the mind that could not answer
+would be the lying instrument this project keeps hunting.
+
+**Not measured, and not implied:** the phone. Every number here is this
+Mac's, and D-061 says the device figure needs a signed build.
+
+### The field report "sometimes it just replies my question" — chased to the model
+
+Ryad, on the phone, with the local mind. Three explanations were possible
+and the log was built to tell them apart, because none of them is visible
+in a screenshot.
+
+**Suspect 1, the wrong brain — REFUTED by the log.** `PhoneEchoReply`'s
+entire behaviour is to answer with the question ("You said: …"), and the
+picker defaults to `.echo`, so "it replies my question" is a literal
+description of it. The conversation log records the generator the
+COORDINATOR held rather than the picker's value, and it read
+`mind: **Local (MLX)**` on all ten turns. Not the brain.
+
+**Suspect 2, speech phrasing — REFUTED before the log arrived.** Twenty
+prompts on the Mac in the phone's style (no capitals, no question mark)
+and in written style: every one answered, none echoed.
+
+**Suspect 3, the model — CONFIRMED, and reproduced exactly.** The log's
+`heard:` lines were replayed verbatim through `bakeoff ask` on the Mac,
+and turn 10 came back character-for-character identical to the phone:
+
+```
+heard:  13. No, no, no.  I ask you the square of... 113.
+phone:  No, no, no. I ask you the square of... 113.
+Mac:    No, no, no. I ask you the square of... 113.
+```
+
+So it is not the phone, not the demo, and not the seam. A 0.6B model
+parrots input that is not a clear question.
+
+**Why the input was not a clear question — the ledger, working as
+designed.** The log shows the whole thought carrying forward:
+
+| turn | heard |
+|---|---|
+| 9 | `13. No, no, no.  I ask you the square of...` **(BARGED IN)** |
+| 10 | `13. No, no, no.  I ask you the square of... 113.` |
+
+A barged turn was never answered, so 4c's ledger keeps its text as still
+UNANSWERED and delivers it again with the next utterance (AC-88). That is
+correct behaviour, and its by-product is that an interrupted exchange
+hands the model a fragment rather than a question.
+
+**Two candidate cures, both measured on the same inputs.**
+
+*A stricter instruction* ("never repeat the user's words; if unclear say
+only: sorry, I did not catch that") fixes the worst case and nothing
+else:
+
+| heard | 0.6B, demo prompt | 0.6B, strict prompt |
+|---|---|---|
+| `13. No, no, no. …113.` | verbatim echo | "Sorry, I did not catch that." |
+| `Hello, my friend, how are you?` | "Hello! How are you?" | "Hello, how are you?" — still parrots |
+| `What you can do for me?` | parrots | parrots |
+
+*A bigger model* — Qwen3-4B-4bit, already on this Mac, with the demo's
+ORIGINAL prompt — fixes all of it, and does something the small one
+cannot:
+
+```
+13. No, no, no.  I ask you the square of... 113.
+   → "The square of 113 is 12,769."
+```
+
+It read through the disfluency to the real question.
+
+| | Qwen3-0.6B-4bit | Qwen3-4B-4bit |
+|---|---|---|
+| on disk | 334 MB | 2.1 GB |
+| first token | 51–78 ms | **249–374 ms** |
+| throughput | 64–70 tok/s | 46–53 tok/s |
+| parrots fragments | yes | no |
+
+Even at 374 ms the bigger model is inside the 542–567 ms felt pause this
+project measured with all-Apple engines. **What is NOT measured is the
+phone**: MLX does not mmap its weights (§25), so 2.1 GB would be resident
+beside the audio graph, the recogniser and the mouth. That is a device
+question, and it is the fork's real cost.
+
+`--system=` was added to `bakeoff ask` so a candidate prompt can be
+measured against the same inputs before anyone ships it.
+
+### F-1 = C: the model picker, and the Mac's memory baseline
+
+Ryad ruled F-1 = C — put the choice in the demo so the PHONE answers the
+question the Mac cannot. The picker alone would not have done that: the
+fork turns on resident memory, so the log had to learn to report it.
+
+`MLXRuntime.activeMemoryBytes` / `peakMemoryBytes` now surface MLX's own
+accounting, and every logged turn carries the peak. Reading them is
+guarded by `isAvailable`, because touching MLX's allocator on a machine
+with no metallib aborts the process — the same trap AC-129 exists for.
+
+**This Mac's baseline, for comparison against a phone:**
+
+| | on disk | active | peak | first word |
+|---|---|---|---|---|
+| Qwen3-0.6B-4bit | 334 MB | 349 MB | **420 MB** | 76 ms |
+| Qwen3-4B-4bit | 2.1 GB | 2198 MB | **2340 MB** | 376 ms |
+
+Active tracks the weights almost exactly, which is what "no mmap" means
+in practice: the file is not mapped, it is held.
+
+**What this does NOT tell us.** A Mac has no jetsam. The phone must carry
+2.3 GB *beside* the audio graph, the recogniser and the mouth, and
+whether iOS tolerates that is not a thing this room can measure. That is
+precisely why the ruling was C: the demo now records `MLX peak N MB` on
+every turn, so one shared log answers it.
+
+### The phone's answer to F-1 (2026-08-21) — 4B fits, and it behaves
+
+F-1 = C existed to get one number that no Mac could produce: whether
+2.1 GB of resident weights survives on a phone beside a live audio graph,
+a recogniser and a mouth. Ryad ran the picker on his iPhone with the 4B
+model and shared the log. It survives.
+
+```
+local model: 4B (mlx-community/Qwen3-4B-4bit) · installed: true
+MLX memory now: active 2159 MB · peak 2288 MB
+ear=Apple · mouth=Apple · speaker shield=true
+```
+
+Eight turns, no kill, and memory settled rather than climbed: peak went
+2277 → 2283 → 2288 MB over the first three turns and then stopped.
+
+**The phone matches the Mac, which was not guaranteed:**
+
+| | this Mac | iPhone |
+|---|---|---|
+| first word | 249–376 ms | **291–315 ms** |
+| MLX peak | 2340 MB | **2288 MB** |
+| parrots fragments | no | no |
+
+**Every 0.6B failure case is gone**, including the accumulating-ledger
+inputs that produced them. The same shape that made the small model echo
+verbatim now gets answered:
+
+| heard | 0.6B | 4B on the phone |
+|---|---|---|
+| `Hello, my friend, how are you?` | "Hello! How are you?" | "I'm doing well, thank you! How about you?" |
+| `…how are you? Can you hear me?` | echoed | "Hello! I can hear you. I'm doing well…" |
+| `How much countries do those exist in Europe?` | — | "There are 47 countries in Europe…" |
+
+**What this does NOT settle.** Total reply time ran to 4.2 s on the two
+longest answers, because the model writes three sentences where the
+instruction allows "one to three". Spoken, that is four seconds of
+talking before the person can reply. First-word latency is the number
+this project has been optimising, and it is fine; reply LENGTH is a
+different lever and has not been tuned.
+
+Thermals are also untested: eight turns is not a long conversation, and
+sustained GPU work on a phone throttles. Nothing here should be read as a
+claim about a twenty-minute session.
+
+### F-1 = B, and the reply-length fix — measured, not phrased
+
+Ryad ruled **F-1 = B**: 4B is the default, on the phone's own evidence
+(2288 MB peak, no kill, 291–315 ms first word, none of 0.6B's parroting).
+The picker stays, because one device is one device.
+
+**The reply-length problem, stated correctly.** The 4.2 s in his log was
+GENERATION time, not the real cost. Turn 6's reply was 29 words — roughly
+twelve seconds of speech. First-word latency was never the fault; length
+was, and nobody had tuned it.
+
+Three instructions, same six prompts from his log, same model:
+
+| instruction | mean words | verdict |
+|---|---|---|
+| A: current — "one to three short, plain sentences" | **19.7** | the baseline that produced the complaint |
+| B: "ONE short sentence. Do not add extra facts…" | **7.0** | shipped |
+| C: "answer ONLY what was asked, at most fifteen words" | 9.8 | rejected — longer AND worse |
+
+C looked plausible and measured badly, which is the point of measuring.
+It produced self-contradiction — *"Approximately 450 miles. The distance
+between Hamburg and Paris is abo…"* — and bare fragments that read
+strangely aloud: *"Madrid. It is the capital city of Spain."*
+
+**B's replies, at 7.0 words mean:**
+
+```
+Hello, my friend, how are you?   → "I'm doing well, thank you! How about you?"
+what is the capital of Spain?    → "The capital of Spain is Madrid."
+Okay, thank you.                 → "You're welcome!"
+```
+
+**And the check that mattered before shipping it:** does "ONE short
+sentence" make it useless when a question genuinely needs explaining? It
+does not — the model adapts rather than truncating:
+
+```
+Why is the sky blue?                   → 25 words, one sentence, correct
+Explain how a microphone works.        → 33 words
+Difference between RAM and storage?    → 27 words
+```
+
+Short where short is right, fuller where the question earns it. Applied
+to BOTH minds, because the constraint is the MEDIUM — this reply is
+heard, never read — and not the model.
+
+## 26. The 0 Hz crash (4h field report) — reproduced in a harness, then fixed
+
+Ryad's phone died mid-session, hard:
+
+```
+AURemoteIO.cpp:1135  failed: -66635 (enable 3, outf< 1 ch, 0 Hz, Float32> inf< 1 ch, 0 Hz, Float32>)
+AVAudioEngineGraph.mm:2161:_Connect: (IsFormatSampleRateAndChannelCountValid(format))
+*** Terminating app due to uncaught exception 'com.apple.coreaudio.avfaudio'
+```
+
+**0 Hz.** The engine had no valid hardware format — what an engine reports
+when the session is not active or the route has gone — and something
+connected a node with it anyway.
+
+**The harness came before the fix (D-054).** A standalone one-case
+process attached a deliberately built 0 Hz format
+(`AVAudioFormat(standardFormatWithSampleRate: 0, channels: 1)` — which,
+usefully, is NOT nil) to `AudioEnginePlaybackHost`:
+
+```
+built 0 Hz format: 0.0 Hz, 1 ch
+  5  AVFAudio  -[AVAudioEngine connect:to:format:] + 124
+  6  AudioEnginePlaybackHost.attachForPlayback(_:format:)
+libc++abi: terminating due to uncaught exception of type NSException
+```
+
+The same death, on this Mac, in ten lines. After the guard, the same
+harness prints:
+
+```
+RESULT: threw honestly — unusableFormat(rate: 0.0, channels: 1)
+```
+
+**Why it was unguarded, and this is the uncomfortable part.**
+`MicrophoneSource` has carried this exact guard for milestones, with a
+comment saying `inputFormat` "collapses to 0 Hz once `mainMixerNode` is
+touched — but that only happened in the `hostsPlayback` arrangement,
+which D-049 removed."
+
+**4g put `hostsPlayback` back** (D-060 F-3 = B, the speaker shield), and
+Ryad's log says `speaker shield=true`. The comment describing the hazard
+as historical was true when written and became false one milestone later,
+and nobody — me included — re-read it when the arrangement returned. The
+microphone kept its guard. The playback host never had one.
+
+**The fix.** `PlaybackHostFailure.unusableFormat(rate:channels:)`, and
+both hosts now check the caller's format AND the mixer's own output
+format before connecting. The order matters: reading `mainMixerNode` is
+what forces the mixer→output connection, and a dead route shows up there
+rather than in the caller's argument.
+
+**A suspicion, recorded as a suspicion.** The crash arrived in the same
+session that made 4B the default, and prewarming now loads 2.1 GB at
+launch. That is heavy work next to session activation and could widen a
+race that always existed. NOT measured — the stack shows only that a UI
+event reached our code — and it does not change the fix, which is correct
+regardless of what made the format invalid.
+
+**Still open:** the guard turns a crash into an honest failure, not into
+a working reply. If the session genuinely is not ready when a reply
+starts, the turn now fails cleanly instead of killing the app — better,
+but not yet right. Making the attach wait for a usable route is its own
+change and its own measurement.
+
+### The 38-turn field session (4h) — what it settled, and the switch nobody turned on
+
+Ryad's longest real conversation with the second mind. Three questions
+this project had left open are now answered by it.
+
+**1. Endurance — answered.** No crash across 38 turns, and memory did not
+run away:
+
+```
+turn 1  MLX peak 2292 MB
+turn 38 MLX peak 2320 MB      +28 MB over the whole session
+```
+
+**2. Sustained latency — answered.** First word stayed at **285–323 ms**
+across all 38 turns, with two outliers (775 ms, 633 ms). No thermal
+decay visible at this length. A twenty-minute session is still untested.
+
+**3. Reply length — the fix holds.** "Rome." · "Yes." · "Italy is bigger
+than Switzerland." Short enough to listen to, and still full sentences
+where the question earned one (the visa answers ran to 25–30 words).
+
+**And the real finding, which is not about the model at all.**
+
+Six of the thirty-eight turns (16%) produced `_(no words)_` and
+`BARGED IN` — a turn was OPENED on a fragment and then killed by the
+speaker continuing:
+
+```
+turn 31  heard: "Okay, and uh,"                    → _(no words)_, barged at 76 ms
+turn 32  heard: "Okay, and uh, And if I just want to visit United States as a tourist,"
+turn 33  heard: "...Do I need visa as a German?"   → answered
+turn 34  heard: "...Do I need visa as a German? Yeah."      → answered AGAIN
+turn 35  heard: "...Yeah. Yeah, I'm waiting."               → answered AGAIN
+```
+
+Twelve of thirty-eight turns (32%) carried a previous turn's words.
+
+**Two mechanisms, one of them switched off:**
+
+| | value | effect |
+|---|---|---|
+| VAD hangover | `Int(rate * 0.3)` = **300 ms** | 300 ms of quiet ends the utterance |
+| `config.replyGate` | **`.zero`** — the demo never sets it | the reply fires the INSTANT a final arrives |
+
+*(Superseded the same day: Ryad ruled 500 ms and the demo now sets it —
+see "F-1 = B, and the reply-length fix" below and D-063. The table above
+records the state that PRODUCED the 38-turn session, which is what makes
+its numbers readable; it is not the current configuration.)*
+
+So the total wait between Ryad stopping and the assistant committing is
+about 300 ms. A person thinking mid-sentence ("Okay, and uh,") pauses
+longer than that, every time.
+
+**The cure already exists and was built for exactly this.** AC-81's
+reply gate holds the reply after a final, and `handleGateExpired` builds
+the prompt when the gate EXPIRES rather than when it was armed:
+
+> "Built HERE, not when the gate was armed: anything the speaker added
+> during the gate belongs to the same thought."
+
+A continued sentence is absorbed into the SAME turn instead of starting a
+new one — and if a new utterance begins during the gate, the stamp check
+fails and no turn fires at all. It has been sitting at zero.
+
+**The ledger repetition is downstream of this, not a separate bug.**
+D-040 F-2 says a thought is forgotten only when its reply was fully
+SPOKEN; every other ending keeps the words because they went unanswered.
+Barging a spoken answer therefore carries it forward — which is why 34
+and 35 re-answered 33. Correct by that ruling, and the repetition mostly
+disappears if turns stop firing on fragments in the first place.
+
+**Model errors, recorded without excuse:** "The 2nd big city in Italy" →
+"Roma." (it is Milan, and turn 9 said Milan for the 3rd), and "Is
+Switzerland big as Portugal?" → "No, Switzerland is larger in area than
+Portugal" (Portugal is roughly twice Switzerland). A 4-billion-parameter
+model on a phone gets facts wrong; the seam cannot fix that and should
+not pretend to.
+
+## 27. Two field reports: a voice that was never downloading, and a pair that does not fit
+
+**"Every time I start the app I see downloading the voice!"** He was
+right to ask, and the screen was lying. `checkVoice()` calls
+`modelInstalled()`, finds the 1.1 GB present, and then sets
+`voiceState = .downloading` before `ensureModel()` — which its own doc
+comment describes as *"Idempotent: with the assets on disk this is a
+load, not a fetch."* The work is real (CoreML compiles six components,
+tens of seconds, once per launch) but the WORD was false. A screen whose
+stated job is removing ambiguity was manufacturing it. There is now a
+`.preparing` state that says what is actually happening.
+
+**"Terminated due to memory issue" — the local 4B mind with the NEURAL
+voice.** Jetsam. Measured with `bakeoff memory-fit`, which loads each and
+reports `phys_footprint` (the figure iOS judges, not resident size):
+
+| loaded | footprint |
+|---|---|
+| baseline | 3 MB |
+| + local mind (Qwen3-4B-4bit) | **2239 MB** |
+| + neural voice | **3351 MB** |
+
+The voice costs about **1112 MB** on top of the mind, and 3.35 GB is over
+what iOS will host beside an audio graph and a recogniser.
+
+*A measurement that flattered the answer, caught and corrected.* The
+first version of `memory-fit` let the mind go out of scope, so the
+footprint went DOWN after adding the voice — 2239 → 1610 MB — which
+would have "proved" they fit. The model is now held to the last line.
+
+**The demo refuses the combination instead of dying.** `memoryConflict`
+names it before the tap, in numbers, and disables Listen. That is a demo
+POLICY (D-027): the library ships no such rule, because the budget
+belongs to the app that spends it. It is a guard, not a cure — the two
+still cannot run together, and what SHOULD happen is a fork.
+
+**Also fixed, from the same message: every picker persists.** The ear and
+the Apple voice already did; the mind, the mouth, the shield and the two
+toggles reset at every launch, so the app re-chose for him from a screen
+that looked like it remembered. A control that forgets is a control that
+lies about its own state — the same fault as the voice label, one screen
+over.

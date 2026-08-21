@@ -119,12 +119,19 @@ the bottom.
 That rule is the design story. An interface with one implementation is a
 guess; two is a proof, and every one of these has been swapped in anger.
 
+The MIND is the seam that took longest to get its second real citizen —
+4f shipped it with one and said so — and 4h supplied it. Note what the
+second one did NOT need: `MLXReplyGenerator` uses no `SnapshotDiffer`,
+because cumulative snapshots are Apple's API shape and not the seam's.
+MLX emits tokens, which is what `ReplyUpdate` already carried.
+
 | Seam | Implementations |
 |---|---|
 | `AudioSource` | `MicrophoneSource` · `FakeMicrophone` |
 | `TranscriptionEngine` | `AppleSpeechEngine` · `WhisperEngine` · `ScriptedTranscriber` |
-| `ReplyGenerating` | `AppleReplyGenerator` · the demos' generators · `ScriptedReplyGenerator` |
+| `ReplyGenerating` | `AppleReplyGenerator` · **`MLXReplyGenerator` (4h)** · the demos' generators · `ScriptedReplyGenerator` |
 | `ReplySnapshotStreaming` (4f, internal) | `FoundationModelSnapshots` · a scripted source in the tests |
+| `ReplyTokenStreaming` (4h, internal) | `MLXTokenSource` · a scripted source in the tests |
 | `SpeechSynthesizing` | `AppleSpeechSynthesizer` · `NeuralVoice` · `ScriptedSynthesizer` |
 | `AudioSessionConfiguring` (4d) | the app's `PhoneSession` · `nil` on macOS |
 | `PlaybackHost` (4e) | `AudioEnginePlaybackHost` · `MicrophonePlaybackHost` |
@@ -256,8 +263,8 @@ by running the command this paragraph hands the reader. A page that fixes
 un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
 is about, committed inside the correction for it.
 
-The test folder mirrors this map roughly one suite per box — **33 suites,
-259 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+The test folder mirrors this map roughly one suite per box — **38 suites,
+290 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

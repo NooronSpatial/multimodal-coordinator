@@ -63,12 +63,89 @@ struct PhoneSession: AudioSessionConfiguring {
 /// need (AC-91's proof duty, unchanged by 4f).
 struct ThoughtWitness: ReplyGenerating {
     let wrapped: any ReplyGenerating
+    /// WHICH BRAIN actually answered. Not the picker's current value —
+    /// the generator the coordinator really holds. A field report said
+    /// "sometimes it just replies my question", and the echo mind's whole
+    /// behaviour is to reply with the question, so the log has to be able
+    /// to tell those two apart. An instrument that shows a number must be
+    /// able to say whether it is switched on (D-054).
+    let mindLabel: String
     let onThought: @Sendable (String) -> Void
+    let onTurn: @Sendable (ConversationTurn) -> Void
 
     func openReply(to transcript: String) async throws -> any ReplyRun {
         onThought(transcript)
-        return try await wrapped.openReply(to: transcript)
+        let run = try await wrapped.openReply(to: transcript)
+        return WitnessedRun(wrapped: run, heard: transcript,
+                            mind: mindLabel, report: onTurn)
     }
+}
+
+/// One turn, as it really happened, for sharing off the phone.
+struct ConversationTurn: Sendable, Identifiable {
+    let id: Int
+    let mind: String
+    let heard: String
+    let reply: String
+    let firstTokenMs: Int?
+    let totalMs: Int
+    let failure: String?
+    /// What MLX was holding when this turn ended, in MB. THE number the
+    /// model fork turns on: MLX does not mmap, so weights are resident,
+    /// and a phone has a budget a Mac does not.
+    let peakMemoryMB: Int?
+    /// True when the stream ended with NO terminal — a barge, which is
+    /// success, not a fault. Without this field a cut-off reply reads
+    /// like a bug in the log.
+    let bargedIn: Bool
+}
+
+/// Forwards a reply untouched while writing down what crossed.
+///
+/// It must not change the contract it observes: whatever the inner run
+/// does — tokens then one terminal, or a cancel that ends with none —
+/// this passes through unchanged, and only records.
+final class WitnessedRun: ReplyRun, @unchecked Sendable {
+    let updates: AsyncStream<ReplyUpdate>
+    private let inner: any ReplyRun
+
+    init(wrapped: any ReplyRun, heard: String, mind: String,
+         report: @escaping @Sendable (ConversationTurn) -> Void) {
+        self.inner = wrapped
+        var handle: AsyncStream<ReplyUpdate>.Continuation!
+        self.updates = AsyncStream { handle = $0 }
+        let out = handle!
+        Task {
+            let clock = ContinuousClock()
+            let start = clock.now
+            var text = ""
+            var first: Duration?
+            var failure: String?
+            var sawTerminal = false
+            for await update in wrapped.updates {
+                switch update {
+                case .token(let t):
+                    if first == nil { first = start.duration(to: clock.now) }
+                    text += t
+                case .failed(let why): failure = why; sawTerminal = true
+                case .finished: sawTerminal = true
+                }
+                out.yield(update)
+            }
+            out.finish()
+            let total = start.duration(to: clock.now)
+            let ms = { (d: Duration) in
+                Int(Double(d.components.seconds) * 1000
+                    + Double(d.components.attoseconds) * 1e-15)
+            }
+            report(ConversationTurn(
+                id: 0, mind: mind, heard: heard, reply: text,
+                firstTokenMs: first.map(ms), totalMs: ms(total),
+                failure: failure, peakMemoryMB: nil, bargedIn: !sawTerminal))
+        }
+    }
+
+    func cancel() async { await inner.cancel() }
 }
 
 /// The phone's stand-in brain, identical in spirit to the Mac demo's:

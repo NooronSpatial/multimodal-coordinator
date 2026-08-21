@@ -20,6 +20,13 @@ struct ContentView: View {
                     case .downloading:
                         ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
                             .multilineTextAlignment(.center)
+                    // The transcriber never enters `.preparing` — only the
+                    // voice does — but the compiler is right to demand an
+                    // answer rather than let a future state fall silently
+                    // through a screen.
+                    case .preparing:
+                        ProgressView("Preparing the speech model…")
+                            .multilineTextAlignment(.center)
                     case .failed(let reason):
                         failed(reason)
                     case .ready:
@@ -69,8 +76,31 @@ struct ContentView: View {
                     .frame(maxHeight: 230)
                 }
             }
-            .navigationTitle("MultiModalKit")
+            // NO TITLE (Ryad): a large title spent a third of a phone
+            // screen saying the app's own name to the person who just
+            // opened it. The toolbar stays — that is where the probes and
+            // the log live, and taps are proven to fire there.
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // THE CONVERSATION LOG. Reachable in every state, like the
+                // probes, and for the same reason: the moment worth
+                // sharing is usually the moment something went wrong, and
+                // a log you cannot reach then is not a log.
+                //
+                // It carries the brain that ACTUALLY answered each turn,
+                // which is the one fact a screenshot cannot show.
+                ToolbarItem(placement: .topBarTrailing) {
+                    // NEVER disabled on "no turns". The review caught the
+                    // irony: the log was built to diagnose failures, and
+                    // the worst failures — a mind that refuses at the
+                    // door, a memory conflict, a session that never
+                    // started — produce ZERO turns, which is exactly when
+                    // the header (models, memory, install state, download
+                    // status) is the evidence worth sending.
+                    ShareLink(item: model.conversationLog) {
+                        Label("Share the conversation", systemImage: "text.bubble")
+                    }
+                }
                 // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
                 // engine state for the echo probe's reason, one item over:
                 // it measures a SYSTEM service, and the devices where a
@@ -349,14 +379,31 @@ struct ContentView: View {
     }
 
     private var transcriber: some View {
-        VStack(spacing: 16) {
-            Picker("Engine", selection: Bindable(model).choice) {
-                ForEach(TranscribeModel.EngineChoice.allCases) { choice in
-                    Text(choice.rawValue).tag(choice)
+        VStack(spacing: 12) {
+            // THE SETTINGS SCROLL (Ryad). Five pickers, four toggles and
+            // their captions outgrew the screen once the local model
+            // picker arrived, and controls you cannot reach are controls
+            // you do not have. Capped rather than greedy, so the
+            // transcript — the thing people actually watch — keeps room.
+            ScrollView {
+                VStack(spacing: 14) {
+            // INLINE ROWS (Ryad): label on the left, current value on the
+            // right, one line each. Five full-width segmented bars had
+            // pushed the transcript off the screen. `.labelsHidden()` is
+            // deliberate — the Text carries the name, so the menu button
+            // shows only the VALUE and every row reads the same way.
+            HStack {
+                Text("Ear").font(.subheadline)
+                Spacer()
+                Picker("Engine", selection: Bindable(model).choice) {
+                    ForEach(TranscribeModel.EngineChoice.allCases) { choice in
+                        Text(choice.rawValue).tag(choice)
+                    }
                 }
+                .labelsHidden()
+                .pickerStyle(.menu)
+                .disabled(model.isListening)
             }
-            .pickerStyle(.segmented)
-            .disabled(model.isListening)
             .padding(.horizontal)
 
             // THE SECOND MOUTH, on screen (AC-105). Only shown when the
@@ -367,13 +414,78 @@ struct ContentView: View {
                     // THE MIND (4f, AC-117): what ANSWERS, above what
                     // SPEAKS — the same swap-an-organ claim the mouth
                     // picker makes, one seam up.
-                    Picker("Mind", selection: Bindable(model).mind) {
-                        ForEach(TranscribeModel.MindChoice.allCases) { choice in
-                            Text(choice.rawValue).tag(choice)
+                    HStack {
+                        Text("Mind").font(.subheadline)
+                        Spacer()
+                        Picker("Mind", selection: Bindable(model).mind) {
+                            ForEach(TranscribeModel.MindChoice.allCases) { choice in
+                                Text(choice.rawValue).tag(choice)
+                            }
+                        }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .disabled(model.isListening)
+                    }
+                    if model.mind == .local {
+                        // F-1 = C: WHICH local model, chosen here so the
+                        // phone can answer what the Mac cannot. MLX keeps
+                        // weights resident (no mmap), so 2.1 GB on a phone
+                        // is a real question and this is the instrument
+                        // that asks it. The caption carries MAC numbers
+                        // and says so — they are not a phone's.
+                        HStack {
+                            Text("Local model").font(.subheadline)
+                            Spacer()
+                            Picker("Local model",
+                                   selection: Bindable(model).localModelChoice) {
+                                ForEach(TranscribeModel.LocalModelChoice.allCases) { size in
+                                    Text(size.rawValue).tag(size)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.menu)
+                            .disabled(model.isListening)
+                        }
+                        Text("\(model.localModelChoice.sizeOnDisk) · on a Mac: "
+                             + model.localModelChoice.macBehaviour)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // AC-131: the third mind never vanishes and never
+                        // dies silently. On a simulator it says WHY it
+                        // cannot run (D-061, structural); with no weights
+                        // it offers the one action that fixes that.
+                        Text(model.mindUnavailable
+                             ?? "local weights ready · answers never leave this device")
+                            .font(.caption2)
+                            .foregroundStyle(model.mindUnavailable == nil
+                                             ? AnyShapeStyle(.secondary)
+                                             : AnyShapeStyle(Color.orange))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        // The status line is ALWAYS shown once there is
+                        // one, whether the download is running, finished
+                        // or failed. A tap must never be able to look
+                        // like nothing happened.
+                        if let status = model.localDownloadStatus {
+                            Text(status)
+                                .font(.caption2)
+                                .foregroundStyle(status.contains("FAILED")
+                                                 || status.contains("NOT usable")
+                                                 ? AnyShapeStyle(Color.red)
+                                                 : AnyShapeStyle(.secondary))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .textSelection(.enabled)
+                        }
+                        if let fraction = model.localDownloadProgress {
+                            ProgressView(value: fraction)
+                        } else if model.mindUnavailable?.contains("not downloaded") == true {
+                            Button("Download \(model.localModelChoice.rawValue) · \(model.localModelChoice.sizeOnDisk)") {
+                                model.downloadLocalMind()
+                            }
+                            .font(.caption)
+                            .buttonStyle(.borderedProminent)
                         }
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(model.isListening)
                     if model.mind == .apple {
                         // AC-110 on the main screen: the enum's reason in
                         // words, never a silent dead Listen button. And
@@ -389,13 +501,18 @@ struct ContentView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                     }
 
-                    Picker("Voice", selection: Bindable(model).mouth) {
-                        ForEach(TranscribeModel.MouthChoice.allCases) { choice in
-                            Text(choice.rawValue).tag(choice)
+                    HStack {
+                        Text("Voice").font(.subheadline)
+                        Spacer()
+                        Picker("Voice", selection: Bindable(model).mouth) {
+                            ForEach(TranscribeModel.MouthChoice.allCases) { choice in
+                                Text(choice.rawValue).tag(choice)
+                            }
                         }
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .disabled(model.isListening)
                     }
-                    .pickerStyle(.segmented)
-                    .disabled(model.isListening)
 
                     switch model.voiceState {
                     case .modelMissing:
@@ -414,6 +531,18 @@ struct ContentView: View {
                         HStack(spacing: 8) {
                             ProgressView()
                             Text("Downloading the voice — a silent minute is not a hang.")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    case .preparing:
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            // The honest sentence. Nothing is being
+                            // fetched: the 1.1 GB is already on the phone
+                            // and CoreML is compiling it, which happens
+                            // once per launch.
+                            Text("Preparing the voice — already downloaded, "
+                                 + "compiling it for this device.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -541,6 +670,12 @@ struct ContentView: View {
                 .padding(.horizontal)
             }
 
+                }
+                .padding(.top, 4)
+            }
+            .frame(maxHeight: 300)
+            .scrollBounceBehavior(.basedOnSize)
+
             conversation
 
             ScrollViewReader { proxy in
@@ -624,6 +759,16 @@ struct ContentView: View {
 
             statusBar
 
+            // The combination that gets the app KILLED, said before the
+            // tap rather than found in a crash log (INSTRUMENTS §27).
+            if let conflict = model.memoryConflict {
+                Text(conflict)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
             Button {
                 model.isListening ? model.stop() : model.start()
             } label: {
@@ -644,8 +789,15 @@ struct ContentView: View {
             // exact silent dead button AC-110 forbids. Disabled + the red
             // caption naming the reason = honest.
             .disabled(model.probeStatus != nil
-                      || (model.talkEnabled && model.mind == .apple
-                          && model.mindUnavailable != nil))
+                      // ANY mind that cannot answer, not just Apple's.
+                      // The review found the Local mind able to start a
+                      // session in which every single turn fails at the
+                      // door — a dead conversation that looks alive.
+                      || (model.talkEnabled && model.mind != .echo
+                          && model.mindUnavailable != nil)
+                      // Measured, not feared: 2239 MB + 1112 MB = 3351 MB,
+                      // and jetsam killed exactly this on the phone.
+                      || model.memoryConflict != nil)
             .padding(.horizontal)
             .padding(.bottom, 8)
         }

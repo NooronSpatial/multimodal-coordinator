@@ -11,3 +11,11 @@ DerivedData/
 # forward in the commit below). Ignored so it cannot happen twice.
 local_clone/
 *.profraw
+
+# The MLX shader library (D-062 F-3 = A): BUILT, never vendored. See
+# Scripts/metallib.sh. A 3.6 MB binary has no business in a repo whose
+# method is reproducibility.
+default.metallib
+
+# A local conversation log, for sharing a session — not history.
+mind-log.md

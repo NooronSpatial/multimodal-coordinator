@@ -208,10 +208,17 @@ public final class MicrophoneSource: AudioSource {
         //
         // The observation that motivated the change was real —
         // `inputFormat` collapses to 0 Hz once `mainMixerNode` is
-        // touched — but that only happened in the `hostsPlayback`
-        // arrangement, which D-049 removed. A fix aimed at a
-        // configuration that no longer exists, breaking the one that
-        // does.
+        // touched — and it happens in the `hostsPlayback` arrangement.
+        //
+        // CORRECTED 4h. This comment used to end "which D-049 removed",
+        // describing the hazard as historical. D-060 F-3 = B REINSTATED
+        // hostsPlayback in 4g (the speaker shield), and in 4h a phone
+        // died on exactly this 0 Hz format reaching
+        // `-[AVAudioEngine connect:to:format:]` — an ObjC exception Swift
+        // cannot catch (INSTRUMENTS §26). The hazard is LIVE. A comment
+        // that calls a hazard dead is a liability the moment someone
+        // brings it back, and the guard below is why this file survived
+        // while the playback host did not.
         let format = input.inputFormat(forBus: 0)
         // VALIDATED, because the alternative is not an error — it is an
         // ABORT. `installTap` asserts on a format with no rate or no

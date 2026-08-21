@@ -9,12 +9,18 @@ text, text becomes a *conversation* — one that answers out loud and stops the
 moment you interrupt it. On the device. On a Mac and on an iPhone, with no
 platform variant of anything on the spine.
 
+The brain is swappable and both options are real: Apple's Foundation Models,
+or a model whose weights sit in your own filesystem, running through MLX.
+Measured on an iPhone: **291–315 ms to the first spoken word**, 38 turns, no
+network at any point after the weights are on disk.
+
 | Phase | What it added |
 |---|---|
 | **1** | real microphone → lock-free ring → voice activity → clean speech events, many listeners |
 | **2** | utterances become **text**, two engines behind one proven seam, [measured](BAKEOFF.md) |
 | **3** | `os_signpost` spans, health events, a thermal ruling that is honest about being insurance |
 | **4** | the **conversation**: turn-taking, barge-in, the whole thought, **two real mouths**, and the whole thing running on a phone |
+| **4h** | the **second mind**: a model whose weights live on your device, behind the same seam Apple's sits behind — and the seam's proof that it was drawn in the right place |
 
 The problem the whole library exists for is one boundary:
 
@@ -46,7 +52,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   259 tests in 33 suites, green, run 20× before any milestone closes
+swift test   →   290 tests in 38 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -157,7 +163,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 259 tests, deterministic
+swift test                          # 290 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
@@ -206,14 +212,23 @@ three different bugs can be told apart at a glance.
   are committed before the code that makes them green, and mistakes are fixed
   **forward** with a commit that says what happened.
 - **Machines guard the rest.** Swift 6 strict concurrency, zero warnings, CI on
-  every push, and the core keeps **zero runtime dependencies** — Whisper and
-  the neural voice are opt-in products, each behind a protocol the core owns.
+  every push, and the core keeps **zero runtime dependencies** — Whisper, the
+  neural voice and MLX are opt-in products, each behind a protocol the core
+  owns. That vow is checked mechanically, not promised: CI builds the core
+  target ALONE before anything else, and an `import MLXLLM` in a core file
+  makes that build fail.
 
 ## Status
 
-Phases 1–3 complete. Phase 4 complete through milestone 4e: the conversation
-runs on a Mac and on an iPhone, with two transcription engines and two speech
-synthesizers behind their seams.
+Phases 1–3 complete. Phase 4 complete through milestone **4h**: the
+conversation runs on a Mac and on an iPhone, with two transcription engines,
+two speech synthesizers **and two minds** behind their seams — every seam in
+the library now has two real implementations rather than one and a promise.
+
+The second mind is local: Qwen3 through MLX, weights on the device. Measured
+on an iPhone across a 38-turn conversation — 291–315 ms to the first spoken
+word, 2288 MB peak, no memory growth after the third turn, nothing over the
+network once the weights are on disk.
 
 **Open, and named rather than buried:**
 
@@ -229,7 +244,14 @@ synthesizers behind their seams.
   INTERMITTENTLY — suspects and instruments recorded, investigation open — and
   the fallback-loudly path (AC-123) is not built.
 - AC-102 still owes an iPhone stop-latency number and a thermal number. The
-  phone gets hot; how hot has not been written down.
+  phone gets hot; how hot has not been written down. 4h narrowed this a
+  little without closing it: 38 turns of local inference showed no latency
+  decay, which is evidence about that length and no argument at all about a
+  twenty-minute session.
+- The local 4B mind (2239 MB) and the neural voice (1112 MB) **cannot run
+  together** — measured, and iOS kills the app near 3351 MB. The demo refuses
+  the pair by name instead of dying. That is a guard, not a cure; the cure is
+  an open fork.
 - The neural decode's **batching pin** (`concurrentWorkerCount = 1`) is still
   untested, and the `TTSDecoding` seam does not change that: the fault it
   prevents lives in the vendor's own branching, which a scripted decoder

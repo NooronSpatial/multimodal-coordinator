@@ -35,6 +35,11 @@ targets:
       # never learns that TTSKit exists.
       - package: multimodal-coordinator
         product: MultiModalKitTTS
+      # The second MIND (4h, D-062 F-1 = A). Opt-in for the same reason.
+      # NOTE: MLX cannot run on the iOS SIMULATOR at all (D-061) — the
+      # demo says so honestly rather than hiding the option (AC-131).
+      - package: multimodal-coordinator
+        product: MultiModalKitMLX
     settings:
       base:
         CODE_SIGN_STYLE: Automatic

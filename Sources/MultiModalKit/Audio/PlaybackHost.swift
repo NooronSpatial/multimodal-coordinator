@@ -79,6 +79,26 @@ public enum PlaybackHostFailure: Error, Sendable, Equatable {
     /// audio unit, rendering into a stopped one would buy nothing even
     /// if it worked.
     case notRendering
+    /// The graph offered a format nothing can be built from — almost
+    /// always 0 Hz, which is what an engine reports when the session is
+    /// not active or the route has gone away.
+    ///
+    /// This case exists because the alternative is death. AVFoundation
+    /// does not throw here: `-[AVAudioEngine connect:to:format:]` raises
+    /// an ObjC exception that Swift cannot catch, and the app is
+    /// terminated. Measured in a harness before this guard existed, and
+    /// reported from Ryad's phone before that (INSTRUMENTS §26).
+    case unusableFormat(rate: Double, channels: UInt32)
+}
+
+extension PlaybackHostFailure {
+    /// Check BEFORE calling AVFoundation, never after: there is no after.
+    static func requireUsable(_ format: AVAudioFormat) throws {
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            throw PlaybackHostFailure.unusableFormat(
+                rate: format.sampleRate, channels: format.channelCount)
+        }
+    }
 }
 
 /// THE CAPTURE ENGINE, AS A PLACE TO SPEAK FROM (AC-108, D-048).
@@ -191,9 +211,16 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
             // that is the entire reason to render here lives in an audio
             // unit that is not running either.
             guard s.capturing else { throw PlaybackHostFailure.notRendering }
+            // BOTH SIDES, and in this order. The caller's format can be
+            // sound while the graph's is 0 Hz — reading `mainMixerNode`
+            // is what forces the mixer→output connection, and that is
+            // exactly where a dead route shows up.
+            try PlaybackHostFailure.requireUsable(format)
+            let mixer = engine.mainMixerNode
+            try PlaybackHostFailure.requireUsable(mixer.outputFormat(forBus: 0))
             engine.attach(node)
-            engine.connect(node, to: engine.mainMixerNode, format: format)
-            s.outputRate = engine.mainMixerNode.outputFormat(forBus: 0).sampleRate
+            engine.connect(node, to: mixer, format: format)
+            s.outputRate = mixer.outputFormat(forBus: 0).sampleRate
             s.hosted.append(HostedNode(node))
         }
     }
@@ -250,8 +277,11 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
 
     public func attachForPlayback(_ node: AVAudioNode, format: AVAudioFormat) throws {
         try state.withLock { hosted in
+            try PlaybackHostFailure.requireUsable(format)
+            let mixer = engine.mainMixerNode
+            try PlaybackHostFailure.requireUsable(mixer.outputFormat(forBus: 0))
             engine.attach(node)
-            engine.connect(node, to: engine.mainMixerNode, format: format)
+            engine.connect(node, to: mixer, format: format)
             hosted.append(HostedNode(node))
             // START LAST. Touching `mainMixerNode` above has already
             // created it and connected it to the output, and the node is

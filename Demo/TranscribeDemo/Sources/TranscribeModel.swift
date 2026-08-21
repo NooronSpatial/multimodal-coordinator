@@ -2,6 +2,7 @@ import AVFAudio
 import Synchronization
 import MultiModalKit
 import MultiModalKitTesting
+import MultiModalKitMLX
 import MultiModalKitTTS
 import MultiModalKitWhisper
 import Observation
@@ -33,7 +34,39 @@ final class TranscribeModel {
     enum MindChoice: String, CaseIterable, Identifiable {
         case echo = "Echo"
         case apple = "Apple"
+        /// The SECOND MIND (4h): weights on this device, no Apple
+        /// Intelligence, no network once downloaded.
+        case local = "Local"
         var id: String { rawValue }
+    }
+
+    /// WHICH LOCAL MODEL (4h, F-1 = C). The picker exists so the phone
+    /// can ANSWER the question the Mac cannot: 2.1 GB is nothing here and
+    /// may be fatal there, because MLX keeps its weights resident.
+    enum LocalModelChoice: String, CaseIterable, Identifiable {
+        case small = "0.6B"
+        case big = "4B"
+        var id: String { rawValue }
+        var repoID: String {
+            switch self {
+            case .small: "mlx-community/Qwen3-0.6B-4bit"
+            case .big: "mlx-community/Qwen3-4B-4bit"
+            }
+        }
+        /// Honest sizes, so a person on cellular knows before tapping.
+        var sizeOnDisk: String {
+            switch self {
+            case .small: "about 400 MB"
+            case .big: "about 2.2 GB"
+            }
+        }
+        /// Measured on the Mac (INSTRUMENTS §25) — NOT on a phone.
+        var macBehaviour: String {
+            switch self {
+            case .small: "51–78 ms first word · parrots interrupted speech"
+            case .big: "249–374 ms first word · reads through disfluency"
+            }
+        }
     }
 
     enum EngineChoice: String, CaseIterable, Identifiable {
@@ -46,6 +79,16 @@ final class TranscribeModel {
         case checking
         case modelMissing
         case downloading
+        /// ON DISK, being made ready — NOT fetched.
+        ///
+        /// From a field report: "every time i start the app i see
+        /// downloading the voice!" He was right to ask. The files were
+        /// already there; `ensureModel()` was compiling six CoreML
+        /// components, which takes tens of seconds every launch, and the
+        /// screen called that "Downloading". The work was real; the word
+        /// was false — and a screen whose job is removing ambiguity had
+        /// been the thing creating it.
+        case preparing
         case ready
         case failed(String)
     }
@@ -71,8 +114,9 @@ final class TranscribeModel {
 
     /// The mouth. Changing it restarts the pipeline, like every other
     /// choice that is baked into a running turn loop.
-    var mouth: MouthChoice = .apple {
+    var mouth: MouthChoice = TranscribeModel.storedMouth {
         didSet {
+            UserDefaults.standard.set(mouth.rawValue, forKey: Self.mouthKey)
             guard mouth != oldValue else { return }
             if isListening { restart() }
             Task { await checkVoice() }
@@ -139,8 +183,9 @@ final class TranscribeModel {
     }
 
     /// The mind. Changing it restarts the pipeline, like the mouth.
-    var mind: MindChoice = .echo {
+    var mind: MindChoice = TranscribeModel.storedMind {
         didSet {
+            UserDefaults.standard.set(mind.rawValue, forKey: Self.mindKey)
             guard mind != oldValue else { return }
             if isListening { restart() }
             refreshMind()
@@ -159,8 +204,10 @@ final class TranscribeModel {
     /// engine, where the canceller can see them. OPT-IN per D-060 F-4 —
     /// the library default stays off; this app chooses. Restart-like the
     /// other choices: it reshapes a running graph.
-    var speakerShield = false {
+    var speakerShield = TranscribeModel.storedFlag(
+        TranscribeModel.shieldKey, default: false) {
         didSet {
+            UserDefaults.standard.set(speakerShield, forKey: Self.shieldKey)
             guard speakerShield != oldValue else { return }
             if isListening { restart() }
         }
@@ -173,10 +220,195 @@ final class TranscribeModel {
     /// without this sentence a voice would read list numbering aloud.
     private let appleMind = AppleReplyGenerator(
         instructions: "Your reply will be spoken aloud by a synthetic voice "
-            + "and never shown as text. Answer in one to three short, plain "
-            + "sentences. Never use lists, bullet points, numbered items, "
+            + "and never shown as text. Answer in ONE short sentence. Do not "
+            + "add extra facts, background or explanation unless the person "
+            + "asks for them. Never use lists, bullet points, numbered items, "
             + "markdown, code, or headings.",
         spokenRefusal: "I can't help with that one.")
+
+    /// THE SECOND MIND's weights (4h, D-062 F-1 = A). `repoID` means the
+    /// app may FETCH them — Whisper's shape, ruled by F-4 = A — but only
+    /// when a person taps Download. Asking whether it is installed never
+    /// starts anything.
+    private static let localModelKey = "dev.nooron.demo.localModel"
+    private static var storedLocalModel: LocalModelChoice {
+        UserDefaults.standard.string(forKey: localModelKey)
+            // F-1 = B (2026-08-21): 4B is the DEFAULT, ruled on the
+            // phone's own measurement — 2288 MB peak, no kill, 291-315 ms
+            // to the first word, and none of 0.6B's parroting. The picker
+            // stays, because one device is one device.
+            .flatMap(LocalModelChoice.init(rawValue:)) ?? .big
+    }
+    /// Changing this REPLACES the host, so the old weights are dropped
+    /// rather than kept alive beside the new ones — which on a phone is
+    /// the difference the whole fork is about.
+    var localModelChoice: LocalModelChoice = TranscribeModel.storedLocalModel {
+        didSet {
+            guard localModelChoice != oldValue else { return }
+            UserDefaults.standard.set(localModelChoice.rawValue,
+                                      forKey: Self.localModelKey)
+            // RETIRE the old one before replacing it. The review found
+            // that the previous version left the retired model's warm-up
+            // running and its weights resident, so switching 4B -> 0.6B
+            // briefly held BOTH — the opposite of what the person just
+            // asked for, at the one moment memory matters most.
+            let retiring = localModel
+            Task { await retiring.retire() }
+            localModel = LocalMindModel(repoID: localModelChoice.repoID)
+            if isListening { restart() }
+            refreshMind()
+        }
+    }
+    private var localModel = LocalMindModel(
+        repoID: TranscribeModel.storedLocalModel.repoID)
+    // (default is .big — see storedLocalModel, ruled F-1 = B)
+    /// Instructions are the APP's text, not the library's (D-027). The
+    /// same sentence the Apple mind gets, because the constraint is the
+    /// medium — this reply is heard, never read — not the model.
+    /// Computed, not stored: `@Observable` cannot hold a `lazy`, and this
+    /// costs nothing — the generator is a struct wrapping the SHARED
+    /// actor, so every copy talks to the same loaded weights.
+    private var localMind: MLXReplyGenerator {
+        MLXReplyGenerator(
+            model: localModel,
+            instructions: "Your reply will be spoken aloud by a synthetic voice "
+                + "and never shown as text. Answer in ONE short sentence. Do "
+                + "not add extra facts, background or explanation unless the "
+                + "person asks for them. Never use lists, bullet points, "
+                + "numbered items, markdown, code, or headings.",
+            maxTokens: 160)
+    }
+    /// THE CONVERSATION LOG. Built because a field report — "sometimes it
+    /// just replies my question" — cannot be chased without the real
+    /// exchange, and because the one fact that separates the two likely
+    /// causes is WHICH BRAIN answered, which no screenshot shows.
+    private(set) var turns: [ConversationTurn] = []
+
+    private func record(_ turn: ConversationTurn) {
+        turns.append(ConversationTurn(
+            id: turns.count + 1, mind: turn.mind, heard: turn.heard,
+            reply: turn.reply, firstTokenMs: turn.firstTokenMs,
+            totalMs: turn.totalMs, failure: turn.failure,
+            // ONLY when the local mind answered. MLX's peak is
+            // process-wide, so stamping it on an Apple or Echo turn
+            // reported a number that turn had nothing to do with — an
+            // instrument answering a question it was not asked.
+            peakMemoryMB: (turn.mind.hasPrefix("Local") && MLXRuntime.isAvailable)
+                ? MLXRuntime.peakMemoryBytes / 1_048_576 : nil,
+            bargedIn: turn.bargedIn))
+    }
+
+    func clearLog() { turns.removeAll() }
+
+    /// The log as markdown, so it leaves the phone as DATA rather than as
+    /// a photograph of a screen.
+    var conversationLog: String {
+        var out = "# Conversation log — MultiModalKit demo\n\n"
+        out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
+        out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
+        out += "local model: \(localModelChoice.rawValue) "
+        out += "(\(localModelChoice.repoID)) · installed: "
+        out += "\(localModel.modelInstalled()) · MLX runnable here: "
+        out += "\(MLXRuntime.isAvailable)\n"
+        if MLXRuntime.isAvailable {
+            out += "MLX memory now: active "
+            out += "\(MLXRuntime.activeMemoryBytes / 1_048_576) MB · peak "
+            out += "\(MLXRuntime.peakMemoryBytes / 1_048_576) MB\n"
+        }
+        if let why = mindUnavailable { out += "mind unavailable: \(why)\n" }
+        if let status = localDownloadStatus { out += "download: \(status)\n" }
+        out += "weights expected at: \(localModel.weights.path)\n"
+        out += "\nNOTE: the `mind:` line under each turn is the brain that\n"
+        out += "ACTUALLY answered, taken from the generator the coordinator\n"
+        out += "held — not from the picker above. If they disagree, that is\n"
+        out += "the finding.\n\n"
+        if turns.isEmpty { out += "_(no turns recorded yet)_\n" }
+        for turn in turns {
+            out += "## turn \(turn.id)\n"
+            out += "mind: **\(turn.mind)**\n\n"
+            out += "heard: \(turn.heard.isEmpty ? "_(nothing)_" : turn.heard)\n\n"
+            out += "reply: \(turn.reply.isEmpty ? "_(no words)_" : turn.reply)\n\n"
+            let first = turn.firstTokenMs.map { "\($0) ms" } ?? "never"
+            out += "first word \(first) · total \(turn.totalMs) ms"
+            if let mb = turn.peakMemoryMB { out += " · MLX peak \(mb) MB" }
+            if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
+            if let failure = turn.failure { out += " · FAILED: \(failure)" }
+            out += "\n\n"
+        }
+        return out
+    }
+
+    /// The combination iOS refuses to host, named BEFORE it kills the app.
+    ///
+    /// MEASURED, not feared (INSTRUMENTS §27): the 4B mind is 2239 MB and
+    /// the neural voice adds ~1112 MB, so together they ask for 3351 MB.
+    /// Ryad's phone answered that with "Terminated due to memory issue" —
+    /// jetsam does not negotiate and gives no chance to recover.
+    ///
+    /// A refusal that explains itself beats a crash that does not, and
+    /// this is a demo POLICY (D-027): the library ships no such rule,
+    /// because the budget belongs to the app that spends it.
+    var memoryConflict: String? {
+        guard mind == .local, localModelChoice == .big, mouth == .neural
+        else { return nil }
+        return "The 4B mind (2.2 GB) and the neural voice (1.1 GB) do not "
+            + "fit together — iOS kills the app near 3.3 GB. Choose the "
+            + "0.6B mind, or the Apple voice."
+    }
+
+    /// Fraction complete while the weights come down, or nil.
+    private(set) var localDownloadProgress: Double?
+
+    /// Fetches the weights. EXPLICIT — a person taps, nothing else.
+    /// What the download is doing, in words, at every stage.
+    ///
+    /// STICKY on purpose, and it exists because of a field report:
+    /// "downloading is not starting after i klick the button". The old
+    /// version reported only through `localDownloadProgress`, so a
+    /// failure BEFORE the first progress callback showed as a flicker and
+    /// the button coming back — visually identical to the tap doing
+    /// nothing. A silent failure and an ignored tap must never look the
+    /// same. `refreshMind()` deliberately does not clear this.
+    private(set) var localDownloadStatus: String?
+
+    func downloadLocalMind() {
+        guard localDownloadProgress == nil else {
+            localDownloadStatus = "already downloading — ignoring the tap."
+            return
+        }
+        let wanted = localModelChoice
+        localDownloadProgress = 0
+        localDownloadStatus = "starting \(wanted.rawValue) (\(wanted.sizeOnDisk))…"
+        Task { [localModel] in
+            do {
+                self.localDownloadStatus = "asking Hugging Face for \(wanted.repoID)…"
+                try await localModel.download { fraction in
+                    Task { @MainActor in
+                        self.localDownloadProgress = fraction
+                        self.localDownloadStatus = String(
+                            format: "downloading %@ — %.0f%%", wanted.rawValue,
+                            fraction * 100)
+                    }
+                }
+                self.localDownloadProgress = nil
+                // Proof, not hope: the download returning is not the same
+                // as the files being usable. And it must judge the model
+                // it actually DOWNLOADED — `localModel` may have been
+                // replaced by the picker meanwhile, and the review caught
+                // the first version reporting a perfectly good download as
+                // broken because it asked the wrong object.
+                let installed = localModel.modelInstalled()
+                self.localDownloadStatus = installed
+                    ? "\(wanted.rawValue) installed at \(localModel.weights.lastPathComponent)."
+                    : "download finished but the files are NOT usable — "
+                        + "expected them at \(localModel.weights.path)"
+                self.refreshMind()
+            } catch {
+                self.localDownloadProgress = nil
+                self.localDownloadStatus = "download FAILED: \(error)"
+            }
+        }
+    }
 
     /// The generator the coordinator gets. BOTH minds keep 4c's honest
     /// witness — the 🧠 line shows what the ledger delivered across the
@@ -185,9 +417,20 @@ final class TranscribeModel {
         let witness: @Sendable (String) -> Void = { [weak self] thought in
             Task { @MainActor in self?.wholeThought = thought }
         }
+        let sink: @Sendable (ConversationTurn) -> Void = { [weak self] turn in
+            Task { @MainActor in self?.record(turn) }
+        }
         switch mind {
-        case .echo: return PhoneEchoReply(onThought: witness)
-        case .apple: return ThoughtWitness(wrapped: appleMind, onThought: witness)
+        case .echo:
+            return ThoughtWitness(wrapped: PhoneEchoReply(onThought: witness),
+                                  mindLabel: "Echo (a stand-in that REPEATS your words)",
+                                  onThought: { _ in }, onTurn: sink)
+        case .apple:
+            return ThoughtWitness(wrapped: appleMind, mindLabel: "Apple",
+                                  onThought: witness, onTurn: sink)
+        case .local:
+            return ThoughtWitness(wrapped: localMind, mindLabel: "Local (MLX)",
+                                  onThought: witness, onTurn: sink)
         }
     }
 
@@ -196,6 +439,38 @@ final class TranscribeModel {
     /// temporary state into a permanent verdict. When the mind is ready,
     /// the warm-up is paid here, not inside the first felt pause.
     func refreshMind() {
+        if mind == .local {
+            // THE GUARD BELONGS HERE, not only on the Listen button.
+            //
+            // The review caught this and it was a blocker of my own
+            // making: LOADING is what costs the memory, and both models
+            // load at LAUNCH — checkVoice() prepares the voice, this
+            // prewarms the mind — long before anyone can tap anything.
+            // Guarding the button stopped nothing. Worse, once the mind
+            // and mouth started persisting, the forbidden pair survived a
+            // restart, so the app would be killed on every cold start
+            // with the picker permanently out of reach: a crash loop the
+            // person could not escape from inside the app.
+            guard memoryConflict == nil else {
+                mindUnavailable = memoryConflict
+                return                      // load NOTHING
+            }
+            // The simulator answer is STRUCTURAL, not a missing file
+            // (D-061): MLX wants a shared-storage Metal heap and the
+            // simulator's driver refuses. Saying so beats a dead button.
+            guard MLXRuntime.isAvailable else {
+                mindUnavailable = String(describing: MLXUnavailable.platformCannotRunMLX)
+                return
+            }
+            guard localModel.modelInstalled() else {
+                mindUnavailable = "\(localModelChoice.rawValue) is not downloaded "
+                    + "yet — tap Download (\(localModelChoice.sizeOnDisk), once)."
+                return
+            }
+            mindUnavailable = nil
+            localMind.prewarm()   // the measured 1.7 s load, paid off-turn
+            return
+        }
         guard mind == .apple else { mindUnavailable = nil; return }
         switch AppleReplyGenerator.availability {
         case nil:
@@ -255,8 +530,12 @@ final class TranscribeModel {
     /// Speak the replies aloud. OFF puts the app back in its Phase 2
     /// shape — record-only session, no mouth — which is also the honest
     /// A/B for what the talking session costs.
-    var talkEnabled = true {
-        didSet { if isListening { restart() } }
+    var talkEnabled = TranscribeModel.storedFlag(
+        TranscribeModel.talkKey, default: true) {
+        didSet {
+            UserDefaults.standard.set(talkEnabled, forKey: Self.talkKey)
+            if isListening { restart() }
+        }
     }
     /// F-4, AMENDED BY MEASUREMENT (D-043). It was ruled speaker-default
     /// because that is the honest hard case; the device then measured the
@@ -265,8 +544,12 @@ final class TranscribeModel {
     /// ship a demo that barges itself out of the box. The default is now
     /// the route that works; the speaker is one toggle away, for
     /// measurement, and the screen says why.
-    var useSpeaker = false {
-        didSet { if isListening { restart() } }
+    var useSpeaker = TranscribeModel.storedFlag(
+        TranscribeModel.speakerKey, default: false) {
+        didSet {
+            UserDefaults.standard.set(useSpeaker, forKey: Self.speakerKey)
+            if isListening { restart() }
+        }
     }
     private(set) var turnState: TurnState = .idle
     private(set) var reply = ""
@@ -311,6 +594,31 @@ final class TranscribeModel {
             UserDefaults.standard.set(vadThreshold, forKey: Self.gateKey)
             if isListening { restart() }
         }
+    }
+
+    // EVERY PICKER PERSISTS (Ryad). The ear and the Apple voice already
+    // did; the mind, the mouth, the shield and the two toggles did not,
+    // so every launch quietly reset them and the person re-chose from a
+    // screen that looked like it remembered. A control that forgets is a
+    // control that lies about its own state.
+    private static let mindKey = "dev.nooron.demo.mind"
+    private static var storedMind: MindChoice {
+        UserDefaults.standard.string(forKey: mindKey)
+            .flatMap(MindChoice.init(rawValue:)) ?? .echo
+    }
+    private static let mouthKey = "dev.nooron.demo.mouth"
+    private static var storedMouth: MouthChoice {
+        UserDefaults.standard.string(forKey: mouthKey)
+            .flatMap(MouthChoice.init(rawValue:)) ?? .apple
+    }
+    private static let shieldKey = "dev.nooron.demo.speakerShield"
+    private static let talkKey = "dev.nooron.demo.talkEnabled"
+    private static let speakerKey = "dev.nooron.demo.useSpeaker"
+    /// `object(forKey:)` and not `bool(forKey:)`: the latter answers
+    /// `false` for "never set", which would silently flip a default that
+    /// is deliberately `true`.
+    private static func storedFlag(_ key: String, default value: Bool) -> Bool {
+        UserDefaults.standard.object(forKey: key) as? Bool ?? value
     }
 
     private static let engineKey = "dev.nooron.demo.engine"
@@ -472,6 +780,13 @@ final class TranscribeModel {
     /// Honest disk check for the VOICE. Asking never downloads.
     func checkVoice() async {
         guard mouth == .neural else { voiceState = .ready; return }
+        // The mouth's half of the same guard. Preparing the voice is a
+        // 1.1 GB load, and it must not happen when the mind has already
+        // claimed 2.2 GB (INSTRUMENTS §27).
+        guard memoryConflict == nil else {
+            voiceState = .failed(memoryConflict ?? "")
+            return
+        }
         guard await neuralVoice.modelInstalled() else {
             voiceState = .modelMissing
             return
@@ -489,7 +804,12 @@ final class TranscribeModel {
         // already fixed in `feed`. Warming here closes it completely
         // rather than shrinking it, because `start()` refuses to run
         // until this says ready.
-        voiceState = .downloading
+        //
+        // PREPARING, not downloading: `modelInstalled()` just said the
+        // files are here, so this call is a load. Saying otherwise is how
+        // a person comes to believe their phone re-downloads 1.1 GB at
+        // every launch.
+        voiceState = .preparing
         do {
             try await neuralVoice.ensureModel()
             voiceState = .ready
@@ -690,6 +1010,26 @@ final class TranscribeModel {
             ? TurnCoordinator(
                 replyGenerator: currentGenerator,
                 synthesizer: currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil),
+                // THE REPLY GATE, at last switched on (F-2 = B, 500 ms).
+                //
+                // AC-81 built this in 4c and the demo never set it, so the
+                // assistant committed about 300 ms after Ryad stopped making
+                // noise — less than a person's thinking pause. A 38-turn
+                // field session measured the cost: SIX turns opened on a
+                // fragment ("Okay, and uh,") and were killed 76 ms later by
+                // him finishing his own sentence, and twelve carried a
+                // previous turn's words forward.
+                //
+                // The gate holds the reply, and `handleGateExpired` builds
+                // the prompt when it EXPIRES — so a continued sentence joins
+                // the SAME thought, and a new utterance during the gate stops
+                // the turn firing at all.
+                //
+                // POLICY, in the app, on purpose (D-027): the library's
+                // default stays `.zero`. This number costs felt pause 1:1 —
+                // 542 ms measured becomes about 1040 ms — and that is a
+                // trade only the person holding the phone can price.
+                config: .init(replyGate: .milliseconds(500)),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road

@@ -15,6 +15,7 @@
 		49044073EF00007DA65DD31C /* MindProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39C15A8522E79D78F4D795AD /* MindProbe.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
 		6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */ = {isa = PBXBuildFile; productRef = B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */; };
+		80C7530167B4686EF7C896BF /* MultiModalKitMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */; };
 		91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */; };
 		DFBA24BA87E376099A8AD354 /* TranscribeDemoApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 06FC5B573FF7D06A08D76106 /* TranscribeDemoApp.swift */; };
 		FEE72793A1C59D5217C79633 /* PhoneSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28BDC7531D2E15DC9EF02ABF /* PhoneSession.swift */; };
@@ -41,6 +42,7 @@
 				20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */,
 				310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */,
 				6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */,
+				80C7530167B4686EF7C896BF /* MultiModalKitMLX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -124,6 +126,7 @@
 				0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */,
 				91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */,
 				B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */,
+				043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */,
 			);
 			productName = TranscribeDemo;
 			productReference = 085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */;
@@ -391,6 +394,10 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MultiModalKitMLX;
+		};
 		0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MultiModalKitTesting;

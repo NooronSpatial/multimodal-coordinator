@@ -12,6 +12,7 @@ import MultiModalKitTesting
 import MultiModalKitTTS
 import TTSKit
 import Synchronization
+import MultiModalKitMLX
 import MultiModalKitWhisper
 
 setbuf(stdout, nil)
@@ -73,6 +74,355 @@ func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
 // adoption ruling (D-045, the D-023 discipline). Two mouths, the same
 // sentences, at the SEAM both implement, so the numbers are comparable
 // by construction rather than by argument.
+// MARK: - memory-fit: do the mind and the mouth fit together?
+
+/// `swift run bakeoff memory-fit --model=<weights>`
+///
+/// From a phone crash: "Terminated due to memory issue" with the local
+/// mind on 4B and the NEURAL voice selected. iOS jetsam does not
+/// negotiate, so the question is arithmetic — how big is each, and do
+/// they fit? This loads them one at a time and prints the footprint iOS
+/// would actually judge (phys_footprint, not resident size).
+if arguments.count > 1, arguments[1] == "memory-fit" {
+    func footprintMB() -> Double {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let ok = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        guard ok == KERN_SUCCESS else { return -1 }
+        return Double(info.phys_footprint) / 1_048_576
+    }
+
+    print(String(format: "baseline            %8.0f MB", footprintMB()))
+
+    // HELD for the whole measurement. The first version let this go out
+    // of scope, the weights were freed, and the footprint went DOWN after
+    // adding the voice — a measurement that flattered the answer.
+    var heldMind: LocalMindModel?
+    if let given = arguments.first(where: { $0.hasPrefix("--model=") }) {
+        let path = String(given.dropFirst("--model=".count))
+        let model = LocalMindModel(weights: URL(filePath: path))
+        heldMind = model
+        if MLXRuntime.isAvailable, (try? await model.ensureModel()) != nil {
+            print(String(format: "+ local mind        %8.0f MB  (MLX active %d MB)",
+                         footprintMB(), MLXRuntime.activeMemoryBytes / 1_048_576))
+        } else {
+            print("+ local mind        SKIPPED (no metallib or no weights)")
+        }
+    }
+
+    let voice = NeuralVoice()
+    if await voice.modelInstalled() {
+        do {
+            try await voice.ensureModel()
+            print(String(format: "+ neural voice      %8.0f MB", footprintMB()))
+        } catch {
+            print("+ neural voice      FAILED: \(error)")
+        }
+    } else {
+        print("+ neural voice      SKIPPED (not installed on this Mac)")
+    }
+    print(String(format: "BOTH TOGETHER       %8.0f MB", footprintMB()))
+    _ = heldMind          // keep the weights alive to the very end
+    print("")
+    print("A Mac has no jetsam. iOS kills an app well below its RAM — the")
+    print("budget is a few GB on a modern iPhone, and this total is what")
+    print("counts against it.")
+    exit(0)
+}
+
+// MARK: - fetch: prove the DOWNLOAD path, away from any UI
+
+/// `swift run bakeoff fetch --repo=mlx-community/Qwen3-0.6B-4bit --into=/tmp/x`
+///
+/// Exists because a field report ("downloading is not starting") cannot
+/// be chased through a phone's UI: this runs the same
+/// `LocalMindModel.download` the app calls, prints every progress
+/// callback, and says plainly whether the files landed.
+if arguments.count > 1, arguments[1] == "fetch" {
+    let repo = arguments.first(where: { $0.hasPrefix("--repo=") })
+        .map { String($0.dropFirst("--repo=".count)) }
+        ?? "mlx-community/Qwen3-0.6B-4bit"
+    let into = arguments.first(where: { $0.hasPrefix("--into=") })
+        .map { URL(filePath: String($0.dropFirst("--into=".count))) }
+        ?? URL(filePath: NSTemporaryDirectory()).appending(path: "mmk-fetch")
+    try? FileManager.default.createDirectory(at: into, withIntermediateDirectories: true)
+
+    let model = LocalMindModel(repoID: repo, in: into)
+    print("repo:      \(repo)")
+    print("target:    \(model.weights.path)")
+    print("installed before: \(model.modelInstalled())")
+
+    let clock = ContinuousClock()
+    let start = clock.now
+    let ticks = Mutex(0)
+    do {
+        try await model.download { fraction in
+            let n = ticks.withLock { $0 += 1; return $0 }
+            if n <= 5 || n % 25 == 0 {
+                print(String(format: "  progress callback #%d: %.1f%%", n, fraction * 100))
+            }
+        }
+    } catch {
+        print("FAILED after \(clock.now - start): \(error)")
+        exit(1)
+    }
+    print("callbacks:  \(ticks.withLock { $0 })")
+    print("took:       \(start.duration(to: clock.now))")
+    print("installed after: \(model.modelInstalled())")
+    if let listed = try? FileManager.default.contentsOfDirectory(atPath: model.weights.path) {
+        print("files:      \(listed.sorted().joined(separator: ", "))")
+    }
+    exit(0)
+}
+
+// MARK: - ask: talk to the second mind on this Mac
+
+/// The Mac's way of USING the second mind rather than measuring it.
+///
+///   swift run bakeoff ask "what is the capital of italy?"   one question
+///   swift run bakeoff ask                                   keep asking
+///
+/// The weights default to the Hugging Face cache, so there is nothing to
+/// type on a machine that already has them. Tokens print AS THEY ARRIVE,
+/// which is the seam's whole point made visible: the mouth would be
+/// speaking these before the sentence exists.
+if arguments.count > 1, arguments[1] == "ask" {
+    func defaultWeights() -> URL? {
+        if let given = arguments.first(where: { $0.hasPrefix("--model=") }) {
+            return URL(filePath: String(given.dropFirst("--model=".count)))
+        }
+        let cache = FileManager.default.homeDirectoryForCurrentUser.appending(
+            path: ".cache/huggingface/hub/models--mlx-community--Qwen3-0.6B-4bit/snapshots")
+        guard let entries = try? FileManager.default.contentsOfDirectory(
+            at: cache, includingPropertiesForKeys: nil) else { return nil }
+        return entries.first
+    }
+
+    guard MLXRuntime.isAvailable else {
+        print("no Metal shader library reachable, so MLX cannot be touched at all.")
+        print("MLX ABORTS the process rather than failing (D-061), so this stops here.")
+        print("fix it with:  Scripts/metallib.sh")
+        exit(2)
+    }
+    guard let weights = defaultWeights(),
+          FileManager.default.fileExists(atPath: weights.path) else {
+        print("no weights found. pass --model=/path/to/Qwen3-0.6B-4bit")
+        exit(2)
+    }
+
+    let model = LocalMindModel(weights: weights)
+    let mind = MLXReplyGenerator(
+        model: model,
+        // WORD FOR WORD the demo's text by default, so this tool
+        // reproduces the phone rather than approximating it — a field
+        // report cannot be chased with a different prompt than the one
+        // that produced it. `--system=` overrides it so a candidate fix
+        // can be MEASURED against the same inputs before anyone ships it.
+        instructions: arguments.first(where: { $0.hasPrefix("--system=") })
+            .map { String($0.dropFirst("--system=".count)) }
+            ?? "Your reply will be spoken aloud by a synthetic voice "
+            + "and never shown as text. Answer in ONE short sentence. Do not "
+            + "add extra facts, background or explanation unless the person "
+            + "asks for them. Never use lists, bullet points, numbered items, "
+            + "markdown, code, or headings.",
+        maxTokens: 160)
+
+    let clock = ContinuousClock()
+    let loadStart = clock.now
+    print("loading \(weights.lastPathComponent)…")
+    do { _ = try await model.ensureModel() } catch {
+        print("could not load the model: \(error)"); exit(2)
+    }
+    // LOADING IS NOT WARMING (INSTRUMENTS §25) — burn the pipeline cost
+    // here, so the first real question is as fast as the second.
+    if let warm = try? await mind.openReply(to: "hi") {
+        for await _ in warm.updates { break }
+        await warm.cancel()
+    }
+    let ready = loadStart.duration(to: clock.now)
+    print(String(format: "MLX memory: active %d MB · peak %d MB (RESIDENT — MLX does not mmap)",
+                 MLXRuntime.activeMemoryBytes / 1_048_576,
+                 MLXRuntime.peakMemoryBytes / 1_048_576))
+    print(String(format: "ready in %.1f s · everything below runs on this Mac, offline\n",
+                 Double(ready.components.seconds)
+                     + Double(ready.components.attoseconds) * 1e-18))
+
+    // THE LOG, so a Mac session can be shared the same way the phone's
+    // can. Written after every turn rather than at exit: the turn worth
+    // sharing is often the one before something hangs.
+    let logURL = URL(filePath: FileManager.default.currentDirectoryPath)
+        .appending(path: "mind-log.md")
+    var log = "# Conversation log — bakeoff ask (Mac)\n\n"
+    log += "model: \(weights.lastPathComponent)\nmind: Local (MLX)\n\n"
+
+    func answer(_ question: String) async {
+        let start = clock.now
+        var first: Duration?
+        var pieces = 0
+        var said = ""
+        do {
+            let reply = try await mind.openReply(to: question)
+            for await update in reply.updates {
+                switch update {
+                case .token(let t):
+                    if first == nil { first = start.duration(to: clock.now) }
+                    pieces += 1
+                    said += t
+                    FileHandle.standardOutput.write(Data(t.utf8))   // AS IT ARRIVES
+                case .failed(let why): print("\n  ✗ \(why)")
+                case .finished: break
+                }
+            }
+        } catch {
+            print("  ✗ refused at the door: \(error)")
+            return
+        }
+        let ms = { (d: Duration) in
+            Double(d.components.seconds) * 1000
+                + Double(d.components.attoseconds) * 1e-15
+        }
+        let total = start.duration(to: clock.now)
+        let after = max(ms(total) - ms(first ?? total), 0.001)
+        print(String(format: "\n   [first word %.0f ms · %d pieces · %.0f/s]\n",
+                     ms(first ?? total), pieces,
+                     Double(max(pieces - 1, 0)) / (after / 1000)))
+        log += "## \(question)\n\n\(said.isEmpty ? "_(no words)_" : said)\n\n"
+        log += String(format: "first word %.0f ms · %d pieces\n\n",
+                      ms(first ?? total), pieces)
+        try? Data(log.utf8).write(to: logURL)
+    }
+
+    // One question on the command line, or keep asking until ctrl-D.
+    let asked = arguments.dropFirst(2).filter { !$0.hasPrefix("--") }
+    if !asked.isEmpty {
+        await answer(asked.joined(separator: " "))
+        exit(0)
+    }
+    print("type a question, or ctrl-D to stop.")
+    while true {
+        FileHandle.standardOutput.write(Data("> ".utf8))
+        guard let line = readLine(), !line.trimmingCharacters(in: .whitespaces).isEmpty
+        else { break }
+        await answer(line)
+    }
+    print("bye. log written to \(logURL.path)")
+    exit(0)
+}
+
+// MARK: - mind-off (AC-130): two minds, one question, measured
+
+/// Puts the seam's two real citizens on identical prompts and reports the
+/// numbers that decide whether a mind can be SPOKEN: how long until the
+/// first word, and how fast the rest arrives.
+///
+/// It reports refusals as results, not errors. A mind that cannot answer
+/// on this machine (the Mac's Foundation Models download has been stuck
+/// at `modelNotReady` for days; MLX needs a metallib) is a row that says
+/// so — an empty table would be a lying instrument.
+if arguments.count > 1, arguments[1] == "mind-off" {
+    let prompts = [
+        "What is the capital of Italy?",
+        "Name one thing a microphone does.",
+        "In one sentence, why is the sky blue?",
+    ]
+    let spoken = "Your reply will be spoken aloud. Answer in one short, "
+        + "plain sentence. No lists, no markdown."
+
+    func run(_ label: String, _ mind: any ReplyGenerating) async {
+        print("\n### \(label)")
+        for prompt in prompts {
+            let clock = ContinuousClock()
+            let start = clock.now
+            do {
+                let reply = try await mind.openReply(to: prompt)
+                var first: Duration?
+                var text = ""
+                var pieces = 0
+                var failure: String?
+                for await update in reply.updates {
+                    switch update {
+                    case .token(let t):
+                        if first == nil { first = start.duration(to: clock.now) }
+                        text += t
+                        pieces += 1
+                    case .failed(let why): failure = why
+                    case .finished: break
+                    }
+                }
+                let total = start.duration(to: clock.now)
+                if let failure {
+                    print("  ✗ \(prompt) — \(failure)")
+                    continue
+                }
+                let ms = { (d: Duration) in
+                    Double(d.components.seconds) * 1000
+                        + Double(d.components.attoseconds) * 1e-15
+                }
+                let after = max(ms(total) - ms(first ?? total), 0.001)
+                print(String(format: "  first token %6.0f ms · %3d pieces · %5.1f/s · thinks-aloud: %@",
+                             ms(first ?? total), pieces,
+                             Double(max(pieces - 1, 0)) / (after / 1000),
+                             text.contains("<think>") ? "YES" : "no"))
+                print("     \"\(text.trimmingCharacters(in: .whitespacesAndNewlines))\"")
+            } catch {
+                print("  ✗ \(prompt) — refused at the door: \(error)")
+            }
+        }
+    }
+
+    print("MIND-OFF (AC-130) — the same questions, both citizens of the seam.")
+    print("Numbers are THIS Mac's. The phone's are not taken (D-061: that")
+    print("needs a signed device build), and nothing here should be read as")
+    print("a claim about a phone.")
+
+    await run("Apple · FoundationModels", AppleReplyGenerator(instructions: spoken))
+
+    let modelPath = arguments.first(where: { $0.hasPrefix("--model=") })
+        .map { String($0.dropFirst("--model=".count)) }
+    if let modelPath {
+        let model = LocalMindModel(weights: URL(filePath: modelPath))
+        if !MLXRuntime.isAvailable {
+            print("\n### Local · MLX\n  ✗ skipped — no metallib reachable, and MLX")
+            print("     ABORTS the process rather than failing (D-061). Build one")
+            print("     into the working directory first.")
+        } else {
+            // Warm first, then measure: the cold number is a load, not a mind.
+            let loadClock = ContinuousClock()
+            let loadStart = loadClock.now
+            _ = try? await model.ensureModel()
+            let load = loadStart.duration(to: loadClock.now)
+            let msOf = { (d: Duration) in
+                Double(d.components.seconds) * 1000
+                    + Double(d.components.attoseconds) * 1e-15
+            }
+            // LOADING IS NOT WARMING. The first run of this tool measured
+            // 1911 ms for the first question and 82 ms for the second,
+            // with the weights already resident — so the first GENERATION
+            // pays for Metal pipelines and graph warm-up. `prewarm()`
+            // burns that here, off-turn, and this prints what it cost.
+            let warmStart = loadClock.now
+            let sacrifice = MLXReplyGenerator(model: model, maxTokens: 1)
+            if let throwaway = try? await sacrifice.openReply(to: "hi") {
+                for await _ in throwaway.updates { break }
+                await throwaway.cancel()
+            }
+            let warm = warmStart.duration(to: loadClock.now)
+            print(String(format: "\n(model load %.0f ms + pipeline warm-up %.0f ms — both paid ONCE, off-turn)",
+                         msOf(load), msOf(warm)))
+            await run("Local · MLX", MLXReplyGenerator(model: model, instructions: spoken,
+                                                       maxTokens: 96))
+        }
+    } else {
+        print("\n### Local · MLX\n  ✗ skipped — pass --model=/path/to/weights")
+    }
+    exit(0)
+}
+
 if arguments.count > 1, arguments[1] == "voice-spike" {
     let sentences = [
         "How is the weather today?",
