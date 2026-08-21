@@ -903,6 +903,26 @@ final class TranscribeModel {
             ? TurnCoordinator(
                 replyGenerator: currentGenerator,
                 synthesizer: currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil),
+                // THE REPLY GATE, at last switched on (F-2 = B, 500 ms).
+                //
+                // AC-81 built this in 4c and the demo never set it, so the
+                // assistant committed about 300 ms after Ryad stopped making
+                // noise — less than a person's thinking pause. A 38-turn
+                // field session measured the cost: SIX turns opened on a
+                // fragment ("Okay, and uh,") and were killed 76 ms later by
+                // him finishing his own sentence, and twelve carried a
+                // previous turn's words forward.
+                //
+                // The gate holds the reply, and `handleGateExpired` builds
+                // the prompt when it EXPIRES — so a continued sentence joins
+                // the SAME thought, and a new utterance during the gate stops
+                // the turn firing at all.
+                //
+                // POLICY, in the app, on purpose (D-027): the library's
+                // default stays `.zero`. This number costs felt pause 1:1 —
+                // 542 ms measured becomes about 1040 ms — and that is a
+                // trade only the person holding the phone can price.
+                config: .init(replyGate: .milliseconds(500)),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road
