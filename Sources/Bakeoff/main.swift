@@ -112,10 +112,14 @@ if arguments.count > 1, arguments[1] == "ask" {
     let model = LocalMindModel(weights: weights)
     let mind = MLXReplyGenerator(
         model: model,
-        // WORD FOR WORD the demo's text, so this tool reproduces the
-        // phone rather than approximating it. A field report cannot be
-        // chased with a different prompt than the one that produced it.
-        instructions: "Your reply will be spoken aloud by a synthetic voice "
+        // WORD FOR WORD the demo's text by default, so this tool
+        // reproduces the phone rather than approximating it — a field
+        // report cannot be chased with a different prompt than the one
+        // that produced it. `--system=` overrides it so a candidate fix
+        // can be MEASURED against the same inputs before anyone ships it.
+        instructions: arguments.first(where: { $0.hasPrefix("--system=") })
+            .map { String($0.dropFirst("--system=".count)) }
+            ?? "Your reply will be spoken aloud by a synthetic voice "
             + "and never shown as text. Answer in one to three short, plain "
             + "sentences. Never use lists, bullet points, numbered items, "
             + "markdown, code, or headings.",

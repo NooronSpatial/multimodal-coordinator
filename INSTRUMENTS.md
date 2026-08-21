@@ -1832,3 +1832,85 @@ would be the lying instrument this project keeps hunting.
 
 **Not measured, and not implied:** the phone. Every number here is this
 Mac's, and D-061 says the device figure needs a signed build.
+
+### The field report "sometimes it just replies my question" — chased to the model
+
+Ryad, on the phone, with the local mind. Three explanations were possible
+and the log was built to tell them apart, because none of them is visible
+in a screenshot.
+
+**Suspect 1, the wrong brain — REFUTED by the log.** `PhoneEchoReply`'s
+entire behaviour is to answer with the question ("You said: …"), and the
+picker defaults to `.echo`, so "it replies my question" is a literal
+description of it. The conversation log records the generator the
+COORDINATOR held rather than the picker's value, and it read
+`mind: **Local (MLX)**` on all ten turns. Not the brain.
+
+**Suspect 2, speech phrasing — REFUTED before the log arrived.** Twenty
+prompts on the Mac in the phone's style (no capitals, no question mark)
+and in written style: every one answered, none echoed.
+
+**Suspect 3, the model — CONFIRMED, and reproduced exactly.** The log's
+`heard:` lines were replayed verbatim through `bakeoff ask` on the Mac,
+and turn 10 came back character-for-character identical to the phone:
+
+```
+heard:  13. No, no, no.  I ask you the square of... 113.
+phone:  No, no, no. I ask you the square of... 113.
+Mac:    No, no, no. I ask you the square of... 113.
+```
+
+So it is not the phone, not the demo, and not the seam. A 0.6B model
+parrots input that is not a clear question.
+
+**Why the input was not a clear question — the ledger, working as
+designed.** The log shows the whole thought carrying forward:
+
+| turn | heard |
+|---|---|
+| 9 | `13. No, no, no.  I ask you the square of...` **(BARGED IN)** |
+| 10 | `13. No, no, no.  I ask you the square of... 113.` |
+
+A barged turn was never answered, so 4c's ledger keeps its text as still
+UNANSWERED and delivers it again with the next utterance (AC-88). That is
+correct behaviour, and its by-product is that an interrupted exchange
+hands the model a fragment rather than a question.
+
+**Two candidate cures, both measured on the same inputs.**
+
+*A stricter instruction* ("never repeat the user's words; if unclear say
+only: sorry, I did not catch that") fixes the worst case and nothing
+else:
+
+| heard | 0.6B, demo prompt | 0.6B, strict prompt |
+|---|---|---|
+| `13. No, no, no. …113.` | verbatim echo | "Sorry, I did not catch that." |
+| `Hello, my friend, how are you?` | "Hello! How are you?" | "Hello, how are you?" — still parrots |
+| `What you can do for me?` | parrots | parrots |
+
+*A bigger model* — Qwen3-4B-4bit, already on this Mac, with the demo's
+ORIGINAL prompt — fixes all of it, and does something the small one
+cannot:
+
+```
+13. No, no, no.  I ask you the square of... 113.
+   → "The square of 113 is 12,769."
+```
+
+It read through the disfluency to the real question.
+
+| | Qwen3-0.6B-4bit | Qwen3-4B-4bit |
+|---|---|---|
+| on disk | 334 MB | 2.1 GB |
+| first token | 51–78 ms | **249–374 ms** |
+| throughput | 64–70 tok/s | 46–53 tok/s |
+| parrots fragments | yes | no |
+
+Even at 374 ms the bigger model is inside the 542–567 ms felt pause this
+project measured with all-Apple engines. **What is NOT measured is the
+phone**: MLX does not mmap its weights (§25), so 2.1 GB would be resident
+beside the audio graph, the recogniser and the mouth. That is a device
+question, and it is the fork's real cost.
+
+`--system=` was added to `bakeoff ask` so a candidate prompt can be
+measured against the same inputs before anyone ships it.
