@@ -1782,3 +1782,53 @@ They belong to non-SwiftPM builds this package does not produce, and
 every extra place to look is another chance to say yes wrongly. The cost
 is a false NEGATIVE — skipping where MLX could have run — which is the
 direction this check is allowed to be wrong in.
+
+### AC-130, the mind-off — and the discovery that LOADING IS NOT WARMING
+
+`swift run bakeoff mind-off --model=<weights>` puts both citizens of the
+seam on the same three questions. The first run said something the spec
+had not anticipated:
+
+```
+(model load: 2318 ms)
+first token  1911 ms ·  7 pieces · 32.2/s   "The capital of Italy is Rome."
+first token    82 ms · 10 pieces · 30.6/s   "A microphone is used to ..."
+first token   267 ms · 17 pieces · 35.7/s   "The sky is blue because ..."
+```
+
+The weights were ALREADY resident when question 1 was asked — the load
+had finished. So the 1911 ms was not loading. It was the first
+**generation**: Metal pipelines and graph warm-up, paid by whoever asks
+first. `prewarm()` was loading and calling it done, which would have put
+that 1.8 s in front of a person's first question on the phone.
+
+Burning one throwaway token off-turn fixes it, and the second effect was
+bigger than the first:
+
+```
+(model load 1457 ms + pipeline warm-up 84 ms — both paid ONCE, off-turn)
+first token 51 ms ·  7 pieces · 65.0/s   "The capital of Italy is Rome."
+first token 50 ms ·  8 pieces · 67.8/s   "A microphone is used to capture sound."
+first token 50 ms · 29 pieces · 75.0/s   "The sky appears blue because ..."
+```
+
+| | before the warm-up | after |
+|---|---|---|
+| first token | 1911 / 82 / 267 ms | **51 / 50 / 50 ms** |
+| throughput | 30–36 tok/s | **65–75 tok/s** |
+| cost | — | 84 ms, once, off-turn |
+
+Throughput roughly DOUBLED as well, which is the same cause seen from the
+other side: the first run was compiling kernels while it generated. For
+scale, this project's measured felt pause with all-Apple engines was
+542–567 ms end to end; a warm local first token is 50 ms.
+
+**The Apple rows are empty, and that is a result rather than a gap.** All
+three refused at the door with *"the on-device model is still
+downloading"* — the Mac's Foundation Models asset has been stuck for
+days (its daemon idle at 0.0% CPU). The tool prints refusals as rows on
+purpose: a table that silently omitted the mind that could not answer
+would be the lying instrument this project keeps hunting.
+
+**Not measured, and not implied:** the phone. Every number here is this
+Mac's, and D-061 says the device figure needs a signed build.

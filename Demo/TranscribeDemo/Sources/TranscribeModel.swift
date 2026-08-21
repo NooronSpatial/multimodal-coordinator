@@ -2,6 +2,7 @@ import AVFAudio
 import Synchronization
 import MultiModalKit
 import MultiModalKitTesting
+import MultiModalKitMLX
 import MultiModalKitTTS
 import MultiModalKitWhisper
 import Observation
@@ -33,6 +34,9 @@ final class TranscribeModel {
     enum MindChoice: String, CaseIterable, Identifiable {
         case echo = "Echo"
         case apple = "Apple"
+        /// The SECOND MIND (4h): weights on this device, no Apple
+        /// Intelligence, no network once downloaded.
+        case local = "Local"
         var id: String { rawValue }
     }
 
@@ -178,6 +182,47 @@ final class TranscribeModel {
             + "markdown, code, or headings.",
         spokenRefusal: "I can't help with that one.")
 
+    /// THE SECOND MIND's weights (4h, D-062 F-1 = A). `repoID` means the
+    /// app may FETCH them — Whisper's shape, ruled by F-4 = A — but only
+    /// when a person taps Download. Asking whether it is installed never
+    /// starts anything.
+    private let localModel = LocalMindModel(repoID: "mlx-community/Qwen3-0.6B-4bit")
+    /// Instructions are the APP's text, not the library's (D-027). The
+    /// same sentence the Apple mind gets, because the constraint is the
+    /// medium — this reply is heard, never read — not the model.
+    /// Computed, not stored: `@Observable` cannot hold a `lazy`, and this
+    /// costs nothing — the generator is a struct wrapping the SHARED
+    /// actor, so every copy talks to the same loaded weights.
+    private var localMind: MLXReplyGenerator {
+        MLXReplyGenerator(
+            model: localModel,
+            instructions: "Your reply will be spoken aloud by a synthetic voice "
+                + "and never shown as text. Answer in one to three short, plain "
+                + "sentences. Never use lists, bullet points, numbered items, "
+                + "markdown, code, or headings.",
+            maxTokens: 160)
+    }
+    /// Fraction complete while the weights come down, or nil.
+    private(set) var localDownloadProgress: Double?
+
+    /// Fetches the weights. EXPLICIT — a person taps, nothing else.
+    func downloadLocalMind() {
+        guard localDownloadProgress == nil else { return }
+        localDownloadProgress = 0
+        Task { [localModel] in
+            do {
+                try await localModel.download { fraction in
+                    Task { @MainActor in self.localDownloadProgress = fraction }
+                }
+                self.localDownloadProgress = nil
+                self.refreshMind()
+            } catch {
+                self.localDownloadProgress = nil
+                self.mindUnavailable = "download failed: \(error)"
+            }
+        }
+    }
+
     /// The generator the coordinator gets. BOTH minds keep 4c's honest
     /// witness — the 🧠 line shows what the ledger delivered across the
     /// seam, whichever brain answers (AC-91's proof duty, unchanged).
@@ -188,6 +233,7 @@ final class TranscribeModel {
         switch mind {
         case .echo: return PhoneEchoReply(onThought: witness)
         case .apple: return ThoughtWitness(wrapped: appleMind, onThought: witness)
+        case .local: return ThoughtWitness(wrapped: localMind, onThought: witness)
         }
     }
 
@@ -196,6 +242,23 @@ final class TranscribeModel {
     /// temporary state into a permanent verdict. When the mind is ready,
     /// the warm-up is paid here, not inside the first felt pause.
     func refreshMind() {
+        if mind == .local {
+            // The simulator answer is STRUCTURAL, not a missing file
+            // (D-061): MLX wants a shared-storage Metal heap and the
+            // simulator's driver refuses. Saying so beats a dead button.
+            guard MLXRuntime.isAvailable else {
+                mindUnavailable = String(describing: MLXUnavailable.platformCannotRunMLX)
+                return
+            }
+            guard localModel.modelInstalled() else {
+                mindUnavailable = "the local model is not downloaded yet — "
+                    + "tap Download (about 400 MB, once)."
+                return
+            }
+            mindUnavailable = nil
+            localMind.prewarm()   // the measured 1.7 s load, paid off-turn
+            return
+        }
         guard mind == .apple else { mindUnavailable = nil; return }
         switch AppleReplyGenerator.availability {
         case nil:

@@ -4,6 +4,7 @@ import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
 import MultiModalKit
+import Hub
 import Tokenizers
 
 // MARK: - the runtime guard (AC-129)
@@ -83,7 +84,23 @@ public enum MLXRuntime {
 
     /// True when MLX may be called. `false` means SKIP — never "try and
     /// see", because trying is what aborts the process.
-    public static var isAvailable: Bool { metallibURL() != nil }
+    ///
+    /// The simulator is refused OUTRIGHT, before the artefact is even
+    /// looked for, and this is not caution — it is D-061, measured:
+    /// MLX asks Metal for a heap with `ResourceStorageModeShared` because
+    /// it assumes the unified memory of real Apple silicon, and
+    /// `MTLSimDevice` requires `Private` and refuses. `Device.cpu` does
+    /// not escape it, because the allocator is chosen at BUILD time. The
+    /// metallib IS present in a simulator app bundle, so a check that
+    /// only looked for the file would say yes and then die on the first
+    /// allocation — which is exactly what the phone spike did, twice.
+    public static var isAvailable: Bool {
+        #if targetEnvironment(simulator)
+        return false
+        #else
+        return metallibURL() != nil
+        #endif
+    }
 }
 
 // MARK: - the model, loaded once (D-062 F-4 = A: Whisper's shape)
@@ -97,11 +114,28 @@ public enum MLXRuntime {
 /// idempotent.
 public actor LocalMindModel {
     public let weights: URL
+    /// The Hugging Face repo these weights come from, when the app wants
+    /// the library to be able to FETCH them. `nil` means bring-your-own:
+    /// the caller placed the files and no download will ever happen.
+    public let repoID: String?
     private var container: ModelContainer?
     private var think: ThinkTokens??      // nil = unread, .some(nil) = none declared
 
+    /// Weights already on disk. Nothing is ever downloaded.
     public init(weights: URL) {
         self.weights = weights
+        self.repoID = nil
+    }
+
+    /// Weights this model may fetch if they are missing — Whisper's
+    /// shape, which D-062 F-4 = A ruled for exactly this seam.
+    ///
+    /// The default directory is the app's Documents, which is where a
+    /// person can also drop the folder by hand over USB.
+    public init(repoID: String, in directory: URL = URL.documentsDirectory) {
+        self.repoID = repoID
+        self.weights = directory.appending(
+            path: repoID.split(separator: "/").last.map(String.init) ?? repoID)
     }
 
     /// Honest disk check — no load is ever triggered by asking.
@@ -118,6 +152,48 @@ public actor LocalMindModel {
         else { return false }
         let contents = (try? files.contentsOfDirectory(atPath: weights.path)) ?? []
         return contents.contains { $0.hasSuffix(".safetensors") }
+    }
+
+    /// Downloads the weights, if this model knows where they come from.
+    ///
+    /// EXPLICIT, exactly as Whisper's rule requires: nothing here is ever
+    /// reached by *asking* whether the model is installed. Idempotent —
+    /// the download half is skipped when the files are already there.
+    public func download(
+        progress: @escaping @Sendable (Double) -> Void = { _ in }
+    ) async throws {
+        guard !modelInstalled() else { return }
+        guard let repoID else {
+            throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
+        }
+        let hub = HubApi(downloadBase: weights.deletingLastPathComponent())
+        _ = try await hub.snapshot(
+            from: repoID,
+            matching: ["*.safetensors", "*.json", "*.txt"]
+        ) { p in progress(p.fractionCompleted) }
+        // The hub lays the files out under its own folder shape; the
+        // model directory is wherever config.json actually landed.
+        try relocateIfNeeded()
+    }
+
+    /// The hub nests its snapshot under `models/<org>/<repo>`; this model
+    /// wants ONE directory. Moving is cheaper than teaching every caller
+    /// the hub's layout, and doing it here keeps `weights` honest.
+    private func relocateIfNeeded() throws {
+        let files = FileManager.default
+        guard !modelInstalled() else { return }
+        let base = weights.deletingLastPathComponent()
+        guard let walker = files.enumerator(at: base, includingPropertiesForKeys: nil)
+        else { return }
+        for case let url as URL in walker where url.lastPathComponent == "config.json" {
+            let found = url.deletingLastPathComponent()
+            guard found != weights else { return }
+            if files.fileExists(atPath: weights.path) {
+                try files.removeItem(at: weights)
+            }
+            try files.moveItem(at: found, to: weights)
+            return
+        }
     }
 
     /// Loads the weights. Idempotent; the load half is skipped when the
@@ -251,7 +327,22 @@ extension MLXReplyGenerator {
     /// place that reports honestly, every turn.
     public func prewarm() {
         guard let source = source as? MLXTokenSource else { return }
-        Task { try? await source.model.ensureModel() }
+        Task {
+            _ = try? await source.model.ensureModel()
+            // LOADING IS NOT WARMING — measured by the bake-off (AC-130).
+            // With the weights already resident, the FIRST generation
+            // still took 1911 ms while the second took 82 ms and the
+            // third 267 ms. The extra 1.8 s is Metal pipeline and graph
+            // warm-up, and it is paid by whoever generates first. So this
+            // burns one throwaway token here, off-turn, rather than
+            // letting a person pay it in front of their first answer.
+            let sacrifice = MLXTokenSource(model: source.model,
+                                           instructions: nil,
+                                           maxTokens: 1)
+            do {
+                for try await _ in sacrifice.tokens(for: "hi") { break }
+            } catch { /* a warm-up that fails is not a turn that fails */ }
+        }
     }
 
     /// The second mind, ready to answer.

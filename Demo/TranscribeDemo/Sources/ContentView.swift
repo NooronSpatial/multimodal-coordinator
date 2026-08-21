@@ -374,6 +374,30 @@ struct ContentView: View {
                     }
                     .pickerStyle(.segmented)
                     .disabled(model.isListening)
+                    if model.mind == .local {
+                        // AC-131: the third mind never vanishes and never
+                        // dies silently. On a simulator it says WHY it
+                        // cannot run (D-061, structural); with no weights
+                        // it offers the one action that fixes that.
+                        Text(model.mindUnavailable
+                             ?? "local weights ready · answers never leave this device")
+                            .font(.caption2)
+                            .foregroundStyle(model.mindUnavailable == nil
+                                             ? AnyShapeStyle(.secondary)
+                                             : AnyShapeStyle(Color.orange))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        if let fraction = model.localDownloadProgress {
+                            ProgressView(value: fraction) {
+                                Text("downloading the local model…").font(.caption2)
+                            }
+                        } else if model.mindUnavailable?.contains("not downloaded") == true {
+                            Button("Download the local model") {
+                                model.downloadLocalMind()
+                            }
+                            .font(.caption)
+                            .buttonStyle(.bordered)
+                        }
+                    }
                     if model.mind == .apple {
                         // AC-110 on the main screen: the enum's reason in
                         // words, never a silent dead Listen button. And

@@ -89,6 +89,9 @@ let package = Package(
             dependencies: [
                 "MultiModalKit", "MultiModalKitTesting",
                 "MultiModalKitWhisper", "MultiModalKitTTS",
+                // The second mind, so `mind-off` can put the two brains on
+                // the same question (AC-130).
+                "MultiModalKitMLX",
                 // Direct, so `voice-levers` can name the decoder modes it
                 // is comparing (AC-106). A TOOL target, tier 2 of D-016 —
                 // the core still knows nothing about any of this.
