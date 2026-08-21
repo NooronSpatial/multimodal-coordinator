@@ -2507,6 +2507,15 @@ to catch.
 **Accepted, open, not fixed here.** Two test gaps, named rather than
 quietly carried: no test constructs `MLXTokenSource`, so the gate is
 proven in isolation but never proven WIRED into the real source; and
+
+*(Correction, same day, recorded rather than edited away: the first half
+was PARTLY closed after this entry was written. `MLXMindLiveTests` now
+constructs the real `MLXTokenSource` and drives its door on every
+machine, mutation-proven. What stays open is narrower and still real — no
+test drives a defiant `<think>` from the REAL model through the REAL
+detokenizer, because that needs weights AND a model that ignores
+`enable_thinking`.)*
+
 `MicrophonePlaybackHost` has no positive test, only the not-rendering
 refusal. Both need a real engine or a fake for it, which is its own
 piece of work.
