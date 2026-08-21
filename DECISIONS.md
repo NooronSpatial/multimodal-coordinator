@@ -2423,3 +2423,90 @@ work: vendoring the macro's expansion does not remove swift-transformers
 is a build-time dependency of macro expansion that is never in the
 runtime graph at all — its true cost is CI build TIME, which is a reason
 to measure that time, not to redesign around a ghost.
+
+## D-063 — 4h's FIELD rulings, and the adversarial review that followed (Milestone 4h)
+
+**Date:** 2026-08-21 · **Decided by:** Ryad · **Rulings: FIELD-1 = C then
+B, FIELD-2 = B (500 ms)** · **Review: 52 claims, 29 refuted, 23
+confirmed, 1 refuted afterwards by measurement.**
+
+**A numbering apology first.** D-062 ruled 4h's spec forks F-1…F-5. The
+forks below arose LATER, from field sessions, and were discussed as "F-1"
+and "F-2" again in conversation. That collision is why the review found
+"DECISIONS.md still says F-1 = A while the shipped code does something
+else" — the log was right and the conversation was sloppy. They are named
+**FIELD-1** and **FIELD-2** here so no future reader has to guess.
+
+**FIELD-1 = C, then B — which local model.** Ruled in two steps because
+the first ruling existed to produce a measurement the Mac could not.
+
+*C first:* put the choice in the demo, so the PHONE answers whether 2.1 GB
+of resident weights survives beside an audio graph, a recogniser and a
+mouth. *Rejected at that moment:* ruling A or B on Mac numbers, which
+would have been a guess about a device with jetsam from a device without.
+
+*Then B, on the phone's own evidence:* 2288 MB peak across 38 turns, no
+kill, 291–315 ms to the first word, and none of the 0.6B model's
+parroting on interrupted speech. *Rejected:* **A, keep 0.6B** — it
+answered a barged fragment by repeating it verbatim, which the field log
+shows three times in a row. The picker stays: one device is one device,
+and D-060 F-4's reasoning about library defaults claiming every device
+has not stopped being true.
+
+**FIELD-2 = B — the reply gate, 500 ms, in the app.** AC-81 built this in
+4c and the demo never set it, so the assistant committed roughly 300 ms
+after Ryad stopped making noise. Measured cost of that: six of 38 turns
+opened on a FRAGMENT and were killed by him finishing his own sentence,
+and twelve carried a previous turn's words. *Rejected:* **A, leave it at
+zero** — fastest, and 16% of turns misfire. *Rejected:* **C, 300 ms** —
+half the benefit for half the cost, chosen by nobody's evidence. The
+library default stays `.zero` and a test pins it: D-027's line, because
+the number costs felt pause 1:1.
+
+**Reply length, same session.** Three instructions measured over the six
+prompts from Ryad's own log: the shipped one averaged 19.7 words, "ONE
+short sentence, no extra facts" 7.0, and "only what was asked, at most
+fifteen words" 9.8. The middle one shipped. The third is worth recording
+as *rejected on measurement*: it read like the tighter instruction and
+came out longer AND worse, producing self-contradiction and fragments
+that sound wrong spoken.
+
+### The D-041 review, and what it found
+
+Six dimensions over the diff, every claim then handed to a skeptic told
+to REFUTE it. 29 of 52 died there, which is the process working.
+
+**Fixed (code):** a BLOCKER of my own making — `memoryConflict` guarded
+the Listen button while both models load at LAUNCH, and the persistence
+added hours earlier made the forbidden pair survive a restart, i.e. a
+crash loop with the picker out of reach; `ensureModel()` had no in-flight
+latch, so a prewarm plus a tap could each load 2239 MB against a 3351 MB
+ceiling (now WhisperEngine's busy-flag-and-waiter-queue shape); a leaked
+uncancellable prewarm Task pinning retired weights; a download verified
+against the wrong model; a Listen gate that covered only the Apple mind;
+a conversation log unreachable in exactly the failures it was built for;
+MLX's process-wide peak stamped on turns other minds answered; and
+process-global cache policy written by the library.
+
+**Fixed (docs):** three shipped rulings recorded nowhere but INSTRUMENTS
+(this entry); §26 still calling the reply gate zero; §25 attributing a
+cheap build to "macro expansion we do not currently use" when the adapter
+now uses it; SPEC §90 listing model downloading and network use as out of
+scope after both shipped; ARCHITECTURE.md showing the mind seam with one
+citizen; and MicrophoneSource's comment still calling `hostsPlayback`
+historical — the exact staleness that let 4h's 0 Hz crash happen.
+
+**REFUTED afterwards, by measurement.** The review confirmed that "the
+zero-dependency vow's only mechanical guard cannot fail". It can: adding
+`import MLXLLM` to a core file makes `swift build --target MultiModalKit`
+fail. The message is confusing (`missing required module
+'_NumericsShims'`) but the build does not succeed. Recorded because a
+review finding accepted without testing is the same sin the review exists
+to catch.
+
+**Accepted, open, not fixed here.** Two test gaps, named rather than
+quietly carried: no test constructs `MLXTokenSource`, so the gate is
+proven in isolation but never proven WIRED into the real source; and
+`MicrophonePlaybackHost` has no positive test, only the not-rendering
+refusal. Both need a real engine or a fake for it, which is its own
+piece of work.

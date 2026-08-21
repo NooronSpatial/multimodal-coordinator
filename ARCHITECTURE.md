@@ -119,12 +119,19 @@ the bottom.
 That rule is the design story. An interface with one implementation is a
 guess; two is a proof, and every one of these has been swapped in anger.
 
+The MIND is the seam that took longest to get its second real citizen —
+4f shipped it with one and said so — and 4h supplied it. Note what the
+second one did NOT need: `MLXReplyGenerator` uses no `SnapshotDiffer`,
+because cumulative snapshots are Apple's API shape and not the seam's.
+MLX emits tokens, which is what `ReplyUpdate` already carried.
+
 | Seam | Implementations |
 |---|---|
 | `AudioSource` | `MicrophoneSource` · `FakeMicrophone` |
 | `TranscriptionEngine` | `AppleSpeechEngine` · `WhisperEngine` · `ScriptedTranscriber` |
-| `ReplyGenerating` | `AppleReplyGenerator` · the demos' generators · `ScriptedReplyGenerator` |
+| `ReplyGenerating` | `AppleReplyGenerator` · **`MLXReplyGenerator` (4h)** · the demos' generators · `ScriptedReplyGenerator` |
 | `ReplySnapshotStreaming` (4f, internal) | `FoundationModelSnapshots` · a scripted source in the tests |
+| `ReplyTokenStreaming` (4h, internal) | `MLXTokenSource` · a scripted source in the tests |
 | `SpeechSynthesizing` | `AppleSpeechSynthesizer` · `NeuralVoice` · `ScriptedSynthesizer` |
 | `AudioSessionConfiguring` (4d) | the app's `PhoneSession` · `nil` on macOS |
 | `PlaybackHost` (4e) | `AudioEnginePlaybackHost` · `MicrophonePlaybackHost` |

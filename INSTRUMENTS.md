@@ -1684,8 +1684,15 @@ The core-alone number is the one that matters, and it did not move: the
 zero-dependency vow is enforced mechanically by CI building that target
 BEFORE anything else, and MLX is not reachable from it. The 39.65 s is
 the whole graph from cold, warnings-as-errors clean — cheaper than the
-"slow build" the fork discussion feared, because the swift-syntax cost is
-paid only by macro expansion we do not currently use.
+"slow build" the fork discussion feared, because at that moment nothing
+used the macro.
+
+*(Corrected by the 4h review: `LocalMind.swift` now calls
+`#huggingFaceTokenizerLoader()`, so the macro — and swift-syntax — IS
+built. The 39.65 s figure predates the tokenizer landing and must not be
+quoted as the cost of the finished milestone. The number that has been
+re-measured since is the core-alone build, which is what the vow turns
+on, and it did not move.)*
 
 ### The mutation log — five that bit, one that did not
 
@@ -2140,6 +2147,11 @@ Twelve of thirty-eight turns (32%) carried a previous turn's words.
 |---|---|---|
 | VAD hangover | `Int(rate * 0.3)` = **300 ms** | 300 ms of quiet ends the utterance |
 | `config.replyGate` | **`.zero`** — the demo never sets it | the reply fires the INSTANT a final arrives |
+
+*(Superseded the same day: Ryad ruled 500 ms and the demo now sets it —
+see "F-1 = B, and the reply-length fix" below and D-063. The table above
+records the state that PRODUCED the 38-turn session, which is what makes
+its numbers readable; it is not the current configuration.)*
 
 So the total wait between Ryad stopping and the assistant committing is
 about 300 ms. A person thinking mid-sentence ("Okay, and uh,") pauses

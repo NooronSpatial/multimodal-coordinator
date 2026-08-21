@@ -23,6 +23,18 @@ struct MLXMindLiveTests {
         return FileManager.default.fileExists(atPath: url.path) ? url : nil
     }
 
+    /// A SKIP THAT SAYS SO.
+    ///
+    /// The 4h review's sharpest test finding: five of these six tests
+    /// `return` early when the model is absent, and the runner prints
+    /// "passed" — a skip indistinguishable from a proof. Swift Testing
+    /// has no skip verb here, so the least dishonest thing available is
+    /// to say it out loud, and to name what would make it run.
+    private static func skipping(_ what: String) -> Bool {
+        print("SKIPPED (\(what)) — set MMK_MLX_MODEL and run Scripts/metallib.sh to make this test REAL")
+        return true
+    }
+
     /// AC-129's control, and it runs on EVERY machine: the guard must be
     /// able to say whether it is switched on. A guard that silently
     /// answers "yes" everywhere is the lying instrument this project
@@ -39,7 +51,7 @@ struct MLXMindLiveTests {
 
     @Test("the model reports honestly whether it is installed — asking triggers nothing")
     func askingNeverLoads() async throws {
-        guard let weights = Self.weights else { return }
+        guard let weights = Self.weights else { _ = Self.skipping("no MMK_MLX_MODEL"); return }
         let model = LocalMindModel(weights: weights)
         #expect(model.modelInstalled(), "the weights and BOTH tokenizer files must be present")
 
@@ -49,7 +61,7 @@ struct MLXMindLiveTests {
 
     @Test("a missing model is refused at the door, not discovered mid-reply")
     func theDoorRefusesWhatIsNotThere() async throws {
-        guard let weights = Self.weights else { return }
+        guard let weights = Self.weights else { _ = Self.skipping("no MMK_MLX_MODEL"); return }
         let mind = MLXReplyGenerator(
             model: LocalMindModel(weights: weights.appending(path: "not-here")))
         await #expect(throws: MLXUnavailable.self) {
@@ -61,7 +73,9 @@ struct MLXMindLiveTests {
     /// real seam — tokens, then exactly one terminal.
     @Test("a REAL reply: tokens then one terminal, and NO reasoning is spoken")
     func aRealReply() async throws {
-        guard let weights = Self.weights, MLXRuntime.isAvailable else { return }
+        guard let weights = Self.weights, MLXRuntime.isAvailable else {
+            _ = Self.skipping("no MMK_MLX_MODEL or no metallib"); return
+        }
         let mind = MLXReplyGenerator(
             model: LocalMindModel(weights: weights),
             instructions: "You are speaking aloud. Answer in one short sentence. "
@@ -102,7 +116,9 @@ struct MLXMindLiveTests {
     /// word takes once the weights are already resident.
     @Test("WARM, the first token is fast — the cold 1.9 s is the load, not the model")
     func warmFirstToken() async throws {
-        guard let weights = Self.weights, MLXRuntime.isAvailable else { return }
+        guard let weights = Self.weights, MLXRuntime.isAvailable else {
+            _ = Self.skipping("no MMK_MLX_MODEL or no metallib"); return
+        }
         let model = LocalMindModel(weights: weights)
         let clock = ContinuousClock()
 
@@ -131,7 +147,9 @@ struct MLXMindLiveTests {
 
     @Test("a cancelled REAL reply ends without a terminal")
     func aRealCancel() async throws {
-        guard let weights = Self.weights, MLXRuntime.isAvailable else { return }
+        guard let weights = Self.weights, MLXRuntime.isAvailable else {
+            _ = Self.skipping("no MMK_MLX_MODEL or no metallib"); return
+        }
         let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
                                      maxTokens: 256)
         let run = try await mind.openReply(to: "Count slowly from one to fifty.")

@@ -2670,12 +2670,22 @@ The original list stands in commit `ae78681`.)*
 
 ## 90. Out of scope for 4h (deliberately)
 
-The phone's numbers, which need a signed device build (named, not
-smuggled) · multi-turn memory, still its own milestone · tool calling and
-structured output · reply QUALITY scoring beyond "is it speakable" ·
-model downloading · SpeakerKit · the parked self-barge investigation ·
-the Mac's stuck Foundation Models download · anything served from a
-network.
+Multi-turn memory, still its own milestone · tool calling and structured
+output · reply QUALITY scoring beyond "is it speakable" · SpeakerKit ·
+the parked self-barge investigation · the Mac's stuck Foundation Models
+download.
+
+*(Corrected by the 4h review. Three items were removed from this list
+because they did NOT stay out of scope, and leaving them here would have
+been the spec claiming a boundary the code had already crossed:*
+
+- *"the phone's numbers" — taken. 2288 MB peak, 291–315 ms first word,
+  38 turns (INSTRUMENTS §25–27).*
+- *"model downloading" and "anything served from a network" — shipped.
+  D-062 F-4 = A ruled that the MLX product follows Whisper's shape, and
+  Whisper's shape downloads. The on-device constraint is about where
+  INFERENCE happens, not about how weights arrive; Whisper had been
+  fetching ~142 MB for three milestones under the same rule.)*
 
 ## 91. Definition of done (4h)
 
