@@ -1727,3 +1727,58 @@ line is load-bearing alone.
    produced no verdict** before it was killed. Rewritten on the house
    `until` bound, the same mutation now reddens it in 5.000 s. A red that
    hangs is a red nobody reads.
+
+### The real model, in `swift test` (AC-128/129) — and a guard that lied twice
+
+The second mind answering, on this Mac, inside the ordinary test runner:
+
+```
+AC-128 · first token in 1.926 s · said: The capital of Italy is Rome.
+AC-128 WARM · model load 1.717 s · first token 0.272 s · said: The capital of France is Paris.
+```
+
+| what | measured |
+|---|---|
+| cold first token (load included) | **1.93 s** |
+| model load alone | **1.72 s** |
+| **warm first token** | **0.27 s** |
+
+The split is the whole story: essentially ALL of the cold number is
+loading 334 MB, so `prewarm()` exists for the same reason the Apple
+mind's does. For scale, this project's measured felt pause with all-Apple
+engines was 542–567 ms; a warm local first token at 272 ms is inside
+that, and a cold one at 1.9 s is not remotely.
+
+(The spike's 67 ms in §24 is not this number and should not be compared
+to it: that measured raw generation on a bare prompt, while this includes
+the chat template, a system instruction and prefill.)
+
+### AC-129: the guard that must never say yes wrongly
+
+Without a `default.metallib`, MLX aborts the PROCESS. So the guard is
+asked with Foundation before MLX is touched at all. It was wrong twice,
+and only the control caught it — reasoning would not have:
+
+| attempt | what it accepted | result |
+|---|---|---|
+| 1 | a nested Cmlx bundle found via `url(forResource:)` | said yes, **process died** |
+| 2 | any bundle's `Resources/default.metallib` | matched **`Vision.framework`'s own metallib** — said yes, **process died** |
+| 3 | nested `mlx-swift_Cmlx.bundle`, frameworks only when the bundle IDENTIFIER matches, else cwd | **correct** |
+
+Attempt 2 is the instructive one. Apple ships `default.metallib` inside
+`Vision.framework`, and a check that merely looks for a file by that name
+will find someone else's. MLX itself only accepts a framework whose
+identifier is its own — mirroring that rule is what fixed it.
+
+The control, run both ways:
+
+```
+metallib removed  → guard nil, 5 tests SKIP, green in 0.140 s, no abort
+metallib restored → real reply, 6 tests green
+```
+
+The colocated `mlx.metallib` arrangements are deliberately NOT checked.
+They belong to non-SwiftPM builds this package does not produce, and
+every extra place to look is another chance to say yes wrongly. The cost
+is a false NEGATIVE — skipping where MLX could have run — which is the
+direction this check is allowed to be wrong in.

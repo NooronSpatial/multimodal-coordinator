@@ -43,6 +43,12 @@ let package = Package(
         // it lives behind `ReplyGenerating` in a product nobody imports
         // unless they want it.
         .package(url: "https://github.com/ml-explore/mlx-swift-lm", from: "3.0.0"),
+        // The tokenizer, which mlx-swift-lm deliberately does NOT ship
+        // (D-062 F-5 = A): it provides `#huggingFaceTokenizerLoader()`, a
+        // macro that wraps YOUR `Tokenizers.Tokenizer`. The spike proved a
+        // hand-rolled one yields ids that are valid but WRONG, so this is
+        // the third package, paid for in the open.
+        .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.0"),
     ],
     targets: [
         .target(name: "MultiModalKit"),
@@ -66,6 +72,11 @@ let package = Package(
                 "MultiModalKit",
                 .product(name: "MLXLLM", package: "mlx-swift-lm"),
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                // The macro that bridges swift-transformers' tokenizer into
+                // MLX's own protocol. This is what pulls swift-syntax — a
+                // BUILD-time cost only, measured in INSTRUMENTS §25.
+                .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
+                .product(name: "Transformers", package: "swift-transformers"),
             ]
         ),
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
