@@ -383,24 +383,38 @@ final class TranscribeModel {
     func runPressureProbe() async {
         probeLines = []
         probeSay("# pressure probe — \(LocalMind.repoID)")
-        probeSay("baseline:            \(headroomNow())")
 
-        probeSay("loading the mind…")
+        // HONEST BASELINE. The first version called this "baseline" while
+        // launch had ALREADY prewarmed the mind, so it measured the wrong
+        // thing and said the right word. Say what is resident.
+        let mindAlready = MLXRuntime.isAvailable
+            && MLXRuntime.activeMemoryBytes > 100 * 1_048_576
+        probeSay("mind already resident: \(mindAlready) "
+            + "(MLX active \(MLXRuntime.activeMemoryBytes / 1_048_576) MB)")
+        probeSay("start:               \(headroomNow())")
+
+        // THE VOICE FIRST, and the order is the point. The previous run
+        // loaded the risky thing last and died before learning the cheap
+        // fact — what the neural voice actually costs ON THIS PHONE. My
+        // 1112 MB is a Mac's figure, and CoreML often MAPS weights, which
+        // count differently against a dirty limit than MLX's do.
+        probeSay("loading the neural voice FIRST… (if this is the last line,")
+        probeSay("  it died here, and the voice alone is the problem)")
+        do {
+            try await neuralVoice.ensureModel()
+            probeSay("+ voice loaded:      \(headroomNow())")
+        } catch {
+            probeSay("  voice FAILED:      \(error)")
+        }
+
+        probeSay("loading the mind… (if this is the last line, the PAIR is")
+        probeSay("  the problem, and we now know the voice's real cost)")
         do {
             _ = try await localModel.ensureModel()
             probeSay("+ mind loaded:       \(headroomNow())")
             probeSay("  MLX active:        \(MLXRuntime.activeMemoryBytes / 1_048_576) MB")
         } catch {
             probeSay("  mind FAILED:       \(error)")
-        }
-
-        probeSay("loading the neural voice… (if this line is the last one,")
-        probeSay("  the app was killed here — which is itself the answer)")
-        do {
-            try await neuralVoice.ensureModel()
-            probeSay("+ voice loaded:      \(headroomNow())")
-        } catch {
-            probeSay("  voice FAILED:      \(error)")
         }
 
         probeSay("BOTH RESIDENT:       \(headroomNow())")

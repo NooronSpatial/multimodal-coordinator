@@ -2456,3 +2456,49 @@ toggles reset at every launch, so the app re-chose for him from a screen
 that looked like it remembered. A control that forgets is a control that
 lies about its own state — the same fault as the voice label, one screen
 over.
+
+## 28. The pair, measured on the phone (4i, AC-132) — it misses by seven megabytes
+
+The first real number for the question 4h could only guess at. Ryad's
+iPhone, the demo's pressure probe, and one jetsam kill.
+
+```
+fresh launch, nothing loaded     3319 MB free      → the app's dirty limit is ~3.5 GB
+probe start (mind ALREADY there) 1105 MB free
++ mind "loaded"                  1105 MB free      ← unchanged: ensureModel returned the cache
+  MLX active                     2159 MB
+loading the neural voice…        KILLED
+```
+
+**The mind costs ~2214 MB** (3319 − 1105) and leaves **1105 MB**. The
+neural voice measured **1112 MB on a Mac** (§27).
+
+**1105 available against 1112 needed.** Every earlier statement in this
+repo — including mine, repeatedly — said the pair "does not fit", on the
+strength of a Mac's `phys_footprint` arithmetic (2239 + 1112 = 3351). The
+phone's own answer is that it misses by about **0.6%**.
+
+**Two faults in the instrument, recorded because they shaped the run:**
+
+1. **The word "baseline" was false.** Launch had already prewarmed the
+   mind, so the probe's first reading was taken with 2.2 GB resident and
+   still called itself a baseline. The line now reports whether the mind
+   was already there.
+2. **The order was wrong.** It loaded the risky thing LAST, so the run
+   died before learning the cheap fact — what the neural voice costs *on
+   this phone*. That number is still unknown, and it is the one that
+   decides everything: 1112 MB is a Mac's figure, and CoreML frequently
+   MAPS its weights, which count differently against a dirty limit than
+   MLX's do (MLX has no `mmap` at all — §25).
+
+**What the design got right:** the probe was killed and its evidence
+survived. Every line was flushed to `Documents/pressure-probe.txt` before
+the next step ran, and the app reads it back at launch — so the
+truncation point itself was readable afterwards. That is the MLX phone
+spike's lesson (§24 STAGE 3) being spent rather than re-learned.
+
+**Still unmeasured, and the next thing to take:** the neural voice's cost
+on iOS, alone, from a clean launch. If it is well under 1105 MB, the pair
+fits at steady state and what killed the app was the CoreML *compile*
+spike — a different problem with different cures. If it is near 1112 MB,
+the pair genuinely does not fit and something has to give.
