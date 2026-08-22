@@ -2575,3 +2575,51 @@ the mind cannot be made smaller, either the pair fits or the voice goes.
 **What is NOT deleted:** every 0.6B measurement in INSTRUMENTS. They were
 true, they paid for this ruling, and removing them would hide the
 evidence that produced it.
+
+## D-065 — 4i re-scoped: the chain is not built, because the premise died (Milestone 4i)
+
+**Date:** 2026-08-21 · **Decided by:** Ryad · **Ruling: A — re-scope,
+drop the degradation chain**
+
+**A milestone's own first instrument refuted the milestone.** 4i was
+drafted around three debts that looked like one question, and its opening
+sentence was "4h measured a pair that does not fit". AC-132 — the
+headroom instrument, built first because Ryad's F-1 answer promoted it —
+measured the pair fitting with **934 MB to spare**, alongside a THIRD
+in-process model and a working turn (INSTRUMENTS §29).
+
+**The error was mine and it was repeated in three places** — SPEC §92,
+D-064's consequence paragraph, and a red warning in the app. All three
+added a Mac's `phys_footprint` to a phone's dirty-memory headroom. CoreML
+MAPS its weights, so they are clean pages that a dirty limit does not
+charge; MLX has no `mmap`, so its 2225 MB is charged in full. The neural
+voice costs **111 MB** on iOS against the 1112 MB I measured on a Mac —
+wrong by a factor of ten, and wrong in the direction that forbade a
+configuration the user wanted.
+
+**What is dropped:** the pressure level, the hysteresis rule, the
+degradation order, and the fork asking where the chain should live
+(AC-133–138, F-1–F-3). *Rejected:* **B, build the chain anyway for
+smaller phones.** It would be built for a device nobody in this project
+owns, which is the purchase D-047 rejected in one sentence — "it protects
+against a risk nobody measured" — and it would earn the same label:
+insurance, not a measured cure. *Rejected:* **C, close 4i.** The thermal
+debt is real, owed since Phase 3, and closing the milestone would orphan
+it again.
+
+**What remains: three measurements and no new architecture.** The compile
+peak that actually kills (AC-139), AC-102's thermal number at last
+(AC-140), and twenty minutes in the configuration Ryad really uses
+(AC-141).
+
+**The reopening condition, named in advance** (the D-040 F-3 pattern): if
+AC-140 or AC-141 shows this configuration failing under sustained load,
+the chain comes back — with evidence, which is the only basis it should
+ever have had.
+
+**One fork withdrawn rather than ruled.** F-4 asked how to resolve
+`os_proc_available_memory`'s ambiguous 0, and I recommended cross-checking
+`limit_bytes_remaining`. Measurement before building showed that field
+also reads 0 on macOS, for the opposite reason, so the cross-check
+disambiguates nothing. Withdrawn by its author before Ryad spent a ruling
+on it.

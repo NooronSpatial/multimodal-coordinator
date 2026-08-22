@@ -2727,221 +2727,160 @@ configurations · a review before merge (D-041), with every finding fixed
 or accepted in writing · numbers in INSTRUMENTS with the phone's absence
 stated · teach-back survived.
 
-# SPEC — Milestone 4i: under pressure (what this thing does when the device says no)
+# SPEC — Milestone 4i: under pressure (three measurements, no new architecture)
 
-## 92. What 4i builds, and why it is next
+*(REWRITTEN 2026-08-21, before sign-off, because the milestone's own
+first acceptance criterion refuted its premise. The original draft —
+which opened "4h measured a pair that does not fit" and proposed a
+degradation chain — is preserved in commit `2f48d3c`. Ruled A by Ryad:
+re-scope, drop the chain. See D-065.)*
 
-Every milestone so far asked *can it work?* This one asks *what happens
-when it cannot.* Three debts have been carried far enough that they are
-now one question:
+## 92. What 4i builds, and why the first draft was wrong
 
-- **4h measured a pair that does not fit.** The 4B mind (2239 MB) plus
-  the neural voice (1112 MB) is 3351 MB, and iOS killed the app —
-  "Terminated due to memory issue" (INSTRUMENTS §27). The demo now
-  REFUSES that combination by name. That is a guard, not a cure: the two
-  still cannot run together.
-- **AC-102 has owed a thermal number since Phase 3.** The phone gets hot;
-  how hot has never been written down. Phase 3's thermal ruling calls
-  itself "insurance" honestly, and insurance with no measurement behind
-  it is a guess wearing a label.
-- **AC-123 was named in 4g and never built** — the honest-degradation
-  path, for when the good arrangement is not available.
+The draft existed because three debts looked like one question: a pair
+that would not fit, an unpaid thermal number, and an unbuilt degradation
+path. Then AC-132 — the milestone's own instrument — was built first, and
+the pair fitted:
 
-They are the same question because the answer is the same shape: a
-system that meets a limit must degrade in a *stated order*, not fall
-over, and must say what it did.
+```
+mind=Local · ear=Whisper · mouth=Neural · speaker shield=true
+memory headroom: 934 MB · a working turn in 478 ms
+```
 
-**What already exists and is not enough.** `ThermalPolicy` is a real seam
-from Phase 3 with a `ConservativeThermalPolicy` — but its only verb is
-`allowSettlingDecode(thermal:activeSettlingDecodes:)`. It can slow one
-decode. It cannot drop a model, refuse a mouth, or tell anybody it did.
+Whisper's recogniser IN-PROCESS, the 4B mind, the neural voice and the
+speaker shield, all resident, with 934 MB to spare (INSTRUMENTS §29).
 
-## 93. What is KNOWN, what is GUESSED, and what only a device can say
+**The claim they refuted was mine, repeated in three places**, and it came
+from adding a Mac's `phys_footprint` to a phone's dirty-memory headroom.
+CoreML MAPS its weights, so they are clean pages and are not charged
+against that limit; MLX has no `mmap`, so its 2225 MB is charged in full.
+The neural voice costs **111 MB** on iOS, not the 1112 MB I measured on a
+Mac.
 
-**KNOWN — measured, on Ryad's iPhone and this Mac:**
+**So the chain is not built.** A degradation chain now would be built for
+a device nobody in this project owns, which is the purchase D-047
+rejected in one sentence — *"it protects against a risk nobody
+measured"* — and it would carry the same honest label: insurance, not a
+measured cure.
+
+**What is left is three measurements and no new architecture.**
+
+## 93. What is KNOWN, and what is still guessed
+
+**KNOWN — measured on Ryad's iPhone (INSTRUMENTS §28–§29):**
 
 | | |
 |---|---|
-| 4B mind resident | **2239 MB** (INSTRUMENTS §27) |
-| neural voice, on top | **+1112 MB** → 3351 MB together |
-| the pair | **killed by jetsam** |
-| 4B alone, 38 turns | 2292 → 2320 MB, settled; first word 285–323 ms, no decay |
-| MLX weights | **not memory-mapped** — there is no `mmap` in its C++ core, so they are resident |
+| the app's dirty limit | ~3.5 GB (3347 MB free at a clean launch) |
+| the 4B mind | **2225 MB** — dirty, MLX does not mmap |
+| the neural voice | **111 MB** — mapped, and therefore nearly free |
+| all three + shield | **934 MB still free**, and a turn answers |
+| the instrument | `os_proc_available_memory` is iOS-only; `limit_bytes_remaining` reads 0 on macOS for the OPPOSITE reason, so the platform must discriminate |
 
-**KNOWN — the instrument, read from the SDK rather than assumed:**
+**KNOWN — the failure that is real:** the load, not the footprint. The
+app was killed twice loading the voice — at 1105 MB free and at 2976 MB
+free — and survived at 3347. TTSKit compiles six CoreML models
+CONCURRENTLY, and that transient peak is the whole hazard.
 
-```c
-size_t os_proc_available_memory(void);   // API_UNAVAILABLE(macos), iOS 13+
-```
+**GUESSED — untouched:**
 
-Bytes remaining before the **dirty memory limit** — not device RAM. Its
-own header says the result is a snapshot, that caching it is not advised,
-and that the limit itself changes during the app lifecycle.
+- **The peak itself.** Nobody has seen it. The process dies at it.
+- **Every thermal claim.** No temperature, no time-to-throttle, no
+  recovery time has ever been recorded by this project.
+- **Anything beyond 38 turns.** The longest measured conversation.
+- **478 ms to first word** with three in-process models, against 291–315
+  ms with Apple's voice and ear. One turn. A hint, not a number.
 
-**And it returns 0 for two different reasons:** the caller is not an app,
-*or* the caller has already exceeded its limit. A number that means both
-"no information" and "you are past the edge" is the lying-instrument
-shape this project keeps finding. Whatever wraps it must resolve that
-ambiguity before anyone reads it.
+## 94. The one hard problem: the peak kills the instrument that would measure it
 
-**GUESSED — not measured, and treated as unknown:**
-
-- Every thermal claim. Nothing in this repo has ever recorded a device
-  temperature, a time-to-throttle, or a recovery time.
-- Whether 38 turns of local inference says anything about twenty
-  minutes. It does not.
-- Whether dropping the mind mid-conversation is even survivable — MLX's
-  container has never been released and rebuilt in a live session.
-
-**What only a device can say.** All of it. macOS has no jetsam and no
-`os_proc_available_memory`, so the Mac can host the LOGIC and prove none
-of the behaviour. That asymmetry is this milestone's defining constraint,
-and it is why the pure parts must be separable (§94).
-
-## 94. The one hard problem: pressure is a condition, not an event
-
-A turn is an event. It starts, it ends, and a state machine handles it.
-Pressure is not:
+A footprint can be read at leisure. A peak cannot, because the process
+that would report it is the process being terminated:
 
 ```
-   memory ──╮      ╭─────────╮        the line is not crossed ONCE.
-   headroom  ╰────╯           ╰────   it is crossed, and re-crossed,
-   ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─    and crossed again, by the
-        threshold                      system's own reaction to it
+   headroom  ────╮
+                  ╲          ← six CoreML compiles at once
+                   ╲
+   ─ ─ ─ ─ ─ ─ ─ ─ ─╳─ ─ ─    jetsam. no callback, no unwind,
+                              no final log line, no crash report
 ```
 
-A chain that degrades at a threshold and recovers at the same threshold
-**oscillates**: drop the mind → headroom returns → restore the mind →
-headroom vanishes → drop it again. The person hears the assistant change
-character every few seconds. That is worse than either state.
+iOS does not warn. There is no "you are about to die" notification to
+handle, and nothing runs afterwards.
 
-So the rule this milestone must get right is not *when to degrade* — it
-is **when it is safe to stop degrading.** Hysteresis: the level that
-triggers a drop and the level that permits a recovery must be different
-numbers, and the gap between them is a decision, not a detail.
+So the measurement has to be written down BEFORE it is needed — sampled
+continuously and flushed to disk on every reading, so that the last line
+that survived is the answer. That is not defensive coding; it is the only
+shape that can work, and this project has already paid for the lesson
+twice: the MLX phone spike lost two crashes to a buffered stdout (§24
+STAGE 3), and the pressure probe's own trail survived a kill only because
+every line was flushed before the next step ran (§28).
 
-Two more properties, both learned the hard way elsewhere in this repo:
-
-1. **It must be pure and clockless.** The decision — given a reading and
-   a current level, what should change? — is arithmetic. It belongs
-   beside `EnergyVAD` and `PlaybackLead`: no clock, no `ProcessInfo`, no
-   model, so it can be proven on any machine including one with no
-   jetsam. Time and readings live with the caller.
-2. **Degrading mid-turn is a different question from degrading between
-   turns.** Unloading a mind while it is generating is `retire()`'s
-   problem one layer up, and the 0 Hz crash showed what happens when a
-   resource disappears under something still using it.
-
-## 95. Acceptance criteria (4i)
+## 95. Acceptance criteria (4i, rewritten)
 
 - **AC-132 The headroom instrument can say whether it is switched on.**
-  A wrapper over `os_proc_available_memory()` that never reports the
-  ambiguous 0: it distinguishes *unavailable here* (macOS, or not an
-  app) from *zero headroom left*. On macOS it reports unavailable rather
-  than pretending, and the demo's log says which.
-- **AC-133 A pressure LEVEL, computed purely.** Given a headroom reading
-  and a thermal state, a clockless function returns a named level. No
-  `ProcessInfo` inside, no clock, no I/O — proven on any machine.
-- **AC-134 It does not oscillate.** Hysteresis proven by a scripted
-  pressure source that walks a reading up and down across the boundary:
-  the level changes at most once per crossing, and a recovery requires
-  the reading to pass a DIFFERENT, safer threshold. A red here must fail
-  fast, never hang.
-- **AC-135 A stated degradation ORDER, observable.** What is given up,
-  and in what sequence, is data rather than scattered `if`s — and every
-  step publishes a health event, so the pipeline's wellbeing stream says
-  what was surrendered and why.
-- **AC-136 AC-102's debt paid.** On the phone: stop latency, and a
-  thermal trace across a sustained conversation — temperature state over
-  time, time to first throttle, and whether real-time deadlines break
-  (audio dropouts, transcript lag, mouth stutter).
-- **AC-137 Twenty minutes.** A long field session with the local mind,
-  recording memory, thermal state and first-word latency over time. 4h
-  measured 38 turns and no decay; this asks the question 38 turns cannot
-  answer.
-- **AC-138 The forbidden pair becomes a degradation, not a refusal
-  (AC-123's shape, finally built).** Selecting the neural voice with a
-  large local mind currently disables Listen. Under the chain it should
-  instead do the stated thing — whatever F-1 rules — and SAY so, in
-  words a person can act on.
+  *(status: MET — `MemoryHeadroom` never reports an ambiguous 0, four
+  tests including the macOS control. It is also what refuted this
+  milestone's original premise, which is the best thing an instrument can
+  do.)*
+- *(AC-133 – AC-138 RETIRED unbuilt: the pressure level, the hysteresis,
+  the degradation order, and making the forbidden pair degrade. There is
+  no forbidden pair and nothing to degrade. Retired rather than
+  renumbered, so the draft that proposed them stays readable.)*
+- **AC-139 The compile peak, measured.** The sampler writes headroom
+  every 250 ms during a load and flushes each line. A run that survives
+  gives the trough; a run that is killed gives the last reading before
+  death. Either is the number. Recorded with the configuration that
+  produced it, because the peak is a property of what else was resident.
+- **AC-140 AC-102's thermal debt, paid.** On the phone, across a
+  sustained conversation: thermal state over time, time to first
+  throttle, recovery time after stopping, and whether real-time deadlines
+  break (audio dropouts, transcript lag, mouth stutter). The number may
+  be boring. It is owed either way, and it has been owed since Phase 3.
+- **AC-141 Twenty minutes.** One long field session in the configuration
+  Ryad actually uses — Whisper ear, 4B mind, neural voice, shield on —
+  logging headroom, thermal state and first-word latency over time. 4h
+  measured 38 turns and no decay; this asks the question 38 turns cannot.
 
-## 96. Test matrix (4i)
+## 96. Test matrix (4i, rewritten)
 
 | Criterion | Test | Needs a device? |
 |---|---|---|
-| AC-132 | `HeadroomTests` — unavailable ≠ zero, both named | no |
-| AC-133 | `PressureLevelTests` — the pure function, table-driven | no |
-| AC-134 | scripted walk up and down the boundary; one change per crossing | no |
-| AC-134 | the control: with hysteresis removed, the same walk MUST flap | no |
-| AC-135 | the order is data; a health event per step, asserted | no |
-| AC-136 | field run, numbers to INSTRUMENTS | **yes** |
-| AC-137 | 20-minute field run, numbers to INSTRUMENTS | **yes** |
-| AC-138 | the demo's own path, plus a scripted level change | **yes** |
+| AC-132 | `MemoryHeadroomTests` — 4 tests, incl. the macOS control | no |
+| AC-139 | the sampler's own control: a run with sampling off records nothing | no |
+| AC-139 | field run, trough or last-line-before-death | **yes** |
+| AC-140 | field run, thermal trace | **yes** |
+| AC-141 | 20-minute field run | **yes** |
 
-Five of eight rows need no device. That is deliberate and it is the same
-discipline as 4h: the part that must be RIGHT is the part that needs
-nothing, and the part that needs a phone is the part that must be
-MEASURED.
+**Three of five need the phone, and that is honest rather than
+regrettable.** This milestone is mostly measurement; the part that could
+be proven on a Mac was AC-132, and it is done. A milestone that pretended
+otherwise would be measuring the wrong machine — which is exactly the
+mistake that produced the first draft.
 
-**AC-134's second row is the one to watch.** A hysteresis test that
-passes without hysteresis proves nothing, and this project has shipped
-that mistake before (4h's removed-gate control survived the mutation it
-existed to catch).
+## 97. The design forks (4i) — ruled
 
-## 97. The design forks (4i) — for Ryad to rule
+*(D-065: the reshape ruled **A** — re-scope, drop the chain. F-1 through
+F-3 of the original draft are retired with AC-133–138; F-4 was withdrawn
+by its own author before it could be ruled, because measurement showed
+`limit_bytes_remaining` also reads 0 on macOS, so cross-checking cannot
+disambiguate anything.)*
 
-- **F-1 WHAT DEGRADES, AND IN WHAT ORDER.** A: a fixed chain — (1) drop
-  the local mind to the small model, (2) drop the neural voice to
-  Apple's, (3) refuse new turns and say so. B: drop whichever component
-  is currently largest. C: only ever refuse — never silently change what
-  the person chose. **Recommendation: A.** A fixed order is explainable
-  to a person and testable as data; B is cleverer and unpredictable, and
-  a voice assistant that changes voice for reasons the user cannot model
-  feels broken rather than adaptive. C is today's behaviour and it is
-  honest, but it means the pair the person WANTS simply never works.
-  The honest cost of A: it silently changes what they chose, which is
-  why AC-138 requires it to say so.
-- **F-2 DOES THE LIBRARY ACT, OR ONLY REPORT?** A: the library publishes
-  pressure levels and the APP decides what to give up (D-027's line —
-  mechanism here, policy there). B: the library owns the chain and acts.
-  **Recommendation: A.** Every precedent in this repo points the same
-  way: `hostsPlayback` defaults off, the reply gate's number lives in the
-  app, `stopRendering` consults ownership rather than being imposed. The
-  library cannot know that this app would rather lose its voice than its
-  mind. The honest cost: every app re-implements the chain, which is the
-  same objection D-042's F-1 rejected for the audio session — so if the
-  chain is data (AC-135), the library can SHIP a default chain the app
-  may replace, which is A with the sharp edge removed.
-- **F-3 MID-TURN OR BETWEEN TURNS?** A: pressure is acted on only at a
-  turn boundary. B: immediately, including mid-generation.
-  **Recommendation: A.** Dropping a model mid-generation is releasing a
-  resource under something still using it, which is the 0 Hz crash's
-  family, and `retire()` exists because that family is expensive. A turn
-  is short; the wait is bounded. B is only worth it if a turn can
-  outlive the headroom, which is measurable — and if AC-137 shows that,
-  the fork reopens with evidence.
-- **F-4 WHAT ZERO MEANS.** Apple's API returns 0 both for "not an app"
-  and "already over the limit". A: treat the platform as the
-  discriminator — on iOS in an app, 0 means over. B: cross-check with
-  `task_vm_info.limit_bytes_remaining`, which the header names as the
-  underlying field. **Recommendation: B for the wrapper, A as its
-  fallback** — the header explicitly says the two are equivalent, so one
-  call can disambiguate the other, and a wrapper that guesses is the
-  thing AC-132 exists to prevent.
+No open forks. If AC-140 or AC-141 shows the configuration failing under
+sustained load, that reopens the chain with evidence — which is the only
+basis on which it should ever have been built.
 
-## 98. Out of scope for 4i (deliberately)
+## 98. Out of scope for 4i (rewritten)
 
-Multi-turn memory · tool calling · reply QUALITY · SpeakerKit · the
-parked Apple-mouth self-barge · the Mac's stuck Foundation Models
-download · On-Demand Resources and any change to how weights arrive ·
-device tiering as a product decision (4i measures pressure; who to
-support is a different question) · making the neural voice pleasant.
+The degradation chain · multi-turn memory · tool calling · reply QUALITY ·
+SpeakerKit · the parked Apple-mouth self-barge · the Mac's stuck
+Foundation Models download · On-Demand Resources · device tiering ·
+making the neural voice pleasant · anything for a phone smaller than the
+one being measured.
 
-## 99. Definition of done (4i)
+## 99. Definition of done (4i, rewritten)
 
-The pure parts proven on a machine with no jetsam · AC-134's control
-red without hysteresis · a device trace for AC-136 and AC-137 with the
-numbers in INSTRUMENTS, including the ones that disappoint · forks ruled
-and logged BEFORE the chain is written · zero warnings both
-configurations · 20× stable · review before merge (D-041) · teach-back
-survived.
+AC-132 met · the peak recorded with the configuration that produced it ·
+a thermal trace that exists, whatever it says · twenty minutes survived
+or honestly reported as not survived · numbers in INSTRUMENTS including
+the disappointing ones · zero warnings · 20× stable · review before merge
+(D-041) · teach-back survived.
