@@ -267,6 +267,18 @@ final class TranscribeModel {
         out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
         out += "\(MLXRuntime.isAvailable)\n"
+        // AC-132: the number that decides whether the mind and the neural
+        // voice can coexist. It is the PHONE's dirty-memory headroom, not
+        // a Mac's footprint — the distinction 4i exists for.
+        switch MemoryHeadroomReader.read() {
+        case .bytes(let b):
+            out += "memory headroom: \(b / 1_048_576) MB before this app's limit\n"
+        case .exhausted:
+            out += "memory headroom: NONE — at or over the limit\n"
+        case .unavailable(let why):
+            out += "memory headroom: unavailable (\(why))\n"
+        }
+        out += "voice loaded: \(voiceState == .ready && mouth == .neural)\n"
         if MLXRuntime.isAvailable {
             out += "MLX memory now: active "
             out += "\(MLXRuntime.activeMemoryBytes / 1_048_576) MB · peak "

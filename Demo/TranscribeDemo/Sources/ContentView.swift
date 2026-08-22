@@ -1,3 +1,4 @@
+import MultiModalKit
 import SwiftUI
 
 struct ContentView: View {
@@ -755,6 +756,15 @@ struct ContentView: View {
             }
 
             statusBar
+
+            // AC-132's readout, live. The whole of 4i turns on this
+            // number, and it costs one syscall to look at.
+            if let mb = MemoryHeadroomReader.read().megabytes {
+                Text("memory headroom: \(mb) MB")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(mb < 400 ? AnyShapeStyle(Color.orange)
+                                              : AnyShapeStyle(.secondary))
+            }
 
             // The combination that gets the app KILLED, said before the
             // tap rather than found in a crash log (INSTRUMENTS §27).
