@@ -1796,6 +1796,24 @@ fix could not be red-before-green. That is a departure from this repo's
 rule and it is recorded as one. A `TTSDecoding` seam would fix it and is
 4f work; until then the guarantee rests on reading, not on a test.
 
+**THE LAZY-INIT CLASS HAS NO CLASS-LEVEL CURE, and it has now bitten
+three times.** *(Added 2026-08-21, surfaced by the 4e teach-back.)*
+Blocker 3 records that the same fault was "already fixed one call lower
+in `feed`, and the review found it sitting one call higher" — an instance
+fix, not a class fix. 4h proved the point: `MLXReplyGenerator.prewarm()`
+loaded 2.2 GB and called itself done, and the bake-off then measured the
+FIRST generation at 1911 ms against the second at 82 ms, because Metal
+pipeline warm-up was still landing inside the person's first question
+(INSTRUMENTS §25). Three instances — `feed`, `openUtterance`, `prewarm` —
+in three components across three milestones, each fixed locally.
+
+Nothing in the library makes a seam DECLARE that it has expensive setup,
+and nothing lets the coordinator refuse to start until every seam says it
+is ready. The demo's `start()` refuses — but that is one caller
+remembering, which is the shape D-052 rejected for `stopRendering`.
+Whether the seams should grow a readiness verb is a change to their shape
+and therefore Ryad's fork, logged here rather than decided quietly.
+
 **`PlaybackHost` has no stop verb.** Blocker 2 was fixed in the demo, so
 any OTHER caller who lets `NeuralVoice` build its own host inherits the
 same unstoppable engine. Whether the seam should grow a stop — or whether
