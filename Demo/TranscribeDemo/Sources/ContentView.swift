@@ -751,7 +751,17 @@ struct ContentView: View {
                 .listStyle(.plain)
                 // Follow the conversation: any change to the utterances — a new
                 // row OR a growing partial — keeps the newest text on screen.
-                .onChange(of: model.utterances) {
+                // WATCH THE IDENTITY, NOT THE ARRAY.
+                //
+                // `utterances` changes on every partial transcription
+                // result — many times a second while a person speaks — and
+                // each change fired an ANIMATED scroll. Several landed in
+                // one frame and SwiftUI said so: "onChange(of:
+                // Array<Utterance>) action tried to update multiple times
+                // per frame." Watching the last id coalesces that to one
+                // scroll per NEW utterance, which is the only moment the
+                // target actually moves.
+                .onChange(of: model.utterances.last?.id) {
                     guard let last = model.utterances.last else { return }
                     withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
