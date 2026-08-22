@@ -90,6 +90,8 @@ public actor WhisperEngine: TranscriptionEngine {
         return WhisperRun(engine: self, converter: converter, sourceFormat: source, targetFormat: target)
     }
 
+    private var loadBusy = false
+    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
     private var decodeBusy = false
     private var decodeWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -133,8 +135,25 @@ public actor WhisperEngine: TranscriptionEngine {
         }
     }
 
+    /// ONE load at a time — the same guard `decode` already has, and for
+    /// the same reason an actor does not hold isolation across an await.
+    /// The 4h review named this method and `NeuralVoice`'s as sharing the
+    /// unguarded shape; the neural voice was then measured loading TWICE
+    /// on Ryad's phone (INSTRUMENTS §28). This one holds ~142 MB rather
+    /// than gigabytes, so it was never going to kill an app — but a
+    /// duplicate load is still two downloads, two decodes of the same
+    /// weights, and a promise of idempotence that was not true.
     private func loadedPipeline() async throws -> WhisperKit {
         if let pipeline { return pipeline }
+        while loadBusy {
+            await withCheckedContinuation { loadWaiters.append($0) }
+            if let pipeline { return pipeline }
+        }
+        loadBusy = true
+        defer {
+            loadBusy = false
+            if !loadWaiters.isEmpty { loadWaiters.removeFirst().resume() }
+        }
         do {
             let config = WhisperKitConfig(model: model)
             // Errors only. WhisperKit defaults to verbose info logging
@@ -154,6 +173,8 @@ public actor WhisperEngine: TranscriptionEngine {
                 config.modelFolder = folder.path
             }
             let fresh = try await WhisperKit(config)
+            // The reentrancy law: the await released the actor.
+            if let pipeline { return pipeline }
             pipeline = fresh
             return fresh
         } catch {

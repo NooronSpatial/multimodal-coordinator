@@ -58,6 +58,8 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// The loaded pipeline, kept so a second utterance does not pay the
     /// load again.
     private var pipeline: TTSKit?
+    private var loadBusy = false
+    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
 
     /// WHERE THIS VOICE RENDERS (AC-108, D-048). Handing in a host is
     /// how a caller makes the reply CANCELLABLE: D-043 measured that iOS
@@ -294,13 +296,43 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     /// Loads once, then reuses. The variant's own logging reports the
     /// download; this only owns the caching.
+    /// ONE load at a time — enforced, not assumed.
+    ///
+    /// FOUND IN THE FIELD, and it had been pointed out to me first. The
+    /// 4h review's verifier wrote: "WhisperEngine.loadedPipeline and
+    /// NeuralVoice.loadedPipeline share the same unguarded shape, but
+    /// only the MLX path holds 2.2 GB." I fixed the MLX path and left
+    /// these, on the size argument.
+    ///
+    /// Then Ryad's log showed the neural voice loading TWICE,
+    /// concurrently — two tokenizers, two sets of six CoreML models,
+    /// "Total model load: 82.26s" and "74.96s" — because an actor does
+    /// NOT hold isolation across an await, so both callers passed the
+    /// nil check. That is ~2.2 GB of CoreML instead of 1.1 GB, and it is
+    /// the likeliest cause of the jetsam kill the pressure probe
+    /// recorded (INSTRUMENTS §28).
+    ///
+    /// The shape is `decode`'s, one method over: a busy flag, a FIFO
+    /// waiter queue, re-checked in a WHILE loop after every wake, and
+    /// released on every exit through `defer`.
     private func loadedPipeline() async throws -> TTSKit {
         if let pipeline { return pipeline }
+        while loadBusy {
+            await withCheckedContinuation { loadWaiters.append($0) }
+            if let pipeline { return pipeline }
+        }
+        loadBusy = true
+        defer {
+            loadBusy = false
+            if !loadWaiters.isEmpty { loadWaiters.removeFirst().resume() }
+        }
         let fresh = try await TTSKit(TTSKitConfig(
             model: variant,
             speechDecoderMode: speechDecoderMode,
             multiCodeDecoderMode: multiCodeDecoderMode,
             download: true, load: true, seed: seed))
+        // The reentrancy law: the await above released the actor.
+        if let pipeline { return pipeline }
         pipeline = fresh
         return fresh
     }

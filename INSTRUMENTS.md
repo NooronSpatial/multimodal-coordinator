@@ -2497,8 +2497,44 @@ the next step ran, and the app reads it back at launch — so the
 truncation point itself was readable afterwards. That is the MLX phone
 spike's lesson (§24 STAGE 3) being spent rather than re-learned.
 
+### The kill was probably not capacity — the voice was loading TWICE
+
+*(Added the same day, from Ryad's debug console.)* Every number above was
+taken while the neural voice loaded **twice, concurrently**:
+
+```
+Loading models…   Loading tokenizer… 2.58s   Loading 6 CoreML models…
+Loading models…   Loading tokenizer… 3.08s   Loading 6 CoreML models…
+Total model load: 82.26s
+Total model load: 74.96s          ← two completions
+```
+
+Two tokenizers, two sets of six CoreML components — **~2.2 GB where 1.1
+was intended.** Against 1105 MB of headroom that is not a photo finish;
+it is twice the budget.
+
+`NeuralVoice.loadedPipeline()` had exactly the shape 4h's review fixed in
+`LocalMindModel.ensureModel()`: check the cache, `await`, assign. An actor
+does not hold isolation across an await, so two callers both passed the
+nil check.
+
+**And I had been told.** The review's verifier wrote, inside the finding I
+acted on: *"WhisperEngine.loadedPipeline and NeuralVoice.loadedPipeline
+share the same unguarded shape, but only the MLX path holds 2.2 GB and is
+prewarmed from five call sites."* I fixed the MLX path and left these two,
+on the size argument. The size argument was wrong twice over — 1.1 GB
+loaded twice is 2.2 GB, and it was the pair's margin that made it fatal.
+
+This is the lazy-init class from D-051 biting a **fourth** time
+(`feed`, `openUtterance`, `prewarm`, and now `loadedPipeline` ×2), and
+the first time where the class had been named for me in advance. Both
+remaining loaders now carry `decode`'s busy-flag-and-waiter-queue shape.
+
+**Every number in this section must therefore be re-taken.** They measure
+a doubled load, not the pair.
+
 **Still unmeasured, and the next thing to take:** the neural voice's cost
-on iOS, alone, from a clean launch. If it is well under 1105 MB, the pair
+on iOS, alone, from a clean launch, with the guard in place. If it is well under 1105 MB, the pair
 fits at steady state and what killed the app was the CoreML *compile*
 spike — a different problem with different cures. If it is near 1112 MB,
 the pair genuinely does not fit and something has to give.
