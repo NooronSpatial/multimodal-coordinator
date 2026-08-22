@@ -427,27 +427,14 @@ struct ContentView: View {
                         .disabled(model.isListening)
                     }
                     if model.mind == .local {
-                        // F-1 = C: WHICH local model, chosen here so the
-                        // phone can answer what the Mac cannot. MLX keeps
-                        // weights resident (no mmap), so 2.1 GB on a phone
-                        // is a real question and this is the instrument
-                        // that asks it. The caption carries MAC numbers
-                        // and says so — they are not a phone's.
-                        HStack {
-                            Text("Local model").font(.subheadline)
-                            Spacer()
-                            Picker("Local model",
-                                   selection: Bindable(model).localModelChoice) {
-                                ForEach(TranscribeModel.LocalModelChoice.allCases) { size in
-                                    Text(size.rawValue).tag(size)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .disabled(model.isListening)
-                        }
-                        Text("\(model.localModelChoice.sizeOnDisk) · on a Mac: "
-                             + model.localModelChoice.macBehaviour)
+                        // The model picker is gone (D-064): 4B is the local
+                        // mind, full stop. A picker with one option is a
+                        // control that cannot be used, and 0.6B's replies
+                        // were bad enough that offering them as a
+                        // "fallback" would have been shipping a worse
+                        // product as a feature.
+                        Text("local mind: 4B · \(TranscribeModel.LocalMind.sizeOnDisk) "
+                             + "· on a Mac: \(TranscribeModel.LocalMind.macBehaviour)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -479,7 +466,7 @@ struct ContentView: View {
                         if let fraction = model.localDownloadProgress {
                             ProgressView(value: fraction)
                         } else if model.mindUnavailable?.contains("not downloaded") == true {
-                            Button("Download \(model.localModelChoice.rawValue) · \(model.localModelChoice.sizeOnDisk)") {
+                            Button("Download the local mind · \(TranscribeModel.LocalMind.sizeOnDisk)") {
                                 model.downloadLocalMind()
                             }
                             .font(.caption)

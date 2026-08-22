@@ -2537,3 +2537,41 @@ detokenizer, because that needs weights AND a model that ignores
 `MicrophonePlaybackHost` has no positive test, only the not-rendering
 refusal. Both need a real engine or a fake for it, which is its own
 piece of work.
+
+## D-064 — 0.6B is removed; the local mind is 4B, and the picker goes with it (Milestone 4i)
+
+**Date:** 2026-08-21 · **Decided by:** Ryad · **Ruling: remove it** —
+*"we dont need it, its quality is bad. we will use for sure the 4b"*
+
+**This reverses half of D-063's FIELD-1.** That fork was ruled C (ship a
+picker so the phone could answer what the Mac could not), then B (4B as
+the default, picker STAYS, "because one device is one device"). The
+picker's job is done: it produced the number — 2288 MB peak, 291–315 ms
+first word, 38 turns, no kill — and the number decided the model. Keeping
+a two-option control whose second option nobody should choose is a
+control that cannot be used.
+
+**Why 0.6B goes rather than staying as a fallback.** It was not merely
+worse; it was wrong in a way that a fallback must not be. It answered a
+barged fragment by repeating it VERBATIM — "13. No, no, no. I ask you the
+square of... 113." came back word for word — and reproduced on the Mac
+from the phone's own transcript. A fallback is a thing you drop TO when
+the good path fails. Dropping to a mind that parrots the user is offering
+a worse product as a feature.
+
+*Rejected:* **keep it as the degradation chain's first step.** Tempting,
+because 4i's F-1 recommendation named exactly that. But the chain must
+degrade to something a person can still USE; a step that produces
+parroting is a step that trades a memory problem for a quality one and
+calls it graceful.
+
+**The consequence, named rather than discovered in 4i.** 4i's F-1 option
+A was "(1) drop the local mind to the small model, (2) drop the neural
+voice to Apple's, (3) refuse". Step 1 no longer exists. The chain now
+starts at the mouth, and whether that is enough is exactly what the
+milestone must measure — which sharpens 4i rather than weakening it: if
+the mind cannot be made smaller, either the pair fits or the voice goes.
+
+**What is NOT deleted:** every 0.6B measurement in INSTRUMENTS. They were
+true, they paid for this ruling, and removing them would hide the
+evidence that produced it.

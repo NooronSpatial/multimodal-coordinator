@@ -40,33 +40,22 @@ final class TranscribeModel {
         var id: String { rawValue }
     }
 
-    /// WHICH LOCAL MODEL (4h, F-1 = C). The picker exists so the phone
-    /// can ANSWER the question the Mac cannot: 2.1 GB is nothing here and
-    /// may be fatal there, because MLX keeps its weights resident.
-    enum LocalModelChoice: String, CaseIterable, Identifiable {
-        case small = "0.6B"
-        case big = "4B"
-        var id: String { rawValue }
-        var repoID: String {
-            switch self {
-            case .small: "mlx-community/Qwen3-0.6B-4bit"
-            case .big: "mlx-community/Qwen3-4B-4bit"
-            }
-        }
-        /// Honest sizes, so a person on cellular knows before tapping.
-        var sizeOnDisk: String {
-            switch self {
-            case .small: "about 400 MB"
-            case .big: "about 2.2 GB"
-            }
-        }
-        /// Measured on the Mac (INSTRUMENTS §25) — NOT on a phone.
-        var macBehaviour: String {
-            switch self {
-            case .small: "51–78 ms first word · parrots interrupted speech"
-            case .big: "249–374 ms first word · reads through disfluency"
-            }
-        }
+    /// THE LOCAL MIND'S MODEL — one, named, not chosen.
+    ///
+    /// 4h shipped a picker (F-1 = C) so the PHONE could answer what the
+    /// Mac could not, and it did: 4B runs at 2288 MB peak with 291–315 ms
+    /// to the first word. Ryad then ruled 4B outright and removed 0.6B —
+    /// its replies were bad enough that keeping it as a "fallback" would
+    /// have meant offering a worse product as a feature (D-064).
+    ///
+    /// The 0.6B measurements stay in INSTRUMENTS. They were true, they
+    /// paid for the ruling, and deleting them would hide the evidence.
+    enum LocalMind {
+        static let repoID = "mlx-community/Qwen3-4B-4bit"
+        static let sizeOnDisk = "about 2.2 GB"
+        /// Measured on a Mac, and the caption says so — these are not a
+        /// phone's numbers (INSTRUMENTS §25).
+        static let macBehaviour = "249–374 ms first word · reads through disfluency"
     }
 
     enum EngineChoice: String, CaseIterable, Identifiable {
@@ -230,38 +219,7 @@ final class TranscribeModel {
     /// app may FETCH them — Whisper's shape, ruled by F-4 = A — but only
     /// when a person taps Download. Asking whether it is installed never
     /// starts anything.
-    private static let localModelKey = "dev.nooron.demo.localModel"
-    private static var storedLocalModel: LocalModelChoice {
-        UserDefaults.standard.string(forKey: localModelKey)
-            // F-1 = B (2026-08-21): 4B is the DEFAULT, ruled on the
-            // phone's own measurement — 2288 MB peak, no kill, 291-315 ms
-            // to the first word, and none of 0.6B's parroting. The picker
-            // stays, because one device is one device.
-            .flatMap(LocalModelChoice.init(rawValue:)) ?? .big
-    }
-    /// Changing this REPLACES the host, so the old weights are dropped
-    /// rather than kept alive beside the new ones — which on a phone is
-    /// the difference the whole fork is about.
-    var localModelChoice: LocalModelChoice = TranscribeModel.storedLocalModel {
-        didSet {
-            guard localModelChoice != oldValue else { return }
-            UserDefaults.standard.set(localModelChoice.rawValue,
-                                      forKey: Self.localModelKey)
-            // RETIRE the old one before replacing it. The review found
-            // that the previous version left the retired model's warm-up
-            // running and its weights resident, so switching 4B -> 0.6B
-            // briefly held BOTH — the opposite of what the person just
-            // asked for, at the one moment memory matters most.
-            let retiring = localModel
-            Task { await retiring.retire() }
-            localModel = LocalMindModel(repoID: localModelChoice.repoID)
-            if isListening { restart() }
-            refreshMind()
-        }
-    }
-    private var localModel = LocalMindModel(
-        repoID: TranscribeModel.storedLocalModel.repoID)
-    // (default is .big — see storedLocalModel, ruled F-1 = B)
+    private let localModel = LocalMindModel(repoID: LocalMind.repoID)
     /// Instructions are the APP's text, not the library's (D-027). The
     /// same sentence the Apple mind gets, because the constraint is the
     /// medium — this reply is heard, never read — not the model.
@@ -306,8 +264,7 @@ final class TranscribeModel {
         var out = "# Conversation log — MultiModalKit demo\n\n"
         out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
         out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
-        out += "local model: \(localModelChoice.rawValue) "
-        out += "(\(localModelChoice.repoID)) · installed: "
+        out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
         out += "\(MLXRuntime.isAvailable)\n"
         if MLXRuntime.isAvailable {
@@ -349,11 +306,14 @@ final class TranscribeModel {
     /// this is a demo POLICY (D-027): the library ships no such rule,
     /// because the budget belongs to the app that spends it.
     var memoryConflict: String? {
-        guard mind == .local, localModelChoice == .big, mouth == .neural
-        else { return nil }
-        return "The 4B mind (2.2 GB) and the neural voice (1.1 GB) do not "
-            + "fit together — iOS kills the app near 3.3 GB. Choose the "
-            + "0.6B mind, or the Apple voice."
+        guard mind == .local, mouth == .neural else { return nil }
+        // The smaller mind used to be the way out of this. D-064 removed
+        // it, so the only remaining escape is Apple's voice — until 4i
+        // measures whether the pair fits at all on a real device.
+        return "The local mind (2.2 GB) and the neural voice (1.1 GB) were "
+            + "measured at 3.3 GB together, which iOS killed. Use Apple's "
+            + "voice for now — 4i is measuring whether this is really true "
+            + "on this phone."
     }
 
     /// Fraction complete while the weights come down, or nil.
@@ -376,17 +336,16 @@ final class TranscribeModel {
             localDownloadStatus = "already downloading — ignoring the tap."
             return
         }
-        let wanted = localModelChoice
         localDownloadProgress = 0
-        localDownloadStatus = "starting \(wanted.rawValue) (\(wanted.sizeOnDisk))…"
+        localDownloadStatus = "starting the local mind (\(LocalMind.sizeOnDisk))…"
         Task { [localModel] in
             do {
-                self.localDownloadStatus = "asking Hugging Face for \(wanted.repoID)…"
+                self.localDownloadStatus = "asking Hugging Face for \(LocalMind.repoID)…"
                 try await localModel.download { fraction in
                     Task { @MainActor in
                         self.localDownloadProgress = fraction
                         self.localDownloadStatus = String(
-                            format: "downloading %@ — %.0f%%", wanted.rawValue,
+                            format: "downloading the local mind — %.0f%%",
                             fraction * 100)
                     }
                 }
@@ -399,7 +358,7 @@ final class TranscribeModel {
                 // broken because it asked the wrong object.
                 let installed = localModel.modelInstalled()
                 self.localDownloadStatus = installed
-                    ? "\(wanted.rawValue) installed at \(localModel.weights.lastPathComponent)."
+                    ? "installed at \(localModel.weights.lastPathComponent)."
                     : "download finished but the files are NOT usable — "
                         + "expected them at \(localModel.weights.path)"
                 self.refreshMind()
@@ -463,8 +422,8 @@ final class TranscribeModel {
                 return
             }
             guard localModel.modelInstalled() else {
-                mindUnavailable = "\(localModelChoice.rawValue) is not downloaded "
-                    + "yet — tap Download (\(localModelChoice.sizeOnDisk), once)."
+                mindUnavailable = "the local mind is not downloaded yet — "
+                    + "tap Download (\(LocalMind.sizeOnDisk), once)."
                 return
             }
             mindUnavailable = nil
