@@ -108,6 +108,14 @@ final class TranscribeModel {
             UserDefaults.standard.set(mouth.rawValue, forKey: Self.mouthKey)
             guard mouth != oldValue else { return }
             if isListening { restart() }
+            // BOTH, and the mind is not a typo. Its availability message
+            // used to depend on WHICH MOUTH was selected (the retracted
+            // memory conflict), and this setter only refreshed the voice
+            // — so a warning set under one combination survived into
+            // another and sat there, orange, describing a state that no
+            // longer existed. A derived value must be recomputed by
+            // everything it derives from.
+            refreshMind()
             Task { await checkVoice() }
         }
     }
