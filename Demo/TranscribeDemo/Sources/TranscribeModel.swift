@@ -291,6 +291,11 @@ final class TranscribeModel {
         out += "ACTUALLY answered, taken from the generator the coordinator\n"
         out += "held — not from the picker above. If they disagree, that is\n"
         out += "the finding.\n\n"
+        if !probeLines.isEmpty {
+            out += "\n## pressure probe\n\n```\n"
+            out += probeLines.joined(separator: "\n")
+            out += "\n```\n\n"
+        }
         if turns.isEmpty { out += "_(no turns recorded yet)_\n" }
         for turn in turns {
             out += "## turn \(turn.id)\n"
@@ -330,6 +335,77 @@ final class TranscribeModel {
 
     /// Fraction complete while the weights come down, or nil.
     private(set) var localDownloadProgress: Double?
+
+    // MARK: - the pressure probe (4i, AC-132's field half)
+
+    /// Where the probe writes. IN DOCUMENTS, and flushed after EVERY
+    /// line, because the thing being measured is an app being killed.
+    ///
+    /// The MLX phone spike already paid for this lesson: two crashes
+    /// produced no output at all because the trail lived in a view that
+    /// died with the process. An instrument whose evidence dies with the
+    /// failure it is measuring is not an instrument.
+    private nonisolated var probeLog: URL {
+        URL.documentsDirectory.appending(path: "pressure-probe.txt")
+    }
+
+    private(set) var probeLines: [String] = []
+
+    /// Reads back a PREVIOUS run — including one that ended in a kill.
+    func loadPreviousProbe() {
+        guard let text = try? String(contentsOf: probeLog, encoding: .utf8)
+        else { return }
+        probeLines = text.split(separator: "\n").map(String.init)
+    }
+
+    private func probeSay(_ line: String) {
+        probeLines.append(line)
+        // Append and flush NOW. Not at the end — there may not be an end.
+        try? probeLines.joined(separator: "\n")
+            .write(to: probeLog, atomically: true, encoding: .utf8)
+    }
+
+    private func headroomNow() -> String {
+        switch MemoryHeadroomReader.read() {
+        case .bytes(let b): "\(b / 1_048_576) MB free"
+        case .exhausted: "NONE — at or over the limit"
+        case .unavailable(let why): "unavailable (\(why))"
+        }
+    }
+
+    /// THE THREE MEASUREMENTS, in one tap, in order, each one written to
+    /// disk before the next begins.
+    ///
+    /// It deliberately loads the pair the demo otherwise REFUSES
+    /// (memoryConflict), because refusing is what makes the pair
+    /// unmeasurable — and 4i exists to find out whether the refusal is
+    /// even true on this device.
+    func runPressureProbe() async {
+        probeLines = []
+        probeSay("# pressure probe — \(LocalMind.repoID)")
+        probeSay("baseline:            \(headroomNow())")
+
+        probeSay("loading the mind…")
+        do {
+            _ = try await localModel.ensureModel()
+            probeSay("+ mind loaded:       \(headroomNow())")
+            probeSay("  MLX active:        \(MLXRuntime.activeMemoryBytes / 1_048_576) MB")
+        } catch {
+            probeSay("  mind FAILED:       \(error)")
+        }
+
+        probeSay("loading the neural voice… (if this line is the last one,")
+        probeSay("  the app was killed here — which is itself the answer)")
+        do {
+            try await neuralVoice.ensureModel()
+            probeSay("+ voice loaded:      \(headroomNow())")
+        } catch {
+            probeSay("  voice FAILED:      \(error)")
+        }
+
+        probeSay("BOTH RESIDENT:       \(headroomNow())")
+        probeSay("survived: yes")
+    }
 
     /// Fetches the weights. EXPLICIT — a person taps, nothing else.
     /// What the download is doing, in words, at every stage.

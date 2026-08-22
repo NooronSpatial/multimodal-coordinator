@@ -102,6 +102,18 @@ struct ContentView: View {
                         Label("Share the conversation", systemImage: "text.bubble")
                     }
                 }
+                // THE PRESSURE PROBE (4i, AC-132). Deliberately loads the
+                // pair the app otherwise refuses, because the refusal is
+                // what makes it unmeasurable. Its log is written to disk
+                // line by line, so a jetsam kill still leaves the trail.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task { await model.runPressureProbe() }
+                    } label: {
+                        Label("Pressure probe", systemImage: "gauge.with.needle")
+                    }
+                    .disabled(model.isListening)
+                }
                 // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
                 // engine state for the echo probe's reason, one item over:
                 // it measures a SYSTEM service, and the devices where a
@@ -146,6 +158,10 @@ struct ContentView: View {
                 }
             }
             .task {
+                // A previous probe's trail, INCLUDING one that ended in a
+                // kill — read back before anything else so the evidence
+                // of a death survives the death.
+                model.loadPreviousProbe()
                 // Both models are asked about at launch: the transcriber's
                 // and the voice's. Asking never downloads either.
                 await model.checkModel()
