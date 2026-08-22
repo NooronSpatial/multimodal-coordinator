@@ -164,8 +164,17 @@ struct ContentView: View {
                 model.loadPreviousProbe()
                 // Both models are asked about at launch: the transcriber's
                 // and the voice's. Asking never downloads either.
+                //
+                // THE ORDER IS LOAD-BEARING (INSTRUMENTS §29). The neural
+                // voice compiles six CoreML models CONCURRENTLY, and that
+                // transient peak — not its 111 MB finished size — is what
+                // killed this app twice, at 1105 MB free and at 2976 MB
+                // free. It survived at 3347. So the voice is prepared
+                // FIRST, from maximum headroom, and only then does the
+                // mind take its 2.2 GB. Swapping these two lines is a
+                // memory bug that looks like nothing.
                 await model.checkModel()
-                await model.checkVoice()
+                await model.checkVoice()      // ← must precede the mind
                 model.refreshMind()
             }
         }

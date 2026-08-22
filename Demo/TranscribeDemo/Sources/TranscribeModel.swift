@@ -312,28 +312,26 @@ final class TranscribeModel {
         return out
     }
 
-    /// The combination iOS refuses to host, named BEFORE it kills the app.
+    /// THE PAIR FITS — measured, and this used to say the opposite.
     ///
-    /// MEASURED, not feared (INSTRUMENTS §27): the 4B mind is 2239 MB and
-    /// the neural voice adds ~1112 MB, so together they ask for 3351 MB.
-    /// Ryad's phone answered that with "Terminated due to memory issue" —
-    /// jetsam does not negotiate and gives no chance to recover.
+    /// It reported "the 4B mind and the neural voice do not fit together"
+    /// and disabled Listen, on the strength of a MAC's phys_footprint
+    /// (2239 + 1112 = 3351). Ryad's phone then loaded both with **1011 MB
+    /// to spare**, because the neural voice costs **111 MB** on iOS, not
+    /// 1112: CoreML MAPS its weights, and mapped pages are clean, so they
+    /// are not charged against a dirty memory limit. MLX has no mmap, so
+    /// its 2225 MB is charged in full (INSTRUMENTS §29).
     ///
-    /// A refusal that explains itself beats a crash that does not, and
-    /// this is a demo POLICY (D-027): the library ships no such rule,
-    /// because the budget belongs to the app that spends it.
-    var memoryConflict: String? {
-        guard mind == .local, mouth == .neural else { return nil }
-        // The smaller mind used to be the way out of this. D-064 removed
-        // it, so the only remaining escape is Apple's voice — until 4i
-        // measures whether the pair fits at all on a real device.
-        return "The local mind (2.2 GB) and the neural voice (1.1 GB) were "
-            + "measured at 3.3 GB together, which iOS killed. Use Apple's "
-            + "voice for now — 4i is measuring whether this is really true "
-            + "on this phone."
-    }
+    /// What replaced the refusal is an ORDER, because the steady
+    /// footprint was never the problem — the LOAD is. TTSKit compiles six
+    /// CoreML models concurrently, and that transient peak is what killed
+    /// the app twice: at 1105 MB free and at 2976 MB free. It survived at
+    /// 3347 MB. So the voice is loaded FIRST, from maximum headroom,
+    /// before the mind takes its 2.2 GB. See `ContentView`'s launch task,
+    /// where that order is now load-bearing rather than incidental.
+    var memoryConflict: String? { nil }
 
-    /// Fraction complete while the weights come down, or nil.
+    /// Fraction complete while the weights come down, or nil.    /// Fraction complete while the weights come down, or nil.
     private(set) var localDownloadProgress: Double?
 
     // MARK: - the pressure probe (4i, AC-132's field half)
@@ -363,6 +361,33 @@ final class TranscribeModel {
         // Append and flush NOW. Not at the end — there may not be an end.
         try? probeLines.joined(separator: "\n")
             .write(to: probeLog, atomically: true, encoding: .utf8)
+    }
+
+    /// SAMPLES THE DESCENT while something expensive loads.
+    ///
+    /// The steady footprint is not what kills: TTSKit reports "Loading 6
+    /// CoreML models concurrently", and six simultaneous compiles need
+    /// transient memory far above what the finished models hold. That
+    /// peak is invisible from outside — the app simply stops.
+    ///
+    /// So this writes a reading every 250 ms, flushed, while the load
+    /// runs. If jetsam takes the process, the LAST line is how close it
+    /// got before dying, which is the number nothing else can give us.
+    private func sampling<T>(_ label: String,
+                             _ work: () async throws -> T) async rethrows -> T {
+        let sampler = Task { [weak self] in
+            for tick in 0..<2_400 {          // 10 minutes, capped
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled, let self else { return }
+                await MainActor.run {
+                    self.probeSay(String(format: "    %@ +%.1fs  %@",
+                                         label, Double(tick) * 0.25,
+                                         self.headroomNow()))
+                }
+            }
+        }
+        defer { sampler.cancel() }
+        return try await work()
     }
 
     private func headroomNow() -> String {
@@ -398,10 +423,11 @@ final class TranscribeModel {
         // fact — what the neural voice actually costs ON THIS PHONE. My
         // 1112 MB is a Mac's figure, and CoreML often MAPS weights, which
         // count differently against a dirty limit than MLX's do.
+        probeSay("voice installed on disk: \(await neuralVoice.modelInstalled())")
         probeSay("loading the neural voice FIRST… (if this is the last line,")
         probeSay("  it died here, and the voice alone is the problem)")
         do {
-            try await neuralVoice.ensureModel()
+            try await sampling("voice") { try await neuralVoice.ensureModel() }
             probeSay("+ voice loaded:      \(headroomNow())")
         } catch {
             probeSay("  voice FAILED:      \(error)")
@@ -410,7 +436,7 @@ final class TranscribeModel {
         probeSay("loading the mind… (if this is the last line, the PAIR is")
         probeSay("  the problem, and we now know the voice's real cost)")
         do {
-            _ = try await localModel.ensureModel()
+            _ = try await sampling("mind") { try await localModel.ensureModel() }
             probeSay("+ mind loaded:       \(headroomNow())")
             probeSay("  MLX active:        \(MLXRuntime.activeMemoryBytes / 1_048_576) MB")
         } catch {

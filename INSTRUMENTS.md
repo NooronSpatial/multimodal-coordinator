@@ -2538,3 +2538,61 @@ on iOS, alone, from a clean launch, with the guard in place. If it is well under
 fits at steady state and what killed the app was the CoreML *compile*
 spike — a different problem with different cures. If it is near 1112 MB,
 the pair genuinely does not fit and something has to give.
+
+## 29. The pair FITS — and the Mac was wrong by a factor of ten (4i, AC-132)
+
+Ryad's iPhone, clean launch, voice loaded first:
+
+```
+start:               3347 MB free
+loading the neural voice FIRST…
++ voice loaded:      3236 MB free      ← the voice cost 111 MB
+loading the mind…
++ mind loaded:       1011 MB free      ← the mind cost 2225 MB
+BOTH RESIDENT:       1011 MB free
+survived: yes
+```
+
+**The neural voice costs 111 MB on iOS. §27 recorded 1112 MB.** Ten times
+over, and the error was not arithmetic — it was measuring the wrong
+machine and adding the result to a real one.
+
+**Why the two differ, and it is not a mystery.** CoreML memory-MAPS its
+weights. Mapped pages are CLEAN: the kernel can evict them and read them
+back from disk, so they do not count against an app's DIRTY memory limit.
+macOS `phys_footprint` counts them anyway, because a Mac has no such
+limit to exclude them from. MLX has no `mmap` at all (§25), so every one
+of its 2225 MB is dirty and charged.
+
+```
+  MLX weights     dirty   →  charged against the limit   2225 MB
+  CoreML weights  mapped  →  NOT charged                  111 MB
+```
+
+**What this retracts.** Every "the pair does not fit" claim in this repo —
+SPEC §92's premise, D-064's consequence paragraph, INSTRUMENTS §27 and
+§28, and the demo's own red warning — came from adding a Mac's
+`phys_footprint` to a phone's headroom. They are wrong. The pair fits
+with **1011 MB to spare**.
+
+**What survives, and it is the real finding.** The steady footprint was
+never the problem; the LOAD is. TTSKit reports "Loading 6 CoreML models
+concurrently", and six simultaneous compiles need transient memory far
+above the 111 MB the finished models hold. The evidence is the order:
+
+| run | headroom when the voice loaded | outcome |
+|---|---|---|
+| probe 1 | 1105 MB (mind already resident) | **killed** |
+| step 3 | 2976 MB (Whisper ear resident) | **killed** |
+| probe 2 | **3347 MB** (clean launch, voice first) | **survived**, cost 111 MB |
+
+So the rule is about ORDER, not capacity: **load the neural voice while
+headroom is at its maximum, before the mind.** Its finished cost is
+trivial; its birth is expensive.
+
+**Not yet measured:** the peak itself. A sampler now writes headroom every
+250 ms during a load and flushes each line, so the next kill will show how
+far it fell before dying. This run predates that instrument.
+
+**One run is evidence, not proof** — the project's own phrase. But it is
+one run more than every claim it overturns.
