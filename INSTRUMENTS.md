@@ -2603,6 +2603,26 @@ one run more than every claim it overturns.
 proved they LOAD together; this proves they WORK together, which is the
 claim that was actually in dispute.
 
+**And the field log is stronger than the probe.** It is not the pair — it
+is everything at once:
+
+```
+mind=Local · ear=Whisper · mouth=Neural · speaker shield=true
+memory headroom: 934 MB before this app's limit
+voice loaded: true · MLX active 2159 MB (peak 2288)
+
+turn 1  heard: "And you hear me?"   reply: "Yes, I hear you."
+        first word 478 ms · total 807 ms
+```
+
+Whisper's recogniser IN-PROCESS, the 4B mind, the neural voice and the
+speaker shield, together, with **934 MB to spare** and a working turn.
+Every component this project owns, resident simultaneously, on one phone.
+
+(First word 478 ms here against 291–315 ms with Apple's voice and ear —
+one turn, so it is a hint rather than a number, and it is a fair price to
+name: three in-process models compete for the same compute.)
+
 **What that costs this milestone, stated plainly.** SPEC §92 opens with
 "4h measured a pair that does not fit" — the premise is dead. AC-138
 (make the forbidden pair degrade) has no forbidden pair to degrade. And
