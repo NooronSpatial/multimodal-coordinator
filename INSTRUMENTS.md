@@ -2596,3 +2596,15 @@ far it fell before dying. This run predates that instrument.
 
 **One run is evidence, not proof** — the project's own phrase. But it is
 one run more than every claim it overturns.
+
+**FIELD-CONFIRMED the same day.** Ryad then ran the demo with the local
+4B mind and the neural voice both selected and held a real conversation:
+*"local mind and neural voice work together i just tested."* The probe
+proved they LOAD together; this proves they WORK together, which is the
+claim that was actually in dispute.
+
+**What that costs this milestone, stated plainly.** SPEC §92 opens with
+"4h measured a pair that does not fit" — the premise is dead. AC-138
+(make the forbidden pair degrade) has no forbidden pair to degrade. And
+4i's F-1 (what degrades, in what order) is now a chain for a device
+nobody in this project owns.
