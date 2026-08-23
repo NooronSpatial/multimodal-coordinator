@@ -366,6 +366,11 @@ final class TranscribeModel {
 
     private func probeSay(_ line: String) {
         probeLines.append(line)
+        // Capped, because a 250 ms sampler over a long load writes a lot,
+        // and a file that grows without bound is its own bug. The OLDEST
+        // lines go, never the newest — the last line before a death is
+        // the whole point.
+        if probeLines.count > 4_000 { probeLines.removeFirst(500) }
         // Append and flush NOW. Not at the end — there may not be an end.
         try? probeLines.joined(separator: "\n")
             .write(to: probeLog, atomically: true, encoding: .utf8)
@@ -906,7 +911,16 @@ final class TranscribeModel {
         // every launch.
         voiceState = .preparing
         do {
-            try await neuralVoice.ensureModel()
+            // AC-139: SAMPLE THE LAUNCH LOAD. This is the load that killed
+            // the app twice — six CoreML models compiling concurrently —
+            // and it happens before anyone can tap a probe button. By the
+            // time the gauge is reachable, everything is already resident
+            // and there is nothing left to watch.
+            probeSay("")
+            probeSay("# launch load — voice prepare")
+            probeSay("  before:            \(headroomNow())")
+            try await sampling("voice") { try await neuralVoice.ensureModel() }
+            probeSay("  after:             \(headroomNow())")
             voiceState = .ready
         } catch {
             voiceState = .failed(String(describing: error))
