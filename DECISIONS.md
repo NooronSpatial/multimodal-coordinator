@@ -2623,3 +2623,63 @@ ever have had.
 also reads 0 on macOS, for the opposite reason, so the cross-check
 disambiguates nothing. Withdrawn by its author before Ryad spent a ruling
 on it.
+
+## D-066 — the phone gets a bench, not a bigger settings screen (Milestone 4j)
+
+**Date:** 2026-08-23 · **Decided by:** Ryad · **Ruling: all four
+recommendations accepted**
+
+**Why this milestone exists at all.** The Mac can now be tuned from the
+command line — decoder, vocoder mode, temperature, cushion (§31.1) — and the
+first thing that tuning produced was a disagreement between the clock and
+Ryad's ears (§32). `temperature 0` has the fastest first audio of all six
+configurations and he calls it bad; `throughputOptimized` starts 180 ms later
+and he ranks it level with the winner. **No instrument in this repo measures
+what he judged in five seconds**, so the human has to stay in the loop — and
+the phone, which is the device that actually matters, has no way to put him
+there. It has an engine picker, a mind picker and a voice picker, and not one
+of the four levers.
+
+**The constraint that shapes the whole milestone:** `.fused` cannot load on
+iOS 18+. `MLModelConfiguration.functionName` must be nil unless the model is
+an ML Program, and the Qwen3 multi-code decoder is not. So the phone can
+compare four configurations where the Mac compares six, and the best one on
+the Mac is not available on the phone at all.
+
+**F-1 — how many screens? Ruled A: three tabs (Chat · Bench · Settings).**
+A live meter redrawing at 60 Hz and a stopwatch have no business on the same
+screen; the bench must not be timing itself while it animates. *Rejected:*
+**two tabs (Chat + Settings)** — it saves a tab by putting the measuring
+tools among the pickers, which is how the 884-line ContentView got that way.
+*Rejected:* **one screen with a settings sheet** — a sheet cannot be watched
+while the thing it configures is running, and watching is the point.
+
+**F-2 — does the phone offer `.fused`, knowing it cannot load? Ruled B:
+offer it, and let it refuse honestly with the CoreML reason.** *Rejected:*
+**hide it** — a picker that hides the option teaches nobody why, and the
+next person to read the library's default (`.fused`) will wonder where it
+went. *Rejected:* **offer it labelled "fails here"** — a label is a claim; a
+refusal carrying the actual error is evidence. This follows rule 5 of D-054:
+an instrument must be able to say whether it is switched on, and a
+constraint you can trigger on demand is a constraint you can prove.
+
+**F-3 — sweep on the phone, or ear-only? Ruled C: both, with the sweep gated
+on the mind being unloaded.** Ear-only would reproduce the Mac's blind spot
+in the other direction — no numbers at all. A sweep with the 4B mind
+resident is the memory kill 4i exists to study, and an instrument that
+crashes the app is not an instrument. *Rejected:* **port the sweep
+unconditionally** — it would be killed and the kill would be read as a
+result. *Rejected:* **ear-only** — Ryad's ranking is only interesting
+*because* there were numbers to disagree with.
+
+**F-4 — where do the phone's numbers go? Ruled B: copy as a markdown
+table.** The Mac's numbers reach INSTRUMENTS by being printed and pasted;
+the phone's should arrive in the same shape, beside them, comparable.
+*Rejected:* **on-screen only** — a number that cannot leave the device
+cannot be reviewed, and every claim in INSTRUMENTS is reviewable.
+*Rejected:* **share-sheet export** — a file to open, name and find, when
+what is wanted is a paste into a document already open.
+
+**Not yet ruled:** whether 4j starts before or after 4i's remaining
+criteria (AC-139 compile peak, AC-140 thermal, AC-141 twenty minutes) are
+measured. The spec is written as 4j and does not absorb them.
