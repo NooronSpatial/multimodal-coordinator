@@ -2718,3 +2718,33 @@ and to print `DECODE FAILED` with the reason.
    so the cushion was zero when 396 ms was needed — fixed by deriving the
    lead from the mode actually passed.
 3. `.stepped` was forced on a Mac that runs `.fused` perfectly well.
+
+### 31.1 The same levers, on the command line
+
+`voice-levers` measures the six configurations and speaks them, but you cannot
+TALK to a sweep. `audio-demo` now takes the same four knobs, so a setting can
+be judged by ear in a real conversation:
+
+    swift run -c release audio-demo whisper --talk --mind=local --mouth=neural \
+        [--decoder=fused|stepped] [--speech=latency|throughput] \
+        [--temperature=0.7] [--lead=400ms]
+
+Defaults: `fused`, `latency`, the model's own temperature, and a lead DERIVED
+from the decoder. It prints the configuration it actually built to stderr
+before speaking:
+
+    voice: decoder=stepped, speech=throughputOptimized,
+           temperature=0.7, lead=0.25 seconds
+
+That banner is not decoration. The slow voice was a silent disagreement
+between the decoder in use and a cushion sized for a different one, and a run
+that cannot say what it was must not be trusted to say how it sounded.
+
+Leave `--lead` off unless you are deliberately testing the cushion. Typing a
+number there re-opens by hand the exact hole the derivation closed.
+
+**A note on this check itself.** The first run of it printed defaults for every
+flag and looked like a parsing bug. It was a leaked background `grep` in the
+test loop reading the *next* run's output. The code was right; my instrument
+was not. Recorded because D-054 cuts both ways — an instrument that lies about
+a passing result is as dangerous as one that lies about a failure.
