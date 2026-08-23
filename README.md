@@ -52,7 +52,7 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   290 tests in 38 suites, green, run 20× before any milestone closes
+swift test   →   294 tests in 39 suites, green, run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
@@ -163,23 +163,31 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 290 tests, deterministic
+swift test                          # 294 tests, deterministic
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
 ```
 
 The measurement tools each answer one question, and each writes its numbers
-into [INSTRUMENTS.md](INSTRUMENTS.md):
+into [INSTRUMENTS.md](INSTRUMENTS.md). **Run them `-c release`** — a timing
+read off a debug build is not evidence of anything, and a debug build was one
+of the three causes of the slow neural voice (§31):
 
 ```bash
-swift run bakeoff voice-install   # fetch the neural voice's model (1.1 GB, once)
-swift run bakeoff voice-spike     # time to first audio, and the real-time factor
-swift run bakeoff voice-levers    # every decoder setting, measured serially
-swift run bakeoff voice-wer       # speak → record → transcribe → score
-swift run bakeoff voice-onmic     # a reply rendered on a LIVE capture engine
-swift run bakeoff graph-probe     # what a live audio graph actually tolerates
+swift run -c release bakeoff voice-install   # the voice's model, ~1.1 GB, once
+swift run -c release bakeoff voice-spike     # time to first audio, per sentence
+swift run -c release bakeoff voice-levers    # every decoder setting, serially
+swift run -c release bakeoff voice-wer       # speak → record → transcribe → score
+swift run -c release bakeoff voice-onmic     # a reply on a LIVE capture engine
+swift run -c release bakeoff graph-probe     # what a live audio graph tolerates
 ```
+
+The full surface — every subcommand, all thirteen `audio-demo` flags, the
+three flag shapes that fail silently when mixed, the environment switches,
+and the bugs found while writing it down — is
+**[COMMANDS.md](COMMANDS.md)**. Neither executable has a `--help`, so that
+file is the only complete answer.
 
 `voice-listen` used to be in that list and **is not any more** — it was
 deleted in `0331534`, a commit about something else, while all three
