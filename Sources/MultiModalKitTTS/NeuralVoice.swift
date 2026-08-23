@@ -319,16 +319,32 @@ public actor NeuralVoice: SpeechSynthesizing {
             // and the file CoreML actually parses must be non-trivial.
             // Cheap — a stat per component, no reading, no hashing — and
             // it catches truncation, which is the failure that happens.
-            guard let contents = try? files.contentsOfDirectory(atPath: path.path),
-                  let compiled = contents.first(where: { $0.hasSuffix(".mlmodelc") })
+            // FOUND, not assumed. The first version of this looked for the
+            // .mlmodelc directly inside the variant folder and reported
+            // every component broken — "loaded, but the disk check
+            // disagrees" — while TTSKit had loaded the model perfectly.
+            // The bundle sits one level deeper, under a QUANTISATION
+            // folder whose name differs per component:
+            //
+            //   text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc
+            //   code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc
+            //
+            // So it is searched for rather than constructed. Two wrongs in
+            // one evening from the same habit: writing down where a file
+            // OUGHT to be instead of asking where it IS.
+            guard let walker = files.enumerator(at: path,
+                                                includingPropertiesForKeys: nil),
+                  let bundle = walker.compactMap({ $0 as? URL })
+                      .first(where: { $0.pathExtension == "mlmodelc" })
             else { return false }
-            let bundle = path.appending(path: compiled)
-            let parsed = bundle.appending(path: "model.mil")
-            let legacy = bundle.appending(path: "coremldata.bin")
-            let sizeOf: (URL) -> Int = { url in
-                (try? files.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+            let sizeOf: (String) -> Int = { name in
+                (try? files.attributesOfItem(
+                    atPath: bundle.appending(path: name).path)[.size] as? Int) ?? 0
             }
-            guard sizeOf(parsed) > 1_024 || sizeOf(legacy) > 1_024 else { return false }
+            // A truncated download leaves the folder present and the file
+            // short, which is the failure that actually happens.
+            guard sizeOf("model.mil") > 1_024 || sizeOf("coremldata.bin") > 1_024
+            else { return false }
         }
         return files.fileExists(atPath:
                 localTokenizerFolder.appending(path: "tokenizer.json").path)
