@@ -1,6 +1,7 @@
 import AVFAudio
 import Synchronization
 import MultiModalKit
+import MultiModalKitBench
 import MultiModalKitTesting
 import MultiModalKitMLX
 import MultiModalKitTTS
@@ -163,27 +164,58 @@ final class TranscribeModel {
     /// instead of a pile (AC-145).
     var levers: VoiceLevers = TranscribeModel.storedLevers {
         didSet {
-            guard !revertingLevers, levers != oldValue else { return }
-            Self.store(levers)
-            let retiring = neuralVoice
-            neuralVoice = levers.makeVoice()
-            voiceState = .checking
-            Task {
-                // Retire AFTER the replacement exists, so there is never a
-                // moment with no voice at all — and before loading the new
-                // one, so two pipelines are never both resident. The order
-                // is the memory rule from INSTRUMENTS §29, one scale down.
-                await retiring.retire()
-                await checkVoice()
-                await keepTheVoiceUsable(after: oldValue)
-                if isListening { restart() }
-            }
+            guard !awaitedElsewhere, !revertingLevers, levers != oldValue
+            else { return }
+            // A PICKER cannot await, so this one spawns. The bench calls
+            // `apply(_:)` instead and awaits the same work — see AC-147.
+            Task { await settleLevers(from: oldValue) }
         }
+    }
+
+    /// APPLY AND WAIT — the shape AC-147 needs (SPEC §104, H-3).
+    ///
+    /// `restart()` gives no signal that a new configuration is up: it defers
+    /// teardown into a detached Task and sets `isListening` false while the
+    /// microphone is still being released. A sweep driven by that has
+    /// nothing to wait ON, and the only alternatives are a delay or a retry
+    /// count — both of which AC-147 forbids, and both of which are how every
+    /// timing bug in this project started.
+    ///
+    /// So the work is a function that RETURNS when it is done, and the
+    /// picker's `didSet` becomes the odd one out: it cannot await, so it
+    /// spawns a task that calls the same function. One code path, two
+    /// callers, and only one of them has to guess about anything.
+    func apply(_ wanted: VoiceLevers) async {
+        guard wanted != levers else { return }
+        let previous = levers
+        awaitedElsewhere = true
+        levers = wanted
+        awaitedElsewhere = false
+        await settleLevers(from: previous)
+    }
+
+    private func settleLevers(from previous: VoiceLevers) async {
+        Self.store(levers)
+        let retiring = neuralVoice
+        neuralVoice = levers.makeVoice()
+        voiceState = .checking
+        // Retire AFTER the replacement exists, so there is never a moment
+        // with no voice at all — and before loading the new one, so two
+        // pipelines are never both resident. The order is the memory rule
+        // from INSTRUMENTS §29, one scale down.
+        await retiring.retire()
+        await checkVoice()
+        await keepTheVoiceUsable(after: previous)
+        if isListening { restart() }
     }
 
     /// Set while putting `levers` back, so the `didSet` above does not treat
     /// the revert as a new request and start the whole dance again.
     private var revertingLevers = false
+    /// Set while `apply(_:)` is driving, so the `didSet` does not ALSO spawn
+    /// a task for work its caller is already awaiting. Without it a sweep
+    /// runs every configuration twice, once watched and once not.
+    private var awaitedElsewhere = false
 
     /// AC-144 — A REFUSAL MUST NOT COST THE VOICE THAT WORKED.
     ///
@@ -267,6 +299,74 @@ final class TranscribeModel {
             // sees them all.
             renderingOn: shieldHost)
         case .neural: neuralVoice
+        }
+    }
+
+    // MARK: - the sweep (AC-146 … AC-151)
+
+    private(set) var sweepRows: [BenchRow] = []
+    private(set) var sweepRunning = false
+    private(set) var sweepProgress = 0
+    private(set) var sweepTotal = 0
+    /// Why the sweep would not run, or nil. AC-146: it REFUSES rather than
+    /// dying, and an instrument that crashes the app is not an instrument.
+    private(set) var sweepRefusal: String?
+    private var sweepTask: Task<Void, Never>?
+
+    var sweepMarkdown: String { BenchTable.markdown(sweepRows) }
+
+    func runSweep() {
+        guard !sweepRunning else { return }
+        let plan = BenchConfiguration.phone
+        let runsEach = 3
+        sweepRows = []
+        sweepProgress = 0
+        sweepTotal = plan.count * runsEach
+        sweepRefusal = nil
+        sweepRunning = true
+        sweepTask = Task {
+            defer { sweepRunning = false; sweepTask = nil }
+            do {
+                sweepRows = try await BenchSweep.run(
+                    plan, runsEach: runsEach, on: PhoneBenchStage(model: self))
+            } catch BenchSweep.Refusal.refused(let why) {
+                sweepRefusal = why
+            } catch {
+                sweepRefusal = "\(error)"
+            }
+        }
+    }
+
+    /// Cancellation keeps the rows already measured — a sweep stopped
+    /// halfway still measured what it measured — and the levers still come
+    /// back to what the person chose (AC-151).
+    func stopSweep() { sweepTask?.cancel() }
+
+    func noteSweepMeasurement() { sweepProgress += 1 }
+
+    /// The voice the bench measures — the same object the conversation
+    /// speaks with, never a fresh one built for the occasion. A bench that
+    /// measured its own private voice would be measuring a configuration
+    /// nobody is using.
+    var benchVoice: NeuralVoice { neuralVoice }
+
+    /// AC-149. `bargeCount` and `onsetsWhileSpeaking` are NOT in `start()`'s
+    /// reset list, so across a sweep they accumulate and every row reports
+    /// the sum of the rows before it.
+    func resetBenchCounters() {
+        bargeCount = 0
+        onsetsWhileSpeaking = 0
+    }
+
+    /// Free dirty memory, or nil when the device will not say. NOT zero —
+    /// `os_proc_available_memory` returns an ambiguous 0 on the machines
+    /// that have no limit (INSTRUMENTS §30), and a bench row printing
+    /// "0 MB" would be reporting a measurement it never made.
+    func freeMegabytesNow() -> Int? {
+        switch MemoryHeadroomReader.read() {
+        case .bytes(let b): Int(b / 1_048_576)
+        case .exhausted: 0
+        case .unavailable: nil
         }
     }
 

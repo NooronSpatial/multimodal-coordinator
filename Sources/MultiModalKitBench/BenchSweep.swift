@@ -15,8 +15,8 @@
 public enum BenchSweep {
 
     public enum Refusal: Error, Equatable {
-        /// AC-146.
-        case mindIsResident
+        /// AC-146 — the stage's own words for why it will not measure.
+        case refused(String)
     }
 
     /// Runs every configuration `runsEach` times and returns the rows.
@@ -31,7 +31,9 @@ public enum BenchSweep {
         runsEach: Int = 3,
         on stage: Stage
     ) async throws -> [BenchRow] {
-        guard await !stage.mindIsResident() else { throw Refusal.mindIsResident }
+        if let reason = await stage.refusalReason() {
+            throw Refusal.refused(reason)
+        }
 
         // Taken BEFORE the first change and restored after the last, so the
         // levers a sweep sets never outlive it.

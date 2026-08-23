@@ -1,4 +1,5 @@
 import MultiModalKit
+import MultiModalKitBench
 import MultiModalKitTTS
 import SwiftUI
 import TTSKit
@@ -27,6 +28,8 @@ struct BenchTab: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     levers
+                    Divider()
+                    sweep
 
                     if model.probeSilence == nil && model.probeStatus == nil
                         && model.shieldStatus == nil && model.shieldReport.isEmpty {
@@ -265,6 +268,64 @@ struct BenchTab: View {
                     .font(.caption.monospaced())
                     .foregroundStyle(model.voiceInForce.contains("fused")
                                      ? .orange : .primary)
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    /// THE SWEEP (AC-146 … AC-151).
+    private var sweep: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Sweep").font(.headline)
+                Spacer()
+                if model.sweepRunning {
+                    Button("Stop", role: .destructive) { model.stopSweep() }
+                } else {
+                    Button("Run") { model.runSweep() }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+
+            Text("Four configurations, three runs each. `.fused` is not among "
+                 + "them: a sweep that included a decoder known not to load "
+                 + "here would spend a third of its time measuring a failure "
+                 + "we already understand.")
+                .font(.caption).foregroundStyle(.secondary)
+
+            if model.sweepRunning {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text("\(model.sweepProgress) of \(model.sweepTotal)")
+                        .font(.caption.monospaced())
+                }
+            }
+
+            // AC-146: it refuses, and says why, rather than dying.
+            if let refusal = model.sweepRefusal {
+                Label(refusal, systemImage: "hand.raised")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+
+            if !model.sweepRows.isEmpty {
+                // The table EXACTLY as it will be pasted, so what is read on
+                // the phone and what lands in INSTRUMENTS cannot differ.
+                ScrollView(.horizontal, showsIndicators: true) {
+                    Text(model.sweepMarkdown)
+                        .font(.caption2.monospaced())
+                        .textSelection(.enabled)
+                }
+                Button {
+                    UIPasteboard.general.string = model.sweepMarkdown
+                } label: {
+                    Label("Copy as markdown", systemImage: "doc.on.doc")
+                }
+                .font(.caption)
+                Text("Paste it into INSTRUMENTS beside the Mac's numbers — "
+                     + "same columns, same shape, so the comparison is not "
+                     + "done by eye.")
+                    .font(.caption).foregroundStyle(.secondary)
             }
         }
         .padding(.horizontal)

@@ -18,11 +18,23 @@ public protocol BenchStage: Sendable {
     func snapshot() async -> Settings
     func restore(_ settings: Settings) async
 
-    /// AC-146. The sweep refuses to run while the 4B mind is resident:
-    /// loading six CoreML models beside 2225 MB of dirty MLX weights is the
-    /// kill this project has already recorded three times (INSTRUMENTS §29),
-    /// and an instrument that crashes the app is not an instrument.
-    func mindIsResident() async -> Bool
+    /// AC-146. Anything that makes measuring unsafe or meaningless, in
+    /// words a person can read — or `nil` to proceed.
+    ///
+    /// THIS USED TO ASK ONE QUESTION: "is the mind resident?" That is a real
+    /// hazard — six CoreML models loading beside 2225 MB of dirty MLX
+    /// weights is the kill recorded three times in INSTRUMENTS §29 — but
+    /// asking about ONE hazard is how the second one gets through. It did:
+    /// the first sweep run on a device with no voice model installed sailed
+    /// past the gate and died inside the sampler with
+    ///
+    ///     Swift/FloatingPointRandom.swift:52: Fatal error:
+    ///     Can't get random value with an empty range
+    ///
+    /// An instrument that crashes the app is not an instrument, so the
+    /// question is now open-ended: the stage names any reason it has, and a
+    /// new hazard becomes a new sentence rather than a new crash.
+    func refusalReason() async -> String?
 
     /// **Returns only when the new configuration is observably up** (AC-147).
     ///

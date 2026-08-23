@@ -2893,3 +2893,62 @@ sentence — reactive, and noisier than a constant. Whether that reads as
 responsive or as jitter is not something these four samples can settle. It is
 recorded now, before anyone is surprised by it, and the alternatives (a
 running average, or a maximum with decay) are one small ruling away.
+
+## 35. The Simulator has the voice's files and cannot run them — and it does not fail, it dies
+
+Building the phone bench's Run button produced a crash on the first tap, and
+the crash is worth recording because the diagnosis went wrong twice before it
+went right.
+
+**What happens.** Tapping Run on the iPhone 17 Pro Simulator killed the app:
+
+```
+Swift/FloatingPointRandom.swift:52: Fatal error:
+Can't get random value with an empty range
+```
+
+That is `fatalError` inside TTSKit's sampler. There is nothing to catch, no
+error to report, no state to recover — the process is simply gone.
+
+**Two wrong diagnoses, both mine, both from reasoning instead of looking.**
+
+1. *"The gate is incomplete."* `prepare()` threw only on `.failed`, and a
+   missing model reads `.modelMissing`, so I assumed the sweep had proceeded
+   with no model. Plausible, and it did produce a real fix — the gate now
+   demands `.ready` — but it was not the cause.
+2. *"The disk check is lying."* The log said `modelInstalled = true` on what
+   I believed was an empty container, so I concluded the check I had already
+   fixed twice was wrong a third time. **It was not.** I had listed a stale
+   container path: relaunching the app creates a new one, and the model was
+   genuinely installed all along.
+
+**What settled it** was making the app say what it saw, rather than working
+out what it must have seen:
+
+```
+BENCH: refusalReason asked; mind=Echo
+BENCH: voice modelInstalled = true; folder=…/qwen3_tts;
+       children=["multi_code_embedder", "code_embedder", "text_projector",
+                 "multi_code_decoder", "speech_decoder", "code_decoder"]
+```
+
+All six components present. The check was right, the gate was right, and the
+missing thing was a GPU.
+
+**The rule this joins.** D-061 wrote the same sentence about MLX:
+
+> The metallib IS present in a simulator app bundle, so a check that only
+> looked for the file would say yes and then die on the first allocation —
+> which is exactly what the phone spike did, twice.
+
+Now TTSKit, same shape: **present on disk is not runnable, and only a device
+settles it.** So `PhoneBenchStage.refusalReason()` refuses on the Simulator
+by compile-time environment, and says why. Verified by tapping the button
+that used to crash and reading an orange sentence instead.
+
+**What this cost, stated plainly.** The sweep cannot be exercised end to end
+anywhere except on Ryad's phone. Every invariant around it is tested on a
+Mac — the order, the reset, the restore, the refusal — but the four rows of
+numbers it exists to produce have never been produced. That is not a caveat
+to bury: AC-146 through AC-151 are met in their logic and unproven in the
+field until the phone runs them.

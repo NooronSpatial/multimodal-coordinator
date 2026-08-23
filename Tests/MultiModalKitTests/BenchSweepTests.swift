@@ -29,14 +29,14 @@ struct BenchSweepTests {
         }
 
         let log = Mutex(Log())
-        let mindResident: Bool
+        let refusal: String?
         let failOnMeasure: Int?
         let conditions_: [BenchConditions]
 
-        init(mindResident: Bool = false,
+        init(refusal: String? = nil,
              failOnMeasure: Int? = nil,
              conditions: [BenchConditions] = []) {
-            self.mindResident = mindResident
+            self.refusal = refusal
             self.failOnMeasure = failOnMeasure
             self.conditions_ = conditions
         }
@@ -59,9 +59,9 @@ struct BenchSweepTests {
             }
         }
 
-        func mindIsResident() async -> Bool {
-            note("mindIsResident")
-            return mindResident
+        func refusalReason() async -> String? {
+            note("refusalReason")
+            return refusal
         }
 
         func prepare(_ configuration: BenchConfiguration) async throws {
@@ -96,8 +96,8 @@ struct BenchSweepTests {
 
     @Test("with the mind resident it refuses, and changes nothing")
     func refusesWithMindResident() async throws {
-        let stage = Recorder(mindResident: true)
-        await #expect(throws: BenchSweep.Refusal.mindIsResident) {
+        let stage = Recorder(refusal: "the mind is resident")
+        await #expect(throws: BenchSweep.Refusal.refused("the mind is resident")) {
             try await BenchSweep.run(Self.one, runsEach: 1, on: stage)
         }
         let calls = stage.log.withLock { $0.calls }
@@ -112,7 +112,7 @@ struct BenchSweepTests {
         let stage = Recorder()
         _ = try await BenchSweep.run(Self.one, runsEach: 2, on: stage)
         let calls = stage.log.withLock { $0.calls }
-        #expect(calls == ["mindIsResident", "snapshot",
+        #expect(calls == ["refusalReason", "snapshot",
                           "prepare", "reset", "conditions", "measure",
                           "prepare", "reset", "conditions", "measure",
                           "restore"])
