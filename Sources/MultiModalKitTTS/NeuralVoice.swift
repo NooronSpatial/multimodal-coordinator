@@ -57,9 +57,11 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     /// The loaded pipeline, kept so a second utterance does not pay the
     /// load again.
-    private var pipeline: TTSKit?
-    private var loadBusy = false
-    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
+    /// The loaded models, behind the shape that gets this right (D-051).
+    /// Hand-written four times here and wrong four times; `Retirable` holds
+    /// the FIFO, the reentrancy re-check and the generation ticket that
+    /// stops a retired pipeline being resurrected by its own in-flight load.
+    private let held = Retirable<TTSKit>()
 
     /// WHERE THIS VOICE RENDERS (AC-108, D-048). Handing in a host is
     /// how a caller makes the reply CANCELLABLE: D-043 measured that iOS
@@ -376,7 +378,8 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// of what an opt-in module is for (D-045 F-4). The pipeline stays
     /// in here.
     public func ensureModel() async throws {
-        pipeline = try await loadedPipeline()
+        // The holder does the caching now; this only asks for it.
+        _ = try await loadedPipeline()
     }
 
     /// Loads once, then reuses. The variant's own logging reports the
@@ -401,24 +404,33 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// waiter queue, re-checked in a WHILE loop after every wake, and
     /// released on every exit through `defer`.
     private func loadedPipeline() async throws -> TTSKit {
-        if let pipeline { return pipeline }
-        while loadBusy {
-            await withCheckedContinuation { loadWaiters.append($0) }
-            if let pipeline { return pipeline }
+        // Read the configuration HERE, on the actor, so the build closure
+        // captures values rather than isolated state.
+        let model = variant
+        let speech = speechDecoderMode
+        let multi = multiCodeDecoderMode
+        let requestedSeed = seed
+        return try await held.value {
+            try await TTSKit(TTSKitConfig(
+                model: model,
+                speechDecoderMode: speech,
+                multiCodeDecoderMode: multi,
+                download: true, load: true, seed: requestedSeed))
         }
-        loadBusy = true
-        defer {
-            loadBusy = false
-            if !loadWaiters.isEmpty { loadWaiters.removeFirst().resume() }
-        }
-        let fresh = try await TTSKit(TTSKitConfig(
-            model: variant,
-            speechDecoderMode: speechDecoderMode,
-            multiCodeDecoderMode: multiCodeDecoderMode,
-            download: true, load: true, seed: seed))
-        // The reentrancy law: the await above released the actor.
-        if let pipeline { return pipeline }
-        pipeline = fresh
-        return fresh
+    }
+
+    /// Gives back the loaded models and the owned engine.
+    ///
+    /// AC-145. Changing a lever means building a NEW voice — the decoder and
+    /// the vocoder mode are fixed at init, deliberately, so that the lead can
+    /// be derived from them and cannot drift. Retiring the old one is how the
+    /// phone ends up with exactly one pipeline resident instead of a pile.
+    ///
+    /// A load in flight when this is called will not install its result; that
+    /// caller is told `retiredDuringLoad` rather than handed a voice nobody
+    /// is tracking. Safe to call twice, and safe on a voice that never spoke.
+    public func retire() async {
+        shutdown()
+        await held.retire()
     }
 }
