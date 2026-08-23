@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 /// HOW CLOSE THIS PROCESS IS TO BEING KILLED (SPEC 4i, AC-132).
 ///
@@ -93,4 +94,65 @@ public enum MemoryHeadroomReader {
         return .bytes(Int(clamping: remaining))
         #endif
     }
+}
+
+/// SYSTEM-WIDE MEMORY PRESSURE — the only warning iOS actually gives.
+///
+/// AC-139 measured a load that killed this app twice while BOTH
+/// in-process instruments sat flat: dirty headroom moved 13 MB, and
+/// `phys_footprint` went DOWN. The reason is that CoreML prepares models
+/// in system daemons, not in the calling process, so the memory is spent
+/// outside this address space and charges neither number
+/// (INSTRUMENTS §30).
+///
+/// The kernel does broadcast pressure, though, and that signal is not
+/// per-process. It is the one instrument positioned to see a failure
+/// caused by somebody else's allocation.
+///
+/// Deliberately a SEAM rather than a global: the source is a
+/// `DispatchSource`, which needs a queue and a lifetime, and this
+/// project's rule is that monitoring is opt-in and never ambient
+/// (D-026/D-028). Nothing observes until an app asks.
+public final class MemoryPressureMonitor: @unchecked Sendable {
+    public enum Level: Sendable, Equatable {
+        case normal, warning, critical
+    }
+
+    private let source: DispatchSourceMemoryPressure
+
+    /// - Parameter onChange: called on the given queue when the system's
+    ///   pressure level changes. It is a WARNING, not a budget: by the
+    ///   time `.critical` arrives something is already being killed, and
+    ///   it may not be this process.
+    public init(queue: DispatchQueue = .global(qos: .utility),
+                onChange: @escaping @Sendable (Level) -> Void) {
+        source = DispatchSource.makeMemoryPressureSource(
+            eventMask: [.warning, .critical], queue: queue)
+        // WEAK, and only on a CHANGE.
+        //
+        // The first version captured `source` strongly inside the handler
+        // that `source` itself retains — a cycle, so `deinit` could never
+        // run. And it called back on EVERY event: under real pressure the
+        // kernel fires repeatedly, so a caller that logs would answer
+        // memory pressure with a burst of work. Coalescing to transitions
+        // is not an optimisation here, it is the difference between an
+        // instrument and an accelerant.
+        let last = Mutex<Level>(.normal)
+        source.setEventHandler { [weak source] in
+            guard let source else { return }
+            let data = source.data
+            let level: Level = data.contains(.critical) ? .critical
+                             : data.contains(.warning) ? .warning
+                             : .normal
+            let changed = last.withLock { previous -> Bool in
+                guard previous != level else { return false }
+                previous = level
+                return true
+            }
+            if changed { onChange(level) }
+        }
+        source.resume()
+    }
+
+    deinit { source.cancel() }
 }

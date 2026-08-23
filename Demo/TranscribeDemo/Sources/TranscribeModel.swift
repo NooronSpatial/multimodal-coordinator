@@ -137,7 +137,21 @@ final class TranscribeModel {
     /// it with `try?`, the `.playAndRecord` session is never released,
     /// and the person's music never comes back after Stop.
     private let neuralHost = AudioEnginePlaybackHost()
-    private let neuralVoice = NeuralVoice()
+    /// `.stepped`, not the library's `.fused` default — because `.fused`
+    /// DOES NOT LOAD on this phone:
+    ///
+    ///   modelLoadingFailed("MultiCodeDecoder: failed to load
+    ///   MultiCodeDecoder.mlmodelc (function 'fused') on macOS 15 / iOS 18
+    ///   or newer. MLModelConfiguration's .functionName must be nil unless
+    ///   the model type is ML Program.")
+    ///
+    /// D-047 made `.fused` the default on measured evidence — 29% faster,
+    /// RTF 0.752 against 1.066, no quality difference two instruments
+    /// could find. That ruling was right on the OS it was taken on. This
+    /// is an APP choosing what works on the device in its hand (D-027),
+    /// not a reversal of the ruling; the library default is untouched and
+    /// the honest cost is the 29%.
+    private let neuralVoice = NeuralVoice(multiCodeDecoderMode: .stepped)
 
     /// VOICE FORENSICS (AC-104), added because a field run produced four
     /// adjectives and no numbers: hot, late, worse, "drunk". Each of
@@ -388,6 +402,37 @@ final class TranscribeModel {
     /// got before dying, which is the number nothing else can give us.
     private var samplerBusy = false
 
+    /// The kernel's own alarm, recorded into the same trace. AC-139
+    /// showed both in-process numbers blind to a load that kills, because
+    /// CoreML prepares models in system daemons — so this is the only
+    /// instrument positioned to see it (INSTRUMENTS §30).
+    private var pressureMonitor: MemoryPressureMonitor?
+
+    /// UNWIRED, deliberately, after it crashed the app on relaunch.
+    ///
+    /// Two defects I can see by reading, and one I cannot rule out
+    /// without Ryad's crash log:
+    ///
+    /// 1. **A pressure storm.** The handler wrote a line, and `probeSay`
+    ///    rewrites the WHOLE trace file. Under real pressure the source
+    ///    fires repeatedly, so the instrument answered memory pressure by
+    ///    doing file I/O in a loop — reacting to a fire by pouring fuel.
+    /// 2. **A retain cycle.** The event handler captured `source`, which
+    ///    holds the handler, so `deinit` could never run and the monitor
+    ///    outlived its owner.
+    ///
+    /// Both are fixed in the type. It stays disconnected until a crash
+    /// log says whether it was actually the cause, because re-enabling a
+    /// suspect on a hunch is how a second afternoon gets lost (D-054).
+    private func watchSystemPressure() {
+        guard pressureMonitor == nil else { return }
+        pressureMonitor = MemoryPressureMonitor { [weak self] level in
+            Task { @MainActor in
+                self?.probeSay("  *** SYSTEM MEMORY PRESSURE: \(level) ***")
+            }
+        }
+    }
+
     private func sampling<T>(_ label: String,
                              _ work: () async throws -> T) async rethrows -> T {
         // ONE AT A TIME. The first AC-139 trace interleaved two samplers —
@@ -401,6 +446,8 @@ final class TranscribeModel {
             return try await work()
         }
         samplerBusy = true
+        // NOT watching system pressure here any more — see the comment on
+        // `watchSystemPressure`. It is wired to nothing until it is safe.
         defer { samplerBusy = false }
         let sampler = Task { [weak self] in
             for tick in 0..<2_400 {          // 10 minutes, capped
@@ -957,11 +1004,14 @@ final class TranscribeModel {
             // and it happens before anyone can tap a probe button. By the
             // time the gauge is reachable, everything is already resident
             // and there is nothing left to watch.
-            probeSay("")
-            probeSay("# launch load — voice prepare")
-            probeSay("  before:            \(headroomNow())")
-            try await sampling("voice") { try await neuralVoice.ensureModel() }
-            probeSay("  after:             \(headroomNow())")
+            // NOT SAMPLED AT LAUNCH ANY MORE. AC-139 put the sampler
+            // here because the peak happens here — and then Ryad's app
+            // began losing headroom on every open until it died. A
+            // measurement instrument that stops an app from starting has
+            // stopped being an instrument: it is now the fault. Sampling
+            // survives on the explicit probe button, where a person
+            // chooses to pay for it and can stop by not tapping it.
+            try await neuralVoice.ensureModel()
             voiceState = .ready
         } catch {
             voiceState = .failed(String(describing: error))
