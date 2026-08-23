@@ -2748,3 +2748,61 @@ flag and looked like a parsing bug. It was a leaked background `grep` in the
 test loop reading the *next* run's output. The code was right; my instrument
 was not. Recorded because D-054 cuts both ways — an instrument that lies about
 a passing result is as dangerous as one that lies about a failure.
+
+## 32. Ryad's ears disagree with the clock — and the clock is the one that is incomplete
+
+His own run of `voice-levers`, release, on his machine (2026-08-23). The
+numbers reproduce §31 closely enough that the instrument is repeatable:
+
+| config | first audio (his) | first audio (§31) | total (his) |
+|---|---|---|---|
+| baseline (stepped + latency) | 218–221 ms | 201–224 ms | 7290–10611 ms |
+| rank 2: fused | 176–178 ms | 177–187 ms | 6081–7464 ms |
+| rank 3: throughputOptimized | 439–444 ms | 491–571 ms | 7229–10753 ms |
+| rank 4: fused + throughput | 348–360 ms | 390–410 ms | 6314–7667 ms |
+| rank 5: temperature 0 (stepped) | 219–224 ms | 209–218 ms | 6566–6917 ms |
+| rank 5b: temperature 0 (fused) | 171–186 ms | 156–177 ms | 13045–13061 ms |
+
+Then he listened, and ranked them differently:
+
+> "rank 5 and rank 5b are bad. Rank 2 3 and 4 are the best. but rank 4
+> waited longer time to start but when it start it sounds good too."
+
+**The two rankings do not agree, and that is the finding.**
+
+    THE CLOCK SAYS          THE EAR SAYS
+    ────────────────        ────────────────
+    1. fused          177   good
+    2. temp 0 fused   171   BAD      ← fastest start, worst sound
+    3. stepped        218   ok
+    4. fused+through  350   good     ← slow start, good sound
+    5. throughput     440   good     ← slowest start, still good
+
+Two things follow.
+
+**1. `temperature 0` is convicted twice over.** It has the fastest first
+audio of any config and the worst outcome — 13 seconds of total speech
+against 6.5 for the same sentence, and Ryad calls the result bad. A greedy
+decode does not stop rambling. Any future tuning that optimises first-audio
+alone would have picked it. First audio is a latency number, not a quality
+number, and it must never be read as one.
+
+**2. `throughputOptimized` costs ~180 ms of silence and loses nothing
+audible.** The clock ranks it 3rd and 4th; the ear puts it level with the
+winner. So the default (`fused` + `latency`) is right for *responsiveness*,
+not because the alternative sounds worse — and a machine that cared more
+about steady decode than about the first 180 ms could take rank 4 with no
+quality argument against it. `audio-demo --speech=throughput` is how to make
+that trade without editing anything.
+
+**What this says about the instrument.** `voice-levers` measures time to
+first audio and total wall time. It does not measure whether the voice is
+pleasant, and it never claimed to — but a table with six rows and two
+numeric columns *reads* like a ranking, and it ranked the worst-sounding
+config second. AC-105's WER tool has the same limit from the other side: it
+scores what a recogniser understands, not what a human enjoys.
+
+Recorded because the honest conclusion is not "the ear was surprising". It
+is that **no instrument in this repo measures the thing Ryad judged in five
+seconds**, so for quality the human stays in the loop, and the tuning flags
+(§31.1) exist precisely so he can put himself there without a rebuild.
