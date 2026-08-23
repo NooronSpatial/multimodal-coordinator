@@ -84,6 +84,26 @@ struct VoiceLeversTests {
         #expect(whatThePickerSays.decoder != whatWasActuallyBuilt.multiCodeDecoderMode)
     }
 
+    /// AC-144's CONTROL, and it is the half that makes the other half mean
+    /// something.
+    ///
+    /// The phone's claim is "`.fused` does not load on iOS 18+". A claim
+    /// like that is worthless unless the same code CAN load it somewhere —
+    /// otherwise a refusal is indistinguishable from a broken test, a
+    /// missing model, or a typo in a mode name. This machine is that
+    /// somewhere: §31 measured `.fused` decoding on macOS 26, three runs,
+    /// no error.
+    ///
+    /// Skips honestly when the model is not on disk, because "no model" is
+    /// not evidence about a decoder.
+    @Test("CONTROL: .fused really does load here, so an iOS refusal means something")
+    func fusedLoadsOnThisMachine() async throws {
+        let voice = VoiceLevers(decoder: .fused).makeVoice()
+        guard await voice.modelInstalled() else { return }
+        try await voice.ensureModel()
+        await voice.retire()
+    }
+
     @Test("a measured cushion is labelled as measured, a typed one is not")
     func measuredCushionIsLabelled() {
         let derived = VoiceLevers(decoder: .stepped).makeVoice()

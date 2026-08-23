@@ -244,6 +244,16 @@ struct BenchTab: View {
                  + "one, and the decoder's constant until then.")
                 .font(.caption).foregroundStyle(.secondary)
 
+            // AC-144. The refusal survives the recovery: the voice went
+            // back to what worked, and this is the only record of what was
+            // asked for and what the system said about it.
+            if let refusal = model.leverRefusal {
+                Label(refusal, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .padding(.vertical, 4)
+            }
+
             Divider()
 
             // READ FROM THE VOICE, never from the pickers above. They

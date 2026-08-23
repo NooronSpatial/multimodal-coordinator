@@ -163,20 +163,71 @@ final class TranscribeModel {
     /// instead of a pile (AC-145).
     var levers: VoiceLevers = TranscribeModel.storedLevers {
         didSet {
-            guard levers != oldValue else { return }
+            guard !revertingLevers, levers != oldValue else { return }
             Self.store(levers)
             let retiring = neuralVoice
             neuralVoice = levers.makeVoice()
             voiceState = .checking
             Task {
                 // Retire AFTER the replacement exists, so there is never a
-                // moment with no voice at all — and before checking the new
-                // one, so two pipelines are never both resident.
+                // moment with no voice at all — and before loading the new
+                // one, so two pipelines are never both resident. The order
+                // is the memory rule from INSTRUMENTS §29, one scale down.
                 await retiring.retire()
                 await checkVoice()
+                await keepTheVoiceUsable(after: oldValue)
                 if isListening { restart() }
             }
         }
+    }
+
+    /// Set while putting `levers` back, so the `didSet` above does not treat
+    /// the revert as a new request and start the whole dance again.
+    private var revertingLevers = false
+
+    /// AC-144 — A REFUSAL MUST NOT COST THE VOICE THAT WORKED.
+    ///
+    /// `.fused` is offered on this phone on purpose (D-066 F-2), and on iOS
+    /// 18+ it does not load:
+    ///
+    ///     modelLoadingFailed("MultiCodeDecoder: failed to load
+    ///     MultiCodeDecoder.mlmodelc (function 'fused') … .functionName
+    ///     must be nil unless the model type is ML Program.")
+    ///
+    /// `checkVoice()` already puts that text on screen. What it cannot do is
+    /// give back the voice that was working, because by then the old one has
+    /// been retired — and retiring first is not negotiable: loading the new
+    /// pipeline beside the old one is two resident pipelines, which is the
+    /// kill this project has recorded three times.
+    ///
+    /// So the recovery is to go BACK. The failed levers stay visible so the
+    /// person can see what they chose and why it was refused, the error text
+    /// stays on screen, and the voice that speaks is the one that worked.
+    private func keepTheVoiceUsable(after previous: VoiceLevers) async {
+        guard case .failed(let reason) = voiceState else {
+            leverRefusal = nil
+            return
+        }
+        guard previous != levers else { return }
+        leverRefusal = "\(describe(levers)) was refused — \(reason)"
+        neuralVoice = previous.makeVoice()
+        revertingLevers = true
+        levers = previous
+        revertingLevers = false
+        Self.store(previous)
+        await checkVoice()
+    }
+
+    /// Why the last lever change was refused, or nil. Kept separately from
+    /// `voiceState` because the state goes back to `.ready` on the reverted
+    /// voice, and a refusal that vanishes the moment it is recovered from is
+    /// a refusal nobody can read.
+    private(set) var leverRefusal: String?
+
+    private func describe(_ levers: VoiceLevers) -> String {
+        (levers.decoder == .fused ? "fused" : "stepped")
+            + " + " + (levers.vocoder == .throughputOptimized
+                       ? "throughput" : "latency")
     }
 
     /// VOICE FORENSICS (AC-104), added because a field run produced four

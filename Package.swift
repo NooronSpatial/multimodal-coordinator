@@ -58,7 +58,13 @@ let package = Package(
     ],
     targets: [
         .target(name: "MultiModalKit"),
-        .target(name: "MultiModalKitBench"),
+        .target(
+            name: "MultiModalKitBench",
+            // The core only, for `SpeechSynthesizing` — the stopwatch times
+            // a mouth, and there is no way to time one without naming it.
+            // Still nothing about decoders, CoreML or SwiftUI.
+            dependencies: ["MultiModalKit"]
+        ),
         .target(
             name: "MultiModalKitWhisper",
             dependencies: [
