@@ -114,6 +114,39 @@ public actor NeuralVoice: SpeechSynthesizing {
     public nonisolated static let defaultLead = PlaybackLead.deficit(
         forReplyOf: .seconds(6), realTimeFactor: measuredRealTimeFactor)
 
+    /// THE LEAD MUST FOLLOW THE DECODER, and once it did not.
+    ///
+    /// `defaultLead` is derived from `measuredRealTimeFactor`, which is
+    /// `.fused`'s 0.752 — below 1.0, so the deficit is zero and no cushion
+    /// is banked. But the decoder mode is a SEPARATE parameter, and Swift
+    /// cannot let one default argument read another. So a caller who asked
+    /// for `.stepped` silently kept `.fused`'s cushion of nothing.
+    ///
+    /// It was measured immediately: `--mouth=neural` on a Mac, and the
+    /// speech came out slow. RTF 1.066 means the decoder makes audio
+    /// slower than the ear drinks it, so the player runs dry from the
+    /// first buffer — which is D-046's finding, arriving again because the
+    /// derivation was fed the wrong number.
+    ///
+    /// AC-106's measurements, per mode, so the rule can be applied rather
+    /// than remembered.
+    public nonisolated static func measuredRealTimeFactor(
+        for mode: Qwen3MultiCodeDecoderMode
+    ) -> Double {
+        switch mode {
+        case .fused: 0.752      // AC-106
+        default: 1.066          // AC-106, `.stepped`
+        }
+    }
+
+    /// The cushion this decoder actually needs, derived not guessed.
+    public nonisolated static func defaultLead(
+        for mode: Qwen3MultiCodeDecoderMode
+    ) -> Duration {
+        PlaybackLead.deficit(forReplyOf: .seconds(6),
+                             realTimeFactor: measuredRealTimeFactor(for: mode))
+    }
+
     /// How the multi-code decoder runs each 15-code frame. **Defaults to
     /// `.fused` (D-047)**, which is NOT TTSKit's own default.
     ///
@@ -137,14 +170,16 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
                 renderingOn host: (any PlaybackHost)? = nil,
-                lead: Duration = NeuralVoice.defaultLead,
+                lead: Duration? = nil,
                 multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused,
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 seed: UInt64? = nil) {
         self.variant = variant
         self.providedHost = host
-        self.lead = lead
+        // nil means "derive it from the decoder I was actually given",
+        // which is the only way the two cannot disagree.
+        self.lead = lead ?? NeuralVoice.defaultLead(for: multiCodeDecoderMode)
         self.multiCodeDecoderMode = multiCodeDecoderMode
         self.speechDecoderMode = speechDecoderMode
         self.temperature = temperature
@@ -268,9 +303,32 @@ public actor NeuralVoice: SpeechSynthesizing {
             let path = localModelFolder
                 .appending(path: component)
                 .appending(path: variantDirectoryName)
+            // NOT-EMPTY IS NOT INSTALLED, and a field report proved it.
+            //
+            // This used to accept any non-empty folder. A 1.1 GB download
+            // interrupted over cellular leaves plenty of non-empty
+            // folders, so the app reported the voice INSTALLED and then
+            // failed to load it:
+            //
+            //   Error Domain=com.apple.CoreML Code=71
+            //   "…/TextProjector.mlmodelc/model.mil:7:147: Error parsing"
+            //
+            // A truncated file is not a missing file, and a check that
+            // cannot tell them apart sends a person hunting a memory bug
+            // that does not exist. So: the compiled bundle must be there,
+            // and the file CoreML actually parses must be non-trivial.
+            // Cheap — a stat per component, no reading, no hashing — and
+            // it catches truncation, which is the failure that happens.
             guard let contents = try? files.contentsOfDirectory(atPath: path.path),
-                  !contents.isEmpty
+                  let compiled = contents.first(where: { $0.hasSuffix(".mlmodelc") })
             else { return false }
+            let bundle = path.appending(path: compiled)
+            let parsed = bundle.appending(path: "model.mil")
+            let legacy = bundle.appending(path: "coremldata.bin")
+            let sizeOf: (URL) -> Int = { url in
+                (try? files.attributesOfItem(atPath: url.path)[.size] as? Int) ?? 0
+            }
+            guard sizeOf(parsed) > 1_024 || sizeOf(legacy) > 1_024 else { return false }
         }
         return files.fileExists(atPath:
                 localTokenizerFolder.appending(path: "tokenizer.json").path)
