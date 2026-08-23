@@ -2884,3 +2884,208 @@ a thermal trace that exists, whatever it says · twenty minutes survived
 or honestly reported as not survived · numbers in INSTRUMENTS including
 the disappointing ones · zero warnings · 20× stable · review before merge
 (D-041) · teach-back survived.
+
+---
+
+# Milestone 4j — the phone's tuning bench
+
+## 100. Why this milestone exists
+
+The Mac can be tuned from the command line: decoder, vocoder mode,
+temperature, cushion (INSTRUMENTS §31.1). The first thing that tuning
+produced was a disagreement:
+
+    THE CLOCK SAYS              THE EAR SAYS
+    ──────────────────          ────────────
+    fused           177 ms      good
+    temp 0 + fused  171 ms      BAD     ← fastest start, worst sound
+    stepped         218 ms      ok
+    fused+through   350 ms      good    ← slow start, good sound
+    throughput      440 ms      good    ← slowest start, still good
+
+`temperature 0` has the fastest first audio of all six configurations and
+speaks for 13 seconds where the winner takes 6.5. Anything tuned on first
+audio alone picks it. **No instrument in this repo measures what Ryad judged
+in five seconds** (INSTRUMENTS §32), so the human stays in the loop — and the
+phone, the device that actually matters, has no way to put him there. It has
+an engine picker, a mind picker and a voice picker, and not one of the four
+levers.
+
+## 101. Scope
+
+1. Split the single 884-line screen into three tabs — **Chat · Bench ·
+   Settings** (D-066 F-1).
+2. Put the four voice levers on the phone, `.fused` included so that it can
+   refuse honestly with the CoreML reason (D-066 F-2).
+3. A measured sweep that runs on the device, gated on the mind being
+   unloaded, alongside live by-ear switching (D-066 F-3).
+4. Results leave the phone as a markdown table, in the shape INSTRUMENTS
+   already uses (D-066 F-4).
+
+## 102. Non-goals
+
+- **Not** a redesign. The controls that exist keep their behaviour and their
+  words; they move.
+- **Not** a Mac bench. `audio-demo` and `bakeoff` already do that.
+- **Not** the six-configuration sweep. The phone can compare four (§103).
+- **Not** 4i's remaining debts. AC-139, AC-140 and AC-141 stay open and are
+  not absorbed here.
+
+## 103. The constraint that shapes it
+
+`.fused` does not load on iOS 18+:
+
+    modelLoadingFailed("MultiCodeDecoder: failed to load
+    MultiCodeDecoder.mlmodelc (function 'fused') on macOS 15 / iOS 18
+    or newer. MLModelConfiguration's .functionName must be nil unless
+    the model type is ML Program.")
+
+`MLModelConfiguration.functionName` may only be non-nil for an ML Program,
+and the Qwen3 multi-code decoder is not one. Measured, not assumed: `.fused`
+**does** load on macOS 26 (INSTRUMENTS §31), so the error's own wording
+overstates it — the failure is iOS-only in practice.
+
+So the phone compares `stepped × {latency, throughput} × {default, 0}
+temperature`, four configurations, and the Mac's winner is unavailable to it.
+D-066 F-2 keeps `.fused` in the picker anyway: a refusal carrying the real
+error is evidence, where a hidden option teaches nothing.
+
+## 104. What the split has to survive
+
+The groundwork found five hazards. They are the actual work of this
+milestone; the tabs themselves are an afternoon.
+
+**H-1 — the launch order is load-bearing.** `ContentView.task` runs
+`checkModel()` → `checkVoice()` → `refreshMind()` in that order, under a
+comment reading "Swapping these two lines is a memory bug that looks like
+nothing." The voice must be born while headroom is at its maximum
+(INSTRUMENTS §29: killed at 1105 MB and at 2976 MB free, survived at 3347).
+A TabView must run this **once**, at the container, never per tab.
+
+**H-2 — the voice is a `let` with one lever nailed shut.**
+`private let neuralVoice = NeuralVoice(multiCodeDecoderMode: .stepped)`.
+Changing a lever means building a new voice, which means an explicit retire
+of the old one — and D-051's lazy-init bug has already bitten four times, most
+recently loading the voice twice concurrently (~2.2 GB where 1.1 was
+intended).
+
+**H-3 — `restart()` gives no signal that the new configuration is up.** It
+fires from seven `didSet`s, calls a `stop()` that defers teardown into a
+detached Task, then starts again from a second detached Task. `isListening`
+goes false synchronously while the microphone is still being released. Two
+sweep iterations can therefore overlap a live teardown.
+
+**H-4 — state survives across iterations.** `diagnostics` is deliberately
+never stopped; `bargeCount` and `onsetsWhileSpeaking` are not in `start()`'s
+reset list; `turns` grows without bound. A sweep that reads these reads the
+sum of everything before it.
+
+**H-5 — the machine changes under the measurement.** `ConservativeThermalPolicy`
+sacrifices late settling decodes on a hot phone, and a repeated sweep heats
+the device, so later iterations measure a different machine. Nothing today
+annotates a run with its thermal state.
+
+Two smaller ones, recorded so they are not rediscovered: every lever writes
+to `UserDefaults` in its `didSet`, so a sweep that dies mid-run leaves the
+phone configured at whatever the last iteration set; and the echo-probe
+button had to live in the toolbar because a button in the bottom strip did
+not fire on synthetic taps in the simulator — which constrains where any
+bench control may be placed if it is ever to be driven by a test.
+
+## 105. Acceptance criteria
+
+**AC-142 — one model, one load, three tabs.** The app presents Chat, Bench
+and Settings over a single shared `TranscribeModel`, and the order-critical
+launch sequence (H-1) executes exactly once for the process, whatever order
+the tabs are visited in. *Test:* a launch-counter assertion driven by
+visiting all three tabs in both directions.
+
+**AC-143 — the levers exist on the phone, and say what they are.** Bench
+offers decoder, vocoder mode, temperature and lead. The screen displays the
+configuration currently in force, and that display is read from the voice
+that was actually built — never from the picker's own state. *Test:* set each
+lever, assert the displayed configuration matches the constructed voice; and
+one test that fails if the display is wired to the picker instead.
+
+**AC-144 — `.fused` refuses honestly.** Choosing `.fused` on iOS surfaces the
+CoreML `modelLoadingFailed` text, the app does not crash, and the previous
+working voice is still usable afterwards. *Test:* Mac control asserting
+`.fused` LOADS (proving the test can tell the two outcomes apart), plus the
+field observation on the phone.
+
+**AC-145 — changing a lever retires the old voice.** After N lever changes,
+exactly one voice pipeline is resident. *Test:* a load-counter on the voice
+seam; N changes must produce N loads and N−1 retires, and the concurrent
+double-load of §28 must fail the test if reintroduced.
+
+**AC-146 — the sweep refuses to run with the mind resident.** With the mind
+loaded, the Bench sweep is disabled and says why. With it unloaded, the sweep
+runs. *Test:* both branches, asserting the refusal names the reason.
+
+**AC-147 — the sweep waits for readiness, never for time.** Each iteration
+begins only when the previous configuration is observably down and the new
+one observably up (H-3). No sleep, no fixed delay, no retry count.
+*Test:* a driver test against a controllable seam, with a spin cap so a red
+fails fast.
+
+**AC-148 — each row carries the conditions it was measured under.** Every
+sweep row records the configuration, first audio, total, thermal state at the
+start of the row, and free headroom — so a row taken on a hot phone can be
+told from one taken cold (H-5). *Test:* assert every field is present and
+that the thermal value comes from the sample taken during that row.
+
+**AC-149 — counters are per-iteration, not cumulative.** The values a row
+reports are the ones that iteration produced (H-4). *Test:* two iterations
+where the first produces a barge and the second none; the second row must
+report zero.
+
+**AC-150 — the numbers leave as markdown.** The Bench copies a table in the
+shape INSTRUMENTS already uses, pasteable beside the Mac's numbers without
+editing. *Test:* golden-string comparison of the rendered table.
+
+**AC-151 — a sweep that dies does not leave the phone reconfigured.** The
+levers a sweep sets are scoped to the sweep; after it ends, by completion or
+by death, the phone is back on the settings the human chose. *Test:*
+simulated mid-sweep failure, assert the persisted settings are unchanged.
+
+## 106. Test matrix
+
+| AC | Mac-testable | Needs the phone |
+|---|---|---|
+| AC-142 one load, three tabs | ✅ launch counter | — |
+| AC-143 levers say what they are | ✅ | — |
+| AC-144 `.fused` refuses honestly | ✅ control only (it must LOAD here) | ✅ the refusal itself |
+| AC-145 lever change retires | ✅ load counter | — |
+| AC-146 sweep gated on the mind | ✅ both branches | — |
+| AC-147 readiness, not time | ✅ | — |
+| AC-148 conditions per row | ✅ fields present | ✅ real thermal values |
+| AC-149 per-iteration counters | ✅ | — |
+| AC-150 markdown out | ✅ golden string | — |
+| AC-151 death leaves no residue | ✅ | — |
+
+Two of eleven need the phone, and both are the honest half: a constraint that
+only exists on iOS, and a thermal reading a Mac cannot produce.
+
+## 107. Open forks
+
+**F-1 — where does the sweep driver live?** The hazards in §104 mean the
+sweep needs defined semantics (readiness, per-iteration reset, scoped
+settings), and semantics want tests. Options: **(A)** a new
+`MultiModalKitBench` module the app depends on — testable, tier 2 of D-016,
+core untouched; **(B)** inside `MultiModalKitTTS` — fewer modules, but the
+voice library gains a benchmarking concern it has no business holding;
+**(C)** in the app — nothing new to name, and nothing testable either, which
+puts AC-147 and AC-149 out of reach. *Recommendation: A.*
+
+**F-2 — sequencing.** Does 4j begin now, with 4i's AC-139/140/141 still open,
+or after they are measured? Both need the phone; a bench that logs thermal
+state per row (AC-148) is arguably the instrument AC-140 has been waiting
+for. *No recommendation — this is a priority call, not a design one.*
+
+## 108. Definition of done (4j)
+
+Eleven criteria met · the four levers reachable on the phone · a sweep that
+refuses rather than dies · a markdown table pasted into INSTRUMENTS beside
+the Mac's · Ryad's by-ear ranking of the phone's four configurations recorded
+next to the clock's, agreeing or not · zero warnings · 20× stable · review
+before merge (D-041) · teach-back survived.
