@@ -111,6 +111,17 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// 1.066–1.25, and it cost first audio 227 ms → 1882 ms (§11).
     /// D-046 ruled to attack the decode as well as buy the cushion, and
     /// attacking it is what made the cushion unnecessary.
+    ///
+    /// DEPRECATED, and the deprecation is the fix. This constant sits
+    /// beside `defaultLead(for:)` and reads like the safe choice, so
+    /// `bakeoff voice-spike` passed it explicitly — and an explicit lead
+    /// defeats the derivation by design. The instrument built to compare
+    /// the decoders measured `--stepped` with `.fused`'s cushion of
+    /// nothing, directly under the comment below warning about exactly
+    /// that. A test could not catch it: the bug was in an executable's
+    /// `main.swift`, which the package suite cannot reach. A deprecation
+    /// can, because CI builds every target with warnings-as-errors.
+    @available(*, deprecated, message: "This is .fused's cushion, not a universal default. Pass lead: nil to derive it from the decoder, or defaultLead(for:) to name a mode. Passing this to .stepped reintroduces the slow-voice bug.")
     public nonisolated static let defaultLead = PlaybackLead.deficit(
         forReplyOf: .seconds(6), realTimeFactor: measuredRealTimeFactor)
 

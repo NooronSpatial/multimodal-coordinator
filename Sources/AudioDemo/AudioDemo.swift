@@ -187,8 +187,20 @@ struct AudioDemo {
                 ? (microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")
                 : "OFF (--no-aec) — the assistant will hear itself"))
         if talk && transcription != nil {
-            print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
-                + " interrupt it mid-reply")
+            // READ FROM THE FLAGS, not hardcoded. This line said
+            // "the echo aloud (AVSpeechSynthesizer)" in every run, including
+            // `--mind=local --mouth=neural`, where all three words were
+            // wrong. A banner that cannot be wrong is worth more than a
+            // banner that is usually right.
+            func flag(_ name: String) -> String? {
+                arguments.first { $0.hasPrefix("--\(name)=") }
+                    .map { String($0.dropFirst(name.count + 3)) }
+            }
+            let mindName = flag("mind") ?? "echo"
+            let mouthName = flag("mouth") == "neural"
+                ? "Qwen3 neural voice" : "AVSpeechSynthesizer"
+            print("    turn loop: ON — \(mindName) mind, spoken by "
+                + "\(mouthName); interrupt it mid-reply")
             print("    reply gate: \(Int(gateMs)) ms"
                 + (gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor"))
             print("    context: up to 16 pieces of one thought — 🧠 shows what the"
@@ -538,9 +550,25 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
     case "apple":
         return AppleReplyGenerator(instructions: spoken)
     case "local":
-        guard let weights = defaultLocalWeights() else {
-            refuse("--mind=local: no weights found. Fetch them with: "
-                + "swift run bakeoff fetch --repo=mlx-community/Qwen3-4B-4bit")
+        // A path is not a model. `--model=/nope` used to sail past this
+        // guard — the URL is non-nil, so the refusal never fired and MLX
+        // failed later with something unrecognisable. Ask the honest disk
+        // check instead: config, tokenizer, tokenizer config, weights.
+        if let given = defaultLocalWeights(arguments),
+           !LocalMindModel(weights: given).modelInstalled() {
+            refuse("--mind=local: \(given.path) is not a model — it needs "
+                + "config.json, tokenizer.json, tokenizer_config.json and a "
+                + ".safetensors file.")
+            return PacedEchoReply(screen: screen)
+        }
+        guard let weights = defaultLocalWeights(arguments) else {
+            // Two lines, both true. The old single line named a fetch that
+            // downloads to $TMPDIR — somewhere this demo never looks — so
+            // following it left the mind still refusing.
+            refuse("--mind=local: no weights found. Either:")
+            refuse("  swift run bakeoff fetch --repo=mlx-community/Qwen3-4B-4bit"
+                + " --into=/tmp/mmk")
+            refuse("  then re-run with --model=/tmp/mmk/Qwen3-4B-4bit")
             return PacedEchoReply(screen: screen)
         }
         guard MLXRuntime.isAvailable else {
@@ -614,7 +642,15 @@ func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
 
 /// The Hugging Face cache, so a machine that already has the weights needs
 /// no flag at all.
-func defaultLocalWeights() -> URL? {
+func defaultLocalWeights(_ arguments: [String]) -> URL? {
+    // `--model=` FIRST, matching `bakeoff ask`. Without it this function
+    // could only look in the Hugging Face cache, so the refusal below had
+    // nowhere honest to point: `bakeoff fetch` writes a flat folder to
+    // $TMPDIR/mmk-fetch, which this lookup can never find. The advice was
+    // wrong for as long as the escape hatch was missing.
+    if let given = arguments.first(where: { $0.hasPrefix("--model=") }) {
+        return URL(filePath: String(given.dropFirst("--model=".count)))
+    }
     let cache = FileManager.default.homeDirectoryForCurrentUser.appending(
         path: ".cache/huggingface/hub/models--mlx-community--Qwen3-4B-4bit/snapshots")
     guard let entries = try? FileManager.default.contentsOfDirectory(

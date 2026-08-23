@@ -69,6 +69,7 @@ would expect.
 | `--talk` | bare | off | `AudioDemo.swift:32` |
 | `--mind=` | `echo` · `apple` · `local` | `echo` | `chosenMind` |
 | `--mouth=` | `apple` · `neural` | `apple` | `chosenMouth` |
+| `--model=` | a weights directory | the Hugging Face cache | `defaultLocalWeights` |
 
 The positional argument is "the first token that is neither a flag nor a
 number" — the number test is what stops `--onset 120` from making `120` the
@@ -213,38 +214,63 @@ swift build
 swift test
 ```
 
-294 tests, 39 suites, deterministic — injected clocks, event-gated waits, no
+299 tests, 40 suites, deterministic — injected clocks, event-gated waits, no
 sleeps. Audible tests additionally need `MMK_LIVE_SYNTH=1`. A test phase is
 not done until the suite has run 20× clean; one flake is a race, not noise.
 
 ---
 
-## Known bugs, found while writing this file
+## Bugs found while writing this file — and fixed
 
-Writing down a tool honestly is itself an instrument. Verifying every claim
-here against the source turned up three defects that no test covers.
+Writing a tool down honestly is itself an instrument. Verifying every claim
+here against the source turned up three defects no test covered. All three
+are fixed; they are kept here because the *numbers* they affected are still
+in INSTRUMENTS.
 
-**1. `voice-spike --stepped` runs with the wrong cushion.** It passes
+**1. `voice-spike --stepped` measured with no cushion.** It passed
 `NeuralVoice.defaultLead` — the constant derived from `.fused`'s RTF 0.752,
-which is **zero** — and that explicit argument defeats the decoder-aware
-derivation in the initializer. So `--stepped` measures stepped with a zero
-cushion, where the correct derived value is ~396 ms. This is the exact
-decoder/cushion disagreement that caused the slow voice, still hardcoded into
-the instrument built to study it, directly under a comment that reads "THE
-LEAD MUST FOLLOW THE DECODER, and once it did not." Any `--stepped` number in
-INSTRUMENTS was taken with no cushion.
+which is **zero** — and an explicit lead defeats the decoder-aware
+derivation. Stepped should get ~396 ms. The exact bug that caused the slow
+voice, hardcoded into the instrument built to study it, under a comment
+reading "THE LEAD MUST FOLLOW THE DECODER, and once it did not."
 
-**2. The `--mind=local` refusal names a command that does not work.** It says
-to run `bakeoff fetch --repo=mlx-community/Qwen3-4B-4bit`, but `fetch` writes
-a flat folder to `$TMPDIR/mmk-fetch/Qwen3-4B-4bit`, while `--mind=local` reads
-only `~/.cache/huggingface/hub/models--mlx-community--Qwen3-4B-4bit/snapshots`.
-Following the instruction leaves the mind still refusing, and `audio-demo` has
-no `--model=` escape hatch to point it elsewhere. (`--mind=local` works on this
-Mac only because those weights are already in the HF cache from another tool.)
+> **Every `--stepped` number this tool produced before 2026-08-23 was taken
+> with no cushion.** They measure a starved player, not the decoder.
 
-**3. The turn-loop header lies about the mouth.** With `--mouth=neural` the
-banner still prints "it SPEAKS the echo aloud (AVSpeechSynthesizer)". It is a
-static string, printed identically in every run.
+The fix is not only the one line. `defaultLead` is now **deprecated**, because
+a test could never have caught this: the bug lived in an executable's
+`main.swift`, which the package suite cannot reach. CI builds every target
+with `-warnings-as-errors`, so the deprecation turns the mistake into a build
+failure — verified by reintroducing it:
+
+    error: 'defaultLead' is deprecated: This is .fused's cushion, not a
+    universal default. Pass lead: nil to derive it from the decoder…
+
+Five tests now also pin the derivation itself (`LeadFollowsDecoderTests`).
+
+**2. The `--mind=local` refusal named a command that could not work.** It
+said to run `bakeoff fetch`, which writes to `$TMPDIR/mmk-fetch`, while
+`--mind=local` read only the Hugging Face cache. `audio-demo` now takes
+`--model=<dir>`, so the advice has somewhere true to point — and a path that
+is not a model is refused by name rather than failing later inside MLX.
+
+**3. The turn-loop header lied about the mouth.** It printed "it SPEAKS the
+echo aloud (AVSpeechSynthesizer)" in every run, including
+`--mind=local --mouth=neural`, where all three words were wrong. It now reads
+the flags:
+
+    turn loop: ON — local mind, spoken by Qwen3 neural voice
+
+## A build trap worth knowing
+
+`swift build --target AudioDemo` compiles the module but **does not relink the
+executable**. The binary under `.build/…/debug/` stays stale, and a test run
+against it silently measures the old code. This cost a full verification
+cycle here. Use:
+
+```bash
+swift build --product audio-demo
+```
 
 ## Known gap: there is no `--help`
 

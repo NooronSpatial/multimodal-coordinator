@@ -437,8 +437,13 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
     let forceStepped = arguments.contains("--stepped")
     let leadMS = arguments.first(where: { $0.hasPrefix("--lead=") })
         .flatMap { Int($0.dropFirst("--lead=".count)) }
+    // `nil`, NOT a constant. An explicit lead defeats the decoder-aware
+    // derivation, and this line used to pass `NeuralVoice.defaultLead` —
+    // `.fused`'s zero — so `--stepped` was measured with no cushion at all.
+    // Every `--stepped` number this tool produced before 2026-08-23 was
+    // taken that way.
     let voice = NeuralVoice(
-        lead: leadMS.map { Duration.milliseconds($0) } ?? NeuralVoice.defaultLead,
+        lead: leadMS.map { Duration.milliseconds($0) },
         multiCodeDecoderMode: forceStepped ? .stepped : .fused)
     guard await voice.modelInstalled() else {
         print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
@@ -446,7 +451,11 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
     }
 
     print("\n🎚  VOICE SPIKE (AC-102) — the numbers the adoption ruling needs")
-    print("    decoder: \(forceStepped ? ".stepped" : ".fused") · lead: \(leadMS.map { "\($0) ms" } ?? "default (\(NeuralVoice.defaultLead))")")
+    // The voice's OWN lead, never a recomputation of what it should be:
+    // an instrument that reports a number it did not read cannot notice
+    // when the two disagree, which is the whole story of this bug.
+    print("    decoder: \(forceStepped ? ".stepped" : ".fused") · lead: \(voice.lead)"
+        + (leadMS == nil ? " (derived)" : " (--lead)"))
     print("    warm-up excluded, same rule as BAKEOFF.md: the first load compiles graphs")
     _ = try? await measure(voice, "Warming up the neural pipeline.")   // excluded
 
