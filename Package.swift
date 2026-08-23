@@ -88,6 +88,9 @@ let package = Package(
             dependencies: [
                 "MultiModalKit", "MultiModalKitWhisper",
                 "MultiModalKitTTS", "MultiModalKitMLX",
+                // Direct, so `--decoder=` / `--speech=` can name the modes
+                // they switch, exactly as `bakeoff voice-levers` does.
+                .product(name: "TTSKit", package: "argmax-oss-swift"),
             ]
         ),
         .executableTarget(

@@ -4,6 +4,7 @@ import MultiModalKitMLX
 import MultiModalKitTTS
 import MultiModalKitWhisper
 import Synchronization
+import TTSKit
 
 /// Phase 2 live demo: microphone → ring → pump → transcription → terminal.
 ///
@@ -558,26 +559,57 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
 }
 
 /// `--mouth=apple|neural` (default: apple)
+///
+/// The neural voice's levers are exposed too, so they can be tried by ear
+/// in a live conversation rather than only measured by `bakeoff
+/// voice-levers`. Ryad asked for exactly this: the sweep speaks each
+/// config aloud, but you cannot TALK to a sweep.
+///
+///   --decoder=fused|stepped          multi-code decoder (default: fused)
+///   --speech=latency|throughput      vocoder mode (default: latency)
+///   --temperature=0.7                sampling; omit for the model default
+///   --lead=400ms                     override the cushion; omit to DERIVE
+///                                    it from the decoder's measured RTF
+///
+/// Measured on this Mac, release build, three runs each (INSTRUMENTS §31):
+///
+///   fused                      first audio 177–187 ms · total 6578 ms
+///   stepped + latency          201–224 ms · 9353 ms
+///   throughputOptimized        491–571 ms · 10622 ms   (slower, both modes)
+///   temperature 0 on fused     156–177 ms · 13054 ms   (not faster, talkier)
 func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
-    let want = arguments.first { $0.hasPrefix("--mouth=") }
-        .map { String($0.dropFirst("--mouth=".count)) } ?? "apple"
-    switch want {
-    case "neural":
-        // `.fused` HERE, and `.stepped` on the phone — measured, not
-        // assumed. The iOS 18 `functionName` failure does NOT reproduce on
-        // macOS 26: a six-config levers sweep loaded and decoded `.fused`
-        // three times with no error, and it won on both numbers —
-        // first audio 177–187 ms against 201–224, total 6578 ms against
-        // 9353 (INSTRUMENTS §31).
-        //
-        // The first version of this line forced `.stepped` here too,
-        // applying the PHONE's fix to a machine that does not have the
-        // phone's bug. The lead follows the mode automatically now, so
-        // `.fused` also correctly gets a cushion of zero.
-        return NeuralVoice(multiCodeDecoderMode: .fused)
-    default:
-        return AppleSpeechSynthesizer()
+    func flag(_ name: String) -> String? {
+        arguments.first { $0.hasPrefix("--\(name)=") }
+            .map { String($0.dropFirst(name.count + 3)) }
     }
+    let want = flag("mouth") ?? "apple"
+    guard want == "neural" else { return AppleSpeechSynthesizer() }
+
+    // `.fused` by default HERE. It fails to load on iOS 18+, but this Mac
+    // loads and decodes it fine and it wins on both numbers — so the
+    // phone's workaround does not belong on a machine without the bug.
+    let decoder: Qwen3MultiCodeDecoderMode =
+        flag("decoder") == "stepped" ? .stepped : .fused
+    let speech: Qwen3SpeechDecoderMode =
+        flag("speech") == "throughput" ? .throughputOptimized : .latencyOptimized
+    let temperature = flag("temperature").flatMap(Float.init)
+    // nil LEAVES IT DERIVED from the decoder's measured factor, which is
+    // the whole point of that derivation — a hand-typed lead here would
+    // reintroduce the bug it was written to prevent.
+    let lead = flag("lead")
+        .flatMap { Int($0.replacingOccurrences(of: "ms", with: "")) }
+        .map { Duration.milliseconds($0) }
+
+    let saidTemperature: String = temperature.map { "\($0)" } ?? "model default"
+    let saidLead: String = lead.map { "\($0)" } ?? "derived from the decoder"
+    var banner = "voice: decoder=\(decoder), speech=\(speech), "
+    banner += "temperature=\(saidTemperature), lead=\(saidLead)\n"
+    FileHandle.standardError.write(Data(banner.utf8))
+
+    return NeuralVoice(lead: lead,
+                       multiCodeDecoderMode: decoder,
+                       speechDecoderMode: speech,
+                       temperature: temperature)
 }
 
 /// The Hugging Face cache, so a machine that already has the weights needs
