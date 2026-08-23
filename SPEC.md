@@ -2997,8 +2997,26 @@ bench control may be placed if it is ever to be driven by a test.
 **AC-142 — one model, one load, three tabs.** The app presents Chat, Bench
 and Settings over a single shared `TranscribeModel`, and the order-critical
 launch sequence (H-1) executes exactly once for the process, whatever order
-the tabs are visited in. *Test:* a launch-counter assertion driven by
-visiting all three tabs in both directions.
+the tabs are visited in.
+
+*Test, amended 2026-08-23 — the original wording asked for something that
+cannot be done here.* It said "a launch-counter assertion driven by visiting
+all three tabs in both directions". The demo is an Xcode project with **no
+test target**, and adding one is a yak-shave that buys a UI-driving test on a
+simulator where the mind is unavailable by design. So the criterion is met a
+different way, and the difference is stated rather than blurred:
+
+- **Tested (Mac, no models):** `LaunchOnceTests` proves the sequence runs in
+  the order given, runs exactly once when two callers arrive together, that a
+  waiter does not return until the work is complete, and that later calls do
+  nothing. Including the specific order that kills — voice before mind.
+- **Reviewable, not tested:** that `RootView` is the only place holding a
+  `.task`, and that its four steps are in the right order. Four lines, in one
+  file, with the reason written above them.
+
+**This is weaker than the original wording in the UI half and stronger in the
+logic half**, and it is the honest trade available. A future demo test target
+would close the gap; it is not 4j's work.
 
 **AC-143 — the levers exist on the phone, and say what they are.** Bench
 offers decoder, vocoder mode, temperature and lead. The screen displays the

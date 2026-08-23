@@ -1,694 +1,70 @@
 import MultiModalKit
 import SwiftUI
 
-struct ContentView: View {
-    @State private var model = TranscribeModel()
-    // The 4f measurement instrument, held beside the model rather than
-    // inside it: it probes a SYSTEM service, touches nothing on the
-    // pipeline, and leaves with the milestone-gating numbers (AC-110/111).
-    @State private var mindProbe = MindProbe()
-    @State private var showMindProbe = false
+/// THE CHAT TAB — the transcript, the turn, and the button that starts it.
+///
+/// Was the whole app: one 884-line screen holding the conversation, every
+/// picker and every probe. D-066 F-1 split it three ways, because a live
+/// meter redrawing at 60 Hz and a stopwatch have no business sharing a
+/// screen — the bench must not be timing itself while it animates.
+///
+/// What stayed here is what a person watches while talking. The pickers went
+/// to Settings, the probes to Bench.
+struct ChatTab: View {
+    let model: TranscribeModel
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Group {
-                    switch model.engineState {
-                    case .checking:
-                        ProgressView("Checking the speech model…")
-                    case .modelMissing:
-                        modelMissing
-                    case .downloading:
-                        ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
-                            .multilineTextAlignment(.center)
-                    // The transcriber never enters `.preparing` — only the
-                    // voice does — but the compiler is right to demand an
-                    // answer rather than let a future state fall silently
-                    // through a screen.
-                    case .preparing:
-                        ProgressView("Preparing the speech model…")
-                            .multilineTextAlignment(.center)
-                    case .failed(let reason):
-                        failed(reason)
-                    case .ready:
-                        transcriber
-                    }
-                }
-                .frame(maxHeight: .infinity)
-
-                // ALWAYS reachable, deliberately: the echo probe needs no
-                // speech model, and the machines where a model refuses to
-                // install are exactly the ones where a measurement matters
-                // most. Trapping it behind "ready" would have hidden the
-                // instrument on the first device that needed it.
-                // The probe's RESULTS live here; its trigger is in the
-                // toolbar. A button in this bottom strip did not fire on
-                // synthetic taps in the simulator — the Download button in
-                // the same build did — and rather than ship a control I
-                // could not prove works, the trigger moved somewhere
-                // taps are reliable.
-                if model.probeSilence != nil || model.probeStatus != nil {
-                    Divider()
-                    echoProbeResults
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                }
-                if model.shieldStatus != nil || !model.shieldReport.isEmpty {
-                    Divider()
-                    // A SCROLL VIEW, from the field: matrix v2's eight
-                    // witness columns outgrew the strip and pushed the
-                    // last arrangements off screen — a report you cannot
-                    // read is a dead instrument with extra steps.
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let status = model.shieldStatus {
-                                Label(status, systemImage: "hourglass")
-                                    .foregroundStyle(.secondary)
-                            }
-                            ForEach(model.shieldReport, id: \.self) { line in
-                                Text(line)
-                            }
-                        }
-                        .font(.caption2.monospaced())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                    }
-                    .frame(maxHeight: 230)
+            Group {
+                switch model.engineState {
+                case .checking:
+                    ProgressView("Checking the speech model…")
+                case .modelMissing:
+                    modelMissing
+                case .downloading:
+                    ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
+                        .multilineTextAlignment(.center)
+                // The transcriber never enters `.preparing` — only the
+                // voice does — but the compiler is right to demand an
+                // answer rather than let a future state fall silently
+                // through a screen.
+                case .preparing:
+                    ProgressView("Preparing the speech model…")
+                        .multilineTextAlignment(.center)
+                case .failed(let reason):
+                    failed(reason)
+                case .ready:
+                    talking
                 }
             }
+            .frame(maxHeight: .infinity)
             // NO TITLE (Ryad): a large title spent a third of a phone
             // screen saying the app's own name to the person who just
-            // opened it. The toolbar stays — that is where the probes and
-            // the log live, and taps are proven to fire there.
+            // opened it.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // THE CONVERSATION LOG. Reachable in every state, like the
-                // probes, and for the same reason: the moment worth
-                // sharing is usually the moment something went wrong, and
-                // a log you cannot reach then is not a log.
+                // THE CONVERSATION LOG, still reachable from the tab a
+                // person is in when something goes wrong. It carries the
+                // brain that ACTUALLY answered each turn, which is the one
+                // fact a screenshot cannot show.
                 //
-                // It carries the brain that ACTUALLY answered each turn,
-                // which is the one fact a screenshot cannot show.
+                // NEVER disabled on "no turns": the worst failures — a mind
+                // that refuses at the door, a session that never started —
+                // produce ZERO turns, which is exactly when the header is
+                // the evidence worth sending.
                 ToolbarItem(placement: .topBarTrailing) {
-                    // NEVER disabled on "no turns". The review caught the
-                    // irony: the log was built to diagnose failures, and
-                    // the worst failures — a mind that refuses at the
-                    // door, a memory conflict, a session that never
-                    // started — produce ZERO turns, which is exactly when
-                    // the header (models, memory, install state, download
-                    // status) is the evidence worth sending.
                     ShareLink(item: model.conversationLog) {
                         Label("Share the conversation", systemImage: "text.bubble")
                     }
                 }
-                // THE PRESSURE PROBE (4i, AC-132). Deliberately loads the
-                // pair the app otherwise refuses, because the refusal is
-                // what makes it unmeasurable. Its log is written to disk
-                // line by line, so a jetsam kill still leaves the trail.
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await model.runPressureProbe() }
-                    } label: {
-                        Label("Pressure probe", systemImage: "gauge.with.needle")
-                    }
-                    .disabled(model.isListening)
-                }
-                // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
-                // engine state for the echo probe's reason, one item over:
-                // it measures a SYSTEM service, and the devices where a
-                // model refuses to install are exactly the ones where the
-                // availability enum matters most. In the toolbar because
-                // that is where this app has PROVEN taps fire.
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showMindProbe = true
-                    } label: {
-                        Label("Mind probe", systemImage: "brain")
-                    }
-                    .disabled(model.isListening)
-                }
-                // THE SHIELD PROBE (4g, AC-119): reachable in every state,
-                // like its two siblings, and for the same reason.
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await model.runShieldProbe() }
-                    } label: {
-                        Label(model.shieldStatus == nil ? "Shield probe" : "measuring…",
-                              systemImage: "shield.lefthalf.filled")
-                    }
-                    .disabled(model.isListening || model.shieldStatus != nil
-                              || model.probeStatus != nil)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await model.runEchoProbe() }
-                    } label: {
-                        Label(model.probeStatus == nil ? "Echo probe" : "measuring…",
-                              systemImage: "waveform.badge.magnifyingglass")
-                    }
-                    .disabled(model.isListening || model.probeStatus != nil
-                              || model.shieldStatus != nil)
-                }
-            }
-            .sheet(isPresented: $showMindProbe) {
-                NavigationStack {
-                    List { MindProbeSection(probe: mindProbe) }
-                        .navigationTitle("Mind probe")
-                }
-            }
-            .task {
-                // A previous probe's trail, INCLUDING one that ended in a
-                // kill — read back before anything else so the evidence
-                // of a death survives the death.
-                model.loadPreviousProbe()
-                // Both models are asked about at launch: the transcriber's
-                // and the voice's. Asking never downloads either.
-                //
-                // THE ORDER IS LOAD-BEARING (INSTRUMENTS §29). The neural
-                // voice compiles six CoreML models CONCURRENTLY, and that
-                // transient peak — not its 111 MB finished size — is what
-                // killed this app twice, at 1105 MB free and at 2976 MB
-                // free. It survived at 3347. So the voice is prepared
-                // FIRST, from maximum headroom, and only then does the
-                // mind take its 2.2 GB. Swapping these two lines is a
-                // memory bug that looks like nothing.
-                await model.checkModel()
-                await model.checkVoice()      // ← must precede the mind
-                model.refreshMind()
             }
         }
     }
 
-    private var modelMissing: some View {
-        ContentUnavailableView {
-            Label("Speech model needed", systemImage: "arrow.down.circle")
-        } description: {
-            Text("One download, then everything runs on this phone — nothing ever leaves it.")
-        } actions: {
-            Button("Download") { Task { await model.downloadModel() } }
-                .buttonStyle(.borderedProminent)
-        }
-    }
-
-    private func failed(_ reason: String) -> some View {
-        ContentUnavailableView {
-            Label("Something failed", systemImage: "exclamationmark.triangle")
-        } description: {
-            Text(reason)
-        } actions: {
-            Button("Try again") { Task { await model.checkModel() } }
-        }
-    }
-
-    /// Milestone 4d on screen: the turn loop the Mac has had since 4a/4b,
-    /// now on the phone — plus the two toggles the field run needs.
-    private var conversation: some View {
-        VStack(spacing: 10) {
-            HStack {
-                Toggle("Talk back", isOn: Bindable(model).talkEnabled)
-                Divider().frame(height: 20)
-                // F-4 as amended by D-043: the speaker is the measured
-                // broken route, kept one toggle away for measurement.
-                Toggle("Speaker", isOn: Bindable(model).useSpeaker)
-                    .disabled(!model.talkEnabled)
-            }
-            .toggleStyle(.switch)
-            .font(.subheadline)
-
-            if model.talkEnabled {
-                Toggle("Speaker shield (4g) — reply rendered where the canceller sees it",
-                       isOn: Bindable(model).speakerShield)
-                    .toggleStyle(.switch)
-                    .font(.caption)
-                    .disabled(model.isListening)
-            }
-
-            // The known limit, said plainly where it bites — not buried in
-            // a document the person holding the phone will never open.
-            // With the shield ON the old sentence would be a stale claim:
-            // the label switches to the honest in-between state until
-            // AC-124 rewrites it with the measured reply number.
-            if model.talkEnabled && model.useSpeaker {
-                Label(model.speakerShield
-                      ? "Shield ON: the probe measured a tone cancelled to 0.004–0.08 "
-                        + "(vs 1.0 unshielded, INSTRUMENTS §23). The reply's own number is "
-                        + "still being measured — the barge counters below tell the truth."
-                      : "On speaker the reply is not cancelled (measured peak 1.0) — "
-                        + "it will interrupt itself. Receiver or headphones work.",
-                      systemImage: model.speakerShield
-                      ? "shield.lefthalf.filled" : "exclamationmark.triangle")
-                    .font(.caption2)
-                    .foregroundStyle(model.speakerShield ? .blue : .orange)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if model.talkEnabled {
-                HStack(spacing: 8) {
-                    Image(systemName: turnIcon)
-                        .foregroundStyle(model.turnState == .speaking ? .blue : .secondary)
-                    Text(turnLabel).font(.subheadline.weight(.medium))
-                    Spacer()
-                    if let pause = model.feltPauseMilliseconds {
-                        Text("felt pause \(pause) ms")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                // THE BARGE DIAGNOSTIC. Two counters, because they fail
-                // apart: onsets is what the PUMP heard while the reply was
-                // playing, barges is what the COORDINATOR did about it.
-                HStack(spacing: 10) {
-                    Text("onsets while speaking: \(model.onsetsWhileSpeaking)")
-                        .foregroundStyle(model.onsetsWhileSpeaking > 0 ? Color.primary
-                                                                       : Color.secondary)
-                    Text("barges: \(model.bargeCount)")
-                        .foregroundStyle(model.bargeCount > 0 ? Color.green : Color.red)
-                    Spacer()
-                    Text(model.lastTurnEvent).foregroundStyle(.secondary)
-                }
-                .font(.caption2.monospacedDigit())
-
-                if !model.reply.isEmpty {
-                    Text(model.reply)
-                        .font(.callout)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(8)
-                        .background(.blue.opacity(0.12), in: .rect(cornerRadius: 8))
-                }
-
-                // The whole thought that crossed the seam — 4c, visible
-                // (AC-91). Two sentences with a pause between them belong
-                // on ONE line here.
-                if !model.wholeThought.isEmpty {
-                    Label(model.wholeThought, systemImage: "brain")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-
-            // The gate, on screen and adjustable — a level means nothing
-            // without the number it is judged against (AC-97: this device
-            // earns its own).
-            HStack(spacing: 8) {
-                Text("gate").font(.caption).foregroundStyle(.secondary)
-                Slider(value: Bindable(model).vadThreshold, in: 0.005...0.08)
-                    .disabled(model.isListening)
-                Text(model.vadThreshold, format: .number.precision(.fractionLength(3)))
-                    .font(.caption.monospacedDigit())
-            }
-
-            // F-5 = B: nothing resumes by itself. A person decides when a
-            // microphone turns back on — and resuming forgets the thought.
-            if model.wasInterrupted {
-                HStack {
-                    Label("Interrupted — the audio was taken away",
-                          systemImage: "phone.down.fill")
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                    Spacer()
-                    Button("Resume") { Task { await model.resumeAfterInterruption() } }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.small)
-                }
-            }
-        }
-        .padding(.horizontal)
-    }
-
-    /// AC-96's instrument: the phone speaks while reading the microphone
-    /// RAW — past the VAD, so "nothing happened" can never be confused
-    /// with "the microphone is deaf". Needs no speech model, so it runs
-    /// even where an engine will not.
-    private var echoProbeResults: some View {
-        VStack(spacing: 6) {
-            if let status = model.probeStatus {
-                HStack {
-                    ProgressView().controlSize(.mini)
-                    Text(status).font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                }
-            }
-            if let failure = model.probeFailure {
-                Text(failure).font(.caption).foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if let quiet = model.probeSilence, let speaking = model.probeWhileSpeaking {
-                VStack(alignment: .leading, spacing: 3) {
-                    // The two facts that make the numbers interpretable:
-                    // which way the sound came out, and whether the
-                    // canceller was actually granted (asked ≠ got).
-                    HStack {
-                        Text(model.probeRoute).font(.caption2)
-                        Text(model.probeVoiceProcessingActive
-                             ? "· voice processing ACTIVE"
-                             : "· voice processing REFUSED")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(model.probeVoiceProcessingActive
-                                             ? Color.secondary : Color.red)
-                        Spacer()
-                    }
-                    probeRow("quiet room", quiet)
-                    probeRow("while speaking", speaking)
-                    // The verdict, in one line, so the field run does not
-                    // have to interpret two numbers under pressure.
-                    Text(speaking.peak >= model.vadThreshold
-                         ? "→ CROSSES the gate — if you stayed quiet, it will barge itself"
-                         : "→ stays under the gate on this route")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(speaking.peak >= model.vadThreshold ? .red : .green)
-                    // The verdict is only true in SILENCE. A run where the
-                    // person spoke measures their VOICE and reads as a
-                    // failure — it misled us once, so the assumption is
-                    // now printed next to the claim that depends on it.
-                    Text("valid only if nobody spoke during the measurement")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    private func probeRow(_ label: String, _ value: (peak: Float, rms: Float)) -> some View {
-        HStack {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Spacer()
-            Text("peak \(value.peak, format: .number.precision(.fractionLength(4)))")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(value.peak >= model.vadThreshold ? .red : .primary)
-            Text("rms \(value.rms, format: .number.precision(.fractionLength(4)))")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var turnIcon: String {
-        switch model.turnState {
-        case .idle: "circle"
-        case .listening: "ear"
-        case .thinking: "ellipsis.circle"
-        case .speaking: "speaker.wave.2.fill"
-        }
-    }
-
-    private var turnLabel: String {
-        switch model.turnState {
-        case .idle: "idle"
-        case .listening: "listening"
-        case .thinking: "thinking"
-        case .speaking: "speaking — interrupt it with your voice"
-        }
-    }
-
-    private var transcriber: some View {
+    /// The ready state: what was `transcriber`, with the settings scroll
+    /// lifted out of it and into its own tab.
+    private var talking: some View {
         VStack(spacing: 12) {
-            // THE SETTINGS SCROLL (Ryad). Five pickers, four toggles and
-            // their captions outgrew the screen once the local model
-            // picker arrived, and controls you cannot reach are controls
-            // you do not have. Capped rather than greedy, so the
-            // transcript — the thing people actually watch — keeps room.
-            ScrollView {
-                VStack(spacing: 14) {
-            // INLINE ROWS (Ryad): label on the left, current value on the
-            // right, one line each. Five full-width segmented bars had
-            // pushed the transcript off the screen. `.labelsHidden()` is
-            // deliberate — the Text carries the name, so the menu button
-            // shows only the VALUE and every row reads the same way.
-            HStack {
-                Text("Ear").font(.subheadline)
-                Spacer()
-                Picker("Engine", selection: Bindable(model).choice) {
-                    ForEach(TranscribeModel.EngineChoice.allCases) { choice in
-                        Text(choice.rawValue).tag(choice)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .disabled(model.isListening)
-            }
-            .padding(.horizontal)
-
-            // THE SECOND MOUTH, on screen (AC-105). Only shown when the
-            // app is actually talking — a mouth picker above a silent
-            // pipeline would be a control with nothing to control.
-            if model.talkEnabled {
-                VStack(spacing: 8) {
-                    // THE MIND (4f, AC-117): what ANSWERS, above what
-                    // SPEAKS — the same swap-an-organ claim the mouth
-                    // picker makes, one seam up.
-                    HStack {
-                        Text("Mind").font(.subheadline)
-                        Spacer()
-                        Picker("Mind", selection: Bindable(model).mind) {
-                            ForEach(TranscribeModel.MindChoice.allCases) { choice in
-                                Text(choice.rawValue).tag(choice)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                    }
-                    if model.mind == .local {
-                        // The model picker is gone (D-064): 4B is the local
-                        // mind, full stop. A picker with one option is a
-                        // control that cannot be used, and 0.6B's replies
-                        // were bad enough that offering them as a
-                        // "fallback" would have been shipping a worse
-                        // product as a feature.
-                        Text("local mind: 4B · \(TranscribeModel.LocalMind.sizeOnDisk) "
-                             + "· on a Mac: \(TranscribeModel.LocalMind.macBehaviour)")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        // AC-131: the third mind never vanishes and never
-                        // dies silently. On a simulator it says WHY it
-                        // cannot run (D-061, structural); with no weights
-                        // it offers the one action that fixes that.
-                        Text(model.mindUnavailable
-                             ?? "local weights ready · answers never leave this device")
-                            .font(.caption2)
-                            .foregroundStyle(model.mindUnavailable == nil
-                                             ? AnyShapeStyle(.secondary)
-                                             : AnyShapeStyle(Color.orange))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        // The status line is ALWAYS shown once there is
-                        // one, whether the download is running, finished
-                        // or failed. A tap must never be able to look
-                        // like nothing happened.
-                        if let status = model.localDownloadStatus {
-                            Text(status)
-                                .font(.caption2)
-                                .foregroundStyle(status.contains("FAILED")
-                                                 || status.contains("NOT usable")
-                                                 ? AnyShapeStyle(Color.red)
-                                                 : AnyShapeStyle(.secondary))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                        }
-                        if let fraction = model.localDownloadProgress {
-                            ProgressView(value: fraction)
-                        } else if model.mindUnavailable?.contains("not downloaded") == true {
-                            Button("Download the local mind · \(TranscribeModel.LocalMind.sizeOnDisk)") {
-                                model.downloadLocalMind()
-                            }
-                            .font(.caption)
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    if model.mind == .apple {
-                        // AC-110 on the main screen: the enum's reason in
-                        // words, never a silent dead Listen button. And
-                        // "ready" stays modest — availability is necessary,
-                        // not sufficient (the Simulator lied, INSTRUMENTS
-                        // §22); a failed first turn still tells the truth.
-                        Text(model.mindUnavailable
-                             ?? "on-device model ready · answers are spoken, one session per turn")
-                            .font(.caption2)
-                            .foregroundStyle(model.mindUnavailable == nil
-                                             ? AnyShapeStyle(.secondary)
-                                             : AnyShapeStyle(Color.red))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    HStack {
-                        Text("Voice").font(.subheadline)
-                        Spacer()
-                        Picker("Voice", selection: Bindable(model).mouth) {
-                            ForEach(TranscribeModel.MouthChoice.allCases) { choice in
-                                Text(choice.rawValue).tag(choice)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                    }
-
-                    switch model.voiceState {
-                    case .modelMissing:
-                        VStack(spacing: 4) {
-                            Text("The neural voice needs a 1.1 GB download. "
-                                 + "One time, over Wi-Fi — then it runs on this phone.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button("Install voice") {
-                                Task { await model.installVoice() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    case .downloading:
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Downloading the voice — a silent minute is not a hang.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    case .preparing:
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            // The honest sentence. Nothing is being
-                            // fetched: the 1.1 GB is already on the phone
-                            // and CoreML is compiling it, which happens
-                            // once per launch.
-                            Text("Preparing the voice — already downloaded, "
-                                 + "compiling it for this device.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    case .failed(let why):
-                        Text("Voice unavailable: \(why)")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                    case .checking, .ready:
-                        EmptyView()
-                    }
-
-                    // WHICH APPLE VOICE, and how good. "compact" here is
-                    // the honest explanation for a robotic reply, and it
-                    // points at a download rather than at a bug.
-                    if model.mouth == .apple {
-                        // THE PERSON PICKS. A long list, so a menu rather
-                        // than a segmented control — and every row says
-                        // its quality, because "compact" is the honest
-                        // explanation for a robotic voice and it points
-                        // at a download rather than at a bug.
-                        Picker("Apple voice", selection: Bindable(model).appleVoiceIdentifier) {
-                            Text("Best installed (auto)").tag(String?.none)
-                            ForEach(model.availableAppleVoices) { voice in
-                                Text(voice.label).tag(String?.some(voice.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                        Text(model.appleVoiceDescription)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    // VOICE FORENSICS (AC-104). A field run came back
-                    // with four adjectives — hot, late, worse, "drunk" —
-                    // and no numbers. These are the numbers, on the
-                    // device that produced the adjectives.
-                    if model.mouth == .neural, model.voiceState == .ready {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let margin = model.voiceMargin {
-                                Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
-                                            margin.steadyRealTimeFactor,
-                                            margin.keepsUp ? "" : "  ⚠️ TOO SLOW",
-                                            margin.prefillMilliseconds))
-                                    .foregroundStyle(margin.keepsUp
-                                                     ? AnyShapeStyle(.secondary)
-                                                     : AnyShapeStyle(Color.red))
-                            }
-                        }
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-            // THE LEVEL METER, above everything the gate controls.
-            // Set the gate ABOVE the quiet number and BELOW the speaking
-            // one, and the app works; there is no third rule.
-            if model.isListening {
-                VStack(spacing: 2) {
-                    HStack {
-                        Text(String(format: "mic %.3f", model.inputLevel))
-                        Spacer()
-                        Text(String(format: "peak %.3f", model.inputPeak))
-                        Spacer()
-                        if !model.engineAlive {
-                            Text("ENGINE STOPPED")
-                                .foregroundStyle(Color.red)
-                        }
-                        if model.engineReconfigurations > 0 {
-                            Text("reconfig \(model.engineReconfigurations)")
-                                .foregroundStyle(Color.orange)
-                        }
-                        Text(String(format: "gate %.3f", model.vadThreshold))
-                            .foregroundStyle(model.inputLevel > model.vadThreshold
-                                             ? AnyShapeStyle(Color.green)
-                                             : AnyShapeStyle(.secondary))
-                    }
-                    .font(.caption2.monospaced())
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.quaternary)
-                            Capsule()
-                                .fill(model.inputLevel > model.vadThreshold ? Color.green : Color.gray)
-                                .frame(width: geometry.size.width
-                                       * CGFloat(min(model.inputLevel / 0.3, 1)))
-                            // Where the gate sits, on the same scale.
-                            Rectangle()
-                                .fill(Color.orange)
-                                .frame(width: 2)
-                                .offset(x: geometry.size.width
-                                        * CGFloat(min(model.vadThreshold / 0.3, 1)))
-                        }
-                    }
-                    .frame(height: 8)
-                }
-                .padding(.horizontal)
-            }
-
-            // CALIBRATE, so nobody has to guess this number again.
-            if model.isListening {
-                VStack(spacing: 4) {
-                    Button {
-                        Task { await model.calibrateGate() }
-                    } label: {
-                        Label(model.isCalibrating ? "Calibrating…" : "Calibrate gate",
-                              systemImage: "slider.horizontal.3")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isCalibrating)
-
-                    if let status = model.calibrationStatus {
-                        Text(status)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(model.isCalibrating
-                                             ? AnyShapeStyle(Color.orange)
-                                             : AnyShapeStyle(.secondary))
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-                }
-                .padding(.top, 4)
-            }
-            .frame(maxHeight: 300)
-            .scrollBounceBehavior(.basedOnSize)
-
             conversation
 
             ScrollViewReader { proxy in
@@ -835,6 +211,171 @@ struct ContentView: View {
         }
     }
 
+    private var modelMissing: some View {
+        ContentUnavailableView {
+            Label("Speech model needed", systemImage: "arrow.down.circle")
+        } description: {
+            Text("One download, then everything runs on this phone — nothing ever leaves it.")
+        } actions: {
+            Button("Download") { Task { await model.downloadModel() } }
+                .buttonStyle(.borderedProminent)
+        }
+    }
+
+
+    private func failed(_ reason: String) -> some View {
+        ContentUnavailableView {
+            Label("Something failed", systemImage: "exclamationmark.triangle")
+        } description: {
+            Text(reason)
+        } actions: {
+            Button("Try again") { Task { await model.checkModel() } }
+        }
+    }
+
+    /// Milestone 4d on screen: the turn loop the Mac has had since 4a/4b,
+    /// now on the phone — plus the two toggles the field run needs.
+
+    private var conversation: some View {
+        VStack(spacing: 10) {
+            HStack {
+                Toggle("Talk back", isOn: Bindable(model).talkEnabled)
+                Divider().frame(height: 20)
+                // F-4 as amended by D-043: the speaker is the measured
+                // broken route, kept one toggle away for measurement.
+                Toggle("Speaker", isOn: Bindable(model).useSpeaker)
+                    .disabled(!model.talkEnabled)
+            }
+            .toggleStyle(.switch)
+            .font(.subheadline)
+
+            if model.talkEnabled {
+                Toggle("Speaker shield (4g) — reply rendered where the canceller sees it",
+                       isOn: Bindable(model).speakerShield)
+                    .toggleStyle(.switch)
+                    .font(.caption)
+                    .disabled(model.isListening)
+            }
+
+            // The known limit, said plainly where it bites — not buried in
+            // a document the person holding the phone will never open.
+            // With the shield ON the old sentence would be a stale claim:
+            // the label switches to the honest in-between state until
+            // AC-124 rewrites it with the measured reply number.
+            if model.talkEnabled && model.useSpeaker {
+                Label(model.speakerShield
+                      ? "Shield ON: the probe measured a tone cancelled to 0.004–0.08 "
+                        + "(vs 1.0 unshielded, INSTRUMENTS §23). The reply's own number is "
+                        + "still being measured — the barge counters below tell the truth."
+                      : "On speaker the reply is not cancelled (measured peak 1.0) — "
+                        + "it will interrupt itself. Receiver or headphones work.",
+                      systemImage: model.speakerShield
+                      ? "shield.lefthalf.filled" : "exclamationmark.triangle")
+                    .font(.caption2)
+                    .foregroundStyle(model.speakerShield ? .blue : .orange)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            if model.talkEnabled {
+                HStack(spacing: 8) {
+                    Image(systemName: turnIcon)
+                        .foregroundStyle(model.turnState == .speaking ? .blue : .secondary)
+                    Text(turnLabel).font(.subheadline.weight(.medium))
+                    Spacer()
+                    if let pause = model.feltPauseMilliseconds {
+                        Text("felt pause \(pause) ms")
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                // THE BARGE DIAGNOSTIC. Two counters, because they fail
+                // apart: onsets is what the PUMP heard while the reply was
+                // playing, barges is what the COORDINATOR did about it.
+                HStack(spacing: 10) {
+                    Text("onsets while speaking: \(model.onsetsWhileSpeaking)")
+                        .foregroundStyle(model.onsetsWhileSpeaking > 0 ? Color.primary
+                                                                       : Color.secondary)
+                    Text("barges: \(model.bargeCount)")
+                        .foregroundStyle(model.bargeCount > 0 ? Color.green : Color.red)
+                    Spacer()
+                    Text(model.lastTurnEvent).foregroundStyle(.secondary)
+                }
+                .font(.caption2.monospacedDigit())
+
+                if !model.reply.isEmpty {
+                    Text(model.reply)
+                        .font(.callout)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(8)
+                        .background(.blue.opacity(0.12), in: .rect(cornerRadius: 8))
+                }
+
+                // The whole thought that crossed the seam — 4c, visible
+                // (AC-91). Two sentences with a pause between them belong
+                // on ONE line here.
+                if !model.wholeThought.isEmpty {
+                    Label(model.wholeThought, systemImage: "brain")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
+            // The gate, on screen and adjustable — a level means nothing
+            // without the number it is judged against (AC-97: this device
+            // earns its own).
+            HStack(spacing: 8) {
+                Text("gate").font(.caption).foregroundStyle(.secondary)
+                Slider(value: Bindable(model).vadThreshold, in: 0.005...0.08)
+                    .disabled(model.isListening)
+                Text(model.vadThreshold, format: .number.precision(.fractionLength(3)))
+                    .font(.caption.monospacedDigit())
+            }
+
+            // F-5 = B: nothing resumes by itself. A person decides when a
+            // microphone turns back on — and resuming forgets the thought.
+            if model.wasInterrupted {
+                HStack {
+                    Label("Interrupted — the audio was taken away",
+                          systemImage: "phone.down.fill")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Spacer()
+                    Button("Resume") { Task { await model.resumeAfterInterruption() } }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            }
+        }
+        .padding(.horizontal)
+    }
+
+    /// AC-96's instrument: the phone speaks while reading the microphone
+    /// RAW — past the VAD, so "nothing happened" can never be confused
+    /// with "the microphone is deaf". Needs no speech model, so it runs
+    /// even where an engine will not.
+
+    private var turnIcon: String {
+        switch model.turnState {
+        case .idle: "circle"
+        case .listening: "ear"
+        case .thinking: "ellipsis.circle"
+        case .speaking: "speaker.wave.2.fill"
+        }
+    }
+
+
+    private var turnLabel: String {
+        switch model.turnState {
+        case .idle: "idle"
+        case .listening: "listening"
+        case .thinking: "thinking"
+        case .speaking: "speaking — interrupt it with your voice"
+        }
+    }
+
+
     private var statusBar: some View {
         HStack(spacing: 16) {
             Label(model.isSpeaking ? "speech" : "quiet",
@@ -859,6 +400,7 @@ struct ContentView: View {
         .padding(.horizontal)
     }
 
+
     private var thermalText: String {
         switch model.thermal {
         case .nominal: "cool"
@@ -868,6 +410,7 @@ struct ContentView: View {
         }
     }
 
+
     private var thermalColor: Color {
         switch model.thermal {
         case .nominal: .secondary
@@ -876,6 +419,7 @@ struct ContentView: View {
         case .critical: .red
         }
     }
+
 
     private func icon(for utterance: TranscribeModel.Utterance) -> String {
         if utterance.failure != nil { return "xmark.circle" }

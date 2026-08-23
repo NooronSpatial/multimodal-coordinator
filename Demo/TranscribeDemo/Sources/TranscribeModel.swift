@@ -349,7 +349,7 @@ final class TranscribeModel {
     /// CoreML models concurrently, and that transient peak is what killed
     /// the app twice: at 1105 MB free and at 2976 MB free. It survived at
     /// 3347 MB. So the voice is loaded FIRST, from maximum headroom,
-    /// before the mind takes its 2.2 GB. See `ContentView`'s launch task,
+    /// before the mind takes its 2.2 GB. See `RootView`'s launch sequence,
     /// where that order is now load-bearing rather than incidental.
     var memoryConflict: String? { nil }
 

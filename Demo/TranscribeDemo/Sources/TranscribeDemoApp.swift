@@ -4,7 +4,7 @@ import SwiftUI
 struct TranscribeDemoApp: App {
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
         }
     }
 }
