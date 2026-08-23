@@ -2628,3 +2628,47 @@ name: three in-process models compete for the same compute.)
 (make the forbidden pair degrade) has no forbidden pair to degrade. And
 4i's F-1 (what degrades, in what order) is now a chain for a device
 nobody in this project owns.
+
+## 30. AC-139's first trace — the instrument cannot see the thing that kills
+
+Ryad's phone, launch load of the neural voice, sampled every 250 ms:
+
+```
+start:            2322 MB free
+  voice +0.0s     2322 MB free
+  voice +4.2s     2310 MB free
+  voice +9.2s     2310 MB free
+  …
+  voice +64.8s    2310 MB free
+```
+
+**Thirteen megabytes, over sixty-plus seconds of compiling six CoreML
+models.** There is no peak here. And this same operation has killed the
+app twice — at 1105 MB free and at 2976 MB free.
+
+**So `limit_bytes_remaining` cannot see what kills.** It tracks the DIRTY
+memory limit, and CoreML's weights are MAPPED — clean pages, evictable,
+not charged. That is the same fact that made the voice cost 111 MB
+instead of 1112 (§29), read from the other side: what makes it cheap
+against the dirty limit also makes it **invisible** to the dirty limit.
+
+`phys_footprint` does count mapped pages, which is exactly why the Mac
+saw 1112 MB. So AC-139 now samples BOTH numbers and labels which is
+which. An instrument that cannot see the failure it was built for is the
+shape this project keeps finding — this time in the instrument I built
+for the purpose.
+
+**A second fault in the same trace, mine:** two samplers ran at once,
+interleaving `+55.5s` with `+0.0s`, because tapping the probe while the
+LAUNCH load was still running started a second sampler into the same
+file. Two writers, one file, an unreadable trace. Same class as the
+double model load, one layer up — and the third time in this milestone
+that a long operation had no exclusion around it. Now one at a time, and
+the refusal says so in the log rather than silently doing nothing.
+
+**Also visible, and worth keeping:** the header read `voice loaded:
+false` while the trace ran, so the probe's own "start" reading was taken
+mid-load. Numbers from that run describe an app in motion, not a state.
+
+**Still unmeasured:** the peak. The next trace has the instrument that
+can see it.
