@@ -2672,3 +2672,49 @@ mid-load. Numbers from that run describe an app in motion, not a state.
 
 **Still unmeasured:** the peak. The next trace has the instrument that
 can see it.
+
+## 31. The levers, re-measured on macOS 26 — and `.fused` is not dead here
+
+Ryad's neural voice sounded slow from the terminal. Three causes, and the
+sweep that should have answered it was itself broken first (§below).
+
+**`voice-levers`, release build, three runs per config, this Mac:**
+
+| config | first audio | total (median) |
+|---|---|---|
+| stepped + latencyOptimized (baseline) | 201–224 ms | 9353 ms |
+| **fused** | **177–187 ms** | **6578 ms** |
+| throughputOptimized (on stepped) | 491–571 ms | 10622 ms |
+| fused + throughputOptimized | 390–410 ms | 6943 ms |
+| temperature 0 (on stepped) | 209–218 ms | 6629 ms |
+| temperature 0 (on fused) | 156–177 ms | 13054 ms |
+
+**`.fused` LOADS AND DECODES on macOS 26.** Three runs, no error. So the
+`MLModelConfiguration.functionName` failure Ryad's iPhone reported —
+*"on macOS 15 / iOS 18 or newer"* despite its own wording — is **iOS-only
+in practice**. The demo had been given the phone's fix on a machine
+without the phone's bug, and paid 29% for it.
+
+**Two older findings hold, now for `.stepped` as well.** D-050 measured
+`.throughputOptimized` slower than the vendor's table claims; it is slower
+here on both counts, in both decoder modes. And temperature 0 "rambles
+longer": on `.fused` it produces the fastest first audio of any config
+(156–177 ms) and the longest total by far (13.0 s) — it is not faster, it
+is talkier.
+
+**The instrument was lying before it was read.** The loop was
+`_ = try? await measure(voice, sentence)` — result discarded, error
+swallowed — so eighteen runs across six configs printed "run N:" and
+nothing, and a DECODE FAILURE was indistinguishable from a quiet success.
+The first sweep was read as "`.fused` had no load failure on the Mac",
+which happened to be true and was not evidence. Fixed to print timings
+and to print `DECODE FAILED` with the reason.
+
+**The three causes of the slow terminal voice, separated:**
+
+1. `swift run` builds DEBUG; every RTF in this project was measured in
+   release, and at RTF 1.066 there is no margin to give away.
+2. The lead was derived from `.fused`'s 0.752 while `.stepped` was in use,
+   so the cushion was zero when 396 ms was needed — fixed by deriving the
+   lead from the mode actually passed.
+3. `.stepped` was forced on a Mac that runs `.fused` perfectly well.

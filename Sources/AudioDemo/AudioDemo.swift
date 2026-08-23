@@ -563,12 +563,18 @@ func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
         .map { String($0.dropFirst("--mouth=".count)) } ?? "apple"
     switch want {
     case "neural":
-        // `.stepped`, not the library's `.fused` default: `.fused` fails to
-        // load on macOS 15 / iOS 18 and newer — MLModelConfiguration's
-        // functionName must be nil unless the model is an ML Program. D-047
-        // ruled .fused on measured evidence, and that ruling was right on
-        // the OS it was measured on.
-        return NeuralVoice(multiCodeDecoderMode: .stepped)
+        // `.fused` HERE, and `.stepped` on the phone — measured, not
+        // assumed. The iOS 18 `functionName` failure does NOT reproduce on
+        // macOS 26: a six-config levers sweep loaded and decoded `.fused`
+        // three times with no error, and it won on both numbers —
+        // first audio 177–187 ms against 201–224, total 6578 ms against
+        // 9353 (INSTRUMENTS §31).
+        //
+        // The first version of this line forced `.stepped` here too,
+        // applying the PHONE's fix to a machine that does not have the
+        // phone's bug. The lead follows the mode automatically now, so
+        // `.fused` also correctly gets a cushion of zero.
+        return NeuralVoice(multiCodeDecoderMode: .fused)
     default:
         return AppleSpeechSynthesizer()
     }
