@@ -2683,3 +2683,34 @@ what is wanted is a paste into a document already open.
 **Not yet ruled:** whether 4j starts before or after 4i's remaining
 criteria (AC-139 compile peak, AC-140 thermal, AC-141 twenty minutes) are
 measured. The spec is written as 4j and does not absorb them.
+
+## D-067 — the bench driver gets its own module, and 4j starts now (Milestone 4j)
+
+**Date:** 2026-08-23 · **Decided by:** Ryad · **Ruling: F-1 = A, F-2 = start
+now**
+
+**F-1 — where the sweep driver lives. Ruled A: a new `MultiModalKitBench`
+module.** The five hazards in SPEC §104 mean the sweep needs real semantics —
+wait for readiness rather than for time, reset counters per row, scope the
+settings so a death leaves no residue — and semantics want tests. A module is
+what makes them testable on a Mac. Tier 2 of D-016: the core keeps its zero
+runtime dependencies and learns nothing about benchmarking.
+
+*Rejected:* **B, put it in `MultiModalKitTTS`.** One fewer module, at the
+price of a voice library holding a benchmarking concern. It would fail the
+deep-module test in §4.0 — a type whose insides leak into a neighbour's
+purpose. *Rejected:* **C, put it in the app.** Nothing new to name, and
+nothing testable either: AC-147 (readiness, never time) and AC-149
+(per-iteration counters) would have no home, and they are the two criteria
+written directly against hazards that have already bitten.
+
+**F-2 — sequencing. Ruled: start 4j now, with 4i's three criteria still
+open.** AC-139 (compile peak), AC-140 (thermal) and AC-141 (twenty minutes)
+all need Ryad's phone, and all three stay open and unabsorbed. AC-148 makes
+every bench row carry the thermal state it was measured under, so the bench
+is plausibly the instrument AC-140 has been waiting for — but that is a hope,
+not a plan, and 4j does not claim to pay 4i's debt.
+
+**Consequence:** branch `milestone/4j-tuning-bench`, cut from the 4i branch
+so that D-066, SPEC §100–108 and the three bug fixes travel with it. 4i's
+branch stays open for the three field measurements.
