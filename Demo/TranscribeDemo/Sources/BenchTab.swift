@@ -1,5 +1,7 @@
 import MultiModalKit
+import MultiModalKitTTS
 import SwiftUI
+import TTSKit
 
 /// THE BENCH TAB — the instruments.
 ///
@@ -24,6 +26,8 @@ struct BenchTab: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    levers
+
                     if model.probeSilence == nil && model.probeStatus == nil
                         && model.shieldStatus == nil && model.shieldReport.isEmpty {
                         ContentUnavailableView(
@@ -172,6 +176,89 @@ struct BenchTab: View {
         }
     }
 
+
+    /// THE FOUR LEVERS (AC-143), and the line that says what is really on.
+    private var levers: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Voice levers").font(.headline)
+
+            HStack {
+                Text("Decoder").font(.subheadline)
+                Spacer()
+                Picker("Decoder", selection: Bindable(model).levers.decoder) {
+                    Text("stepped").tag(Qwen3MultiCodeDecoderMode.stepped)
+                    Text("fused").tag(Qwen3MultiCodeDecoderMode.fused)
+                }
+                .labelsHidden()
+            }
+            // `.fused` is OFFERED even though it cannot load here (D-066
+            // F-2). Hiding it would teach nobody why the library's own
+            // default is missing; choosing it produces the real CoreML
+            // refusal, which is evidence rather than a claim.
+            if model.levers.decoder == .fused {
+                Text("`.fused` does not load on iOS 18+. Selecting it here is "
+                     + "how you see the refusal rather than read about it.")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+
+            HStack {
+                Text("Vocoder").font(.subheadline)
+                Spacer()
+                Picker("Vocoder", selection: Bindable(model).levers.vocoder) {
+                    Text("latency").tag(Qwen3SpeechDecoderMode.latencyOptimized)
+                    Text("throughput").tag(Qwen3SpeechDecoderMode.throughputOptimized)
+                }
+                .labelsHidden()
+            }
+
+            HStack {
+                Text("Temperature").font(.subheadline)
+                Spacer()
+                Picker("Temperature", selection: Bindable(model).levers.temperature) {
+                    Text("model default").tag(Float?.none)
+                    Text("0").tag(Float?.some(0))
+                    Text("0.7").tag(Float?.some(0.7))
+                }
+                .labelsHidden()
+            }
+            if model.levers.temperature == 0 {
+                Text("Temperature 0 had the fastest first audio of all six "
+                     + "configurations on the Mac — and the worst sound, "
+                     + "rambling for twice as long.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
+            HStack {
+                Text("Cushion").font(.subheadline)
+                Spacer()
+                Picker("Cushion", selection: Bindable(model).levers.lead) {
+                    Text("derived").tag(Duration?.none)
+                    Text("0 ms").tag(Duration?.some(.zero))
+                    Text("400 ms").tag(Duration?.some(.milliseconds(400)))
+                    Text("1300 ms").tag(Duration?.some(.milliseconds(1300)))
+                }
+                .labelsHidden()
+            }
+            Text("Leave the cushion derived unless you are testing it. "
+                 + "Derived means this phone's own measurement once it has "
+                 + "one, and the decoder's constant until then.")
+                .font(.caption).foregroundStyle(.secondary)
+
+            Divider()
+
+            // READ FROM THE VOICE, never from the pickers above. They
+            // disagree whenever an apply has not landed — which is exactly
+            // when a person is looking at this line to find out why.
+            VStack(alignment: .leading, spacing: 2) {
+                Text("In force").font(.caption).foregroundStyle(.secondary)
+                Text(model.voiceInForce)
+                    .font(.caption.monospaced())
+                    .foregroundStyle(model.voiceInForce.contains("fused")
+                                     ? .orange : .primary)
+            }
+        }
+        .padding(.horizontal)
+    }
 
     private func probeRow(_ label: String, _ value: (peak: Float, rms: Float)) -> some View {
         HStack {

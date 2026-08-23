@@ -151,7 +151,33 @@ final class TranscribeModel {
     /// is an APP choosing what works on the device in its hand (D-027),
     /// not a reversal of the ruling; the library default is untouched and
     /// the honest cost is the 29%.
-    private let neuralVoice = NeuralVoice(multiCodeDecoderMode: .stepped)
+    private var neuralVoice = TranscribeModel.storedLevers.makeVoice()
+
+    /// THE FOUR LEVERS, on the phone (AC-143).
+    ///
+    /// A `var`, where this was a `let`. The decoder and the vocoder are
+    /// fixed at a voice's birth — deliberately, because that is how the
+    /// cushion can be derived from them and cannot drift — so turning a
+    /// lever means building a NEW voice and giving the old one back.
+    /// `retire()` is what makes that leave exactly one pipeline resident
+    /// instead of a pile (AC-145).
+    var levers: VoiceLevers = TranscribeModel.storedLevers {
+        didSet {
+            guard levers != oldValue else { return }
+            Self.store(levers)
+            let retiring = neuralVoice
+            neuralVoice = levers.makeVoice()
+            voiceState = .checking
+            Task {
+                // Retire AFTER the replacement exists, so there is never a
+                // moment with no voice at all — and before checking the new
+                // one, so two pipelines are never both resident.
+                await retiring.retire()
+                await checkVoice()
+                if isListening { restart() }
+            }
+        }
+    }
 
     /// VOICE FORENSICS (AC-104), added because a field run produced four
     /// adjectives and no numbers: hot, late, worse, "drunk". Each of
@@ -192,6 +218,11 @@ final class TranscribeModel {
         case .neural: neuralVoice
         }
     }
+
+    /// What the voice that exists is set to — read from the VOICE, never
+    /// from `levers` (AC-143). The two disagree whenever an apply has not
+    /// landed yet, and that is exactly when a person is looking.
+    var voiceInForce: String { neuralVoice.inForce }
 
     /// The mind. Changing it restarts the pipeline, like the mouth.
     var mind: MindChoice = TranscribeModel.storedMind {
@@ -789,6 +820,51 @@ final class TranscribeModel {
     // so every launch quietly reset them and the person re-chose from a
     // screen that looked like it remembered. A control that forgets is a
     // control that lies about its own state.
+    // The levers are stored as four primitives rather than one encoded
+    // blob: a blob that fails to decode after a TTSKit rename would take
+    // every setting with it, and these are the settings a person reaches
+    // for when something is already wrong.
+    private static let decoderKey = "dev.nooron.demo.levers.decoder"
+    private static let vocoderKey = "dev.nooron.demo.levers.vocoder"
+    private static let temperatureKey = "dev.nooron.demo.levers.temperature"
+    private static let leadKey = "dev.nooron.demo.levers.leadMS"
+    static var storedLevers: VoiceLevers {
+        let defaults = UserDefaults.standard
+        var levers = VoiceLevers.phoneDefault
+        if defaults.string(forKey: decoderKey) == "fused" { levers.decoder = .fused }
+        if defaults.string(forKey: vocoderKey) == "throughput" {
+            levers.vocoder = .throughputOptimized
+        }
+        // `object(forKey:)` first: `float(forKey:)` cannot tell "absent"
+        // from "zero", and zero is a REAL temperature with a distinctive
+        // sound (INSTRUMENTS §32). Reading it as "unset" would silently
+        // change what the person chose.
+        if defaults.object(forKey: temperatureKey) != nil {
+            levers.temperature = defaults.float(forKey: temperatureKey)
+        }
+        if defaults.object(forKey: leadKey) != nil {
+            levers.lead = .milliseconds(defaults.integer(forKey: leadKey))
+        }
+        return levers
+    }
+    static func store(_ levers: VoiceLevers) {
+        let defaults = UserDefaults.standard
+        defaults.set(levers.decoder == .fused ? "fused" : "stepped", forKey: decoderKey)
+        defaults.set(levers.vocoder == .throughputOptimized ? "throughput" : "latency",
+                     forKey: vocoderKey)
+        if let temperature = levers.temperature {
+            defaults.set(temperature, forKey: temperatureKey)
+        } else {
+            defaults.removeObject(forKey: temperatureKey)
+        }
+        if let lead = levers.lead {
+            defaults.set(Int(lead.components.seconds * 1000
+                + lead.components.attoseconds / 1_000_000_000_000_000), forKey: leadKey)
+        } else {
+            defaults.removeObject(forKey: leadKey)
+        }
+    }
+
     private static let mindKey = "dev.nooron.demo.mind"
     private static var storedMind: MindChoice {
         UserDefaults.standard.string(forKey: mindKey)
