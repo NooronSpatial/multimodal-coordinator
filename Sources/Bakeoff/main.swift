@@ -892,9 +892,21 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
         // Warm-up, excluded: the first decode after a load compiles and
         // warms graphs, the same rule voice-spike follows.
         _ = try? await measure(voice, "Warming up.")
+        // MEASURED AND PRINTED, not swallowed. This loop used to be
+        // `_ = try? await measure(...)`: the result discarded, the error
+        // dropped, and the numbers left entirely to TTSKit's own logging.
+        // A run that FAILED printed "run 1:" and nothing — identical to a
+        // run that succeeded quietly. A whole levers sweep came back with
+        // six empty configs and no way to tell whether that meant silence
+        // or failure.
         for run in 1...runsPerConfig {
-            FileHandle.standardError.write(Data("  run \(run):\n".utf8))
-            _ = try? await measure(voice, sentence)
+            do {
+                let timing = try await measure(voice, sentence)
+                print(String(format: "| %@ | run %d | first audio %.0f ms | total %.0f ms |",
+                             lever.name, run, timing.firstAudio, timing.total))
+            } catch {
+                print("| \(lever.name) | run \(run) | DECODE FAILED — \(error) |")
+            }
         }
     }
     print("\nRead the STEADY column from stderr, median of \(runsPerConfig) per config.")
