@@ -3048,6 +3048,17 @@ levers a sweep sets are scoped to the sweep; after it ends, by completion or
 by death, the phone is back on the settings the human chose. *Test:*
 simulated mid-sweep failure, assert the persisted settings are unchanged.
 
+**AC-152 — the cushion follows the machine, not a constant (D-068 A).** After
+a reply has been decoded, the next reply's lead is sized from the steady
+factor that reply achieved, not from `measuredRealTimeFactor(for:)`. *Test:*
+observe a margin at the iPhone's measured 1.21 and assert the lead exceeds
+the `.stepped` constant; observe one below 1.0 and assert it is zero.
+
+**AC-153 — the human outranks the machine (D-068 D).** An explicit lead —
+the `--lead` flag, or the Bench control — is used in preference to anything
+learned. *Test:* a voice built with an explicit lead keeps it after a margin
+that would have changed a derived one.
+
 ## 106. Test matrix
 
 | AC | Mac-testable | Needs the phone |
@@ -3061,9 +3072,11 @@ simulated mid-sweep failure, assert the persisted settings are unchanged.
 | AC-148 conditions per row | ✅ fields present | ✅ real thermal values |
 | AC-149 per-iteration counters | ✅ | — |
 | AC-150 markdown out | ✅ golden string | — |
+| AC-152 cushion follows the machine | ✅ | ✅ the phone's own factor |
+| AC-153 the human outranks it | ✅ | — |
 | AC-151 death leaves no residue | ✅ | — |
 
-Two of eleven need the phone, and both are the honest half: a constraint that
+Three of thirteen need the phone, and both are the honest half: a constraint that
 only exists on iOS, and a thermal reading a Mac cannot produce.
 
 ## 107. Open forks
@@ -3084,7 +3097,7 @@ for. *No recommendation — this is a priority call, not a design one.*
 
 ## 108. Definition of done (4j)
 
-Eleven criteria met · the four levers reachable on the phone · a sweep that
+Thirteen criteria met · the four levers reachable on the phone · a sweep that
 refuses rather than dies · a markdown table pasted into INSTRUMENTS beside
 the Mac's · Ryad's by-ear ranking of the phone's four configurations recorded
 next to the clock's, agreeing or not · zero warnings · 20× stable · review

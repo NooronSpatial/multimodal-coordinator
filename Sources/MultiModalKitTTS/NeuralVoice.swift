@@ -91,6 +91,31 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// which is how the before/after number stays honest.
     public nonisolated let lead: Duration
 
+    /// What the caller ASKED for, or nil if they left it to be derived.
+    /// Kept separately from `lead` because the two answer different
+    /// questions: `lead` is what this voice started with, `explicitLead` is
+    /// whether a human overrode anything — and D-068 D says a human's number
+    /// outranks a measured one.
+    private nonisolated let explicitLead: Duration?
+
+    /// D-068 A. Learns this machine's cushion from the margin every reply
+    /// reports, because the constant is a Mac's (INSTRUMENTS §33).
+    nonisolated let adaptive = AdaptiveLead()
+
+    /// The cushion the NEXT reply will use, and the whole precedence rule
+    /// in one line:
+    ///
+    ///     a human's number  →  this machine's measurement  →  the constant
+    ///
+    /// `lead` is what this voice was born with; this is what it has learned
+    /// since. They differ only after a reply has been decoded on a machine
+    /// whose factor is not the one baked in.
+    public nonisolated var currentLead: Duration {
+        explicitLead
+            ?? adaptive.target
+            ?? NeuralVoice.defaultLead(for: multiCodeDecoderMode)
+    }
+
     /// The steady real-time factor MEASURED for the default decoder
     /// (AC-106: `.fused`, release build, M-series Mac, median of three
     /// runs on a long sentence). Below 1.0 means the decoder produces
@@ -193,6 +218,7 @@ public actor NeuralVoice: SpeechSynthesizing {
         // nil means "derive it from the decoder I was actually given",
         // which is the only way the two cannot disagree.
         self.lead = lead ?? NeuralVoice.defaultLead(for: multiCodeDecoderMode)
+        self.explicitLead = lead
         self.multiCodeDecoderMode = multiCodeDecoderMode
         self.speechDecoderMode = speechDecoderMode
         self.temperature = temperature
@@ -258,10 +284,22 @@ public actor NeuralVoice: SpeechSynthesizing {
         // the seam at this level (AC-109, D-053 F-6). Below this line
         // nothing names TTSKit's decode API; above it, the model lifecycle
         // still does, deliberately (F-7 = A).
+        // `currentLead`, not `lead`: the second reply of a session is
+        // cushioned by what the FIRST one measured on this machine.
+        //
+        // And the observer is always installed, even when nobody registered
+        // a handler — margins used to be computed only if someone was
+        // watching, and now the voice itself is always watching.
+        let memory = adaptive
+        let listener = marginHandler
+        let onMargin: @Sendable (DecodeMargin) -> Void = { margin in
+            memory.observe(margin)
+            listener?(margin)
+        }
         return try NeuralVoiceRun(decoder: TTSKitDecoder(kit: kit), host: host,
-                                  lead: PlaybackLead(target: lead),
+                                  lead: PlaybackLead(target: currentLead),
                                   temperature: temperature,
-                                  onMargin: marginHandler)
+                                  onMargin: onMargin)
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not

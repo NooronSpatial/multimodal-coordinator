@@ -68,3 +68,96 @@ struct LeadFollowsDecoderTests {
     }
 }
 #endif
+
+/// D-068: the cushion is learned from the machine, and a human still wins.
+///
+/// The constant it replaces is a Mac's. The iPhone measured 1.21 where the
+/// constant says 1.066 (INSTRUMENTS §33), which on a six-second reply is
+/// 396 ms of cushion against the ~1260 ms the phone needs — so the phone
+/// runs dry mid-reply, which is the failure this whole strand keeps
+/// producing in new disguises.
+@Suite("the lead learns from the machine")
+struct AdaptiveLeadTests {
+
+    static func margin(factor: Double) -> DecodeMargin {
+        DecodeMargin(audioMilliseconds: 6000,
+                     wallMilliseconds: 6000 * factor,
+                     prefillMilliseconds: 100,
+                     steadyRealTimeFactor: factor)
+    }
+
+    @Test("it knows nothing until something has been decoded")
+    func nothingLearnedYet() {
+        #expect(AdaptiveLead().target == nil)
+    }
+
+    @Test("the iPhone's measured 1.21 asks for about 1.26 s, not 396 ms")
+    func thePhonesNumber() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(factor: 1.21))
+        let learned = try! #require(adaptive.target)
+        #expect(learned > .milliseconds(1200))
+        #expect(learned < .milliseconds(1300))
+        #expect(learned > NeuralVoice.defaultLead(for: .stepped),
+                "the constant under-cushions this machine — that is the point")
+    }
+
+    @Test("a machine that keeps up is given no cushion at all")
+    func fastMachineNeedsNothing() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(factor: 0.752))
+        #expect(adaptive.target == .zero)
+    }
+
+    @Test("the most recent reply wins — a bad sample costs one reply, not a session")
+    func latestWins() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(factor: 1.5))     // a thermal spike
+        let hot = adaptive.target
+        adaptive.observe(Self.margin(factor: 1.06))    // it cooled down
+        #expect(adaptive.target != hot)
+        #expect(adaptive.target! < hot!, "a maximum would have kept the spike forever")
+    }
+
+    @Test("forget puts it back to knowing nothing")
+    func forgetting() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(factor: 1.21))
+        adaptive.forget()
+        #expect(adaptive.target == nil)
+    }
+
+    // MARK: precedence — D-068 A and D together
+
+    @Test("before any reply, the voice uses the decoder's constant")
+    func startsFromTheConstant() {
+        let voice = NeuralVoice(multiCodeDecoderMode: .stepped)
+        #expect(voice.currentLead == NeuralVoice.defaultLead(for: .stepped))
+    }
+
+    @Test("after a reply, the voice uses what THIS machine managed")
+    func learnsFromItsOwnReplies() {
+        let voice = NeuralVoice(multiCodeDecoderMode: .stepped)
+        voice.adaptive.observe(Self.margin(factor: 1.21))
+        #expect(voice.currentLead > NeuralVoice.defaultLead(for: .stepped))
+        #expect(voice.currentLead == voice.adaptive.target)
+    }
+
+    @Test("a human's number outranks the machine's — D-068 D")
+    func explicitBeatsLearned() {
+        let voice = NeuralVoice(lead: .milliseconds(250),
+                                multiCodeDecoderMode: .stepped)
+        voice.adaptive.observe(Self.margin(factor: 1.21))
+        #expect(voice.currentLead == .milliseconds(250),
+                "the lever on screen must not be silently overruled")
+    }
+
+    @Test("`lead` still reports what the voice was born with")
+    func birthLeadIsUnchanged() {
+        let voice = NeuralVoice(multiCodeDecoderMode: .stepped)
+        let born = voice.lead
+        voice.adaptive.observe(Self.margin(factor: 1.21))
+        #expect(voice.lead == born, "the two properties answer different questions")
+        #expect(voice.currentLead != born)
+    }
+}

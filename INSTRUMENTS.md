@@ -2857,3 +2857,39 @@ a phone-measured lead through the demo is the voice-quality milestone's
 work."*
 
 4j is that milestone, and the number has been waiting for it.
+
+## 34. There is no right constant — the factor moves between sentences
+
+`MMK_TRACE_TTS=1 bakeoff voice-spike --stepped`, release, this Mac. Four
+replies, one machine, one decoder, one session:
+
+```
+MARGIN . 2720 ms audio in 3379 ms wall . RTF 1.24 . prefill 663 ms . STEADY 1.029
+MARGIN . 5760 ms audio in 6184 ms wall . RTF 1.07 . prefill 226 ms . STEADY 1.049
+MARGIN . 5520 ms audio in 6160 ms wall . RTF 1.12 . prefill 217 ms . STEADY 1.092
+MARGIN . 2080 ms audio in 2474 ms wall . RTF 1.19 . prefill 200 ms . STEADY 1.137
+```
+
+The baked constant for `.stepped` is **1.066**. The measured steady factor
+ranges **1.029 → 1.137** on the same machine, in the same run. Sized as a
+cushion on a six-second reply:
+
+| steady factor | cushion it asks for |
+|---|---|
+| 1.029 (the best reply) | 174 ms |
+| 1.066 (the constant) | 396 ms |
+| 1.137 (the worst reply) | **822 ms** |
+
+So the constant is not merely a Mac's number applied to a phone (§33). **It is
+a single number applied to a quantity that moves by a factor of five, reply
+to reply, on one machine.** That is the case for D-068 A, made by the machine
+rather than by argument.
+
+**An honest complication for the rule chosen.** D-068 A takes the *most
+recent* reply, deliberately: a maximum would be permanently wrong after one
+thermal spike, and this device throttles. But this trace shows the adaptive
+lead will therefore swing between roughly 174 ms and 822 ms from sentence to
+sentence — reactive, and noisier than a constant. Whether that reads as
+responsive or as jitter is not something these four samples can settle. It is
+recorded now, before anyone is surprised by it, and the alternatives (a
+running average, or a maximum with decay) are one small ruling away.

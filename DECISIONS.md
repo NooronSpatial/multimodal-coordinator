@@ -2714,3 +2714,44 @@ not a plan, and 4j does not claim to pay 4i's debt.
 **Consequence:** branch `milestone/4j-tuning-bench`, cut from the 4i branch
 so that D-066, SPEC §100–108 and the three bug fixes travel with it. 4i's
 branch stays open for the three field measurements.
+
+## D-068 — the cushion is learned, and a human still outranks it (Milestone 4j)
+
+**Date:** 2026-08-23 · **Decided by:** Ryad · **Ruling: A and D together**
+
+**The finding that forced the question.** Fixing `voice-spike`'s cushion bug
+changed the published comparison: `.stepped` costs **693 ms** to first audio,
+not the 201–224 ms in §31, because those runs had a zero cushion and were
+measuring a starved player. The ranking survives; the gap goes from 1.2× to
+3.6× (INSTRUMENTS §33). And it lands hardest on the phone, which cannot load
+`.fused` at all and therefore pays the cushion on every configuration it can
+run.
+
+Then the deeper problem: the cushion the phone is given is derived from a
+**Mac's** constant. `measuredRealTimeFactor(for:)` returns 1.066 for
+`.stepped`; the iPhone measured **1.21** (§22). On a six-second reply that is
+396 ms where ~1260 ms is called for — under-cushioned by about 860 ms, on the
+device that matters. §22 recorded exactly this in August and deferred it to
+"the voice-quality milestone's work". This is that milestone.
+
+**Ruled A — adapt from the margin the voice already reports.** Every reply
+ends with a `DecodeMargin` carrying the steady factor it achieved. The next
+reply's cushion is sized from it. No calibration step, no device table, and
+the number was already being computed. *Rejected:* **B, calibrate once at
+startup** — correct from the first reply, at the price of a load-time delay
+on a device where the load is what kills the app (INSTRUMENTS §29).
+*Rejected:* **C, a per-device constant table** — inspectable, and wrong on
+every device nobody has measured, which is all of them but two.
+
+**Ruled D as well — the human's lever still wins.** The precedence is one
+line:
+
+    a human's number  →  this machine's measurement  →  the constant
+
+A lever on screen that a measurement can silently overrule is not a lever.
+Ruling D alongside A is what keeps AC-143's control honest.
+
+**Cost, named.** The first reply of a session is still cushioned by the
+constant, because nothing has been measured yet. On a slow device that reply
+runs dry. Accepted knowingly — the alternative was B, and B was rejected for
+a reason that has already killed the app three times.
