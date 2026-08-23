@@ -2806,3 +2806,54 @@ Recorded because the honest conclusion is not "the ear was surprising". It
 is that **no instrument in this repo measures the thing Ryad judged in five
 seconds**, so for quality the human stays in the loop, and the tuning flags
 (§31.1) exist precisely so he can put himself there without a rebuild.
+
+## 33. The stepped numbers were taken with a starved player — the real gap is 3.6×
+
+Fixing the `voice-spike` cushion bug (COMMANDS.md, bug 1) changed what the
+instrument reports, so the comparison in §31 has to be re-read.
+
+Release build, this Mac, `bakeoff voice-spike`, three sentences, mean of the
+first-audio figures — with the instrument's own banner quoted, because the
+banner is the thing that was wrong before:
+
+```
+decoder: .fused   · lead: 0.0 seconds (derived)      first audio  191 ms
+decoder: .stepped · lead: 0.396 seconds (derived)    first audio  693 ms
+```
+
+§31 recorded `.stepped` at 201–224 ms. **That was a starved player.** The
+cushion was zero because the instrument passed `.fused`'s constant, so the
+player began speaking before it had banked anything and ran dry — first audio
+arrived early and the audio behind it was gappy. 693 ms is what `.stepped`
+costs when it is allowed to work.
+
+    §31 said       fused 177   vs   stepped 218     ← 1.2× apart
+    corrected      fused 191   vs   stepped 693     ← 3.6× apart
+
+The ranking does not change. The size of the gap changes by a factor of
+three, and D-047's "29% faster" was measured against a decoder that was being
+cheated in the other direction.
+
+**And this matters most for the phone, which has no choice.** `.fused` cannot
+load on iOS 18+, so every phone configuration is a `.stepped` configuration
+and pays the cushion. The Mac's headline number is not available there.
+
+### The cushion the phone gets is the wrong one anyway
+
+`measuredRealTimeFactor(for:)` returns constants measured on **this Mac** —
+0.752 for `.fused`, 1.066 for `.stepped`. §22 measured the iPhone's neural
+decode at **1.21**. The sizing rule is `replyLength × (RTF − 1)`, so on a
+6-second reply:
+
+| | RTF | derived cushion |
+|---|---|---|
+| what the phone is given | 1.066 (a Mac's number) | 396 ms |
+| what the phone needs | 1.21 (its own number) | ~1260 ms |
+
+The phone is under-cushioned by roughly **860 ms** — not by a bug in the
+derivation, but because the derivation is fed a constant from the wrong
+machine. §22 recorded this consequence in 2026-08-19 and deferred it: *"Wiring
+a phone-measured lead through the demo is the voice-quality milestone's
+work."*
+
+4j is that milestone, and the number has been waiting for it.
