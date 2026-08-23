@@ -30,6 +30,12 @@ let package = Package(
         // metallib present, and on CI whose runner already ships the
         // toolchain. It does NOT run on the iOS Simulator, structurally.
         .library(name: "MultiModalKitMLX", targets: ["MultiModalKitMLX"]),
+        // The BENCH (D-067 F-1 = A): the sweep's invariants — wait for
+        // readiness not for time, reset per row, restore what the human
+        // chose — live here so they can be TESTED on a Mac with no models.
+        // Zero dependencies, including on this package's own targets: it
+        // knows about rows, not about decoders.
+        .library(name: "MultiModalKitBench", targets: ["MultiModalKitBench"]),
         .executable(name: "audio-demo", targets: ["AudioDemo"]),
         .executable(name: "bakeoff", targets: ["Bakeoff"]),
     ],
@@ -52,6 +58,7 @@ let package = Package(
     ],
     targets: [
         .target(name: "MultiModalKit"),
+        .target(name: "MultiModalKitBench"),
         .target(
             name: "MultiModalKitWhisper",
             dependencies: [
@@ -112,7 +119,7 @@ let package = Package(
             dependencies: [
                 "MultiModalKit", "MultiModalKitTesting",
                 "MultiModalKitWhisper", "MultiModalKitTTS",
-                "MultiModalKitMLX",
+                "MultiModalKitMLX", "MultiModalKitBench",
                 // DECLARED, not borrowed. `SynthesizerConformanceTests`
                 // imports TTSKit to name `.stepped` and `.fused`, and that
                 // import worked only through transitive module visibility —
