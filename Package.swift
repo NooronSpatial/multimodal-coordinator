@@ -82,7 +82,13 @@ let package = Package(
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
         .executableTarget(
             name: "AudioDemo",
-            dependencies: ["MultiModalKit", "MultiModalKitWhisper"]
+            // Every organ, so the Mac can mix ear/mind/mouth from a
+            // terminal the way the phone demo does from pickers. A DEMO
+            // target, tier 2 of D-016 — the core still knows none of this.
+            dependencies: [
+                "MultiModalKit", "MultiModalKitWhisper",
+                "MultiModalKitTTS", "MultiModalKitMLX",
+            ]
         ),
         .executableTarget(
             name: "Bakeoff",

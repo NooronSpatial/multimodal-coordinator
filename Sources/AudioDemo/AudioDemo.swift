@@ -1,5 +1,7 @@
 import Foundation
 import MultiModalKit
+import MultiModalKitMLX
+import MultiModalKitTTS
 import MultiModalKitWhisper
 import Synchronization
 
@@ -258,8 +260,8 @@ struct AudioDemo {
                     // gate: the demo reuses the exact code paths the
                     // deterministic tests prove.
                     let coordinator = TurnCoordinator(
-                        replyGenerator: PacedEchoReply(screen: screen),
-                        synthesizer: AppleSpeechSynthesizer(),
+                        replyGenerator: chosenMind(arguments, screen: screen),
+                        synthesizer: chosenMouth(arguments),
                         config: .init(replyGate: .milliseconds(Int(gateMs))),
                         clock: ContinuousClock(),
                         latencyReporter: ConsoleLatency(screen: screen))
@@ -511,3 +513,73 @@ private final class EchoRun: ReplyRun, @unchecked Sendable {
 // real `AppleSpeechSynthesizer` speaks behind the same seam, which was
 // the seam's whole promise. Its contract lives on in the library's
 // `ScriptedSynthesizer`, where the deterministic tests need it.)
+
+
+// MARK: - choosing the organs from the command line
+
+/// `--mind=echo|apple|local` (default: echo)
+///
+/// The phone picks its organs from three pickers; this is the same choice
+/// on a Mac, from a terminal. Each option is a REAL implementation behind
+/// the same `ReplyGenerating` seam — which is the thing 4h set out to
+/// prove and the cheapest way to see it proven.
+func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
+    // stderr, not the Screen: its `log` is actor-isolated, and these are
+    // setup refusals that must not fight the TUI for the same lines.
+    func refuse(_ why: String) {
+        FileHandle.standardError.write(Data((why + "\n").utf8))
+    }
+    let want = arguments.first { $0.hasPrefix("--mind=") }
+        .map { String($0.dropFirst("--mind=".count)) } ?? "echo"
+    let spoken = "Your reply will be spoken aloud and never shown as text. "
+        + "Answer in ONE short sentence. Do not add extra facts unless asked."
+    switch want {
+    case "apple":
+        return AppleReplyGenerator(instructions: spoken)
+    case "local":
+        guard let weights = defaultLocalWeights() else {
+            refuse("--mind=local: no weights found. Fetch them with: "
+                + "swift run bakeoff fetch --repo=mlx-community/Qwen3-4B-4bit")
+            return PacedEchoReply(screen: screen)
+        }
+        guard MLXRuntime.isAvailable else {
+            refuse("--mind=local: no Metal shader library reachable. Run "
+                + "Scripts/metallib.sh first — MLX ABORTS the process rather "
+                + "than failing, so this refuses instead.")
+            return PacedEchoReply(screen: screen)
+        }
+        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
+                                     instructions: spoken, maxTokens: 160)
+        mind.prewarm()          // loading is not warming — INSTRUMENTS §25
+        return mind
+    default:
+        return PacedEchoReply(screen: screen)
+    }
+}
+
+/// `--mouth=apple|neural` (default: apple)
+func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
+    let want = arguments.first { $0.hasPrefix("--mouth=") }
+        .map { String($0.dropFirst("--mouth=".count)) } ?? "apple"
+    switch want {
+    case "neural":
+        // `.stepped`, not the library's `.fused` default: `.fused` fails to
+        // load on macOS 15 / iOS 18 and newer — MLModelConfiguration's
+        // functionName must be nil unless the model is an ML Program. D-047
+        // ruled .fused on measured evidence, and that ruling was right on
+        // the OS it was measured on.
+        return NeuralVoice(multiCodeDecoderMode: .stepped)
+    default:
+        return AppleSpeechSynthesizer()
+    }
+}
+
+/// The Hugging Face cache, so a machine that already has the weights needs
+/// no flag at all.
+func defaultLocalWeights() -> URL? {
+    let cache = FileManager.default.homeDirectoryForCurrentUser.appending(
+        path: ".cache/huggingface/hub/models--mlx-community--Qwen3-4B-4bit/snapshots")
+    guard let entries = try? FileManager.default.contentsOfDirectory(
+        at: cache, includingPropertiesForKeys: nil) else { return nil }
+    return entries.first
+}
