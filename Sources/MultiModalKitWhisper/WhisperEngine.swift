@@ -24,7 +24,37 @@ public actor WhisperEngine: TranscriptionEngine {
 
     private let model: String
     private nonisolated let diagnostics: PipelineDiagnostics?
-    private var pipeline: WhisperKit?
+    /// The loaded models, behind the shape that gets this right.
+    ///
+    /// This was a hand-written `pipeline` + `loadBusy` + `loadWaiters`, the
+    /// same trio the neural voice and the local mind each wrote separately.
+    /// The pattern has been wrong five times in this project (D-051), and
+    /// most recently wrong HERE in a way no test could see: one resume where
+    /// all were needed, stranding every caller after the second. Found by a
+    /// three-caller test against `Retirable` that HUNG, fixed in three
+    /// places by inspection — and fixing by inspection is what this
+    /// conversion ends. One implementation, one set of tests.
+    private let held = Retirable<LoadedWhisper>()
+
+    /// `WhisperKit` IS NOT `Sendable`, and we do not get to change that.
+    ///
+    /// `Retirable` holds a `Sendable` resource, so the vendor's class needs
+    /// a box — and an `@unchecked Sendable` box is an exception that owes a
+    /// proof (§4.1). Here it is, in three lines:
+    ///
+    ///   1. the box is CREATED inside the holder's build closure and handed
+    ///      straight to the holder — nobody else ever sees that reference;
+    ///   2. the holder stores it in an actor, and hands it out only from
+    ///      actor-isolated code, so there is one reader at a time;
+    ///   3. every use is inside `WhisperEngine`, itself an actor, and
+    ///      `decode` additionally serialises with its own busy flag.
+    ///
+    /// So the box crosses a boundary exactly once, as sole ownership, and is
+    /// confined afterwards. It is the same shape as `NeuralVoiceRun`'s
+    /// `@unchecked Sendable`, and narrower.
+    private struct LoadedWhisper: @unchecked Sendable {
+        let kit: WhisperKit
+    }
 
     public init(model: String = "base", diagnostics: PipelineDiagnostics? = nil) {
         self.model = model
@@ -70,7 +100,9 @@ public actor WhisperEngine: TranscriptionEngine {
     }
 
     public func openRun(format: AudioStreamFormat) async throws -> any TranscriptionRun {
-        if pipeline == nil {
+        // Ask the holder whether the models are already resident, rather
+        // than a stored property it now owns. Same meaning, one source.
+        if await !held.isResident {
             guard await modelInstalled() else {
                 throw TranscriptionFailure.modelNotInstalled
             }
@@ -90,8 +122,6 @@ public actor WhisperEngine: TranscriptionEngine {
         return WhisperRun(engine: self, converter: converter, sourceFormat: source, targetFormat: target)
     }
 
-    private var loadBusy = false
-    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
     private var decodeBusy = false
     private var decodeWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -144,32 +174,18 @@ public actor WhisperEngine: TranscriptionEngine {
     /// duplicate load is still two downloads, two decodes of the same
     /// weights, and a promise of idempotence that was not true.
     private func loadedPipeline() async throws -> WhisperKit {
-        if let pipeline { return pipeline }
-        while loadBusy {
-            await withCheckedContinuation { loadWaiters.append($0) }
-            if let pipeline { return pipeline }
-        }
-        loadBusy = true
-        defer {
-            loadBusy = false
-            // ALL of them, not one. A woken waiter here returns the cached
-            // pipeline immediately (the `if let pipeline` inside the loop
-            // above), so it never passes the baton, and a third concurrent
-            // caller waits forever. Found in `Retirable` by a three-caller
-            // test that HUNG, and this is the same shape one module over.
-            // `decode` below keeps the one-at-a-time form on purpose: its
-            // waiters always do the work, so the hand-off is real.
-            let waking = loadWaiters
-            loadWaiters = []
-            for waiter in waking { waiter.resume() }
-        }
+        // Read the configuration HERE, on the actor, so the build closure
+        // captures values rather than isolated state.
+        let model = model
+        let folder = localModelFolder
         do {
-            let config = WhisperKitConfig(model: model)
+            return try await held.value {
+                let config = WhisperKitConfig(model: model)
             // Errors only. WhisperKit defaults to verbose info logging
             // ("Loading models...", "Decoding Temperature: ..."), gated once
             // at its init by verbose + logLevel. NOT verbose=false: that maps
             // the level to .none and swallows real errors with the noise.
-            config.logLevel = .error
+                config.logLevel = .error
             // Offline-first — found by a field experiment in airplane mode:
             // WhisperKit pings huggingface.co to check the model revision
             // even when the model sits on disk. With modelFolder set it
@@ -177,15 +193,17 @@ public actor WhisperEngine: TranscriptionEngine {
             // promise applies to STARTUP, not only to transcription. (The
             // tokenizer needs no folder: its load is local-first from the
             // cache that modelInstalled() now verifies file by file.)
-            let folder = localModelFolder
-            if (try? FileManager.default.contentsOfDirectory(atPath: folder.path))?.isEmpty == false {
-                config.modelFolder = folder.path
-            }
-            let fresh = try await WhisperKit(config)
-            // The reentrancy law: the await released the actor.
-            if let pipeline { return pipeline }
-            pipeline = fresh
-            return fresh
+                if (try? FileManager.default.contentsOfDirectory(
+                        atPath: folder.path))?.isEmpty == false {
+                    config.modelFolder = folder.path
+                }
+                // The reentrancy re-check that used to live here is the
+                // holder's job now, and it does it for every caller rather
+                // than only for the one that won.
+                return LoadedWhisper(kit: try await WhisperKit(config))
+            }.kit
+        } catch let failure as TranscriptionFailure {
+            throw failure
         } catch {
             throw TranscriptionFailure.assetDownloadFailed(String(describing: error))
         }

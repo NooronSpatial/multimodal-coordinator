@@ -138,7 +138,18 @@ public actor LocalMindModel {
     public nonisolated let repoID: String?
     /// MLX's buffer-cache ceiling, process-global, settable by the app.
     public nonisolated let cacheLimitBytes: Int
-    private var container: ModelContainer?
+    /// The loaded 2.2 GB, behind the shape that gets this right.
+    ///
+    /// Was a hand-written `container` + `loadBusy` + `loadWaiters` — the
+    /// third copy of a trio that has been wrong five times (D-051), and
+    /// wrong here in a way no test could see: one resume where all were
+    /// needed, stranding every caller after the second. `Retirable` also
+    /// brings the generation ticket this type never had, so a retire during
+    /// a load can no longer be undone by that load finishing.
+    ///
+    /// `ModelContainer` is an actor, hence already `Sendable` — no box
+    /// needed, unlike Whisper's vendor class.
+    private let held = Retirable<ModelContainer>()
     /// ONE load at a time — enforced, not assumed.
     ///
     /// The 4h review caught this: `ensureModel()` checked `container`,
@@ -153,8 +164,6 @@ public actor LocalMindModel {
     /// The shape is `WhisperEngine.decode`'s, deliberately: a busy flag
     /// plus a FIFO waiter queue, re-checked in a WHILE loop after every
     /// wake — the reentrancy law — and released on every exit via defer.
-    private var loadBusy = false
-    private var loadWaiters: [CheckedContinuation<Void, Never>] = []
     /// The warm-up, OWNED so it can be stopped.
     ///
     /// The review found the first version leaking an unstructured
@@ -244,14 +253,6 @@ public actor LocalMindModel {
     /// model is already resident.
     @discardableResult
     public func ensureModel() async throws -> ModelContainer {
-        if let container { return container }
-        // Someone else may already be loading these 2.2 GB. Wait for them
-        // rather than starting a second copy, and RE-CHECK after every
-        // wake: the winner may have finished, or failed.
-        while loadBusy {
-            await withCheckedContinuation { loadWaiters.append($0) }
-            if let container { return container }
-        }
         guard MLXRuntime.isAvailable else { throw MLXUnavailable.platformCannotRunMLX }
         guard modelInstalled() else {
             throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
@@ -267,33 +268,32 @@ public actor LocalMindModel {
         // a phone into jetsam — and `cacheLimitBytes` lets the app
         // overrule it.
         MLX.Memory.cacheLimit = cacheLimitBytes
-        loadBusy = true
-        defer {
-            loadBusy = false
-            // ALL of them. `ensureModel` returns early on a wake when the
-            // container exists, so a single hand-off strands every waiter
-            // after the first — three callers, two stranded, forever. Same
-            // defect as `Retirable` and `WhisperEngine.loadedPipeline`,
-            // found by a test that hung instead of failing.
-            let waking = loadWaiters
-            loadWaiters = []
-            for waiter in waking { waiter.resume() }
+        // The waiter queue, the busy flag and the reentrancy re-check that
+        // used to live here are all the holder's now — and it does the
+        // re-check for every waiter, not only for the one that won.
+        let source = weights
+        return try await held.value {
+            try await loadModelContainer(
+                from: source, using: #huggingFaceTokenizerLoader())
         }
-        let loaded = try await loadModelContainer(
-            from: weights, using: #huggingFaceTokenizerLoader())
-        // The reentrancy law: the await above released the actor. If a
-        // waiter somehow completed a load meanwhile, keep THAT one — two
-        // containers must never both be reachable.
-        if let container { return container }
-        container = loaded
-        return loaded
+    }
+
+    /// Are the weights resident? Asks the holder, which owns the answer.
+    public var isResident: Bool {
+        get async { await held.isResident }
     }
 
     /// Start the warm-up, at most one at a time.
     func startPrewarm(instructions: String?, maxTokens: Int) {
-        guard warmTask == nil, container == nil else { return }
+        guard warmTask == nil else { return }
         warmTask = Task { [weak self] in
             guard let self else { return }
+            // The residency half of this guard used to be a synchronous
+            // read of a stored property; the holder owns that state now, so
+            // it is asked here instead. Same meaning: an already-resident
+            // model needs no warm-up, and the throwaway token it would
+            // burn is pure waste.
+            guard await !self.isResident else { return }
             _ = try? await self.ensureModel()
             // LOADING IS NOT WARMING (INSTRUMENTS §25): with the weights
             // resident the FIRST generation still paid 1911 ms of Metal
@@ -316,10 +316,13 @@ public actor LocalMindModel {
     /// The app calls this before replacing one model with another, so the
     /// retired 2.2 GB is released rather than living beside its
     /// replacement — which on a phone is the whole point (INSTRUMENTS §27).
-    public func retire() {
+    public func retire() async {
         warmTask?.cancel()
         warmTask = nil
-        container = nil
+        // The holder raises its generation ticket, so a load already in
+        // flight cannot resurrect what this call just retired — a guarantee
+        // the hand-written version never had.
+        await held.retire()
     }
 
     /// The vocabulary's reasoning markers, read once and remembered.
