@@ -41,7 +41,10 @@ public enum BenchSweep {
         var rows: [BenchRow] = []
 
         for configuration in configurations {
-            for run in 1...runsEach {
+            // `1...0` is a TRAP, not an empty loop — Swift halts the
+            // process on an invalid ClosedRange. An instrument must never
+            // be the thing that kills the app it measures.
+            for run in stride(from: 1, through: runsEach, by: 1) {
                 if Task.isCancelled {
                     await stage.restore(saved)
                     return rows

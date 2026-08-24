@@ -185,6 +185,16 @@ struct BenchSweepTests {
         #expect(stage.log.withLock { $0.restored } == [7])
     }
 
+    @Test("runsEach of zero measures nothing — it does not halt the process")
+    func zeroRunsIsEmptyNotFatal() async throws {
+        let stage = Recorder()
+        let rows = try await BenchSweep.run(Self.one, runsEach: 0, on: stage)
+        #expect(rows.isEmpty)
+        // And the settings still come back: a sweep that measured nothing
+        // is still a sweep that borrowed them.
+        #expect(stage.log.withLock { $0.restored } == [7])
+    }
+
     // MARK: AC-150 — the numbers leave as markdown
 
     @Test("the table is the shape INSTRUMENTS already uses")

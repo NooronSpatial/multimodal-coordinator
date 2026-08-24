@@ -56,6 +56,17 @@ struct LeadFollowsDecoderTests {
     /// THE BUG, PINNED. Not a wish — a statement of what the API does, so
     /// that anyone reading `defaultLead` as "the safe default" sees the
     /// cost written down next to it.
+    /// DELIBERATELY deprecated, so it may name the deprecated thing.
+    ///
+    /// Swift has no per-expression suppression; a deprecated context is the
+    /// only way to reference deprecated API without a warning. And under
+    /// CI's `-warnings-as-errors` a warning is a build failure — which this
+    /// test caused: the deprecation added as the guard for the slow-voice
+    /// bug broke the test written to document that guard. Found by the 4j
+    /// review, and it had survived `swift build -Xswiftc
+    /// -warnings-as-errors` (Sources are clean) and a plain `swift test`
+    /// (no flag). Neither is what CI runs. VERIFY WITH THE COMMAND CI USES.
+    @available(*, deprecated, message: "documents the deprecated constant on purpose")
     @Test("the CONSTANT is `.fused`'s cushion, and passing it to `.stepped` is the bug")
     func theConstantIsFusedsCushion() {
         #expect(NeuralVoice.defaultLead == .zero)

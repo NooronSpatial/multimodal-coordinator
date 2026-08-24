@@ -3094,7 +3094,7 @@ that would have changed a derived one.
 | AC-153 the human outranks it | ✅ | — |
 | AC-151 death leaves no residue | ✅ | — |
 
-Three of thirteen need the phone, and both are the honest half: a constraint that
+Three of twelve need the phone, and all three are the honest half: a constraint that
 only exists on iOS, and a thermal reading a Mac cannot produce.
 
 ## 107. Open forks
@@ -3115,7 +3115,7 @@ for. *No recommendation — this is a priority call, not a design one.*
 
 ## 108. Definition of done (4j)
 
-Thirteen criteria met · the four levers reachable on the phone · a sweep that
+Twelve criteria met · the four levers reachable on the phone · a sweep that
 refuses rather than dies · a markdown table pasted into INSTRUMENTS beside
 the Mac's · Ryad's by-ear ranking of the phone's four configurations recorded
 next to the clock's, agreeing or not · zero warnings · 20× stable · review
@@ -3165,9 +3165,11 @@ A barge is deliberately a pure energy onset: D-060 F-1 examined and
 **rejected** level-based discrimination while speaking ("the echo arrives at
 peak 1.0, indistinguishable by level from a human barge") and half-duplex
 ("kills barge-in, the product's soul"). Those rulings stand. The defense is
-the shield, and the shield is `default: false` in the app (opt-in, D-060
+the shield, and the shield was `default: false` in the app when this was
+written (opt-in, D-060
 F-4 — a library default claims every device; one phone's evidence did not
-support it).
+support it). **D-069 has since flipped the APP's default to ON**, on the
+evidence in §111 below; the library default is untouched.
 
 ## 111. The four suspects (§23, verbatim in substance)
 
