@@ -57,6 +57,34 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     /// The loaded pipeline, kept so a second utterance does not pay the
     /// load again.
+    /// TERMINAL, and it never goes back (D-070). A retired voice must not
+    /// build a second pipeline: that is the 2.2 GB where 1.1 was intended,
+    /// the jetsam kill of INSTRUMENTS §28/§29 that retiring exists to
+    /// prevent. AC-145 claimed this and proved only that `retire()` was
+    /// CALLED; the review proved the voice would happily reload afterwards.
+    public private(set) var isRetired = false
+
+    /// How many times this voice has actually REACHED for the models.
+    ///
+    /// Not decoration, and not a metric: it is the only way a test can tell
+    /// "refused" from "refused after loading 1.1 GB", and those are
+    /// different outcomes with the same visible result. A review found the
+    /// first version of the terminal test passing with the guard removed —
+    /// it threw either way, ninety-six seconds later. Counting the reach is
+    /// what makes "it does not rebuild" a testable sentence.
+    private(set) var loadAttempts = 0
+
+    /// The reply in flight, held WEAKLY.
+    ///
+    /// A speaking `NeuralVoiceRun` keeps itself alive — `beginDraining`
+    /// stores `Task { [self] … }` — and it holds the `TTSKit` strongly
+    /// through its decoder. So dropping this voice's own reference frees
+    /// nothing while a reply is speaking, and `retire()` has to reach IN and
+    /// cancel. Weak so that this handle never extends the run's life by
+    /// itself; the run's own drain task is what keeps it alive, and the run
+    /// is what must be told to stop.
+    private weak var speaking: NeuralVoiceRun?
+
     /// The loaded models, behind the shape that gets this right (D-051).
     /// Hand-written four times here and wrong four times; `Retirable` holds
     /// the FIFO, the reentrancy re-check and the generation ticket that
@@ -296,10 +324,12 @@ public actor NeuralVoice: SpeechSynthesizing {
             memory.observe(margin)
             listener?(margin)
         }
-        return try NeuralVoiceRun(decoder: TTSKitDecoder(kit: kit), host: host,
-                                  lead: PlaybackLead(target: currentLead),
-                                  temperature: temperature,
-                                  onMargin: onMargin)
+        let run = try NeuralVoiceRun(decoder: TTSKitDecoder(kit: kit), host: host,
+                                     lead: PlaybackLead(target: currentLead),
+                                     temperature: temperature,
+                                     onMargin: onMargin)
+        speaking = run
+        return run
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not
@@ -442,19 +472,33 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// waiter queue, re-checked in a WHILE loop after every wake, and
     /// released on every exit through `defer`.
     private func loadedPipeline() async throws -> TTSKit {
+        // A RETIRED VOICE NEVER LOADS AGAIN — that is what retiring MEANS.
+        // Both `openUtterance()` and `ensureModel()` come through here, so
+        // one guard closes both doors.
+        guard !isRetired else { throw NeuralVoiceRetired() }
         // Read the configuration HERE, on the actor, so the build closure
         // captures values rather than isolated state.
         let model = variant
         let speech = speechDecoderMode
         let multi = multiCodeDecoderMode
         let requestedSeed = seed
-        return try await held.value {
+        loadAttempts += 1
+        let kit = try await held.value {
             try await TTSKit(TTSKitConfig(
                 model: model,
                 speechDecoderMode: speech,
                 multiCodeDecoderMode: multi,
                 download: true, load: true, seed: requestedSeed))
         }
+        // THE REENTRANCY LAW. The await above released the actor, and a
+        // caller already parked in the holder's queue passed the guard
+        // before the retire landed. Re-check, throw away what it built, and
+        // tell the truth rather than hand back a pipeline nobody tracks.
+        guard !isRetired else {
+            await held.retire()
+            throw NeuralVoiceRetired()
+        }
+        return kit
     }
 
     /// Gives back the loaded models and the owned engine.
@@ -468,7 +512,30 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// caller is told `retiredDuringLoad` rather than handed a voice nobody
     /// is tracking. Safe to call twice, and safe on a voice that never spoke.
     public func retire() async {
+        // THE LATCH FIRST, in this actor step, BEFORE any await. Everything
+        // below suspends, and a caller that arrives during a suspension must
+        // already find a voice that says no.
+        isRetired = true
         shutdown()
+        // AND TAKE THE REPLY WITH IT (D-070). Without this the run keeps
+        // itself alive through its drain task and holds the whole 1.1 GB
+        // pipeline, so retiring frees nothing while the assistant is
+        // speaking — which is exactly when a lever gets changed.
+        let dying = speaking
+        speaking = nil
+        await dying?.cancel()
         await held.retire()
+    }
+}
+
+/// Thrown when a retired voice is asked to speak or to load (D-070).
+///
+/// Its own type rather than a reused `Retirable.Failure`: a caller catching
+/// this is asking "is this voice finished?", which is a different question
+/// from "did my load lose a race?", and the two deserve different words.
+public struct NeuralVoiceRetired: Error, CustomStringConvertible {
+    public init() {}
+    public var description: String {
+        "this voice was retired — build a new one rather than reviving it"
     }
 }
