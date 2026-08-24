@@ -2952,3 +2952,92 @@ Mac — the order, the reset, the restore, the refusal — but the four rows of
 numbers it exists to produce have never been produced. That is not a caveat
 to bury: AC-146 through AC-151 are met in their logic and unproven in the
 field until the phone runs them.
+
+## 36. The phone's first sweep — the cushion is visible, and the Mac's ranking does not transfer
+
+Ryad's iPhone, 2026-08-23. Bench → Run: four configurations, three runs each,
+twelve rows, no crash, no kill. Pasted exactly as the phone produced it:
+
+| config | run | first audio | total | thermal | free |
+|---|---|---|---|---|---|
+| stepped + latency | 1 | 1002 ms | 11617 ms | nominal | 987 MB |
+| stepped + latency | 2 | 2932 ms | 10313 ms | nominal | 964 MB |
+| stepped + latency | 3 | 3314 ms | 10217 ms | nominal | 967 MB |
+| stepped + throughput | 1 | 1685 ms | 9931 ms | nominal | 911 MB |
+| stepped + throughput | 2 | 2642 ms | 9309 ms | nominal | 967 MB |
+| stepped + throughput | 3 | 2174 ms | 8834 ms | nominal | 970 MB |
+| stepped + temp 0 | 1 | 917 ms | 10701 ms | nominal | 1001 MB |
+| stepped + temp 0 | 2 | 3365 ms | 10819 ms | nominal | 968 MB |
+| stepped + temp 0 | 3 | 3135 ms | 10584 ms | nominal | 968 MB |
+| stepped + throughput + temp 0 | 1 | 1578 ms | 10336 ms | nominal | 1009 MB |
+| stepped + throughput + temp 0 | 2 | 2217 ms | 9974 ms | nominal | 969 MB |
+| stepped + throughput + temp 0 | 3 | 2330 ms | 10404 ms | nominal | 969 MB |
+
+### 1. D-068's adaptive cushion is VISIBLE in the table
+
+In all four configurations, run 1 starts fast and runs 2–3 start 1–2.4 s
+slower. That is not noise and not warm-up — warm-up would slow run 1, and
+run 1 is the fastest every time. It is the cushion learning:
+
+```
+   run 1   fresh voice, cushion = the CONSTANT (396 ms, a Mac's number)
+             → speaks early, almost certainly starves mid-sentence
+   run 2   cushion = what run 1 MEASURED on this phone (~1.5–2 s)
+             → waits, banks audio, then speaks without running dry
+   run 3   same, refined
+```
+
+The mechanism is traceable in code: `apply()` early-returns when the levers
+are unchanged, so runs 2–3 keep the voice — and its learned lead — while a
+config change builds a fresh voice whose `AdaptiveLead` starts from the
+constant again. Four configs, four resets, four re-learnings: all visible.
+
+Working backwards from run 2–3 first audio (prefill + factor × cushion),
+the implied steady factor is roughly **1.25–1.35** — an inference from
+arithmetic, not a measurement, but it brackets §22's measured 1.21 and
+confirms §33's warning: the Mac constant (1.066 → 396 ms) under-cushions
+this phone by well over a second.
+
+**A reading rule this creates:** on the phone, "first audio" is time until
+sound, and most of it is the cushion — deliberate waiting, not decoder
+slowness. It cannot be compared to a Mac number without saying which cushion
+was in force. Run 1 and run 2 of the same config differ by 2 s for exactly
+this reason.
+
+### 2. THE HEADLINE — the phone reverses the Mac's ranking
+
+On the Mac (§31), `throughputOptimized` ranked 3rd–4th: it trades first
+audio for decode throughput, and the Mac has throughput to spare. The phone
+does not — it is the machine the cushion exists for — and there the trade
+pays the other way:
+
+|  | adapted first audio (runs 2–3) | total (mean) |
+|---|---|---|
+| stepped + latency (the demo's DEFAULT) | ~3.1 s | ~10.7 s |
+| **stepped + throughput** | **~2.4 s** | **~9.4 s** |
+
+The vocoder mode the Mac ranked worst wins BOTH columns on the phone: a
+faster decode needs a smaller cushion, so it speaks ~0.7 s sooner AND
+finishes ~1.3 s earlier. This is what 4j was for — without the bench the
+phone would keep running the Mac winner's shape, and no instrument would
+ever have said otherwise.
+
+NOT yet ruled and NOT yet listened to: whether throughput mode sounds as
+good. §32's lesson stands — the clock ranked temperature 0 second-best on
+the Mac and the ear called it bad. The ear has the last word here too.
+
+### 3. Two stability facts that came free
+
+- **Thermal: nominal on all twelve rows** — about two minutes of continuous
+  synthesis did not move the badge. A small, real down-payment on AC-140,
+  though not the sustained trace it asks for.
+- **Memory: 911–1009 MB free, no downward trend across four voice
+  rebuilds** — twelve retire/rebuild-or-reuse cycles and the footprint came
+  back every time. AC-145's retire, working in the field.
+
+### 4. What the sweep proves and what it still owes
+
+AC-146…151 are now field-run: the rows exist, each carries its conditions,
+the markdown pasted here unedited. Still owed: the EAR's ranking of the four
+(§32's rule), and one glance at the Bench's "In force" line to confirm the
+sweep gave back the levers Ryad had chosen (AC-151's field half).
