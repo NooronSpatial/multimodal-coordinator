@@ -121,8 +121,14 @@ mistyped flag was dropped.
 
     swift run audio-demo --levels
 
-Replaces the whole program: it prints a level probe every 500 ms straight
-from the ring and returns. No pump, no transcription, no turn loop.
+Prints a level probe every 500 ms straight from the ring, then returns. No
+pump, no transcription, no turn loop.
+
+**But not "instead of everything".** The check is at `AudioDemo.swift:218`,
+and the model phase runs *before* it — so with no positional argument this
+defaults to `apple` and can begin **downloading a speech model** before it
+ever prints a level. Pass an engine that is already installed
+(`audio-demo whisper --levels`) if all you want is the meter.
 
 ### What each organ needs on disk
 
