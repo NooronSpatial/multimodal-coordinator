@@ -3099,3 +3099,41 @@ them; a shielded session that does not barge closes AC-155 the good way.
   happens on first install.
 - **felt pause 2,354 ms** with the local mind at ~320 ms first word — the
   learned cushion (§36) plus decode, visible in a live conversation.
+
+## 38. The shielded session (4k, AC-155's second half) — the shield works, and suspect 1 shows its face
+
+Same phone, same route (loudspeaker), one day after §37 — the only variable
+changed is the shield. Ryad's log header: `speaker shield=true`.
+
+| | unshielded (§37) | shielded (this session) |
+|---|---|---|
+| onsets while speaking | 3 | **1** |
+| barges | 4 | **1** |
+| completed turns | — (3 marked BARGED) | **4, none barged** |
+| `echo?` rows | 0.108, 0.032 | **0.098** |
+
+**The shield works as measured** — same conclusion as §23's matrix, now in a
+live conversation with the neural mouth and the 4B mind resident.
+
+**And the residue is suspect 1, wearing its predicted face.** One `echo?`
+row at peak 0.098: §23 predicted shielded residuals of 0.0036–0.0766
+against a 0.021 gate, and said suspect 1 would be convicted by "rows with
+peaks just above the gate (0.02–0.08)". 0.098 sits just past that band's
+top — the canceller attenuating, not erasing, with speech burstier than
+the matrix's tone. One row is a hint, not a conviction; the count says the
+leak is now RARE (one onset in a multi-turn session), which changes what a
+fix is worth.
+
+### Two findings the session volunteered
+
+1. **The thermal policy sacrificed a real decode.** A row reads "Decode
+   skipped — device too hot", the badge reads `hot`, and the turn produced
+   no reply. This is `ConservativeThermalPolicy` doing exactly what D-028
+   bought — and it is the first time the field shows the price: a
+   conversation with a hole in it. AC-140's thermal trace is no longer just
+   owed; it is now visibly shaping conversations.
+2. **The phone's own RTF line reads `decode 1.12× real time · TOO SLOW ·
+   prefill 565 ms`.** A measured on-device number for the stepped decoder,
+   sitting between the Mac's 1.066 constant and §36's implied 1.25–1.35 —
+   the spread across sessions is itself evidence that no constant was ever
+   going to be right (D-068's case, made again by the device).
