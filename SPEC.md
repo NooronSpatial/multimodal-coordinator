@@ -3120,3 +3120,147 @@ refuses rather than dies · a markdown table pasted into INSTRUMENTS beside
 the Mac's · Ryad's by-ear ranking of the phone's four configurations recorded
 next to the clock's, agreeing or not · zero warnings · 20× stable · review
 before merge (D-041) · teach-back survived.
+
+---
+
+# Milestone 4k — the reply that survives its own voice
+
+## 109. Why this milestone exists
+
+4j ended with the phone bench producing its first table (§36) and one ruling
+parked: whether `throughput` should become the phone's default vocoder. That
+ruling needs Ryad's ear in a live conversation, and the conversation is
+currently unusable for judging anything:
+
+> "i cant test it in the phone good because the selfbargin issue."
+
+Self-barge is not new. It has a measured history:
+
+- **§25 (4h, 38 turns):** six turns — 16% — opened on a fragment and were
+  killed by the speaker continuing. `_(no words)_`, `BARGED IN`, one at 76 ms.
+- **§23 (4g, AC-121):** the shielded Apple mouth on the loudspeaker:
+  "working most of the time, but sometimes it barges itself" — recorded
+  with four suspects and what would convict each, before any fix.
+
+4g built the defense (the shield); 4k convicts the leak and closes it.
+
+## 110. What is already known — the mechanics in one picture
+
+```
+  you speak            the reply plays           the echo returns
+     │                        │                        │
+     ▼                        ▼                        ▼
+   mic ──► VAD ──► gate 0.021 ──► speechStarted while SPEAKING = barge
+                                   (TurnCoordinator — energy only,
+                                    no content, no echo awareness)
+
+   the canceller can only remove what renders on ITS OWN engine:
+     shield ON   → reply renders on the capture engine → cancelled,
+                   but attenuated NOT erased (residual 0.0036–0.0766,
+                   and the gate is 0.021 — the top end is ABOVE it)
+     shield OFF  → the canceller never sees the reply at all
+```
+
+A barge is deliberately a pure energy onset: D-060 F-1 examined and
+**rejected** level-based discrimination while speaking ("the echo arrives at
+peak 1.0, indistinguishable by level from a human barge") and half-duplex
+("kills barge-in, the product's soul"). Those rulings stand. The defense is
+the shield, and the shield is `default: false` in the app (opt-in, D-060
+F-4 — a library default claims every device; one phone's evidence did not
+support it).
+
+## 111. The four suspects (§23, verbatim in substance)
+
+| # | suspect | what convicts it |
+|---|---|---|
+| 1 | residual over the gate — cancelled, but 0.02–0.08 peaks remain | `echo?` rows with peaks just above 0.021, spread across the reply |
+| 2 | canceller convergence — adaptive filters take a moment | leaks CLUSTER at reply starts |
+| 3 | the lazy attach — the player attaches at the first buffer, mid-run | also clusters at starts, FIRST reply especially |
+| 4 | the 22.05 kHz Apple path — resampling mis-aligns the reference | Apple's mouth leaks, the neural (24 kHz) does not, same session |
+
+A fifth question sits before all four: **was the shield even on?** With the
+neural mouth, shield off and the loudspeaker, self-barge is not a leak — it
+is the expected behaviour of a canceller that was never shown the reply.
+
+## 112. Scope — convict first, fix what is convicted
+
+1. An instrument on the Mac that can SEE the leak (AC-154).
+2. The conviction, from field evidence the phone already produces (AC-155).
+3. The fix for what was convicted — and nothing that was not (AC-156).
+4. The app stops letting the guaranteed-failure configuration run silently
+   (AC-157, fork F-1).
+5. 4j's parked ear test runs to completion (AC-158).
+
+## 113. Non-goals
+
+- **No content-based barge discrimination** (transcribing the echo and
+  comparing it to the reply text). A real idea, a different milestone, and
+  a latency cost nobody has measured.
+- **No raising the gate while speaking, no half-duplex.** Rejected in
+  D-060 with reasons that have not changed.
+- **Not AC-140/AC-141.** 4i's thermal and endurance debts stay where they
+  are.
+
+## 114. Acceptance criteria
+
+**AC-154 — the Mac can see the leak.** A `bakeoff voice-selfecho`
+instrument: during a shielded neural reply on the live capture engine
+(`voice-onmic`'s graph), it reads the RING — the microphone side — and
+reports peak/rms while the voice speaks, plus the count of would-be gate
+crossings at 0.021. *Control (D-054 rule 5):* the same instrument with
+`--no-shield` must show the leak large — an instrument that cannot see the
+failure cannot clear the fix. *Caveat, stated now:* §23 proved a Mac graph
+verdict does not transfer to the phone; this instrument develops the METHOD
+and the fix's before/after; the phone's own rows convict.
+
+**AC-155 — the conviction.** From one failing session on Ryad's phone —
+the shared conversation log, which already carries the shield state, the
+per-utterance `peak · ms · echo?` rows and both barge counters — plus the
+echo probe's result on his actual route: which suspect(s) the evidence
+convicts, written into INSTRUMENTS with the numbers.
+
+**AC-156 — the convicted fix, before/after.** Whatever AC-155 convicts is
+fixed, and the SAME instrument that showed the failure shows the
+difference. Fix menus per suspect, held until conviction: (1) → per-route
+calibrated gate, AC-97's own law, the calibration tap already exists;
+(2)/(3) → attach the player at utterance OPEN instead of first buffer, and
+only if leaks persist, a measured reply-start settle window — priced
+against D-036's history with time windows; (4) → route Apple's PCM at the
+chain's rate or record the neural mouth as the shielded recommendation.
+
+**AC-157 — the dangerous configuration announces itself.** Neural or Apple
+mouth + shield OFF + `--talk`/Listen: the app says, in one sentence, that
+the canceller cannot see this reply and self-barge is expected. (Whether
+the shield's default also flips is F-1 — a ruling, not a slipped-in line.)
+
+**AC-158 — the ear test unblocked.** Ryad completes 4j's four-configuration
+listen without a self-barge ending it — or the residue is recorded
+honestly and the milestone says what remains.
+
+## 115. The fork that can be ruled today
+
+**F-1 — the shield's default in THIS app.**
+- **A — default ON, with AC-157's warning when someone turns it off.**
+  D-060 F-4 kept the LIBRARY default off because a library claims every
+  device; the app claiming ONE device is exactly the mechanism/policy split
+  that ruling protected. The evidence since: §23's matrix, §29's field log
+  (`speaker shield=true`, working turns), and a 4j sweep that ran with the
+  shield's graph. *(Recommendation.)*
+- **B — keep opt-in, warn when off.** Honest, cheaper, and leaves the
+  first-run experience broken by default — a person's first conversation
+  self-barges, and the fix is a toggle they have not met yet.
+- **C — remove the toggle.** Cleanest graph story, but it deletes the A/B
+  instrument that AC-121's field work still uses.
+
+The fix-shape forks (gate, attach, settle window, Apple path) are **held
+until AC-155 convicts** — ruling them now would be choosing a cure before
+the diagnosis, which is the exact habit D-054 exists to end.
+
+## 116. Definition of done (4k)
+
+The leak seen by an instrument on this Mac · convicted on the phone with
+the rows it already prints · fixed with before/after from the same
+instrument · the dangerous configuration warns · the 4j ear test completed
+and its ruling (throughput default, F-4 of §36) unblocked · numbers in
+INSTRUMENTS including disappointing ones · zero warnings · 20× stable ·
+review before merge (D-041) · teach-back survived.
