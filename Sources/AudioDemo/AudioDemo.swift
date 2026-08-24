@@ -1,7 +1,10 @@
 import Foundation
 import MultiModalKit
+import MultiModalKitMLX
+import MultiModalKitTTS
 import MultiModalKitWhisper
 import Synchronization
+import TTSKit
 
 /// Phase 2 live demo: microphone → ring → pump → transcription → terminal.
 ///
@@ -184,8 +187,20 @@ struct AudioDemo {
                 ? (microphone.voiceProcessingActive ? "ACTIVE" : "REFUSED by the platform")
                 : "OFF (--no-aec) — the assistant will hear itself"))
         if talk && transcription != nil {
-            print("    turn loop: ON — it SPEAKS the echo aloud (AVSpeechSynthesizer);"
-                + " interrupt it mid-reply")
+            // READ FROM THE FLAGS, not hardcoded. This line said
+            // "the echo aloud (AVSpeechSynthesizer)" in every run, including
+            // `--mind=local --mouth=neural`, where all three words were
+            // wrong. A banner that cannot be wrong is worth more than a
+            // banner that is usually right.
+            func flag(_ name: String) -> String? {
+                arguments.first { $0.hasPrefix("--\(name)=") }
+                    .map { String($0.dropFirst(name.count + 3)) }
+            }
+            let mindName = flag("mind") ?? "echo"
+            let mouthName = flag("mouth") == "neural"
+                ? "Qwen3 neural voice" : "AVSpeechSynthesizer"
+            print("    turn loop: ON — \(mindName) mind, spoken by "
+                + "\(mouthName); interrupt it mid-reply")
             print("    reply gate: \(Int(gateMs)) ms"
                 + (gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor"))
             print("    context: up to 16 pieces of one thought — 🧠 shows what the"
@@ -258,8 +273,8 @@ struct AudioDemo {
                     // gate: the demo reuses the exact code paths the
                     // deterministic tests prove.
                     let coordinator = TurnCoordinator(
-                        replyGenerator: PacedEchoReply(screen: screen),
-                        synthesizer: AppleSpeechSynthesizer(),
+                        replyGenerator: chosenMind(arguments, screen: screen),
+                        synthesizer: chosenMouth(arguments),
                         config: .init(replyGate: .milliseconds(Int(gateMs))),
                         clock: ContinuousClock(),
                         latencyReporter: ConsoleLatency(screen: screen))
@@ -511,3 +526,134 @@ private final class EchoRun: ReplyRun, @unchecked Sendable {
 // real `AppleSpeechSynthesizer` speaks behind the same seam, which was
 // the seam's whole promise. Its contract lives on in the library's
 // `ScriptedSynthesizer`, where the deterministic tests need it.)
+
+
+// MARK: - choosing the organs from the command line
+
+/// `--mind=echo|apple|local` (default: echo)
+///
+/// The phone picks its organs from three pickers; this is the same choice
+/// on a Mac, from a terminal. Each option is a REAL implementation behind
+/// the same `ReplyGenerating` seam — which is the thing 4h set out to
+/// prove and the cheapest way to see it proven.
+func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
+    // stderr, not the Screen: its `log` is actor-isolated, and these are
+    // setup refusals that must not fight the TUI for the same lines.
+    func refuse(_ why: String) {
+        FileHandle.standardError.write(Data((why + "\n").utf8))
+    }
+    let want = arguments.first { $0.hasPrefix("--mind=") }
+        .map { String($0.dropFirst("--mind=".count)) } ?? "echo"
+    let spoken = "Your reply will be spoken aloud and never shown as text. "
+        + "Answer in ONE short sentence. Do not add extra facts unless asked."
+    switch want {
+    case "apple":
+        return AppleReplyGenerator(instructions: spoken)
+    case "local":
+        // A path is not a model. `--model=/nope` used to sail past this
+        // guard — the URL is non-nil, so the refusal never fired and MLX
+        // failed later with something unrecognisable. Ask the honest disk
+        // check instead: config, tokenizer, tokenizer config, weights.
+        if let given = defaultLocalWeights(arguments),
+           !LocalMindModel(weights: given).modelInstalled() {
+            refuse("--mind=local: \(given.path) is not a model — it needs "
+                + "config.json, tokenizer.json, tokenizer_config.json and a "
+                + ".safetensors file.")
+            return PacedEchoReply(screen: screen)
+        }
+        guard let weights = defaultLocalWeights(arguments) else {
+            // Two lines, both true. The old single line named a fetch that
+            // downloads to $TMPDIR — somewhere this demo never looks — so
+            // following it left the mind still refusing.
+            refuse("--mind=local: no weights found. Either:")
+            refuse("  swift run bakeoff fetch --repo=mlx-community/Qwen3-4B-4bit"
+                + " --into=/tmp/mmk")
+            refuse("  then re-run with --model=/tmp/mmk/Qwen3-4B-4bit")
+            return PacedEchoReply(screen: screen)
+        }
+        guard MLXRuntime.isAvailable else {
+            refuse("--mind=local: no Metal shader library reachable. Run "
+                + "Scripts/metallib.sh first — MLX ABORTS the process rather "
+                + "than failing, so this refuses instead.")
+            return PacedEchoReply(screen: screen)
+        }
+        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
+                                     instructions: spoken, maxTokens: 160)
+        mind.prewarm()          // loading is not warming — INSTRUMENTS §25
+        return mind
+    default:
+        return PacedEchoReply(screen: screen)
+    }
+}
+
+/// `--mouth=apple|neural` (default: apple)
+///
+/// The neural voice's levers are exposed too, so they can be tried by ear
+/// in a live conversation rather than only measured by `bakeoff
+/// voice-levers`. Ryad asked for exactly this: the sweep speaks each
+/// config aloud, but you cannot TALK to a sweep.
+///
+///   --decoder=fused|stepped          multi-code decoder (default: fused)
+///   --speech=latency|throughput      vocoder mode (default: latency)
+///   --temperature=0.7                sampling; omit for the model default
+///   --lead=400ms                     override the cushion; omit to DERIVE
+///                                    it from the decoder's measured RTF
+///
+/// Measured on this Mac, release build, three runs each (INSTRUMENTS §31):
+///
+///   fused                      first audio 177–187 ms · total 6578 ms
+///   stepped + latency          201–224 ms · 9353 ms
+///   throughputOptimized        491–571 ms · 10622 ms   (slower, both modes)
+///   temperature 0 on fused     156–177 ms · 13054 ms   (not faster, talkier)
+func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
+    func flag(_ name: String) -> String? {
+        arguments.first { $0.hasPrefix("--\(name)=") }
+            .map { String($0.dropFirst(name.count + 3)) }
+    }
+    let want = flag("mouth") ?? "apple"
+    guard want == "neural" else { return AppleSpeechSynthesizer() }
+
+    // `.fused` by default HERE. It fails to load on iOS 18+, but this Mac
+    // loads and decodes it fine and it wins on both numbers — so the
+    // phone's workaround does not belong on a machine without the bug.
+    let decoder: Qwen3MultiCodeDecoderMode =
+        flag("decoder") == "stepped" ? .stepped : .fused
+    let speech: Qwen3SpeechDecoderMode =
+        flag("speech") == "throughput" ? .throughputOptimized : .latencyOptimized
+    let temperature = flag("temperature").flatMap(Float.init)
+    // nil LEAVES IT DERIVED from the decoder's measured factor, which is
+    // the whole point of that derivation — a hand-typed lead here would
+    // reintroduce the bug it was written to prevent.
+    let lead = flag("lead")
+        .flatMap { Int($0.replacingOccurrences(of: "ms", with: "")) }
+        .map { Duration.milliseconds($0) }
+
+    let saidTemperature: String = temperature.map { "\($0)" } ?? "model default"
+    let saidLead: String = lead.map { "\($0)" } ?? "derived from the decoder"
+    var banner = "voice: decoder=\(decoder), speech=\(speech), "
+    banner += "temperature=\(saidTemperature), lead=\(saidLead)\n"
+    FileHandle.standardError.write(Data(banner.utf8))
+
+    return NeuralVoice(lead: lead,
+                       multiCodeDecoderMode: decoder,
+                       speechDecoderMode: speech,
+                       temperature: temperature)
+}
+
+/// The Hugging Face cache, so a machine that already has the weights needs
+/// no flag at all.
+func defaultLocalWeights(_ arguments: [String]) -> URL? {
+    // `--model=` FIRST, matching `bakeoff ask`. Without it this function
+    // could only look in the Hugging Face cache, so the refusal below had
+    // nowhere honest to point: `bakeoff fetch` writes a flat folder to
+    // $TMPDIR/mmk-fetch, which this lookup can never find. The advice was
+    // wrong for as long as the escape hatch was missing.
+    if let given = arguments.first(where: { $0.hasPrefix("--model=") }) {
+        return URL(filePath: String(given.dropFirst("--model=".count)))
+    }
+    let cache = FileManager.default.homeDirectoryForCurrentUser.appending(
+        path: ".cache/huggingface/hub/models--mlx-community--Qwen3-4B-4bit/snapshots")
+    guard let entries = try? FileManager.default.contentsOfDirectory(
+        at: cache, includingPropertiesForKeys: nil) else { return nil }
+    return entries.first
+}

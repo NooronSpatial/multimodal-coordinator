@@ -1,6 +1,7 @@
 import AVFAudio
 import Synchronization
 import MultiModalKit
+import MultiModalKitBench
 import MultiModalKitTesting
 import MultiModalKitMLX
 import MultiModalKitTTS
@@ -40,33 +41,22 @@ final class TranscribeModel {
         var id: String { rawValue }
     }
 
-    /// WHICH LOCAL MODEL (4h, F-1 = C). The picker exists so the phone
-    /// can ANSWER the question the Mac cannot: 2.1 GB is nothing here and
-    /// may be fatal there, because MLX keeps its weights resident.
-    enum LocalModelChoice: String, CaseIterable, Identifiable {
-        case small = "0.6B"
-        case big = "4B"
-        var id: String { rawValue }
-        var repoID: String {
-            switch self {
-            case .small: "mlx-community/Qwen3-0.6B-4bit"
-            case .big: "mlx-community/Qwen3-4B-4bit"
-            }
-        }
-        /// Honest sizes, so a person on cellular knows before tapping.
-        var sizeOnDisk: String {
-            switch self {
-            case .small: "about 400 MB"
-            case .big: "about 2.2 GB"
-            }
-        }
-        /// Measured on the Mac (INSTRUMENTS §25) — NOT on a phone.
-        var macBehaviour: String {
-            switch self {
-            case .small: "51–78 ms first word · parrots interrupted speech"
-            case .big: "249–374 ms first word · reads through disfluency"
-            }
-        }
+    /// THE LOCAL MIND'S MODEL — one, named, not chosen.
+    ///
+    /// 4h shipped a picker (F-1 = C) so the PHONE could answer what the
+    /// Mac could not, and it did: 4B runs at 2288 MB peak with 291–315 ms
+    /// to the first word. Ryad then ruled 4B outright and removed 0.6B —
+    /// its replies were bad enough that keeping it as a "fallback" would
+    /// have meant offering a worse product as a feature (D-064).
+    ///
+    /// The 0.6B measurements stay in INSTRUMENTS. They were true, they
+    /// paid for the ruling, and deleting them would hide the evidence.
+    enum LocalMind {
+        static let repoID = "mlx-community/Qwen3-4B-4bit"
+        static let sizeOnDisk = "about 2.2 GB"
+        /// Measured on a Mac, and the caption says so — these are not a
+        /// phone's numbers (INSTRUMENTS §25).
+        static let macBehaviour = "249–374 ms first word · reads through disfluency"
     }
 
     enum EngineChoice: String, CaseIterable, Identifiable {
@@ -119,6 +109,14 @@ final class TranscribeModel {
             UserDefaults.standard.set(mouth.rawValue, forKey: Self.mouthKey)
             guard mouth != oldValue else { return }
             if isListening { restart() }
+            // BOTH, and the mind is not a typo. Its availability message
+            // used to depend on WHICH MOUTH was selected (the retracted
+            // memory conflict), and this setter only refreshed the voice
+            // — so a warning set under one combination survived into
+            // another and sat there, orange, describing a state that no
+            // longer existed. A derived value must be recomputed by
+            // everything it derives from.
+            refreshMind()
             Task { await checkVoice() }
         }
     }
@@ -140,7 +138,201 @@ final class TranscribeModel {
     /// it with `try?`, the `.playAndRecord` session is never released,
     /// and the person's music never comes back after Stop.
     private let neuralHost = AudioEnginePlaybackHost()
-    private let neuralVoice = NeuralVoice()
+    /// `.stepped`, not the library's `.fused` default — because `.fused`
+    /// DOES NOT LOAD on this phone:
+    ///
+    ///   modelLoadingFailed("MultiCodeDecoder: failed to load
+    ///   MultiCodeDecoder.mlmodelc (function 'fused') on macOS 15 / iOS 18
+    ///   or newer. MLModelConfiguration's .functionName must be nil unless
+    ///   the model type is ML Program.")
+    ///
+    /// D-047 made `.fused` the default on measured evidence — 29% faster,
+    /// RTF 0.752 against 1.066, no quality difference two instruments
+    /// could find. That ruling was right on the OS it was taken on. This
+    /// is an APP choosing what works on the device in its hand (D-027),
+    /// not a reversal of the ruling; the library default is untouched and
+    /// the honest cost is the 29%.
+    private var neuralVoice = TranscribeModel.storedLevers.makeVoice()
+
+    /// THE FOUR LEVERS, on the phone (AC-143).
+    ///
+    /// A `var`, where this was a `let`. The decoder and the vocoder are
+    /// fixed at a voice's birth — deliberately, because that is how the
+    /// cushion can be derived from them and cannot drift — so turning a
+    /// lever means building a NEW voice and giving the old one back.
+    /// `retire()` is what makes that leave exactly one pipeline resident
+    /// instead of a pile (AC-145).
+    var levers: VoiceLevers = TranscribeModel.storedLevers {
+        didSet {
+            guard !awaitedElsewhere, !revertingLevers, levers != oldValue
+            else { return }
+            // A PICKER cannot await, so this one spawns. The bench calls
+            // `apply(_:)` instead and awaits the same work — see AC-147.
+            Task { await settleLevers(from: oldValue) }
+        }
+    }
+
+    /// APPLY AND WAIT — the shape AC-147 needs (SPEC §104, H-3).
+    ///
+    /// `restart()` gives no signal that a new configuration is up: it defers
+    /// teardown into a detached Task and sets `isListening` false while the
+    /// microphone is still being released. A sweep driven by that has
+    /// nothing to wait ON, and the only alternatives are a delay or a retry
+    /// count — both of which AC-147 forbids, and both of which are how every
+    /// timing bug in this project started.
+    ///
+    /// So the work is a function that RETURNS when it is done, and the
+    /// picker's `didSet` becomes the odd one out: it cannot await, so it
+    /// spawns a task that calls the same function. One code path, two
+    /// callers, and only one of them has to guess about anything.
+    /// - Parameters:
+    ///   - restoring: the bench giving the person's settings BACK, not a
+    ///     lever change. Two behaviours differ: the AC-144 recovery must not
+    ///     run (there is nothing better to fall back to — `previous` is a
+    ///     bench row, and reverting to it would leave the SWEEP's last
+    ///     configuration as the person's), and nothing is persisted.
+    ///   - persisting: whether this configuration becomes the person's
+    ///     stored choice. False for every bench-driven change: a sweep used
+    ///     to write all four keys on every row, so a sweep that died left
+    ///     its own last row as the person's settings.
+    func apply(_ wanted: VoiceLevers,
+               restoring: Bool = false,
+               persisting: Bool = true) async {
+        guard wanted != levers else { return }
+        let previous = levers
+        awaitedElsewhere = true
+        levers = wanted
+        awaitedElsewhere = false
+        await settleLevers(from: previous,
+                           restoring: restoring,
+                           persisting: persisting)
+    }
+
+    private func settleLevers(from previous: VoiceLevers,
+                              restoring: Bool = false,
+                              persisting: Bool = true) async {
+        // SERIALIZED (the review). Two lever changes in quick succession —
+        // a picker tapped twice, or a picker tapped during a sweep — each
+        // spawned their own settleLevers, and two full 1.1 GB loads
+        // overlapped. Whoever is second waits for the first to finish
+        // rather than racing it.
+        while settling {
+            await withCheckedContinuation { settleWaiters.append($0) }
+        }
+        settling = true
+        defer {
+            settling = false
+            // ALL of them, not one — the stranded-waiter lesson from the
+            // same review, and the same reason: a woken waiter here can
+            // return without doing any work.
+            let waking = settleWaiters
+            settleWaiters = []
+            for waiter in waking { waiter.resume() }
+        }
+
+        // THE CONVERSATION STOPS FIRST (D-070 F-2 = C, the app half).
+        //
+        // This used to retire the old voice, load the new one for tens of
+        // seconds, and only THEN restart. For that whole window the live
+        // TurnCoordinator still held the retired voice in a `let` — and a
+        // turn firing in it would build a second pipeline beside the one
+        // loading. The library now refuses that (the voice is terminal),
+        // but refusing mid-turn is a dead reply; not creating the window is
+        // better than surviving it.
+        //
+        // The cost, named: changing a lever mid-conversation visibly stops
+        // the conversation until the new voice is ready. That was always
+        // what happened, minus the pretence that the old one still worked.
+        let wasListening = isListening
+        if wasListening { await stopAndWait() }
+
+        let retiring = neuralVoice
+        neuralVoice = levers.makeVoice()
+        voiceState = .checking
+        await retiring.retire()
+        await checkVoice()
+        await keepTheVoiceUsable(after: previous, recovering: !restoring)
+        // PERSIST LAST, and only what a person chose. This used to be the
+        // first line — persist-before-verify — so a configuration that
+        // failed to load was still written to disk and came back at the
+        // next launch, and every sweep row overwrote the person's settings
+        // on its way past.
+        if persisting, !restoring { Self.store(levers) }
+        if wasListening { start() }
+    }
+
+    /// `stop()` with a signal, which `stop()` itself does not give: its
+    /// teardown is deferred into a detached Task, and `isListening` goes
+    /// false while the microphone is still being released (SPEC §104, H-3).
+    /// `restart()` already knew this and waited on the dying pipeline —
+    /// this is that wait, named and reusable.
+    private func stopAndWait() async {
+        let dying = pipeline
+        stop()
+        _ = await dying?.value
+    }
+
+    private var settling = false
+    private var settleWaiters: [CheckedContinuation<Void, Never>] = []
+
+    /// Set while putting `levers` back, so the `didSet` above does not treat
+    /// the revert as a new request and start the whole dance again.
+    private var revertingLevers = false
+    /// Set while `apply(_:)` is driving, so the `didSet` does not ALSO spawn
+    /// a task for work its caller is already awaiting. Without it a sweep
+    /// runs every configuration twice, once watched and once not.
+    private var awaitedElsewhere = false
+
+    /// AC-144 — A REFUSAL MUST NOT COST THE VOICE THAT WORKED.
+    ///
+    /// `.fused` is offered on this phone on purpose (D-066 F-2), and on iOS
+    /// 18+ it does not load:
+    ///
+    ///     modelLoadingFailed("MultiCodeDecoder: failed to load
+    ///     MultiCodeDecoder.mlmodelc (function 'fused') … .functionName
+    ///     must be nil unless the model type is ML Program.")
+    ///
+    /// `checkVoice()` already puts that text on screen. What it cannot do is
+    /// give back the voice that was working, because by then the old one has
+    /// been retired — and retiring first is not negotiable: loading the new
+    /// pipeline beside the old one is two resident pipelines, which is the
+    /// kill this project has recorded three times.
+    ///
+    /// So the recovery is to go BACK. The failed levers stay visible so the
+    /// person can see what they chose and why it was refused, the error text
+    /// stays on screen, and the voice that speaks is the one that worked.
+    private func keepTheVoiceUsable(after previous: VoiceLevers,
+                                    recovering: Bool = true) async {
+        // A RESTORE HAS NOWHERE BETTER TO GO. When the bench hands the
+        // person's settings back, `previous` is the sweep's last row —
+        // reverting to it would install the bench's configuration as the
+        // person's, which is precisely what restoring exists to undo.
+        guard recovering else { return }
+        guard case .failed(let reason) = voiceState else {
+            leverRefusal = nil
+            return
+        }
+        guard previous != levers else { return }
+        leverRefusal = "\(describe(levers)) was refused — \(reason)"
+        neuralVoice = previous.makeVoice()
+        revertingLevers = true
+        levers = previous
+        revertingLevers = false
+        Self.store(previous)      // the configuration that WORKS is the one to keep
+        await checkVoice()
+    }
+
+    /// Why the last lever change was refused, or nil. Kept separately from
+    /// `voiceState` because the state goes back to `.ready` on the reverted
+    /// voice, and a refusal that vanishes the moment it is recovered from is
+    /// a refusal nobody can read.
+    private(set) var leverRefusal: String?
+
+    private func describe(_ levers: VoiceLevers) -> String {
+        (levers.decoder == .fused ? "fused" : "stepped")
+            + " + " + (levers.vocoder == .throughputOptimized
+                       ? "throughput" : "latency")
+    }
 
     /// VOICE FORENSICS (AC-104), added because a field run produced four
     /// adjectives and no numbers: hot, late, worse, "drunk". Each of
@@ -182,6 +374,112 @@ final class TranscribeModel {
         }
     }
 
+    // MARK: - the sweep (AC-146 … AC-151)
+
+    private(set) var sweepRows: [BenchRow] = []
+    private(set) var sweepRunning = false
+    private(set) var sweepProgress = 0
+    private(set) var sweepTotal = 0
+    /// Why the sweep would not run, or nil. AC-146: it REFUSES rather than
+    /// dying, and an instrument that crashes the app is not an instrument.
+    private(set) var sweepRefusal: String?
+    private var sweepTask: Task<Void, Never>?
+
+    var sweepMarkdown: String { BenchTable.markdown(sweepRows) }
+
+    func runSweep() {
+        guard !sweepRunning else { return }
+        let plan = BenchConfiguration.phone
+        let runsEach = 3
+        sweepRows = []
+        sweepProgress = 0
+        sweepTotal = plan.count * runsEach
+        sweepRefusal = nil
+        sweepRunning = true
+        sweepTask = Task {
+            defer { sweepRunning = false; sweepTask = nil }
+            do {
+                sweepRows = try await BenchSweep.run(
+                    plan, runsEach: runsEach, on: PhoneBenchStage(model: self))
+            } catch BenchSweep.Refusal.refused(let why) {
+                sweepRefusal = why
+            } catch {
+                sweepRefusal = "\(error)"
+            }
+        }
+    }
+
+    /// Cancellation keeps the rows already measured — a sweep stopped
+    /// halfway still measured what it measured — and the levers still come
+    /// back to what the person chose (AC-151).
+    func stopSweep() { sweepTask?.cancel() }
+
+    func noteSweepMeasurement() { sweepProgress += 1 }
+
+    /// The voice the bench measures — the same object the conversation
+    /// speaks with, never a fresh one built for the occasion. A bench that
+    /// measured its own private voice would be measuring a configuration
+    /// nobody is using.
+    var benchVoice: NeuralVoice { neuralVoice }
+
+    /// AC-149. `bargeCount` and `onsetsWhileSpeaking` are NOT in `start()`'s
+    /// reset list, so across a sweep they accumulate and every row reports
+    /// the sum of the rows before it.
+    func resetBenchCounters() {
+        bargeCount = 0
+        onsetsWhileSpeaking = 0
+    }
+
+    /// Free dirty memory, or nil when the device will not say. NOT zero —
+    /// `os_proc_available_memory` returns an ambiguous 0 on the machines
+    /// that have no limit (INSTRUMENTS §30), and a bench row printing
+    /// "0 MB" would be reporting a measurement it never made.
+    func freeMegabytesNow() -> Int? {
+        switch MemoryHeadroomReader.read() {
+        case .bytes(let b): Int(b / 1_048_576)
+        case .exhausted: 0
+        case .unavailable: nil
+        }
+    }
+
+    /// What the voice that exists is set to — read from the VOICE, never
+    /// from `levers` (AC-143). The two disagree whenever an apply has not
+    /// landed yet, and that is exactly when a person is looking.
+    var voiceInForce: String { neuralVoice.inForce }
+
+    /// WHY TAPPING LISTEN WOULD DO NOTHING, or nil — and the ONE place that
+    /// decides it.
+    ///
+    /// There used to be two lists, and they drifted. The button disabled on
+    /// three conditions; `start()` refused on five. The two it did not know
+    /// about were a shield probe holding the audio session, and a neural
+    /// voice that is not ready — both reachable, both producing exactly the
+    /// silent dead button AC-110 forbids. Worse after the tab split: the
+    /// evidence for both now lives in OTHER tabs, so the person tapping
+    /// Listen could not even see the reason.
+    ///
+    /// So `start()` asks this, and the button asks this, and there is
+    /// nothing left to drift. It returns a SENTENCE because a disabled
+    /// control that cannot say why is only half honest.
+    var listenRefusal: String? {
+        if engineState != .ready { return "the speech model is not ready yet" }
+        if probeStatus != nil {
+            return "an echo probe is measuring — it holds the audio session"
+        }
+        if shieldStatus != nil {
+            return "the shield probe is measuring — it holds the audio session"
+        }
+        if let conflict = memoryConflict { return conflict }
+        if talkEnabled, mouth == .neural, voiceState != .ready {
+            return "the neural voice is not ready — install it in Settings"
+        }
+        // ANY mind that cannot answer, not just Apple's: the review found
+        // the Local mind able to start a session in which every turn fails
+        // at the door — a dead conversation that looks alive.
+        if talkEnabled, mind != .echo, let why = mindUnavailable { return why }
+        return nil
+    }
+
     /// The mind. Changing it restarts the pipeline, like the mouth.
     var mind: MindChoice = TranscribeModel.storedMind {
         didSet {
@@ -201,11 +499,21 @@ final class TranscribeModel {
     private(set) var shieldStatus: String?
     private(set) var shieldReport: [String] = []
     /// THE SPEAKER SHIELD (4g, AC-120): replies render on the capture
-    /// engine, where the canceller can see them. OPT-IN per D-060 F-4 —
-    /// the library default stays off; this app chooses. Restart-like the
-    /// other choices: it reshapes a running graph.
+    /// engine, where the canceller can see them.
+    ///
+    /// DEFAULT ON since D-069 (F-1 = A), and the reinstall is why. D-060
+    /// F-4 kept the LIBRARY default off — a library claims every device —
+    /// and this app's toggle inherited that `false`. Then Ryad deleted the
+    /// app to re-download the voice, the reinstall wiped UserDefaults back
+    /// to the default, and his next conversation self-barged exactly as
+    /// the orange label predicted ("it will interrupt itself"). A default
+    /// that breaks the first conversation after every reinstall is not a
+    /// safe default; this app claims ONE device, and that device's
+    /// evidence (§23's matrix, §29's field log, §37's conviction) says
+    /// the shielded arrangement is the working one. The library default
+    /// stays off — D-060 F-4 is untouched.
     var speakerShield = TranscribeModel.storedFlag(
-        TranscribeModel.shieldKey, default: false) {
+        TranscribeModel.shieldKey, default: true) {
         didSet {
             UserDefaults.standard.set(speakerShield, forKey: Self.shieldKey)
             guard speakerShield != oldValue else { return }
@@ -230,38 +538,7 @@ final class TranscribeModel {
     /// app may FETCH them — Whisper's shape, ruled by F-4 = A — but only
     /// when a person taps Download. Asking whether it is installed never
     /// starts anything.
-    private static let localModelKey = "dev.nooron.demo.localModel"
-    private static var storedLocalModel: LocalModelChoice {
-        UserDefaults.standard.string(forKey: localModelKey)
-            // F-1 = B (2026-08-21): 4B is the DEFAULT, ruled on the
-            // phone's own measurement — 2288 MB peak, no kill, 291-315 ms
-            // to the first word, and none of 0.6B's parroting. The picker
-            // stays, because one device is one device.
-            .flatMap(LocalModelChoice.init(rawValue:)) ?? .big
-    }
-    /// Changing this REPLACES the host, so the old weights are dropped
-    /// rather than kept alive beside the new ones — which on a phone is
-    /// the difference the whole fork is about.
-    var localModelChoice: LocalModelChoice = TranscribeModel.storedLocalModel {
-        didSet {
-            guard localModelChoice != oldValue else { return }
-            UserDefaults.standard.set(localModelChoice.rawValue,
-                                      forKey: Self.localModelKey)
-            // RETIRE the old one before replacing it. The review found
-            // that the previous version left the retired model's warm-up
-            // running and its weights resident, so switching 4B -> 0.6B
-            // briefly held BOTH — the opposite of what the person just
-            // asked for, at the one moment memory matters most.
-            let retiring = localModel
-            Task { await retiring.retire() }
-            localModel = LocalMindModel(repoID: localModelChoice.repoID)
-            if isListening { restart() }
-            refreshMind()
-        }
-    }
-    private var localModel = LocalMindModel(
-        repoID: TranscribeModel.storedLocalModel.repoID)
-    // (default is .big — see storedLocalModel, ruled F-1 = B)
+    private let localModel = LocalMindModel(repoID: LocalMind.repoID)
     /// Instructions are the APP's text, not the library's (D-027). The
     /// same sentence the Apple mind gets, because the constraint is the
     /// medium — this reply is heard, never read — not the model.
@@ -306,10 +583,21 @@ final class TranscribeModel {
         var out = "# Conversation log — MultiModalKit demo\n\n"
         out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
         out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
-        out += "local model: \(localModelChoice.rawValue) "
-        out += "(\(localModelChoice.repoID)) · installed: "
+        out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
         out += "\(MLXRuntime.isAvailable)\n"
+        // AC-132: the number that decides whether the mind and the neural
+        // voice can coexist. It is the PHONE's dirty-memory headroom, not
+        // a Mac's footprint — the distinction 4i exists for.
+        switch MemoryHeadroomReader.read() {
+        case .bytes(let b):
+            out += "memory headroom: \(b / 1_048_576) MB before this app's limit\n"
+        case .exhausted:
+            out += "memory headroom: NONE — at or over the limit\n"
+        case .unavailable(let why):
+            out += "memory headroom: unavailable (\(why))\n"
+        }
+        out += "voice loaded: \(voiceState == .ready && mouth == .neural)\n"
         if MLXRuntime.isAvailable {
             out += "MLX memory now: active "
             out += "\(MLXRuntime.activeMemoryBytes / 1_048_576) MB · peak "
@@ -322,6 +610,11 @@ final class TranscribeModel {
         out += "ACTUALLY answered, taken from the generator the coordinator\n"
         out += "held — not from the picker above. If they disagree, that is\n"
         out += "the finding.\n\n"
+        if !probeLines.isEmpty {
+            out += "\n## pressure probe\n\n```\n"
+            out += probeLines.joined(separator: "\n")
+            out += "\n```\n\n"
+        }
         if turns.isEmpty { out += "_(no turns recorded yet)_\n" }
         for turn in turns {
             out += "## turn \(turn.id)\n"
@@ -338,26 +631,219 @@ final class TranscribeModel {
         return out
     }
 
-    /// The combination iOS refuses to host, named BEFORE it kills the app.
+    /// THE PAIR FITS — measured, and this used to say the opposite.
     ///
-    /// MEASURED, not feared (INSTRUMENTS §27): the 4B mind is 2239 MB and
-    /// the neural voice adds ~1112 MB, so together they ask for 3351 MB.
-    /// Ryad's phone answered that with "Terminated due to memory issue" —
-    /// jetsam does not negotiate and gives no chance to recover.
+    /// It reported "the 4B mind and the neural voice do not fit together"
+    /// and disabled Listen, on the strength of a MAC's phys_footprint
+    /// (2239 + 1112 = 3351). Ryad's phone then loaded both with **1011 MB
+    /// to spare**, because the neural voice costs **111 MB** on iOS, not
+    /// 1112: CoreML MAPS its weights, and mapped pages are clean, so they
+    /// are not charged against a dirty memory limit. MLX has no mmap, so
+    /// its 2225 MB is charged in full (INSTRUMENTS §29).
     ///
-    /// A refusal that explains itself beats a crash that does not, and
-    /// this is a demo POLICY (D-027): the library ships no such rule,
-    /// because the budget belongs to the app that spends it.
-    var memoryConflict: String? {
-        guard mind == .local, localModelChoice == .big, mouth == .neural
-        else { return nil }
-        return "The 4B mind (2.2 GB) and the neural voice (1.1 GB) do not "
-            + "fit together — iOS kills the app near 3.3 GB. Choose the "
-            + "0.6B mind, or the Apple voice."
+    /// What replaced the refusal is an ORDER, because the steady
+    /// footprint was never the problem — the LOAD is. TTSKit compiles six
+    /// CoreML models concurrently, and that transient peak is what killed
+    /// the app twice: at 1105 MB free and at 2976 MB free. It survived at
+    /// 3347 MB. So the voice is loaded FIRST, from maximum headroom,
+    /// before the mind takes its 2.2 GB. See `RootView`'s launch sequence,
+    /// where that order is now load-bearing rather than incidental.
+    var memoryConflict: String? { nil }
+
+    /// Fraction complete while the weights come down, or nil.    /// Fraction complete while the weights come down, or nil.
+    private(set) var localDownloadProgress: Double?
+
+    // MARK: - the pressure probe (4i, AC-132's field half)
+
+    /// Where the probe writes. IN DOCUMENTS, and flushed after EVERY
+    /// line, because the thing being measured is an app being killed.
+    ///
+    /// The MLX phone spike already paid for this lesson: two crashes
+    /// produced no output at all because the trail lived in a view that
+    /// died with the process. An instrument whose evidence dies with the
+    /// failure it is measuring is not an instrument.
+    private nonisolated var probeLog: URL {
+        URL.documentsDirectory.appending(path: "pressure-probe.txt")
     }
 
-    /// Fraction complete while the weights come down, or nil.
-    private(set) var localDownloadProgress: Double?
+    private(set) var probeLines: [String] = []
+
+    /// Reads back a PREVIOUS run — including one that ended in a kill.
+    func loadPreviousProbe() {
+        guard let text = try? String(contentsOf: probeLog, encoding: .utf8)
+        else { return }
+        probeLines = text.split(separator: "\n").map(String.init)
+    }
+
+    private func probeSay(_ line: String) {
+        probeLines.append(line)
+        // Capped, because a 250 ms sampler over a long load writes a lot,
+        // and a file that grows without bound is its own bug. The OLDEST
+        // lines go, never the newest — the last line before a death is
+        // the whole point.
+        if probeLines.count > 4_000 { probeLines.removeFirst(500) }
+        // Append and flush NOW. Not at the end — there may not be an end.
+        try? probeLines.joined(separator: "\n")
+            .write(to: probeLog, atomically: true, encoding: .utf8)
+    }
+
+    /// SAMPLES THE DESCENT while something expensive loads.
+    ///
+    /// The steady footprint is not what kills: TTSKit reports "Loading 6
+    /// CoreML models concurrently", and six simultaneous compiles need
+    /// transient memory far above what the finished models hold. That
+    /// peak is invisible from outside — the app simply stops.
+    ///
+    /// So this writes a reading every 250 ms, flushed, while the load
+    /// runs. If jetsam takes the process, the LAST line is how close it
+    /// got before dying, which is the number nothing else can give us.
+    private var samplerBusy = false
+
+    /// The kernel's own alarm, recorded into the same trace. AC-139
+    /// showed both in-process numbers blind to a load that kills, because
+    /// CoreML prepares models in system daemons — so this is the only
+    /// instrument positioned to see it (INSTRUMENTS §30).
+    private var pressureMonitor: MemoryPressureMonitor?
+
+    /// UNWIRED, deliberately, after it crashed the app on relaunch.
+    ///
+    /// Two defects I can see by reading, and one I cannot rule out
+    /// without Ryad's crash log:
+    ///
+    /// 1. **A pressure storm.** The handler wrote a line, and `probeSay`
+    ///    rewrites the WHOLE trace file. Under real pressure the source
+    ///    fires repeatedly, so the instrument answered memory pressure by
+    ///    doing file I/O in a loop — reacting to a fire by pouring fuel.
+    /// 2. **A retain cycle.** The event handler captured `source`, which
+    ///    holds the handler, so `deinit` could never run and the monitor
+    ///    outlived its owner.
+    ///
+    /// Both are fixed in the type. It stays disconnected until a crash
+    /// log says whether it was actually the cause, because re-enabling a
+    /// suspect on a hunch is how a second afternoon gets lost (D-054).
+    private func watchSystemPressure() {
+        guard pressureMonitor == nil else { return }
+        pressureMonitor = MemoryPressureMonitor { [weak self] level in
+            Task { @MainActor in
+                self?.probeSay("  *** SYSTEM MEMORY PRESSURE: \(level) ***")
+            }
+        }
+    }
+
+    private func sampling<T>(_ label: String,
+                             _ work: () async throws -> T) async rethrows -> T {
+        // ONE AT A TIME. The first AC-139 trace interleaved two samplers —
+        // "+55.5s" beside "+0.0s" — because tapping the probe while the
+        // LAUNCH load was still running started a second one into the same
+        // file. Two writers, one file, and a trace nobody can read. Same
+        // class as the double model load, one layer up.
+        guard !samplerBusy else {
+            probeSay("  (\(label): a load is already being sampled — "
+                + "not starting a second, and not touching that trace)")
+            return try await work()
+        }
+        samplerBusy = true
+        // NOT watching system pressure here any more — see the comment on
+        // `watchSystemPressure`. It is wired to nothing until it is safe.
+        defer { samplerBusy = false }
+        let sampler = Task { [weak self] in
+            for tick in 0..<2_400 {          // 10 minutes, capped
+                try? await Task.sleep(for: .milliseconds(250))
+                guard !Task.isCancelled, let self else { return }
+                await MainActor.run {
+                    self.probeSay(String(format: "    %@ +%.1fs  %@",
+                                         label, Double(tick) * 0.25,
+                                         self.headroomNow()))
+                }
+            }
+        }
+        defer { sampler.cancel() }
+        return try await work()
+    }
+
+    /// Both numbers, because they measure different things and only one
+    /// of them moved.
+    ///
+    /// AC-139's first trace showed headroom drifting 2322 -> 2309 MB over
+    /// sixty seconds of loading six CoreML models — thirteen megabytes —
+    /// while the app had previously been KILLED doing exactly this.
+    /// `limit_bytes_remaining` tracks the DIRTY limit, and CoreML's
+    /// weights are mapped, so they are clean and invisible to it.
+    /// `phys_footprint` counts them, which is why a Mac saw 1112 MB where
+    /// the phone's headroom saw 111.
+    ///
+    /// An instrument that cannot see the thing that kills is the shape
+    /// this project keeps hunting, so both are recorded and the reader is
+    /// told which is which.
+    private func footprintMB() -> Int {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<natural_t>.size)
+        let ok = withUnsafeMutablePointer(to: &info) {
+            $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), $0, &count)
+            }
+        }
+        return ok == KERN_SUCCESS ? Int(info.phys_footprint / 1_048_576) : -1
+    }
+
+    private func headroomNow() -> String {
+        let free: String = switch MemoryHeadroomReader.read() {
+        case .bytes(let b): "\(b / 1_048_576) MB free (dirty)"
+        case .exhausted: "NONE — at or over the limit"
+        case .unavailable(let why): "unavailable (\(why))"
+        }
+        return "\(free) · footprint \(footprintMB()) MB"
+    }
+
+    /// THE THREE MEASUREMENTS, in one tap, in order, each one written to
+    /// disk before the next begins.
+    ///
+    /// It deliberately loads the pair the demo otherwise REFUSES
+    /// (memoryConflict), because refusing is what makes the pair
+    /// unmeasurable — and 4i exists to find out whether the refusal is
+    /// even true on this device.
+    func runPressureProbe() async {
+        probeLines = []
+        probeSay("# pressure probe — \(LocalMind.repoID)")
+
+        // HONEST BASELINE. The first version called this "baseline" while
+        // launch had ALREADY prewarmed the mind, so it measured the wrong
+        // thing and said the right word. Say what is resident.
+        let mindAlready = MLXRuntime.isAvailable
+            && MLXRuntime.activeMemoryBytes > 100 * 1_048_576
+        probeSay("mind already resident: \(mindAlready) "
+            + "(MLX active \(MLXRuntime.activeMemoryBytes / 1_048_576) MB)")
+        probeSay("start:               \(headroomNow())")
+
+        // THE VOICE FIRST, and the order is the point. The previous run
+        // loaded the risky thing last and died before learning the cheap
+        // fact — what the neural voice actually costs ON THIS PHONE. My
+        // 1112 MB is a Mac's figure, and CoreML often MAPS weights, which
+        // count differently against a dirty limit than MLX's do.
+        probeSay("voice installed on disk: \(await neuralVoice.modelInstalled())")
+        probeSay("loading the neural voice FIRST… (if this is the last line,")
+        probeSay("  it died here, and the voice alone is the problem)")
+        do {
+            try await sampling("voice") { try await neuralVoice.ensureModel() }
+            probeSay("+ voice loaded:      \(headroomNow())")
+        } catch {
+            probeSay("  voice FAILED:      \(error)")
+        }
+
+        probeSay("loading the mind… (if this is the last line, the PAIR is")
+        probeSay("  the problem, and we now know the voice's real cost)")
+        do {
+            _ = try await sampling("mind") { try await localModel.ensureModel() }
+            probeSay("+ mind loaded:       \(headroomNow())")
+            probeSay("  MLX active:        \(MLXRuntime.activeMemoryBytes / 1_048_576) MB")
+        } catch {
+            probeSay("  mind FAILED:       \(error)")
+        }
+
+        probeSay("BOTH RESIDENT:       \(headroomNow())")
+        probeSay("survived: yes")
+    }
 
     /// Fetches the weights. EXPLICIT — a person taps, nothing else.
     /// What the download is doing, in words, at every stage.
@@ -376,17 +862,16 @@ final class TranscribeModel {
             localDownloadStatus = "already downloading — ignoring the tap."
             return
         }
-        let wanted = localModelChoice
         localDownloadProgress = 0
-        localDownloadStatus = "starting \(wanted.rawValue) (\(wanted.sizeOnDisk))…"
+        localDownloadStatus = "starting the local mind (\(LocalMind.sizeOnDisk))…"
         Task { [localModel] in
             do {
-                self.localDownloadStatus = "asking Hugging Face for \(wanted.repoID)…"
+                self.localDownloadStatus = "asking Hugging Face for \(LocalMind.repoID)…"
                 try await localModel.download { fraction in
                     Task { @MainActor in
                         self.localDownloadProgress = fraction
                         self.localDownloadStatus = String(
-                            format: "downloading %@ — %.0f%%", wanted.rawValue,
+                            format: "downloading the local mind — %.0f%%",
                             fraction * 100)
                     }
                 }
@@ -399,7 +884,7 @@ final class TranscribeModel {
                 // broken because it asked the wrong object.
                 let installed = localModel.modelInstalled()
                 self.localDownloadStatus = installed
-                    ? "\(wanted.rawValue) installed at \(localModel.weights.lastPathComponent)."
+                    ? "installed at \(localModel.weights.lastPathComponent)."
                     : "download finished but the files are NOT usable — "
                         + "expected them at \(localModel.weights.path)"
                 self.refreshMind()
@@ -463,8 +948,8 @@ final class TranscribeModel {
                 return
             }
             guard localModel.modelInstalled() else {
-                mindUnavailable = "\(localModelChoice.rawValue) is not downloaded "
-                    + "yet — tap Download (\(localModelChoice.sizeOnDisk), once)."
+                mindUnavailable = "the local mind is not downloaded yet — "
+                    + "tap Download (\(LocalMind.sizeOnDisk), once)."
                 return
             }
             mindUnavailable = nil
@@ -601,6 +1086,51 @@ final class TranscribeModel {
     // so every launch quietly reset them and the person re-chose from a
     // screen that looked like it remembered. A control that forgets is a
     // control that lies about its own state.
+    // The levers are stored as four primitives rather than one encoded
+    // blob: a blob that fails to decode after a TTSKit rename would take
+    // every setting with it, and these are the settings a person reaches
+    // for when something is already wrong.
+    private static let decoderKey = "dev.nooron.demo.levers.decoder"
+    private static let vocoderKey = "dev.nooron.demo.levers.vocoder"
+    private static let temperatureKey = "dev.nooron.demo.levers.temperature"
+    private static let leadKey = "dev.nooron.demo.levers.leadMS"
+    static var storedLevers: VoiceLevers {
+        let defaults = UserDefaults.standard
+        var levers = VoiceLevers.phoneDefault
+        if defaults.string(forKey: decoderKey) == "fused" { levers.decoder = .fused }
+        if defaults.string(forKey: vocoderKey) == "throughput" {
+            levers.vocoder = .throughputOptimized
+        }
+        // `object(forKey:)` first: `float(forKey:)` cannot tell "absent"
+        // from "zero", and zero is a REAL temperature with a distinctive
+        // sound (INSTRUMENTS §32). Reading it as "unset" would silently
+        // change what the person chose.
+        if defaults.object(forKey: temperatureKey) != nil {
+            levers.temperature = defaults.float(forKey: temperatureKey)
+        }
+        if defaults.object(forKey: leadKey) != nil {
+            levers.lead = .milliseconds(defaults.integer(forKey: leadKey))
+        }
+        return levers
+    }
+    static func store(_ levers: VoiceLevers) {
+        let defaults = UserDefaults.standard
+        defaults.set(levers.decoder == .fused ? "fused" : "stepped", forKey: decoderKey)
+        defaults.set(levers.vocoder == .throughputOptimized ? "throughput" : "latency",
+                     forKey: vocoderKey)
+        if let temperature = levers.temperature {
+            defaults.set(temperature, forKey: temperatureKey)
+        } else {
+            defaults.removeObject(forKey: temperatureKey)
+        }
+        if let lead = levers.lead {
+            defaults.set(Int(lead.components.seconds * 1000
+                + lead.components.attoseconds / 1_000_000_000_000_000), forKey: leadKey)
+        } else {
+            defaults.removeObject(forKey: leadKey)
+        }
+    }
+
     private static let mindKey = "dev.nooron.demo.mind"
     private static var storedMind: MindChoice {
         UserDefaults.standard.string(forKey: mindKey)
@@ -811,6 +1341,18 @@ final class TranscribeModel {
         // every launch.
         voiceState = .preparing
         do {
+            // AC-139: SAMPLE THE LAUNCH LOAD. This is the load that killed
+            // the app twice — six CoreML models compiling concurrently —
+            // and it happens before anyone can tap a probe button. By the
+            // time the gauge is reachable, everything is already resident
+            // and there is nothing left to watch.
+            // NOT SAMPLED AT LAUNCH ANY MORE. AC-139 put the sampler
+            // here because the peak happens here — and then Ryad's app
+            // began losing headroom on every open until it died. A
+            // measurement instrument that stops an app from starting has
+            // stopped being an instrument: it is now the fault. Sampling
+            // survives on the explicit probe button, where a person
+            // chooses to pay for it and can stop by not tapping it.
             try await neuralVoice.ensureModel()
             voiceState = .ready
         } catch {
@@ -924,10 +1466,7 @@ final class TranscribeModel {
         // would misreport as a turn error. Availability is read fresh —
         // the download may have finished since the last look.
         refreshMind()
-        guard engineState == .ready, !isListening, probeStatus == nil,
-              shieldStatus == nil,
-              !(talkEnabled && mouth == .neural && voiceState != .ready),
-              !(talkEnabled && mind == .apple && mindUnavailable != nil)
+        guard listenRefusal == nil, !isListening
         else { return }
         utterances.removeAll()
         droppedFrames = 0

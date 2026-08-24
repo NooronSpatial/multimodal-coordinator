@@ -1,155 +1,223 @@
+import MultiModalKit
 import SwiftUI
 
-struct ContentView: View {
-    @State private var model = TranscribeModel()
-    // The 4f measurement instrument, held beside the model rather than
-    // inside it: it probes a SYSTEM service, touches nothing on the
-    // pipeline, and leaves with the milestone-gating numbers (AC-110/111).
-    @State private var mindProbe = MindProbe()
-    @State private var showMindProbe = false
+/// THE CHAT TAB — the transcript, the turn, and the button that starts it.
+///
+/// Was the whole app: one 884-line screen holding the conversation, every
+/// picker and every probe. D-066 F-1 split it three ways, because a live
+/// meter redrawing at 60 Hz and a stopwatch have no business sharing a
+/// screen — the bench must not be timing itself while it animates.
+///
+/// What stayed here is what a person watches while talking. The pickers went
+/// to Settings, the probes to Bench.
+struct ChatTab: View {
+    let model: TranscribeModel
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                Group {
-                    switch model.engineState {
-                    case .checking:
-                        ProgressView("Checking the speech model…")
-                    case .modelMissing:
-                        modelMissing
-                    case .downloading:
-                        ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
-                            .multilineTextAlignment(.center)
-                    // The transcriber never enters `.preparing` — only the
-                    // voice does — but the compiler is right to demand an
-                    // answer rather than let a future state fall silently
-                    // through a screen.
-                    case .preparing:
-                        ProgressView("Preparing the speech model…")
-                            .multilineTextAlignment(.center)
-                    case .failed(let reason):
-                        failed(reason)
-                    case .ready:
-                        transcriber
-                    }
-                }
-                .frame(maxHeight: .infinity)
-
-                // ALWAYS reachable, deliberately: the echo probe needs no
-                // speech model, and the machines where a model refuses to
-                // install are exactly the ones where a measurement matters
-                // most. Trapping it behind "ready" would have hidden the
-                // instrument on the first device that needed it.
-                // The probe's RESULTS live here; its trigger is in the
-                // toolbar. A button in this bottom strip did not fire on
-                // synthetic taps in the simulator — the Download button in
-                // the same build did — and rather than ship a control I
-                // could not prove works, the trigger moved somewhere
-                // taps are reliable.
-                if model.probeSilence != nil || model.probeStatus != nil {
-                    Divider()
-                    echoProbeResults
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                }
-                if model.shieldStatus != nil || !model.shieldReport.isEmpty {
-                    Divider()
-                    // A SCROLL VIEW, from the field: matrix v2's eight
-                    // witness columns outgrew the strip and pushed the
-                    // last arrangements off screen — a report you cannot
-                    // read is a dead instrument with extra steps.
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let status = model.shieldStatus {
-                                Label(status, systemImage: "hourglass")
-                                    .foregroundStyle(.secondary)
-                            }
-                            ForEach(model.shieldReport, id: \.self) { line in
-                                Text(line)
-                            }
-                        }
-                        .font(.caption2.monospaced())
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal)
-                        .padding(.vertical, 10)
-                    }
-                    .frame(maxHeight: 230)
+            Group {
+                switch model.engineState {
+                case .checking:
+                    ProgressView("Checking the speech model…")
+                case .modelMissing:
+                    modelMissing
+                case .downloading:
+                    ProgressView("Downloading the speech model…\n(system-managed; can take a while)")
+                        .multilineTextAlignment(.center)
+                // The transcriber never enters `.preparing` — only the
+                // voice does — but the compiler is right to demand an
+                // answer rather than let a future state fall silently
+                // through a screen.
+                case .preparing:
+                    ProgressView("Preparing the speech model…")
+                        .multilineTextAlignment(.center)
+                case .failed(let reason):
+                    failed(reason)
+                case .ready:
+                    talking
                 }
             }
+            .frame(maxHeight: .infinity)
             // NO TITLE (Ryad): a large title spent a third of a phone
             // screen saying the app's own name to the person who just
-            // opened it. The toolbar stays — that is where the probes and
-            // the log live, and taps are proven to fire there.
+            // opened it.
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // THE CONVERSATION LOG. Reachable in every state, like the
-                // probes, and for the same reason: the moment worth
-                // sharing is usually the moment something went wrong, and
-                // a log you cannot reach then is not a log.
+                // THE CONVERSATION LOG, still reachable from the tab a
+                // person is in when something goes wrong. It carries the
+                // brain that ACTUALLY answered each turn, which is the one
+                // fact a screenshot cannot show.
                 //
-                // It carries the brain that ACTUALLY answered each turn,
-                // which is the one fact a screenshot cannot show.
+                // NEVER disabled on "no turns": the worst failures — a mind
+                // that refuses at the door, a session that never started —
+                // produce ZERO turns, which is exactly when the header is
+                // the evidence worth sending.
                 ToolbarItem(placement: .topBarTrailing) {
-                    // NEVER disabled on "no turns". The review caught the
-                    // irony: the log was built to diagnose failures, and
-                    // the worst failures — a mind that refuses at the
-                    // door, a memory conflict, a session that never
-                    // started — produce ZERO turns, which is exactly when
-                    // the header (models, memory, install state, download
-                    // status) is the evidence worth sending.
                     ShareLink(item: model.conversationLog) {
                         Label("Share the conversation", systemImage: "text.bubble")
                     }
                 }
-                // THE MIND PROBE (4f, AC-110/AC-111), reachable in EVERY
-                // engine state for the echo probe's reason, one item over:
-                // it measures a SYSTEM service, and the devices where a
-                // model refuses to install are exactly the ones where the
-                // availability enum matters most. In the toolbar because
-                // that is where this app has PROVEN taps fire.
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showMindProbe = true
-                    } label: {
-                        Label("Mind probe", systemImage: "brain")
+            }
+        }
+    }
+
+    /// The ready state: what was `transcriber`, with the settings scroll
+    /// lifted out of it and into its own tab.
+    private var talking: some View {
+        VStack(spacing: 12) {
+            conversation
+
+            ScrollViewReader { proxy in
+                List {
+                    ForEach(model.utterances) { utterance in
+                        HStack(alignment: .top) {
+                            Image(systemName: icon(for: utterance))
+                                .foregroundStyle(utterance.failure == nil
+                                                 ? (utterance.isFinal ? .green : .orange)
+                                                 : .red)
+                                .padding(.top, 2)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(utterance.text.isEmpty ? "…" : utterance.text)
+                                    .foregroundStyle(utterance.isFinal ? .primary : .secondary)
+                                if let failure = utterance.failure {
+                                    Text(failure).font(.caption).foregroundStyle(.red)
+                                }
+                                // The Mac's 🔎 line: what actually opened
+                                // this utterance, in numbers. "echo?" marks
+                                // one that began while the phone was
+                                // talking — the self-barge signature.
+                                if utterance.peakRMS > 0 {
+                                    HStack(spacing: 6) {
+                                        Text("peak \(utterance.peakRMS, format: .number.precision(.fractionLength(3)))")
+                                        Text("· \(utterance.milliseconds) ms")
+                                        if utterance.whileSpeaking {
+                                            Text("· echo?")
+                                                .foregroundStyle(.red)
+                                        }
+                                    }
+                                    .font(.caption2.monospacedDigit())
+                                    .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
                     }
-                    .disabled(model.isListening)
+                    if model.utterances.isEmpty && model.isListening {
+                        Text("Say something — it stops and listens.")
+                            .foregroundStyle(.secondary)
+                    }
+
+                    if !model.isListening {
+                        Section("Bake-off — same fixture as the Mac") {
+                            if let status = model.bakeoffStatus {
+                                Label(status, systemImage: "hourglass")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Button {
+                                    Task { await model.runBakeoff() }
+                                } label: {
+                                    Label("Run bake-off (both engines)", systemImage: "scalemass")
+                                }
+                            }
+                            ForEach(model.bakeoffRows, id: \.engineName) { row in
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.engineName).font(.subheadline.bold())
+                                    Text(String(format: "WER %.1f%% · %d sub · %d ins · %d del · settle %.2f s",
+                                                row.score.wer * 100, row.score.substitutions,
+                                                row.score.insertions, row.score.deletions,
+                                                row.decodeSeconds))
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            if !model.bakeoffRows.isEmpty {
+                                ShareLink(item: model.bakeoffMarkdown) {
+                                    Label("Share table (markdown)", systemImage: "square.and.arrow.up")
+                                }
+                            }
+                        }
+                    }
                 }
-                // THE SHIELD PROBE (4g, AC-119): reachable in every state,
-                // like its two siblings, and for the same reason.
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await model.runShieldProbe() }
-                    } label: {
-                        Label(model.shieldStatus == nil ? "Shield probe" : "measuring…",
-                              systemImage: "shield.lefthalf.filled")
-                    }
-                    .disabled(model.isListening || model.shieldStatus != nil
-                              || model.probeStatus != nil)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        Task { await model.runEchoProbe() }
-                    } label: {
-                        Label(model.probeStatus == nil ? "Echo probe" : "measuring…",
-                              systemImage: "waveform.badge.magnifyingglass")
-                    }
-                    .disabled(model.isListening || model.probeStatus != nil
-                              || model.shieldStatus != nil)
+                .listStyle(.plain)
+                // Follow the conversation: any change to the utterances — a new
+                // row OR a growing partial — keeps the newest text on screen.
+                // WATCH THE IDENTITY, NOT THE ARRAY.
+                //
+                // `utterances` changes on every partial transcription
+                // result — many times a second while a person speaks — and
+                // each change fired an ANIMATED scroll. Several landed in
+                // one frame and SwiftUI said so: "onChange(of:
+                // Array<Utterance>) action tried to update multiple times
+                // per frame." Watching the last id coalesces that to one
+                // scroll per NEW utterance, which is the only moment the
+                // target actually moves.
+                .onChange(of: model.utterances.last?.id) {
+                    guard let last = model.utterances.last else { return }
+                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
                 }
             }
-            .sheet(isPresented: $showMindProbe) {
-                NavigationStack {
-                    List { MindProbeSection(probe: mindProbe) }
-                        .navigationTitle("Mind probe")
-                }
+
+            statusBar
+
+            // AC-132's readout, live. The whole of 4i turns on this
+            // number, and it costs one syscall to look at.
+            if let mb = MemoryHeadroomReader.read().megabytes {
+                Text("memory headroom: \(mb) MB")
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(mb < 400 ? AnyShapeStyle(Color.orange)
+                                              : AnyShapeStyle(.secondary))
             }
-            .task {
-                // Both models are asked about at launch: the transcriber's
-                // and the voice's. Asking never downloads either.
-                await model.checkModel()
-                await model.checkVoice()
-                model.refreshMind()
+
+            // The combination that gets the app KILLED, said before the
+            // tap rather than found in a crash log (INSTRUMENTS §27).
+            if let conflict = model.memoryConflict {
+                Text(conflict)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
+            }
+
+            Button {
+                model.isListening ? model.stop() : model.start()
+            } label: {
+                Label(model.isListening ? "Stop" : "Listen",
+                      systemImage: model.isListening ? "stop.circle.fill" : "mic.circle.fill")
+                    .font(.title2)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(model.isListening ? .red : .accentColor)
+            // The other half of the mutual exclusion (4d review): the
+            // probe already refused to start while listening, but nothing
+            // stopped listening from starting while a probe held the
+            // process-wide session.
+            // And the MIND's gate (AC-110, found by the 4f review): when
+            // the Apple mind is selected and unavailable, start() refuses
+            // silently — so without this, tapping Listen did NOTHING, the
+            // exact silent dead button AC-110 forbids. Disabled + the red
+            // caption naming the reason = honest.
+            // ONE AUTHORITY (the review). This list and `start()`'s guard
+            // had drifted: the button knew three conditions, `start()`
+            // refused on five. The two it did not know — a shield probe
+            // holding the audio session, and a neural voice not ready —
+            // produced exactly the silent dead button AC-110 forbids, and
+            // after the tab split the evidence for both lives elsewhere.
+            .disabled(model.listenRefusal != nil)
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+
+            // AND IT SAYS WHY. A disabled control that cannot name its
+            // reason is the same dead end, one step politer — especially
+            // now that the shield report and the voice's state are a tab
+            // away from the person tapping this button.
+            if let refusal = model.listenRefusal {
+                Text(refusal)
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal)
+                    .padding(.bottom, 6)
             }
         }
     }
@@ -165,6 +233,7 @@ struct ContentView: View {
         }
     }
 
+
     private func failed(_ reason: String) -> some View {
         ContentUnavailableView {
             Label("Something failed", systemImage: "exclamationmark.triangle")
@@ -177,6 +246,7 @@ struct ContentView: View {
 
     /// Milestone 4d on screen: the turn loop the Mac has had since 4a/4b,
     /// now on the phone — plus the two toggles the field run needs.
+
     private var conversation: some View {
         VStack(spacing: 10) {
             HStack {
@@ -296,69 +366,6 @@ struct ContentView: View {
     /// RAW — past the VAD, so "nothing happened" can never be confused
     /// with "the microphone is deaf". Needs no speech model, so it runs
     /// even where an engine will not.
-    private var echoProbeResults: some View {
-        VStack(spacing: 6) {
-            if let status = model.probeStatus {
-                HStack {
-                    ProgressView().controlSize(.mini)
-                    Text(status).font(.caption).foregroundStyle(.secondary)
-                    Spacer()
-                }
-            }
-            if let failure = model.probeFailure {
-                Text(failure).font(.caption).foregroundStyle(.red)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-
-            if let quiet = model.probeSilence, let speaking = model.probeWhileSpeaking {
-                VStack(alignment: .leading, spacing: 3) {
-                    // The two facts that make the numbers interpretable:
-                    // which way the sound came out, and whether the
-                    // canceller was actually granted (asked ≠ got).
-                    HStack {
-                        Text(model.probeRoute).font(.caption2)
-                        Text(model.probeVoiceProcessingActive
-                             ? "· voice processing ACTIVE"
-                             : "· voice processing REFUSED")
-                            .font(.caption2.weight(.medium))
-                            .foregroundStyle(model.probeVoiceProcessingActive
-                                             ? Color.secondary : Color.red)
-                        Spacer()
-                    }
-                    probeRow("quiet room", quiet)
-                    probeRow("while speaking", speaking)
-                    // The verdict, in one line, so the field run does not
-                    // have to interpret two numbers under pressure.
-                    Text(speaking.peak >= model.vadThreshold
-                         ? "→ CROSSES the gate — if you stayed quiet, it will barge itself"
-                         : "→ stays under the gate on this route")
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(speaking.peak >= model.vadThreshold ? .red : .green)
-                    // The verdict is only true in SILENCE. A run where the
-                    // person spoke measures their VOICE and reads as a
-                    // failure — it misled us once, so the assumption is
-                    // now printed next to the claim that depends on it.
-                    Text("valid only if nobody spoke during the measurement")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            }
-        }
-    }
-
-    private func probeRow(_ label: String, _ value: (peak: Float, rms: Float)) -> some View {
-        HStack {
-            Text(label).font(.caption).foregroundStyle(.secondary)
-            Spacer()
-            Text("peak \(value.peak, format: .number.precision(.fractionLength(4)))")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(value.peak >= model.vadThreshold ? .red : .primary)
-            Text("rms \(value.rms, format: .number.precision(.fractionLength(4)))")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
-        }
-    }
 
     private var turnIcon: String {
         switch model.turnState {
@@ -369,6 +376,7 @@ struct ContentView: View {
         }
     }
 
+
     private var turnLabel: String {
         switch model.turnState {
         case .idle: "idle"
@@ -378,440 +386,6 @@ struct ContentView: View {
         }
     }
 
-    private var transcriber: some View {
-        VStack(spacing: 12) {
-            // THE SETTINGS SCROLL (Ryad). Five pickers, four toggles and
-            // their captions outgrew the screen once the local model
-            // picker arrived, and controls you cannot reach are controls
-            // you do not have. Capped rather than greedy, so the
-            // transcript — the thing people actually watch — keeps room.
-            ScrollView {
-                VStack(spacing: 14) {
-            // INLINE ROWS (Ryad): label on the left, current value on the
-            // right, one line each. Five full-width segmented bars had
-            // pushed the transcript off the screen. `.labelsHidden()` is
-            // deliberate — the Text carries the name, so the menu button
-            // shows only the VALUE and every row reads the same way.
-            HStack {
-                Text("Ear").font(.subheadline)
-                Spacer()
-                Picker("Engine", selection: Bindable(model).choice) {
-                    ForEach(TranscribeModel.EngineChoice.allCases) { choice in
-                        Text(choice.rawValue).tag(choice)
-                    }
-                }
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .disabled(model.isListening)
-            }
-            .padding(.horizontal)
-
-            // THE SECOND MOUTH, on screen (AC-105). Only shown when the
-            // app is actually talking — a mouth picker above a silent
-            // pipeline would be a control with nothing to control.
-            if model.talkEnabled {
-                VStack(spacing: 8) {
-                    // THE MIND (4f, AC-117): what ANSWERS, above what
-                    // SPEAKS — the same swap-an-organ claim the mouth
-                    // picker makes, one seam up.
-                    HStack {
-                        Text("Mind").font(.subheadline)
-                        Spacer()
-                        Picker("Mind", selection: Bindable(model).mind) {
-                            ForEach(TranscribeModel.MindChoice.allCases) { choice in
-                                Text(choice.rawValue).tag(choice)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                    }
-                    if model.mind == .local {
-                        // F-1 = C: WHICH local model, chosen here so the
-                        // phone can answer what the Mac cannot. MLX keeps
-                        // weights resident (no mmap), so 2.1 GB on a phone
-                        // is a real question and this is the instrument
-                        // that asks it. The caption carries MAC numbers
-                        // and says so — they are not a phone's.
-                        HStack {
-                            Text("Local model").font(.subheadline)
-                            Spacer()
-                            Picker("Local model",
-                                   selection: Bindable(model).localModelChoice) {
-                                ForEach(TranscribeModel.LocalModelChoice.allCases) { size in
-                                    Text(size.rawValue).tag(size)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.menu)
-                            .disabled(model.isListening)
-                        }
-                        Text("\(model.localModelChoice.sizeOnDisk) · on a Mac: "
-                             + model.localModelChoice.macBehaviour)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        // AC-131: the third mind never vanishes and never
-                        // dies silently. On a simulator it says WHY it
-                        // cannot run (D-061, structural); with no weights
-                        // it offers the one action that fixes that.
-                        Text(model.mindUnavailable
-                             ?? "local weights ready · answers never leave this device")
-                            .font(.caption2)
-                            .foregroundStyle(model.mindUnavailable == nil
-                                             ? AnyShapeStyle(.secondary)
-                                             : AnyShapeStyle(Color.orange))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        // The status line is ALWAYS shown once there is
-                        // one, whether the download is running, finished
-                        // or failed. A tap must never be able to look
-                        // like nothing happened.
-                        if let status = model.localDownloadStatus {
-                            Text(status)
-                                .font(.caption2)
-                                .foregroundStyle(status.contains("FAILED")
-                                                 || status.contains("NOT usable")
-                                                 ? AnyShapeStyle(Color.red)
-                                                 : AnyShapeStyle(.secondary))
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .textSelection(.enabled)
-                        }
-                        if let fraction = model.localDownloadProgress {
-                            ProgressView(value: fraction)
-                        } else if model.mindUnavailable?.contains("not downloaded") == true {
-                            Button("Download \(model.localModelChoice.rawValue) · \(model.localModelChoice.sizeOnDisk)") {
-                                model.downloadLocalMind()
-                            }
-                            .font(.caption)
-                            .buttonStyle(.borderedProminent)
-                        }
-                    }
-                    if model.mind == .apple {
-                        // AC-110 on the main screen: the enum's reason in
-                        // words, never a silent dead Listen button. And
-                        // "ready" stays modest — availability is necessary,
-                        // not sufficient (the Simulator lied, INSTRUMENTS
-                        // §22); a failed first turn still tells the truth.
-                        Text(model.mindUnavailable
-                             ?? "on-device model ready · answers are spoken, one session per turn")
-                            .font(.caption2)
-                            .foregroundStyle(model.mindUnavailable == nil
-                                             ? AnyShapeStyle(.secondary)
-                                             : AnyShapeStyle(Color.red))
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    HStack {
-                        Text("Voice").font(.subheadline)
-                        Spacer()
-                        Picker("Voice", selection: Bindable(model).mouth) {
-                            ForEach(TranscribeModel.MouthChoice.allCases) { choice in
-                                Text(choice.rawValue).tag(choice)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                    }
-
-                    switch model.voiceState {
-                    case .modelMissing:
-                        VStack(spacing: 4) {
-                            Text("The neural voice needs a 1.1 GB download. "
-                                 + "One time, over Wi-Fi — then it runs on this phone.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button("Install voice") {
-                                Task { await model.installVoice() }
-                            }
-                            .buttonStyle(.borderedProminent)
-                        }
-                    case .downloading:
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            Text("Downloading the voice — a silent minute is not a hang.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    case .preparing:
-                        HStack(spacing: 8) {
-                            ProgressView()
-                            // The honest sentence. Nothing is being
-                            // fetched: the 1.1 GB is already on the phone
-                            // and CoreML is compiling it, which happens
-                            // once per launch.
-                            Text("Preparing the voice — already downloaded, "
-                                 + "compiling it for this device.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    case .failed(let why):
-                        Text("Voice unavailable: \(why)")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                            .multilineTextAlignment(.center)
-                    case .checking, .ready:
-                        EmptyView()
-                    }
-
-                    // WHICH APPLE VOICE, and how good. "compact" here is
-                    // the honest explanation for a robotic reply, and it
-                    // points at a download rather than at a bug.
-                    if model.mouth == .apple {
-                        // THE PERSON PICKS. A long list, so a menu rather
-                        // than a segmented control — and every row says
-                        // its quality, because "compact" is the honest
-                        // explanation for a robotic voice and it points
-                        // at a download rather than at a bug.
-                        Picker("Apple voice", selection: Bindable(model).appleVoiceIdentifier) {
-                            Text("Best installed (auto)").tag(String?.none)
-                            ForEach(model.availableAppleVoices) { voice in
-                                Text(voice.label).tag(String?.some(voice.id))
-                            }
-                        }
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                        Text(model.appleVoiceDescription)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-
-                    // VOICE FORENSICS (AC-104). A field run came back
-                    // with four adjectives — hot, late, worse, "drunk" —
-                    // and no numbers. These are the numbers, on the
-                    // device that produced the adjectives.
-                    if model.mouth == .neural, model.voiceState == .ready {
-                        VStack(alignment: .leading, spacing: 2) {
-                            if let margin = model.voiceMargin {
-                                Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
-                                            margin.steadyRealTimeFactor,
-                                            margin.keepsUp ? "" : "  ⚠️ TOO SLOW",
-                                            margin.prefillMilliseconds))
-                                    .foregroundStyle(margin.keepsUp
-                                                     ? AnyShapeStyle(.secondary)
-                                                     : AnyShapeStyle(Color.red))
-                            }
-                        }
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-            // THE LEVEL METER, above everything the gate controls.
-            // Set the gate ABOVE the quiet number and BELOW the speaking
-            // one, and the app works; there is no third rule.
-            if model.isListening {
-                VStack(spacing: 2) {
-                    HStack {
-                        Text(String(format: "mic %.3f", model.inputLevel))
-                        Spacer()
-                        Text(String(format: "peak %.3f", model.inputPeak))
-                        Spacer()
-                        if !model.engineAlive {
-                            Text("ENGINE STOPPED")
-                                .foregroundStyle(Color.red)
-                        }
-                        if model.engineReconfigurations > 0 {
-                            Text("reconfig \(model.engineReconfigurations)")
-                                .foregroundStyle(Color.orange)
-                        }
-                        Text(String(format: "gate %.3f", model.vadThreshold))
-                            .foregroundStyle(model.inputLevel > model.vadThreshold
-                                             ? AnyShapeStyle(Color.green)
-                                             : AnyShapeStyle(.secondary))
-                    }
-                    .font(.caption2.monospaced())
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            Capsule().fill(.quaternary)
-                            Capsule()
-                                .fill(model.inputLevel > model.vadThreshold ? Color.green : Color.gray)
-                                .frame(width: geometry.size.width
-                                       * CGFloat(min(model.inputLevel / 0.3, 1)))
-                            // Where the gate sits, on the same scale.
-                            Rectangle()
-                                .fill(Color.orange)
-                                .frame(width: 2)
-                                .offset(x: geometry.size.width
-                                        * CGFloat(min(model.vadThreshold / 0.3, 1)))
-                        }
-                    }
-                    .frame(height: 8)
-                }
-                .padding(.horizontal)
-            }
-
-            // CALIBRATE, so nobody has to guess this number again.
-            if model.isListening {
-                VStack(spacing: 4) {
-                    Button {
-                        Task { await model.calibrateGate() }
-                    } label: {
-                        Label(model.isCalibrating ? "Calibrating…" : "Calibrate gate",
-                              systemImage: "slider.horizontal.3")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(model.isCalibrating)
-
-                    if let status = model.calibrationStatus {
-                        Text(status)
-                            .font(.caption2.monospaced())
-                            .foregroundStyle(model.isCalibrating
-                                             ? AnyShapeStyle(Color.orange)
-                                             : AnyShapeStyle(.secondary))
-                            .multilineTextAlignment(.center)
-                    }
-                }
-                .padding(.horizontal)
-            }
-
-                }
-                .padding(.top, 4)
-            }
-            .frame(maxHeight: 300)
-            .scrollBounceBehavior(.basedOnSize)
-
-            conversation
-
-            ScrollViewReader { proxy in
-                List {
-                    ForEach(model.utterances) { utterance in
-                        HStack(alignment: .top) {
-                            Image(systemName: icon(for: utterance))
-                                .foregroundStyle(utterance.failure == nil
-                                                 ? (utterance.isFinal ? .green : .orange)
-                                                 : .red)
-                                .padding(.top, 2)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(utterance.text.isEmpty ? "…" : utterance.text)
-                                    .foregroundStyle(utterance.isFinal ? .primary : .secondary)
-                                if let failure = utterance.failure {
-                                    Text(failure).font(.caption).foregroundStyle(.red)
-                                }
-                                // The Mac's 🔎 line: what actually opened
-                                // this utterance, in numbers. "echo?" marks
-                                // one that began while the phone was
-                                // talking — the self-barge signature.
-                                if utterance.peakRMS > 0 {
-                                    HStack(spacing: 6) {
-                                        Text("peak \(utterance.peakRMS, format: .number.precision(.fractionLength(3)))")
-                                        Text("· \(utterance.milliseconds) ms")
-                                        if utterance.whileSpeaking {
-                                            Text("· echo?")
-                                                .foregroundStyle(.red)
-                                        }
-                                    }
-                                    .font(.caption2.monospacedDigit())
-                                    .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                    if model.utterances.isEmpty && model.isListening {
-                        Text("Say something — it stops and listens.")
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if !model.isListening {
-                        Section("Bake-off — same fixture as the Mac") {
-                            if let status = model.bakeoffStatus {
-                                Label(status, systemImage: "hourglass")
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                Button {
-                                    Task { await model.runBakeoff() }
-                                } label: {
-                                    Label("Run bake-off (both engines)", systemImage: "scalemass")
-                                }
-                            }
-                            ForEach(model.bakeoffRows, id: \.engineName) { row in
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(row.engineName).font(.subheadline.bold())
-                                    Text(String(format: "WER %.1f%% · %d sub · %d ins · %d del · settle %.2f s",
-                                                row.score.wer * 100, row.score.substitutions,
-                                                row.score.insertions, row.score.deletions,
-                                                row.decodeSeconds))
-                                        .font(.caption.monospacedDigit())
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            if !model.bakeoffRows.isEmpty {
-                                ShareLink(item: model.bakeoffMarkdown) {
-                                    Label("Share table (markdown)", systemImage: "square.and.arrow.up")
-                                }
-                            }
-                        }
-                    }
-                }
-                .listStyle(.plain)
-                // Follow the conversation: any change to the utterances — a new
-                // row OR a growing partial — keeps the newest text on screen.
-                // WATCH THE IDENTITY, NOT THE ARRAY.
-                //
-                // `utterances` changes on every partial transcription
-                // result — many times a second while a person speaks — and
-                // each change fired an ANIMATED scroll. Several landed in
-                // one frame and SwiftUI said so: "onChange(of:
-                // Array<Utterance>) action tried to update multiple times
-                // per frame." Watching the last id coalesces that to one
-                // scroll per NEW utterance, which is the only moment the
-                // target actually moves.
-                .onChange(of: model.utterances.last?.id) {
-                    guard let last = model.utterances.last else { return }
-                    withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
-                }
-            }
-
-            statusBar
-
-            // The combination that gets the app KILLED, said before the
-            // tap rather than found in a crash log (INSTRUMENTS §27).
-            if let conflict = model.memoryConflict {
-                Text(conflict)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal)
-            }
-
-            Button {
-                model.isListening ? model.stop() : model.start()
-            } label: {
-                Label(model.isListening ? "Stop" : "Listen",
-                      systemImage: model.isListening ? "stop.circle.fill" : "mic.circle.fill")
-                    .font(.title2)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(model.isListening ? .red : .accentColor)
-            // The other half of the mutual exclusion (4d review): the
-            // probe already refused to start while listening, but nothing
-            // stopped listening from starting while a probe held the
-            // process-wide session.
-            // And the MIND's gate (AC-110, found by the 4f review): when
-            // the Apple mind is selected and unavailable, start() refuses
-            // silently — so without this, tapping Listen did NOTHING, the
-            // exact silent dead button AC-110 forbids. Disabled + the red
-            // caption naming the reason = honest.
-            .disabled(model.probeStatus != nil
-                      // ANY mind that cannot answer, not just Apple's.
-                      // The review found the Local mind able to start a
-                      // session in which every single turn fails at the
-                      // door — a dead conversation that looks alive.
-                      || (model.talkEnabled && model.mind != .echo
-                          && model.mindUnavailable != nil)
-                      // Measured, not feared: 2239 MB + 1112 MB = 3351 MB,
-                      // and jetsam killed exactly this on the phone.
-                      || model.memoryConflict != nil)
-            .padding(.horizontal)
-            .padding(.bottom, 8)
-        }
-    }
 
     private var statusBar: some View {
         HStack(spacing: 16) {
@@ -837,6 +411,7 @@ struct ContentView: View {
         .padding(.horizontal)
     }
 
+
     private var thermalText: String {
         switch model.thermal {
         case .nominal: "cool"
@@ -846,6 +421,7 @@ struct ContentView: View {
         }
     }
 
+
     private var thermalColor: Color {
         switch model.thermal {
         case .nominal: .secondary
@@ -854,6 +430,7 @@ struct ContentView: View {
         case .critical: .red
         }
     }
+
 
     private func icon(for utterance: TranscribeModel.Utterance) -> String {
         if utterance.failure != nil { return "xmark.circle" }

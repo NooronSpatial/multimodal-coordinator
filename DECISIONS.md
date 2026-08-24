@@ -2537,3 +2537,296 @@ detokenizer, because that needs weights AND a model that ignores
 `MicrophonePlaybackHost` has no positive test, only the not-rendering
 refusal. Both need a real engine or a fake for it, which is its own
 piece of work.
+
+## D-064 — 0.6B is removed; the local mind is 4B, and the picker goes with it (Milestone 4i)
+
+**Date:** 2026-08-21 · **Decided by:** Ryad · **Ruling: remove it** —
+*"we dont need it, its quality is bad. we will use for sure the 4b"*
+
+**This reverses half of D-063's FIELD-1.** That fork was ruled C (ship a
+picker so the phone could answer what the Mac could not), then B (4B as
+the default, picker STAYS, "because one device is one device"). The
+picker's job is done: it produced the number — 2288 MB peak, 291–315 ms
+first word, 38 turns, no kill — and the number decided the model. Keeping
+a two-option control whose second option nobody should choose is a
+control that cannot be used.
+
+**Why 0.6B goes rather than staying as a fallback.** It was not merely
+worse; it was wrong in a way that a fallback must not be. It answered a
+barged fragment by repeating it VERBATIM — "13. No, no, no. I ask you the
+square of... 113." came back word for word — and reproduced on the Mac
+from the phone's own transcript. A fallback is a thing you drop TO when
+the good path fails. Dropping to a mind that parrots the user is offering
+a worse product as a feature.
+
+*Rejected:* **keep it as the degradation chain's first step.** Tempting,
+because 4i's F-1 recommendation named exactly that. But the chain must
+degrade to something a person can still USE; a step that produces
+parroting is a step that trades a memory problem for a quality one and
+calls it graceful.
+
+**The consequence, named rather than discovered in 4i.** 4i's F-1 option
+A was "(1) drop the local mind to the small model, (2) drop the neural
+voice to Apple's, (3) refuse". Step 1 no longer exists. The chain now
+starts at the mouth, and whether that is enough is exactly what the
+milestone must measure — which sharpens 4i rather than weakening it: if
+the mind cannot be made smaller, either the pair fits or the voice goes.
+
+**What is NOT deleted:** every 0.6B measurement in INSTRUMENTS. They were
+true, they paid for this ruling, and removing them would hide the
+evidence that produced it.
+
+## D-065 — 4i re-scoped: the chain is not built, because the premise died (Milestone 4i)
+
+**Date:** 2026-08-21 · **Decided by:** Ryad · **Ruling: A — re-scope,
+drop the degradation chain**
+
+**A milestone's own first instrument refuted the milestone.** 4i was
+drafted around three debts that looked like one question, and its opening
+sentence was "4h measured a pair that does not fit". AC-132 — the
+headroom instrument, built first because Ryad's F-1 answer promoted it —
+measured the pair fitting with **934 MB to spare**, alongside a THIRD
+in-process model and a working turn (INSTRUMENTS §29).
+
+**The error was mine and it was repeated in three places** — SPEC §92,
+D-064's consequence paragraph, and a red warning in the app. All three
+added a Mac's `phys_footprint` to a phone's dirty-memory headroom. CoreML
+MAPS its weights, so they are clean pages that a dirty limit does not
+charge; MLX has no `mmap`, so its 2225 MB is charged in full. The neural
+voice costs **111 MB** on iOS against the 1112 MB I measured on a Mac —
+wrong by a factor of ten, and wrong in the direction that forbade a
+configuration the user wanted.
+
+**What is dropped:** the pressure level, the hysteresis rule, the
+degradation order, and the fork asking where the chain should live
+(AC-133–138, F-1–F-3). *Rejected:* **B, build the chain anyway for
+smaller phones.** It would be built for a device nobody in this project
+owns, which is the purchase D-047 rejected in one sentence — "it protects
+against a risk nobody measured" — and it would earn the same label:
+insurance, not a measured cure. *Rejected:* **C, close 4i.** The thermal
+debt is real, owed since Phase 3, and closing the milestone would orphan
+it again.
+
+**What remains: three measurements and no new architecture.** The compile
+peak that actually kills (AC-139), AC-102's thermal number at last
+(AC-140), and twenty minutes in the configuration Ryad really uses
+(AC-141).
+
+**The reopening condition, named in advance** (the D-040 F-3 pattern): if
+AC-140 or AC-141 shows this configuration failing under sustained load,
+the chain comes back — with evidence, which is the only basis it should
+ever have had.
+
+**One fork withdrawn rather than ruled.** F-4 asked how to resolve
+`os_proc_available_memory`'s ambiguous 0, and I recommended cross-checking
+`limit_bytes_remaining`. Measurement before building showed that field
+also reads 0 on macOS, for the opposite reason, so the cross-check
+disambiguates nothing. Withdrawn by its author before Ryad spent a ruling
+on it.
+
+## D-066 — the phone gets a bench, not a bigger settings screen (Milestone 4j)
+
+**Date:** 2026-08-23 · **Decided by:** Ryad · **Ruling: all four
+recommendations accepted**
+
+**Why this milestone exists at all.** The Mac can now be tuned from the
+command line — decoder, vocoder mode, temperature, cushion (§31.1) — and the
+first thing that tuning produced was a disagreement between the clock and
+Ryad's ears (§32). `temperature 0` has the fastest first audio of all six
+configurations and he calls it bad; `throughputOptimized` starts 180 ms later
+and he ranks it level with the winner. **No instrument in this repo measures
+what he judged in five seconds**, so the human has to stay in the loop — and
+the phone, which is the device that actually matters, has no way to put him
+there. It has an engine picker, a mind picker and a voice picker, and not one
+of the four levers.
+
+**The constraint that shapes the whole milestone:** `.fused` cannot load on
+iOS 18+. `MLModelConfiguration.functionName` must be nil unless the model is
+an ML Program, and the Qwen3 multi-code decoder is not. So the phone can
+compare four configurations where the Mac compares six, and the best one on
+the Mac is not available on the phone at all.
+
+**F-1 — how many screens? Ruled A: three tabs (Chat · Bench · Settings).**
+A live meter redrawing at 60 Hz and a stopwatch have no business on the same
+screen; the bench must not be timing itself while it animates. *Rejected:*
+**two tabs (Chat + Settings)** — it saves a tab by putting the measuring
+tools among the pickers, which is how the 884-line ContentView got that way.
+*Rejected:* **one screen with a settings sheet** — a sheet cannot be watched
+while the thing it configures is running, and watching is the point.
+
+**F-2 — does the phone offer `.fused`, knowing it cannot load? Ruled B:
+offer it, and let it refuse honestly with the CoreML reason.** *Rejected:*
+**hide it** — a picker that hides the option teaches nobody why, and the
+next person to read the library's default (`.fused`) will wonder where it
+went. *Rejected:* **offer it labelled "fails here"** — a label is a claim; a
+refusal carrying the actual error is evidence. This follows rule 5 of D-054:
+an instrument must be able to say whether it is switched on, and a
+constraint you can trigger on demand is a constraint you can prove.
+
+**F-3 — sweep on the phone, or ear-only? Ruled C: both, with the sweep gated
+on the mind being unloaded.** Ear-only would reproduce the Mac's blind spot
+in the other direction — no numbers at all. A sweep with the 4B mind
+resident is the memory kill 4i exists to study, and an instrument that
+crashes the app is not an instrument. *Rejected:* **port the sweep
+unconditionally** — it would be killed and the kill would be read as a
+result. *Rejected:* **ear-only** — Ryad's ranking is only interesting
+*because* there were numbers to disagree with.
+
+**F-4 — where do the phone's numbers go? Ruled B: copy as a markdown
+table.** The Mac's numbers reach INSTRUMENTS by being printed and pasted;
+the phone's should arrive in the same shape, beside them, comparable.
+*Rejected:* **on-screen only** — a number that cannot leave the device
+cannot be reviewed, and every claim in INSTRUMENTS is reviewable.
+*Rejected:* **share-sheet export** — a file to open, name and find, when
+what is wanted is a paste into a document already open.
+
+**Not yet ruled:** whether 4j starts before or after 4i's remaining
+criteria (AC-139 compile peak, AC-140 thermal, AC-141 twenty minutes) are
+measured. The spec is written as 4j and does not absorb them.
+
+## D-067 — the bench driver gets its own module, and 4j starts now (Milestone 4j)
+
+**Date:** 2026-08-23 · **Decided by:** Ryad · **Ruling: F-1 = A, F-2 = start
+now**
+
+**F-1 — where the sweep driver lives. Ruled A: a new `MultiModalKitBench`
+module.** The five hazards in SPEC §104 mean the sweep needs real semantics —
+wait for readiness rather than for time, reset counters per row, scope the
+settings so a death leaves no residue — and semantics want tests. A module is
+what makes them testable on a Mac. Tier 2 of D-016: the core keeps its zero
+runtime dependencies and learns nothing about benchmarking.
+
+*Rejected:* **B, put it in `MultiModalKitTTS`.** One fewer module, at the
+price of a voice library holding a benchmarking concern. It would fail the
+deep-module test in §4.0 — a type whose insides leak into a neighbour's
+purpose. *Rejected:* **C, put it in the app.** Nothing new to name, and
+nothing testable either: AC-147 (readiness, never time) and AC-149
+(per-iteration counters) would have no home, and they are the two criteria
+written directly against hazards that have already bitten.
+
+**F-2 — sequencing. Ruled: start 4j now, with 4i's three criteria still
+open.** AC-139 (compile peak), AC-140 (thermal) and AC-141 (twenty minutes)
+all need Ryad's phone, and all three stay open and unabsorbed. AC-148 makes
+every bench row carry the thermal state it was measured under, so the bench
+is plausibly the instrument AC-140 has been waiting for — but that is a hope,
+not a plan, and 4j does not claim to pay 4i's debt.
+
+**Consequence:** branch `milestone/4j-tuning-bench`, cut from the 4i branch
+so that D-066, SPEC §100–108 and the three bug fixes travel with it. 4i's
+branch stays open for the three field measurements.
+
+## D-068 — the cushion is learned, and a human still outranks it (Milestone 4j)
+
+**Date:** 2026-08-23 · **Decided by:** Ryad · **Ruling: A and D together**
+
+**The finding that forced the question.** Fixing `voice-spike`'s cushion bug
+changed the published comparison: `.stepped` costs **693 ms** to first audio,
+not the 201–224 ms in §31, because those runs had a zero cushion and were
+measuring a starved player. The ranking survives; the gap goes from 1.2× to
+3.6× (INSTRUMENTS §33). And it lands hardest on the phone, which cannot load
+`.fused` at all and therefore pays the cushion on every configuration it can
+run.
+
+Then the deeper problem: the cushion the phone is given is derived from a
+**Mac's** constant. `measuredRealTimeFactor(for:)` returns 1.066 for
+`.stepped`; the iPhone measured **1.21** (§22). On a six-second reply that is
+396 ms where ~1260 ms is called for — under-cushioned by about 860 ms, on the
+device that matters. §22 recorded exactly this in August and deferred it to
+"the voice-quality milestone's work". This is that milestone.
+
+**Ruled A — adapt from the margin the voice already reports.** Every reply
+ends with a `DecodeMargin` carrying the steady factor it achieved. The next
+reply's cushion is sized from it. No calibration step, no device table, and
+the number was already being computed. *Rejected:* **B, calibrate once at
+startup** — correct from the first reply, at the price of a load-time delay
+on a device where the load is what kills the app (INSTRUMENTS §29).
+*Rejected:* **C, a per-device constant table** — inspectable, and wrong on
+every device nobody has measured, which is all of them but two.
+
+**Ruled D as well — the human's lever still wins.** The precedence is one
+line:
+
+    a human's number  →  this machine's measurement  →  the constant
+
+A lever on screen that a measurement can silently overrule is not a lever.
+Ruling D alongside A is what keeps AC-143's control honest.
+
+**Cost, named.** The first reply of a session is still cushioned by the
+constant, because nothing has been measured yet. On a slow device that reply
+runs dry. Accepted knowingly — the alternative was B, and B was rejected for
+a reason that has already killed the app three times.
+
+## D-069 — 4k signed; the shield defaults ON in this app (Milestone 4k)
+
+**Date:** 2026-08-24 · **Decided by:** Ryad · **Ruling: spec §109–116
+signed; F-1 = A**
+
+**F-1 = A — the speaker shield defaults ON in the demo app, with the
+warning kept for anyone who turns it off.** The convicting evidence was a
+reinstall: Ryad deleted the app to re-download the voice, UserDefaults was
+wiped back to the default, the default was `false`, and his next
+conversation self-barged — precisely as the app's own orange label
+predicted ("it will interrupt itself"). A default that breaks the first
+conversation after every reinstall is not a safe default.
+
+D-060 F-4 is NOT reversed: it kept the *library* default off because a
+library claims every device, and it said in the same breath that the app
+chooses. This is the app choosing, on this device's own evidence — §23's
+matrix (tone cancelled to 0.004–0.08 shielded, 1.0 unshielded), §29's
+working field log (`speaker shield=true`), and §37's conviction.
+
+*Rejected:* **B, keep opt-in and warn** — the warning was already on
+screen during the failing session, and warning a person about a default
+they did not choose is a smaller apology, not a fix. *Rejected:* **C,
+remove the toggle** — it is the A/B instrument AC-121's field work still
+uses, and §23's suspects are still unconvicted in the shielded arrangement.
+
+**Scope note on AC-157, stated rather than slipped:** the warning stays
+scoped to the SPEAKER route. Receiver + no shield is not a guaranteed
+failure — the 4d gate (0.021) was earned on exactly that arrangement and
+it held a whole era of field sessions. The warning covers the measured
+danger, not every non-default state.
+
+## D-070 — a retired voice is terminal, and it takes its reply with it (Milestone 4k)
+
+**Date:** 2026-08-24 · **Decided by:** Ryad · **Ruling: F-2 = C — both
+halves**
+
+**The review found the promise unbacked.** `settleLevers` carries the
+comment *"Retire AFTER the replacement exists … and before loading the new
+one, so two pipelines are never both resident."* Nothing guaranteed it.
+`NeuralVoiceRun.beginDraining` stores `Task { [self] … }`, so a speaking run
+keeps ITSELF and its `TTSKit` alive; `NeuralVoice` keeps no reference to the
+run, so `retire()` cannot reach it; and `shutdown()` touches only `ownHost`,
+which is `nil` on the conversation path because the app calls `render(on:)`.
+So `retire()` freed nothing, and the very next `openUtterance()` on the
+retired voice would build a SECOND pipeline — 2.2 GB where 1.1 was intended,
+the jetsam kill of INSTRUMENTS §28/§29 that `retire()` exists to prevent.
+
+**Ruled C — the library guarantees it AND the app never creates the
+window.**
+
+- **The library half:** `NeuralVoice` becomes terminal. A latch is raised in
+  the same actor step as the retire, before any await; the live run is held
+  weakly and cancelled; and `loadedPipeline()` refuses both before and after
+  its await (the reentrancy law — a caller already parked in the queue
+  passed the first check before the retire landed).
+- **The app half:** when a lever changes while listening, the pipeline is
+  stopped and AWAITED before the swap. There is then no live run to cancel,
+  no coordinator holding a dead voice, and no window at all.
+
+*Rejected:* **A alone, the library cancels** — it frees the pipeline but
+leaves the old coordinator running against a voice that now throws; the turn
+in flight dies visibly and nothing else stops. *Rejected:* **B alone, the
+app stops first** — it closes this app's window while leaving the library's
+promise unenforceable by anyone else, and D-027 puts the mechanism in the
+library precisely so the next consumer inherits it.
+
+**The cost, named:** changing a lever mid-conversation now visibly stops the
+conversation for the length of the new voice's load. That is honest — it is
+what was always happening, minus the pretence that the old voice was still
+usable during it.
+
+**Required regardless of the fork, and not part of it:** `settleLevers` is
+serialized (two lever changes could overlap two full loads), and the sweep's
+honesty defects are fixed separately. Both came from the same review.

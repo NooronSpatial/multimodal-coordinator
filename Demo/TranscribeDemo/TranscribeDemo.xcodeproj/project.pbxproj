@@ -11,9 +11,14 @@
 		20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */ = {isa = PBXBuildFile; productRef = 0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */; };
 		2C4BDC794DC39DAD662681F3 /* MultiModalKit in Frameworks */ = {isa = PBXBuildFile; productRef = AC3E96CBCF532F30A024E805 /* MultiModalKit */; };
 		310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */ = {isa = PBXBuildFile; productRef = 91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */; };
+		D07D33E6EB9F55B36B8D3605 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 115A9B040A2E64A464D8C75F /* RootView.swift */; };
+		37BA04D6D7A684323C5EC542 /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D68F33B5612BE5EFD2F3714 /* SettingsTab.swift */; };
+		D55A12CA1E454F3C84BD0EEF /* BenchTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 87880A6E70E1B03760B343AF /* BenchTab.swift */; };
+		555BF7970D9F0FDC3025D43E /* PhoneBenchStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA184513C26E4935C1A913EF /* PhoneBenchStage.swift */; };
 		423F679D2CB7551AB7C0EC22 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F55B6AEB6559E79DEDA042A8 /* ContentView.swift */; };
 		49044073EF00007DA65DD31C /* MindProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 39C15A8522E79D78F4D795AD /* MindProbe.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
+		08B8D50DE72B20E187E5BB8D /* MultiModalKitBench in Frameworks */ = {isa = PBXBuildFile; productRef = DE8E97FEEEAE1F7A9F5C410D /* MultiModalKitBench */; };
 		6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */ = {isa = PBXBuildFile; productRef = B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */; };
 		80C7530167B4686EF7C896BF /* MultiModalKitMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */; };
 		91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */; };
@@ -30,6 +35,10 @@
 		62811A7E85B37A1A75B7AA6F /* bakeoff-reference.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "bakeoff-reference.txt"; sourceTree = "<group>"; };
 		E9370469C1D7537FC640A814 /* multimodal-coordinator */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "multimodal-coordinator"; path = ../..; sourceTree = SOURCE_ROOT; };
 		F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeModel.swift; sourceTree = "<group>"; };
+		115A9B040A2E64A464D8C75F /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		7D68F33B5612BE5EFD2F3714 /* SettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTab.swift; sourceTree = "<group>"; };
+		87880A6E70E1B03760B343AF /* BenchTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BenchTab.swift; sourceTree = "<group>"; };
+		EA184513C26E4935C1A913EF /* PhoneBenchStage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneBenchStage.swift; sourceTree = "<group>"; };
 		F55B6AEB6559E79DEDA042A8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -42,6 +51,7 @@
 				20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */,
 				310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */,
 				6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */,
+				08B8D50DE72B20E187E5BB8D /* MultiModalKitBench in Frameworks */,
 				80C7530167B4686EF7C896BF /* MultiModalKitMLX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -96,6 +106,10 @@
 		CEEE7D94E833B5DD028088EB /* Sources */ = {
 			isa = PBXGroup;
 			children = (
+				115A9B040A2E64A464D8C75F /* RootView.swift */,
+				7D68F33B5612BE5EFD2F3714 /* SettingsTab.swift */,
+				87880A6E70E1B03760B343AF /* BenchTab.swift */,
+				EA184513C26E4935C1A913EF /* PhoneBenchStage.swift */,
 				F55B6AEB6559E79DEDA042A8 /* ContentView.swift */,
 				39C15A8522E79D78F4D795AD /* MindProbe.swift */,
 				28BDC7531D2E15DC9EF02ABF /* PhoneSession.swift */,
@@ -126,6 +140,7 @@
 				0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */,
 				91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */,
 				B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */,
+				DE8E97FEEEAE1F7A9F5C410D /* MultiModalKitBench */,
 				043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */,
 			);
 			productName = TranscribeDemo;
@@ -185,6 +200,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D07D33E6EB9F55B36B8D3605 /* RootView.swift in Sources */,
+				37BA04D6D7A684323C5EC542 /* SettingsTab.swift in Sources */,
+				D55A12CA1E454F3C84BD0EEF /* BenchTab.swift in Sources */,
+				555BF7970D9F0FDC3025D43E /* PhoneBenchStage.swift in Sources */,
 				423F679D2CB7551AB7C0EC22 /* ContentView.swift in Sources */,
 				49044073EF00007DA65DD31C /* MindProbe.swift in Sources */,
 				FEE72793A1C59D5217C79633 /* PhoneSession.swift in Sources */,
@@ -413,6 +432,10 @@
 		B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MultiModalKitTTS;
+		};
+		DE8E97FEEEAE1F7A9F5C410D /* MultiModalKitBench */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MultiModalKitBench;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

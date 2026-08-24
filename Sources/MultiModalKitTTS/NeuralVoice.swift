@@ -57,7 +57,39 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     /// The loaded pipeline, kept so a second utterance does not pay the
     /// load again.
-    private var pipeline: TTSKit?
+    /// TERMINAL, and it never goes back (D-070). A retired voice must not
+    /// build a second pipeline: that is the 2.2 GB where 1.1 was intended,
+    /// the jetsam kill of INSTRUMENTS §28/§29 that retiring exists to
+    /// prevent. AC-145 claimed this and proved only that `retire()` was
+    /// CALLED; the review proved the voice would happily reload afterwards.
+    public private(set) var isRetired = false
+
+    /// How many times this voice has actually REACHED for the models.
+    ///
+    /// Not decoration, and not a metric: it is the only way a test can tell
+    /// "refused" from "refused after loading 1.1 GB", and those are
+    /// different outcomes with the same visible result. A review found the
+    /// first version of the terminal test passing with the guard removed —
+    /// it threw either way, ninety-six seconds later. Counting the reach is
+    /// what makes "it does not rebuild" a testable sentence.
+    private(set) var loadAttempts = 0
+
+    /// The reply in flight, held WEAKLY.
+    ///
+    /// A speaking `NeuralVoiceRun` keeps itself alive — `beginDraining`
+    /// stores `Task { [self] … }` — and it holds the `TTSKit` strongly
+    /// through its decoder. So dropping this voice's own reference frees
+    /// nothing while a reply is speaking, and `retire()` has to reach IN and
+    /// cancel. Weak so that this handle never extends the run's life by
+    /// itself; the run's own drain task is what keeps it alive, and the run
+    /// is what must be told to stop.
+    private weak var speaking: NeuralVoiceRun?
+
+    /// The loaded models, behind the shape that gets this right (D-051).
+    /// Hand-written four times here and wrong four times; `Retirable` holds
+    /// the FIFO, the reentrancy re-check and the generation ticket that
+    /// stops a retired pipeline being resurrected by its own in-flight load.
+    private let held = Retirable<TTSKit>()
 
     /// WHERE THIS VOICE RENDERS (AC-108, D-048). Handing in a host is
     /// how a caller makes the reply CANCELLABLE: D-043 measured that iOS
@@ -87,6 +119,31 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// which is how the before/after number stays honest.
     public nonisolated let lead: Duration
 
+    /// What the caller ASKED for, or nil if they left it to be derived.
+    /// Kept separately from `lead` because the two answer different
+    /// questions: `lead` is what this voice started with, `explicitLead` is
+    /// whether a human overrode anything — and D-068 D says a human's number
+    /// outranks a measured one.
+    private nonisolated let explicitLead: Duration?
+
+    /// D-068 A. Learns this machine's cushion from the margin every reply
+    /// reports, because the constant is a Mac's (INSTRUMENTS §33).
+    nonisolated let adaptive = AdaptiveLead()
+
+    /// The cushion the NEXT reply will use, and the whole precedence rule
+    /// in one line:
+    ///
+    ///     a human's number  →  this machine's measurement  →  the constant
+    ///
+    /// `lead` is what this voice was born with; this is what it has learned
+    /// since. They differ only after a reply has been decoded on a machine
+    /// whose factor is not the one baked in.
+    public nonisolated var currentLead: Duration {
+        explicitLead
+            ?? adaptive.target
+            ?? NeuralVoice.defaultLead(for: multiCodeDecoderMode)
+    }
+
     /// The steady real-time factor MEASURED for the default decoder
     /// (AC-106: `.fused`, release build, M-series Mac, median of three
     /// runs on a long sentence). Below 1.0 means the decoder produces
@@ -109,8 +166,52 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// 1.066–1.25, and it cost first audio 227 ms → 1882 ms (§11).
     /// D-046 ruled to attack the decode as well as buy the cushion, and
     /// attacking it is what made the cushion unnecessary.
+    ///
+    /// DEPRECATED, and the deprecation is the fix. This constant sits
+    /// beside `defaultLead(for:)` and reads like the safe choice, so
+    /// `bakeoff voice-spike` passed it explicitly — and an explicit lead
+    /// defeats the derivation by design. The instrument built to compare
+    /// the decoders measured `--stepped` with `.fused`'s cushion of
+    /// nothing, directly under the comment below warning about exactly
+    /// that. A test could not catch it: the bug was in an executable's
+    /// `main.swift`, which the package suite cannot reach. A deprecation
+    /// can, because CI builds every target with warnings-as-errors.
+    @available(*, deprecated, message: "This is .fused's cushion, not a universal default. Pass lead: nil to derive it from the decoder, or defaultLead(for:) to name a mode. Passing this to .stepped reintroduces the slow-voice bug.")
     public nonisolated static let defaultLead = PlaybackLead.deficit(
         forReplyOf: .seconds(6), realTimeFactor: measuredRealTimeFactor)
+
+    /// THE LEAD MUST FOLLOW THE DECODER, and once it did not.
+    ///
+    /// `defaultLead` is derived from `measuredRealTimeFactor`, which is
+    /// `.fused`'s 0.752 — below 1.0, so the deficit is zero and no cushion
+    /// is banked. But the decoder mode is a SEPARATE parameter, and Swift
+    /// cannot let one default argument read another. So a caller who asked
+    /// for `.stepped` silently kept `.fused`'s cushion of nothing.
+    ///
+    /// It was measured immediately: `--mouth=neural` on a Mac, and the
+    /// speech came out slow. RTF 1.066 means the decoder makes audio
+    /// slower than the ear drinks it, so the player runs dry from the
+    /// first buffer — which is D-046's finding, arriving again because the
+    /// derivation was fed the wrong number.
+    ///
+    /// AC-106's measurements, per mode, so the rule can be applied rather
+    /// than remembered.
+    public nonisolated static func measuredRealTimeFactor(
+        for mode: Qwen3MultiCodeDecoderMode
+    ) -> Double {
+        switch mode {
+        case .fused: 0.752      // AC-106
+        default: 1.066          // AC-106, `.stepped`
+        }
+    }
+
+    /// The cushion this decoder actually needs, derived not guessed.
+    public nonisolated static func defaultLead(
+        for mode: Qwen3MultiCodeDecoderMode
+    ) -> Duration {
+        PlaybackLead.deficit(forReplyOf: .seconds(6),
+                             realTimeFactor: measuredRealTimeFactor(for: mode))
+    }
 
     /// How the multi-code decoder runs each 15-code frame. **Defaults to
     /// `.fused` (D-047)**, which is NOT TTSKit's own default.
@@ -135,14 +236,17 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
                 renderingOn host: (any PlaybackHost)? = nil,
-                lead: Duration = NeuralVoice.defaultLead,
+                lead: Duration? = nil,
                 multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused,
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 seed: UInt64? = nil) {
         self.variant = variant
         self.providedHost = host
-        self.lead = lead
+        // nil means "derive it from the decoder I was actually given",
+        // which is the only way the two cannot disagree.
+        self.lead = lead ?? NeuralVoice.defaultLead(for: multiCodeDecoderMode)
+        self.explicitLead = lead
         self.multiCodeDecoderMode = multiCodeDecoderMode
         self.speechDecoderMode = speechDecoderMode
         self.temperature = temperature
@@ -208,10 +312,24 @@ public actor NeuralVoice: SpeechSynthesizing {
         // the seam at this level (AC-109, D-053 F-6). Below this line
         // nothing names TTSKit's decode API; above it, the model lifecycle
         // still does, deliberately (F-7 = A).
-        return try NeuralVoiceRun(decoder: TTSKitDecoder(kit: kit), host: host,
-                                  lead: PlaybackLead(target: lead),
-                                  temperature: temperature,
-                                  onMargin: marginHandler)
+        // `currentLead`, not `lead`: the second reply of a session is
+        // cushioned by what the FIRST one measured on this machine.
+        //
+        // And the observer is always installed, even when nobody registered
+        // a handler — margins used to be computed only if someone was
+        // watching, and now the voice itself is always watching.
+        let memory = adaptive
+        let listener = marginHandler
+        let onMargin: @Sendable (DecodeMargin) -> Void = { margin in
+            memory.observe(margin)
+            listener?(margin)
+        }
+        let run = try NeuralVoiceRun(decoder: TTSKitDecoder(kit: kit), host: host,
+                                     lead: PlaybackLead(target: currentLead),
+                                     temperature: temperature,
+                                     onMargin: onMargin)
+        speaking = run
+        return run
     }
 
     /// Where TTSKit's hub actually places this variant — MEASURED, not
@@ -266,8 +384,47 @@ public actor NeuralVoice: SpeechSynthesizing {
             let path = localModelFolder
                 .appending(path: component)
                 .appending(path: variantDirectoryName)
-            guard let contents = try? files.contentsOfDirectory(atPath: path.path),
-                  !contents.isEmpty
+            // NOT-EMPTY IS NOT INSTALLED, and a field report proved it.
+            //
+            // This used to accept any non-empty folder. A 1.1 GB download
+            // interrupted over cellular leaves plenty of non-empty
+            // folders, so the app reported the voice INSTALLED and then
+            // failed to load it:
+            //
+            //   Error Domain=com.apple.CoreML Code=71
+            //   "…/TextProjector.mlmodelc/model.mil:7:147: Error parsing"
+            //
+            // A truncated file is not a missing file, and a check that
+            // cannot tell them apart sends a person hunting a memory bug
+            // that does not exist. So: the compiled bundle must be there,
+            // and the file CoreML actually parses must be non-trivial.
+            // Cheap — a stat per component, no reading, no hashing — and
+            // it catches truncation, which is the failure that happens.
+            // FOUND, not assumed. The first version of this looked for the
+            // .mlmodelc directly inside the variant folder and reported
+            // every component broken — "loaded, but the disk check
+            // disagrees" — while TTSKit had loaded the model perfectly.
+            // The bundle sits one level deeper, under a QUANTISATION
+            // folder whose name differs per component:
+            //
+            //   text_projector/12hz-0.6b-customvoice/W8A16/TextProjector.mlmodelc
+            //   code_embedder/12hz-0.6b-customvoice/W16A16/CodeEmbedder.mlmodelc
+            //
+            // So it is searched for rather than constructed. Two wrongs in
+            // one evening from the same habit: writing down where a file
+            // OUGHT to be instead of asking where it IS.
+            guard let walker = files.enumerator(at: path,
+                                                includingPropertiesForKeys: nil),
+                  let bundle = walker.compactMap({ $0 as? URL })
+                      .first(where: { $0.pathExtension == "mlmodelc" })
+            else { return false }
+            let sizeOf: (String) -> Int = { name in
+                (try? files.attributesOfItem(
+                    atPath: bundle.appending(path: name).path)[.size] as? Int) ?? 0
+            }
+            // A truncated download leaves the folder present and the file
+            // short, which is the failure that actually happens.
+            guard sizeOf("model.mil") > 1_024 || sizeOf("coremldata.bin") > 1_024
             else { return false }
         }
         return files.fileExists(atPath:
@@ -289,19 +446,96 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// of what an opt-in module is for (D-045 F-4). The pipeline stays
     /// in here.
     public func ensureModel() async throws {
-        pipeline = try await loadedPipeline()
+        // The holder does the caching now; this only asks for it.
+        _ = try await loadedPipeline()
     }
 
     /// Loads once, then reuses. The variant's own logging reports the
     /// download; this only owns the caching.
+    /// ONE load at a time — enforced, not assumed.
+    ///
+    /// FOUND IN THE FIELD, and it had been pointed out to me first. The
+    /// 4h review's verifier wrote: "WhisperEngine.loadedPipeline and
+    /// NeuralVoice.loadedPipeline share the same unguarded shape, but
+    /// only the MLX path holds 2.2 GB." I fixed the MLX path and left
+    /// these, on the size argument.
+    ///
+    /// Then Ryad's log showed the neural voice loading TWICE,
+    /// concurrently — two tokenizers, two sets of six CoreML models,
+    /// "Total model load: 82.26s" and "74.96s" — because an actor does
+    /// NOT hold isolation across an await, so both callers passed the
+    /// nil check. That is ~2.2 GB of CoreML instead of 1.1 GB, and it is
+    /// the likeliest cause of the jetsam kill the pressure probe
+    /// recorded (INSTRUMENTS §28).
+    ///
+    /// The shape is `decode`'s, one method over: a busy flag, a FIFO
+    /// waiter queue, re-checked in a WHILE loop after every wake, and
+    /// released on every exit through `defer`.
     private func loadedPipeline() async throws -> TTSKit {
-        if let pipeline { return pipeline }
-        let fresh = try await TTSKit(TTSKitConfig(
-            model: variant,
-            speechDecoderMode: speechDecoderMode,
-            multiCodeDecoderMode: multiCodeDecoderMode,
-            download: true, load: true, seed: seed))
-        pipeline = fresh
-        return fresh
+        // A RETIRED VOICE NEVER LOADS AGAIN — that is what retiring MEANS.
+        // Both `openUtterance()` and `ensureModel()` come through here, so
+        // one guard closes both doors.
+        guard !isRetired else { throw NeuralVoiceRetired() }
+        // Read the configuration HERE, on the actor, so the build closure
+        // captures values rather than isolated state.
+        let model = variant
+        let speech = speechDecoderMode
+        let multi = multiCodeDecoderMode
+        let requestedSeed = seed
+        loadAttempts += 1
+        let kit = try await held.value {
+            try await TTSKit(TTSKitConfig(
+                model: model,
+                speechDecoderMode: speech,
+                multiCodeDecoderMode: multi,
+                download: true, load: true, seed: requestedSeed))
+        }
+        // THE REENTRANCY LAW. The await above released the actor, and a
+        // caller already parked in the holder's queue passed the guard
+        // before the retire landed. Re-check, throw away what it built, and
+        // tell the truth rather than hand back a pipeline nobody tracks.
+        guard !isRetired else {
+            await held.retire()
+            throw NeuralVoiceRetired()
+        }
+        return kit
+    }
+
+    /// Gives back the loaded models and the owned engine.
+    ///
+    /// AC-145. Changing a lever means building a NEW voice — the decoder and
+    /// the vocoder mode are fixed at init, deliberately, so that the lead can
+    /// be derived from them and cannot drift. Retiring the old one is how the
+    /// phone ends up with exactly one pipeline resident instead of a pile.
+    ///
+    /// A load in flight when this is called will not install its result; that
+    /// caller is told `retiredDuringLoad` rather than handed a voice nobody
+    /// is tracking. Safe to call twice, and safe on a voice that never spoke.
+    public func retire() async {
+        // THE LATCH FIRST, in this actor step, BEFORE any await. Everything
+        // below suspends, and a caller that arrives during a suspension must
+        // already find a voice that says no.
+        isRetired = true
+        shutdown()
+        // AND TAKE THE REPLY WITH IT (D-070). Without this the run keeps
+        // itself alive through its drain task and holds the whole 1.1 GB
+        // pipeline, so retiring frees nothing while the assistant is
+        // speaking — which is exactly when a lever gets changed.
+        let dying = speaking
+        speaking = nil
+        await dying?.cancel()
+        await held.retire()
+    }
+}
+
+/// Thrown when a retired voice is asked to speak or to load (D-070).
+///
+/// Its own type rather than a reused `Retirable.Failure`: a caller catching
+/// this is asking "is this voice finished?", which is a different question
+/// from "did my load lose a race?", and the two deserve different words.
+public struct NeuralVoiceRetired: Error, CustomStringConvertible {
+    public init() {}
+    public var description: String {
+        "this voice was retired — build a new one rather than reviving it"
     }
 }

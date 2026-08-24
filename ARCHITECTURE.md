@@ -264,7 +264,7 @@ un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
 is about, committed inside the correction for it.
 
 The test folder mirrors this map roughly one suite per box — **38 suites,
-290 tests**, all deterministic (injected clocks, no sleeps, event-gated),
+356 tests**, all deterministic (injected clocks, no sleeps, event-gated),
 run 20× before any milestone closes. The suites that touch real speakers
 or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
 skip honestly rather than failing for the wrong reason.

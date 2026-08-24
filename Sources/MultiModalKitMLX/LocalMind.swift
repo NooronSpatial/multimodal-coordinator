@@ -270,7 +270,14 @@ public actor LocalMindModel {
         loadBusy = true
         defer {
             loadBusy = false
-            if !loadWaiters.isEmpty { loadWaiters.removeFirst().resume() }
+            // ALL of them. `ensureModel` returns early on a wake when the
+            // container exists, so a single hand-off strands every waiter
+            // after the first — three callers, two stranded, forever. Same
+            // defect as `Retirable` and `WhisperEngine.loadedPipeline`,
+            // found by a test that hung instead of failing.
+            let waking = loadWaiters
+            loadWaiters = []
+            for waiter in waking { waiter.resume() }
         }
         let loaded = try await loadModelContainer(
             from: weights, using: #huggingFaceTokenizerLoader())

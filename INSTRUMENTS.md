@@ -2456,3 +2456,735 @@ toggles reset at every launch, so the app re-chose for him from a screen
 that looked like it remembered. A control that forgets is a control that
 lies about its own state — the same fault as the voice label, one screen
 over.
+
+## 28. The pair, measured on the phone (4i, AC-132) — it misses by seven megabytes
+
+The first real number for the question 4h could only guess at. Ryad's
+iPhone, the demo's pressure probe, and one jetsam kill.
+
+```
+fresh launch, nothing loaded     3319 MB free      → the app's dirty limit is ~3.5 GB
+probe start (mind ALREADY there) 1105 MB free
++ mind "loaded"                  1105 MB free      ← unchanged: ensureModel returned the cache
+  MLX active                     2159 MB
+loading the neural voice…        KILLED
+```
+
+**The mind costs ~2214 MB** (3319 − 1105) and leaves **1105 MB**. The
+neural voice measured **1112 MB on a Mac** (§27).
+
+**1105 available against 1112 needed.** Every earlier statement in this
+repo — including mine, repeatedly — said the pair "does not fit", on the
+strength of a Mac's `phys_footprint` arithmetic (2239 + 1112 = 3351). The
+phone's own answer is that it misses by about **0.6%**.
+
+**Two faults in the instrument, recorded because they shaped the run:**
+
+1. **The word "baseline" was false.** Launch had already prewarmed the
+   mind, so the probe's first reading was taken with 2.2 GB resident and
+   still called itself a baseline. The line now reports whether the mind
+   was already there.
+2. **The order was wrong.** It loaded the risky thing LAST, so the run
+   died before learning the cheap fact — what the neural voice costs *on
+   this phone*. That number is still unknown, and it is the one that
+   decides everything: 1112 MB is a Mac's figure, and CoreML frequently
+   MAPS its weights, which count differently against a dirty limit than
+   MLX's do (MLX has no `mmap` at all — §25).
+
+**What the design got right:** the probe was killed and its evidence
+survived. Every line was flushed to `Documents/pressure-probe.txt` before
+the next step ran, and the app reads it back at launch — so the
+truncation point itself was readable afterwards. That is the MLX phone
+spike's lesson (§24 STAGE 3) being spent rather than re-learned.
+
+### The kill was probably not capacity — the voice was loading TWICE
+
+*(Added the same day, from Ryad's debug console.)* Every number above was
+taken while the neural voice loaded **twice, concurrently**:
+
+```
+Loading models…   Loading tokenizer… 2.58s   Loading 6 CoreML models…
+Loading models…   Loading tokenizer… 3.08s   Loading 6 CoreML models…
+Total model load: 82.26s
+Total model load: 74.96s          ← two completions
+```
+
+Two tokenizers, two sets of six CoreML components — **~2.2 GB where 1.1
+was intended.** Against 1105 MB of headroom that is not a photo finish;
+it is twice the budget.
+
+`NeuralVoice.loadedPipeline()` had exactly the shape 4h's review fixed in
+`LocalMindModel.ensureModel()`: check the cache, `await`, assign. An actor
+does not hold isolation across an await, so two callers both passed the
+nil check.
+
+**And I had been told.** The review's verifier wrote, inside the finding I
+acted on: *"WhisperEngine.loadedPipeline and NeuralVoice.loadedPipeline
+share the same unguarded shape, but only the MLX path holds 2.2 GB and is
+prewarmed from five call sites."* I fixed the MLX path and left these two,
+on the size argument. The size argument was wrong twice over — 1.1 GB
+loaded twice is 2.2 GB, and it was the pair's margin that made it fatal.
+
+This is the lazy-init class from D-051 biting a **fourth** time
+(`feed`, `openUtterance`, `prewarm`, and now `loadedPipeline` ×2), and
+the first time where the class had been named for me in advance. Both
+remaining loaders now carry `decode`'s busy-flag-and-waiter-queue shape.
+
+**Every number in this section must therefore be re-taken.** They measure
+a doubled load, not the pair.
+
+**Still unmeasured, and the next thing to take:** the neural voice's cost
+on iOS, alone, from a clean launch, with the guard in place. If it is well under 1105 MB, the pair
+fits at steady state and what killed the app was the CoreML *compile*
+spike — a different problem with different cures. If it is near 1112 MB,
+the pair genuinely does not fit and something has to give.
+
+## 29. The pair FITS — and the Mac was wrong by a factor of ten (4i, AC-132)
+
+Ryad's iPhone, clean launch, voice loaded first:
+
+```
+start:               3347 MB free
+loading the neural voice FIRST…
++ voice loaded:      3236 MB free      ← the voice cost 111 MB
+loading the mind…
++ mind loaded:       1011 MB free      ← the mind cost 2225 MB
+BOTH RESIDENT:       1011 MB free
+survived: yes
+```
+
+**The neural voice costs 111 MB on iOS. §27 recorded 1112 MB.** Ten times
+over, and the error was not arithmetic — it was measuring the wrong
+machine and adding the result to a real one.
+
+**Why the two differ, and it is not a mystery.** CoreML memory-MAPS its
+weights. Mapped pages are CLEAN: the kernel can evict them and read them
+back from disk, so they do not count against an app's DIRTY memory limit.
+macOS `phys_footprint` counts them anyway, because a Mac has no such
+limit to exclude them from. MLX has no `mmap` at all (§25), so every one
+of its 2225 MB is dirty and charged.
+
+```
+  MLX weights     dirty   →  charged against the limit   2225 MB
+  CoreML weights  mapped  →  NOT charged                  111 MB
+```
+
+**What this retracts.** Every "the pair does not fit" claim in this repo —
+SPEC §92's premise, D-064's consequence paragraph, INSTRUMENTS §27 and
+§28, and the demo's own red warning — came from adding a Mac's
+`phys_footprint` to a phone's headroom. They are wrong. The pair fits
+with **1011 MB to spare**.
+
+**What survives, and it is the real finding.** The steady footprint was
+never the problem; the LOAD is. TTSKit reports "Loading 6 CoreML models
+concurrently", and six simultaneous compiles need transient memory far
+above the 111 MB the finished models hold. The evidence is the order:
+
+| run | headroom when the voice loaded | outcome |
+|---|---|---|
+| probe 1 | 1105 MB (mind already resident) | **killed** |
+| step 3 | 2976 MB (Whisper ear resident) | **killed** |
+| probe 2 | **3347 MB** (clean launch, voice first) | **survived**, cost 111 MB |
+
+So the rule is about ORDER, not capacity: **load the neural voice while
+headroom is at its maximum, before the mind.** Its finished cost is
+trivial; its birth is expensive.
+
+**Not yet measured:** the peak itself. A sampler now writes headroom every
+250 ms during a load and flushes each line, so the next kill will show how
+far it fell before dying. This run predates that instrument.
+
+**One run is evidence, not proof** — the project's own phrase. But it is
+one run more than every claim it overturns.
+
+**FIELD-CONFIRMED the same day.** Ryad then ran the demo with the local
+4B mind and the neural voice both selected and held a real conversation:
+*"local mind and neural voice work together i just tested."* The probe
+proved they LOAD together; this proves they WORK together, which is the
+claim that was actually in dispute.
+
+**And the field log is stronger than the probe.** It is not the pair — it
+is everything at once:
+
+```
+mind=Local · ear=Whisper · mouth=Neural · speaker shield=true
+memory headroom: 934 MB before this app's limit
+voice loaded: true · MLX active 2159 MB (peak 2288)
+
+turn 1  heard: "And you hear me?"   reply: "Yes, I hear you."
+        first word 478 ms · total 807 ms
+```
+
+Whisper's recogniser IN-PROCESS, the 4B mind, the neural voice and the
+speaker shield, together, with **934 MB to spare** and a working turn.
+Every component this project owns, resident simultaneously, on one phone.
+
+(First word 478 ms here against 291–315 ms with Apple's voice and ear —
+one turn, so it is a hint rather than a number, and it is a fair price to
+name: three in-process models compete for the same compute.)
+
+**What that costs this milestone, stated plainly.** SPEC §92 opens with
+"4h measured a pair that does not fit" — the premise is dead. AC-138
+(make the forbidden pair degrade) has no forbidden pair to degrade. And
+4i's F-1 (what degrades, in what order) is now a chain for a device
+nobody in this project owns.
+
+## 30. AC-139's first trace — the instrument cannot see the thing that kills
+
+Ryad's phone, launch load of the neural voice, sampled every 250 ms:
+
+```
+start:            2322 MB free
+  voice +0.0s     2322 MB free
+  voice +4.2s     2310 MB free
+  voice +9.2s     2310 MB free
+  …
+  voice +64.8s    2310 MB free
+```
+
+**Thirteen megabytes, over sixty-plus seconds of compiling six CoreML
+models.** There is no peak here. And this same operation has killed the
+app twice — at 1105 MB free and at 2976 MB free.
+
+**So `limit_bytes_remaining` cannot see what kills.** It tracks the DIRTY
+memory limit, and CoreML's weights are MAPPED — clean pages, evictable,
+not charged. That is the same fact that made the voice cost 111 MB
+instead of 1112 (§29), read from the other side: what makes it cheap
+against the dirty limit also makes it **invisible** to the dirty limit.
+
+`phys_footprint` does count mapped pages, which is exactly why the Mac
+saw 1112 MB. So AC-139 now samples BOTH numbers and labels which is
+which. An instrument that cannot see the failure it was built for is the
+shape this project keeps finding — this time in the instrument I built
+for the purpose.
+
+**A second fault in the same trace, mine:** two samplers ran at once,
+interleaving `+55.5s` with `+0.0s`, because tapping the probe while the
+LAUNCH load was still running started a second sampler into the same
+file. Two writers, one file, an unreadable trace. Same class as the
+double model load, one layer up — and the third time in this milestone
+that a long operation had no exclusion around it. Now one at a time, and
+the refusal says so in the log rather than silently doing nothing.
+
+**Also visible, and worth keeping:** the header read `voice loaded:
+false` while the trace ran, so the probe's own "start" reading was taken
+mid-load. Numbers from that run describe an app in motion, not a state.
+
+**Still unmeasured:** the peak. The next trace has the instrument that
+can see it.
+
+## 31. The levers, re-measured on macOS 26 — and `.fused` is not dead here
+
+Ryad's neural voice sounded slow from the terminal. Three causes, and the
+sweep that should have answered it was itself broken first (§below).
+
+**`voice-levers`, release build, three runs per config, this Mac:**
+
+| config | first audio | total (median) |
+|---|---|---|
+| stepped + latencyOptimized (baseline) | 201–224 ms | 9353 ms |
+| **fused** | **177–187 ms** | **6578 ms** |
+| throughputOptimized (on stepped) | 491–571 ms | 10622 ms |
+| fused + throughputOptimized | 390–410 ms | 6943 ms |
+| temperature 0 (on stepped) | 209–218 ms | 6629 ms |
+| temperature 0 (on fused) | 156–177 ms | 13054 ms |
+
+**`.fused` LOADS AND DECODES on macOS 26.** Three runs, no error. So the
+`MLModelConfiguration.functionName` failure Ryad's iPhone reported —
+*"on macOS 15 / iOS 18 or newer"* despite its own wording — is **iOS-only
+in practice**. The demo had been given the phone's fix on a machine
+without the phone's bug, and paid 29% for it.
+
+**Two older findings hold, now for `.stepped` as well.** D-050 measured
+`.throughputOptimized` slower than the vendor's table claims; it is slower
+here on both counts, in both decoder modes. And temperature 0 "rambles
+longer": on `.fused` it produces the fastest first audio of any config
+(156–177 ms) and the longest total by far (13.0 s) — it is not faster, it
+is talkier.
+
+**The instrument was lying before it was read.** The loop was
+`_ = try? await measure(voice, sentence)` — result discarded, error
+swallowed — so eighteen runs across six configs printed "run N:" and
+nothing, and a DECODE FAILURE was indistinguishable from a quiet success.
+The first sweep was read as "`.fused` had no load failure on the Mac",
+which happened to be true and was not evidence. Fixed to print timings
+and to print `DECODE FAILED` with the reason.
+
+**The three causes of the slow terminal voice, separated:**
+
+1. `swift run` builds DEBUG; every RTF in this project was measured in
+   release, and at RTF 1.066 there is no margin to give away.
+2. The lead was derived from `.fused`'s 0.752 while `.stepped` was in use,
+   so the cushion was zero when 396 ms was needed — fixed by deriving the
+   lead from the mode actually passed.
+3. `.stepped` was forced on a Mac that runs `.fused` perfectly well.
+
+### 31.1 The same levers, on the command line
+
+`voice-levers` measures the six configurations and speaks them, but you cannot
+TALK to a sweep. `audio-demo` now takes the same four knobs, so a setting can
+be judged by ear in a real conversation:
+
+    swift run -c release audio-demo whisper --talk --mind=local --mouth=neural \
+        [--decoder=fused|stepped] [--speech=latency|throughput] \
+        [--temperature=0.7] [--lead=400ms]
+
+Defaults: `fused`, `latency`, the model's own temperature, and a lead DERIVED
+from the decoder. It prints the configuration it actually built to stderr
+before speaking:
+
+    voice: decoder=stepped, speech=throughputOptimized,
+           temperature=0.7, lead=0.25 seconds
+
+That banner is not decoration. The slow voice was a silent disagreement
+between the decoder in use and a cushion sized for a different one, and a run
+that cannot say what it was must not be trusted to say how it sounded.
+
+Leave `--lead` off unless you are deliberately testing the cushion. Typing a
+number there re-opens by hand the exact hole the derivation closed.
+
+**A note on this check itself.** The first run of it printed defaults for every
+flag and looked like a parsing bug. It was a leaked background `grep` in the
+test loop reading the *next* run's output. The code was right; my instrument
+was not. Recorded because D-054 cuts both ways — an instrument that lies about
+a passing result is as dangerous as one that lies about a failure.
+
+## 32. Ryad's ears disagree with the clock — and the clock is the one that is incomplete
+
+His own run of `voice-levers`, release, on his machine (2026-08-23). The
+numbers reproduce §31 closely enough that the instrument is repeatable:
+
+| config | first audio (his) | first audio (§31) | total (his) |
+|---|---|---|---|
+| baseline (stepped + latency) | 218–221 ms | 201–224 ms | 7290–10611 ms |
+| rank 2: fused | 176–178 ms | 177–187 ms | 6081–7464 ms |
+| rank 3: throughputOptimized | 439–444 ms | 491–571 ms | 7229–10753 ms |
+| rank 4: fused + throughput | 348–360 ms | 390–410 ms | 6314–7667 ms |
+| rank 5: temperature 0 (stepped) | 219–224 ms | 209–218 ms | 6566–6917 ms |
+| rank 5b: temperature 0 (fused) | 171–186 ms | 156–177 ms | 13045–13061 ms |
+
+Then he listened, and ranked them differently:
+
+> "rank 5 and rank 5b are bad. Rank 2 3 and 4 are the best. but rank 4
+> waited longer time to start but when it start it sounds good too."
+
+**The two rankings do not agree, and that is the finding.**
+
+    THE CLOCK SAYS          THE EAR SAYS
+    ────────────────        ────────────────
+    1. fused          177   good
+    2. temp 0 fused   171   BAD      ← fastest start, worst sound
+    3. stepped        218   ok
+    4. fused+through  350   good     ← slow start, good sound
+    5. throughput     440   good     ← slowest start, still good
+
+Two things follow.
+
+**1. `temperature 0` is convicted twice over.** It has the fastest first
+audio of any config and the worst outcome — 13 seconds of total speech
+against 6.5 for the same sentence, and Ryad calls the result bad. A greedy
+decode does not stop rambling. Any future tuning that optimises first-audio
+alone would have picked it. First audio is a latency number, not a quality
+number, and it must never be read as one.
+
+**2. `throughputOptimized` costs ~180 ms of silence and loses nothing
+audible.** The clock ranks it 3rd and 4th; the ear puts it level with the
+winner. So the default (`fused` + `latency`) is right for *responsiveness*,
+not because the alternative sounds worse — and a machine that cared more
+about steady decode than about the first 180 ms could take rank 4 with no
+quality argument against it. `audio-demo --speech=throughput` is how to make
+that trade without editing anything.
+
+**What this says about the instrument.** `voice-levers` measures time to
+first audio and total wall time. It does not measure whether the voice is
+pleasant, and it never claimed to — but a table with six rows and two
+numeric columns *reads* like a ranking, and it ranked the worst-sounding
+config second. AC-105's WER tool has the same limit from the other side: it
+scores what a recogniser understands, not what a human enjoys.
+
+Recorded because the honest conclusion is not "the ear was surprising". It
+is that **no instrument in this repo measures the thing Ryad judged in five
+seconds**, so for quality the human stays in the loop, and the tuning flags
+(§31.1) exist precisely so he can put himself there without a rebuild.
+
+## 33. The stepped numbers were taken with a starved player — the real gap is 3.6×
+
+Fixing the `voice-spike` cushion bug (COMMANDS.md, bug 1) changed what the
+instrument reports, so the comparison in §31 has to be re-read.
+
+Release build, this Mac, `bakeoff voice-spike`, three sentences, mean of the
+first-audio figures — with the instrument's own banner quoted, because the
+banner is the thing that was wrong before:
+
+```
+decoder: .fused   · lead: 0.0 seconds (derived)      first audio  191 ms
+decoder: .stepped · lead: 0.396 seconds (derived)    first audio  693 ms
+```
+
+§31 recorded `.stepped` at 201–224 ms. **That was a starved player.** The
+cushion was zero because the instrument passed `.fused`'s constant, so the
+player began speaking before it had banked anything and ran dry — first audio
+arrived early and the audio behind it was gappy. 693 ms is what `.stepped`
+costs when it is allowed to work.
+
+    §31 said       fused 177   vs   stepped 218     ← 1.2× apart
+    corrected      fused 191   vs   stepped 693     ← 3.6× apart
+
+The ranking does not change. The size of the gap changes by a factor of
+three, and D-047's "29% faster" was measured against a decoder that was being
+cheated in the other direction.
+
+**And this matters most for the phone, which has no choice.** `.fused` cannot
+load on iOS 18+, so every phone configuration is a `.stepped` configuration
+and pays the cushion. The Mac's headline number is not available there.
+
+### The cushion the phone gets is the wrong one anyway
+
+`measuredRealTimeFactor(for:)` returns constants measured on **this Mac** —
+0.752 for `.fused`, 1.066 for `.stepped`. §22 measured the iPhone's neural
+decode at **1.21**. The sizing rule is `replyLength × (RTF − 1)`, so on a
+6-second reply:
+
+| | RTF | derived cushion |
+|---|---|---|
+| what the phone is given | 1.066 (a Mac's number) | 396 ms |
+| what the phone needs | 1.21 (its own number) | ~1260 ms |
+
+The phone is under-cushioned by roughly **860 ms** — not by a bug in the
+derivation, but because the derivation is fed a constant from the wrong
+machine. §22 recorded this consequence in 2026-08-19 and deferred it: *"Wiring
+a phone-measured lead through the demo is the voice-quality milestone's
+work."*
+
+4j is that milestone, and the number has been waiting for it.
+
+## 34. There is no right constant — the factor moves between sentences
+
+`MMK_TRACE_TTS=1 bakeoff voice-spike --stepped`, release, this Mac. Four
+replies, one machine, one decoder, one session:
+
+```
+MARGIN . 2720 ms audio in 3379 ms wall . RTF 1.24 . prefill 663 ms . STEADY 1.029
+MARGIN . 5760 ms audio in 6184 ms wall . RTF 1.07 . prefill 226 ms . STEADY 1.049
+MARGIN . 5520 ms audio in 6160 ms wall . RTF 1.12 . prefill 217 ms . STEADY 1.092
+MARGIN . 2080 ms audio in 2474 ms wall . RTF 1.19 . prefill 200 ms . STEADY 1.137
+```
+
+The baked constant for `.stepped` is **1.066**. The measured steady factor
+ranges **1.029 → 1.137** on the same machine, in the same run. Sized as a
+cushion on a six-second reply:
+
+| steady factor | cushion it asks for |
+|---|---|
+| 1.029 (the best reply) | 174 ms |
+| 1.066 (the constant) | 396 ms |
+| 1.137 (the worst reply) | **822 ms** |
+
+So the constant is not merely a Mac's number applied to a phone (§33). **It is
+a single number applied to a quantity that moves by a factor of five, reply
+to reply, on one machine.** That is the case for D-068 A, made by the machine
+rather than by argument.
+
+**An honest complication for the rule chosen.** D-068 A takes the *most
+recent* reply, deliberately: a maximum would be permanently wrong after one
+thermal spike, and this device throttles. But this trace shows the adaptive
+lead will therefore swing between roughly 174 ms and 822 ms from sentence to
+sentence — reactive, and noisier than a constant. Whether that reads as
+responsive or as jitter is not something these four samples can settle. It is
+recorded now, before anyone is surprised by it, and the alternatives (a
+running average, or a maximum with decay) are one small ruling away.
+
+## 35. The Simulator has the voice's files and cannot run them — and it does not fail, it dies
+
+Building the phone bench's Run button produced a crash on the first tap, and
+the crash is worth recording because the diagnosis went wrong twice before it
+went right.
+
+**What happens.** Tapping Run on the iPhone 17 Pro Simulator killed the app:
+
+```
+Swift/FloatingPointRandom.swift:52: Fatal error:
+Can't get random value with an empty range
+```
+
+That is `fatalError` inside TTSKit's sampler. There is nothing to catch, no
+error to report, no state to recover — the process is simply gone.
+
+**Two wrong diagnoses, both mine, both from reasoning instead of looking.**
+
+1. *"The gate is incomplete."* `prepare()` threw only on `.failed`, and a
+   missing model reads `.modelMissing`, so I assumed the sweep had proceeded
+   with no model. Plausible, and it did produce a real fix — the gate now
+   demands `.ready` — but it was not the cause.
+2. *"The disk check is lying."* The log said `modelInstalled = true` on what
+   I believed was an empty container, so I concluded the check I had already
+   fixed twice was wrong a third time. **It was not.** I had listed a stale
+   container path: relaunching the app creates a new one, and the model was
+   genuinely installed all along.
+
+**What settled it** was making the app say what it saw, rather than working
+out what it must have seen:
+
+```
+BENCH: refusalReason asked; mind=Echo
+BENCH: voice modelInstalled = true; folder=…/qwen3_tts;
+       children=["multi_code_embedder", "code_embedder", "text_projector",
+                 "multi_code_decoder", "speech_decoder", "code_decoder"]
+```
+
+All six components present. The check was right, the gate was right, and the
+missing thing was a GPU.
+
+**The rule this joins.** D-061 wrote the same sentence about MLX:
+
+> The metallib IS present in a simulator app bundle, so a check that only
+> looked for the file would say yes and then die on the first allocation —
+> which is exactly what the phone spike did, twice.
+
+Now TTSKit, same shape: **present on disk is not runnable, and only a device
+settles it.** So `PhoneBenchStage.refusalReason()` refuses on the Simulator
+by compile-time environment, and says why. Verified by tapping the button
+that used to crash and reading an orange sentence instead.
+
+**What this cost, stated plainly.** The sweep cannot be exercised end to end
+anywhere except on Ryad's phone. Every invariant around it is tested on a
+Mac — the order, the reset, the restore, the refusal — but the four rows of
+numbers it exists to produce have never been produced. That is not a caveat
+to bury: AC-146 through AC-151 are met in their logic and unproven in the
+field until the phone runs them.
+
+## 36. The phone's first sweep — the cushion is visible, and the Mac's ranking does not transfer
+
+Ryad's iPhone, 2026-08-23. Bench → Run: four configurations, three runs each,
+twelve rows, no crash, no kill. Pasted exactly as the phone produced it:
+
+| config | run | first audio | total | thermal | free |
+|---|---|---|---|---|---|
+| stepped + latency | 1 | 1002 ms | 11617 ms | nominal | 987 MB |
+| stepped + latency | 2 | 2932 ms | 10313 ms | nominal | 964 MB |
+| stepped + latency | 3 | 3314 ms | 10217 ms | nominal | 967 MB |
+| stepped + throughput | 1 | 1685 ms | 9931 ms | nominal | 911 MB |
+| stepped + throughput | 2 | 2642 ms | 9309 ms | nominal | 967 MB |
+| stepped + throughput | 3 | 2174 ms | 8834 ms | nominal | 970 MB |
+| stepped + temp 0 | 1 | 917 ms | 10701 ms | nominal | 1001 MB |
+| stepped + temp 0 | 2 | 3365 ms | 10819 ms | nominal | 968 MB |
+| stepped + temp 0 | 3 | 3135 ms | 10584 ms | nominal | 968 MB |
+| stepped + throughput + temp 0 | 1 | 1578 ms | 10336 ms | nominal | 1009 MB |
+| stepped + throughput + temp 0 | 2 | 2217 ms | 9974 ms | nominal | 969 MB |
+| stepped + throughput + temp 0 | 3 | 2330 ms | 10404 ms | nominal | 969 MB |
+
+### 1. D-068's adaptive cushion is VISIBLE in the table
+
+In all four configurations, run 1 starts fast and runs 2–3 start 1–2.4 s
+slower. That is not noise and not warm-up — warm-up would slow run 1, and
+run 1 is the fastest every time. It is the cushion learning:
+
+```
+   run 1   fresh voice, cushion = the CONSTANT (396 ms, a Mac's number)
+             → speaks early, almost certainly starves mid-sentence
+   run 2   cushion = what run 1 MEASURED on this phone (~1.5–2 s)
+             → waits, banks audio, then speaks without running dry
+   run 3   same, refined
+```
+
+The mechanism is traceable in code: `apply()` early-returns when the levers
+are unchanged, so runs 2–3 keep the voice — and its learned lead — while a
+config change builds a fresh voice whose `AdaptiveLead` starts from the
+constant again. Four configs, four resets, four re-learnings: all visible.
+
+Working backwards from run 2–3 first audio (prefill + factor × cushion),
+the implied steady factor is roughly **1.25–1.35** — an inference from
+arithmetic, not a measurement, but it brackets §22's measured 1.21 and
+confirms §33's warning: the Mac constant (1.066 → 396 ms) under-cushions
+this phone by well over a second.
+
+**A reading rule this creates:** on the phone, "first audio" is time until
+sound, and most of it is the cushion — deliberate waiting, not decoder
+slowness. It cannot be compared to a Mac number without saying which cushion
+was in force. Run 1 and run 2 of the same config differ by 2 s for exactly
+this reason.
+
+### 2. THE HEADLINE — the phone reverses the Mac's ranking
+
+On the Mac (§31), `throughputOptimized` ranked 3rd–4th: it trades first
+audio for decode throughput, and the Mac has throughput to spare. The phone
+does not — it is the machine the cushion exists for — and there the trade
+pays the other way:
+
+|  | adapted first audio (runs 2–3) | total (mean) |
+|---|---|---|
+| stepped + latency (the demo's DEFAULT) | ~3.1 s | ~10.7 s |
+| **stepped + throughput** | **~2.4 s** | **~9.4 s** |
+
+The vocoder mode the Mac ranked worst wins BOTH columns on the phone: a
+faster decode needs a smaller cushion, so it speaks ~0.7 s sooner AND
+finishes ~1.3 s earlier. This is what 4j was for — without the bench the
+phone would keep running the Mac winner's shape, and no instrument would
+ever have said otherwise.
+
+NOT yet ruled and NOT yet listened to: whether throughput mode sounds as
+good. §32's lesson stands — the clock ranked temperature 0 second-best on
+the Mac and the ear called it bad. The ear has the last word here too.
+
+### 3. Two stability facts that came free
+
+- **Thermal: nominal on all twelve rows** — about two minutes of continuous
+  synthesis did not move the badge. A small, real down-payment on AC-140,
+  though not the sustained trace it asks for.
+- **Memory: 911–1009 MB free, no downward trend across four voice
+  rebuilds** — twelve retire/rebuild-or-reuse cycles and the footprint came
+  back every time. AC-145's retire, working in the field.
+
+### 4. What the sweep proves and what it still owes
+
+AC-146…151 are now field-run: the rows exist, each carries its conditions,
+the markdown pasted here unedited. Still owed: the EAR's ranking of the four
+(§32's rule), and one glance at the Bench's "In force" line to confirm the
+sweep gave back the levers Ryad had chosen (AC-151's field half).
+
+## 37. The self-barge conviction (4k, AC-155) — the shield was off, and a reinstall turned it off
+
+Ryad's phone, 2026-08-24: a shared conversation log and a screenshot from a
+session where the assistant kept interrupting itself.
+
+**The conviction is the log's own header:**
+
+```
+picker says: mind=Local · ear=Whisper · mouth=Neural · speaker shield=false
+Speaker: ON  ·  gate 0.021  ·  onsets while speaking: 3 · barges: 4
+```
+
+With the shield off, the reply renders on the voice's own engine and the
+canceller never sees it. This is not one of §23's four leak suspects — it is
+the arrangement the app itself had already measured (unshielded speaker:
+peak 1.0, §23) and was warning about **on screen during the failing
+session**: "On speaker the reply is not cancelled (measured peak 1.0) — it
+will interrupt itself."
+
+The rows agree with the diagnosis: `echo?` marks at peaks 0.108 and 0.032 —
+both over the 0.021 gate, neither near the 1.0 a raw leak shows, because
+Whisper heard fragments of the reply's tail. Turn 6's `BARGED IN` at a
+472 ms first word is the reply killed by its own onset.
+
+**Why the shield was off — the part worth a decision.** §29's field log
+(five days earlier) shows `speaker shield=true`: Ryad had it on. Then the
+app was deleted to re-download the voice model, the reinstall wiped
+UserDefaults to the default, and the default was `false`. Every reinstall
+re-breaks the first conversation. That is what D-069 F-1 = A fixes: this
+app's default is now ON; the library default stays off (D-060 F-4 stands).
+
+**A scope limit found while answering "what should I tap":** the echo probe
+speaks through a bare `AVSpeechSynthesizer` — it predates the shield and
+can only measure the UNSHIELDED path. It is the control, not the shielded
+measurement. The shielded question is answered by the conversation's own
+`peak · ms · echo?` rows and, on the Mac, by AC-154's instrument when it
+exists.
+
+**Still unconvicted:** §23's four suspects in the SHIELDED arrangement.
+The next shielded session that self-barges is the evidence that convicts
+them; a shielded session that does not barge closes AC-155 the good way.
+
+### Evidence that came free in the same log
+
+- **Thermal: hot** with mind + voice resident — the second such
+  observation (§22 was the first). AC-140's trace is still owed; this is
+  another reason to owe it.
+- **The mind's load, measured cleanly:** 3156 → 985 MB free in ~1.2 s,
+  footprint 219 → 2390 MB. The 2.2 GB arrives almost instantly, then
+  plateaus.
+- **The voice's load on an already-compiled install:** footprint
+  155 → 215 (peak) → 173 MB settled, dirty-free barely moved. AC-139's
+  fresh-compile peak — six models compiling at once — remains unmeasured;
+  this trace is the cheap half, and it says the EXPENSIVE half only
+  happens on first install.
+- **felt pause 2,354 ms** with the local mind at ~320 ms first word — the
+  learned cushion (§36) plus decode, visible in a live conversation.
+
+## 38. The shielded session (4k, AC-155's second half) — the shield works, and suspect 1 shows its face
+
+Same phone, same route (loudspeaker), one day after §37 — the only variable
+changed is the shield. Ryad's log header: `speaker shield=true`.
+
+| | unshielded (§37) | shielded (this session) |
+|---|---|---|
+| onsets while speaking | 3 | **1** |
+| barges | 4 | **1** |
+| completed turns | — (3 marked BARGED) | **4, none barged** |
+| `echo?` rows | 0.108, 0.032 | **0.098** |
+
+**The shield works as measured** — same conclusion as §23's matrix, now in a
+live conversation with the neural mouth and the 4B mind resident.
+
+**And the residue is suspect 1, wearing its predicted face.** One `echo?`
+row at peak 0.098: §23 predicted shielded residuals of 0.0036–0.0766
+against a 0.021 gate, and said suspect 1 would be convicted by "rows with
+peaks just above the gate (0.02–0.08)". 0.098 sits just past that band's
+top — the canceller attenuating, not erasing, with speech burstier than
+the matrix's tone. One row is a hint, not a conviction; the count says the
+leak is now RARE (one onset in a multi-turn session), which changes what a
+fix is worth.
+
+### Two findings the session volunteered
+
+1. **The thermal policy sacrificed a real decode.** A row reads "Decode
+   skipped — device too hot", the badge reads `hot`, and the turn produced
+   no reply. This is `ConservativeThermalPolicy` doing exactly what D-028
+   bought — and it is the first time the field shows the price: a
+   conversation with a hole in it. AC-140's thermal trace is no longer just
+   owed; it is now visibly shaping conversations.
+2. **The phone's own RTF line reads `decode 1.12× real time · TOO SLOW ·
+   prefill 565 ms`.** A measured on-device number for the stepped decoder,
+   sitting between the Mac's 1.066 constant and §36's implied 1.25–1.35 —
+   the spread across sessions is itself evidence that no constant was ever
+   going to be right (D-068's case, made again by the device).
+
+## 39. voice-selfecho (AC-154) — the instrument, its eyes, and a macOS surprise
+
+The microphone-side question, measured on this Mac: while the shielded
+neural voice speaks on the live capture engine, does mic energy cross the
+0.021 gate? `bakeoff voice-selfecho`, with `--no-shield` and `--no-vp`.
+
+**Two instrument faults found by its own first runs, both fixed:**
+
+1. The first quiet-room read drained the ring's whole backlog — everything
+   since the microphone started, including the model load — and called the
+   quiet room 0.61. A baseline that contains the past is not a baseline;
+   the ring is drained once, discarded, before measuring.
+2. "How many windows crossed" cannot separate the suspects; **when** they
+   crossed can (§23: residual SPREADS, convergence/attach CLUSTER at the
+   start). The report now prints a timeline of every crossing.
+
+**The macOS surprise, worth a section of its own.** With volume 75 and
+voice processing ON, the UNSHIELDED arrangement — the voice on its own
+engine, the exact configuration that measured **peak 1.0 on the iPhone**
+(§23) — came back at the quiet-room level:
+
+```
+no shield, VP on :  quiet 0.0221 · speaking 0.0299     ← the Mac CANCELS it
+raw mic (--no-vp):  quiet 0.0200 · speaking 0.2964,
+                    28 of 32 windows over the gate      ← the eyes, proven
+```
+
+**macOS's voice-processing unit cancels system-wide output**, not merely
+what renders through its own engine. iOS does not. Three consequences:
+the Mac cannot serve as the shield-vs-no-shield control (the raw-mic mode
+is the eyes control instead); every terminal conversation that never
+self-barged on this Mac now has its explanation; and §23's caveat — a Mac
+graph verdict does not transfer — gains its sharpest example yet.
+
+**Three shielded runs, timelines included:**
+
+```
+run 1:  9 of 35 over · peaks 0.02–0.17 · SPREAD across 0.5–3.0 s
+run 2:  0 of 26 over · peak 0.0171 — clean
+run 3:  2 of 29 over · 0.75s@0.060  1.00s@0.037
+```
+
+The crossings SPREAD — suspect 1's shape (residual over the gate), not the
+start-clustering of convergence or the attach transient. Consistent with
+the phone's own row (§38: one `echo?` at 0.098, mid-reply). **Stated
+honestly:** the quiet-room windows in the same session crossed the gate on
+their own (0.03–0.30 — a real morning room), so on this Mac ambient noise
+and shielded residual are the same order of magnitude, and no single Mac
+crossing can be attributed. The shape agrees with suspect 1; the phone's
+rows remain the conviction.

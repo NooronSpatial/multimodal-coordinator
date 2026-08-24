@@ -2726,3 +2726,552 @@ vow's only real proof · 20× stable · zero warnings in both
 configurations · a review before merge (D-041), with every finding fixed
 or accepted in writing · numbers in INSTRUMENTS with the phone's absence
 stated · teach-back survived.
+
+# SPEC — Milestone 4i: under pressure (three measurements, no new architecture)
+
+*(REWRITTEN 2026-08-21, before sign-off, because the milestone's own
+first acceptance criterion refuted its premise. The original draft —
+which opened "4h measured a pair that does not fit" and proposed a
+degradation chain — is preserved in commit `2f48d3c`. Ruled A by Ryad:
+re-scope, drop the chain. See D-065.)*
+
+## 92. What 4i builds, and why the first draft was wrong
+
+The draft existed because three debts looked like one question: a pair
+that would not fit, an unpaid thermal number, and an unbuilt degradation
+path. Then AC-132 — the milestone's own instrument — was built first, and
+the pair fitted:
+
+```
+mind=Local · ear=Whisper · mouth=Neural · speaker shield=true
+memory headroom: 934 MB · a working turn in 478 ms
+```
+
+Whisper's recogniser IN-PROCESS, the 4B mind, the neural voice and the
+speaker shield, all resident, with 934 MB to spare (INSTRUMENTS §29).
+
+**The claim they refuted was mine, repeated in three places**, and it came
+from adding a Mac's `phys_footprint` to a phone's dirty-memory headroom.
+CoreML MAPS its weights, so they are clean pages and are not charged
+against that limit; MLX has no `mmap`, so its 2225 MB is charged in full.
+The neural voice costs **111 MB** on iOS, not the 1112 MB I measured on a
+Mac.
+
+**So the chain is not built.** A degradation chain now would be built for
+a device nobody in this project owns, which is the purchase D-047
+rejected in one sentence — *"it protects against a risk nobody
+measured"* — and it would carry the same honest label: insurance, not a
+measured cure.
+
+**What is left is three measurements and no new architecture.**
+
+## 93. What is KNOWN, and what is still guessed
+
+**KNOWN — measured on Ryad's iPhone (INSTRUMENTS §28–§29):**
+
+| | |
+|---|---|
+| the app's dirty limit | ~3.5 GB (3347 MB free at a clean launch) |
+| the 4B mind | **2225 MB** — dirty, MLX does not mmap |
+| the neural voice | **111 MB** — mapped, and therefore nearly free |
+| all three + shield | **934 MB still free**, and a turn answers |
+| the instrument | `os_proc_available_memory` is iOS-only; `limit_bytes_remaining` reads 0 on macOS for the OPPOSITE reason, so the platform must discriminate |
+
+**KNOWN — the failure that is real:** the load, not the footprint. The
+app was killed twice loading the voice — at 1105 MB free and at 2976 MB
+free — and survived at 3347. TTSKit compiles six CoreML models
+CONCURRENTLY, and that transient peak is the whole hazard.
+
+**GUESSED — untouched:**
+
+- **The peak itself.** Nobody has seen it. The process dies at it.
+- **Every thermal claim.** No temperature, no time-to-throttle, no
+  recovery time has ever been recorded by this project.
+- **Anything beyond 38 turns.** The longest measured conversation.
+- **478 ms to first word** with three in-process models, against 291–315
+  ms with Apple's voice and ear. One turn. A hint, not a number.
+
+## 94. The one hard problem: the peak kills the instrument that would measure it
+
+A footprint can be read at leisure. A peak cannot, because the process
+that would report it is the process being terminated:
+
+```
+   headroom  ────╮
+                  ╲          ← six CoreML compiles at once
+                   ╲
+   ─ ─ ─ ─ ─ ─ ─ ─ ─╳─ ─ ─    jetsam. no callback, no unwind,
+                              no final log line, no crash report
+```
+
+iOS does not warn. There is no "you are about to die" notification to
+handle, and nothing runs afterwards.
+
+So the measurement has to be written down BEFORE it is needed — sampled
+continuously and flushed to disk on every reading, so that the last line
+that survived is the answer. That is not defensive coding; it is the only
+shape that can work, and this project has already paid for the lesson
+twice: the MLX phone spike lost two crashes to a buffered stdout (§24
+STAGE 3), and the pressure probe's own trail survived a kill only because
+every line was flushed before the next step ran (§28).
+
+## 95. Acceptance criteria (4i, rewritten)
+
+- **AC-132 The headroom instrument can say whether it is switched on.**
+  *(status: MET — `MemoryHeadroom` never reports an ambiguous 0, four
+  tests including the macOS control. It is also what refuted this
+  milestone's original premise, which is the best thing an instrument can
+  do.)*
+- *(AC-133 – AC-138 RETIRED unbuilt: the pressure level, the hysteresis,
+  the degradation order, and making the forbidden pair degrade. There is
+  no forbidden pair and nothing to degrade. Retired rather than
+  renumbered, so the draft that proposed them stays readable.)*
+- **AC-139 The compile peak, measured.** The sampler writes headroom
+  every 250 ms during a load and flushes each line. A run that survives
+  gives the trough; a run that is killed gives the last reading before
+  death. Either is the number. Recorded with the configuration that
+  produced it, because the peak is a property of what else was resident.
+- **AC-140 AC-102's thermal debt, paid.** On the phone, across a
+  sustained conversation: thermal state over time, time to first
+  throttle, recovery time after stopping, and whether real-time deadlines
+  break (audio dropouts, transcript lag, mouth stutter). The number may
+  be boring. It is owed either way, and it has been owed since Phase 3.
+- **AC-141 Twenty minutes.** One long field session in the configuration
+  Ryad actually uses — Whisper ear, 4B mind, neural voice, shield on —
+  logging headroom, thermal state and first-word latency over time. 4h
+  measured 38 turns and no decay; this asks the question 38 turns cannot.
+
+## 96. Test matrix (4i, rewritten)
+
+| Criterion | Test | Needs a device? |
+|---|---|---|
+| AC-132 | `MemoryHeadroomTests` — 4 tests, incl. the macOS control | no |
+| AC-139 | the sampler's own control: a run with sampling off records nothing | no |
+| AC-139 | field run, trough or last-line-before-death | **yes** |
+| AC-140 | field run, thermal trace | **yes** |
+| AC-141 | 20-minute field run | **yes** |
+
+**Three of five need the phone, and that is honest rather than
+regrettable.** This milestone is mostly measurement; the part that could
+be proven on a Mac was AC-132, and it is done. A milestone that pretended
+otherwise would be measuring the wrong machine — which is exactly the
+mistake that produced the first draft.
+
+## 97. The design forks (4i) — ruled
+
+*(D-065: the reshape ruled **A** — re-scope, drop the chain. F-1 through
+F-3 of the original draft are retired with AC-133–138; F-4 was withdrawn
+by its own author before it could be ruled, because measurement showed
+`limit_bytes_remaining` also reads 0 on macOS, so cross-checking cannot
+disambiguate anything.)*
+
+No open forks. If AC-140 or AC-141 shows the configuration failing under
+sustained load, that reopens the chain with evidence — which is the only
+basis on which it should ever have been built.
+
+## 98. Out of scope for 4i (rewritten)
+
+The degradation chain · multi-turn memory · tool calling · reply QUALITY ·
+SpeakerKit · the parked Apple-mouth self-barge · the Mac's stuck
+Foundation Models download · On-Demand Resources · device tiering ·
+making the neural voice pleasant · anything for a phone smaller than the
+one being measured.
+
+## 99. Definition of done (4i, rewritten)
+
+AC-132 met · the peak recorded with the configuration that produced it ·
+a thermal trace that exists, whatever it says · twenty minutes survived
+or honestly reported as not survived · numbers in INSTRUMENTS including
+the disappointing ones · zero warnings · 20× stable · review before merge
+(D-041) · teach-back survived.
+
+---
+
+# Milestone 4j — the phone's tuning bench
+
+## 100. Why this milestone exists
+
+The Mac can be tuned from the command line: decoder, vocoder mode,
+temperature, cushion (INSTRUMENTS §31.1). The first thing that tuning
+produced was a disagreement:
+
+    THE CLOCK SAYS              THE EAR SAYS
+    ──────────────────          ────────────
+    fused           177 ms      good
+    temp 0 + fused  171 ms      BAD     ← fastest start, worst sound
+    stepped         218 ms      ok
+    fused+through   350 ms      good    ← slow start, good sound
+    throughput      440 ms      good    ← slowest start, still good
+
+`temperature 0` has the fastest first audio of all six configurations and
+speaks for 13 seconds where the winner takes 6.5. Anything tuned on first
+audio alone picks it. **No instrument in this repo measures what Ryad judged
+in five seconds** (INSTRUMENTS §32), so the human stays in the loop — and the
+phone, the device that actually matters, has no way to put him there. It has
+an engine picker, a mind picker and a voice picker, and not one of the four
+levers.
+
+## 101. Scope
+
+1. Split the single 884-line screen into three tabs — **Chat · Bench ·
+   Settings** (D-066 F-1).
+2. Put the four voice levers on the phone, `.fused` included so that it can
+   refuse honestly with the CoreML reason (D-066 F-2).
+3. A measured sweep that runs on the device, gated on the mind being
+   unloaded, alongside live by-ear switching (D-066 F-3).
+4. Results leave the phone as a markdown table, in the shape INSTRUMENTS
+   already uses (D-066 F-4).
+
+## 102. Non-goals
+
+- **Not** a redesign. The controls that exist keep their behaviour and their
+  words; they move.
+- **Not** a Mac bench. `audio-demo` and `bakeoff` already do that.
+- **Not** the six-configuration sweep. The phone can compare four (§103).
+- **Not** 4i's remaining debts. AC-139, AC-140 and AC-141 stay open and are
+  not absorbed here.
+
+## 103. The constraint that shapes it
+
+`.fused` does not load on iOS 18+:
+
+    modelLoadingFailed("MultiCodeDecoder: failed to load
+    MultiCodeDecoder.mlmodelc (function 'fused') on macOS 15 / iOS 18
+    or newer. MLModelConfiguration's .functionName must be nil unless
+    the model type is ML Program.")
+
+`MLModelConfiguration.functionName` may only be non-nil for an ML Program,
+and the Qwen3 multi-code decoder is not one. Measured, not assumed: `.fused`
+**does** load on macOS 26 (INSTRUMENTS §31), so the error's own wording
+overstates it — the failure is iOS-only in practice.
+
+So the phone compares `stepped × {latency, throughput} × {default, 0}
+temperature`, four configurations, and the Mac's winner is unavailable to it.
+D-066 F-2 keeps `.fused` in the picker anyway: a refusal carrying the real
+error is evidence, where a hidden option teaches nothing.
+
+## 104. What the split has to survive
+
+The groundwork found five hazards. They are the actual work of this
+milestone; the tabs themselves are an afternoon.
+
+**H-1 — the launch order is load-bearing.** `ContentView.task` runs
+`checkModel()` → `checkVoice()` → `refreshMind()` in that order, under a
+comment reading "Swapping these two lines is a memory bug that looks like
+nothing." The voice must be born while headroom is at its maximum
+(INSTRUMENTS §29: killed at 1105 MB and at 2976 MB free, survived at 3347).
+A TabView must run this **once**, at the container, never per tab.
+
+**H-2 — the voice is a `let` with one lever nailed shut.**
+`private let neuralVoice = NeuralVoice(multiCodeDecoderMode: .stepped)`.
+Changing a lever means building a new voice, which means an explicit retire
+of the old one — and D-051's lazy-init bug has already bitten four times, most
+recently loading the voice twice concurrently (~2.2 GB where 1.1 was
+intended).
+
+**H-3 — `restart()` gives no signal that the new configuration is up.** It
+fires from seven `didSet`s, calls a `stop()` that defers teardown into a
+detached Task, then starts again from a second detached Task. `isListening`
+goes false synchronously while the microphone is still being released. Two
+sweep iterations can therefore overlap a live teardown.
+
+**H-4 — state survives across iterations.** `diagnostics` is deliberately
+never stopped; `bargeCount` and `onsetsWhileSpeaking` are not in `start()`'s
+reset list; `turns` grows without bound. A sweep that reads these reads the
+sum of everything before it.
+
+**H-5 — the machine changes under the measurement.** `ConservativeThermalPolicy`
+sacrifices late settling decodes on a hot phone, and a repeated sweep heats
+the device, so later iterations measure a different machine. Nothing today
+annotates a run with its thermal state.
+
+Two smaller ones, recorded so they are not rediscovered: every lever writes
+to `UserDefaults` in its `didSet`, so a sweep that dies mid-run leaves the
+phone configured at whatever the last iteration set; and the echo-probe
+button had to live in the toolbar because a button in the bottom strip did
+not fire on synthetic taps in the simulator — which constrains where any
+bench control may be placed if it is ever to be driven by a test.
+
+## 105. Acceptance criteria
+
+**AC-142 — one model, one load, three tabs.** The app presents Chat, Bench
+and Settings over a single shared `TranscribeModel`, and the order-critical
+launch sequence (H-1) executes exactly once for the process, whatever order
+the tabs are visited in.
+
+*Test, amended 2026-08-23 — the original wording asked for something that
+cannot be done here.* It said "a launch-counter assertion driven by visiting
+all three tabs in both directions". The demo is an Xcode project with **no
+test target**, and adding one is a yak-shave that buys a UI-driving test on a
+simulator where the mind is unavailable by design. So the criterion is met a
+different way, and the difference is stated rather than blurred:
+
+- **Tested (Mac, no models):** `LaunchOnceTests` proves the sequence runs in
+  the order given, runs exactly once when two callers arrive together, that a
+  waiter does not return until the work is complete, and that later calls do
+  nothing. Including the specific order that kills — voice before mind.
+- **Reviewable, not tested:** that `RootView` is the only place holding a
+  `.task`, and that its four steps are in the right order. Four lines, in one
+  file, with the reason written above them.
+
+**This is weaker than the original wording in the UI half and stronger in the
+logic half**, and it is the honest trade available. A future demo test target
+would close the gap; it is not 4j's work.
+
+**AC-143 — the levers exist on the phone, and say what they are.** Bench
+offers decoder, vocoder mode, temperature and lead. The screen displays the
+configuration currently in force, and that display is read from the voice
+that was actually built — never from the picker's own state. *Test:* set each
+lever, assert the displayed configuration matches the constructed voice; and
+one test that fails if the display is wired to the picker instead.
+
+**AC-144 — `.fused` refuses honestly.** Choosing `.fused` on iOS surfaces the
+CoreML `modelLoadingFailed` text, the app does not crash, and the previous
+working voice is still usable afterwards. *Test:* Mac control asserting
+`.fused` LOADS (proving the test can tell the two outcomes apart), plus the
+field observation on the phone.
+
+**AC-145 — changing a lever retires the old voice.** After N lever changes,
+exactly one voice pipeline is resident. *Test:* a load-counter on the voice
+seam; N changes must produce N loads and N−1 retires, and the concurrent
+double-load of §28 must fail the test if reintroduced.
+
+**AC-146 — the sweep refuses to run with the mind resident.** With the mind
+loaded, the Bench sweep is disabled and says why. With it unloaded, the sweep
+runs. *Test:* both branches, asserting the refusal names the reason.
+
+**AC-147 — the sweep waits for readiness, never for time.** Each iteration
+begins only when the previous configuration is observably down and the new
+one observably up (H-3). No sleep, no fixed delay, no retry count.
+*Test:* a driver test against a controllable seam, with a spin cap so a red
+fails fast.
+
+**AC-148 — each row carries the conditions it was measured under.** Every
+sweep row records the configuration, first audio, total, thermal state at the
+start of the row, and free headroom — so a row taken on a hot phone can be
+told from one taken cold (H-5). *Test:* assert every field is present and
+that the thermal value comes from the sample taken during that row.
+
+**AC-149 — counters are per-iteration, not cumulative.** The sweep clears
+the counters that survive a restart (`bargeCount`, `onsetsWhileSpeaking`)
+before each measurement, so they describe that iteration alone (H-4).
+
+*Amended 2026-08-24, by the review.* The original said "the values a ROW
+reports", and its test described "two iterations where the first produces a
+barge and the second none". **A row carries no counters** — `BenchRow` holds
+the configuration, the timing and the conditions — so the stated test could
+not be written and was not. What is proven is the reset's PLACE in the
+order: `resetFollowsPrepare` asserts it lands between `prepare` and
+`measure`, so nothing the setup produced is counted against the run. Whether
+the counters then reach a row is a separate question, and the answer today
+is that they do not.
+
+**AC-150 — the numbers leave as markdown.** The Bench copies a table in the
+shape INSTRUMENTS already uses, pasteable beside the Mac's numbers without
+editing. *Test:* golden-string comparison of the rendered table.
+
+**AC-151 — a sweep that dies does not leave the phone reconfigured.** The
+levers a sweep sets are scoped to the sweep; after it ends, by completion or
+by death, the phone is back on the settings the human chose. *Test:*
+simulated mid-sweep failure, assert the persisted settings are unchanged.
+
+**AC-152 — the cushion follows the machine, not a constant (D-068 A).** After
+a reply has been decoded, the next reply's lead is sized from the steady
+factor that reply achieved, not from `measuredRealTimeFactor(for:)`. *Test:*
+observe a margin at the iPhone's measured 1.21 and assert the lead exceeds
+the `.stepped` constant; observe one below 1.0 and assert it is zero.
+
+**AC-153 — the human outranks the machine (D-068 D).** An explicit lead —
+the `--lead` flag, or the Bench control — is used in preference to anything
+learned. *Test:* a voice built with an explicit lead keeps it after a margin
+that would have changed a derived one.
+
+## 106. Test matrix
+
+| AC | Mac-testable | Needs the phone |
+|---|---|---|
+| AC-142 one load, three tabs | ✅ launch counter | — |
+| AC-143 levers say what they are | ✅ | — |
+| AC-144 `.fused` refuses honestly | ✅ control only (it must LOAD here) | ✅ the refusal itself |
+| AC-145 lever change retires | ✅ load counter | — |
+| AC-146 sweep gated on the mind | ✅ both branches | — |
+| AC-147 readiness, not time | ✅ | — |
+| AC-148 conditions per row | ✅ fields present | ✅ real thermal values |
+| AC-149 per-iteration counters | ✅ the reset's place in the order | — |
+| AC-150 markdown out | ✅ golden string | — |
+| AC-152 cushion follows the machine | ✅ | ✅ the phone's own factor |
+| AC-153 the human outranks it | ✅ | — |
+| AC-151 death leaves no residue | ✅ | — |
+
+Three of twelve need the phone, and all three are the honest half: a constraint that
+only exists on iOS, and a thermal reading a Mac cannot produce.
+
+## 107. Open forks
+
+**F-1 — where does the sweep driver live?** The hazards in §104 mean the
+sweep needs defined semantics (readiness, per-iteration reset, scoped
+settings), and semantics want tests. Options: **(A)** a new
+`MultiModalKitBench` module the app depends on — testable, tier 2 of D-016,
+core untouched; **(B)** inside `MultiModalKitTTS` — fewer modules, but the
+voice library gains a benchmarking concern it has no business holding;
+**(C)** in the app — nothing new to name, and nothing testable either, which
+puts AC-147 and AC-149 out of reach. *Recommendation: A.*
+
+**F-2 — sequencing.** Does 4j begin now, with 4i's AC-139/140/141 still open,
+or after they are measured? Both need the phone; a bench that logs thermal
+state per row (AC-148) is arguably the instrument AC-140 has been waiting
+for. *No recommendation — this is a priority call, not a design one.*
+
+## 108. Definition of done (4j)
+
+Twelve criteria met · the four levers reachable on the phone · a sweep that
+refuses rather than dies · a markdown table pasted into INSTRUMENTS beside
+the Mac's · Ryad's by-ear ranking of the phone's four configurations recorded
+next to the clock's, agreeing or not · zero warnings · 20× stable · review
+before merge (D-041) · teach-back survived.
+
+---
+
+# Milestone 4k — the reply that survives its own voice
+
+## 109. Why this milestone exists
+
+4j ended with the phone bench producing its first table (§36) and one ruling
+parked: whether `throughput` should become the phone's default vocoder. That
+ruling needs Ryad's ear in a live conversation, and the conversation is
+currently unusable for judging anything:
+
+> "i cant test it in the phone good because the selfbargin issue."
+
+Self-barge is not new. It has a measured history:
+
+- **§25 (4h, 38 turns):** six turns — 16% — opened on a fragment and were
+  killed by the speaker continuing. `_(no words)_`, `BARGED IN`, one at 76 ms.
+- **§23 (4g, AC-121):** the shielded Apple mouth on the loudspeaker:
+  "working most of the time, but sometimes it barges itself" — recorded
+  with four suspects and what would convict each, before any fix.
+
+4g built the defense (the shield); 4k convicts the leak and closes it.
+
+## 110. What is already known — the mechanics in one picture
+
+```
+  you speak            the reply plays           the echo returns
+     │                        │                        │
+     ▼                        ▼                        ▼
+   mic ──► VAD ──► gate 0.021 ──► speechStarted while SPEAKING = barge
+                                   (TurnCoordinator — energy only,
+                                    no content, no echo awareness)
+
+   the canceller can only remove what renders on ITS OWN engine:
+     shield ON   → reply renders on the capture engine → cancelled,
+                   but attenuated NOT erased (residual 0.0036–0.0766,
+                   and the gate is 0.021 — the top end is ABOVE it)
+     shield OFF  → the canceller never sees the reply at all
+```
+
+A barge is deliberately a pure energy onset: D-060 F-1 examined and
+**rejected** level-based discrimination while speaking ("the echo arrives at
+peak 1.0, indistinguishable by level from a human barge") and half-duplex
+("kills barge-in, the product's soul"). Those rulings stand. The defense is
+the shield, and the shield was `default: false` in the app when this was
+written (opt-in, D-060
+F-4 — a library default claims every device; one phone's evidence did not
+support it). **D-069 has since flipped the APP's default to ON**, on the
+evidence in §111 below; the library default is untouched.
+
+## 111. The four suspects (§23, verbatim in substance)
+
+| # | suspect | what convicts it |
+|---|---|---|
+| 1 | residual over the gate — cancelled, but 0.02–0.08 peaks remain | `echo?` rows with peaks just above 0.021, spread across the reply |
+| 2 | canceller convergence — adaptive filters take a moment | leaks CLUSTER at reply starts |
+| 3 | the lazy attach — the player attaches at the first buffer, mid-run | also clusters at starts, FIRST reply especially |
+| 4 | the 22.05 kHz Apple path — resampling mis-aligns the reference | Apple's mouth leaks, the neural (24 kHz) does not, same session |
+
+A fifth question sits before all four: **was the shield even on?** With the
+neural mouth, shield off and the loudspeaker, self-barge is not a leak — it
+is the expected behaviour of a canceller that was never shown the reply.
+
+## 112. Scope — convict first, fix what is convicted
+
+1. An instrument on the Mac that can SEE the leak (AC-154).
+2. The conviction, from field evidence the phone already produces (AC-155).
+3. The fix for what was convicted — and nothing that was not (AC-156).
+4. The app stops letting the guaranteed-failure configuration run silently
+   (AC-157, fork F-1).
+5. 4j's parked ear test runs to completion (AC-158).
+
+## 113. Non-goals
+
+- **No content-based barge discrimination** (transcribing the echo and
+  comparing it to the reply text). A real idea, a different milestone, and
+  a latency cost nobody has measured.
+- **No raising the gate while speaking, no half-duplex.** Rejected in
+  D-060 with reasons that have not changed.
+- **Not AC-140/AC-141.** 4i's thermal and endurance debts stay where they
+  are.
+
+## 114. Acceptance criteria
+
+**AC-154 — the Mac can see the leak.** A `bakeoff voice-selfecho`
+instrument: during a shielded neural reply on the live capture engine
+(`voice-onmic`'s graph), it reads the RING — the microphone side — and
+reports peak/rms while the voice speaks, plus the count of would-be gate
+crossings at 0.021. *Control (D-054 rule 5):* the same instrument with
+`--no-shield` must show the leak large — an instrument that cannot see the
+failure cannot clear the fix. *Caveat, stated now:* §23 proved a Mac graph
+verdict does not transfer to the phone; this instrument develops the METHOD
+and the fix's before/after; the phone's own rows convict.
+
+**AC-155 — the conviction.** From one failing session on Ryad's phone —
+the shared conversation log, which already carries the shield state, the
+per-utterance `peak · ms · echo?` rows and both barge counters — plus the
+echo probe's result on his actual route: which suspect(s) the evidence
+convicts, written into INSTRUMENTS with the numbers.
+
+**AC-156 — the convicted fix, before/after.** Whatever AC-155 convicts is
+fixed, and the SAME instrument that showed the failure shows the
+difference. Fix menus per suspect, held until conviction: (1) → per-route
+calibrated gate, AC-97's own law, the calibration tap already exists;
+(2)/(3) → attach the player at utterance OPEN instead of first buffer, and
+only if leaks persist, a measured reply-start settle window — priced
+against D-036's history with time windows; (4) → route Apple's PCM at the
+chain's rate or record the neural mouth as the shielded recommendation.
+
+**AC-157 — the dangerous configuration announces itself.** Neural or Apple
+mouth + shield OFF + `--talk`/Listen: the app says, in one sentence, that
+the canceller cannot see this reply and self-barge is expected. (Whether
+the shield's default also flips is F-1 — a ruling, not a slipped-in line.)
+
+**AC-158 — the ear test unblocked.** Ryad completes 4j's four-configuration
+listen without a self-barge ending it — or the residue is recorded
+honestly and the milestone says what remains.
+
+## 115. The fork that can be ruled today
+
+**F-1 — the shield's default in THIS app.**
+- **A — default ON, with AC-157's warning when someone turns it off.**
+  D-060 F-4 kept the LIBRARY default off because a library claims every
+  device; the app claiming ONE device is exactly the mechanism/policy split
+  that ruling protected. The evidence since: §23's matrix, §29's field log
+  (`speaker shield=true`, working turns), and a 4j sweep that ran with the
+  shield's graph. *(Recommendation.)*
+- **B — keep opt-in, warn when off.** Honest, cheaper, and leaves the
+  first-run experience broken by default — a person's first conversation
+  self-barges, and the fix is a toggle they have not met yet.
+- **C — remove the toggle.** Cleanest graph story, but it deletes the A/B
+  instrument that AC-121's field work still uses.
+
+The fix-shape forks (gate, attach, settle window, Apple path) are **held
+until AC-155 convicts** — ruling them now would be choosing a cure before
+the diagnosis, which is the exact habit D-054 exists to end.
+
+## 116. Definition of done (4k)
+
+The leak seen by an instrument on this Mac · convicted on the phone with
+the rows it already prints · fixed with before/after from the same
+instrument · the dangerous configuration warns · the 4j ear test completed
+and its ruling (throughput default, F-4 of §36) unblocked · numbers in
+INSTRUMENTS including disappointing ones · zero warnings · 20× stable ·
+review before merge (D-041) · teach-back survived.
