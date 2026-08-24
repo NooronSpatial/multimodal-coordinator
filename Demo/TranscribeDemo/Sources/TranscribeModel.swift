@@ -572,7 +572,29 @@ final class TranscribeModel {
             // instrument answering a question it was not asked.
             peakMemoryMB: (turn.mind.hasPrefix("Local") && MLXRuntime.isAvailable)
                 ? MLXRuntime.peakMemoryBytes / 1_048_576 : nil,
-            bargedIn: turn.bargedIn))
+            bargedIn: turn.bargedIn,
+            // WHEN, and how hot, and how much room was left. Sampled at the
+            // end of the turn rather than the start: what a person felt is
+            // the state the reply finished in.
+            atSeconds: sessionStart.map {
+                Int($0.duration(to: ContinuousClock().now)
+                    .components.seconds)
+            } ?? 0,
+            thermal: thermalName,
+            freeMB: freeMegabytesNow()))
+    }
+
+    /// When Listen was tapped, so every turn can say how far into the
+    /// session it happened.
+    private var sessionStart: ContinuousClock.Instant?
+
+    private var thermalName: String {
+        switch thermal {
+        case .nominal: "nominal"
+        case .fair: "fair"
+        case .serious: "serious"
+        case .critical: "critical"
+        }
     }
 
     func clearLog() { turns.removeAll() }
@@ -622,6 +644,9 @@ final class TranscribeModel {
             out += "heard: \(turn.heard.isEmpty ? "_(nothing)_" : turn.heard)\n\n"
             out += "reply: \(turn.reply.isEmpty ? "_(no words)_" : turn.reply)\n\n"
             let first = turn.firstTokenMs.map { "\($0) ms" } ?? "never"
+            out += "at \(turn.atSeconds) s · thermal \(turn.thermal)"
+            if let free = turn.freeMB { out += " · \(free) MB free" }
+            out += "\n\n"
             out += "first word \(first) · total \(turn.totalMs) ms"
             if let mb = turn.peakMemoryMB { out += " · MLX peak \(mb) MB" }
             if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
@@ -1466,6 +1491,7 @@ final class TranscribeModel {
         // would misreport as a turn error. Availability is read fresh —
         // the download may have finished since the last look.
         refreshMind()
+        sessionStart = ContinuousClock().now
         guard listenRefusal == nil, !isListening
         else { return }
         utterances.removeAll()
