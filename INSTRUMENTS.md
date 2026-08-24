@@ -3188,3 +3188,88 @@ their own (0.03–0.30 — a real morning room), so on this Mac ambient noise
 and shielded residual are the same order of magnitude, and no single Mac
 crossing can be attributed. The shape agrees with suspect 1; the phone's
 rows remain the conviction.
+
+## 40. Nineteen minutes on the phone — AC-140 and AC-141, owed since Phase 3, paid
+
+Ryad's iPhone, 2026-08-24. His real configuration — Whisper ear, 4B local
+mind, neural voice, speaker shield ON, loudspeaker — started from a cool
+device, unplugged. **58 turns, 1132 seconds, 98 utterances completed.**
+
+### AC-141 — twenty minutes: NO DECAY, and that is the headline
+
+```
+first word, across 19 minutes      median  317 ms
+  first ten turns                  median  323 ms
+  last ten turns                   median  317 ms      →  −6 ms
+  after the device went hot (51)   median  317 ms
+  min 305 · max 675 · outliers >450: 655, 675, 532, 534, 618
+```
+
+**Five outliers in fifty-seven turns, and no trend between them.** 4h measured
+38 turns and saw no decay; this is nineteen minutes and 58 turns, on a device
+that spent seventeen of them thermally `serious`, and the number does not
+move. The 655 ms is turn 1 — the first generation of the session, which
+INSTRUMENTS §25 already priced at ~1.5 s of Metal warm-up; here `prewarm()`
+had it down to 655.
+
+**Memory across the whole session: 846–890 MB free, drifting −7 MB from first
+turn to last.** MLX's peak climbed 2289 → 2364 MB over the first six turns
+and then never moved again. Nineteen minutes, three models resident, no
+leak.
+
+### AC-140 — the thermal debt, and it is worse than "recorded as observed"
+
+```
+    0 s ────────── 73 s ─────── 128 s ──────────────────── 1132 s
+    │   nominal              │  serious ..................... serious
+    cool                     └─ NEVER recovered in-session
+```
+
+The log brackets it: `nominal` at 73 s, `serious` by 128 s. Ryad's own
+timing is tighter — **warm inside 2 minutes, hot inside 3** — and the two
+agree.
+
+**Time to first throttle: about two minutes.** That number has been owed
+since Phase 3, and D-028's `ConservativeThermalPolicy` was bought to handle
+a condition nobody had measured. It is measured now, and it arrives fast.
+
+**And it never recovered.** Seventeen of the nineteen minutes ran at
+`serious`. Recovery after stopping was not captured — the log ends with the
+session, and the badge is the only witness.
+
+**The policy is not theoretical any more.** Rows reading *"Decode skipped —
+device too hot"* appear repeatedly in the utterance list from ~9:47 onward:
+the transcriber sacrificing settling decodes exactly as designed. The price
+is visible in the transcripts — fragments, re-heard phrases, and the
+repeated "Can you hear me?" turns.
+
+> **An instrument gap this session exposed.** The skipped decodes appear in
+> the on-screen utterance rows and NOT in the conversation log's turns, so a
+> shared log under-reports what thermal cost. §4's `settlingCount` exists;
+> it is not in the log either. AC-140's trace is real but incomplete, and
+> the missing half is the count of what the policy dropped.
+
+### AC-155 — the shield across nineteen minutes
+
+```
+onsets while speaking   14
+barges                  22        (they count different things, by design)
+BARGED IN turns         9 of 58
+echo? rows              one, at peak 0.022 against a 0.020 gate
+```
+
+Ryad was interrupting deliberately, as asked, so most barges are real. The
+one `echo?` row sits **two thousandths above the gate** — §23's suspect 1
+(residual over the gate) showing the same face it showed in §38 at 0.098,
+and in §37 at 0.108. Three sessions, three sightings, always just over.
+
+`barges` exceeding `onsets while speaking` is the counters failing apart as
+designed (§4): a barge also counts D-024's session-barge, where a person
+pauses and restarts before their final arrives. Nine turns carry `BARGED
+IN`; the transcripts show most are Ryad resuming mid-sentence, which is the
+product working.
+
+**Not yet a conviction.** A session where the human deliberately interrupts
+cannot separate "he barged" from "it barged itself" by counters alone. What
+it does show: nineteen minutes, shield on, and no runaway — against §37's
+unshielded session which barged four times in a handful of turns.
