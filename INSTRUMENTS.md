@@ -3273,3 +3273,52 @@ product working.
 cannot separate "he barged" from "it barged itself" by counters alone. What
 it does show: nineteen minutes, shield on, and no runaway — against §37's
 unshielded session which barged four times in a handful of turns.
+
+### 40.1 What the ear said, and one number this session cannot produce
+
+**AC-155, by ear: it did not barge itself.** Ryad, immediately after the
+run: *"i think it didnt bagr itself."* Nineteen minutes, loudspeaker,
+shield ON, the neural voice — and the interruptions were his own. Against
+§37's unshielded session, which barged four times in eight turns and whose
+log convicted the configuration on its first line, this is the shield
+working in the arrangement that matters.
+
+It is a listener's verdict rather than a counter's, and that is the right
+kind of evidence here: §40's counters cannot separate a human barge from a
+self-barge, and the ear can. §32 already established that the ear decides
+things no instrument in this repo measures.
+
+**And the voice: *"i feel too the neural voice is much better."*** Recorded
+where it belongs — this is about the neural mouth versus Apple's, not about
+the four decoder configurations, which is still AC-158's question.
+
+### The recovery time is NOT measured, and will not be claimed
+
+AC-140 asks for recovery after stopping. Ten minutes after the session the
+badge still read hot — but Ryad named the confound himself before reporting
+it:
+
+> *"after i stopped now for 10 minutes it still hot but i may using the
+> phone as hotspot. during the conversation it was off."*
+
+A phone sharing its radio is doing sustained RF work, which heats it
+independently of anything this project runs. So "still hot after ten
+minutes" measures a hotspot, not a recovery curve. **Recorded as
+unmeasured.**
+
+This is §4's rule paying off a second time — that section refused to
+attribute a thermal badge because "the device context (5G, recent charging)
+is noisy". Same discipline, and this time the person holding the phone
+applied it first.
+
+**A second confound, from the screenshots, that belongs beside it:** the
+radio changed DURING the session. 5G at 9:47, airplane mode by 9:58 and
+still at 10:05. The throttle happened at ~128 s, on 5G, which is the
+realistic condition — but the second half of the thermal trace ran on a
+quieter radio than the first. It does not touch the time-to-throttle
+number; it does mean "never recovered in-session" was measured on a device
+whose radio load fell partway through, which makes the not-recovering
+more striking, not less.
+
+**What AC-140 still owes:** one recovery curve, from a run with the radio
+left alone afterwards.
