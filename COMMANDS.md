@@ -152,6 +152,7 @@ Each answers one question and writes its numbers into
 | `bakeoff voice-levers` | all six decoder settings, measured serially | — |
 | `bakeoff voice-wer` | speak → record → transcribe → score | — |
 | `bakeoff voice-onmic` | a reply rendered on a LIVE capture engine | `--no-output-chain` |
+| `bakeoff voice-selfecho` | does the assistant's voice cross its own gate | `--no-shield`, `--no-vp` (the eyes control), `--gate=0.021` |
 | `bakeoff graph-probe` | what a live audio graph actually tolerates | `--case=N` |
 | `bakeoff ask "…"` | one question to the local mind | `--model=`, `--system=` |
 | `bakeoff mind-off` | both brains on the same three questions | `--model=` |

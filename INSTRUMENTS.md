@@ -3137,3 +3137,54 @@ fix is worth.
    sitting between the Mac's 1.066 constant and §36's implied 1.25–1.35 —
    the spread across sessions is itself evidence that no constant was ever
    going to be right (D-068's case, made again by the device).
+
+## 39. voice-selfecho (AC-154) — the instrument, its eyes, and a macOS surprise
+
+The microphone-side question, measured on this Mac: while the shielded
+neural voice speaks on the live capture engine, does mic energy cross the
+0.021 gate? `bakeoff voice-selfecho`, with `--no-shield` and `--no-vp`.
+
+**Two instrument faults found by its own first runs, both fixed:**
+
+1. The first quiet-room read drained the ring's whole backlog — everything
+   since the microphone started, including the model load — and called the
+   quiet room 0.61. A baseline that contains the past is not a baseline;
+   the ring is drained once, discarded, before measuring.
+2. "How many windows crossed" cannot separate the suspects; **when** they
+   crossed can (§23: residual SPREADS, convergence/attach CLUSTER at the
+   start). The report now prints a timeline of every crossing.
+
+**The macOS surprise, worth a section of its own.** With volume 75 and
+voice processing ON, the UNSHIELDED arrangement — the voice on its own
+engine, the exact configuration that measured **peak 1.0 on the iPhone**
+(§23) — came back at the quiet-room level:
+
+```
+no shield, VP on :  quiet 0.0221 · speaking 0.0299     ← the Mac CANCELS it
+raw mic (--no-vp):  quiet 0.0200 · speaking 0.2964,
+                    28 of 32 windows over the gate      ← the eyes, proven
+```
+
+**macOS's voice-processing unit cancels system-wide output**, not merely
+what renders through its own engine. iOS does not. Three consequences:
+the Mac cannot serve as the shield-vs-no-shield control (the raw-mic mode
+is the eyes control instead); every terminal conversation that never
+self-barged on this Mac now has its explanation; and §23's caveat — a Mac
+graph verdict does not transfer — gains its sharpest example yet.
+
+**Three shielded runs, timelines included:**
+
+```
+run 1:  9 of 35 over · peaks 0.02–0.17 · SPREAD across 0.5–3.0 s
+run 2:  0 of 26 over · peak 0.0171 — clean
+run 3:  2 of 29 over · 0.75s@0.060  1.00s@0.037
+```
+
+The crossings SPREAD — suspect 1's shape (residual over the gate), not the
+start-clustering of convergence or the attach transient. Consistent with
+the phone's own row (§38: one `echo?` at 0.098, mid-reply). **Stated
+honestly:** the quiet-room windows in the same session crossed the gate on
+their own (0.03–0.30 — a real morning room), so on this Mac ambient noise
+and shielded residual are the same order of magnitude, and no single Mac
+crossing can be attributed. The shape agrees with suspect 1; the phone's
+rows remain the conviction.
