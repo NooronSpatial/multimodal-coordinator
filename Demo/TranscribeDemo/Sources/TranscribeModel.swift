@@ -195,19 +195,65 @@ final class TranscribeModel {
     }
 
     private func settleLevers(from previous: VoiceLevers) async {
+        // SERIALIZED (the review). Two lever changes in quick succession —
+        // a picker tapped twice, or a picker tapped during a sweep — each
+        // spawned their own settleLevers, and two full 1.1 GB loads
+        // overlapped. Whoever is second waits for the first to finish
+        // rather than racing it.
+        while settling {
+            await withCheckedContinuation { settleWaiters.append($0) }
+        }
+        settling = true
+        defer {
+            settling = false
+            // ALL of them, not one — the stranded-waiter lesson from the
+            // same review, and the same reason: a woken waiter here can
+            // return without doing any work.
+            let waking = settleWaiters
+            settleWaiters = []
+            for waiter in waking { waiter.resume() }
+        }
+
         Self.store(levers)
+
+        // THE CONVERSATION STOPS FIRST (D-070 F-2 = C, the app half).
+        //
+        // This used to retire the old voice, load the new one for tens of
+        // seconds, and only THEN restart. For that whole window the live
+        // TurnCoordinator still held the retired voice in a `let` — and a
+        // turn firing in it would build a second pipeline beside the one
+        // loading. The library now refuses that (the voice is terminal),
+        // but refusing mid-turn is a dead reply; not creating the window is
+        // better than surviving it.
+        //
+        // The cost, named: changing a lever mid-conversation visibly stops
+        // the conversation until the new voice is ready. That was always
+        // what happened, minus the pretence that the old one still worked.
+        let wasListening = isListening
+        if wasListening { await stopAndWait() }
+
         let retiring = neuralVoice
         neuralVoice = levers.makeVoice()
         voiceState = .checking
-        // Retire AFTER the replacement exists, so there is never a moment
-        // with no voice at all — and before loading the new one, so two
-        // pipelines are never both resident. The order is the memory rule
-        // from INSTRUMENTS §29, one scale down.
         await retiring.retire()
         await checkVoice()
         await keepTheVoiceUsable(after: previous)
-        if isListening { restart() }
+        if wasListening { start() }
     }
+
+    /// `stop()` with a signal, which `stop()` itself does not give: its
+    /// teardown is deferred into a detached Task, and `isListening` goes
+    /// false while the microphone is still being released (SPEC §104, H-3).
+    /// `restart()` already knew this and waited on the dying pipeline —
+    /// this is that wait, named and reusable.
+    private func stopAndWait() async {
+        let dying = pipeline
+        stop()
+        _ = await dying?.value
+    }
+
+    private var settling = false
+    private var settleWaiters: [CheckedContinuation<Void, Never>] = []
 
     /// Set while putting `levers` back, so the `didSet` above does not treat
     /// the revert as a new request and start the whole dance again.
