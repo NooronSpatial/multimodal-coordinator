@@ -78,7 +78,24 @@ public actor Retirable<Resource: Sendable> {
         let startedAt = generation
         defer {
             busy = false
-            if !waiters.isEmpty { waiters.removeFirst().resume() }
+            // WAKE THEM ALL, and the "all" is the whole fix.
+            //
+            // This resumed ONE waiter, and a woken waiter that finds the
+            // resource returns immediately — without waking the next. Two
+            // callers worked (the builder plus one), which is exactly what
+            // the tests covered. THREE hung forever, and the test that
+            // proved it timed out rather than failed.
+            //
+            // A one-at-a-time hand-off is correct only when the woken
+            // waiter always DOES the work and passes the baton on its own
+            // exit (`WhisperEngine.decode` is that shape, and is fine).
+            // Here the waiter can return early, so the baton dies in its
+            // hand. Waking everyone is safe because of the `while busy`
+            // re-check above: if the resource is gone, exactly one of them
+            // wins the flag and the rest park again.
+            let waking = waiters
+            waiters = []
+            for waiter in waking { waiter.resume() }
         }
 
         let fresh = try await build()

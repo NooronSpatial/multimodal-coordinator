@@ -83,6 +83,70 @@ struct RetirableTests {
         #expect(await holder.isResident)
     }
 
+    /// THE STRANDED WAITER — three callers, not two.
+    ///
+    /// Every other test in this suite uses the builder plus ONE waiter, and
+    /// that is precisely the case the bug could not reach: the builder woke
+    /// one waiter, that waiter found the value and returned, and there was
+    /// nobody left to strand. With a THIRD caller the chain broke and this
+    /// test did not fail — it HUNG, and had to be killed by a timeout.
+    ///
+    /// Written after the fact, from a suspicion raised while reviewing the
+    /// very code that shipped it. The lesson is not "wake everyone"; it is
+    /// that **two is not a concurrency test**.
+    @Test("THREE concurrent cold callers all get the value — none is stranded")
+    func threeCallersNoneStranded() async throws {
+        let ledger = Ledger()
+        let holder = Retirable<Int>()
+        let started = Latch(), release = Latch()
+
+        let first = Task {
+            try await holder.value {
+                started.fire()
+                await release.wait()
+                return ledger.nextBuild()
+            }
+        }
+        await started.wait()
+        let second = Task { try await holder.value { ledger.nextBuild() } }
+        let third = Task { try await holder.value { ledger.nextBuild() } }
+        // Let both pile into the waiter queue before the builder finishes.
+        for _ in 0 ..< 200 { await Task.yield() }
+        release.fire()
+
+        let values = try await [first.value, second.value, third.value]
+        #expect(values == [1, 1, 1])
+        #expect(ledger.builds.withLock { $0 } == 1)
+    }
+
+    @Test("a retire during the build does not strand the queue either")
+    func threeCallersSurviveARetire() async throws {
+        let ledger = Ledger()
+        let holder = Retirable<Int>()
+        let started = Latch(), release = Latch()
+
+        let first = Task {
+            try await holder.value {
+                started.fire()
+                await release.wait()
+                return ledger.nextBuild()
+            }
+        }
+        await started.wait()
+        let second = Task { try await holder.value { ledger.nextBuild() } }
+        let third = Task { try await holder.value { ledger.nextBuild() } }
+        for _ in 0 ..< 200 { await Task.yield() }
+        await holder.retire()          // the world changes mid-build
+        release.fire()
+
+        // The builder is told the truth; the two waiters must still finish
+        // — one rebuilds, the other is handed that result.
+        _ = try? await first.value
+        let recovered = try await [second.value, third.value]
+        #expect(recovered[0] == recovered[1], "one build, shared")
+        #expect(await holder.isResident)
+    }
+
     // MARK: retiring
 
     @Test("retire hands back what was held, and the next call builds again")

@@ -152,7 +152,16 @@ public actor WhisperEngine: TranscriptionEngine {
         loadBusy = true
         defer {
             loadBusy = false
-            if !loadWaiters.isEmpty { loadWaiters.removeFirst().resume() }
+            // ALL of them, not one. A woken waiter here returns the cached
+            // pipeline immediately (the `if let pipeline` inside the loop
+            // above), so it never passes the baton, and a third concurrent
+            // caller waits forever. Found in `Retirable` by a three-caller
+            // test that HUNG, and this is the same shape one module over.
+            // `decode` below keeps the one-at-a-time form on purpose: its
+            // waiters always do the work, so the hand-off is real.
+            let waking = loadWaiters
+            loadWaiters = []
+            for waiter in waking { waiter.resume() }
         }
         do {
             let config = WhisperKitConfig(model: model)
