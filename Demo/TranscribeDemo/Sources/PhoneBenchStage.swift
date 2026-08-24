@@ -27,12 +27,25 @@ struct PhoneBenchStage: BenchStage {
     func snapshot() async -> VoiceLevers { model.levers }
 
     func restore(_ settings: VoiceLevers) async {
-        await model.apply(settings)
+        // `restoring:` — this is handing the person their settings back, so
+        // the AC-144 recovery must not fire (it would revert to the sweep's
+        // last row) and nothing is persisted.
+        await model.apply(settings, restoring: true, persisting: false)
     }
 
     // MARK: the refusal (AC-146)
 
     func refusalReason() async -> String? {
+        // A SWEEP AGAINST A LIVE CONVERSATION measures neither. Every
+        // sibling instrument in this app already refuses while listening
+        // (the four toolbar probes carry `.disabled(model.isListening)`);
+        // the sweep was the one that did not, and it also stops the
+        // conversation on its first `apply`.
+        if model.isListening {
+            return "Stop the conversation first — a sweep reconfigures the "
+                + "voice repeatedly, and it would be measuring a pipeline "
+                + "that keeps restarting underneath it."
+        }
         // 0. THE SIMULATOR, and this one was learned by crashing twice.
         //
         //    The model IS installed here and `modelInstalled()` correctly
@@ -97,13 +110,27 @@ struct PhoneBenchStage: BenchStage {
         wanted.lead = nil
 
         // Returns only when the new configuration is up — `apply` awaits the
-        // retire, the load and the check. No delay, no retry count.
-        await model.apply(wanted)
+        // retire, the load and the check. No delay, no retry count. Not
+        // persisted: a sweep is not the person choosing.
+        await model.apply(wanted, persisting: false)
 
-        // STRICT, and deliberately more than `.failed`. Every state that is
-        // not `.ready` means this row would measure something other than the
-        // configuration it claims to — and a row that lies is worse than a
-        // row that is missing.
+        // ASK WHETHER THE LEVERS SURVIVED, not what the screen says.
+        //
+        // Two ways the state lies here. `keepTheVoiceUsable` REVERTS a
+        // refused configuration and repairs `voiceState` back to `.ready`,
+        // so by the time this guard runs a refusal looks like a success —
+        // and the row would be attributed to a configuration that never
+        // loaded. And `checkVoice()` opens with `guard mouth == .neural`,
+        // so on the stored default mouth it returns `.ready` without
+        // loading anything at all.
+        //
+        // The levers are the honest witness: the revert is what puts them
+        // back, so if they still hold what was asked for, the apply stood.
+        guard model.levers == wanted else {
+            throw BenchRefusal.configurationRefused(
+                configuration.name,
+                model.leverRefusal ?? "the configuration was reverted")
+        }
         guard case .ready = model.voiceState else {
             throw BenchRefusal.configurationRefused(
                 configuration.name, "\(model.voiceState)")

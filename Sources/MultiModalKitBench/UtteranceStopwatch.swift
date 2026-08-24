@@ -74,9 +74,12 @@ public enum UtteranceStopwatch {
         }
         let total = start.duration(to: clock.now)
         await feeder.value
-        // `.zero` when a mouth finished without ever starting — a failed
-        // decode, or a cancel. Reported as zero rather than as a plausible
-        // small number, so a row that never spoke cannot read as a fast one.
-        return BenchTiming(firstAudio: firstAudio ?? .zero, total: total)
+        // `nil` when a mouth finished without ever starting — a failed
+        // decode, or a cancel. This USED to report `.zero`, which is not a
+        // cautious number: in a first-audio column zero is the BEST value,
+        // so a row that never spoke sorted to the top as the fastest
+        // configuration in the sweep. The absence is now carried as an
+        // absence all the way to the table, where it prints as an em dash.
+        return BenchTiming(firstAudio: firstAudio, total: total)
     }
 }

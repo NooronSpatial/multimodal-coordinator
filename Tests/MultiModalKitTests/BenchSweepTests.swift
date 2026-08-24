@@ -31,13 +31,21 @@ struct BenchSweepTests {
         let log = Mutex(Log())
         let refusal: String?
         let failOnMeasure: Int?
+        /// Cancels the sweep from INSIDE its own task, after row N has been
+        /// measured. The old cancellation test called `task.cancel()` from
+        /// the test thread immediately after spawning, and whether ANY row
+        /// got measured first was scheduling luck — the review reproduced
+        /// both outcomes. A lever here makes the moment a fact.
+        let cancelAfterMeasure: Int?
         let conditions_: [BenchConditions]
 
         init(refusal: String? = nil,
              failOnMeasure: Int? = nil,
+             cancelAfterMeasure: Int? = nil,
              conditions: [BenchConditions] = []) {
             self.refusal = refusal
             self.failOnMeasure = failOnMeasure
+            self.cancelAfterMeasure = cancelAfterMeasure
             self.conditions_ = conditions
         }
 
@@ -84,6 +92,9 @@ struct BenchSweepTests {
             let index = log.withLock { $0.calls.filter { $0 == "measure" }.count }
             note("measure")
             if let failOnMeasure, index == failOnMeasure { throw Boom() }
+            if let cancelAfterMeasure, index == cancelAfterMeasure {
+                withUnsafeCurrentTask { $0?.cancel() }
+            }
             return BenchTiming(firstAudio: .milliseconds(177),
                                total: .milliseconds(6578))
         }
@@ -157,7 +168,10 @@ struct BenchSweepTests {
 
     @Test("a stage that throws mid-sweep still gets its settings back")
     func restoresOnFailure() async throws {
-        let stage = Recorder(failOnMeasure: 1)
+        // failOnMeasure: 0 — nothing was measured, so there is nothing to
+        // carry out and the stage's own error reaches the caller unwrapped.
+        // The "some rows measured" path is `throwCarriesTheRowsOut`.
+        let stage = Recorder(failOnMeasure: 0)
         await #expect(throws: Recorder.Boom.self) {
             try await BenchSweep.run(Self.one, runsEach: 3, on: stage)
         }
@@ -175,13 +189,44 @@ struct BenchSweepTests {
 
     @Test("cancellation keeps the rows already measured, and still restores")
     func cancellationRestores() async throws {
-        let stage = Recorder()
-        let task = Task {
-            try await BenchSweep.run(BenchConfiguration.phone, runsEach: 3, on: stage)
+        // Cancelled from INSIDE, after the second row is measured — so
+        // "some rows exist, and the sweep stopped" is a fact rather than a
+        // scheduling coincidence. The previous version cancelled from the
+        // test thread right after spawning and could observe zero rows.
+        let stage = Recorder(cancelAfterMeasure: 1)
+        let rows = try await BenchSweep.run(BenchConfiguration.phone,
+                                            runsEach: 3, on: stage)
+        // ONE, not two: row 0 completed, and row 1 — the one being measured
+        // when the cancel landed — is dropped rather than published.
+        #expect(rows.count == 1, "the row measured before the cancel")
+        #expect(rows.count < 12, "and the sweep did not complete")
+        #expect(stage.log.withLock { $0.restored } == [7])
+    }
+
+    @Test("the row being measured when the cancel lands is DROPPED, not published")
+    func cancelledRowIsNotPublished() async throws {
+        // The cancel arrives during row index 0's measure, so that row's
+        // timing exists but describes a truncated utterance. Publishing it
+        // would put a fast-looking row in the table for a reply that was
+        // interrupted.
+        let stage = Recorder(cancelAfterMeasure: 0)
+        let rows = try await BenchSweep.run(Self.one, runsEach: 3, on: stage)
+        #expect(rows.isEmpty, "a truncated measurement is not a measurement")
+        #expect(stage.log.withLock { $0.restored } == [7])
+    }
+
+    @Test("a throw part-way keeps every row already measured")
+    func throwCarriesTheRowsOut() async throws {
+        // Nine good rows used to die with the tenth: `run` held them in a
+        // local array and the throw path dropped it.
+        let stage = Recorder(failOnMeasure: 2)
+        do {
+            _ = try await BenchSweep.run(Self.one, runsEach: 3, on: stage)
+            Issue.record("it should have thrown")
+        } catch let interrupted as BenchSweep.Interrupted {
+            #expect(interrupted.rows.count == 2,
+                    "the two rows measured before the failure survive")
         }
-        task.cancel()
-        let rows = try await task.value
-        #expect(rows.count < 12, "a cancelled sweep does not complete")
         #expect(stage.log.withLock { $0.restored } == [7])
     }
 
@@ -211,6 +256,21 @@ struct BenchSweepTests {
         | stepped + latency | 1 | 177 ms | 6578 ms | nominal | 934 MB |
 
         """)
+    }
+
+    @Test("a reply that never spoke prints an em dash, never 0 ms")
+    func silentRowIsNotTheFastestRow() {
+        let rows = [
+            BenchRow(configuration: Self.one[0], run: 1,
+                     timing: .init(firstAudio: nil, total: .milliseconds(903)),
+                     conditions: .init(thermal: "nominal", freeMegabytes: 934)),
+        ]
+        let table = BenchTable.markdown(rows)
+        #expect(table.contains("| — | 903 ms |"))
+        // `903 ms` contains `0 ms`, so the naive check passed for the wrong
+        // reason — assert on the CELL, not on a substring of the row.
+        #expect(!table.contains("| 0 ms |"),
+                "zero is the BEST value in a first-audio column")
     }
 
     @Test("a device that cannot answer prints an em dash, never 0 MB")

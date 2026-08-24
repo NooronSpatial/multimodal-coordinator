@@ -116,7 +116,7 @@ struct UtteranceStopwatchTests {
         mouth.reportFinished(utterance: 0)
 
         let measured = try await timing.value
-        #expect(measured.firstAudio == .zero,
+        #expect(measured.firstAudio == nil,
                 "a row that never spoke must not read as the fastest row")
         #expect(measured.total == .milliseconds(300))
     }

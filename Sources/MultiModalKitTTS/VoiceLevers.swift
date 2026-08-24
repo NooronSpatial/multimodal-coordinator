@@ -72,7 +72,11 @@ extension NeuralVoice {
         }
         // Named so the reader can tell a measured cushion from a typed one:
         // the first is this machine's, the second is a person overruling it.
-        let source = lead == currentLead ? "" : " · measured here"
+        // ONE snapshot, compared against itself. This re-read `currentLead`,
+        // and the decode side writes the learned value from another thread —
+        // so the number and its label could come from different instants and
+        // the line could say "measured here" beside the constant's value.
+        let source = lead == cushion ? "" : " · measured here"
         return "\(decoderName) · \(vocoderName) · temp \(temperatureName)"
             + " · lead \(cushionName)\(source)"
     }

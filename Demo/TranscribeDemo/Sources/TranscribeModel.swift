@@ -185,16 +185,32 @@ final class TranscribeModel {
     /// picker's `didSet` becomes the odd one out: it cannot await, so it
     /// spawns a task that calls the same function. One code path, two
     /// callers, and only one of them has to guess about anything.
-    func apply(_ wanted: VoiceLevers) async {
+    /// - Parameters:
+    ///   - restoring: the bench giving the person's settings BACK, not a
+    ///     lever change. Two behaviours differ: the AC-144 recovery must not
+    ///     run (there is nothing better to fall back to — `previous` is a
+    ///     bench row, and reverting to it would leave the SWEEP's last
+    ///     configuration as the person's), and nothing is persisted.
+    ///   - persisting: whether this configuration becomes the person's
+    ///     stored choice. False for every bench-driven change: a sweep used
+    ///     to write all four keys on every row, so a sweep that died left
+    ///     its own last row as the person's settings.
+    func apply(_ wanted: VoiceLevers,
+               restoring: Bool = false,
+               persisting: Bool = true) async {
         guard wanted != levers else { return }
         let previous = levers
         awaitedElsewhere = true
         levers = wanted
         awaitedElsewhere = false
-        await settleLevers(from: previous)
+        await settleLevers(from: previous,
+                           restoring: restoring,
+                           persisting: persisting)
     }
 
-    private func settleLevers(from previous: VoiceLevers) async {
+    private func settleLevers(from previous: VoiceLevers,
+                              restoring: Bool = false,
+                              persisting: Bool = true) async {
         // SERIALIZED (the review). Two lever changes in quick succession —
         // a picker tapped twice, or a picker tapped during a sweep — each
         // spawned their own settleLevers, and two full 1.1 GB loads
@@ -213,8 +229,6 @@ final class TranscribeModel {
             settleWaiters = []
             for waiter in waking { waiter.resume() }
         }
-
-        Self.store(levers)
 
         // THE CONVERSATION STOPS FIRST (D-070 F-2 = C, the app half).
         //
@@ -237,7 +251,13 @@ final class TranscribeModel {
         voiceState = .checking
         await retiring.retire()
         await checkVoice()
-        await keepTheVoiceUsable(after: previous)
+        await keepTheVoiceUsable(after: previous, recovering: !restoring)
+        // PERSIST LAST, and only what a person chose. This used to be the
+        // first line — persist-before-verify — so a configuration that
+        // failed to load was still written to disk and came back at the
+        // next launch, and every sweep row overwrote the person's settings
+        // on its way past.
+        if persisting, !restoring { Self.store(levers) }
         if wasListening { start() }
     }
 
@@ -281,7 +301,13 @@ final class TranscribeModel {
     /// So the recovery is to go BACK. The failed levers stay visible so the
     /// person can see what they chose and why it was refused, the error text
     /// stays on screen, and the voice that speaks is the one that worked.
-    private func keepTheVoiceUsable(after previous: VoiceLevers) async {
+    private func keepTheVoiceUsable(after previous: VoiceLevers,
+                                    recovering: Bool = true) async {
+        // A RESTORE HAS NOWHERE BETTER TO GO. When the bench hands the
+        // person's settings back, `previous` is the sweep's last row —
+        // reverting to it would install the bench's configuration as the
+        // person's, which is precisely what restoring exists to undo.
+        guard recovering else { return }
         guard case .failed(let reason) = voiceState else {
             leverRefusal = nil
             return
@@ -292,7 +318,7 @@ final class TranscribeModel {
         revertingLevers = true
         levers = previous
         revertingLevers = false
-        Self.store(previous)
+        Self.store(previous)      // the configuration that WORKS is the one to keep
         await checkVoice()
     }
 

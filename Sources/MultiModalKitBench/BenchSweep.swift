@@ -19,6 +19,18 @@ public enum BenchSweep {
         case refused(String)
     }
 
+    /// A sweep that failed part-way, carrying what it had already measured.
+    ///
+    /// The rows used to be dropped: `run` held them in a local array, the
+    /// cancel path returned them, and the throw path restored the settings
+    /// and rethrew — so nine good rows died with the tenth. On a phone that
+    /// is minutes of the person's time and a device that has warmed up,
+    /// thrown away because the last configuration refused.
+    public struct Interrupted: Error {
+        public let rows: [BenchRow]
+        public let underlying: any Error
+    }
+
     /// Runs every configuration `runsEach` times and returns the rows.
     ///
     /// The human's settings are restored on every exit — completion, a
@@ -59,13 +71,24 @@ public enum BenchSweep {
                     await stage.resetCounters()
                     let conditions = await stage.conditions()
                     let timing = try await stage.measure()
+                    // A CANCEL DURING `measure` ENDS THE STREAM EARLY, and
+                    // the stopwatch cannot tell that from a reply finishing.
+                    // Appending here would publish a truncated row that
+                    // looks exactly like a fast one. The check between rows
+                    // is too late for the row already in hand.
+                    if Task.isCancelled {
+                        await stage.restore(saved)
+                        return rows
+                    }
                     rows.append(BenchRow(configuration: configuration,
                                          run: run,
                                          timing: timing,
                                          conditions: conditions))
                 } catch {
                     await stage.restore(saved)
-                    throw error
+                    // What was measured is still measured.
+                    throw rows.isEmpty ? error
+                        : Interrupted(rows: rows, underlying: error)
                 }
             }
         }

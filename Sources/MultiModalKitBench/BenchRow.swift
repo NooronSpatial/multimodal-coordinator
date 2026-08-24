@@ -22,10 +22,16 @@ public struct BenchConditions: Sendable, Equatable {
 }
 
 public struct BenchTiming: Sendable, Equatable {
-    public let firstAudio: Duration
+    /// `nil` when the mouth finished without ever starting — a failed
+    /// decode, or a cancel. **NOT zero**, which in a first-audio column is
+    /// the best possible value: a row that never spoke used to render as
+    /// `0 ms` and read as the fastest configuration in the table. Same rule
+    /// as `freeMegabytes` one type down, and for the same reason — a
+    /// sentinel that is a legal measurement is not a sentinel.
+    public let firstAudio: Duration?
     public let total: Duration
 
-    public init(firstAudio: Duration, total: Duration) {
+    public init(firstAudio: Duration?, total: Duration) {
         self.firstAudio = firstAudio
         self.total = total
     }
@@ -58,7 +64,9 @@ public enum BenchTable {
             let free = row.conditions.freeMegabytes.map { "\($0) MB" } ?? "—"
             out += "| \(row.configuration.name)"
             out += " | \(row.run)"
-            out += " | \(milliseconds(row.timing.firstAudio)) ms"
+            let firstAudio = row.timing.firstAudio
+                .map { "\(milliseconds($0)) ms" } ?? "—"
+            out += " | \(firstAudio)"
             out += " | \(milliseconds(row.timing.total)) ms"
             out += " | \(row.conditions.thermal)"
             out += " | \(free) |\n"

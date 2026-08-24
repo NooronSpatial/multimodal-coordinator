@@ -3052,10 +3052,19 @@ start of the row, and free headroom — so a row taken on a hot phone can be
 told from one taken cold (H-5). *Test:* assert every field is present and
 that the thermal value comes from the sample taken during that row.
 
-**AC-149 — counters are per-iteration, not cumulative.** The values a row
-reports are the ones that iteration produced (H-4). *Test:* two iterations
-where the first produces a barge and the second none; the second row must
-report zero.
+**AC-149 — counters are per-iteration, not cumulative.** The sweep clears
+the counters that survive a restart (`bargeCount`, `onsetsWhileSpeaking`)
+before each measurement, so they describe that iteration alone (H-4).
+
+*Amended 2026-08-24, by the review.* The original said "the values a ROW
+reports", and its test described "two iterations where the first produces a
+barge and the second none". **A row carries no counters** — `BenchRow` holds
+the configuration, the timing and the conditions — so the stated test could
+not be written and was not. What is proven is the reset's PLACE in the
+order: `resetFollowsPrepare` asserts it lands between `prepare` and
+`measure`, so nothing the setup produced is counted against the run. Whether
+the counters then reach a row is a separate question, and the answer today
+is that they do not.
 
 **AC-150 — the numbers leave as markdown.** The Bench copies a table in the
 shape INSTRUMENTS already uses, pasteable beside the Mac's numbers without
@@ -3088,7 +3097,7 @@ that would have changed a derived one.
 | AC-146 sweep gated on the mind | ✅ both branches | — |
 | AC-147 readiness, not time | ✅ | — |
 | AC-148 conditions per row | ✅ fields present | ✅ real thermal values |
-| AC-149 per-iteration counters | ✅ | — |
+| AC-149 per-iteration counters | ✅ the reset's place in the order | — |
 | AC-150 markdown out | ✅ golden string | — |
 | AC-152 cushion follows the machine | ✅ | ✅ the phone's own factor |
 | AC-153 the human outranks it | ✅ | — |

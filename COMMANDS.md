@@ -215,7 +215,7 @@ swift build
 swift test
 ```
 
-353 tests, 47 suites, deterministic — injected clocks, event-gated waits, no
+356 tests, 47 suites, deterministic — injected clocks, event-gated waits, no
 sleeps. Audible tests additionally need `MMK_LIVE_SYNTH=1`. A test phase is
 not done until the suite has run 20× clean; one flake is a race, not noise.
 

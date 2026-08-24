@@ -284,6 +284,9 @@ struct BenchTab: View {
                 } else {
                     Button("Run") { model.runSweep() }
                         .buttonStyle(.borderedProminent)
+                        // Like every other instrument here (D-054's shape):
+                        // the trigger is unavailable while the pipeline runs.
+                        .disabled(model.isListening)
                 }
             }
 
