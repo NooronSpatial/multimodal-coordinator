@@ -394,11 +394,21 @@ final class TranscribeModel {
     private(set) var shieldStatus: String?
     private(set) var shieldReport: [String] = []
     /// THE SPEAKER SHIELD (4g, AC-120): replies render on the capture
-    /// engine, where the canceller can see them. OPT-IN per D-060 F-4 —
-    /// the library default stays off; this app chooses. Restart-like the
-    /// other choices: it reshapes a running graph.
+    /// engine, where the canceller can see them.
+    ///
+    /// DEFAULT ON since D-069 (F-1 = A), and the reinstall is why. D-060
+    /// F-4 kept the LIBRARY default off — a library claims every device —
+    /// and this app's toggle inherited that `false`. Then Ryad deleted the
+    /// app to re-download the voice, the reinstall wiped UserDefaults back
+    /// to the default, and his next conversation self-barged exactly as
+    /// the orange label predicted ("it will interrupt itself"). A default
+    /// that breaks the first conversation after every reinstall is not a
+    /// safe default; this app claims ONE device, and that device's
+    /// evidence (§23's matrix, §29's field log, §37's conviction) says
+    /// the shielded arrangement is the working one. The library default
+    /// stays off — D-060 F-4 is untouched.
     var speakerShield = TranscribeModel.storedFlag(
-        TranscribeModel.shieldKey, default: false) {
+        TranscribeModel.shieldKey, default: true) {
         didSet {
             UserDefaults.standard.set(speakerShield, forKey: Self.shieldKey)
             guard speakerShield != oldValue else { return }

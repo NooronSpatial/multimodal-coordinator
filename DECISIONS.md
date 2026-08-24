@@ -2755,3 +2755,34 @@ Ruling D alongside A is what keeps AC-143's control honest.
 constant, because nothing has been measured yet. On a slow device that reply
 runs dry. Accepted knowingly — the alternative was B, and B was rejected for
 a reason that has already killed the app three times.
+
+## D-069 — 4k signed; the shield defaults ON in this app (Milestone 4k)
+
+**Date:** 2026-08-24 · **Decided by:** Ryad · **Ruling: spec §109–116
+signed; F-1 = A**
+
+**F-1 = A — the speaker shield defaults ON in the demo app, with the
+warning kept for anyone who turns it off.** The convicting evidence was a
+reinstall: Ryad deleted the app to re-download the voice, UserDefaults was
+wiped back to the default, the default was `false`, and his next
+conversation self-barged — precisely as the app's own orange label
+predicted ("it will interrupt itself"). A default that breaks the first
+conversation after every reinstall is not a safe default.
+
+D-060 F-4 is NOT reversed: it kept the *library* default off because a
+library claims every device, and it said in the same breath that the app
+chooses. This is the app choosing, on this device's own evidence — §23's
+matrix (tone cancelled to 0.004–0.08 shielded, 1.0 unshielded), §29's
+working field log (`speaker shield=true`), and §37's conviction.
+
+*Rejected:* **B, keep opt-in and warn** — the warning was already on
+screen during the failing session, and warning a person about a default
+they did not choose is a smaller apology, not a fix. *Rejected:* **C,
+remove the toggle** — it is the A/B instrument AC-121's field work still
+uses, and §23's suspects are still unconvicted in the shielded arrangement.
+
+**Scope note on AC-157, stated rather than slipped:** the warning stays
+scoped to the SPEAKER route. Receiver + no shield is not a guaranteed
+failure — the 4d gate (0.021) was earned on exactly that arrangement and
+it held a whole era of field sessions. The warning covers the measured
+danger, not every non-default state.
