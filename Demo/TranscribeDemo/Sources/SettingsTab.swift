@@ -44,6 +44,18 @@ struct SettingsTab: View {
             // THE SECOND MOUTH, on screen (AC-105). Only shown when the
             // app is actually talking — a mouth picker above a silent
             // pipeline would be a control with nothing to control.
+            // TALK BACK LIVES HERE TOO (the review). Everything below is
+            // gated on it, and its only other control sits inside ChatTab's
+            // ready state — so on a device where the speech model has not
+            // installed, the voice and mind sections were unreachable,
+            // including the very downloads that would fix it.
+            HStack {
+                Text("Talk back").font(.subheadline)
+                Spacer()
+                Toggle("Talk back", isOn: Bindable(model).talkEnabled)
+                    .labelsHidden()
+            }
+
             if model.talkEnabled {
                 VStack(spacing: 8) {
                     // THE MIND (4f, AC-117): what ANSWERS, above what

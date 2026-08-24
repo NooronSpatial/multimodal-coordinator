@@ -55,6 +55,20 @@ let package = Package(
         // hand-rolled one yields ids that are valid but WRONG, so this is
         // the third package, paid for in the open.
         .package(url: "https://github.com/huggingface/swift-transformers", from: "1.3.0"),
+        // DECLARED, NOT BORROWED (D-016, and the review that caught it).
+        //
+        // `MultiModalKitMLX` calls `MLX.Memory.cacheLimit` directly — that
+        // is OUR call, not something inherited — but `MLX` was never named
+        // here. It compiled only because mlx-swift-lm happens to expose it
+        // transitively, which is the arrangement D-016 forbids and the same
+        // one the test target was already corrected for: "DECLARED, not
+        // borrowed … an undeclared dependency that compiles until the
+        // search path tightens."
+        //
+        // No new package ENTERS the graph: mlx-swift is already resolved as
+        // mlx-swift-lm's own dependency. This names what we were already
+        // using, so a version bump upstream cannot silently take it away.
+        .package(url: "https://github.com/ml-explore/mlx-swift", from: "0.31.0"),
     ],
     targets: [
         .target(name: "MultiModalKit"),
@@ -89,7 +103,15 @@ let package = Package(
                 // MLX's own protocol. This is what pulls swift-syntax — a
                 // BUILD-time cost only, measured in INSTRUMENTS §25.
                 .product(name: "MLXHuggingFace", package: "mlx-swift-lm"),
+                // `MLX.Memory.cacheLimit` — a PROCESS-GLOBAL setting this
+                // module writes deliberately (D-027's policy note lives on
+                // that line). Ours to name.
+                .product(name: "MLX", package: "mlx-swift"),
                 .product(name: "Transformers", package: "swift-transformers"),
+                // `Hub` — the snapshot API the weights download goes
+                // through. Same package as Transformers, and imported
+                // directly, so it is listed directly.
+                .product(name: "Hub", package: "swift-transformers"),
             ]
         ),
         .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),

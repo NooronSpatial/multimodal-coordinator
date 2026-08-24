@@ -447,6 +447,39 @@ final class TranscribeModel {
     /// landed yet, and that is exactly when a person is looking.
     var voiceInForce: String { neuralVoice.inForce }
 
+    /// WHY TAPPING LISTEN WOULD DO NOTHING, or nil — and the ONE place that
+    /// decides it.
+    ///
+    /// There used to be two lists, and they drifted. The button disabled on
+    /// three conditions; `start()` refused on five. The two it did not know
+    /// about were a shield probe holding the audio session, and a neural
+    /// voice that is not ready — both reachable, both producing exactly the
+    /// silent dead button AC-110 forbids. Worse after the tab split: the
+    /// evidence for both now lives in OTHER tabs, so the person tapping
+    /// Listen could not even see the reason.
+    ///
+    /// So `start()` asks this, and the button asks this, and there is
+    /// nothing left to drift. It returns a SENTENCE because a disabled
+    /// control that cannot say why is only half honest.
+    var listenRefusal: String? {
+        if engineState != .ready { return "the speech model is not ready yet" }
+        if probeStatus != nil {
+            return "an echo probe is measuring — it holds the audio session"
+        }
+        if shieldStatus != nil {
+            return "the shield probe is measuring — it holds the audio session"
+        }
+        if let conflict = memoryConflict { return conflict }
+        if talkEnabled, mouth == .neural, voiceState != .ready {
+            return "the neural voice is not ready — install it in Settings"
+        }
+        // ANY mind that cannot answer, not just Apple's: the review found
+        // the Local mind able to start a session in which every turn fails
+        // at the door — a dead conversation that looks alive.
+        if talkEnabled, mind != .echo, let why = mindUnavailable { return why }
+        return nil
+    }
+
     /// The mind. Changing it restarts the pipeline, like the mouth.
     var mind: MindChoice = TranscribeModel.storedMind {
         didSet {
@@ -1433,10 +1466,7 @@ final class TranscribeModel {
         // would misreport as a turn error. Availability is read fresh —
         // the download may have finished since the last look.
         refreshMind()
-        guard engineState == .ready, !isListening, probeStatus == nil,
-              shieldStatus == nil,
-              !(talkEnabled && mouth == .neural && voiceState != .ready),
-              !(talkEnabled && mind == .apple && mindUnavailable != nil)
+        guard listenRefusal == nil, !isListening
         else { return }
         utterances.removeAll()
         droppedFrames = 0

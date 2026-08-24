@@ -196,18 +196,29 @@ struct ChatTab: View {
             // silently — so without this, tapping Listen did NOTHING, the
             // exact silent dead button AC-110 forbids. Disabled + the red
             // caption naming the reason = honest.
-            .disabled(model.probeStatus != nil
-                      // ANY mind that cannot answer, not just Apple's.
-                      // The review found the Local mind able to start a
-                      // session in which every single turn fails at the
-                      // door — a dead conversation that looks alive.
-                      || (model.talkEnabled && model.mind != .echo
-                          && model.mindUnavailable != nil)
-                      // Measured, not feared: 2239 MB + 1112 MB = 3351 MB,
-                      // and jetsam killed exactly this on the phone.
-                      || model.memoryConflict != nil)
+            // ONE AUTHORITY (the review). This list and `start()`'s guard
+            // had drifted: the button knew three conditions, `start()`
+            // refused on five. The two it did not know — a shield probe
+            // holding the audio session, and a neural voice not ready —
+            // produced exactly the silent dead button AC-110 forbids, and
+            // after the tab split the evidence for both lives elsewhere.
+            .disabled(model.listenRefusal != nil)
             .padding(.horizontal)
             .padding(.bottom, 8)
+
+            // AND IT SAYS WHY. A disabled control that cannot name its
+            // reason is the same dead end, one step politer — especially
+            // now that the shield report and the voice's state are a tab
+            // away from the person tapping this button.
+            if let refusal = model.listenRefusal {
+                Text(refusal)
+                    .font(.caption2)
+                    .foregroundStyle(.orange)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(.horizontal)
+                    .padding(.bottom, 6)
+            }
         }
     }
 
