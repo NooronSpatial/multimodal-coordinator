@@ -3041,3 +3041,61 @@ AC-146…151 are now field-run: the rows exist, each carries its conditions,
 the markdown pasted here unedited. Still owed: the EAR's ranking of the four
 (§32's rule), and one glance at the Bench's "In force" line to confirm the
 sweep gave back the levers Ryad had chosen (AC-151's field half).
+
+## 37. The self-barge conviction (4k, AC-155) — the shield was off, and a reinstall turned it off
+
+Ryad's phone, 2026-08-24: a shared conversation log and a screenshot from a
+session where the assistant kept interrupting itself.
+
+**The conviction is the log's own header:**
+
+```
+picker says: mind=Local · ear=Whisper · mouth=Neural · speaker shield=false
+Speaker: ON  ·  gate 0.021  ·  onsets while speaking: 3 · barges: 4
+```
+
+With the shield off, the reply renders on the voice's own engine and the
+canceller never sees it. This is not one of §23's four leak suspects — it is
+the arrangement the app itself had already measured (unshielded speaker:
+peak 1.0, §23) and was warning about **on screen during the failing
+session**: "On speaker the reply is not cancelled (measured peak 1.0) — it
+will interrupt itself."
+
+The rows agree with the diagnosis: `echo?` marks at peaks 0.108 and 0.032 —
+both over the 0.021 gate, neither near the 1.0 a raw leak shows, because
+Whisper heard fragments of the reply's tail. Turn 6's `BARGED IN` at a
+472 ms first word is the reply killed by its own onset.
+
+**Why the shield was off — the part worth a decision.** §29's field log
+(five days earlier) shows `speaker shield=true`: Ryad had it on. Then the
+app was deleted to re-download the voice model, the reinstall wiped
+UserDefaults to the default, and the default was `false`. Every reinstall
+re-breaks the first conversation. That is what D-069 F-1 = A fixes: this
+app's default is now ON; the library default stays off (D-060 F-4 stands).
+
+**A scope limit found while answering "what should I tap":** the echo probe
+speaks through a bare `AVSpeechSynthesizer` — it predates the shield and
+can only measure the UNSHIELDED path. It is the control, not the shielded
+measurement. The shielded question is answered by the conversation's own
+`peak · ms · echo?` rows and, on the Mac, by AC-154's instrument when it
+exists.
+
+**Still unconvicted:** §23's four suspects in the SHIELDED arrangement.
+The next shielded session that self-barges is the evidence that convicts
+them; a shielded session that does not barge closes AC-155 the good way.
+
+### Evidence that came free in the same log
+
+- **Thermal: hot** with mind + voice resident — the second such
+  observation (§22 was the first). AC-140's trace is still owed; this is
+  another reason to owe it.
+- **The mind's load, measured cleanly:** 3156 → 985 MB free in ~1.2 s,
+  footprint 219 → 2390 MB. The 2.2 GB arrives almost instantly, then
+  plateaus.
+- **The voice's load on an already-compiled install:** footprint
+  155 → 215 (peak) → 173 MB settled, dirty-free barely moved. AC-139's
+  fresh-compile peak — six models compiling at once — remains unmeasured;
+  this trace is the cheap half, and it says the EXPENSIVE half only
+  happens on first install.
+- **felt pause 2,354 ms** with the local mind at ~320 ms first word — the
+  learned cushion (§36) plus decode, visible in a live conversation.
