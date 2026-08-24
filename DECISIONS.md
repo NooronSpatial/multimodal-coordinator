@@ -2786,3 +2786,47 @@ scoped to the SPEAKER route. Receiver + no shield is not a guaranteed
 failure — the 4d gate (0.021) was earned on exactly that arrangement and
 it held a whole era of field sessions. The warning covers the measured
 danger, not every non-default state.
+
+## D-070 — a retired voice is terminal, and it takes its reply with it (Milestone 4k)
+
+**Date:** 2026-08-24 · **Decided by:** Ryad · **Ruling: F-2 = C — both
+halves**
+
+**The review found the promise unbacked.** `settleLevers` carries the
+comment *"Retire AFTER the replacement exists … and before loading the new
+one, so two pipelines are never both resident."* Nothing guaranteed it.
+`NeuralVoiceRun.beginDraining` stores `Task { [self] … }`, so a speaking run
+keeps ITSELF and its `TTSKit` alive; `NeuralVoice` keeps no reference to the
+run, so `retire()` cannot reach it; and `shutdown()` touches only `ownHost`,
+which is `nil` on the conversation path because the app calls `render(on:)`.
+So `retire()` freed nothing, and the very next `openUtterance()` on the
+retired voice would build a SECOND pipeline — 2.2 GB where 1.1 was intended,
+the jetsam kill of INSTRUMENTS §28/§29 that `retire()` exists to prevent.
+
+**Ruled C — the library guarantees it AND the app never creates the
+window.**
+
+- **The library half:** `NeuralVoice` becomes terminal. A latch is raised in
+  the same actor step as the retire, before any await; the live run is held
+  weakly and cancelled; and `loadedPipeline()` refuses both before and after
+  its await (the reentrancy law — a caller already parked in the queue
+  passed the first check before the retire landed).
+- **The app half:** when a lever changes while listening, the pipeline is
+  stopped and AWAITED before the swap. There is then no live run to cancel,
+  no coordinator holding a dead voice, and no window at all.
+
+*Rejected:* **A alone, the library cancels** — it frees the pipeline but
+leaves the old coordinator running against a voice that now throws; the turn
+in flight dies visibly and nothing else stops. *Rejected:* **B alone, the
+app stops first** — it closes this app's window while leaving the library's
+promise unenforceable by anyone else, and D-027 puts the mechanism in the
+library precisely so the next consumer inherits it.
+
+**The cost, named:** changing a lever mid-conversation now visibly stops the
+conversation for the length of the new voice's load. That is honest — it is
+what was always happening, minus the pretence that the old voice was still
+usable during it.
+
+**Required regardless of the fork, and not part of it:** `settleLevers` is
+serialized (two lever changes could overlap two full loads), and the sweep's
+honesty defects are fixed separately. Both came from the same review.
