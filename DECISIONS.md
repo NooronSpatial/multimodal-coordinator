@@ -2893,3 +2893,104 @@ a device whose canceller removes system-wide output — macOS (§39) — wants
 none of this. `BargeWindow.measured` is the number, and the app reaches for
 it. Defaulting it to 600 ms broke seventeen existing tests, and they were
 right to break.
+
+## D-072 — a lever that cannot work must say so in our words (Milestone 4l)
+
+**Date:** 2026-08-25 · **Decided by:** Ryad · **Rulings: F-1 = A
+(`--voice-model=`), F-2 = B (disabled with the reason), F-3 = A (parse into
+`VoiceLevers`), F-4 = B (no compute-units lever)**
+
+### The finding that made all four cheap to rule
+
+The 1.7B voice failed on Ryad's phone with a CoreML plan-build error, and
+this project proposed two explanations for it. Both were wrong, and both
+were produced the same way — by reading a file path and reasoning from it
+instead of measuring. The repository says `code_decoder` ships
+`W8A16-stateful` for BOTH sizes; the working 0.6B on this Mac sits in a
+`W8A16-stateful` folder; the ANE compiles a stateful code decoder on that
+phone every day.
+
+The real answer was never a puzzle. It is a comment in the dependency:
+
+> The 1.7B model requires more peak memory during CoreML compilation than
+> iOS/iPadOS devices can reliably provide, so it is restricted to macOS.
+
+`TTSModelVariant.isAvailableOnCurrentPlatform` returns false for 1.7B on
+iOS, and **this project has never read it**. That is the whole defect. Every
+fork below is about what to do with a `no` we were already being told.
+
+### F-1 — the flag's name
+
+`--model=` is taken in both executables and means *a directory of MLX
+weights for the MIND*. One string cannot name two organs.
+
+**Ruled: A — `--voice-model=0.6b|1.7b`.** It joins the vocabulary already
+in use (`--mouth=`, `--mind=`) and reuses the exact tokens the iOS app
+persists, so the terminal and the phone say the same words.
+
+*Rejected:* **B, `--tts-model=`** — "TTS" is the vendor's word; this
+project's word for that organ is "mouth", everywhere including COMMANDS.md.
+*Rejected:* **C, rename `--model=` to `--mind-model=`** — the tidiest end
+state and the only one that removes the ambiguity at its root, but it breaks
+a documented flag across four subcommands and Ryad's own muscle memory for
+a cosmetic gain.
+
+### F-2 — what the phone shows
+
+**Ruled: B — the 1.7B row stays visible, disabled, carrying our sentence,**
+not CoreML's. The screen teaches what the device cannot do and why, and it
+costs nothing to say.
+
+*Rejected:* **A, hide it on iOS** — the picker would never lie, but it would
+never teach either; a reader could not learn that a better voice exists.
+*Rejected:* **C, leave it tappable and let it refuse** — the literal D-066
+precedent, and the tension is named rather than buried. D-066 chose that
+shape for `.fused` when the refusal was EVIDENCE this project needed and did
+not have. Here the answer is already in hand, so a tap buys no information
+and spends a 1417 MB compile attempt on a phone that reaches "hot" in under
+three minutes (§40). **The precedent's shape survives; its reason does
+not**, and the reason is what decided it.
+
+### F-3 — where the parsing lives
+
+`chosenMouth` hand-parses four flags and calls `NeuralVoice(...)` directly,
+never building a `VoiceLevers`. The tested type and the shipped CLI path
+share no code — which is precisely why the model lever added in `75e1381`
+reached the phone's Bench and never reached the terminal.
+
+**Ruled: A — parsing moves into the library, producing a `VoiceLevers`.**
+No test target can import an executable, so parsing that lives in
+`AudioDemo.swift` is structurally untestable; moved, it is covered by the
+suite that already exists, and the next lever reaches every caller at once.
+
+*Rejected:* **B, a fifth hand-rolled ternary** — half an hour of work that
+preserves a duplication which has already cost this project one silently
+missing lever, and which still turns `--decoder=banana` into `.fused`
+without complaint.
+
+### F-4 — the compute-units lever, refused
+
+TTSKit exposes per-component compute units and applies them at load; this
+project passes none, so the three decoders silently run CPU+ANE. If the ANE
+plan build is the memory peak the vendor names, `.cpuOnly` might dodge it
+and let 1.7B load on iOS. It is the only route that could put a better voice
+on the product device, and it is refused anyway.
+
+**Ruled: B — do not build it**, on a number that was already measured. §47
+recorded 0.6B running at **1.06× real time** on that phone *with the ANE
+doing the work* — barely keeping up. 1.7B is 3.2× the decoder, moved off the
+ANE and onto the CPU. Real time is gone by a margin no cushion can bank, and
+a voice that cannot keep up is not a voice.
+
+*A second, smaller reason:* `ComputeOptions` is `Sendable` but not
+`Equatable`, and `VoiceLevers`' synthesised `Equatable` is load-bearing in
+the two places that decide whether the voice gets rebuilt and whether a
+bench row is trusted. The lever could not be the vendor's type; it would
+need a mirrored enum of our own, for an outcome we can already predict.
+
+**The cost, named:** 1.7B is now a macOS-only capability by OUR decision as
+well as the vendor's, and `supportsVoiceDirection` — style instructions —
+is true only for 1.7B. So this ruling closes the door on voice direction for
+the iPhone until either the device's compile headroom grows or the vendor
+ships a smaller build. AC-139's unmeasured compile peak is the one number
+that could reopen it, and it stays owed.
