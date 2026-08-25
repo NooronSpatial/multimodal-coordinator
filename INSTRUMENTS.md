@@ -3641,3 +3641,43 @@ had turned a lever and forgotten could be told what he was hearing, in one
 glance, without an instrument being run.
 
 The cure is one tap: Cushion back to `derived`.
+
+## 47. The phone's own RTF line, after D-071 — 1.06×, the lowest ever recorded here
+
+Ryad's Settings screen, 2026-08-25, running the throughput vocoder that
+D-071 made the phone's default:
+
+    decode 1.06× real time   ⚠️ TOO SLOW   ·   prefill 710 ms
+
+Every neural RTF this phone has reported, in the order measured:
+
+| when | reading | vocoder |
+|---|---|---|
+| §22, 2026-08-19 | 1.21 | latency |
+| §38's session | 1.12 | latency |
+| during the ear test | 1.33 | latency |
+| **after D-071** | **1.06** | **throughput** |
+
+**What it buys, through `PlaybackLead.deficit`'s own arithmetic** — the
+cushion a six-second reply needs:
+
+```
+    1.33×  →  1980 ms        1.12×  →   720 ms
+    1.21×  →  1259 ms        1.06×  →   360 ms
+```
+
+A cushion of 360 ms instead of ~2 s is the difference between a reply that
+waits two seconds before its first word and one that waits a third of a
+second. The adaptive lead (D-068) will find that number on its own after the
+first reply of each session — it is not typed anywhere.
+
+**Stated with its limit.** This is ONE reading, and the four above were taken
+at different thermal states, on different days, after different amounts of
+warm-up. It is consistent with §36's measurement that throughput wins both
+columns on this phone, and it is not a controlled comparison. What can be
+said flatly: 1.06 is the lowest this device has ever reported, and it is the
+first reading taken with the vocoder the phone now defaults to.
+
+**"TOO SLOW" still shows, correctly.** Anything above 1.0 means the decoder
+cannot keep ahead of the ear unaided — which is exactly why the cushion
+exists, and why zeroing it by hand produced §46's "little bit weird".
