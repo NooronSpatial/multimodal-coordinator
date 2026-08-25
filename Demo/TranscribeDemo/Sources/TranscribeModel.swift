@@ -471,7 +471,23 @@ final class TranscribeModel {
         }
         if let conflict = memoryConflict { return conflict }
         if talkEnabled, mouth == .neural, voiceState != .ready {
-            return "the neural voice is not ready — install it in Settings"
+            // THE STATE, NOT ONE SENTENCE FOR ALL OF THEM. This said
+            // "install it in Settings" for every non-ready state — including
+            // the seconds after a lever change, when the voice is LOADING
+            // and installing is precisely the wrong advice. Ryad asked what
+            // to do while it swaps, which is how the message was found.
+            switch voiceState {
+            case .modelMissing:
+                return "the neural voice is not installed — install it in Settings"
+            case .downloading:
+                return "the neural voice is downloading"
+            case .checking, .preparing:
+                return "the neural voice is loading — it will start on its own"
+            case .failed(let why):
+                return "the neural voice failed: \(why)"
+            case .ready:
+                return nil      // unreachable; the guard above excluded it
+            }
         }
         // ANY mind that cannot answer, not just Apple's: the review found
         // the Local mind able to start a session in which every turn fails
