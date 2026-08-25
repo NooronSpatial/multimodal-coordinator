@@ -243,6 +243,22 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     /// One written buffer onto the host — attach lazily at the VOICE's
     /// format, which is only knowable from the first real buffer.
     private func render(_ buffer: AVAudioPCMBuffer) {
+        // AN EMPTY BUFFER IS A SIGNAL, NOT AUDIO.
+        //
+        // `AVSpeechSynthesizer.write(toBufferCallback:)` ends every
+        // utterance by handing back a buffer of ZERO frames. Scheduling it
+        // makes AVFoundation complain, once per reply, in a log Ryad had to
+        // read through:
+        //
+        //     AVAudioBuffer.mm:281  mBuffers[0].mDataByteSize (0)
+        //                           should be non-zero
+        //
+        // Refused BEFORE the count is taken, so nothing needs balancing —
+        // this is not an early return from a scheduled buffer, it is a
+        // buffer that was never scheduled. The neural mouth has guarded
+        // this from the start (`guard !samples.isEmpty`); this path never
+        // learned it, and the asymmetry was the tell.
+        guard buffer.frameLength > 0 else { return }
         let mayRender = state.withLock { s -> Bool in
             guard !s.retired else { return false }
             s.scheduled += 1

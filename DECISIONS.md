@@ -2830,3 +2830,66 @@ usable during it.
 **Required regardless of the fork, and not part of it:** `settleLevers` is
 serialized (two lever changes could overlap two full loads), and the sweep's
 honesty defects are fixed separately. Both came from the same review.
+
+## D-071 — throughput is the phone's voice, and a barge must persist (Milestone 4k)
+
+**Date:** 2026-08-25 · **Decided by:** Ryad · **Rulings: throughput as the
+phone's default vocoder; barge window N = 600 ms**
+
+### The vocoder, and a Mac ranking that did not transfer
+
+§31 ranked `throughputOptimized` third and fourth of six on the Mac. §36
+measured it winning BOTH columns on Ryad's iPhone — ~2.4 s adapted first
+audio against ~3.1 s, ~9.4 s total against ~10.7 s — because a faster decode
+needs a smaller cushion, and the phone is the machine the cushion exists
+for. §42 then had Ryad listen: *"1 and 2 sound goods"*. **A tie on sound is
+what hands the ranking to the numbers**, and the numbers were already in.
+
+`VoiceLevers.phoneDefault` is now `stepped + throughputOptimized`. The Mac's
+default is untouched — `audio-demo` still starts `.fused` + latency, because
+a Mac has throughput to spare and never needed the trade.
+
+Temperature 0 is convicted twice and defaults nowhere: §32 called it the
+worst sound on the Mac, and §42 got *"voice hung and become weired… the
+worst one"* from the phone.
+
+### The barge window, and the axis everyone had been measuring
+
+The assistant interrupts itself. With the shield ON it still happens, and
+§42 ended with the sentence that outranked the whole ear test: *"i was not
+able to hear all the answer."*
+
+**The discriminator is DURATION, not level** (§43). Across six field
+sessions:
+
+```
+    echo?    339 – 520 ms      peak 0.022 – 0.281
+    speech   939 – 3100 ms     peak 0.084 – 0.398
+```
+
+Duration separates with a 419 ms gap; level overlaps. **D-060 F-1 is
+confirmed, not overturned** — it rejected "raise the gate while speaking"
+precisely because the two cannot be told apart by level. Every level-based
+cure, including the per-route calibrated gate this project proposed in §41,
+was aimed at the wrong axis and would have traded deafness for silence.
+
+**Ruled: 600 ms.** 80 ms clear of the longest leak ever measured, 339 ms
+clear of the shortest real utterance. *Rejected:* **700 and 900 ms** — more
+margin against a gap that is already 419 ms wide, bought with a slower
+interruption. *Rejected:* **doing nothing until the shield is improved** —
+the shield is already on and already working; this is its residue.
+
+**The cost, named:** a deliberate interruption takes 600 ms longer to stop
+the voice. Barge-in is the product's soul (D-060), so that is a real price —
+paid because a barge that fires on the assistant's own voice is worse than
+one that waits.
+
+**Not D-036 returning.** That window gated TRANSCRIPTION and clipped speech
+("Riyadh" → "Riyat"). This clips nothing: audio reaches the transcriber
+unchanged, and only the kill decision waits.
+
+**Zero by default in the library** (D-027, as D-060 F-4 did for the shield):
+a device whose canceller removes system-wide output — macOS (§39) — wants
+none of this. `BargeWindow.measured` is the number, and the app reaches for
+it. Defaulting it to 600 ms broke seventeen existing tests, and they were
+right to break.

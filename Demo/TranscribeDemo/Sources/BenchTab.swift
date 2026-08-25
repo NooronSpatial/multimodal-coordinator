@@ -186,6 +186,22 @@ struct BenchTab: View {
             Text("Voice levers").font(.headline)
 
             HStack {
+                Text("Model").font(.subheadline)
+                Spacer()
+                Picker("Model", selection: Bindable(model).levers.model) {
+                    Text("0.6B").tag(TTSModelVariant.qwen3TTS_0_6b)
+                    Text("1.7B").tag(TTSModelVariant.qwen3TTS_1_7b)
+                }
+                .labelsHidden()
+            }
+            if model.levers.model == .qwen3TTS_1_7b {
+                Text("The 1.7B has never been measured on this device. It is "
+                     + "~3× the parameters, so expect a DOWNLOAD first and a "
+                     + "slower decode — watch the RTF line in Settings.")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+
+            HStack {
                 Text("Decoder").font(.subheadline)
                 Spacer()
                 Picker("Decoder", selection: Bindable(model).levers.decoder) {

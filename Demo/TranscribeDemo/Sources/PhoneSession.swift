@@ -98,6 +98,21 @@ struct ConversationTurn: Sendable, Identifiable {
     /// success, not a fault. Without this field a cut-off reply reads
     /// like a bug in the log.
     let bargedIn: Bool
+    /// Seconds since Listen was tapped.
+    ///
+    /// AC-140 and AC-141 both ask for something "over time" — thermal
+    /// state, time to first throttle, first-word latency across twenty
+    /// minutes — and a turn carried no clock at all. Every number in the
+    /// log was a point with nothing to plot it against, so a twenty-minute
+    /// session would have produced a list, not a trace.
+    let atSeconds: Int
+    /// The thermal state WHEN THIS TURN ENDED. The status bar showed the
+    /// current one and the log carried none, so a session that heated up
+    /// left no evidence of when.
+    let thermal: String
+    /// Free dirty memory at the end of this turn, or nil when the device
+    /// will not say — never 0, which is what the ambiguous API returns.
+    let freeMB: Int?
 }
 
 /// Forwards a reply untouched while writing down what crossed.
@@ -138,10 +153,17 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
                 Int(Double(d.components.seconds) * 1000
                     + Double(d.components.attoseconds) * 1e-15)
             }
+            // The witness knows the TURN; it does not know the session.
+            // `id`, the memory peak, the elapsed seconds, the thermal state
+            // and the free headroom are all stamped by `record(_:)` on the
+            // model, which is the only place that holds a session clock and
+            // a device to ask. Placeholders here, filled there — the same
+            // arrangement `id: 0` already used.
             report(ConversationTurn(
                 id: 0, mind: mind, heard: heard, reply: text,
                 firstTokenMs: first.map(ms), totalMs: ms(total),
-                failure: failure, peakMemoryMB: nil, bargedIn: !sawTerminal))
+                failure: failure, peakMemoryMB: nil, bargedIn: !sawTerminal,
+                atSeconds: 0, thermal: "", freeMB: nil))
         }
     }
 

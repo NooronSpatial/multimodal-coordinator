@@ -14,6 +14,19 @@
 /// coordinator reacts to is merged into ONE stream and handled by ONE loop
 /// on the actor. Stage readers are group children that only forward into
 /// the merge; they never touch the actor.
+/// THE NUMBER 4k MEASURED, for an app that wants a barge window.
+///
+/// 600 ms, ruled by Ryad on this evidence (INSTRUMENTS §43): across six
+/// field sessions every leak of the assistant's own voice died under 530 ms,
+/// and every real utterance lasted over 930. This sits 80 ms clear of the
+/// longest leak and 339 ms clear of the shortest speech.
+///
+/// A named constant rather than a library default: the app that owns a
+/// device owns the policy (D-027).
+public enum BargeWindow {
+    public static let measured = Duration.milliseconds(600)
+}
+
 public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     public struct Config: Sendable {
         /// Events a listener may fall behind by before the oldest is dropped.
@@ -31,15 +44,44 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// words, and fail again — wedged forever. The number is the
         /// app's (D-027); this default is a starting point, not a law.
         public var maxContextPieces: Int
+        /// THE BARGE WINDOW (4k, D-071): while the assistant is SPEAKING, an
+        /// onset must persist this long — in audio time — before it may kill
+        /// the reply.
+        ///
+        /// It exists because the assistant hears itself. With the speaker
+        /// shield on, its own cancelled reply still crosses the gate, and
+        /// across six field sessions the leak and real speech separate
+        /// perfectly by DURATION and not at all by level (INSTRUMENTS §43):
+        ///
+        ///     echo?    339 – 520 ms      peak 0.022 – 0.281
+        ///     speech   939 – 3100 ms     peak 0.084 – 0.398
+        ///
+        /// D-060 F-1 rejected raising the gate while speaking because the
+        /// two cannot be told apart BY LEVEL. That ruling is confirmed —
+        /// this measures the other axis.
+        ///
+        /// **Not D-036's window returning.** That one gated TRANSCRIPTION
+        /// and clipped speech ("Riyadh" → "Riyat"). This clips nothing:
+        /// audio reaches the transcriber unchanged and only the KILL
+        /// decision waits.
+        ///
+        /// **Zero by default**, because a library default is a policy claim
+        /// (D-027; D-060 F-4 made the same correction for the shield). A
+        /// device whose canceller removes system-wide output — macOS (§39) —
+        /// wants none of this. `BargeWindow.measured` is the number for an
+        /// app that does.
+        public var bargeWindow: Duration
 
         public init(
             listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity,
             replyGate: Duration = .zero,
-            maxContextPieces: Int = 16
+            maxContextPieces: Int = 16,
+            bargeWindow: Duration = .zero
         ) {
             self.listenerBufferCapacity = listenerBufferCapacity
             self.replyGate = replyGate
             self.maxContextPieces = maxContextPieces
+            self.bargeWindow = bargeWindow
         }
     }
 
@@ -346,14 +388,58 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
 
     // MARK: - audio events (the barge lives here, D-031)
 
+    /// An onset seen while speaking, waiting to prove it is a person.
+    private struct PendingBarge: Sendable {
+        let utterance: Int
+        /// The audio moment at which it becomes a barge.
+        let deadline: AudioTime
+    }
+    private var pendingBarge: PendingBarge?
+
     private func handleAudio(
         _ event: AudioEvent,
         forwardingInto group: inout TaskGroup<Void>,
         via input: AsyncStream<Input>.Continuation
     ) async {
-        guard case .speechStarted(let utterance, _) = event else { return }
-        // segments, ends, drops: not turn business
-        lastOnset = utterance
+        // THE BARGE WINDOW's other two events (D-071). A candidate onset
+        // proves itself by CONTINUING, and abandons itself by stopping.
+        // THE BARGE WINDOW (D-071). A candidate proves itself by
+        // CONTINUING past its deadline, and abandons itself by stopping.
+        let utterance: Int
+        if case .audioSegment(let chunk) = event {
+            guard let candidate = pendingBarge,
+                  chunk.start >= candidate.deadline else { return }
+            // Still going at the far edge of the window — a person, not the
+            // assistant's own tail. It falls straight through to the barge
+            // below, which is the SAME code an immediate barge runs.
+            //
+            // It does not re-enter this function to do it: the first version
+            // did, and re-arming happened before the state switch was
+            // reached, so the candidate deferred itself forever and nothing
+            // was ever barged.
+            pendingBarge = nil
+            utterance = candidate.utterance
+        } else if case .speechEnded = event {
+            // It stopped before the window closed. 339–520 ms is the leak's
+            // entire measured range (§43); nothing dies.
+            pendingBarge = nil
+            return
+        } else {
+            guard case .speechStarted(let started, let at) = event else { return }
+            // segments, ends, drops: not turn business
+            lastOnset = started
+            // A candidate, not yet a barge. `.thinking` is deliberately not
+            // included — nothing is playing, so nothing can be echoing, and
+            // an onset then is a person.
+            if case .speaking = state, config.bargeWindow > .zero {
+                pendingBarge = PendingBarge(
+                    utterance: started,
+                    deadline: at.advanced(by: config.bargeWindow))
+                return
+            }
+            pendingBarge = nil
+            utterance = started
+        }
 
         switch state {
         case .idle:

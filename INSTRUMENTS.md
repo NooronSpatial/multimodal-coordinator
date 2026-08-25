@@ -3188,3 +3188,608 @@ their own (0.03–0.30 — a real morning room), so on this Mac ambient noise
 and shielded residual are the same order of magnitude, and no single Mac
 crossing can be attributed. The shape agrees with suspect 1; the phone's
 rows remain the conviction.
+
+## 40. Nineteen minutes on the phone — AC-140 and AC-141, owed since Phase 3, paid
+
+Ryad's iPhone, 2026-08-24. His real configuration — Whisper ear, 4B local
+mind, neural voice, speaker shield ON, loudspeaker — started from a cool
+device, unplugged. **58 turns, 1132 seconds, 98 utterances completed.**
+
+### AC-141 — twenty minutes: NO DECAY, and that is the headline
+
+```
+first word, across 19 minutes      median  317 ms
+  first ten turns                  median  323 ms
+  last ten turns                   median  317 ms      →  −6 ms
+  after the device went hot (51)   median  317 ms
+  min 305 · max 675 · outliers >450: 655, 675, 532, 534, 618
+```
+
+**Five outliers in fifty-seven turns, and no trend between them.** 4h measured
+38 turns and saw no decay; this is nineteen minutes and 58 turns, on a device
+that spent seventeen of them thermally `serious`, and the number does not
+move. The 655 ms is turn 1 — the first generation of the session, which
+INSTRUMENTS §25 already priced at ~1.5 s of Metal warm-up; here `prewarm()`
+had it down to 655.
+
+**Memory across the whole session: 846–890 MB free, drifting −7 MB from first
+turn to last.** MLX's peak climbed 2289 → 2364 MB over the first six turns
+and then never moved again. Nineteen minutes, three models resident, no
+leak.
+
+### AC-140 — the thermal debt, and it is worse than "recorded as observed"
+
+```
+    0 s ────────── 73 s ─────── 128 s ──────────────────── 1132 s
+    │   nominal              │  serious ..................... serious
+    cool                     └─ NEVER recovered in-session
+```
+
+The log brackets it: `nominal` at 73 s, `serious` by 128 s. Ryad's own
+timing is tighter — **warm inside 2 minutes, hot inside 3** — and the two
+agree.
+
+**Time to first throttle: about two minutes.** That number has been owed
+since Phase 3, and D-028's `ConservativeThermalPolicy` was bought to handle
+a condition nobody had measured. It is measured now, and it arrives fast.
+
+**And it never recovered.** Seventeen of the nineteen minutes ran at
+`serious`. Recovery after stopping was not captured — the log ends with the
+session, and the badge is the only witness.
+
+**The policy is not theoretical any more.** Rows reading *"Decode skipped —
+device too hot"* appear repeatedly in the utterance list from ~9:47 onward:
+the transcriber sacrificing settling decodes exactly as designed. The price
+is visible in the transcripts — fragments, re-heard phrases, and the
+repeated "Can you hear me?" turns.
+
+> **An instrument gap this session exposed.** The skipped decodes appear in
+> the on-screen utterance rows and NOT in the conversation log's turns, so a
+> shared log under-reports what thermal cost. §4's `settlingCount` exists;
+> it is not in the log either. AC-140's trace is real but incomplete, and
+> the missing half is the count of what the policy dropped.
+
+### AC-155 — the shield across nineteen minutes
+
+```
+onsets while speaking   14
+barges                  22        (they count different things, by design)
+BARGED IN turns         9 of 58
+echo? rows              one, at peak 0.022 against a 0.020 gate
+```
+
+Ryad was interrupting deliberately, as asked, so most barges are real. The
+one `echo?` row sits **two thousandths above the gate** — §23's suspect 1
+(residual over the gate) showing the same face it showed in §38 at 0.098,
+and in §37 at 0.108. Three sessions, three sightings, always just over.
+
+`barges` exceeding `onsets while speaking` is the counters failing apart as
+designed (§4): a barge also counts D-024's session-barge, where a person
+pauses and restarts before their final arrives. Nine turns carry `BARGED
+IN`; the transcripts show most are Ryad resuming mid-sentence, which is the
+product working.
+
+**Not yet a conviction.** A session where the human deliberately interrupts
+cannot separate "he barged" from "it barged itself" by counters alone. What
+it does show: nineteen minutes, shield on, and no runaway — against §37's
+unshielded session which barged four times in a handful of turns.
+
+### 40.1 What the ear said, and one number this session cannot produce
+
+**AC-155, by ear: it did not barge itself.** Ryad, immediately after the
+run: *"i think it didnt bagr itself."* Nineteen minutes, loudspeaker,
+shield ON, the neural voice — and the interruptions were his own. Against
+§37's unshielded session, which barged four times in eight turns and whose
+log convicted the configuration on its first line, this is the shield
+working in the arrangement that matters.
+
+It is a listener's verdict rather than a counter's, and that is the right
+kind of evidence here: §40's counters cannot separate a human barge from a
+self-barge, and the ear can. §32 already established that the ear decides
+things no instrument in this repo measures.
+
+**And the voice: *"i feel too the neural voice is much better."*** Recorded
+where it belongs — this is about the neural mouth versus Apple's, not about
+the four decoder configurations, which is still AC-158's question.
+
+### The recovery time is NOT measured, and will not be claimed
+
+AC-140 asks for recovery after stopping. Ten minutes after the session the
+badge still read hot — but Ryad named the confound himself before reporting
+it:
+
+> *"after i stopped now for 10 minutes it still hot but i may using the
+> phone as hotspot. during the conversation it was off."*
+
+A phone sharing its radio is doing sustained RF work, which heats it
+independently of anything this project runs. So "still hot after ten
+minutes" measures a hotspot, not a recovery curve. **Recorded as
+unmeasured.**
+
+This is §4's rule paying off a second time — that section refused to
+attribute a thermal badge because "the device context (5G, recent charging)
+is noisy". Same discipline, and this time the person holding the phone
+applied it first.
+
+**A second confound, from the screenshots, that belongs beside it:** the
+radio changed DURING the session. 5G at 9:47, airplane mode by 9:58 and
+still at 10:05. The throttle happened at ~128 s, on 5G, which is the
+realistic condition — but the second half of the thermal trace ran on a
+quieter radio than the first. It does not touch the time-to-throttle
+number; it does mean "never recovered in-session" was measured on a device
+whose radio load fell partway through, which makes the not-recovering
+more striking, not less.
+
+**What AC-140 still owes:** one recovery curve, from a run with the radio
+left alone afterwards.
+
+## 41. AC-155 convicted — suspect 1, in the open, on a cool phone
+
+Ryad's iPhone, 2026-08-24, starting the AC-158 ear test. Configuration 1
+(`stepped · latency · model default`), shield ON, loudspeaker, badge `cool`,
+950 MB free. Three sentences, and his verdict:
+
+> *"voice sound good but self barge and echo every time"*
+
+```
+turn 1   "what is the capital of Italy."     → Rome.        529 ms, clean
+         echo?  peak 0.083 · 520 ms                          ← over the gate
+turn 2   "…history of Algeria."              → BARGED IN
+         echo?  peak 0.041 · 479 ms                          ← over the gate
+turn 3   "…Can you hear me?"                 → BARGED IN
+```
+
+**The gate is 0.020. The residual reaches 0.083.** §23 predicted the
+shielded residual would sit at 0.0036–0.0766 and said suspect 1 would be
+convicted by "rows with peaks just above the gate (0.02–0.08)". That is
+exactly what these are, and this time they are not one row in a long session
+— they are every reply.
+
+**Suspect 1 is convicted: residual over the gate.** Not convergence
+(these are not clustered at reply starts — they follow the reply's tail, at
+479–520 ms), not the lazy attach (turn 1's own reply was clean and the leak
+followed it), not the 22 kHz Apple path (this is the neural mouth at 24 kHz).
+
+### Why §40 did not show this and this did
+
+§40 ran nineteen minutes and Ryad heard no self-barge; one `echo?` at 0.022.
+The difference is worth stating because it is a lead, not noise:
+
+- §40's voice had been speaking for minutes and had LEARNED its cushion
+  (D-068): the phone measures 1.33× real time, so the adaptive lead grows to
+  roughly 2 s and the reply plays smoothly from a full buffer.
+- This test's voice was FRESH — loaded seconds earlier for the comparison —
+  so its first replies ran on the decoder's constant, **396 ms**, against a
+  machine needing ~2 s. An under-cushioned player runs dry and re-fills, and
+  a reply that stutters puts more onsets past the gate than one that flows.
+
+That is a hypothesis with a mechanism, not a conclusion: it predicts the
+leak should FADE as a session goes on, which §40 is consistent with and
+which the remaining three configurations will test for free.
+
+### The fix menu, from §23, now that the suspect is named
+
+Suspect 1's cure is a per-route calibrated gate — AC-97's law that every
+device AND route earns its number from a run rather than inheriting it. The
+calibration tap already exists in Settings. **Not applied yet:** raising the
+gate to clear 0.083 also makes the ear deafer to quiet speech, and that
+trade needs its own measurement before it is spent.
+
+## 42. The ear test (AC-158) — a tie on sound, and the barge that ended the test
+
+Ryad's iPhone, 2026-08-24. Four configurations, three sentences each, shield
+ON, loudspeaker. His verdicts, verbatim:
+
+| # | config | sound | barging |
+|---|---|---|---|
+| 1 | stepped · latency · default | *"voice sound good"* | *"self barge and echo every time"* |
+| 2 | stepped · throughput · default | *"voice sound good"* | yes, plus a Chinese slip |
+| 3 | stepped · latency · **temp 0** | *"voice hung and become weired"* | yes — **"the worst one"** |
+
+> **"1 and 2 sound goods but both have selfbarge in and echo issue. i was
+> not able to hear all the answer."**
+
+**Temperature 0 is convicted twice, independently.** §32 ranked it worst on
+a Mac by ear; the phone agrees, in different words — *hung*, *weird*. Two
+machines, two sessions, same verdict. The lever stays available and nothing
+should default to it.
+
+**1 versus 2 is a TIE on sound**, which is a real answer and not a failure to
+decide: it hands the ranking to the numbers, and §36 measured
+`throughputOptimized` winning BOTH columns on this phone (~2.4 s vs ~3.1 s
+adapted first audio, ~9.4 s vs ~10.7 s total).
+
+### The confound, named rather than averaged in
+
+The phone heats in about two minutes (§40), and the configurations ran in
+sequence:
+
+```
+   config 1   thermal nominal      ← the coolest hardware
+   config 2   thermal fair
+   config 3   thermal serious      ← already hot at 7 s
+```
+
+Each configuration was judged on a hotter device than the one before.
+Config 3's verdict matches the Mac's, so its conclusion survives — but the
+comparison of 1 against 2 gave the cool phone to 1. A reversed-order re-run
+on a cool device is what would settle it, and the tie means the ruling does
+not depend on it.
+
+### THE FINDING THAT MATTERS MORE THAN THE RANKING
+
+The test could not be completed as designed, because **the assistant
+interrupts itself before a reply finishes**. Ryad could not hear whole
+answers in ANY configuration. That is not a tuning question; it is the
+product not working, and it outranks every number in this section.
+
+### The numbers that describe the leak
+
+Utterances that began while the phone was speaking (`echo?`), against
+utterances that were Ryad:
+
+```
+  leaked residual   0.083 · 0.041 · 0.086          (configs 1, 1, 3)
+  his speech        0.223 · 0.230 · 0.398 · 0.319 · 0.378 · 0.300
+  the gate          0.020
+```
+
+In THIS session they separate cleanly — the leak sits at 0.04–0.09 and his
+voice at 0.22–0.40. **But they do not separate across sessions.** §40's log
+carries utterances of his at peak 0.084 and 0.090 — inside the leak's range —
+because he was further from the phone. A single fixed threshold that clears
+this session's echo would have gone deaf in that one.
+
+## 43. The leak has a fingerprint, and it is DURATION — every level-based fix was aimed at the wrong axis
+
+Config 4 of the ear test produced two rows that ended the guessing:
+
+```
+    peak 0.043 · 480 ms · echo?
+    peak 0.043 · 480 ms · echo?
+```
+
+**Identical peak, identical duration, twice.** A person does not repeat a
+sound to the millisecond. That is a machine artifact, and it prompted
+measuring every `echo?` row this project has ever logged against every
+utterance that was really Ryad.
+
+### Ten leaks, fifteen utterances, six sessions
+
+```
+  echo?    duration  339 – 520 ms      peak 0.022 – 0.281
+  speech   duration  939 – 3100 ms     peak 0.084 – 0.398
+
+  DURATION:  no overlap — a gap of 419 ms
+  PEAK:      OVERLAPS — echo reaches 0.281, speech descends to 0.084
+```
+
+**Every leak is under 530 ms. Every real utterance is over 930 ms.** Across
+the unshielded session (§37), the shielded one (§38), the nineteen-minute
+run (§40) and all four ear-test configurations.
+
+### What this refutes, including two of my own conclusions
+
+**§41's fix menu was aimed at the wrong axis.** It proposed a per-route
+calibrated gate — AC-97's law — and D-060 F-1 had earlier rejected "raise
+the gate while speaking" on the grounds that echo and speech are
+indistinguishable *by level*. **D-060 was right, and it is still right**: the
+levels overlap, so no threshold separates them. A calibrated gate would have
+traded deafness for silence and fixed nothing.
+
+**And my reading of config 2 was wrong.** I said its `echo? peak 0.281` was
+"probably YOU" because it sat near Ryad's speech levels. By duration it is
+379 ms — an echo, not him. Judging it by loudness produced exactly the error
+this section is about.
+
+### What it suggests, and what it costs
+
+The discriminator is how long the sound PERSISTS. An echo burst dies in half
+a second; a person keeps talking. That points at D-036's onset window —
+applied ONLY to the barge decision, ONLY while the assistant is speaking:
+
+> require an onset to persist for N ms before it may kill a reply,
+> with N between 530 and 930.
+
+**Why this is not D-036 returning.** That window was ruled OFF because it
+clipped transcription onsets — "Riyadh" became "Riyat". This clips nothing:
+audio still reaches the transcriber unchanged, and only the KILL decision
+waits. The transcript is untouched.
+
+**The cost, stated before it is spent:** a deliberate interruption takes N ms
+longer to stop the voice. Barge-in is the product's soul (D-060), so this is
+a real price — but it is currently paid anyway, since a barge that fires on
+the assistant's own voice is worse than one that waits.
+
+**Not yet built.** The number N, and whether the trade is worth it, is
+Ryad's ruling — and the 419 ms gap is what a ruling can be made on.
+
+## 44. The window's first field run — three clean turns, and the console log explained
+
+Ryad's iPhone, 2026-08-25, first session after D-071's barge window shipped.
+
+### The Apple session explained yesterday's console
+
+The first log's header reads `mind=Apple · ear=Apple · mouth=Apple`. That is
+precisely the path where the zero-frame buffer was being scheduled —
+`AVSpeechSynthesizer.write(toBufferCallback:)` ends each utterance with an
+empty buffer, and `AppleWrittenSynthesisRun` passed it to the player. So the
+console full of
+
+    AVAudioBuffer.mm:281  mBuffers[0].mDataByteSize (0) should be non-zero
+
+was his, from that session, and the guard added the same day is the cure.
+Recorded because the fix was committed BEFORE this was known — with the
+commit saying so in as many words: *"NOT YET CONFIRMED AS THE SOURCE OF
+RYAD'S LOG… whether it is HIS defect depends on what he had selected."* It
+was.
+
+### The neural session — the window's first evidence
+
+```
+turn 10   Local · Neural   "What's the capital of Italy?"    542 ms   completed
+turn 11   Local · Neural   "…the history of Algeria."        319 ms   completed
+turn 12   Local · Neural   "Can you hear me?"                318 ms   completed
+```
+
+**No `BARGED IN` on any of the three.** The same three sentences, in the same
+order, produced two barges out of three turns in §42's configuration 1 —
+before the window existed.
+
+**What this is NOT yet.** Three turns is a hint, not a conviction, and the
+decisive half is missing: it shows the window blocking the leak, and says
+nothing about whether a REAL interruption still works. A window that
+silently killed barge-in would produce exactly this log. The cost D-071
+priced — 600 ms of delay — has not been paid or felt yet, because nobody
+tried to interrupt.
+
+### Two things the same log volunteered
+
+- **The Apple mind invents.** Asked about "Aljunia" it answered *"a company
+  founded in 1981 by Dr. Abdul Latif Mohammad in Malaysia"*, then relocated
+  it to Algeria in the next turn. The local 4B mind, asked the same thing,
+  gave a correct one-sentence history (turn 11). Not this project's defect,
+  and worth knowing when the mind picker is the variable under test.
+- **Apple's mouth speaks for 4589 ms** on turn 7 — a four-paragraph essay
+  read aloud. The local mind's instruction to answer in ONE short sentence
+  (D-057 F-3) is doing more for this product than any decoder setting.
+
+## 45. AC-156 met on the neural mouth — and suspect 4 convicted by the same session
+
+Ryad's verdict on the first field run of D-071's barge window, verbatim:
+
+> *"I started with the Apple mind and it's cut itself. Yes at the beginning
+> and then it become good and then I switched to the local mind and it
+> didn't cut itself and the voice that was OK and in both situation, I can
+> barge in with my voice when I speak, it's interrupted listen to me
+> immediately, so the only issue that sometime listen to itself and cut
+> itself."*
+
+### Both halves, and the second is the one that mattered
+
+```
+   self-barge, neural mouth     GONE          (three turns, none barged)
+   real interruption            "immediately"  ← the half nobody had tested
+```
+
+**The 600 ms cost was not felt.** D-071 priced this fix in delayed
+interruption and called it a real price; Ryad's word for the delay is
+*immediately*. A window that had silently killed barge-in would have
+produced the same clean log as one that worked, which is why the
+interruption test was the one that decided anything — and it passes by ear.
+
+**AC-156 is met for the neural mouth**, which is the configuration this
+project ships and the one §42's blocker was raised against: *"i was not able
+to hear all the answer."*
+
+### Suspect 4, convicted — by the asymmetry §23 named in advance
+
+§23 listed four suspects for the shielded leak and said exactly what would
+convict the fourth:
+
+> **The 22.05 kHz path.** Apple's written voices deliver ~22 kHz PCM into a
+> 48 kHz chain; resampling delay can mis-align the canceller's reference —
+> which would make Apple's mouth leak more than the neural one (24 kHz)
+> does. **Convicted by: neural clean, Apple leaky, same session.**
+
+That is this session, in Ryad's own order: Apple mouth cut itself, then the
+neural mouth did not, one phone, one shield, minutes apart. The mind changed
+with the mouth, but a mind emits no audio — only a mouth can be heard.
+
+**And a second signature rides along.** "At the beginning and then it become
+good" is suspect 2's shape — the canceller's adaptive filter converging —
+so the Apple residue may be both: a worse reference to converge on, and time
+needed to converge on it.
+
+### What remains, stated narrowly
+
+The barge window is sized for the leak this project measured, and every one
+of those measurements came from the NEURAL mouth (§43: 339–520 ms). Apple's
+leak has never been measured — if its bursts run past 600 ms, the window
+lets them through, which would explain a residue on one mouth and none on
+the other. **That is a prediction with a cheap test**: the `echo?` durations
+from an Apple-mouth session, which nobody has yet collected.
+
+## 46. The "In force" line earns its keep — a symptom explained by the display
+
+Ryad's iPhone, 2026-08-25, latest build. Three more turns, none barged — six
+clean neural turns now across two sessions. His verdict:
+
+> *"it didn't bar itself… the voice sounds OK not that bad little bit weird
+> but I can understand it."*
+
+The Bench screenshot from the same moment explains the second half without
+needing a single measurement:
+
+```
+    Cushion     0 ms                    ← chosen by hand, not "derived"
+    In force    stepped · throughput · temp model default · lead none needed
+```
+
+**A zero cushion on a machine that decodes at 1.33× real time is a player
+that runs dry.** The phone produces audio slower than the ear drinks it, so
+with nothing banked the buffer empties mid-sentence and re-fills — heard as
+exactly the "little bit weird" he describes. It is D-046's original finding,
+D-068's whole reason for existing, and §33's corrected numbers, all arriving
+as a single word from a listener.
+
+**This is AC-143 doing the job it was written for.** That criterion demanded
+the screen report the configuration read from the VOICE THAT WAS BUILT, never
+from the picker — and its test was the one that fails if the display is wired
+to the picker instead. Here the line and the symptom agree, so a person who
+had turned a lever and forgotten could be told what he was hearing, in one
+glance, without an instrument being run.
+
+The cure is one tap: Cushion back to `derived`.
+
+## 47. The phone's own RTF line, after D-071 — 1.06×, the lowest ever recorded here
+
+Ryad's Settings screen, 2026-08-25, running the throughput vocoder that
+D-071 made the phone's default:
+
+    decode 1.06× real time   ⚠️ TOO SLOW   ·   prefill 710 ms
+
+Every neural RTF this phone has reported, in the order measured:
+
+| when | reading | vocoder |
+|---|---|---|
+| §22, 2026-08-19 | 1.21 | latency |
+| §38's session | 1.12 | latency |
+| during the ear test | 1.33 | latency |
+| **after D-071** | **1.06** | **throughput** |
+
+**What it buys, through `PlaybackLead.deficit`'s own arithmetic** — the
+cushion a six-second reply needs:
+
+```
+    1.33×  →  1980 ms        1.12×  →   720 ms
+    1.21×  →  1259 ms        1.06×  →   360 ms
+```
+
+A cushion of 360 ms instead of ~2 s is the difference between a reply that
+waits two seconds before its first word and one that waits a third of a
+second. The adaptive lead (D-068) will find that number on its own after the
+first reply of each session — it is not typed anywhere.
+
+**Stated with its limit.** This is ONE reading, and the four above were taken
+at different thermal states, on different days, after different amounts of
+warm-up. It is consistent with §36's measurement that throughput wins both
+columns on this phone, and it is not a controlled comparison. What can be
+said flatly: 1.06 is the lowest this device has ever reported, and it is the
+first reading taken with the vocoder the phone now defaults to.
+
+**"TOO SLOW" still shows, correctly.** Anything above 1.0 means the decoder
+cannot keep ahead of the ear unaided — which is exactly why the cushion
+exists, and why zeroing it by hand produced §46's "little bit weird".
+
+## 48. §46 was WRONG, and the real mechanism is length — the cushion is sized for a reply that may not arrive
+
+Ryad set the cushion back to `derived` and asked the long question:
+
+> *"doesn't cut itself but the weirdness or let us say slow still there"*
+
+**Two things follow, and the first is a correction of this document.**
+
+### The correction
+
+§46 attributed the "little bit weird" voice to the hand-set `0 ms` cushion.
+That was wrong. The cushion is derived now — ~360 ms at the phone's measured
+1.06× — and the weirdness survived. A tidy explanation that a single further
+observation destroyed, recorded here rather than quietly amended, because
+§43's whole lesson was that a plausible cause is not a measured one.
+
+### The mechanism, from the code
+
+Two facts, and together they are the whole thing:
+
+1. **`PlaybackLead` banks ONCE.** `queue()` returns `true` on the call that
+   reaches the target, sets `hasStarted`, and every later call returns
+   `false` immediately. There is no re-banking. The cushion is spent at the
+   first sound and never rebuilt.
+2. **It is sized for a NOMINAL six seconds** — `deficit(forReplyOf:
+   .seconds(6), realTimeFactor:)`, in both the constant and `AdaptiveLead`.
+
+So a decoder at 1.06× falls behind by 60 ms of every second it speaks, and
+the cushion only ever covers the first six:
+
+```
+   a  3 s reply needs  180 ms  → banked 360 ms → fine
+   a  6 s reply needs  360 ms  → banked 360 ms → exactly covered
+   a 10 s reply needs  600 ms  → banked 360 ms → SHORT by 240 ms
+   a 15 s reply needs  900 ms  → banked 360 ms → SHORT by 540 ms
+```
+
+**A long reply outruns its own cushion**, the player empties near the end,
+and the gap is heard as the "weird / slow" Ryad keeps describing.
+
+### It explains the history better than anything before it
+
+- §42's configuration 3 (`temperature 0`) was *"hung and become weired… the
+  worst one"*. Temperature 0's defining measured behaviour is **rambling for
+  twice as long** (§32) — the longest replies, hence the worst starvation.
+  The decoder setting was never the culprit; the LENGTH it produced was.
+- Short answers have never drawn a complaint. "Rome." is a second of audio
+  and has always been fine, in every configuration.
+- The long Algeria answer has been weird in every configuration, at every
+  cushion, on both a zero and a derived lead.
+
+**The prediction this makes is sharp and free to test:** in one session, ask
+something short and something long. If only the long one is weird, length is
+the variable and no decoder setting will fix it.
+
+### Not yet fixed, and the honest reason
+
+The cure is not obvious. A larger nominal buys smoothness for long replies at
+the cost of a slower first word for EVERY reply, including the short ones
+that are already fine. `DecodeMargin` already carries `audioMilliseconds` —
+the actual length of each reply — so the nominal could be learned the same
+way the factor already is (D-068). That is a fork, not a patch, and the
+prediction above should be confirmed on the device before any of it is
+spent.
+
+## 49. The Apple voice is robotic BY DESIGN — Siri's voices are locked, and the code's own guess was right
+
+Ryad selected the newest voice in both Siri (Apple Intelligence) and
+Accessibility → Spoken Content, heard it working there, and asked why the
+app still sounded robotic. Checked rather than reasoned about.
+
+**Apple's answer, from WWDC20's "Create a seamless speech experience in your
+apps":**
+
+> Although Siri voices are available to be selected in Spoken Content
+> Settings, they are not available through the `AVSpeechSynthesizer` API. In
+> the case that a Siri voice is the selected voice, the system will
+> automatically configure your utterance using an appropriate fallback voice
+> that matches the same language code as the selected Siri voice.
+
+The reason given in the developer discussions is privacy: an app able to
+speak in Siri's voice could impersonate Siri. So selecting the best voice in
+Settings makes it play everywhere except in a third-party app, which
+silently receives the language-matched fallback — on `en-US`, `Samantha`
+compact. **That is precisely the field complaint, and it is the platform
+working as designed.**
+
+**The code had already guessed this, and said so honestly.** The comment
+read: *"Siri's own voices are NOT among these — as far as I know they are not
+offered to third-party apps… stated as belief rather than as a measurement,
+because nothing here has tested it."* It has now been upgraded to a citation.
+A belief that was labelled a belief cost nothing to correct.
+
+**What DOES work: a named premium voice.** Ava, Zoe, Allison and the rest are
+downloads, are not Siri, and do appear in `speechVoices()` — where this
+project's picker already sorts premium → enhanced → compact and puts them
+first.
+
+### A second finding, and this one is a hazard we happen to avoid
+
+iOS 26.0 and 26.1b4 carry an open regression (FB20271264):
+`AVSpeechSynthesisVoice(language:)` **ignores the voice selected in
+Accessibility** and returns the system default. It worked in iOS 18.6.2. The
+documented workaround is to select by IDENTIFIER instead of by language.
+
+`bestInstalledVoice` enumerates `speechVoices()` and picks an identifier, so
+it is already on the safe side of this — by accident of how it was written,
+not by knowledge of the bug. It is now commented, so that nobody
+"simplifies" it back into the broken call.
+
+Sources: Apple's WWDC20 session, and Apple Developer Forums thread 804648.

@@ -32,6 +32,19 @@ struct VoiceLeversTests {
         #expect(voice.lead > .zero, "a zero cushion on .stepped is the slow-voice bug")
     }
 
+    @Test("the model reaches the voice, and the display names it")
+    func theModelIsALever() {
+        let small = VoiceLevers(decoder: .stepped).makeVoice()
+        #expect(small.variant == .qwen3TTS_0_6b)
+        #expect(small.inForce.contains("0.6B"))
+
+        let big = VoiceLevers(model: .qwen3TTS_1_7b, decoder: .stepped).makeVoice()
+        #expect(big.variant == .qwen3TTS_1_7b)
+        #expect(big.inForce.contains("1.7B"))
+        // AC-143's rule, one lever wider: the line must report the VOICE.
+        #expect(!big.inForce.contains("0.6B"))
+    }
+
     @Test("the phone's default is not a decoder the phone cannot load")
     func phoneDefaultIsStepped() {
         #expect(VoiceLevers.phoneDefault.decoder == .stepped)

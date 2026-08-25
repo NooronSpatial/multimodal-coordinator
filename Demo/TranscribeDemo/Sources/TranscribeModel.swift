@@ -471,7 +471,23 @@ final class TranscribeModel {
         }
         if let conflict = memoryConflict { return conflict }
         if talkEnabled, mouth == .neural, voiceState != .ready {
-            return "the neural voice is not ready — install it in Settings"
+            // THE STATE, NOT ONE SENTENCE FOR ALL OF THEM. This said
+            // "install it in Settings" for every non-ready state — including
+            // the seconds after a lever change, when the voice is LOADING
+            // and installing is precisely the wrong advice. Ryad asked what
+            // to do while it swaps, which is how the message was found.
+            switch voiceState {
+            case .modelMissing:
+                return "the neural voice is not installed — install it in Settings"
+            case .downloading:
+                return "the neural voice is downloading"
+            case .checking, .preparing:
+                return "the neural voice is loading — it will start on its own"
+            case .failed(let why):
+                return "the neural voice failed: \(why)"
+            case .ready:
+                return nil      // unreachable; the guard above excluded it
+            }
         }
         // ANY mind that cannot answer, not just Apple's: the review found
         // the Local mind able to start a session in which every turn fails
@@ -572,7 +588,29 @@ final class TranscribeModel {
             // instrument answering a question it was not asked.
             peakMemoryMB: (turn.mind.hasPrefix("Local") && MLXRuntime.isAvailable)
                 ? MLXRuntime.peakMemoryBytes / 1_048_576 : nil,
-            bargedIn: turn.bargedIn))
+            bargedIn: turn.bargedIn,
+            // WHEN, and how hot, and how much room was left. Sampled at the
+            // end of the turn rather than the start: what a person felt is
+            // the state the reply finished in.
+            atSeconds: sessionStart.map {
+                Int($0.duration(to: ContinuousClock().now)
+                    .components.seconds)
+            } ?? 0,
+            thermal: thermalName,
+            freeMB: freeMegabytesNow()))
+    }
+
+    /// When Listen was tapped, so every turn can say how far into the
+    /// session it happened.
+    private var sessionStart: ContinuousClock.Instant?
+
+    private var thermalName: String {
+        switch thermal {
+        case .nominal: "nominal"
+        case .fair: "fair"
+        case .serious: "serious"
+        case .critical: "critical"
+        }
     }
 
     func clearLog() { turns.removeAll() }
@@ -622,6 +660,9 @@ final class TranscribeModel {
             out += "heard: \(turn.heard.isEmpty ? "_(nothing)_" : turn.heard)\n\n"
             out += "reply: \(turn.reply.isEmpty ? "_(no words)_" : turn.reply)\n\n"
             let first = turn.firstTokenMs.map { "\($0) ms" } ?? "never"
+            out += "at \(turn.atSeconds) s · thermal \(turn.thermal)"
+            if let free = turn.freeMB { out += " · \(free) MB free" }
+            out += "\n\n"
             out += "first word \(first) · total \(turn.totalMs) ms"
             if let mb = turn.peakMemoryMB { out += " · MLX peak \(mb) MB" }
             if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
@@ -1090,6 +1131,7 @@ final class TranscribeModel {
     // blob: a blob that fails to decode after a TTSKit rename would take
     // every setting with it, and these are the settings a person reaches
     // for when something is already wrong.
+    private static let modelKey = "dev.nooron.demo.levers.model"
     private static let decoderKey = "dev.nooron.demo.levers.decoder"
     private static let vocoderKey = "dev.nooron.demo.levers.vocoder"
     private static let temperatureKey = "dev.nooron.demo.levers.temperature"
@@ -1097,6 +1139,7 @@ final class TranscribeModel {
     static var storedLevers: VoiceLevers {
         let defaults = UserDefaults.standard
         var levers = VoiceLevers.phoneDefault
+        if defaults.string(forKey: modelKey) == "1.7b" { levers.model = .qwen3TTS_1_7b }
         if defaults.string(forKey: decoderKey) == "fused" { levers.decoder = .fused }
         if defaults.string(forKey: vocoderKey) == "throughput" {
             levers.vocoder = .throughputOptimized
@@ -1115,6 +1158,7 @@ final class TranscribeModel {
     }
     static func store(_ levers: VoiceLevers) {
         let defaults = UserDefaults.standard
+        defaults.set(levers.model == .qwen3TTS_1_7b ? "1.7b" : "0.6b", forKey: modelKey)
         defaults.set(levers.decoder == .fused ? "fused" : "stepped", forKey: decoderKey)
         defaults.set(levers.vocoder == .throughputOptimized ? "throughput" : "latency",
                      forKey: vocoderKey)
@@ -1466,6 +1510,7 @@ final class TranscribeModel {
         // would misreport as a turn error. Availability is read fresh —
         // the download may have finished since the last look.
         refreshMind()
+        sessionStart = ContinuousClock().now
         guard listenRefusal == nil, !isListening
         else { return }
         utterances.removeAll()
@@ -1568,7 +1613,13 @@ final class TranscribeModel {
                 // default stays `.zero`. This number costs felt pause 1:1 —
                 // 542 ms measured becomes about 1040 ms — and that is a
                 // trade only the person holding the phone can price.
-                config: .init(replyGate: .milliseconds(500)),
+                config: .init(
+                    replyGate: .milliseconds(500),
+                    // THE APP CHOOSES (D-027). This phone hears itself: with
+                    // the shield on, its own cancelled reply still crosses
+                    // the gate, and §43 measured the leak dying under 530 ms
+                    // while real speech runs past 930. Ryad ruled 600 ms.
+                    bargeWindow: BargeWindow.measured),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road

@@ -16,6 +16,19 @@ public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible
         self.sampleRate = sampleRate
     }
 
+    /// This moment, plus a duration, on the same stream.
+    ///
+    /// Added for the barge window (D-071), which measures how long an onset
+    /// PERSISTS — and measures it on the audio timeline rather than a wall
+    /// clock, because that is the timeline the field durations were measured
+    /// on (§43) and the one a test can drive exactly.
+    public func advanced(by duration: Duration) -> AudioTime {
+        let seconds = Double(duration.components.seconds)
+            + Double(duration.components.attoseconds) * 1e-18
+        return AudioTime(frames: frames + Int(seconds * sampleRate),
+                         sampleRate: sampleRate)
+    }
+
     /// The same moment expressed in seconds.
     public var seconds: Double { Double(frames) / sampleRate }
 
