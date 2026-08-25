@@ -105,10 +105,16 @@ struct BenchTab: View {
                         Label("Pressure probe", systemImage: "gauge.with.needle")
                     }
                     .disabled(model.isListening)
-                    // THE ONE-TAP COLD PROBE (D-074 F-1 = B): clear the
-                    // compiled-plan cache, retire the warm voice, probe a
-                    // fresh one. The manual dance is gone — and so is the
-                    // way to do it wrong.
+                }
+                // THE ONE-TAP COLD PROBE (D-074 F-1 = B): clear the
+                // compiled-plan cache, retire the warm voice, probe a
+                // fresh one. The manual dance is gone — and so is the
+                // way to do it wrong. ITS OWN ToolbarItem: a ToolbarItem
+                // renders exactly one item, and the first build of this
+                // button sat second inside the gauge's — compiled clean,
+                // rendered NEVER. Caught by looking at the simulator, not
+                // the code: four icons where five were written.
+                ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await model.runColdProbe() }
                     } label: {
