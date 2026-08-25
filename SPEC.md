@@ -3310,15 +3310,27 @@ to end — reading a path and reasoning, instead of measuring.
 
 What IS true, measured from the model repository over the network:
 
-| component | 0.6B | 1.7B | growth |
+| component (quantisation folder actually loaded) | 0.6B | 1.7B | growth |
 |---|---:|---:|---:|
-| **code decoder** | **445 MB** | **1417 MB** | **3.2×** |
-| text projector | 318 MB | 320 MB | 1.0× |
-| speech decoder | 115 MB | 229 MB | 2.0× |
-| multi-code decoder | 110 MB | 113 MB | 1.0× |
-| multi-code embedder | 63 MB | 126 MB | 2.0× |
-| code embedder | 6 MB | 13 MB | 2.0× |
-| **total download** | **1057 MB** | **2216 MB** | 2.1× |
+| **code decoder** (`W8A16-stateful`) | **445 MB** | **1417 MB** | **3.2×** |
+| text projector (`W8A16`) | 318 MB | 320 MB | 1.0× |
+| multi-code decoder (`W8A16-multifunction`) | 144 MB | 178 MB | 1.2× |
+| multi-code embedder (`W16A16`) | 63 MB | 126 MB | 2.0× |
+| speech decoder (`W8A16-multifunction`) | 115 MB | 115 MB | 1.0× |
+| code embedder (`W16A16`) | 6 MB | 13 MB | 2.0× |
+| **total, as loaded** | **1091 MB** | **2168 MB** | **2.0×** |
+
+*Correction, recorded rather than silently fixed:* the first version of this
+table filtered the `-multifunction` folders out, on the assumption that they
+were an alternative this project does not load. **That was wrong**, and it
+made three rows and the total wrong. `Qwen3VariantDefaults` loads
+`W8A16-multifunction` for the multi-code decoder AND the speech decoder;
+the decoder MODE (`.fused` / `.stepped`) selects a *function inside* that one
+asset through `MLModelConfiguration.functionName` — it does not select a
+different folder. That is the same mechanism as §31's finding: `.fused`
+needs a `functionName`, and iOS 18+ requires `functionName` to be nil unless
+the asset is an ML Program, which is why `.fused` refuses there and loads
+here. The download is therefore identical whichever decoder mode is chosen.
 
 The one component that failed is the one component that tripled.
 
