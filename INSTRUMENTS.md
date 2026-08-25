@@ -3503,3 +3503,53 @@ the assistant's own voice is worse than one that waits.
 
 **Not yet built.** The number N, and whether the trade is worth it, is
 Ryad's ruling — and the 419 ms gap is what a ruling can be made on.
+
+## 44. The window's first field run — three clean turns, and the console log explained
+
+Ryad's iPhone, 2026-08-25, first session after D-071's barge window shipped.
+
+### The Apple session explained yesterday's console
+
+The first log's header reads `mind=Apple · ear=Apple · mouth=Apple`. That is
+precisely the path where the zero-frame buffer was being scheduled —
+`AVSpeechSynthesizer.write(toBufferCallback:)` ends each utterance with an
+empty buffer, and `AppleWrittenSynthesisRun` passed it to the player. So the
+console full of
+
+    AVAudioBuffer.mm:281  mBuffers[0].mDataByteSize (0) should be non-zero
+
+was his, from that session, and the guard added the same day is the cure.
+Recorded because the fix was committed BEFORE this was known — with the
+commit saying so in as many words: *"NOT YET CONFIRMED AS THE SOURCE OF
+RYAD'S LOG… whether it is HIS defect depends on what he had selected."* It
+was.
+
+### The neural session — the window's first evidence
+
+```
+turn 10   Local · Neural   "What's the capital of Italy?"    542 ms   completed
+turn 11   Local · Neural   "…the history of Algeria."        319 ms   completed
+turn 12   Local · Neural   "Can you hear me?"                318 ms   completed
+```
+
+**No `BARGED IN` on any of the three.** The same three sentences, in the same
+order, produced two barges out of three turns in §42's configuration 1 —
+before the window existed.
+
+**What this is NOT yet.** Three turns is a hint, not a conviction, and the
+decisive half is missing: it shows the window blocking the leak, and says
+nothing about whether a REAL interruption still works. A window that
+silently killed barge-in would produce exactly this log. The cost D-071
+priced — 600 ms of delay — has not been paid or felt yet, because nobody
+tried to interrupt.
+
+### Two things the same log volunteered
+
+- **The Apple mind invents.** Asked about "Aljunia" it answered *"a company
+  founded in 1981 by Dr. Abdul Latif Mohammad in Malaysia"*, then relocated
+  it to Algeria in the next turn. The local 4B mind, asked the same thing,
+  gave a correct one-sentence history (turn 11). Not this project's defect,
+  and worth knowing when the mind picker is the variable under test.
+- **Apple's mouth speaks for 4589 ms** on turn 7 — a four-paragraph essay
+  read aloud. The local mind's instruction to answer in ONE short sentence
+  (D-057 F-3) is doing more for this product than any decoder setting.
