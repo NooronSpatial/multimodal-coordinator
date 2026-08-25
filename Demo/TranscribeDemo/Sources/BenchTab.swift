@@ -180,6 +180,13 @@ struct BenchTab: View {
     }
 
 
+    /// Whether THIS device can have the big voice — asked once, of the
+    /// vendor, which is the question the library's own guard now asks
+    /// (AC-159). False on every iPhone and iPad; true on a Mac.
+    private var largeModelAvailable: Bool {
+        TTSModelVariant.qwen3TTS_1_7b.isAvailableOnCurrentPlatform
+    }
+
     /// THE FOUR LEVERS (AC-143), and the line that says what is really on.
     private var levers: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -190,11 +197,30 @@ struct BenchTab: View {
                 Spacer()
                 Picker("Model", selection: Bindable(model).levers.model) {
                     Text("0.6B").tag(TTSModelVariant.qwen3TTS_0_6b)
-                    Text("1.7B").tag(TTSModelVariant.qwen3TTS_1_7b)
+                    // VISIBLE AND UN-TAPPABLE on a device the vendor
+                    // refuses (D-072 F-2 = B). Hiding it would teach
+                    // nobody that a bigger voice exists; leaving it
+                    // tappable — D-066's shape — would spend a failed
+                    // 1417 MB compile to learn what TTSKit already says.
+                    // That precedent's shape survives here, its reason
+                    // does not: the `.fused` refusal was evidence this
+                    // project NEEDED, and this one is already in hand.
+                    Text(largeModelAvailable ? "1.7B" : "1.7B — macOS only")
+                        .tag(TTSModelVariant.qwen3TTS_1_7b)
+                        .selectionDisabled(!largeModelAvailable)
                 }
                 .labelsHidden()
             }
-            if model.levers.model == .qwen3TTS_1_7b {
+            if !largeModelAvailable {
+                // OUR sentence, not CoreML's (AC-161). The field run got
+                // "Failed to build the model execution plan … error code:
+                // -14" — a symptom. This is the cause, from the vendor.
+                Text("1.7B needs more memory than this device allows while "
+                     + "compiling its CoreML plan — the vendor restricts it "
+                     + "to macOS. The row stays so the bigger voice is not "
+                     + "a secret.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if model.levers.model == .qwen3TTS_1_7b {
                 Text("The 1.7B has never been measured on this device. It is "
                      + "~3× the parameters, so expect a DOWNLOAD first and a "
                      + "slower decode — watch the RTF line in Settings.")
