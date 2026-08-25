@@ -3681,3 +3681,68 @@ first reading taken with the vocoder the phone now defaults to.
 **"TOO SLOW" still shows, correctly.** Anything above 1.0 means the decoder
 cannot keep ahead of the ear unaided — which is exactly why the cushion
 exists, and why zeroing it by hand produced §46's "little bit weird".
+
+## 48. §46 was WRONG, and the real mechanism is length — the cushion is sized for a reply that may not arrive
+
+Ryad set the cushion back to `derived` and asked the long question:
+
+> *"doesn't cut itself but the weirdness or let us say slow still there"*
+
+**Two things follow, and the first is a correction of this document.**
+
+### The correction
+
+§46 attributed the "little bit weird" voice to the hand-set `0 ms` cushion.
+That was wrong. The cushion is derived now — ~360 ms at the phone's measured
+1.06× — and the weirdness survived. A tidy explanation that a single further
+observation destroyed, recorded here rather than quietly amended, because
+§43's whole lesson was that a plausible cause is not a measured one.
+
+### The mechanism, from the code
+
+Two facts, and together they are the whole thing:
+
+1. **`PlaybackLead` banks ONCE.** `queue()` returns `true` on the call that
+   reaches the target, sets `hasStarted`, and every later call returns
+   `false` immediately. There is no re-banking. The cushion is spent at the
+   first sound and never rebuilt.
+2. **It is sized for a NOMINAL six seconds** — `deficit(forReplyOf:
+   .seconds(6), realTimeFactor:)`, in both the constant and `AdaptiveLead`.
+
+So a decoder at 1.06× falls behind by 60 ms of every second it speaks, and
+the cushion only ever covers the first six:
+
+```
+   a  3 s reply needs  180 ms  → banked 360 ms → fine
+   a  6 s reply needs  360 ms  → banked 360 ms → exactly covered
+   a 10 s reply needs  600 ms  → banked 360 ms → SHORT by 240 ms
+   a 15 s reply needs  900 ms  → banked 360 ms → SHORT by 540 ms
+```
+
+**A long reply outruns its own cushion**, the player empties near the end,
+and the gap is heard as the "weird / slow" Ryad keeps describing.
+
+### It explains the history better than anything before it
+
+- §42's configuration 3 (`temperature 0`) was *"hung and become weired… the
+  worst one"*. Temperature 0's defining measured behaviour is **rambling for
+  twice as long** (§32) — the longest replies, hence the worst starvation.
+  The decoder setting was never the culprit; the LENGTH it produced was.
+- Short answers have never drawn a complaint. "Rome." is a second of audio
+  and has always been fine, in every configuration.
+- The long Algeria answer has been weird in every configuration, at every
+  cushion, on both a zero and a derived lead.
+
+**The prediction this makes is sharp and free to test:** in one session, ask
+something short and something long. If only the long one is weird, length is
+the variable and no decoder setting will fix it.
+
+### Not yet fixed, and the honest reason
+
+The cure is not obvious. A larger nominal buys smoothness for long replies at
+the cost of a slower first word for EVERY reply, including the short ones
+that are already fine. `DecodeMargin` already carries `audioMilliseconds` —
+the actual length of each reply — so the nominal could be learned the same
+way the factor already is (D-068). That is a fork, not a patch, and the
+prediction above should be confirmed on the device before any of it is
+spent.
