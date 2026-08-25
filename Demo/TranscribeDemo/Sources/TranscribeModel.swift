@@ -1610,7 +1610,13 @@ final class TranscribeModel {
                 // default stays `.zero`. This number costs felt pause 1:1 —
                 // 542 ms measured becomes about 1040 ms — and that is a
                 // trade only the person holding the phone can price.
-                config: .init(replyGate: .milliseconds(500)),
+                config: .init(
+                    replyGate: .milliseconds(500),
+                    // THE APP CHOOSES (D-027). This phone hears itself: with
+                    // the shield on, its own cancelled reply still crosses
+                    // the gate, and §43 measured the leak dying under 530 ms
+                    // while real speech runs past 930. Ryad ruled 600 ms.
+                    bargeWindow: BargeWindow.measured),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road

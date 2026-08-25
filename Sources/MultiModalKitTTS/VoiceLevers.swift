@@ -28,9 +28,24 @@ public struct VoiceLevers: Sendable, Equatable {
         self.lead = lead
     }
 
-    /// What the phone can actually run. `.fused` does not load on iOS 18+,
-    /// so a phone that starts there starts broken.
-    public static let phoneDefault = VoiceLevers(decoder: .stepped)
+    /// What the phone can actually run, and what it should run.
+    ///
+    /// `.fused` does not load on iOS 18+, so a phone that starts there
+    /// starts broken — that half was never in doubt.
+    ///
+    /// `throughputOptimized` is Ryad's ruling (D-071), and it reverses the
+    /// Mac. §31 ranked throughput 3rd and 4th of six; §36 measured it
+    /// winning BOTH columns on his iPhone — ~2.4 s adapted first audio
+    /// against ~3.1 s, ~9.4 s total against ~10.7 s — because a faster
+    /// decode needs a smaller cushion, and the phone is the machine the
+    /// cushion exists for. §42 then found the two TIE by ear, which is what
+    /// hands the ranking to the numbers.
+    ///
+    /// The Mac's default is untouched: `audio-demo` still starts `.fused` +
+    /// latency, because a Mac has throughput to spare and never needed the
+    /// trade.
+    public static let phoneDefault = VoiceLevers(decoder: .stepped,
+                                                 vocoder: .throughputOptimized)
 
     public func makeVoice() -> NeuralVoice {
         NeuralVoice(lead: lead,
