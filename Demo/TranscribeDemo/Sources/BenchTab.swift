@@ -32,7 +32,8 @@ struct BenchTab: View {
                     sweep
 
                     if model.probeSilence == nil && model.probeStatus == nil
-                        && model.shieldStatus == nil && model.shieldReport.isEmpty {
+                        && model.shieldStatus == nil && model.shieldReport.isEmpty
+                        && model.probeLines.isEmpty {
                         ContentUnavailableView(
                             "Nothing measured yet",
                             systemImage: "gauge.with.needle",
@@ -40,6 +41,24 @@ struct BenchTab: View {
                                 + "Each one answers a single question and "
                                 + "writes its numbers here."))
                             .padding(.top, 40)
+                    }
+
+                    // THE PRESSURE PROBE'S LINES, on the screen that starts
+                    // it (AC-171). "i tap the gauge but i dont see nothing
+                    // happening" — the lines went only to the shareable log,
+                    // so a running probe and a dead button looked identical.
+                    if !model.probeLines.isEmpty {
+                        Divider()
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Pressure probe").font(.headline)
+                            ForEach(Array(model.probeLines.suffix(40).enumerated()),
+                                    id: \.offset) { _, line in
+                                Text(line)
+                                    .font(.system(.caption2, design: .monospaced))
+                                    .lineLimit(1).truncationMode(.tail)
+                            }
+                        }
+                        .padding(.horizontal)
                     }
 
                     // The probe's RESULTS live in the body; its trigger is in
@@ -84,6 +103,16 @@ struct BenchTab: View {
                         Task { await model.runPressureProbe() }
                     } label: {
                         Label("Pressure probe", systemImage: "gauge.with.needle")
+                    }
+                    .disabled(model.isListening)
+                    // THE ONE-TAP COLD PROBE (D-074 F-1 = B): clear the
+                    // compiled-plan cache, retire the warm voice, probe a
+                    // fresh one. The manual dance is gone — and so is the
+                    // way to do it wrong.
+                    Button {
+                        Task { await model.runColdProbe() }
+                    } label: {
+                        Label("Cold-compile probe", systemImage: "snowflake")
                     }
                     .disabled(model.isListening)
                 }
