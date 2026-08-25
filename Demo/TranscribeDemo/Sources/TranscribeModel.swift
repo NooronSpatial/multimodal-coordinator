@@ -1140,6 +1140,12 @@ final class TranscribeModel {
         let defaults = UserDefaults.standard
         var levers = VoiceLevers.phoneDefault
         if defaults.string(forKey: modelKey) == "1.7b" { levers.model = .qwen3TTS_1_7b }
+        // SANITIZED against the platform (AC-161). Ryad's phone had "1.7b"
+        // persisted from the field failure — the tap that produced the raw
+        // CoreML "-14" — so an unsanitized restore would BOOT the app into
+        // a refused voice. The picker's disabled row stops new selections;
+        // this stops the one already written down.
+        if !levers.model.isAvailableOnCurrentPlatform { levers.model = .qwen3TTS_0_6b }
         if defaults.string(forKey: decoderKey) == "fused" { levers.decoder = .fused }
         if defaults.string(forKey: vocoderKey) == "throughput" {
             levers.vocoder = .throughputOptimized

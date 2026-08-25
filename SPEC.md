@@ -3283,3 +3283,266 @@ instrument · the dangerous configuration warns · the 4j ear test completed
 and its ruling (throughput default, F-4 of §36) unblocked · numbers in
 INSTRUMENTS including disappointing ones · zero warnings · 20× stable ·
 review before merge (D-041) · teach-back survived.
+
+# Milestone 4l — the voice the phone cannot have, and the lever that lied about why
+
+## 117. What the evidence already said, inside the dependency we ship
+
+Ryad's phone refused the 1.7B voice with a raw CoreML error:
+
+    Voice unavailable: Error Domain=com.apple.CoreML Code=0 "Failed to build
+    the model execution plan using a model architecture file '…/qwen3_tts/
+    code_decoder/12hz-1.7b-customvoice/W8A16-stateful/CodeDecoder.mlmodelc'
+    with error code: -14."
+
+**Two explanations were proposed by this project and both were wrong.** They
+are recorded because the habit that produced them is the habit D-054 exists
+to end — reading a path and reasoning, instead of measuring.
+
+1. *"The 1.7B is a stateful model and the 0.6B is not."* **False.** Measured
+   against `argmaxinc/ttskit-coreml`: `code_decoder` ships `W8A16-stateful`
+   for BOTH sizes, and the working 0.6B on this Mac sits in a
+   `W8A16-stateful` folder. TTSKit's path builder confirms it — only
+   `versionDir` differs between variants; every quantisation folder name is
+   a shared constant, and the vendor's own test asserts it.
+2. *"The Neural Engine refuses stateful models."* Contradicted by the same
+   fact: a stateful code decoder loads on that phone every day.
+
+What IS true, measured from the model repository over the network:
+
+| component (quantisation folder actually loaded) | 0.6B | 1.7B | growth |
+|---|---:|---:|---:|
+| **code decoder** (`W8A16-stateful`) | **445 MB** | **1417 MB** | **3.2×** |
+| text projector (`W8A16`) | 318 MB | 320 MB | 1.0× |
+| multi-code decoder (`W8A16-multifunction`) | 144 MB | 178 MB | 1.2× |
+| multi-code embedder (`W16A16`) | 63 MB | 126 MB | 2.0× |
+| speech decoder (`W8A16-multifunction`) | 115 MB | 115 MB | 1.0× |
+| code embedder (`W16A16`) | 6 MB | 13 MB | 2.0× |
+| **total, as loaded** | **1091 MB** | **2168 MB** | **2.0×** |
+
+*Correction, recorded rather than silently fixed:* the first version of this
+table filtered the `-multifunction` folders out, on the assumption that they
+were an alternative this project does not load. **That was wrong**, and it
+made three rows and the total wrong. `Qwen3VariantDefaults` loads
+`W8A16-multifunction` for the multi-code decoder AND the speech decoder;
+the decoder MODE (`.fused` / `.stepped`) selects a *function inside* that one
+asset through `MLModelConfiguration.functionName` — it does not select a
+different folder. That is the same mechanism as §31's finding: `.fused`
+needs a `functionName`, and iOS 18+ requires `functionName` to be nil unless
+the asset is an ML Program, which is why `.fused` refuses there and loads
+here. The download is therefore identical whichever decoder mode is chosen.
+
+The one component that failed is the one component that tripled.
+
+And the answer was already written, in the library this project depends on:
+
+> The 1.7B model requires more peak memory during CoreML compilation than
+> iOS/iPadOS devices can reliably provide, so it is restricted to macOS.
+>
+> — TTSKit, `TTSModelVariant.isAvailableOnCurrentPlatform`
+
+That property returns **false** for 1.7B on iOS. **This project never reads
+it.** Nothing in `Sources/`, `Demo/` or `Tests/` mentions
+`isAvailableOnCurrentPlatform` or `defaultForCurrentPlatform`. So the Bench
+tab offered the 1.7B row, the load walked past a vendor flag that said no,
+reached CoreML, and CoreML reported a plan-build failure instead of a
+platform refusal.
+
+Storage is not involved: **141 GB free** on the device, and TranscribeDemo
+already holds 5.81 GB. Ruled out at zero cost.
+
+This is §29's lesson repeating — *the steady footprint was never the
+problem; the LOAD is* — and it is the same SHAPE as D-066's `.fused`: a
+lever this phone cannot honour. **D-066 ruled that `.fused` should be
+offered so that it refuses HONESTLY. 1.7B is offered and refuses
+DISHONESTLY**, in a vendor's error text about execution plans.
+
+## 118. A second defect, found while mapping this milestone
+
+`NeuralVoice.localTokenizerFolder` chooses the tokenizer repo by variant:
+
+    let repo = variant == .qwen3TTS_1_7b ? "Qwen3-1.7B" : "Qwen3-0.6B"
+
+TTSKit hard-wires `Qwen/Qwen3-0.6B` for **both** variants
+(`Qwen3TTSConstants.defaultTokenizerRepo`). So for 1.7B this project checks
+a folder that TTSKit will never populate: `modelInstalled()` can never
+become true, and every attempt is sent to the network — the exact failure
+the Whisper audit named and this file's own comment says it exists to
+prevent.
+
+It is undetectable today. Nothing in the suite asserts on `TTSKitConfig`
+construction — the type appears twice in the whole repo and zero times
+under `Tests/` — and the CLI's lever parsing shares no code with the tested
+`VoiceLevers`.
+
+## 119. Scope
+
+1. The library refuses an unavailable variant honestly, before CoreML, and
+   without reaching for a model (AC-159).
+2. The tokenizer folder is the one TTSKit actually asks for (AC-160).
+3. The phone stops offering what it provably cannot run, and says why
+   (AC-161, fork F-2).
+4. The Mac can select the variant from the terminal (AC-162, forks F-1/F-3).
+5. Ryad HEARS 1.7B against 0.6B on this Mac and rules whether the
+   difference is worth wanting (AC-163).
+
+## 120. Non-goals
+
+- **No compute-units lever.** Fork F-4 proposes it and recommends
+  rejection, with the number that kills it.
+- **No 1.7B on iOS.** Not by preference — by a vendor restriction this
+  project cannot disprove without AC-139's missing measurement.
+- **Not AC-139's compile peak, and not AC-140's recovery curve.** Both
+  still owed, both still not this milestone. AC-139 is named here because
+  it is the ONLY measurement that could overturn §117's conclusion.
+- **No change to the 0.6B path**, which is the shipping voice and is not
+  in question.
+- **No new CLI framework.** The hand-rolled parsing stays hand-rolled;
+  this milestone does not rewrite twelve subcommands.
+
+## 121. Acceptance criteria
+
+**AC-159 — the refusal is honest, and it happens before CoreML.** Building
+a `NeuralVoice` on a variant whose platform verdict is false must throw a
+MultiModalKit error that names the variant and the reason, without touching
+the model folder and without a network call. *The AC-145 lesson, applied:*
+the test asserts `loadAttempts == 0` — that it did **not reach for the
+models** — not merely that something threw, because "it threw" passed once
+before with the guard deleted. *Testability requirement, stated as part of
+the criterion:* CI runs on macOS, where the vendor's flag is always true, so
+a guard wired directly to that property **cannot be exercised on the only
+machine that tests it**. The platform verdict must therefore be injectable,
+defaulting to the vendor's property. A guard nobody can watch work is not a
+guard. *Control (D-054 rule 5):* with the verdict forced true, the same call
+must proceed to a load attempt — proving the guard is switched on rather
+than refusing everything.
+
+**AC-160 — the tokenizer folder is the one TTSKit asks for.** Both variants
+resolve to the same tokenizer repo, because that is what the vendor
+resolves. *Test:* assert `localTokenizerFolder` is identical for both
+variants and ends in the vendor's constant; a test that quotes the constant
+so a vendor bump that changes it fails loudly rather than silently
+re-breaking `modelInstalled()`.
+
+**AC-161 — the phone does not spend a failed 1.4 GB compile to learn what
+it already knows.** The Bench tab's Model picker reflects the platform
+verdict (exact shape from fork F-2), and the reason reaches the screen in
+this project's words, not CoreML's. *Evidence:* a screenshot from Ryad's
+phone showing the 1.7B row and its stated reason.
+
+**AC-162 — the Mac can pick the variant from the terminal.** A flag on
+`audio-demo` (name from F-1) using the tokens `0.6b` / `1.7b` that the iOS
+app already persists, so one vocabulary spans both. The stderr banner must
+name the model, which `NeuralVoice.inForce` already does and the CLI does
+not use — it duplicates the banner by hand, which is why the model lever
+that shipped in `75e1381` never reached the terminal at all. *Test:* per
+fork F-3.
+
+**AC-163 — the ear rules, and the ruling may be "not worth it".** On this
+Mac: 1.7B downloads, loads, and speaks the same sentence as 0.6B, with the
+existing stopwatch reporting first audio, total and RTF for both. Ryad
+listens and rules. *Caveat, stated now:* a Mac verdict on SOUND transfers,
+because it is the same model rendering the same waveform; a Mac verdict on
+SPEED does not (§23), and since 1.7B cannot run on his phone at all, the
+speed column is context and not a product number. *The honest possible
+outcome:* "better, and unreachable on the device that matters." That result
+is worth the download because it is the difference between a limitation we
+chose and a limitation we merely inherited — and because
+`supportsVoiceDirection` is true ONLY for 1.7B, so style instructions are a
+macOS-only capability this project has never seen.
+
+## 122. Test matrix
+
+| criterion | test | where |
+|---|---|---|
+| AC-159 refusal | unavailable variant throws our error, `loadAttempts == 0` | `Tests/…/VoiceLeversTests` or a new `PlatformRefusalTests` |
+| AC-159 control | verdict forced true → proceeds to load | same file |
+| AC-160 tokenizer | both variants → same folder, ends in vendor constant | TTS suite |
+| AC-161 phone | screenshot, field evidence | INSTRUMENTS §50 |
+| AC-162 flag | string → `VoiceLevers` mapping (F-3) | `VoiceLeversTests` |
+| AC-163 ear | Ryad's ruling + stopwatch rows | INSTRUMENTS §50 |
+
+No new live-synthesis test is required for AC-159 or AC-160: both are
+provable with no weights on disk, which is the property that makes them
+worth having on CI.
+
+## 123. The forks
+
+**F-1 — what the new flag is called.** `--model=` is already taken in BOTH
+executables and means *a directory of MLX weights for the MIND*. Overloading
+it would make one string mean two organs.
+
+- **A — `--voice-model=0.6b|1.7b`.** Joins the existing organ vocabulary
+  (`--mouth=`, `--mind=`), reuses the app's persisted tokens, collides with
+  nothing. *(Recommendation.)*
+- **B — `--tts-model=`.** Equally free of collisions, but "TTS" is the
+  vendor's word; this project's word for that organ is "mouth" everywhere
+  else, including in COMMANDS.md.
+- **C — rename the existing `--model=` to `--mind-model=` and free the
+  short name.** The tidiest end state and the only one that removes the
+  ambiguity at its root, but it breaks a documented flag in four subcommands
+  and Ryad's own muscle memory, for a cosmetic gain.
+
+**F-2 — what the phone's Bench does with the 1.7B row.**
+
+- **A — hide it on iOS.** Simplest, and the picker never lies. But it also
+  never teaches: a reader of the screen cannot learn that a better voice
+  exists and why this device cannot have it.
+- **B — show it disabled, with the reason on screen.** The row stays
+  visible and un-tappable, labelled with this project's own sentence
+  ("needs more memory than iOS allows while compiling — macOS only"). Costs
+  no failed compile, and the screen carries the finding. *(Recommendation.)*
+- **C — leave it tappable and refuse honestly when tapped.** The literal
+  D-066 precedent, and the consistent choice. *Named tension, honestly:*
+  D-066 chose that shape for `.fused` when the refusal was EVIDENCE this
+  project needed and did not yet have. Here the refusal is already known
+  from the vendor and confirmed by the field, so a tap buys nothing and
+  costs a 1.4 GB compile attempt on a phone that heats in under three
+  minutes (§40). The precedent's REASON does not carry over even though its
+  shape does.
+
+**F-3 — where the CLI's lever parsing lives.** Today `chosenMouth` parses
+four flags by hand and calls `NeuralVoice(...)` directly, never building a
+`VoiceLevers`. The tested type and the shipped path share no code — which is
+exactly why the model lever shipped and the CLI never got it.
+
+- **A — parse into `VoiceLevers` inside the library** (a
+  `VoiceLevers(arguments:)` or equivalent), and let both executables use it.
+  The parsing becomes testable — no test target can import an executable —
+  and a sixth lever reaches every caller at once. Deeper module, one
+  vocabulary. *(Recommendation.)*
+- **B — add a fifth hand-rolled ternary in `chosenMouth`.** Half an hour,
+  no new API, and it keeps a known duplication that has already cost this
+  project one silently-missing lever. Unknown values would continue to
+  fall back to the default rather than refuse (`--decoder=banana` is
+  `.fused` today).
+
+**F-4 — build a compute-units lever, or not.** TTSKit exposes per-component
+compute units and applies them at load; this project passes none, so the
+three decoders silently run CPU+ANE. If the ANE plan build is the memory
+peak the vendor names, forcing `.cpuOnly` might dodge it and let 1.7B load
+on iOS.
+
+- **A — build it and test the dodge.** The only route that could put a
+  better voice on the product device.
+- **B — do not build it.** *(Recommendation, with the number.)* Even if it
+  loads, it cannot speak: §47 measured 0.6B on the ANE at **1.06× real
+  time** on that phone — barely keeping up with the ANE doing the work.
+  1.7B is 3.2× the decoder, moved off the ANE onto the CPU. Real time is
+  gone by a wide margin, and a voice that cannot keep up is not a voice.
+  *Also:* `ComputeOptions` is `Sendable` but not `Equatable`, and
+  `VoiceLevers`' synthesised `Equatable` is load-bearing in two places that
+  decide whether the voice is rebuilt — so the lever cannot be the vendor's
+  type, and would need its own mirrored enum for a result we can predict.
+
+## 124. Definition of done (4l)
+
+Both wrong explanations recorded where the next reader will meet them ·
+the vendor's restriction read instead of walked past · the refusal proven
+to happen before any model is touched, with the control that proves the
+guard is on · the tokenizer defect fixed and pinned to the vendor's
+constant · the phone's picker no longer offering it (F-2) · the terminal
+able to ask for it · 1.7B heard on this Mac and ruled by ear, including a
+ruling of "not worth it" · numbers in INSTRUMENTS §50 including the
+disappointing ones · zero warnings · 20× stable · review before merge
+(D-041) · teach-back survived.
