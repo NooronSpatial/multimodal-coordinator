@@ -3439,3 +3439,67 @@ voice at 0.22–0.40. **But they do not separate across sessions.** §40's log
 carries utterances of his at peak 0.084 and 0.090 — inside the leak's range —
 because he was further from the phone. A single fixed threshold that clears
 this session's echo would have gone deaf in that one.
+
+## 43. The leak has a fingerprint, and it is DURATION — every level-based fix was aimed at the wrong axis
+
+Config 4 of the ear test produced two rows that ended the guessing:
+
+```
+    peak 0.043 · 480 ms · echo?
+    peak 0.043 · 480 ms · echo?
+```
+
+**Identical peak, identical duration, twice.** A person does not repeat a
+sound to the millisecond. That is a machine artifact, and it prompted
+measuring every `echo?` row this project has ever logged against every
+utterance that was really Ryad.
+
+### Ten leaks, fifteen utterances, six sessions
+
+```
+  echo?    duration  339 – 520 ms      peak 0.022 – 0.281
+  speech   duration  939 – 3100 ms     peak 0.084 – 0.398
+
+  DURATION:  no overlap — a gap of 419 ms
+  PEAK:      OVERLAPS — echo reaches 0.281, speech descends to 0.084
+```
+
+**Every leak is under 530 ms. Every real utterance is over 930 ms.** Across
+the unshielded session (§37), the shielded one (§38), the nineteen-minute
+run (§40) and all four ear-test configurations.
+
+### What this refutes, including two of my own conclusions
+
+**§41's fix menu was aimed at the wrong axis.** It proposed a per-route
+calibrated gate — AC-97's law — and D-060 F-1 had earlier rejected "raise
+the gate while speaking" on the grounds that echo and speech are
+indistinguishable *by level*. **D-060 was right, and it is still right**: the
+levels overlap, so no threshold separates them. A calibrated gate would have
+traded deafness for silence and fixed nothing.
+
+**And my reading of config 2 was wrong.** I said its `echo? peak 0.281` was
+"probably YOU" because it sat near Ryad's speech levels. By duration it is
+379 ms — an echo, not him. Judging it by loudness produced exactly the error
+this section is about.
+
+### What it suggests, and what it costs
+
+The discriminator is how long the sound PERSISTS. An echo burst dies in half
+a second; a person keeps talking. That points at D-036's onset window —
+applied ONLY to the barge decision, ONLY while the assistant is speaking:
+
+> require an onset to persist for N ms before it may kill a reply,
+> with N between 530 and 930.
+
+**Why this is not D-036 returning.** That window was ruled OFF because it
+clipped transcription onsets — "Riyadh" became "Riyat". This clips nothing:
+audio still reaches the transcriber unchanged, and only the KILL decision
+waits. The transcript is untouched.
+
+**The cost, stated before it is spent:** a deliberate interruption takes N ms
+longer to stop the voice. Barge-in is the product's soul (D-060), so this is
+a real price — but it is currently paid anyway, since a barge that fires on
+the assistant's own voice is worse than one that waits.
+
+**Not yet built.** The number N, and whether the trade is worth it, is
+Ryad's ruling — and the 419 ms gap is what a ruling can be made on.
