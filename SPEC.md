@@ -3244,6 +3244,14 @@ mouth + shield OFF + `--talk`/Listen: the app says, in one sentence, that
 the canceller cannot see this reply and self-barge is expected. (Whether
 the shield's default also flips is F-1 — a ruling, not a slipped-in line.)
 
+*Status, 2026-08-25:* **met on the neural mouth** (INSTRUMENTS §45). The
+convicted suspect was residual over the gate (§41); the cure is the barge
+window (D-071), and the field verdict is that self-barge is gone while a
+real interruption still lands *"immediately"*. A residue remains on the
+APPLE mouth, where §23's suspect 4 — the 22 kHz resampling path — is now
+convicted by the asymmetry it predicted. Apple's leak durations have never
+been measured, so whether the same window covers it is untested.
+
 **AC-158 — the ear test unblocked.** Ryad completes 4j's four-configuration
 listen without a self-barge ending it — or the residue is recorded
 honestly and the milestone says what remains.

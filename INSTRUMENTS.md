@@ -3553,3 +3553,59 @@ tried to interrupt.
 - **Apple's mouth speaks for 4589 ms** on turn 7 — a four-paragraph essay
   read aloud. The local mind's instruction to answer in ONE short sentence
   (D-057 F-3) is doing more for this product than any decoder setting.
+
+## 45. AC-156 met on the neural mouth — and suspect 4 convicted by the same session
+
+Ryad's verdict on the first field run of D-071's barge window, verbatim:
+
+> *"I started with the Apple mind and it's cut itself. Yes at the beginning
+> and then it become good and then I switched to the local mind and it
+> didn't cut itself and the voice that was OK and in both situation, I can
+> barge in with my voice when I speak, it's interrupted listen to me
+> immediately, so the only issue that sometime listen to itself and cut
+> itself."*
+
+### Both halves, and the second is the one that mattered
+
+```
+   self-barge, neural mouth     GONE          (three turns, none barged)
+   real interruption            "immediately"  ← the half nobody had tested
+```
+
+**The 600 ms cost was not felt.** D-071 priced this fix in delayed
+interruption and called it a real price; Ryad's word for the delay is
+*immediately*. A window that had silently killed barge-in would have
+produced the same clean log as one that worked, which is why the
+interruption test was the one that decided anything — and it passes by ear.
+
+**AC-156 is met for the neural mouth**, which is the configuration this
+project ships and the one §42's blocker was raised against: *"i was not able
+to hear all the answer."*
+
+### Suspect 4, convicted — by the asymmetry §23 named in advance
+
+§23 listed four suspects for the shielded leak and said exactly what would
+convict the fourth:
+
+> **The 22.05 kHz path.** Apple's written voices deliver ~22 kHz PCM into a
+> 48 kHz chain; resampling delay can mis-align the canceller's reference —
+> which would make Apple's mouth leak more than the neural one (24 kHz)
+> does. **Convicted by: neural clean, Apple leaky, same session.**
+
+That is this session, in Ryad's own order: Apple mouth cut itself, then the
+neural mouth did not, one phone, one shield, minutes apart. The mind changed
+with the mouth, but a mind emits no audio — only a mouth can be heard.
+
+**And a second signature rides along.** "At the beginning and then it become
+good" is suspect 2's shape — the canceller's adaptive filter converging —
+so the Apple residue may be both: a worse reference to converge on, and time
+needed to converge on it.
+
+### What remains, stated narrowly
+
+The barge window is sized for the leak this project measured, and every one
+of those measurements came from the NEURAL mouth (§43: 339–520 ms). Apple's
+leak has never been measured — if its bursts run past 600 ms, the window
+lets them through, which would explain a residue on one mouth and none on
+the other. **That is a prediction with a cheap test**: the `echo?` durations
+from an Apple-mouth session, which nobody has yet collected.
