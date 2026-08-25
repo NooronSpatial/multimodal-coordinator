@@ -3024,3 +3024,12 @@ change rides into 4m on this ruling.
 before the next reply grows — the price of not running dry, now paid
 proportionally instead of never. AC-168 makes Ryad hear that price and
 rule on it with his own ears before the milestone closes.
+
+### The window, ruled with the spec sign-off (same day)
+
+**F-1 = A: the mean of the last four reply lengths.** Four adapts within a
+few turns and dilutes one outlier fourfold; the mean rather than the median
+because the outlier IS the signal this fix exists for. *Rejected:* **B,
+latest length only** — whipsaws; a "yes" right before a long answer
+re-creates §48 on the very next reply. *Rejected:* **C, session maximum** —
+one long monologue would tax every later "yes" until the decoder changes.

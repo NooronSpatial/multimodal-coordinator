@@ -3637,7 +3637,7 @@ is a finding for the log, not a silent retune.
 
 ## 130. The fork
 
-**F-1 — the window.** N = 4, mean.
+**F-1 — the window.** Ruled with the sign-off: **A** (D-073).
 
 - **A — mean of the last 4 lengths.** Small enough to adapt within a few
   turns, large enough that one outlier is diluted fourfold. Mean rather
