@@ -7,6 +7,18 @@ import TTSKit
 /// them on a command line (COMMANDS.md). This is the same four, in a shape a
 /// phone can hold, persist and hand to a picker.
 public struct VoiceLevers: Sendable, Equatable {
+    /// WHICH MODEL SPEAKS. TTSKit ships two — 0.6B and 1.7B — and this
+    /// project has only ever measured the small one. The big one is
+    /// roughly three times the parameters, so it is a genuine question
+    /// with a genuine risk: this phone already decodes at 1.06× real time
+    /// with the cushion barely covering a long reply (§48), and a slower
+    /// decoder makes that worse before it makes anything better.
+    ///
+    /// A lever rather than a new default, for exactly that reason: it can
+    /// be compared by ear and by the RTF line on the same device, in the
+    /// same session, which is the only way this project has ever settled a
+    /// voice question.
+    public var model: TTSModelVariant
     public var decoder: Qwen3MultiCodeDecoderMode
     public var vocoder: Qwen3SpeechDecoderMode
     /// `nil` is the model's own — NOT zero. Temperature 0 had the fastest
@@ -18,10 +30,12 @@ public struct VoiceLevers: Sendable, Equatable {
     /// is a human overriding both, which D-068 D says is allowed and wins.
     public var lead: Duration?
 
-    public init(decoder: Qwen3MultiCodeDecoderMode = .fused,
+    public init(model: TTSModelVariant = .qwen3TTS_0_6b,
+                decoder: Qwen3MultiCodeDecoderMode = .fused,
                 vocoder: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 lead: Duration? = nil) {
+        self.model = model
         self.decoder = decoder
         self.vocoder = vocoder
         self.temperature = temperature
@@ -48,7 +62,8 @@ public struct VoiceLevers: Sendable, Equatable {
                                                  vocoder: .throughputOptimized)
 
     public func makeVoice() -> NeuralVoice {
-        NeuralVoice(lead: lead,
+        NeuralVoice(variant: model,
+                    lead: lead,
                     multiCodeDecoderMode: decoder,
                     speechDecoderMode: vocoder,
                     temperature: temperature)
@@ -72,6 +87,7 @@ extension NeuralVoice {
     /// disagreement between the decoder in use and a cushion sized for a
     /// different one, and nothing on screen said so.
     public nonisolated var inForce: String {
+        let modelName = variant == .qwen3TTS_1_7b ? "1.7B" : "0.6B"
         let decoderName = multiCodeDecoderMode == .fused ? "fused" : "stepped"
         let vocoderName = speechDecoderMode == .throughputOptimized
             ? "throughput" : "latency"
@@ -92,7 +108,7 @@ extension NeuralVoice {
         // so the number and its label could come from different instants and
         // the line could say "measured here" beside the constant's value.
         let source = lead == cushion ? "" : " · measured here"
-        return "\(decoderName) · \(vocoderName) · temp \(temperatureName)"
+        return "\(modelName) · \(decoderName) · \(vocoderName) · temp \(temperatureName)"
             + " · lead \(cushionName)\(source)"
     }
 }

@@ -1131,6 +1131,7 @@ final class TranscribeModel {
     // blob: a blob that fails to decode after a TTSKit rename would take
     // every setting with it, and these are the settings a person reaches
     // for when something is already wrong.
+    private static let modelKey = "dev.nooron.demo.levers.model"
     private static let decoderKey = "dev.nooron.demo.levers.decoder"
     private static let vocoderKey = "dev.nooron.demo.levers.vocoder"
     private static let temperatureKey = "dev.nooron.demo.levers.temperature"
@@ -1138,6 +1139,7 @@ final class TranscribeModel {
     static var storedLevers: VoiceLevers {
         let defaults = UserDefaults.standard
         var levers = VoiceLevers.phoneDefault
+        if defaults.string(forKey: modelKey) == "1.7b" { levers.model = .qwen3TTS_1_7b }
         if defaults.string(forKey: decoderKey) == "fused" { levers.decoder = .fused }
         if defaults.string(forKey: vocoderKey) == "throughput" {
             levers.vocoder = .throughputOptimized
@@ -1156,6 +1158,7 @@ final class TranscribeModel {
     }
     static func store(_ levers: VoiceLevers) {
         let defaults = UserDefaults.standard
+        defaults.set(levers.model == .qwen3TTS_1_7b ? "1.7b" : "0.6b", forKey: modelKey)
         defaults.set(levers.decoder == .fused ? "fused" : "stepped", forKey: decoderKey)
         defaults.set(levers.vocoder == .throughputOptimized ? "throughput" : "latency",
                      forKey: vocoderKey)
