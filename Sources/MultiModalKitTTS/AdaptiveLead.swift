@@ -15,9 +15,9 @@ import Synchronization
 ///
 /// The fix is not a better constant. There is no constant: the right value
 /// is a property of the machine, and the machine is already telling us. Every
-/// reply ends with a `DecodeMargin` carrying the steady factor it achieved.
-/// This type remembers the last one and sizes the next cushion from it
-/// (D-068 A).
+/// reply ends with a `DecodeMargin` carrying the steady factor it achieved
+/// and the length it actually spoke; this type learns from both (D-068 A,
+/// then D-073).
 ///
 /// ## What it deliberately does not do
 ///
@@ -68,7 +68,17 @@ public final class AdaptiveLead: Sendable {
     /// Sizes the next cushion from the reply that just finished: its OWN
     /// length joins the window, and the cushion is the deficit of the
     /// window's mean at the factor this reply just measured.
+    ///
+    /// ONLY FINISHED REPLIES TEACH. A failed decode reports a margin too,
+    /// and its numbers are honest — but its length is however far the run
+    /// got before the throw, not a reply the conversation produced. The 4m
+    /// review walked the chain: one transient failure at 2 s into a 20 s
+    /// answer would teach the window "replies are short" and under-bank the
+    /// next four cushions — the exact §48 direction. Its RTF is discarded
+    /// with it: rare failures do not justify splitting the feeding rule,
+    /// and the next finished reply refreshes the factor anyway.
     public func observe(_ margin: DecodeMargin) {
+        guard margin.completed else { return }
         let length = Duration.milliseconds(margin.audioMilliseconds)
         learned.withLock { memory in
             memory.lengths.append(length)

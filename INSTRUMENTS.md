@@ -3814,23 +3814,28 @@ not go weird. It did not. Turn 3 taught the window a long length; turn 4
 was protected by it. The mechanism worked in the field on its first
 session.
 
-**The hang on turn 4, explained by the window itself:** before turn 4 the
-window held roughly [3 s, 1 s, 10 s] — mean ≈ 4.5 s — so the cushion was
-sized for 4.5 s while the reply ran ~15 s. It ran dry ONCE near the end,
-paused briefly, and resumed clean. That is the mean lagging a
-first-of-its-kind length, which is the designed trade (D-073 F-1: the
-window adapts within a few turns; it does not predict the future).
+**The hang on turn 4 — a reconstruction, labeled as one.** The reply
+lengths were not logged; estimating them from the spoken words gives a
+window of roughly [3 s, 1 s, 10 s] before turn 4 — mean ≈ 4.7 s — so the
+cushion was sized for under 5 s while the reply ran ~15 s. "It hung a
+little" is CONSISTENT with the bank emptying once near the end and
+refilling; that is an inference from the ear report, not a measured
+event. If it is right, it is the designed trade (D-073 F-1: the window
+adapts within a few turns; it does not predict the future).
 
 **The new finding, and it inverts the old one: the START was weird, on
 SHORT replies.** Turns 1 and 2 — a greeting and one word — went weird.
-The cause is already documented in `AdaptiveLead`: the first replies of a
-session have no measurement, fall back to the decoder's CONSTANT, and
-this session ran at thermal `serious` where the constant under-cushions
-even a two-second reply. §48's failure was long replies outrunning a
-constant sized for short ones; this is the same constant failing at the
-other end — hot machine, no history, no cushion. 4m's non-goals excluded
-first-reply calibration on purpose; the field has now priced that
-exclusion.
+**Suspect, not conviction:** the first replies of a session have no
+measurement and fall back to the decoder's constant, and the session ran
+hot — an under-sized cushion is the obvious suspect. But it cannot be
+the whole story, and the review's counter-argument is recorded with it:
+turn 2 is "Rome." — well under a second of audio — and a sub-second
+reply needs LESS cushion than the 396 ms constant provides even at a
+throttled RTF, so running dry cannot explain turn 2 alone. Something
+else is wrong at session start, or the weirdness is not (only)
+starvation. The suspect list is OPEN; convicting needs turn-level margin
+logging the app does not yet write. 4m's non-goals excluded first-reply
+work on purpose; the field has now priced that exclusion either way.
 
 **The cost verdict (the felt pause):** *"as long as before and it feels
 long."* The grown cushion did NOT noticeably worsen the pause — the
@@ -3839,6 +3844,8 @@ first token ~315 ms + prefill ~710 ms + cushion) bothers him regardless.
 An older, separate question.
 
 **Also observed:** the 4B mind is terse — "explain step by step" produced
-ONE sentence. The 20-second §48 scenario did not reproduce because this
-mind, this day, never talked that long; the evidence still exercised the
-mechanism (teach on 3, protect on 4) at ~10–15 s scale.
+ONE sentence. §48's long-reply scenario (illustrated in SPEC §125 with a
+20-second reply; the real lengths were never logged) did not reproduce at
+that scale because this mind, this day, never talked that long; the
+evidence still exercised the mechanism (teach on 3, protect on 4) at an
+estimated 10–15 s.

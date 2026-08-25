@@ -45,6 +45,23 @@ public struct DecodeMargin: Sendable, Equatable {
     /// Below 1.0 the decoder runs ahead of the ear. At or above it, the
     /// player will run dry unless a lead was banked first.
     public var keepsUp: Bool { steadyRealTimeFactor < 1.0 }
+    /// Whether the run FINISHED. A failed decode reports its margin too —
+    /// the numbers are real — but its `audioMilliseconds` is however much
+    /// audio existed when the throw happened, not a reply the conversation
+    /// produced. The 4m review proved the consequence: an error-truncated
+    /// length teaching the window that "replies are short" biases the
+    /// cushion in exactly the under-banked direction 4m exists to fix.
+    public let completed: Bool
+
+    init(audioMilliseconds: Double, wallMilliseconds: Double,
+         prefillMilliseconds: Double, steadyRealTimeFactor: Double,
+         completed: Bool = true) {
+        self.audioMilliseconds = audioMilliseconds
+        self.wallMilliseconds = wallMilliseconds
+        self.prefillMilliseconds = prefillMilliseconds
+        self.steadyRealTimeFactor = steadyRealTimeFactor
+        self.completed = completed
+    }
 }
 
 public actor NeuralVoice: SpeechSynthesizing {
