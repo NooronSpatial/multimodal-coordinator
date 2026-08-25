@@ -3609,3 +3609,35 @@ leak has never been measured — if its bursts run past 600 ms, the window
 lets them through, which would explain a residue on one mouth and none on
 the other. **That is a prediction with a cheap test**: the `echo?` durations
 from an Apple-mouth session, which nobody has yet collected.
+
+## 46. The "In force" line earns its keep — a symptom explained by the display
+
+Ryad's iPhone, 2026-08-25, latest build. Three more turns, none barged — six
+clean neural turns now across two sessions. His verdict:
+
+> *"it didn't bar itself… the voice sounds OK not that bad little bit weird
+> but I can understand it."*
+
+The Bench screenshot from the same moment explains the second half without
+needing a single measurement:
+
+```
+    Cushion     0 ms                    ← chosen by hand, not "derived"
+    In force    stepped · throughput · temp model default · lead none needed
+```
+
+**A zero cushion on a machine that decodes at 1.33× real time is a player
+that runs dry.** The phone produces audio slower than the ear drinks it, so
+with nothing banked the buffer empties mid-sentence and re-fills — heard as
+exactly the "little bit weird" he describes. It is D-046's original finding,
+D-068's whole reason for existing, and §33's corrected numbers, all arriving
+as a single word from a listener.
+
+**This is AC-143 doing the job it was written for.** That criterion demanded
+the screen report the configuration read from the VOICE THAT WAS BUILT, never
+from the picker — and its test was the one that fails if the display is wired
+to the picker instead. Here the line and the symptom agree, so a person who
+had turned a lever and forgotten could be told what he was hearing, in one
+glance, without an instrument being run.
+
+The cure is one tap: Cushion back to `derived`.
