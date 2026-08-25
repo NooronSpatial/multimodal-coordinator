@@ -172,3 +172,92 @@ struct AdaptiveLeadTests {
         #expect(voice.currentLead != born)
     }
 }
+
+/// 4m, D-073: the cushion learns the CONVERSATION as well as the machine.
+///
+/// §48's conviction: the formula was right and its input was wrong — a
+/// fixed 6-second nominal while Ryad's mind answered at twenty, so at RTF
+/// 1.06 the bank held 360 ms of the 1200 the reply needed, ran dry, and
+/// the ear heard "weird … slow".
+///
+/// Two learned numbers, two estimators, on purpose: the RTF stays
+/// latest-wins (a property of the MACHINE — thermals drift, the newest
+/// sample is the truth of now); the length is the mean of the last four
+/// (a property of the CONVERSATION — one short "yes" must not shrink the
+/// cushion right before the next long answer). All values binary-exact:
+/// RTF 1.25 and whole-second lengths, so deficit arithmetic is exact.
+@Suite("the lead learns the conversation")
+struct AdaptiveLengthTests {
+
+    static func margin(length: Double, factor: Double = 1.25) -> DecodeMargin {
+        DecodeMargin(audioMilliseconds: length,
+                     wallMilliseconds: length * factor,
+                     prefillMilliseconds: 100,
+                     steadyRealTimeFactor: factor)
+    }
+
+    /// THE CONTROL that kills today's code: two margins identical except
+    /// for the reply's length must size different cushions. Today both
+    /// produce deficit(6 s, RTF) — the length has no effect at all.
+    @Test("the reply's LENGTH reaches the cushion — the assertion §48 was missing")
+    func lengthReachesTheCushion() {
+        let short = AdaptiveLead()
+        short.observe(Self.margin(length: 4000))
+        let long = AdaptiveLead()
+        long.observe(Self.margin(length: 8000))
+        #expect(short.target != long.target,
+                "identical except for length — a learner that sizes them the same is sizing from a constant")
+        #expect(short.target == .milliseconds(1000))   // 4 s × 0.25
+        #expect(long.target == .milliseconds(2000))    // 8 s × 0.25
+    }
+
+    @Test("the window is the MEAN of the last four lengths")
+    func meanOfTheWindow() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(length: 4000))
+        adaptive.observe(Self.margin(length: 8000))
+        // mean(4 s, 8 s) = 6 s → 6 s × 0.25 = 1.5 s
+        #expect(adaptive.target == .milliseconds(1500))
+    }
+
+    /// AC-165 — one long reply protects the next ones, then fades as the
+    /// window refills. Both directions asserted with exact values.
+    @Test("a long reply raises the cushion, and four short ones retire it")
+    func longReplyFades() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(length: 20000))
+        #expect(adaptive.target == .milliseconds(5000))     // 20 s alone
+        adaptive.observe(Self.margin(length: 4000))
+        adaptive.observe(Self.margin(length: 4000))
+        adaptive.observe(Self.margin(length: 4000))
+        // window [20, 4, 4, 4] → mean 8 s → 2 s: still protected
+        #expect(adaptive.target == .milliseconds(2000))
+        adaptive.observe(Self.margin(length: 4000))
+        // window [4, 4, 4, 4] → mean 4 s → 1 s: the monologue has left
+        #expect(adaptive.target == .milliseconds(1000))
+    }
+
+    /// The teach-back split, asserted: length is windowed, RTF is latest.
+    @Test("the RTF stays latest-wins while the length is windowed")
+    func twoEstimators() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(length: 8000, factor: 1.5))
+        adaptive.observe(Self.margin(length: 4000, factor: 1.25))
+        // mean(8 s, 4 s) = 6 s sized at the LATEST factor 1.25 → 1.5 s.
+        // A learner averaging the RTF too would say 6 s × 0.375 = 2.25 s.
+        #expect(adaptive.target == .milliseconds(1500))
+    }
+
+    /// AC-166 — forget forgets the lengths too, not just the size: the
+    /// next observation after a decoder change starts a fresh window.
+    @Test("forget empties the window — no lengths survive a decoder change")
+    func forgetForgetsLengths() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(length: 20000))
+        adaptive.forget()
+        #expect(adaptive.target == nil)
+        adaptive.observe(Self.margin(length: 4000))
+        // A window still holding the 20 s would say mean 12 s → 3 s.
+        #expect(adaptive.target == .milliseconds(1000))
+    }
+}
