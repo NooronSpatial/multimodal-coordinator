@@ -3374,3 +3374,68 @@ device AND route earns its number from a run rather than inheriting it. The
 calibration tap already exists in Settings. **Not applied yet:** raising the
 gate to clear 0.083 also makes the ear deafer to quiet speech, and that
 trade needs its own measurement before it is spent.
+
+## 42. The ear test (AC-158) — a tie on sound, and the barge that ended the test
+
+Ryad's iPhone, 2026-08-24. Four configurations, three sentences each, shield
+ON, loudspeaker. His verdicts, verbatim:
+
+| # | config | sound | barging |
+|---|---|---|---|
+| 1 | stepped · latency · default | *"voice sound good"* | *"self barge and echo every time"* |
+| 2 | stepped · throughput · default | *"voice sound good"* | yes, plus a Chinese slip |
+| 3 | stepped · latency · **temp 0** | *"voice hung and become weired"* | yes — **"the worst one"** |
+
+> **"1 and 2 sound goods but both have selfbarge in and echo issue. i was
+> not able to hear all the answer."**
+
+**Temperature 0 is convicted twice, independently.** §32 ranked it worst on
+a Mac by ear; the phone agrees, in different words — *hung*, *weird*. Two
+machines, two sessions, same verdict. The lever stays available and nothing
+should default to it.
+
+**1 versus 2 is a TIE on sound**, which is a real answer and not a failure to
+decide: it hands the ranking to the numbers, and §36 measured
+`throughputOptimized` winning BOTH columns on this phone (~2.4 s vs ~3.1 s
+adapted first audio, ~9.4 s vs ~10.7 s total).
+
+### The confound, named rather than averaged in
+
+The phone heats in about two minutes (§40), and the configurations ran in
+sequence:
+
+```
+   config 1   thermal nominal      ← the coolest hardware
+   config 2   thermal fair
+   config 3   thermal serious      ← already hot at 7 s
+```
+
+Each configuration was judged on a hotter device than the one before.
+Config 3's verdict matches the Mac's, so its conclusion survives — but the
+comparison of 1 against 2 gave the cool phone to 1. A reversed-order re-run
+on a cool device is what would settle it, and the tie means the ruling does
+not depend on it.
+
+### THE FINDING THAT MATTERS MORE THAN THE RANKING
+
+The test could not be completed as designed, because **the assistant
+interrupts itself before a reply finishes**. Ryad could not hear whole
+answers in ANY configuration. That is not a tuning question; it is the
+product not working, and it outranks every number in this section.
+
+### The numbers that describe the leak
+
+Utterances that began while the phone was speaking (`echo?`), against
+utterances that were Ryad:
+
+```
+  leaked residual   0.083 · 0.041 · 0.086          (configs 1, 1, 3)
+  his speech        0.223 · 0.230 · 0.398 · 0.319 · 0.378 · 0.300
+  the gate          0.020
+```
+
+In THIS session they separate cleanly — the leak sits at 0.04–0.09 and his
+voice at 0.22–0.40. **But they do not separate across sessions.** §40's log
+carries utterances of his at peak 0.084 and 0.090 — inside the leak's range —
+because he was further from the phone. A single fixed threshold that clears
+this session's echo would have gone deaf in that one.
