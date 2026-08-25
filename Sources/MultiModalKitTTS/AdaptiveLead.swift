@@ -21,13 +21,24 @@ import Synchronization
 ///
 /// ## What it deliberately does not do
 ///
-/// **It does not average, and it does not keep a maximum.** The most recent
-/// reply wins. A maximum would be safer against running dry and permanently
-/// wrong after one thermal spike — and this phone throttles
-/// (`ConservativeThermalPolicy`), so spikes are expected. Taking the latest
-/// means a bad sample costs exactly one reply and then corrects itself, in
-/// both directions. That is the trade, chosen deliberately and cheap to
-/// reverse.
+/// **The RTF is latest-wins; the LENGTH is windowed — two estimators, on
+/// purpose (D-073).** The RTF is a property of the MACHINE: it drifts with
+/// thermals, this phone throttles (`ConservativeThermalPolicy`), and the
+/// newest sample is the best estimate of now — a maximum would stay
+/// permanently wrong after one spike. The length is a property of the
+/// CONVERSATION: it swings turn to turn, so a single latest sample would
+/// whipsaw — one short "yes" would shrink the cushion right before the
+/// next long answer, re-creating §48 on every alternation. The typical
+/// length is the mean of the last four replies instead: it adapts within
+/// a few turns and dilutes one outlier fourfold. Mean rather than median
+/// because the outlier IS the signal this fix exists for — a median would
+/// discard exactly the long replies that go weird.
+///
+/// The first version of this type sized every cushion for a NOMINAL six
+/// seconds, discarding the `audioMilliseconds` its margins already
+/// carried. §48 recorded the consequence: the formula right, the input
+/// wrong, and long replies outran the bank — *"the weirdness or let us
+/// say slow still there"*.
 ///
 /// **It does not cushion the first reply of a session.** Until a reply has
 /// been decoded there is nothing measured, so `target` is `nil` and the
@@ -36,27 +47,47 @@ import Synchronization
 /// alternative and it costs a load-time delay on a device where load time
 /// already kills the app.
 public final class AdaptiveLead: Sendable {
-    /// The nominal reply this sizes for, matching the constant it replaces.
-    private let replyLength: Duration
-    private let learned = Mutex<Duration?>(nil)
-
-    public init(replyLength: Duration = .seconds(6)) {
-        self.replyLength = replyLength
+    private struct Memory {
+        /// The last few reply lengths, oldest first. Never more than
+        /// `window` of them.
+        var lengths: [Duration] = []
+        /// The cushion sized at the last observation.
+        var sized: Duration?
     }
 
-    /// `nil` until this machine has decoded something.
-    public var target: Duration? { learned.withLock { $0 } }
+    /// D-073 F-1 = A. Four: small enough to adapt within a few turns,
+    /// large enough that one outlier is diluted fourfold.
+    private static let window = 4
+    private let learned = Mutex<Memory>(Memory())
 
-    /// Sizes the next cushion from the reply that just finished.
+    public init() {}
+
+    /// `nil` until this machine has decoded something.
+    public var target: Duration? { learned.withLock { $0.sized } }
+
+    /// Sizes the next cushion from the reply that just finished: its OWN
+    /// length joins the window, and the cushion is the deficit of the
+    /// window's mean at the factor this reply just measured.
     public func observe(_ margin: DecodeMargin) {
-        let sized = PlaybackLead.deficit(forReplyOf: replyLength,
-                                         realTimeFactor: margin.steadyRealTimeFactor)
-        learned.withLock { $0 = sized }
+        let length = Duration.milliseconds(margin.audioMilliseconds)
+        learned.withLock { memory in
+            memory.lengths.append(length)
+            if memory.lengths.count > Self.window {
+                memory.lengths.removeFirst()
+            }
+            let total = memory.lengths.reduce(Duration.zero, +)
+            let typical = total / memory.lengths.count
+            memory.sized = PlaybackLead.deficit(
+                forReplyOf: typical,
+                realTimeFactor: margin.steadyRealTimeFactor)
+        }
     }
 
     /// Forgets what it learned — for a caller that changed the decoder and
-    /// knows the old measurement no longer describes anything.
+    /// knows the old measurements no longer describe anything. The WINDOW
+    /// empties too: a length spoken by a retired decoder must not size a
+    /// cushion for its replacement.
     public func forget() {
-        learned.withLock { $0 = nil }
+        learned.withLock { $0 = Memory() }
     }
 }
