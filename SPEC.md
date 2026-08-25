@@ -3555,8 +3555,9 @@ disappointing ones · zero warnings · 20× stable · review before merge
 reply's real length — `audioMilliseconds` — and throws it away, sizing
 every cushion for a nominal 6 seconds instead. §48 recorded the ear's
 verdict: with the cushion derived and correct-by-formula, long replies
-still went *"weird … slow"*, because at RTF 1.06 a 20-second reply needs
-1200 ms of cushion and the bank holds 360.
+still went *"weird … slow"*. The arithmetic (illustrative — reply lengths
+were not logged): at RTF 1.06 a 20-second reply needs 1200 ms of cushion,
+and the bank holds 360.
 
 Ryad ruled **A** (D-073): learn the reply length the same way the RTF is
 already learned — from the margins the phone is already sending.

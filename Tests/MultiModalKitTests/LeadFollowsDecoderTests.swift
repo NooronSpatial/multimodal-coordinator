@@ -261,3 +261,65 @@ struct AdaptiveLengthTests {
         #expect(adaptive.target == .milliseconds(1000))
     }
 }
+
+/// The 4m review's two confirmed findings, pinned so they stay fixed.
+@Suite("what the learner refuses to learn")
+struct LearnerRefusalTests {
+
+    /// A failed decode's truncated length must not poison the window.
+    /// The review walked the chain: NeuralVoiceRun reports a margin on the
+    /// `.failed` terminal too, with `audioMilliseconds` equal to however
+    /// much audio existed at the throw — one transient failure 2 s into a
+    /// 20 s answer would have taught "replies are short" and under-banked
+    /// the next four cushions, the exact §48 direction.
+    @Test("a failed run teaches nothing — its truncated length stays out of the window")
+    func failedRunTeachesNothing() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(DecodeMargin(audioMilliseconds: 20000,
+                                      wallMilliseconds: 25000,
+                                      prefillMilliseconds: 100,
+                                      steadyRealTimeFactor: 1.25))
+        #expect(adaptive.target == .milliseconds(5000))     // 20 s × 0.25
+        adaptive.observe(DecodeMargin(audioMilliseconds: 2000,
+                                      wallMilliseconds: 2500,
+                                      prefillMilliseconds: 100,
+                                      steadyRealTimeFactor: 1.25,
+                                      completed: false))
+        #expect(adaptive.target == .milliseconds(5000),
+                "the poisoned window would say mean 11 s → 2750 ms — under-banked for the next long reply")
+    }
+
+    @Test("a failed run before any finished one leaves the learner empty")
+    func failedRunAloneLeavesNil() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(DecodeMargin(audioMilliseconds: 2000,
+                                      wallMilliseconds: 2500,
+                                      prefillMilliseconds: 100,
+                                      steadyRealTimeFactor: 1.25,
+                                      completed: false))
+        #expect(adaptive.target == nil,
+                "a first impression formed by a failure is still a first impression")
+    }
+
+    /// The suite's blind spot the review found by running the mutant: every
+    /// multi-factor sequence was DESCENDING, so a min-ratchet estimator —
+    /// keep the best RTF ever seen — survived all 377 tests. In the field
+    /// that mutant sizes a hot phone's cushion from its coolest moment:
+    /// session starts at 1.06, throttles to 1.5, and every cushion banks
+    /// 360 ms where 3000 is needed. This is the rising half of latest-wins.
+    @Test("the cushion RISES when the machine slows — latest-wins in the harmful direction")
+    func rtfRises() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(DecodeMargin(audioMilliseconds: 6000,
+                                      wallMilliseconds: 6360,
+                                      prefillMilliseconds: 100,
+                                      steadyRealTimeFactor: 1.06))
+        adaptive.observe(DecodeMargin(audioMilliseconds: 6000,
+                                      wallMilliseconds: 9000,
+                                      prefillMilliseconds: 100,
+                                      steadyRealTimeFactor: 1.5))
+        // mean(6 s, 6 s) = 6 s at the LATEST factor 1.5 → exactly 3 s.
+        #expect(adaptive.target == .milliseconds(3000),
+                "a min-ratchet would still say 360 ms and the hot phone runs dry")
+    }
+}

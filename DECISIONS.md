@@ -2997,8 +2997,9 @@ that could reopen it, and it stays owed.
 
 ## D-073 — the cushion learns the conversation, not a constant (Milestone 4m)
 
-**Date:** 2026-08-25 · **Decided by:** Ryad · **Ruling: §48 F-1 = A — learn
-the reply length from the margins already arriving**
+**Date:** 2026-08-25 · **Decided by:** Ryad · **Ruling: the §48 fork = A —
+learn the reply length from the margins already arriving** (the WINDOW fork,
+SPEC §130 F-1, is ruled in the dated addition below)
 
 §48 convicted the input, not the formula: `deficit(length, RTF)` is right,
 and it was being fed a 6-second nominal while Ryad's mind answered at

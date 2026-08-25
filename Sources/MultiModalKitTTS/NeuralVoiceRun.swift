@@ -98,7 +98,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// row and 0.03 on another. So the two are separated: prefill is
     /// reported as itself, and STEADY RTF is measured from the first
     /// step onward, which is the only rate a decode lever can move.
-    private func reportMargin() {
+    private func reportMargin(completed: Bool) {
         // The HANDLER is not gated by the trace flag: a phone has no
         // stderr to read, and the phone is where this number is now
         // needed. The printing stays opt-in; the reporting does not.
@@ -125,7 +125,8 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
                 onMargin?(DecodeMargin(audioMilliseconds: audio,
                                        wallMilliseconds: wall,
                                        prefillMilliseconds: prefill,
-                                       steadyRealTimeFactor: steady))
+                                       steadyRealTimeFactor: steady,
+                                       completed: completed))
             }
         }
         if NeuralVoiceRun.traceSteps {
@@ -546,7 +547,13 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     }
 
     private func report(_ update: SynthesisUpdate, terminal: Bool) {
-        if terminal { reportMargin() }
+        // The margin says HOW the run ended: a failed run's numbers are
+        // real, but its truncated length must not teach the learner what
+        // replies look like (the 4m review's confirmed finding).
+        if terminal {
+            if case .failed = update { reportMargin(completed: false) }
+            else { reportMargin(completed: true) }
+        }
         out.yield(update)
         guard terminal else { return }
         // LATCH BEFORE TEARDOWN. `teardown` gives the player node back to
