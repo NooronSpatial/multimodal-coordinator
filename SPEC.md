@@ -3660,3 +3660,112 @@ throughout · the existing suite untouched (AC-167) · mutation-proved
 fails) · 20× stable · the ear's verdict and the felt-pause cost in
 INSTRUMENTS · zero warnings · review before merge (D-041) · teach-back:
 why two estimators, and why the mean and not the median.
+
+# Milestone 4n — the probe that tells the truth about itself
+
+## 132. Three defects, one field session
+
+Ryad's AC-139 session produced three findings before it produced a number:
+
+1. **A null run reported success.** The probe printed `survived: yes`
+   around four identical readings and zero sampler lines — the voice was
+   already resident in the process, the "load" returned in under one
+   sample interval, and the instrument measured nothing while saying
+   everything was fine. An instrument must be able to say whether it is
+   switched on (D-054); this one could not even say whether it RAN.
+2. **The screen looked dead while the probe worked.** "i tap the gauge
+   but i dont see nothing happening" — the probe writes its lines only
+   into the shareable log; the Bench body's "Nothing measured yet"
+   placeholder does not count `probeLines`, so a running probe and a dead
+   button are indistinguishable on screen.
+3. **The warm number is banked; the cold one is not.** The real trace
+   (once the process was truly fresh) measured a warm load: trough
+   994 MB free, transient ≈ 112 MB, settled ≈ 47 MB, under 3 seconds —
+   safe by a gigabyte. The two historical kills and the vendor's 1.7B
+   restriction are about the COLD compile, and reaching a cold state
+   today costs deleting the app and re-downloading ~3.3 GB. Ryad ruled
+   **B** (D-074): make cold reachable in-app.
+
+## 133. Scope
+
+1. A cold-compile control: CoreML's compiled-plan cache can be cleared
+   from the Bench, and the control REPORTS what it deleted (AC-169).
+2. The probe declares a null run instead of blessing it (AC-170).
+3. The probe is visible on the screen that launches it (AC-171).
+4. The cold trace itself — AC-139's owed number (AC-172).
+5. Turn-level margin logging, so the open session-start suspect (§50)
+   can be convicted or cleared from field logs (AC-173).
+
+## 134. Non-goals
+
+- **No fix for the session-start weirdness.** §50's suspect list is
+  open, and the counter-evidence (turn 2, "Rome.", sub-second) says the
+  starvation story is incomplete. AC-173 gathers the evidence; the fix
+  is a later milestone, after conviction — D-054's order.
+- **No 1.7B retry on iOS.** The cold peak may INFORM that question
+  (SPEC §120 named it the only measurement that could); acting on it is
+  not this milestone.
+- **No probe redesign.** Three surgical fixes and one logging column.
+
+## 135. Acceptance criteria
+
+**AC-169 — cold is reachable, and the control does not lie.** A Bench
+control clears the CoreML compiled-plan cache from the app's container.
+It reports, on screen and in the log, the paths it deleted and the bytes
+they held. If the cache directory is absent or empty it says exactly
+that — a claim of "cleared" over nothing would be the §30 instrument
+fault again. *Test:* seed a fake cache directory in a temporary
+container; assert the report names it and the bytes; assert the
+absent-case wording.
+
+**AC-170 — a null run is announced, not blessed.** When the probe's
+voice phase completes without a single sampler line, the trace says the
+voice was already loaded and this run measured nothing — and
+`survived: yes` is withheld for that phase. *Test:* run the probe body
+against a pre-loaded stub voice; assert the announcement line.
+
+**AC-171 — the screen shows the probe.** While the probe runs, the
+Bench body shows its lines growing (or at minimum the latest line); the
+"Nothing measured yet" placeholder counts `probeLines`. *Evidence:* a
+screenshot from the phone showing the probe mid-run or its finished
+lines on the Bench screen.
+
+**AC-172 — the cold trace.** On Ryad's phone: clear the cache (AC-169),
+cold probe, trace with sampler lines. The number AC-139 has owed since
+4i: the cold compile's trough or the last line before death. Recorded
+with configuration. *Stated risk, accepted by the ruling:* the cold
+compile beside the resident 2.2 GB mind is the recorded kill (§28);
+the probe's flush-per-line design exists precisely so a death still
+reports.
+
+**AC-173 — turns carry their margins.** Each turn row in the shared log
+gains the voice's numbers for that reply: audio length, steady RTF, the
+cushion that was in force, and whether the run completed. This is the
+logging §50 named as missing — without it, the session-start suspect
+cannot be convicted from the field.
+
+## 136. The fork
+
+**F-1 — the shape of "cold".**
+
+- **A — clear-only.** The control clears the cache and tells Ryad to
+  kill, relaunch with the Apple mouth, and tap the probe — the current
+  procedure, made possible. Cheap, but it keeps the four-step dance that
+  produced a null run on its first attempt.
+- **B — one-tap cold probe.** One control: clear the cache, retire the
+  in-process voice (the lever machinery already rebuilds voices), build
+  a fresh one, run the probe. No kill, no relaunch, no mouth dance — the
+  procedure that failed once by hand becomes a procedure that cannot be
+  done wrong. *(Recommendation.)* Honest cost: retiring mid-app briefly
+  stops any conversation, and the one-tap flow must still refuse while
+  listening.
+
+## 137. Definition of done (4n)
+
+The cache control proven against a seeded fake and honest about absence ·
+the null-run announcement tested · the probe visible on its own screen ·
+the COLD number in INSTRUMENTS with its configuration (or the honest
+death line) · margins on every turn row · zero warnings · 20× stable ·
+review before merge, with all fixes pushed BEFORE the PR is called ready
+(the lesson of #22 and #24) · teach-back — including 4m's, still owed:
+why two estimators, and why the mean and not the median.
