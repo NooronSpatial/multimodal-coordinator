@@ -3793,3 +3793,52 @@ not by knowledge of the bug. It is now commented, so that nobody
 "simplifies" it back into the broken call.
 
 Sources: Apple's WWDC20 session, and Apple Developer Forums thread 804648.
+
+## 50. AC-168's field run — the second long reply held, and the session's START is the new suspect
+
+Ryad's phone, 2026-08-25, the 4m build (the windowed learner). Picker:
+Local mind · Whisper ear · Neural mouth · shield on. **Thermal `serious`
+from second 6 of the session** — the whole run was hot. Headroom 932 MB at
+start with MLX holding 2159 MB.
+
+The four turns, and his ear's verdict on each:
+
+| turn | reply | his verdict |
+|---|---|---|
+| 1–2 | short ("Hello back!…", "Rome.") | **"weird"** |
+| 3 | first long (~10 s) | "kind of good" |
+| 4 | second long (~15 s) | **"good… didn't change to be weird or slow"**, one brief hang |
+
+**AC-168's letter is met.** The criterion was: the second long reply must
+not go weird. It did not. Turn 3 taught the window a long length; turn 4
+was protected by it. The mechanism worked in the field on its first
+session.
+
+**The hang on turn 4, explained by the window itself:** before turn 4 the
+window held roughly [3 s, 1 s, 10 s] — mean ≈ 4.5 s — so the cushion was
+sized for 4.5 s while the reply ran ~15 s. It ran dry ONCE near the end,
+paused briefly, and resumed clean. That is the mean lagging a
+first-of-its-kind length, which is the designed trade (D-073 F-1: the
+window adapts within a few turns; it does not predict the future).
+
+**The new finding, and it inverts the old one: the START was weird, on
+SHORT replies.** Turns 1 and 2 — a greeting and one word — went weird.
+The cause is already documented in `AdaptiveLead`: the first replies of a
+session have no measurement, fall back to the decoder's CONSTANT, and
+this session ran at thermal `serious` where the constant under-cushions
+even a two-second reply. §48's failure was long replies outrunning a
+constant sized for short ones; this is the same constant failing at the
+other end — hot machine, no history, no cushion. 4m's non-goals excluded
+first-reply calibration on purpose; the field has now priced that
+exclusion.
+
+**The cost verdict (the felt pause):** *"as long as before and it feels
+long."* The grown cushion did NOT noticeably worsen the pause — the
+warned-about price was not felt as new. But the baseline pause (mind
+first token ~315 ms + prefill ~710 ms + cushion) bothers him regardless.
+An older, separate question.
+
+**Also observed:** the 4B mind is terse — "explain step by step" produced
+ONE sentence. The 20-second §48 scenario did not reproduce because this
+mind, this day, never talked that long; the evidence still exercised the
+mechanism (teach on 3, protect on 4) at ~10–15 s scale.
