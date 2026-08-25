@@ -2994,3 +2994,33 @@ is true only for 1.7B. So this ruling closes the door on voice direction for
 the iPhone until either the device's compile headroom grows or the vendor
 ships a smaller build. AC-139's unmeasured compile peak is the one number
 that could reopen it, and it stays owed.
+
+## D-073 — the cushion learns the conversation, not a constant (Milestone 4m)
+
+**Date:** 2026-08-25 · **Decided by:** Ryad · **Ruling: §48 F-1 = A — learn
+the reply length from the margins already arriving**
+
+§48 convicted the input, not the formula: `deficit(length, RTF)` is right,
+and it was being fed a 6-second nominal while Ryad's mind answered at
+twenty. The ear heard exactly that — *"the weirdness or let us say slow
+still there"* — after the cushion was set back to derived, which is what
+cleared the earlier, wrong explanation (§46) and left this one.
+
+**Ruled: A.** `AdaptiveLead` learns the typical reply length from
+`DecodeMargin.audioMilliseconds` — the number it already receives and has
+been discarding — and sizes the cushion from that and the latest RTF.
+The cushion grows only when this mind, on this phone, actually talks long.
+
+*Rejected:* **B, raise the nominal to ~15 s** — one line, and it taxes
+every reply: ~900 ms banked instead of 360 at the measured RTF, over half
+a second of added silence before every answer including "yes". The felt
+pause is the product; B spends it on replies that never come.
+*Rejected:* **C, keep replies short** — offered both alone and as free
+seasoning on top of A, and not taken. Recorded as offered: it remains an
+honest app-level policy someone may still choose, but no system-prompt
+change rides into 4m on this ruling.
+
+**The cost, named:** after a stretch of long replies the felt pause
+before the next reply grows — the price of not running dry, now paid
+proportionally instead of never. AC-168 makes Ryad hear that price and
+rule on it with his own ears before the milestone closes.

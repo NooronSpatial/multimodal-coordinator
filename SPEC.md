@@ -3546,3 +3546,116 @@ able to ask for it · 1.7B heard on this Mac and ruled by ear, including a
 ruling of "not worth it" · numbers in INSTRUMENTS §50 including the
 disappointing ones · zero warnings · 20× stable · review before merge
 (D-041) · teach-back survived.
+
+# Milestone 4m — the cushion that learns the conversation
+
+## 125. The defect, in one sentence
+
+`AdaptiveLead.observe(_:)` receives a `DecodeMargin` that CARRIES the
+reply's real length — `audioMilliseconds` — and throws it away, sizing
+every cushion for a nominal 6 seconds instead. §48 recorded the ear's
+verdict: with the cushion derived and correct-by-formula, long replies
+still went *"weird … slow"*, because at RTF 1.06 a 20-second reply needs
+1200 ms of cushion and the bank holds 360.
+
+Ryad ruled **A** (D-073): learn the reply length the same way the RTF is
+already learned — from the margins the phone is already sending.
+
+## 126. The mechanism
+
+`currentLead` already resolves in the right order and does not change:
+
+    explicitLead  ??  adaptive.target  ??  decoder constant
+    (a human)         (this machine)       (until anything is measured)
+
+What changes is what `adaptive.target` is made of:
+
+    today:    deficit( 6 s nominal,          latest RTF )
+    after:    deficit( typical reply length, latest RTF )
+
+**Two learned numbers, two estimators, and the difference is the
+teach-back question.** The RTF stays latest-wins — it is a property of
+the MACHINE, drifts with thermals, and the latest sample is the best
+estimate of now. The length is a property of the CONVERSATION — it
+varies turn to turn, so a single latest sample whipsaws (one short
+"yes" would shrink the cushion right before the next long answer). The
+typical length is estimated over a small window instead.
+
+## 127. Scope
+
+1. `AdaptiveLead` keeps the last N observed reply lengths and sizes the
+   cushion from their mean and the latest RTF (AC-164, AC-165, F-1).
+2. `forget()` forgets the lengths too (AC-166).
+3. Everything above the learner is untouched: the human override, the
+   first-reply fallback, the `inForce` labelling (AC-167).
+4. The ear closes it on the phone (AC-168).
+
+## 128. Non-goals
+
+- **No C.** "Keep replies short" was offered and not taken (D-073); no
+  system-prompt change rides along.
+- **No mid-reply re-banking** (pausing once when the buffer runs low).
+  A real idea, a different mechanism, unruled — named so it is not
+  invented ad hoc inside this milestone.
+- **No cap on the learned length.** A cap is another constant to defend;
+  the window's mean already dilutes an outlier fourfold. The honest
+  consequence is stated in AC-168 instead.
+- **No first-reply calibration.** Unchanged from D-068: the first reply
+  of a session still falls back to the decoder's constant.
+
+## 129. Acceptance criteria
+
+**AC-164 — the length reaches the cushion.** Feed the learner margins
+with DIFFERENT lengths and assert the target equals
+`deficit(mean of the window, latest RTF)` — binary-exact inputs (lengths
+of 4 s and 8 s, RTF 1.25) so the arithmetic is exact, per the float law.
+*Control:* two margins identical except for `audioMilliseconds` must
+produce different targets — the assertion that kills today's code, where
+length has no effect at all. This is the red-first test.
+
+**AC-165 — a long reply protects the next one, then fades.** After one
+long margin among short ones the target rises; after the window fills
+with short margins again it falls back. Asserts both directions with
+exact expected values.
+
+**AC-166 — forget forgets everything.** After `forget()`, the target is
+nil and the window is empty — the next observation starts fresh, not
+mixed with lengths from a decoder that no longer exists.
+
+**AC-167 — nothing above the learner moved.** The existing lever suite
+passes untouched: a typed lead still wins, the first reply still uses
+the decoder constant, `inForce` still labels a learned cushion
+"measured here". Any edit to an existing test to make this pass is a
+finding, not a fix.
+
+**AC-168 — the ear closes it.** On Ryad's phone, the configuration he
+uses: a deliberately long answer, then another. The second must not go
+weird. *The cost, stated before he listens:* after long replies the felt
+pause before the NEXT reply grows — that is the cushion doing its job,
+and the honest price of not running dry. If the price feels wrong, that
+is a finding for the log, not a silent retune.
+
+## 130. The fork
+
+**F-1 — the window.** N = 4, mean.
+
+- **A — mean of the last 4 lengths.** Small enough to adapt within a few
+  turns, large enough that one outlier is diluted fourfold. Mean rather
+  than median because the outlier IS the signal this fix exists for — a
+  median would discard exactly the long replies that go weird.
+  *(Recommendation.)*
+- **B — latest length only.** Consistent with the RTF's philosophy, one
+  fewer decision — but it whipsaws: a short reply right before a long
+  one re-creates §48's failure on the reply after every "yes".
+- **C — session maximum.** Never runs dry twice, but one 60-second
+  monologue taxes every later "yes" with a multi-second pause until the
+  decoder changes. The wrong default for a conversation.
+
+## 131. Definition of done (4m)
+
+Red first on the control that kills today's code · exact arithmetic
+throughout · the existing suite untouched (AC-167) · mutation-proved
+(length ignored → AC-164's control fails; window never fades → AC-165
+fails) · 20× stable · the ear's verdict and the felt-pause cost in
+INSTRUMENTS · zero warnings · review before merge (D-041) · teach-back:
+why two estimators, and why the mean and not the median.
