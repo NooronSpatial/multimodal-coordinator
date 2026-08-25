@@ -3322,3 +3322,55 @@ more striking, not less.
 
 **What AC-140 still owes:** one recovery curve, from a run with the radio
 left alone afterwards.
+
+## 41. AC-155 convicted — suspect 1, in the open, on a cool phone
+
+Ryad's iPhone, 2026-08-24, starting the AC-158 ear test. Configuration 1
+(`stepped · latency · model default`), shield ON, loudspeaker, badge `cool`,
+950 MB free. Three sentences, and his verdict:
+
+> *"voice sound good but self barge and echo every time"*
+
+```
+turn 1   "what is the capital of Italy."     → Rome.        529 ms, clean
+         echo?  peak 0.083 · 520 ms                          ← over the gate
+turn 2   "…history of Algeria."              → BARGED IN
+         echo?  peak 0.041 · 479 ms                          ← over the gate
+turn 3   "…Can you hear me?"                 → BARGED IN
+```
+
+**The gate is 0.020. The residual reaches 0.083.** §23 predicted the
+shielded residual would sit at 0.0036–0.0766 and said suspect 1 would be
+convicted by "rows with peaks just above the gate (0.02–0.08)". That is
+exactly what these are, and this time they are not one row in a long session
+— they are every reply.
+
+**Suspect 1 is convicted: residual over the gate.** Not convergence
+(these are not clustered at reply starts — they follow the reply's tail, at
+479–520 ms), not the lazy attach (turn 1's own reply was clean and the leak
+followed it), not the 22 kHz Apple path (this is the neural mouth at 24 kHz).
+
+### Why §40 did not show this and this did
+
+§40 ran nineteen minutes and Ryad heard no self-barge; one `echo?` at 0.022.
+The difference is worth stating because it is a lead, not noise:
+
+- §40's voice had been speaking for minutes and had LEARNED its cushion
+  (D-068): the phone measures 1.33× real time, so the adaptive lead grows to
+  roughly 2 s and the reply plays smoothly from a full buffer.
+- This test's voice was FRESH — loaded seconds earlier for the comparison —
+  so its first replies ran on the decoder's constant, **396 ms**, against a
+  machine needing ~2 s. An under-cushioned player runs dry and re-fills, and
+  a reply that stutters puts more onsets past the gate than one that flows.
+
+That is a hypothesis with a mechanism, not a conclusion: it predicts the
+leak should FADE as a session goes on, which §40 is consistent with and
+which the remaining three configurations will test for free.
+
+### The fix menu, from §23, now that the suspect is named
+
+Suspect 1's cure is a per-route calibrated gate — AC-97's law that every
+device AND route earns its number from a run rather than inheriting it. The
+calibration tap already exists in Settings. **Not applied yet:** raising the
+gate to clear 0.083 also makes the ear deafer to quiet speech, and that
+trade needs its own measurement before it is spent.
