@@ -57,8 +57,17 @@ struct PlatformRefusalTests {
     func refusalHappensBeforeAnyReach() async throws {
         let voice = NeuralVoice(variant: .qwen3TTS_1_7b,
                                 availableOnThisPlatform: false)
-        await #expect(throws: NeuralVoiceUnavailableOnPlatform.self) {
+        // The THROWN error is caught and its PAYLOAD asserted — not just
+        // the type. The D-041 review proved the gap by mutation: with the
+        // throw site hard-coding `variant: .qwen3TTS_0_6b`, every test in
+        // this file stayed green, and an error whose whole purpose is to
+        // name the variant would have named the wrong one.
+        do {
             try await voice.ensureModel()
+            Issue.record("a refused variant must throw, and this one returned")
+        } catch let refusal as NeuralVoiceUnavailableOnPlatform {
+            #expect(refusal.variant == .qwen3TTS_1_7b,
+                    "the error must carry the variant that was REFUSED")
         }
         #expect(await voice.loadAttempts == 0,
                 "a refusal AFTER loading is a 2.2 GB compile spent to learn what the vendor already said")
