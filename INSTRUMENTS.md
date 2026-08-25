@@ -3746,3 +3746,50 @@ the actual length of each reply — so the nominal could be learned the same
 way the factor already is (D-068). That is a fork, not a patch, and the
 prediction above should be confirmed on the device before any of it is
 spent.
+
+## 49. The Apple voice is robotic BY DESIGN — Siri's voices are locked, and the code's own guess was right
+
+Ryad selected the newest voice in both Siri (Apple Intelligence) and
+Accessibility → Spoken Content, heard it working there, and asked why the
+app still sounded robotic. Checked rather than reasoned about.
+
+**Apple's answer, from WWDC20's "Create a seamless speech experience in your
+apps":**
+
+> Although Siri voices are available to be selected in Spoken Content
+> Settings, they are not available through the `AVSpeechSynthesizer` API. In
+> the case that a Siri voice is the selected voice, the system will
+> automatically configure your utterance using an appropriate fallback voice
+> that matches the same language code as the selected Siri voice.
+
+The reason given in the developer discussions is privacy: an app able to
+speak in Siri's voice could impersonate Siri. So selecting the best voice in
+Settings makes it play everywhere except in a third-party app, which
+silently receives the language-matched fallback — on `en-US`, `Samantha`
+compact. **That is precisely the field complaint, and it is the platform
+working as designed.**
+
+**The code had already guessed this, and said so honestly.** The comment
+read: *"Siri's own voices are NOT among these — as far as I know they are not
+offered to third-party apps… stated as belief rather than as a measurement,
+because nothing here has tested it."* It has now been upgraded to a citation.
+A belief that was labelled a belief cost nothing to correct.
+
+**What DOES work: a named premium voice.** Ava, Zoe, Allison and the rest are
+downloads, are not Siri, and do appear in `speechVoices()` — where this
+project's picker already sorts premium → enhanced → compact and puts them
+first.
+
+### A second finding, and this one is a hazard we happen to avoid
+
+iOS 26.0 and 26.1b4 carry an open regression (FB20271264):
+`AVSpeechSynthesisVoice(language:)` **ignores the voice selected in
+Accessibility** and returns the system default. It worked in iOS 18.6.2. The
+documented workaround is to select by IDENTIFIER instead of by language.
+
+`bestInstalledVoice` enumerates `speechVoices()` and picks an identifier, so
+it is already on the safe side of this — by accident of how it was written,
+not by knowledge of the bug. It is now commented, so that nobody
+"simplifies" it back into the broken call.
+
+Sources: Apple's WWDC20 session, and Apple Developer Forums thread 804648.

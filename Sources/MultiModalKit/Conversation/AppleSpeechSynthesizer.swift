@@ -107,10 +107,38 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
     /// *Settings → Accessibility → Spoken Content → Voices*. So this
     /// function is half the answer, and the other half is on the device.
     ///
-    /// Siri's own voices are NOT among these — as far as I know they
-    /// are not offered to third-party apps through `AVSpeechSynthesizer`
-    /// — and that is stated as belief rather than as a measurement,
-    /// because nothing here has tested it.
+    /// **Siri's own voices are NOT among these, and this is no longer a
+    /// belief — it is Apple's documented behaviour** (WWDC20, "Create a
+    /// seamless speech experience in your apps"):
+    ///
+    /// > Although Siri voices are available to be selected in Spoken
+    /// > Content Settings, they are not available through the
+    /// > `AVSpeechSynthesizer` API. In the case that a Siri voice is the
+    /// > selected voice, the system will automatically configure your
+    /// > utterance using an appropriate fallback voice that matches the
+    /// > same language code as the selected Siri voice.
+    ///
+    /// The reason is privacy: an app that could speak in Siri's voice
+    /// could impersonate Siri. So a person who selects the newest, best
+    /// voice in Settings hears it everywhere EXCEPT here, and what
+    /// arrives instead is the language-matched fallback — on `en-US`,
+    /// `Samantha` compact. That is the exact complaint this project got
+    /// from the field, and it is the platform working as designed.
+    ///
+    /// The cure is a NAMED premium voice (Ava, Zoe, Allison…), which is
+    /// a download and is not Siri. Those do appear here.
+    ///
+    /// Upgraded from belief to citation after Ryad reported selecting the
+    /// newest voice in both Siri and Accessibility and still hearing a
+    /// robot — the previous comment said this was untested, and it was
+    /// right to say so.
+    /// **An iOS 26 regression this function happens to dodge.**
+    /// `AVSpeechSynthesisVoice(language:)` in iOS 26.0/26.1b4 ignores the
+    /// voice a person selected in Accessibility and returns the system
+    /// default (FB20271264, still open). The documented workaround is to
+    /// select by IDENTIFIER rather than by language — which is what this
+    /// does, by enumerating `speechVoices()` and choosing one. Recorded so
+    /// that nobody "simplifies" it back into the broken call.
     public static func bestInstalledVoice(
         forLanguage language: String = Locale.preferredLanguages.first ?? "en-US"
     ) -> AVSpeechSynthesisVoice? {
