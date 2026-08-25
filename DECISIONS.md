@@ -3061,3 +3061,13 @@ a vendor comment this project could never check.
 next voice load after any clear pays the full compile (tens of seconds,
 §30 measured 64) even when nobody wanted a measurement. The control is
 an instrument and must look like one, not like a setting.
+
+### The shape of cold, ruled with the 4n sign-off (same day)
+
+**F-1 = B: the one-tap cold probe.** One control clears the compiled-plan
+cache, retires the in-process voice, builds a fresh one, and runs the
+probe — the four-step manual dance that produced a null run on its first
+attempt becomes a procedure that cannot be done wrong. *Rejected:* **A,
+clear-only** — cheaper, but it keeps the dance, and the dance is the
+proven failure. Cost accepted: the tap briefly stops any conversation,
+and the control refuses while listening.
