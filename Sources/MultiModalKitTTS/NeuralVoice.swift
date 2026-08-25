@@ -234,14 +234,26 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// a seed is what makes a bake-off reproducible rather than one draw.
     public nonisolated let seed: UInt64?
 
+    /// Whether this DEVICE can have this variant — injectable, and the
+    /// injection is the testability (AC-159). The vendor's verdict is
+    /// `TTSModelVariant.isAvailableOnCurrentPlatform`, which is `false` for
+    /// 1.7B on iOS ("more peak memory during CoreML compilation than
+    /// iOS/iPadOS devices can reliably provide"). But CI runs on macOS,
+    /// where that property is ALWAYS true — a guard wired straight to it
+    /// could never be watched firing on the only machine that tests it.
+    /// `nil` means "ask the vendor", which is what every real caller does.
+    nonisolated let platformVerdict: Bool?
+
     public init(variant: TTSModelVariant = .qwen3TTS_0_6b,
                 renderingOn host: (any PlaybackHost)? = nil,
                 lead: Duration? = nil,
                 multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused,
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
-                seed: UInt64? = nil) {
+                seed: UInt64? = nil,
+                availableOnThisPlatform: Bool? = nil) {
         self.variant = variant
+        self.platformVerdict = availableOnThisPlatform
         self.providedHost = host
         // nil means "derive it from the decoder I was actually given",
         // which is the only way the two cannot disagree.
@@ -361,11 +373,18 @@ public actor NeuralVoice: SpeechSynthesizing {
 
     /// The TOKENIZER, which lives in a different repo entirely
     /// (`Qwen/Qwen3-0.6B`) — 11 MB beside 1.1 GB of CoreML.
+    ///
+    /// Read from the VENDOR, not guessed (AC-160). The first version chose
+    /// `Qwen3-1.7B` for the larger model, but TTSKit hard-wires ONE
+    /// tokenizer repo for every variant — so this checked a folder TTSKit
+    /// never fills, `modelInstalled()` could never say yes for 1.7B, and
+    /// every attempt went to the network: the exact failure the Whisper
+    /// audit named, rebuilt by the property whose comment below says it
+    /// exists to prevent it (SPEC §118).
     nonisolated var localTokenizerFolder: URL {
-        let repo = variant == .qwen3TTS_1_7b ? "Qwen3-1.7B" : "Qwen3-0.6B"
-        return URL.documentsDirectory
-            .appending(path: "huggingface/models/Qwen")
-            .appending(path: repo)
+        URL.documentsDirectory
+            .appending(path: "huggingface/models")
+            .appending(path: variant.tokenizerRepo)
     }
 
     /// Honest disk check — asking never triggers a download.
@@ -472,6 +491,19 @@ public actor NeuralVoice: SpeechSynthesizing {
     /// waiter queue, re-checked in a WHILE loop after every wake, and
     /// released on every exit through `defer`.
     private func loadedPipeline() async throws -> TTSKit {
+        // THE PLATFORM SAYS NO BEFORE ANYTHING ELSE IS ASKED (AC-159).
+        // The vendor documented this refusal and this project walked past
+        // it into a raw CoreML "error code: -14" on Ryad's phone (SPEC
+        // §117). Refusing HERE costs nothing: no folder touched, no
+        // network, no counter moved.
+        //
+        // OUTERMOST on purpose, and the order is load-bearing: the
+        // control test stands a retired voice one step behind this guard
+        // as a tripwire — reaching `NeuralVoiceRetired` with a forced-true
+        // verdict proves this guard passed it through, with zero loads.
+        guard platformVerdict ?? variant.isAvailableOnCurrentPlatform else {
+            throw NeuralVoiceUnavailableOnPlatform(variant: variant)
+        }
         // A RETIRED VOICE NEVER LOADS AGAIN — that is what retiring MEANS.
         // Both `openUtterance()` and `ensureModel()` come through here, so
         // one guard closes both doors.
@@ -525,6 +557,21 @@ public actor NeuralVoice: SpeechSynthesizing {
         speaking = nil
         await dying?.cancel()
         await held.retire()
+    }
+}
+
+/// Thrown when the DEVICE cannot have the variant, in this project's words
+/// rather than CoreML's (AC-159, D-072). The 1.7B refused on iOS with
+/// "Failed to build the model execution plan … error code: -14" — a
+/// sentence about a symptom. The cause was documented one dependency away:
+/// the compile peak exceeds what iOS provides, so the vendor restricts the
+/// variant to macOS, and this error says THAT.
+public struct NeuralVoiceUnavailableOnPlatform: Error, CustomStringConvertible {
+    public let variant: TTSModelVariant
+    public init(variant: TTSModelVariant) { self.variant = variant }
+    public var description: String {
+        "\(variant.displayName) needs more memory than this device allows "
+            + "while compiling — the vendor restricts it to macOS"
     }
 }
 
