@@ -876,8 +876,13 @@ final class TranscribeModel {
     /// (memoryConflict), because refusing is what makes the pair
     /// unmeasurable — and 4i exists to find out whether the refusal is
     /// even true on this device.
-    func runPressureProbe() async {
-        probeLines = []
+    func runPressureProbe(fresh: Bool = true) async {
+        // `fresh: false` is the cold probe's: it has ALREADY written its
+        // header and the cache-clear report, and the first field run of
+        // the ❄ came back with that report ERASED — this reset destroyed
+        // the one line that says whether the clear found anything, which
+        // is the line the whole control exists to produce.
+        if fresh { probeLines = [] }
         probeSay("# pressure probe — \(LocalMind.repoID)")
 
         // HONEST BASELINE. The first version called this "baseline" while
@@ -951,7 +956,7 @@ final class TranscribeModel {
         // The next Listen re-registers rendering and margins on whatever
         // this property holds, so no wiring is lost.
         neuralVoice = levers.makeVoice()
-        await runPressureProbe()
+        await runPressureProbe(fresh: false)
         // Leave the screen's voice state honest: the probe just loaded the
         // fresh pipeline (or died trying), and checkVoice() reads reality.
         await checkVoice()

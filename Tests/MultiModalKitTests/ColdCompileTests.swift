@@ -63,6 +63,9 @@ struct CompiledPlanCacheTests {
         #expect(report.deleted.isEmpty)
         #expect(report.summary.contains("no compiled-plan cache"),
                 "the §30 fault in a new coat: 'cleared' over nothing")
+        // And absence NAMES the neighbourhood, so a wrong prefix list can
+        // be extended from the field report instead of guessed at.
+        #expect(report.summary.contains("unrelated.cache"))
     }
 }
 

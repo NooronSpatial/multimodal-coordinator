@@ -66,10 +66,18 @@ public struct CompiledPlanCache: Sendable {
     public func clear() -> ClearReport {
         let found = survey()
         guard !found.isEmpty else {
+            // Absence NAMES the neighbourhood. If the prefixes miss the
+            // real cache, the next field report must carry the evidence
+            // to extend them — the directory names that ARE there —
+            // instead of a shrug the reader cannot act on.
+            let present = ((try? FileManager.default.contentsOfDirectory(
+                at: cachesDirectory, includingPropertiesForKeys: nil)) ?? [])
+                .map(\.lastPathComponent).sorted().joined(separator: ", ")
             return ClearReport(deleted: [], summary:
                 "no compiled-plan cache found under \(cachesDirectory.lastPathComponent)"
                 + " — the next load was already going to be cold, or the cache"
-                + " lives somewhere this control does not reach")
+                + " lives somewhere this control does not reach."
+                + " Caches holds: [\(present.isEmpty ? "nothing" : present)]")
         }
         var deleted: [Entry] = []
         for entry in found {
