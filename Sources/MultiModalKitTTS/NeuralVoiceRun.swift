@@ -98,6 +98,11 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// row and 0.03 on another. So the two are separated: prefill is
     /// reported as itself, and STEADY RTF is measured from the first
     /// step onward, which is the only rate a decode lever can move.
+    /// The cushion this run was BUILT with — what was really in force,
+    /// kept for the margin because asking the voice afterwards returns
+    /// the value the learner just adapted to (the 4n review's blocker).
+    private let leadInForce: Duration
+
     private func reportMargin(completed: Bool) {
         // The HANDLER is not gated by the trace flag: a phone has no
         // stderr to read, and the phone is where this number is now
@@ -126,7 +131,8 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
                                        wallMilliseconds: wall,
                                        prefillMilliseconds: prefill,
                                        steadyRealTimeFactor: steady,
-                                       completed: completed))
+                                       completed: completed,
+                                       cushionMilliseconds: ms(leadInForce)))
             }
         }
         if NeuralVoiceRun.traceSteps {
@@ -148,6 +154,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
          onMargin: (@Sendable (DecodeMargin) -> Void)? = nil) throws {
         self.onMargin = onMargin
         self.state = Mutex(Guarded(lead: lead))
+        self.leadInForce = lead.target
         self.temperature = temperature
         self.decoder = decoder
         self.host = host

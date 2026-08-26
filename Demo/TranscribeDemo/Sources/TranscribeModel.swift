@@ -598,6 +598,51 @@ final class TranscribeModel {
             } ?? 0,
             thermal: thermalName,
             freeMB: freeMegabytesNow()))
+        // A margin that fired before this row existed was parked; it can
+        // only belong to the reply this row describes. Cleared ALWAYS —
+        // one row is the farthest a parked margin may travel, and a
+        // barged row claims nothing (its mouth was cancelled).
+        if let parked = pendingVoiceMargin {
+            pendingVoiceMargin = nil
+            if let index = turns.indices.last, !turns[index].bargedIn {
+                stamp(parked, onto: index)
+            }
+        }
+    }
+
+    /// A margin that arrived BEFORE its row existed, waiting for record().
+    /// The 4n review broke the first version's assumption two ways: a
+    /// mid-reply decode failure reports its margin while the mind is still
+    /// streaming (no row yet), and a mouth that drains before the mind's
+    /// terminal races record() with no ordering guarantee. The first
+    /// version searched BACKWARD for any voiceless row and stamped a
+    /// barged turn — fabricating voice evidence on the exact rows the
+    /// design promises stay empty.
+    private var pendingVoiceMargin: DecodeMargin?
+
+    /// Stamps the voice's numbers onto the turn that spoke them (AC-173).
+    /// Only the NEWEST row is ever considered: a barged row is never
+    /// touched (its mouth was cancelled — an arriving margin cannot be
+    /// its), and a margin that beats its own row into existence parks in
+    /// `pendingVoiceMargin` for record() to claim. The cushion comes from
+    /// the MARGIN, stamped by the run that was built with it — asking the
+    /// voice here returns the value the learner just adapted to, which is
+    /// the NEXT reply's cushion (the review's blocker).
+    private func attach(_ margin: DecodeMargin) {
+        guard let index = turns.indices.last,
+              turns[index].voiceAudioMs == nil, !turns[index].bargedIn
+        else {
+            pendingVoiceMargin = margin
+            return
+        }
+        stamp(margin, onto: index)
+    }
+
+    private func stamp(_ margin: DecodeMargin, onto index: Int) {
+        turns[index].voiceAudioMs = Int(margin.audioMilliseconds.rounded())
+        turns[index].voiceRTF = margin.steadyRealTimeFactor
+        turns[index].cushionMs = margin.cushionMilliseconds.map { Int($0.rounded()) }
+        turns[index].voiceCompleted = margin.completed
     }
 
     /// When Listen was tapped, so every turn can say how far into the
@@ -668,6 +713,12 @@ final class TranscribeModel {
             if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
             if let failure = turn.failure { out += " · FAILED: \(failure)" }
             out += "\n\n"
+            if let audio = turn.voiceAudioMs, let rtf = turn.voiceRTF {
+                out += String(format: "voice: %d ms audio · RTF %.3f", audio, rtf)
+                if let cushion = turn.cushionMs { out += " · cushion \(cushion) ms" }
+                if turn.voiceCompleted == false { out += " · DID NOT FINISH" }
+                out += "\n\n"
+            }
         }
         return out
     }
@@ -713,7 +764,10 @@ final class TranscribeModel {
     func loadPreviousProbe() {
         guard let text = try? String(contentsOf: probeLog, encoding: .utf8)
         else { return }
-        probeLines = text.split(separator: "\n").map(String.init)
+        // MARKED, so a restored trace can never impersonate a live run on
+        // the Bench screen (the 4n review, and the null-run story of §51).
+        probeLines = ["(restored from the previous run — not live)"]
+            + text.split(separator: "\n").map(String.init)
     }
 
     private func probeSay(_ line: String) {
@@ -739,6 +793,13 @@ final class TranscribeModel {
     /// runs. If jetsam takes the process, the LAST line is how close it
     /// got before dying, which is the number nothing else can give us.
     private var samplerBusy = false
+    /// How many lines the LAST sampled phase actually wrote. Zero after a
+    /// phase means the load returned inside one sample interval — nothing
+    /// was watched, and AC-170 says the trace must say so instead of
+    /// blessing it. The first field run printed `survived: yes` around
+    /// exactly that, and only a human comparing four identical numbers by
+    /// eye caught it.
+    private var lastPhaseSamples = 0
 
     /// The kernel's own alarm, recorded into the same trace. AC-139
     /// showed both in-process numbers blind to a load that kills, because
@@ -781,17 +842,23 @@ final class TranscribeModel {
         guard !samplerBusy else {
             probeSay("  (\(label): a load is already being sampled — "
                 + "not starting a second, and not touching that trace)")
+            // The count belongs to the OTHER sampler; poison ours so the
+            // null-run verdict stays silent instead of judging this phase
+            // by a foreign number (the 4n review).
+            lastPhaseSamples = -1
             return try await work()
         }
         samplerBusy = true
         // NOT watching system pressure here any more — see the comment on
         // `watchSystemPressure`. It is wired to nothing until it is safe.
         defer { samplerBusy = false }
+        lastPhaseSamples = 0
         let sampler = Task { [weak self] in
             for tick in 0..<2_400 {          // 10 minutes, capped
                 try? await Task.sleep(for: .milliseconds(250))
                 guard !Task.isCancelled, let self else { return }
                 await MainActor.run {
+                    self.lastPhaseSamples += 1
                     self.probeSay(String(format: "    %@ +%.1fs  %@",
                                          label, Double(tick) * 0.25,
                                          self.headroomNow()))
@@ -844,8 +911,13 @@ final class TranscribeModel {
     /// (memoryConflict), because refusing is what makes the pair
     /// unmeasurable — and 4i exists to find out whether the refusal is
     /// even true on this device.
-    func runPressureProbe() async {
-        probeLines = []
+    func runPressureProbe(fresh: Bool = true) async {
+        // `fresh: false` is the cold probe's: it has ALREADY written its
+        // header and the cache-clear report, and the first field run of
+        // the ❄ came back with that report ERASED — this reset destroyed
+        // the one line that says whether the clear found anything, which
+        // is the line the whole control exists to produce.
+        if fresh { probeLines = [] }
         probeSay("# pressure probe — \(LocalMind.repoID)")
 
         // HONEST BASELINE. The first version called this "baseline" while
@@ -865,8 +937,14 @@ final class TranscribeModel {
         probeSay("voice installed on disk: \(await neuralVoice.modelInstalled())")
         probeSay("loading the neural voice FIRST… (if this is the last line,")
         probeSay("  it died here, and the voice alone is the problem)")
+        var voicePhaseWasNull = false
         do {
             try await sampling("voice") { try await neuralVoice.ensureModel() }
+            if let warning = PressurePhaseVerdict.nullRunLine(
+                samples: lastPhaseSamples, label: "voice") {
+                probeSay(warning)
+                voicePhaseWasNull = true
+            }
             probeSay("+ voice loaded:      \(headroomNow())")
         } catch {
             probeSay("  voice FAILED:      \(error)")
@@ -883,7 +961,61 @@ final class TranscribeModel {
         }
 
         probeSay("BOTH RESIDENT:       \(headroomNow())")
-        probeSay("survived: yes")
+        // "survived" is only a verdict when something was at stake. A null
+        // voice phase proved nothing about a load, and saying "yes" around
+        // it is the §30 instrument fault in one word.
+        probeSay(voicePhaseWasNull
+            ? "survived: yes — but the voice phase was NULL; no load was measured"
+            : "survived: yes")
+    }
+
+    /// THE ONE-TAP COLD PROBE (4n, D-074 F-1 = B). Clears the compiled-plan
+    /// cache, retires the in-process voice so its warm pipeline cannot
+    /// answer, builds a fresh one, and runs the pressure probe against it.
+    /// The four-step manual dance (Apple mouth, kill, relaunch, tap) that
+    /// produced a null run on its first field attempt becomes a procedure
+    /// that cannot be done wrong.
+    func runColdProbe() async {
+        guard !isListening else {
+            probeLines = ["cold probe refused: the conversation is running — stop Listen first"]
+            return
+        }
+        // THE SAME FUNNEL AS settleLevers (the 4n review). The first
+        // version swapped the voice OUTSIDE it, so a lever tapped during
+        // the probe raced a second full compile beside this one — the
+        // overlapping-load class that produced the recorded kills.
+        while settling {
+            await withCheckedContinuation { settleWaiters.append($0) }
+        }
+        settling = true
+        defer {
+            settling = false
+            let waking = settleWaiters
+            settleWaiters = []
+            for waiter in waking { waiter.resume() }
+        }
+        probeLines = []
+        probeSay("# cold-compile probe — D-074 = B")
+        // Off the MainActor: the byte walk and the deletes are file I/O,
+        // and the screen should not stutter for them.
+        let report = await Task.detached {
+            CompiledPlanCache(cachesDirectory: URL.cachesDirectory).clear()
+        }.value
+        probeSay(report.summary)
+        probeSay("retiring the in-process voice — its warm pipeline must not answer…")
+        // The screen says CHECKING for the whole probe, so Listen refuses
+        // honestly instead of grabbing a half-built voice mid-compile.
+        voiceState = .checking
+        let retiring = neuralVoice
+        await retiring.retire()
+        // A FRESH voice from the same levers: nothing loaded, nothing warm.
+        // The next Listen re-registers rendering and margins on whatever
+        // this property holds, so no wiring is lost.
+        neuralVoice = levers.makeVoice()
+        await runPressureProbe(fresh: false)
+        // Leave the screen's voice state honest: the probe just loaded the
+        // fresh pipeline (or died trying), and checkVoice() reads reality.
+        await checkVoice()
     }
 
     /// Fetches the weights. EXPLICIT — a person taps, nothing else.
@@ -1659,7 +1791,10 @@ final class TranscribeModel {
                     // "not rendered yet" forever, which is the same
                     // family of mistake as the instrument that shipped
                     // dead an hour ago.
-                    Task { @MainActor in self.voiceMargin = margin }
+                    Task { @MainActor in
+                        self.voiceMargin = margin
+                        self.attach(margin)
+                    }
                 }
             }
             // Listeners are taken BEFORE the pumps run: no event is missed.

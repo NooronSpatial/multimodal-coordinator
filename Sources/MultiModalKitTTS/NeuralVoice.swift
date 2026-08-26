@@ -52,15 +52,25 @@ public struct DecodeMargin: Sendable, Equatable {
     /// length teaching the window that "replies are short" biases the
     /// cushion in exactly the under-banked direction 4m exists to fix.
     public let completed: Bool
+    /// The cushion that was IN FORCE for this reply — the lead the run was
+    /// BUILT with, stamped by the run itself. The 4n review proved why the
+    /// consumer cannot ask the voice instead: the learner adapts from this
+    /// very margin BEFORE any listener runs, so `currentLead` read in a
+    /// margin handler is already the NEXT reply's cushion. On the exact
+    /// session-start row §50 wants to convict, that misread logged a fat
+    /// healthy cushion onto the one turn that ran starved. `nil` only for
+    /// margins built outside a run (tests).
+    public let cushionMilliseconds: Double?
 
     init(audioMilliseconds: Double, wallMilliseconds: Double,
          prefillMilliseconds: Double, steadyRealTimeFactor: Double,
-         completed: Bool = true) {
+         completed: Bool = true, cushionMilliseconds: Double? = nil) {
         self.audioMilliseconds = audioMilliseconds
         self.wallMilliseconds = wallMilliseconds
         self.prefillMilliseconds = prefillMilliseconds
         self.steadyRealTimeFactor = steadyRealTimeFactor
         self.completed = completed
+        self.cushionMilliseconds = cushionMilliseconds
     }
 }
 

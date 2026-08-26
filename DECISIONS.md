@@ -3034,3 +3034,40 @@ because the outlier IS the signal this fix exists for. *Rejected:* **B,
 latest length only** — whipsaws; a "yes" right before a long answer
 re-creates §48 on the very next reply. *Rejected:* **C, session maximum** —
 one long monologue would tax every later "yes" until the decoder changes.
+
+## D-074 — cold is a button, not a 3.3-gigabyte penance (Milestone 4n)
+
+**Date:** 2026-08-25 · **Decided by:** Ryad · **Ruling: the cold-compile
+fork = B — an in-app control clears CoreML's compiled-plan cache**
+
+AC-139's warm half is measured: trough 994 MB free, ≈112 MB transient,
+≈47 MB settled, under three seconds — safe by a gigabyte beside the
+resident 2.2 GB mind. The kills on record and the vendor's 1.7B
+restriction both speak about the COLD compile, and the only way to reach
+cold today is deleting the app.
+
+**Ruled: B.** A Bench control clears the compiled-plan cache so a cold
+compile is one tap away, repeatable forever, on the phone that owns the
+number.
+
+*Rejected:* **A, delete and reinstall** — a true cold state at the price
+of re-downloading ~3.3 GB (the voice AND the mind live in Documents),
+paid again for every future cold measurement.
+*Rejected:* **C, accept the warm number** — it leaves AC-139's real
+question unanswered and the 1.7B door permanently un-testable, ruled by
+a vendor comment this project could never check.
+
+**The cost, named:** the control deletes a cache the OS manages; the
+next voice load after any clear pays the full compile (tens of seconds,
+§30 measured 64) even when nobody wanted a measurement. The control is
+an instrument and must look like one, not like a setting.
+
+### The shape of cold, ruled with the 4n sign-off (same day)
+
+**F-1 = B: the one-tap cold probe.** One control clears the compiled-plan
+cache, retires the in-process voice, builds a fresh one, and runs the
+probe — the four-step manual dance that produced a null run on its first
+attempt becomes a procedure that cannot be done wrong. *Rejected:* **A,
+clear-only** — cheaper, but it keeps the dance, and the dance is the
+proven failure. Cost accepted: the tap briefly stops any conversation,
+and the control refuses while listening.

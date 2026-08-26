@@ -3849,3 +3849,63 @@ ONE sentence. §48's long-reply scenario (illustrated in SPEC §125 with a
 that scale because this mind, this day, never talked that long; the
 evidence still exercised the mechanism (teach on 3, protect on 4) at an
 estimated 10–15 s.
+
+## 51. AC-139's warm number, its null-run prelude, and the ❄'s first lie
+
+Ryad's phone, 2026-08-25. Three traces in one afternoon, and each one
+taught something the next needed. This section is the evidence trail for
+every warm-load number quoted in SPEC §132 and D-074.
+
+### Trace 1 — the null run the instrument blessed
+
+Voice switched to Apple, probe tapped — but the app had NOT been killed,
+so the warm pipeline from the ear test still answered in-process:
+
+```
+start:               1069 MB free (dirty) · footprint 2306 MB
++ voice loaded:      1069 MB free (dirty) · footprint 2306 MB
++ mind loaded:       1069 MB free (dirty) · footprint 2306 MB
+BOTH RESIDENT:       1069 MB free (dirty) · footprint 2306 MB
+survived: yes
+```
+
+Four identical readings, zero sampler lines, and `survived: yes` around
+a measurement of nothing. Only a human comparing the numbers by eye
+caught it — the announcement AC-170 now makes is this trace's lesson.
+
+### Trace 2 — the real warm load
+
+After a true kill and relaunch (Apple mouth, so launch skipped the
+preload), the probe watched the whole load:
+
+```
+start:        1106 MB free · footprint 2269 MB
+voice +0.0s … +0.8s   flat            (reading files)
+voice +1.0s   1086 free · 2289
+voice +2.0s   1040 free · 2335
+voice +2.8s    994 free · 2381        ← the trough
++ voice loaded: 1059 free · 2316      (settled)
+survived: yes
+```
+
+**The warm verdict: trough 994 MB free · transient ≈ 112 MB above start
+· settled ≈ 47 MB (both meters agree) · under 3 seconds.** Safe by
+roughly a gigabyte beside the resident 2.2 GB mind. The two recorded
+kills (at 1105 and 2976 MB free) cannot have been warm loads; the cold
+compile remains the suspect, exactly as the vendor's 1.7B comment says.
+*Caveat:* 250 ms sampling can miss a spike between samples.
+
+### Trace 3 — the ❄'s first field run, and the report it destroyed
+
+The one-tap cold probe came back WARM-shaped (2.8 s, ~100 MB) — and
+with its own header and the cache-clear report ERASED, because the
+pressure probe wipes the trace when it starts and the cold probe called
+it after writing its preamble. The instrument deleted its own verdict:
+whether the clear found anything is precisely the line that decides
+between "the cache lives elsewhere" and "the gauge was tapped, not the
+❄". Fixed (`runPressureProbe(fresh:)`), and absence now NAMES the
+neighbourhood — the report lists what Caches actually holds, so a wrong
+prefix list becomes evidence instead of a shrug.
+
+**Still owed: the cold trace itself (AC-172).** The next ❄ run carries
+the surviving report either way.
