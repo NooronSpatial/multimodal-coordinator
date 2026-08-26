@@ -1491,6 +1491,9 @@ final class TranscribeModel {
         case .whisper: await whisperEngine.modelInstalled()
         }
         engineState = installed ? .ready : .modelMissing
+        if installed && choice == .whisper {
+            whisperEngine.prewarm()
+        }
     }
 
     /// Honest disk check for the VOICE. Asking never downloads.
@@ -1571,7 +1574,9 @@ final class TranscribeModel {
         do {
             switch choice {
             case .apple: try await appleEngine.ensureModel()
-            case .whisper: try await whisperEngine.ensureModel()
+            case .whisper:
+                try await whisperEngine.ensureModel()
+                whisperEngine.prewarm()
             }
             engineState = .ready
         } catch let failure as TranscriptionFailure {
