@@ -3071,3 +3071,42 @@ attempt becomes a procedure that cannot be done wrong. *Rejected:* **A,
 clear-only** — cheaper, but it keeps the dance, and the dance is the
 proven failure. Cost accepted: the tap briefly stops any conversation,
 and the control refuses while listening.
+
+## D-075 — the cold hunt moves to tmp/, and an empty tmp/ ends it (Milestone 4n follow-up)
+
+**Date:** 2026-08-26 · **Decided by:** Ryad · **Ruling: AC-172's route
+= A — the cache survey extends to the app's tmp/; if tmp/ holds no
+cache either, the ruling falls through to C without a new fork**
+
+The evidence that forced this ruling: the ❄'s first surviving report
+(§52) proved the compiled-plan cache is NOT in the app's Caches on
+iOS — the neighbourhood line named what Caches actually holds
+(com.apple.dyld entries, speech, the bundle id, huggingface) and no
+e5rt, CoreML, or mlcompiler directory among them. On the Mac the same
+cache lives at USER level, `~/Library/Caches/com.apple.e5rt.e5bundlecache`
+— outside any app container. The working hypothesis, still a
+hypothesis: on iOS the compile cache belongs to a system daemon no app
+directory reaches.
+
+**Ruled: A.** The app's container has one cache-plausible directory the
+survey has never looked at — `tmp/`. One more surveyed directory is
+cheap, the report already names neighbourhoods, and D-074's control
+gains reach without changing shape. An empty tmp/ is then EVIDENCE,
+not a shrug: the fall-through to C is part of this ruling, so absence
+does not open a new fork — cold is accepted as system-owned, §30's
+64.8 s stands as the recorded cold number, and AC-172 closes with the
+honest line that the app cannot reproduce cold on demand.
+
+*Rejected:* **B — delete and re-download the voice (1.1 GB)** — pays a
+gigabyte of download per measurement, and may STILL come back warm: if
+the system cache is content-keyed, the re-downloaded bytes are the same
+bytes, the same key, the same compiled plan.
+*Rejected:* **C alone, accepted immediately** — surrenders while one
+unsurveyed directory remains. C may well be the destination; ruling it
+before tmp/ is surveyed would rest it on absence nobody looked for.
+
+**The cost, named:** the control now deletes inside a directory the OS
+also uses for its own staging. The writ stays narrow — only the three
+known prefixes are ever touched, everything else in tmp/ is surveyed by
+name and left alone — but a prefix list that overmatched would now
+overmatch in two places instead of one.
