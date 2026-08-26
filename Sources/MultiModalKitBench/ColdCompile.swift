@@ -33,6 +33,10 @@ public struct CompiledPlanCache: Sendable {
 
     public struct ClearReport: Sendable {
         public let deleted: [Entry]
+        /// Found by the survey but NOT deleted — a removeItem that failed.
+        /// Absent from the first version, so a failed delete simply
+        /// vanished from the report and a half-warm cache read as cold.
+        public let failed: [Entry]
         /// One human sentence for the screen and the log.
         public let summary: String
     }
@@ -73,23 +77,30 @@ public struct CompiledPlanCache: Sendable {
             let present = ((try? FileManager.default.contentsOfDirectory(
                 at: cachesDirectory, includingPropertiesForKeys: nil)) ?? [])
                 .map(\.lastPathComponent).sorted().joined(separator: ", ")
-            return ClearReport(deleted: [], summary:
+            return ClearReport(deleted: [], failed: [], summary:
                 "no compiled-plan cache found under \(cachesDirectory.lastPathComponent)"
                 + " — the next load was already going to be cold, or the cache"
                 + " lives somewhere this control does not reach."
                 + " Caches holds: [\(present.isEmpty ? "nothing" : present)]")
         }
         var deleted: [Entry] = []
+        var failed: [Entry] = []
         for entry in found {
             let url = cachesDirectory.appending(path: entry.name)
             if (try? FileManager.default.removeItem(at: url)) != nil {
                 deleted.append(entry)
+            } else {
+                failed.append(entry)
             }
         }
         let total = deleted.reduce(0) { $0 + $1.bytes }
         let names = deleted.map(\.name).joined(separator: ", ")
-        return ClearReport(deleted: deleted, summary:
-            "cleared \(deleted.count) compiled-plan cache(s), \(total) bytes: \(names)")
+        var summary = "cleared \(deleted.count) compiled-plan cache(s), \(total) bytes: \(names)"
+        if !failed.isEmpty {
+            summary += " · COULD NOT DELETE \(failed.map(\.name).joined(separator: ", "))"
+                + " — the next load may still be warm"
+        }
+        return ClearReport(deleted: deleted, failed: failed, summary: summary)
     }
 
     private func directoryBytes(_ url: URL) -> Int {

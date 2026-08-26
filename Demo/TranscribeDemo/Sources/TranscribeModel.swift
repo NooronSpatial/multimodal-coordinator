@@ -598,22 +598,50 @@ final class TranscribeModel {
             } ?? 0,
             thermal: thermalName,
             freeMB: freeMegabytesNow()))
+        // A margin that fired before this row existed was parked; it can
+        // only belong to the reply this row describes. Cleared ALWAYS —
+        // one row is the farthest a parked margin may travel, and a
+        // barged row claims nothing (its mouth was cancelled).
+        if let parked = pendingVoiceMargin {
+            pendingVoiceMargin = nil
+            if let index = turns.indices.last, !turns[index].bargedIn {
+                stamp(parked, onto: index)
+            }
+        }
     }
 
+    /// A margin that arrived BEFORE its row existed, waiting for record().
+    /// The 4n review broke the first version's assumption two ways: a
+    /// mid-reply decode failure reports its margin while the mind is still
+    /// streaming (no row yet), and a mouth that drains before the mind's
+    /// terminal races record() with no ordering guarantee. The first
+    /// version searched BACKWARD for any voiceless row and stamped a
+    /// barged turn — fabricating voice evidence on the exact rows the
+    /// design promises stay empty.
+    private var pendingVoiceMargin: DecodeMargin?
+
     /// Stamps the voice's numbers onto the turn that spoke them (AC-173).
-    /// The margin arrives when the MOUTH finishes, which is after the mind
-    /// finished and `record(_:)` wrote the row — so the row is found, not
-    /// raced. Only the newest voiceless turn takes it: a margin never
-    /// overwrites, and a turn the voice never finished (a barge, a crash)
-    /// honestly keeps no voice line at all. §50 named this exact absence
-    /// as the reason the session-start suspect cannot be convicted.
-    private func attachToLastTurn(_ margin: DecodeMargin, cushion: Duration) {
-        guard let index = turns.lastIndex(where: { $0.voiceAudioMs == nil })
-        else { return }
+    /// Only the NEWEST row is ever considered: a barged row is never
+    /// touched (its mouth was cancelled — an arriving margin cannot be
+    /// its), and a margin that beats its own row into existence parks in
+    /// `pendingVoiceMargin` for record() to claim. The cushion comes from
+    /// the MARGIN, stamped by the run that was built with it — asking the
+    /// voice here returns the value the learner just adapted to, which is
+    /// the NEXT reply's cushion (the review's blocker).
+    private func attach(_ margin: DecodeMargin) {
+        guard let index = turns.indices.last,
+              turns[index].voiceAudioMs == nil, !turns[index].bargedIn
+        else {
+            pendingVoiceMargin = margin
+            return
+        }
+        stamp(margin, onto: index)
+    }
+
+    private func stamp(_ margin: DecodeMargin, onto index: Int) {
         turns[index].voiceAudioMs = Int(margin.audioMilliseconds.rounded())
         turns[index].voiceRTF = margin.steadyRealTimeFactor
-        turns[index].cushionMs = Int(cushion.components.seconds * 1000
-            + cushion.components.attoseconds / 1_000_000_000_000_000)
+        turns[index].cushionMs = margin.cushionMilliseconds.map { Int($0.rounded()) }
         turns[index].voiceCompleted = margin.completed
     }
 
@@ -736,7 +764,10 @@ final class TranscribeModel {
     func loadPreviousProbe() {
         guard let text = try? String(contentsOf: probeLog, encoding: .utf8)
         else { return }
-        probeLines = text.split(separator: "\n").map(String.init)
+        // MARKED, so a restored trace can never impersonate a live run on
+        // the Bench screen (the 4n review, and the null-run story of §51).
+        probeLines = ["(restored from the previous run — not live)"]
+            + text.split(separator: "\n").map(String.init)
     }
 
     private func probeSay(_ line: String) {
@@ -811,6 +842,10 @@ final class TranscribeModel {
         guard !samplerBusy else {
             probeSay("  (\(label): a load is already being sampled — "
                 + "not starting a second, and not touching that trace)")
+            // The count belongs to the OTHER sampler; poison ours so the
+            // null-run verdict stays silent instead of judging this phase
+            // by a foreign number (the 4n review).
+            lastPhaseSamples = -1
             return try await work()
         }
         samplerBusy = true
@@ -945,11 +980,32 @@ final class TranscribeModel {
             probeLines = ["cold probe refused: the conversation is running — stop Listen first"]
             return
         }
+        // THE SAME FUNNEL AS settleLevers (the 4n review). The first
+        // version swapped the voice OUTSIDE it, so a lever tapped during
+        // the probe raced a second full compile beside this one — the
+        // overlapping-load class that produced the recorded kills.
+        while settling {
+            await withCheckedContinuation { settleWaiters.append($0) }
+        }
+        settling = true
+        defer {
+            settling = false
+            let waking = settleWaiters
+            settleWaiters = []
+            for waiter in waking { waiter.resume() }
+        }
         probeLines = []
         probeSay("# cold-compile probe — D-074 = B")
-        let report = CompiledPlanCache(cachesDirectory: URL.cachesDirectory).clear()
+        // Off the MainActor: the byte walk and the deletes are file I/O,
+        // and the screen should not stutter for them.
+        let report = await Task.detached {
+            CompiledPlanCache(cachesDirectory: URL.cachesDirectory).clear()
+        }.value
         probeSay(report.summary)
         probeSay("retiring the in-process voice — its warm pipeline must not answer…")
+        // The screen says CHECKING for the whole probe, so Listen refuses
+        // honestly instead of grabbing a half-built voice mid-compile.
+        voiceState = .checking
         let retiring = neuralVoice
         await retiring.retire()
         // A FRESH voice from the same levers: nothing loaded, nothing warm.
@@ -1726,7 +1782,6 @@ final class TranscribeModel {
                 // the canceller can only remove what its own unit
                 // renders (D-043). Unshielded, the 4e arrangement stands.
                 await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
-                let speakingVoice = neuralVoice
                 await neuralVoice.reportMargins { margin in
                     // The graph's rate is refreshed HERE, with the
                     // margin, because it only becomes real when a reply
@@ -1736,10 +1791,9 @@ final class TranscribeModel {
                     // "not rendered yet" forever, which is the same
                     // family of mistake as the instrument that shipped
                     // dead an hour ago.
-                    let cushion = speakingVoice.currentLead
                     Task { @MainActor in
                         self.voiceMargin = margin
-                        self.attachToLastTurn(margin, cushion: cushion)
+                        self.attach(margin)
                     }
                 }
             }

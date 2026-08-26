@@ -40,20 +40,28 @@ struct CompiledPlanCacheTests {
 
     @Test("clear deletes ONLY the matching directories and reports each")
     func clearDeletesAndReports() throws {
+        // TWO matching directories, because the review ran the mutation:
+        // with one seeded, a clear() that quietly stopped after the first
+        // deletion stayed green across all 385 tests — and a phone holding
+        // both e5rt and mlcompiler caches got a half-warm "cold" probe.
         let root = try makeCaches(named: [
             "com.apple.e5rt.e5bundlecachenewest": 2048,
+            "com.apple.mlcompiler.cache": 1024,
             "unrelated.cache": 512,
         ])
         let cache = CompiledPlanCache(cachesDirectory: root)
         let report = cache.clear()
-        #expect(report.deleted.count == 1)
-        #expect(report.deleted.first?.bytes == 2048)
+        #expect(report.deleted.count == 2)
+        #expect(report.failed.isEmpty)
+        #expect(!FileManager.default.fileExists(
+            atPath: root.appending(path: "com.apple.mlcompiler.cache").path()))
         #expect(!FileManager.default.fileExists(
             atPath: root.appending(path: "com.apple.e5rt.e5bundlecachenewest").path()))
         #expect(FileManager.default.fileExists(
             atPath: root.appending(path: "unrelated.cache").path()),
             "an instrument that deletes beyond its writ is a hazard, not a tool")
-        #expect(report.summary.contains("2048") || report.summary.contains("2 KB"))
+        #expect(report.summary.contains("3072"),
+                "the bytes of BOTH deleted caches, or the report under-counts")
     }
 
     @Test("absence is said in words, not dressed as work done")
@@ -76,15 +84,21 @@ struct CompiledPlanCacheTests {
 struct NullPhaseTests {
 
     @Test("zero samples means the phase measured nothing, and the line says why")
-    func zeroSamplesAnnounced() {
+    func zeroSamplesAnnounced() throws {
+        // `throws` + `try`, not `try!` — the review reproduced the trap: a
+        // regression here would kill the whole test process with signal 5
+        // instead of failing one test red, taking every later suite down.
         let line = PressurePhaseVerdict.nullRunLine(samples: 0, label: "voice")
-        let announced = try! #require(line)
+        let announced = try #require(line)
         #expect(announced.contains("ALREADY"))
         #expect(announced.contains("measured nothing"))
     }
 
-    @Test("a phase with real samples gets no announcement")
+    @Test("a phase with real samples gets no announcement — one sample included")
     func realPhaseSilent() {
         #expect(PressurePhaseVerdict.nullRunLine(samples: 12, label: "voice") == nil)
+        // The boundary, pinned: ONE sample is a fast real load, not a null
+        // run — a `samples <= 1` mutation must fail here.
+        #expect(PressurePhaseVerdict.nullRunLine(samples: 1, label: "voice") == nil)
     }
 }

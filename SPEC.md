@@ -3723,6 +3723,11 @@ voice phase completes without a single sampler line, the trace says the
 voice was already loaded and this run measured nothing — and
 `survived: yes` is withheld for that phase. *Test:* run the probe body
 against a pre-loaded stub voice; assert the announcement line.
+*Correction, recorded at review rather than slipped past it:* the probe
+body lives in the app target, which no test target can import, so the
+shipped test pins the RULE as a pure function
+(`PressurePhaseVerdict.nullRunLine`, including the one-sample boundary)
+and the WIRING is field evidence — the same split AC-161 already uses.
 
 **AC-171 — the screen shows the probe.** While the probe runs, the
 Bench body shows its lines growing (or at minimum the latest line); the

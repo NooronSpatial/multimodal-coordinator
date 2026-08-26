@@ -113,12 +113,13 @@ struct ConversationTurn: Sendable, Identifiable {
     /// Free dirty memory at the end of this turn, or nil when the device
     /// will not say — never 0, which is what the ambiguous API returns.
     let freeMB: Int?
-    /// The MOUTH's numbers for this turn, stamped AFTER the row exists
-    /// because the voice finishes speaking later than the mind finishes
-    /// thinking (AC-173). All nil when the voice never finished this
-    /// reply — a barge or a death keeps no voice line, honestly. §50
-    /// named this absence as why the session-start suspect could not be
-    /// convicted from field logs.
+    /// The MOUTH's numbers for this turn (AC-173), usually stamped after
+    /// the row exists — and parked when the margin wins the race. All nil
+    /// only for a BARGED reply: its mouth was cancelled, so no margin ever
+    /// fires, and the empty line is the honest record. A reply whose
+    /// decode FAILED does carry its line, marked DID NOT FINISH — that
+    /// failure is evidence, not absence. §50 named this logging as why
+    /// the session-start suspect could not be convicted from field logs.
     var voiceAudioMs: Int?
     var voiceRTF: Double?
     var cushionMs: Int?
