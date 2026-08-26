@@ -135,6 +135,114 @@ struct CompiledPlanCacheTests {
         ]).clear()
         #expect(report.summary.contains("never-created is unreadable or absent"))
     }
+
+    @Test("an unreadable directory is named even beside a success")
+    func unreadableNamedBesideSuccess() throws {
+        // The D-075 review's catch: the first version admitted an
+        // unsurveyed directory only when NOTHING matched anywhere, so one
+        // found cache silenced the admission — "cleared" claimed while a
+        // whole directory went unlooked-at.
+        let root = try makeContainer(["Caches": ["com.apple.e5rt.cache": 128]])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let report = CompiledPlanCache(directories: [
+            root.appending(path: "Caches"), root.appending(path: "never-created"),
+        ]).clear()
+        #expect(report.deleted.count == 1)
+        #expect(report.summary.contains("cleared 1"))
+        #expect(report.summary.contains("never-created is unreadable or absent — not surveyed"))
+    }
+
+    @Test("an empty directory holds: [nothing] — the line C rests on")
+    func emptyDirectoryHoldsNothing() throws {
+        // "tmp holds: [nothing]" is the exact evidence line D-075's
+        // fall-through to C rests on, and an empty-but-existing tmp/ is a
+        // live outcome on the phone. The review found it pinned by no
+        // test at all.
+        let root = try makeContainer(["Caches": ["unrelated.cache": 64], "tmp": [:]])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let report = CompiledPlanCache(directories: [
+            root.appending(path: "Caches"), root.appending(path: "tmp"),
+        ]).clear()
+        #expect(report.summary.contains("tmp holds: [nothing]"))
+    }
+
+    @Test("a plain FILE is measured at its real size, not zero")
+    func plainFileMeasuredAtRealSize() throws {
+        // The review's major: directoryBytes enumerates CONTENTS, and a
+        // plain file has none — so a 5 MB staging blob in tmp/ was
+        // deleted for real but recorded as "0 bytes", corrupting the very
+        // byte evidence AC-172 exists to collect.
+        let root = try makeContainer(["tmp": [:]])
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data(repeating: 7, count: 4096)
+            .write(to: root.appending(path: "tmp/com.apple.e5rt.stagingblob"))
+        let cache = CompiledPlanCache(directories: [root.appending(path: "tmp")])
+        #expect(cache.survey().first?.bytes == 4096)
+        let report = cache.clear()
+        #expect(report.summary.contains("4096"),
+                "the file's real size, or the byte evidence lies")
+    }
+
+    @Test("a matching SYMLINK is not ours to delete, and the target survives")
+    func symlinkIsSkipped() throws {
+        // Deleting a link while its target keeps answering warm would be
+        // "cleared" over surviving data — the §30 lie with extra steps.
+        // So a link is never surveyed as a cache; it still shows in the
+        // neighbourhood line, where a field report can flag it.
+        let root = try makeContainer(["Caches": [:]])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let target = root.appending(path: "Caches/target-data")
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+        try Data(repeating: 7, count: 64).write(to: target.appending(path: "plan.bin"))
+        try FileManager.default.createSymbolicLink(
+            at: root.appending(path: "Caches/com.apple.CoreML.link"),
+            withDestinationURL: target)
+        let cache = CompiledPlanCache(directories: [root.appending(path: "Caches")])
+        #expect(cache.survey().isEmpty)
+        let report = cache.clear()
+        #expect(report.deleted.isEmpty)
+        #expect(FileManager.default.fileExists(
+            atPath: target.appending(path: "plan.bin").path()))
+        #expect(report.summary.contains("com.apple.CoreML.link"),
+                "the neighbourhood still names the link")
+    }
+
+    @Test("the same directory passed twice is surveyed once")
+    func duplicateDirectoriesSurveyedOnce() throws {
+        // The review reproduced the double-listing report: one cache in
+        // `deleted` AND in `failed`, with a false "may still be warm".
+        let root = try makeContainer(["Caches": ["com.apple.e5rt.cache": 256]])
+        defer { try? FileManager.default.removeItem(at: root) }
+        let dir = root.appending(path: "Caches")
+        let report = CompiledPlanCache(directories: [dir, dir]).clear()
+        #expect(report.deleted.count == 1)
+        #expect(report.failed.isEmpty,
+                "one deletion must not also be reported as a failure")
+    }
+
+    @Test("a clear in which every delete failed never says 'cleared'")
+    func allFailedClearNeverSaysCleared() throws {
+        // The review ran the mutation this test kills: append every entry
+        // to `deleted` regardless — a delete failure reported as success,
+        // the exact lie ClearReport.failed exists to prevent — and the
+        // whole suite stayed green.
+        let root = try makeContainer(["Caches": ["com.apple.e5rt.locked": 512]])
+        let caches = root.appending(path: "Caches")
+        defer {
+            try? FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: caches.path())
+            try? FileManager.default.removeItem(at: root)
+        }
+        try FileManager.default.setAttributes(
+            [.posixPermissions: 0o555], ofItemAtPath: caches.path())
+        let report = CompiledPlanCache(directories: [caches]).clear()
+        #expect(report.deleted.isEmpty)
+        #expect(report.failed.count == 1)
+        #expect(!report.summary.contains("cleared"),
+                "a success verb over zero successes")
+        #expect(report.summary.contains(
+            "could not delete any of 1 compiled-plan cache(s): Caches/com.apple.e5rt.locked"))
+    }
 }
 
 /// 4n — AC-170. The null-run rule as a pure, testable sentence: a probe

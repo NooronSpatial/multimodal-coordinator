@@ -22,15 +22,34 @@ import Foundation
 /// never claims — it SURVEYS what actually exists (names and bytes),
 /// deletes only what it surveyed, and says absence in words. A "cleared"
 /// over an empty directory is not a smaller success; it is a lie with
-/// good manners.
+/// good manners. The same rule one layer down, both added by the D-075
+/// review: a directory this control cannot READ is named "unreadable or
+/// absent" in EVERY report, and a clear in which every delete failed
+/// never opens with the word "cleared".
 ///
 /// The prefix list is deliberately visible: the field report is how we
 /// learn which of these the device really uses. If a phone's report says
 /// "no compiled-plan cache found", the cache lives somewhere this list
 /// does not reach — that is a FINDING, and the next prefix (or the next
 /// directory, as D-075 was) goes through a review, not a hotfix.
+///
+/// ## Named limits (found by the D-075 review, kept on the record)
+///
+/// - A SYMLINK whose name matches a prefix is not touched: deleting the
+///   link would leave the target's data answering warm while the report
+///   claimed cold — the §30 lie with extra steps. It still shows in the
+///   neighbourhood line. No OS is known to symlink these caches; if a
+///   field report ever shows one, that is a finding.
+/// - Byte counts are best-effort: a directory walk the OS interrupts
+///   midway undercounts silently. The DELETION is exact; the number is
+///   evidence, not accounting.
+/// - `Entry.location` is the surveyed directory's last path component;
+///   two surveyed roots sharing a last component would be
+///   indistinguishable in the report. The app passes Caches and tmp.
+/// - `survey()` alone cannot express "unreadable" — it returns entries
+///   only. `clear()`'s summary is the honest reporter.
 public struct CompiledPlanCache: Sendable {
-    /// A directory this control found (or deleted): where it sat (the
+    /// A cache this control found (or deleted): where it sat (the
     /// surveyed directory's last path component — "Caches" or "tmp" in
     /// the app), its name, and the bytes it held at survey time.
     public struct Entry: Sendable, Equatable {
@@ -58,39 +77,74 @@ public struct CompiledPlanCache: Sendable {
 
     /// The app passes its container's Caches and tmp (D-075); tests pass
     /// seeded temporary ones. There is no default on purpose — a wrong
-    /// default here deletes someone's caches.
+    /// default here deletes someone's caches. Duplicates are dropped up
+    /// front: the same directory listed twice once produced a report that
+    /// called one deletion both done and failed.
     public init(directories: [URL]) {
-        self.directories = directories
+        var seen = Set<URL>()
+        self.directories = directories.filter {
+            seen.insert($0.standardizedFileURL).inserted
+        }
+    }
+
+    /// One directory, read ONCE. Entries and the neighbourhood line come
+    /// from the same read, so the headline and the evidence line cannot
+    /// disagree about a cache that appeared between two listings.
+    private struct Scan {
+        let directory: URL
+        let entries: [Entry]
+        /// nil when the directory could not be read at all.
+        let names: [String]?
     }
 
     /// What exists right now, across every directory, without touching it.
     public func survey() -> [Entry] {
-        directories.flatMap(survey(in:))
+        directories.flatMap { scan($0).entries }
     }
 
-    private func survey(in directory: URL) -> [Entry] {
-        let contents = (try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: nil)) ?? []
-        return contents.compactMap { url in
+    private func scan(_ directory: URL) -> Scan {
+        let keys: [URLResourceKey] = [.isDirectoryKey, .isSymbolicLinkKey, .fileSizeKey]
+        guard let contents = try? FileManager.default.contentsOfDirectory(
+            at: directory, includingPropertiesForKeys: keys) else {
+            return Scan(directory: directory, entries: [], names: nil)
+        }
+        let entries = contents.compactMap { url -> Entry? in
             let name = url.lastPathComponent
             guard Self.prefixes.contains(where: name.hasPrefix) else { return nil }
+            let values = try? url.resourceValues(forKeys: Set(keys))
+            // isSymbolicLink first: the other keys describe the TARGET.
+            guard values?.isSymbolicLink != true else { return nil }
+            let bytes = values?.isDirectory == true
+                ? directoryBytes(url) : (values?.fileSize ?? 0)
             return Entry(location: directory.lastPathComponent,
-                         name: name, bytes: directoryBytes(url))
+                         name: name, bytes: bytes)
         }
+        return Scan(directory: directory, entries: entries,
+                    names: contents.map(\.lastPathComponent).sorted())
     }
 
     /// Deletes what the survey found, and reports exactly that.
     public func clear() -> ClearReport {
-        let found = directories.map { ($0, survey(in: $0)) }
-        guard found.contains(where: { !$1.isEmpty }) else {
-            // Absence NAMES each neighbourhood. If the prefixes (or the
-            // directory list) miss the real cache, the next field report
-            // must carry the evidence to extend them — the names that ARE
-            // there, per directory — instead of a shrug the reader cannot
-            // act on. "tmp holds: [nothing]" is itself the line AC-172's
-            // fall-through to C rests on.
+        let scans = directories.map(scan(_:))
+        // A directory the control could not read is named in EVERY
+        // report. The first version said so only when nothing matched
+        // anywhere, so one found cache silenced the admission that a
+        // whole directory went unsurveyed.
+        let unreadable = scans.filter { $0.names == nil }.map {
+            "\($0.directory.lastPathComponent) is unreadable or absent — not surveyed"
+        }
+        guard scans.contains(where: { !$0.entries.isEmpty }) else {
+            // Absence NAMES each neighbourhood, from the same read the
+            // verdict came from. "tmp holds: [nothing]" is itself the
+            // line AC-172's fall-through to C rests on.
             let where_ = directories.map(\.lastPathComponent).joined(separator: " or ")
-            let hoods = directories.map(neighbourhood(of:)).joined(separator: " · ")
+            let hoods = scans.map { scan -> String in
+                guard let names = scan.names else {
+                    return "\(scan.directory.lastPathComponent) is unreadable or absent"
+                }
+                let list = names.isEmpty ? "nothing" : names.joined(separator: ", ")
+                return "\(scan.directory.lastPathComponent) holds: [\(list)]"
+            }.joined(separator: " · ")
             return ClearReport(deleted: [], failed: [], summary:
                 "no compiled-plan cache found under \(where_)"
                 + " — the next load was already going to be cold, or the cache"
@@ -98,9 +152,9 @@ public struct CompiledPlanCache: Sendable {
         }
         var deleted: [Entry] = []
         var failed: [Entry] = []
-        for (directory, entries) in found {
-            for entry in entries {
-                let url = directory.appending(path: entry.name)
+        for scan in scans {
+            for entry in scan.entries {
+                let url = scan.directory.appending(path: entry.name)
                 if (try? FileManager.default.removeItem(at: url)) != nil {
                     deleted.append(entry)
                 } else {
@@ -108,27 +162,27 @@ public struct CompiledPlanCache: Sendable {
                 }
             }
         }
-        let total = deleted.reduce(0) { $0 + $1.bytes }
-        let names = deleted.map { "\($0.location)/\($0.name)" }.joined(separator: ", ")
-        var summary = "cleared \(deleted.count) compiled-plan cache(s), \(total) bytes: \(names)"
-        if !failed.isEmpty {
-            summary += " · COULD NOT DELETE "
+        var summary: String
+        if deleted.isEmpty {
+            // Every delete failed. "cleared 0 ... 0 bytes:" would be a
+            // malformed sentence wearing a success verb.
+            summary = "could not delete any of \(failed.count) compiled-plan cache(s): "
                 + failed.map { "\($0.location)/\($0.name)" }.joined(separator: ", ")
                 + " — the next load may still be warm"
+        } else {
+            let total = deleted.reduce(0) { $0 + $1.bytes }
+            let names = deleted.map { "\($0.location)/\($0.name)" }.joined(separator: ", ")
+            summary = "cleared \(deleted.count) compiled-plan cache(s), \(total) bytes: \(names)"
+            if !failed.isEmpty {
+                summary += " · COULD NOT DELETE "
+                    + failed.map { "\($0.location)/\($0.name)" }.joined(separator: ", ")
+                    + " — the next load may still be warm"
+            }
+        }
+        if !unreadable.isEmpty {
+            summary += " · " + unreadable.joined(separator: " · ")
         }
         return ClearReport(deleted: deleted, failed: failed, summary: summary)
-    }
-
-    /// One directory's contents by name — or the honest admission that it
-    /// could not be read. "holds: [nothing]" over a directory that was
-    /// never opened would be the instrument fault again, one layer down.
-    private func neighbourhood(of directory: URL) -> String {
-        guard let contents = try? FileManager.default.contentsOfDirectory(
-            at: directory, includingPropertiesForKeys: nil) else {
-            return "\(directory.lastPathComponent) is unreadable or absent"
-        }
-        let present = contents.map(\.lastPathComponent).sorted().joined(separator: ", ")
-        return "\(directory.lastPathComponent) holds: [\(present.isEmpty ? "nothing" : present)]"
     }
 
     private func directoryBytes(_ url: URL) -> Int {
