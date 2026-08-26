@@ -53,6 +53,17 @@ struct LeadFollowsDecoderTests {
         #expect(voice.lead == .milliseconds(250))
     }
 
+    @Test("measuredRealTimeFactor provides platform-calibrated values")
+    func platformCalibratedRTF() {
+        #if os(iOS)
+        #expect(NeuralVoice.measuredRealTimeFactor(for: .fused) >= 1.2)
+        #expect(NeuralVoice.defaultLead(for: .fused) >= .milliseconds(1500))
+        #else
+        #expect(NeuralVoice.measuredRealTimeFactor(for: .fused) == 0.752)
+        #expect(NeuralVoice.defaultLead(for: .fused) == .zero)
+        #endif
+    }
+
     /// THE BUG, PINNED. Not a wish — a statement of what the API does, so
     /// that anyone reading `defaultLead` as "the safe default" sees the
     /// cost written down next to it.
