@@ -3930,15 +3930,19 @@ reach them.
 ### The Mac's corroboration, measured 2026-08-26 on this machine
 
 - `~/Library/Caches/com.apple.e5rt.e5bundlecache` EXISTS at USER level
-  — outside any app container. It held **0 bytes** at survey time: the
-  OS fills and empties it on its own schedule. Both facts point the
-  same way — the e5rt cache belongs to the system, not to the app that
-  triggered the compile.
+  — outside any app container. It held **0 bytes** at the one snapshot
+  taken; when and why the OS fills or empties it was not observed, only
+  that this app's compiles left nothing there that day. Both facts
+  point the same way — the e5rt cache belongs to the system, not to the
+  app that triggered the compile.
 - The Mac's $TMPDIR held no e5rt/CoreML/mlcompiler staging at all. What
-  it DID hold: ten-plus leaked `cold-*` roots from this project's own
-  test fixtures — `makeContainer` never cleaned up after itself. Fixed
-  with the D-075 work; the instrument that surveys tmp/ was itself
-  littering tmp/.
+  it DID hold: **152** leaked `cold-*` roots from this project's own
+  test fixtures — `makeContainer` never cleaned up after itself. (This
+  section first said "ten-plus, fixed": the count came from a truncated
+  listing and the fix only stopped FUTURE leaks — the review counted
+  the 152 still sitting there. Corrected, the backlog swept by hand,
+  fixtures now delete themselves.) The instrument that surveys tmp/ was
+  itself littering tmp/.
 
 ### The ruling, and the code it changed
 
@@ -3948,8 +3952,36 @@ ruling carries its own ending: an empty tmp/ falls through to C with no
 new fork. `CompiledPlanCache` now walks a list of directories, every
 entry says WHERE it was found, absence names EVERY neighbourhood
 separately, and a directory the control cannot read says "unreadable or
-absent" instead of posing as empty (each rule pinned by a test, each
-test proven killable by its mutation).
+absent" instead of posing as empty.
+
+### The adversarial review's harvest (D-041), and what it caught
+
+The first version of this section claimed "each rule pinned by a test,
+each test proven killable" over THREE run mutations. The review refused
+the claim and was right twice over — 14 confirmed findings, two major:
+
+1. **The byte evidence could lie.** A plain FILE matching a prefix (a
+   staging blob in tmp/, exactly what D-075 hunts) was deleted for real
+   but recorded as **0 bytes** — the byte counter enumerates a
+   directory's contents, and a file has none. The AC-172 number's own
+   evidence line would have under-reported every file-shaped cache.
+2. **A delete failure could report as success.** The COULD-NOT-DELETE
+   path had no test; the review proved by mutation that
+   failure-as-success stayed green across the whole suite — the §30
+   lie, one branch deeper.
+
+Also confirmed and closed: a matching symlink was "cleared" while its
+target survived (links are now skipped, visible in the neighbourhood
+line); the same directory passed twice reported one deletion as both
+done and failed; an all-failed clear opened with "cleared 0 ... 0
+bytes:"; an unreadable directory was admitted only when nothing matched
+anywhere; and the "holds: [nothing]" line — the exact evidence C rests
+on — was pinned by no test. The suite now holds 11 tests over this one
+type, and NINE mutations were each shown to kill their named test.
+Named limits that remain, on the record in the doc comment: byte walks
+are best-effort, location labels collide for same-named roots, and
+`survey()` alone cannot say "unreadable" — `clear()`'s summary is the
+honest reporter.
 
 ### What the next ❄ run decides — AC-172, still owed
 
