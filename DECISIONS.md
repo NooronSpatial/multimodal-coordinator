@@ -3110,3 +3110,36 @@ also uses for its own staging. The writ stays narrow — only the three
 known prefixes are ever touched, everything else in tmp/ is surveyed by
 name and left alone — but a prefix list that overmatched would now
 overmatch in two places instead of one.
+
+## D-076 — the cold-start pair ships with the cold-route PR, on Ryad's own review (Milestone 4n follow-up)
+
+**Date:** 2026-08-26 · **Decided by:** Ryad · **Ruling: keep together —
+the turn-1 cold-start commits (4074d0c, 7420730) merge in the same PR
+as the D-075 work**
+
+While the D-075 session waited on its verification jobs, two commits
+landed on the branch from outside it: an iOS session-start fallback for
+the voice's lead (phone RTF constants 1.30/1.33, from §22's measured
+1.21× and §41's 1.33×) and a WhisperEngine.prewarm() that pays the ANE
+compile off-turn. Ryad ruled they ship now: **"i already reviewed and
+tested. the work is good."** That review-and-test is the D-041 gate for
+these commits, closed by the person the rule belongs to.
+
+*Rejected:* **splitting the streams** (the session's recommendation —
+a clean D-075-only PR, with the cold-start pair waiting for its own
+review and the §50 field evidence). Ryad's review had already happened;
+a split would have manufactured ceremony around work he had personally
+verified.
+
+**Recorded with the ruling, so the record stays whole:**
+- §50's suspect list stays OPEN. The pair mitigates the starvation
+  suspect; it does not convict it — turn 2's "Rome." is sub-second and
+  starvation cannot explain it. AC-173's margin-per-turn logging is the
+  instrument that still decides, and it logs the cushion in force, so
+  the next conversation log stays readable evidence either way.
+- The new prewarm is a fourth instance of the lazy-init class D-051's
+  accepted notes hold open (feed · openUtterance · mind-prewarm · now
+  ear-prewarm). The class-level cure remains an open fork.
+- The prewarm conformance test self-skips where no model is installed,
+  so CI exercises the guard path only — hardware-gated like the rest of
+  the engine suite, said here rather than discovered later.
