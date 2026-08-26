@@ -997,9 +997,13 @@ final class TranscribeModel {
         probeLines = []
         probeSay("# cold-compile probe — D-074 = B")
         // Off the MainActor: the byte walk and the deletes are file I/O,
-        // and the screen should not stutter for them.
+        // and the screen should not stutter for them. Caches AND tmp —
+        // the ❄'s first surviving report proved Caches empty of the
+        // compile cache, so the hunt widened (D-075).
         let report = await Task.detached {
-            CompiledPlanCache(cachesDirectory: URL.cachesDirectory).clear()
+            CompiledPlanCache(directories: [
+                URL.cachesDirectory, FileManager.default.temporaryDirectory,
+            ]).clear()
         }.value
         probeSay(report.summary)
         probeSay("retiring the in-process voice — its warm pipeline must not answer…")
