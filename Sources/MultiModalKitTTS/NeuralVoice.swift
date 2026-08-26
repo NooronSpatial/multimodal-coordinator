@@ -226,10 +226,19 @@ public actor NeuralVoice: SpeechSynthesizing {
     public nonisolated static func measuredRealTimeFactor(
         for mode: Qwen3MultiCodeDecoderMode
     ) -> Double {
+        #if os(iOS)
+        // iPhone cold decode runs at ~1.25-1.33x (INSTRUMENTS §22, §41).
+        // Sizing for a nominal 6s reply gives ~1800ms lead to prevent Turn 1 buffer underruns.
         switch mode {
-        case .fused: 0.752      // AC-106
-        default: 1.066          // AC-106, `.stepped`
+        case .fused: 1.30
+        default: 1.33
         }
+        #else
+        switch mode {
+        case .fused: 0.752      // AC-106 (Mac)
+        default: 1.066          // AC-106, `.stepped` (Mac)
+        }
+        #endif
     }
 
     /// The cushion this decoder actually needs, derived not guessed.
