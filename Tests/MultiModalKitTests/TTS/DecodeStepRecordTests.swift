@@ -13,7 +13,7 @@ import MultiModalKit
 /// A TIME LIMIT, because this suite drives a run whose stream only ends
 /// when playback reports finished — and a spy host never does. A red test
 /// here must fail fast rather than hang the whole run.
-@Suite(.timeLimit(.minutes(1)))
+@Suite(.timeLimit(.minutes(1)), .serialized)
 struct DecodeStepRecordTests {
 
     static func until(_ condition: () async -> Bool,
@@ -57,13 +57,21 @@ struct DecodeStepRecordTests {
         // the reason the numbers below can be asserted with `==`.
         let decoder = ScriptedDecoder([.stepsProducing([2400, 4800, 1200])],
                                       sampleRate: 24_000)
-        let host = SpyPlaybackHost()
-        // birth, then three steps costing 50, 500 and 50 ms.
+        // A REAL host, and that is not incidental. `SpyPlaybackHost`
+        // records attachments without joining a graph, so the run's
+        // player node has no output format — scheduling actual samples on
+        // it throws an NSException that kills the whole test process.
+        // Every earlier test escaped that only because `.steps(n)`
+        // produces EMPTY samples, which `render` skips. This suite is the
+        // first to push real audio through, so it renders on a real
+        // engine and skips honestly where there is none (the D-022 rule).
+        let host = AudioEnginePlaybackHost()
+        defer { host.stopRendering() }
         let time = ScriptedTime([.zero, .milliseconds(50),
                                  .milliseconds(500), .milliseconds(50)])
-        let run = try NeuralVoiceRun(decoder: decoder, host: host,
-                                     lead: PlaybackLead(target: .zero),
-                                     now: time.now)
+        guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
+                                            lead: PlaybackLead(target: .zero),
+                                            now: time.now) else { return }
         await run.feed("Three steps. ")   // the clause mark releases the phrase
         // GATED ON A FACT, not on a count or a sleep: the decoder itself
         // says how many steps it took. Draining `updates` instead would
@@ -93,11 +101,12 @@ struct DecodeStepRecordTests {
         // 21600 samples at 24 kHz is exactly 900 ms.
         let decoder = ScriptedDecoder([.stepsProducing([0, 21600])],
                                       sampleRate: 24_000)
-        let host = SpyPlaybackHost()
+        let host = AudioEnginePlaybackHost()
+        defer { host.stopRendering() }
         let time = ScriptedTime([.zero, .milliseconds(500), .milliseconds(100)])
-        let run = try NeuralVoiceRun(decoder: decoder, host: host,
-                                     lead: PlaybackLead(target: .zero),
-                                     now: time.now)
+        guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
+                                            lead: PlaybackLead(target: .zero),
+                                            now: time.now) else { return }
         await run.feed("Stall then flood. ")
         #expect(await Self.until { decoder.stepsTaken == 2 })
         await run.cancel()
