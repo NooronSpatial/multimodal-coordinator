@@ -3143,3 +3143,52 @@ verified.
 - The prewarm conformance test self-skips where no model is installed,
   so CI exercises the guard path only — hardware-gated like the rest of
   the engine suite, said here rather than discovered later.
+
+## D-077 — 1.7B is better, and it stays on the Mac (Milestone 4l, AC-163)
+
+**Date:** 2026-08-27 · **Decided by:** Ryad · **Ruling: A — record the
+verdict, keep 0.6B everywhere, and log 1.7B as a macOS-only quality
+ceiling this project measured but cannot ship**
+
+AC-163 asked the ear to rule, and warned in advance that the honest
+outcome might be "better, and unreachable on the device that matters."
+It is exactly that.
+
+**What the measurement said** (this Mac, release, `bakeoff voice-levers`
+and `voice-wer`, both models on the same sentences):
+
+| | 0.6B | 1.7B |
+|---|---|---|
+| WER, fused | 0.067 (worst 0.400) | **0.022 (worst 0.200)** |
+| steady RTF, fused | 0.757 | 0.992 |
+| audio for the same sentence | 6.5–12.8 s | 4.1–8.6 s |
+
+1.7B is **three times more accurate on fused** and says the same words
+in far less audio — 0.6B drags and wanders, which is the same trait
+behind the laugh 4e recorded. The cost is 1.1–1.3× more decode time per
+second of audio across all six configs.
+
+**What the ear said:** both models sound good and fluent on this Mac.
+The quality gap the numbers report is not one Ryad's ear rejects either
+way — so the ruling does not rest on 0.6B sounding bad.
+
+**Ruled: A.** 0.6B stays the shipped voice on every platform. 1.7B is
+recorded as a measured ceiling, reachable only on macOS.
+
+*Rejected:* **B, make 1.7B the Mac's default** — it would split the
+product in two: the Mac would ship a voice the phone can never run, so
+every future voice measurement would need saying twice, and the demo a
+reader runs on a Mac would stop being evidence about the phone.
+*Rejected:* **C** — no ear finding contradicted the numbers.
+
+**The cost, named:** `supportsVoiceDirection` is true only for 1.7B, so
+style instructions stay unreachable, and this ruling makes that OUR
+choice as well as the vendor's — the same door D-072 F-4 closed, now
+closed with the quality evidence that was missing then.
+
+**D-072's F-4 prediction, now measured rather than argued.** That
+ruling refused the compute-units lever by predicting 1.7B could not
+hold real time on the phone. The phone runs 0.6B at 1.05–1.37; 1.7B
+costs 1.1–1.3× more, which puts it at roughly 1.4–1.8 there. Real time
+gone by a margin no cushion can bank — exactly as written, now with
+numbers behind it.

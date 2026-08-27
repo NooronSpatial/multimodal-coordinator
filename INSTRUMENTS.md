@@ -4026,3 +4026,140 @@ localspeechrecognition` sits in app-Caches — the ear's system cache
 lives app-side even though the voice compiler's does not.
 
 **AC-172: CLOSED.**
+
+## 53. The hitch, found on a Mac — and the sizing rule that cannot see it
+
+Ryad's Mac, 2026-08-27, milestone 4l's parked half. The session set out
+to measure the 1.7B voice and ended by reproducing the PHONE's field
+defect on this desk, in a saved file, with no phone involved. It also
+refuted two of this session's own explanations and one of the project's
+oldest formulas. The order below is the order it happened, because the
+wrong turns are the evidence that the right answer was measured.
+
+### 53.1 Two instruments were lying, and using them is what showed it
+
+**`voice-levers` told the reader to "read the STEADY column from
+stderr", and there was no such column.** It depended on the vendor's
+logging, which prints nothing here today. So the only readable numbers
+were TOTALS — and totals cannot compare two models: a model that says
+the same sentence in less audio finishes sooner for a reason that is not
+speed. The first 1.7B sweep therefore looked FASTER than 0.6B, which
+would have been published as a finding. Fixed by reporting our own
+`DecodeMargin` — audio length and steady RTF, the same instrument the
+phone logs — with a run that reports no margin saying so rather than
+borrowing the previous row's number.
+
+**`voice-wer` could only ever test a mouth the phone never uses.** It
+hard-coded 0.6B with `latencyOptimized`, while iOS cannot load `.fused`
+at all and ships `stepped + throughput`. Every WER number this tool had
+ever produced described the Mac's mouth, not the product's. It now takes
+`--voice-model=`, `--speech=` and `--lead=` through the library's one
+parser (D-072 F-3), and `--save-audio=` writes the graded captures.
+
+### 53.2 The 1.7B verdict (AC-163, ruled D-077 = A)
+
+Medians of three, release build, same sentence:
+
+| | 0.6B | 1.7B |
+|---|---|---|
+| WER, fused | 0.067 (worst 0.400) | **0.022** (worst 0.200) |
+| steady RTF, fused | 0.757 | 0.992 |
+| audio for one sentence | 6.5–12.8 s | 4.1–8.6 s |
+
+1.7B is three times more accurate and far more compact; 0.6B drags and
+wanders, the same trait behind the laugh §4e recorded. 1.7B costs
+1.1–1.3× more decode per second of audio across all six configs. Ryad's
+ear: both sound good and fluent on this Mac. Ruled A — 0.6B ships
+everywhere, 1.7B is a macOS-only ceiling. **D-072 F-4's prediction is
+now measured:** the phone runs 0.6B at 1.05–1.37, so 1.7B lands near
+1.4–1.8 there — real time gone by a margin no cushion can bank.
+
+### 53.3 The hitch, and the metric that was wrong about it
+
+Rendering the phone's exact levers here, Ryad's ear found sentence 3
+"cuts and hitched" — **and that file scored WER 0.000.** Whisper
+transcribed every word from audio with thirteen dropouts in it. This is
+D-045's F-5 lesson arriving in the field: WER measures what a RECOGNISER
+understands, not what a human enjoys. A transcriber steps over gaps; an
+ear does not.
+
+**The first attempt to measure the gaps was an artifact, and the
+adversarial review killed it.** It classified silence by an invented
+amplitude floor (0.005), which cut through quiet-but-real speech and
+counted soft syllables as dropouts. It was knife-edge — the same
+condition read 9 or 68 ms/s as the floor moved from 0.002 to 0.010 — and
+it produced a confident false conclusion: a "residual ~40 ms/s that no
+cushion can fix, intrinsic to the stepped decoder". **That residual does
+not exist.** Not one of those gaps contains a single silent sample.
+
+The honest signature needs no threshold: **when the player runs dry the
+mixer renders exact digital zeros**, and speech is never exactly zero.
+
+### 53.4 The result, measured as true digital silence
+
+9 files per condition (3 sentences × 3 draws), 0.6B, runs ≥20 ms inside
+the speech span:
+
+| condition | files that starved | silence ms per second of speech |
+|---|---|---|
+| A · fused + latency, lead 800 | 0 / 9 | 0.0 |
+| B · stepped + latency, lead 800 | 4 / 9 | 40.5 |
+| C · fused + throughput, lead 800 | 0 / 9 | 0.0 |
+| **D · stepped + throughput, lead 800 — THE PHONE** | **6 / 9** | **92.9** |
+| **E · D with lead 3000 — CONTROL** | **0 / 9** | **0.0** |
+| F · fused + throughput, lead 3000 | 0 / 9 | 0.0 |
+
+**Only the two configurations whose RTF exceeds 1.0 with a small cushion
+starve, and a bigger cushion removes every dropout in this sample.**
+Fused never starves at any cushion — which is why this Mac sounds
+flawless and the phone does not: the phone cannot load fused.
+
+**The ear agrees with the threshold-free metric exactly.** The file Ryad
+heard hitch holds 13 silence runs, 1242 ms, longest 137 ms. The file he
+called "better, less hitch" holds **zero silent samples**. So the metric
+can stand in for his ear on this defect — the first time this project has
+had that for a timing fault.
+
+*Caveat:* 9 files per condition; 3 of D's 9 did not starve. This shows
+the cushion removed every dropout in this sample, not that no reply can
+ever outrun a cushion.
+
+### 53.5 ⭐ The finding that outranks the rest: the sizing rule is wrong by FORM
+
+`PlaybackLead`'s rule — **`deficit = replyLength × (RTF − 1)`** (D-046,
+inherited by 4m's learned cushion) — is not predictive of the silence it
+exists to prevent. Fed this Mac's honest measurement for the phone's
+config (steady RTF 1.114), per file, against condition D's 800 ms bank:
+
+| file | audio | the rule asks | shortfall it predicts | silence MEASURED |
+|---|---|---|---|---|
+| s2-stepped-draw3 | 6043 ms | 689 ms | **none — "safe"** | **394 ms** |
+| s2-stepped-draw2 | 10055 ms | 1146 ms | 346 ms | 836 ms |
+| s3-stepped-draw1 | 11515 ms | 1313 ms | 513 ms | 1674 ms |
+| s3-stepped-draw3 | 8419 ms | 960 ms | 160 ms | 1242 ms |
+
+**Pooled: the rule predicts 1248 ms uncovered; 5593 ms of true silence
+was measured — under by 4.5×.** Worse than the magnitude is the
+direction: on `s2-stepped-draw3` it declares the reply covered, and the
+audio breaks anyway.
+
+No constant inside the measured steady range repairs this — covering the
+worst file would need RTF ≈ 1.22, outside the 1.053–1.120 that was
+actually measured. **The defect is the rule's FORM: a steady average
+cannot size a deficit that arrives in bursts.** The decoder does not run
+uniformly 1.114× slow; it stalls, and a stall drains a bank that the
+average says is deep enough.
+
+What survives: **`keepsUp` (RTF < 1.0) was correct for every condition
+here** — A, C and F never starved, D and B did. Steady RTF remains a
+sound keeps-up/does-not flag. It is its use as a SIZING formula that
+this evidence retires.
+
+**This is a fork for Ryad, not a fix**, and it reaches back into D-046
+and D-073. Recorded here as evidence; the ruling belongs in DECISIONS.
+
+*Review honesty:* the adversarial pass that caught the artifact was
+INCOMPLETE — four of its agents died on connection errors, including the
+judge examining whether the metric tracks the ear. Every corrected
+number above was re-derived independently before being written here, but
+the review itself is owed a resumption.

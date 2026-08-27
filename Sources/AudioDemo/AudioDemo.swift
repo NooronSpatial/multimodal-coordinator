@@ -593,6 +593,8 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
 /// voice-levers`. Ryad asked for exactly this: the sweep speaks each
 /// config aloud, but you cannot TALK to a sweep.
 ///
+///   --voice-model=0.6b|1.7b          WHICH MODEL SPEAKS (default: 0.6b);
+///                                    1.7b is macOS-only (D-072)
 ///   --decoder=fused|stepped          multi-code decoder (default: fused)
 ///   --speech=latency|throughput      vocoder mode (default: latency)
 ///   --temperature=0.7                sampling; omit for the model default
@@ -613,31 +615,30 @@ func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
     let want = flag("mouth") ?? "apple"
     guard want == "neural" else { return AppleSpeechSynthesizer() }
 
-    // `.fused` by default HERE. It fails to load on iOS 18+, but this Mac
-    // loads and decodes it fine and it wins on both numbers — so the
-    // phone's workaround does not belong on a machine without the bug.
-    let decoder: Qwen3MultiCodeDecoderMode =
-        flag("decoder") == "stepped" ? .stepped : .fused
-    let speech: Qwen3SpeechDecoderMode =
-        flag("speech") == "throughput" ? .throughputOptimized : .latencyOptimized
-    let temperature = flag("temperature").flatMap(Float.init)
-    // nil LEAVES IT DERIVED from the decoder's measured factor, which is
-    // the whole point of that derivation — a hand-typed lead here would
-    // reintroduce the bug it was written to prevent.
-    let lead = flag("lead")
-        .flatMap { Int($0.replacingOccurrences(of: "ms", with: "")) }
-        .map { Duration.milliseconds($0) }
-
-    let saidTemperature: String = temperature.map { "\($0)" } ?? "model default"
-    let saidLead: String = lead.map { "\($0)" } ?? "derived from the decoder"
-    var banner = "voice: decoder=\(decoder), speech=\(speech), "
-    banner += "temperature=\(saidTemperature), lead=\(saidLead)\n"
-    FileHandle.standardError.write(Data(banner.utf8))
-
-    return NeuralVoice(lead: lead,
-                       multiCodeDecoderMode: decoder,
-                       speechDecoderMode: speech,
-                       temperature: temperature)
+    // The lever flags parse in the LIBRARY (D-072 F-3): the hand-rolled
+    // parse that lived here shared no code with the tested type, which is
+    // how the model lever reached the phone's Bench and never reached this
+    // terminal — and how `--decoder=banana` became `.fused` silently.
+    //
+    // The Mac's defaults are `VoiceLevers()`'s own: `.fused` + latency.
+    // `.fused` fails to load on iOS 18+, but this Mac loads and decodes it
+    // fine and it wins on both numbers — the phone's workaround does not
+    // belong on a machine without the bug.
+    let levers: VoiceLevers
+    do {
+        levers = try VoiceLevers.parsed(fromArguments: arguments)
+    } catch let refusal as VoiceLevers.FlagError {
+        FileHandle.standardError.write(Data("audio-demo: \(refusal.message)\n".utf8))
+        exit(2)
+    } catch {
+        FileHandle.standardError.write(Data("audio-demo: \(error)\n".utf8))
+        exit(2)
+    }
+    let voice = levers.makeVoice()
+    // The banner reads the VOICE, not the flags (AC-162): `inForce` names
+    // the model too, which the hand-rolled banner never did.
+    FileHandle.standardError.write(Data("voice: \(voice.inForce)\n".utf8))
+    return voice
 }
 
 /// The Hugging Face cache, so a machine that already has the weights needs

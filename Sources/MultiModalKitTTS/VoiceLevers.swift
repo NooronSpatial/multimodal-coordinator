@@ -68,6 +68,86 @@ public struct VoiceLevers: Sendable, Equatable {
                     speechDecoderMode: vocoder,
                     temperature: temperature)
     }
+
+    // MARK: - the one parser (D-072 F-3 = A, AC-162)
+
+    /// A lever flag whose value this project cannot honor — said in our
+    /// words, with the allowed tokens beside the wrong one. The fifth
+    /// hand-rolled ternary was rejected (D-072) partly because it turned
+    /// `--decoder=banana` into `.fused` without complaint.
+    public struct FlagError: Error, Equatable {
+        public let flag: String
+        public let given: String
+        public let allowed: String
+        public var message: String {
+            "--\(flag)=\(given) — this project knows \(allowed)"
+        }
+    }
+
+    /// The five lever flags, parsed the same way for every caller.
+    ///
+    /// Lives in the library because parsing that lives in an executable is
+    /// structurally untestable (no test target can import one) — which is
+    /// how the model lever shipped in `75e1381` reached the phone's Bench
+    /// and never reached the terminal (D-072 F-3).
+    ///
+    ///   --voice-model=0.6b|1.7b   WHICH MODEL SPEAKS — the exact tokens
+    ///                             the iOS app persists, so the terminal
+    ///                             and the phone say the same words (F-1)
+    ///   --decoder=fused|stepped
+    ///   --speech=latency|throughput
+    ///   --temperature=<float>     omit for the model default
+    ///   --lead=<ms>               omit to DERIVE from the decoder
+    ///
+    /// An absent flag keeps `base`'s value; a present flag with a value
+    /// this project cannot honor throws — never a silent fallback.
+    public static func parsed(fromArguments arguments: [String],
+                              base: VoiceLevers = VoiceLevers()) throws -> VoiceLevers {
+        func flag(_ name: String) -> String? {
+            arguments.first { $0.hasPrefix("--\(name)=") }
+                .map { String($0.dropFirst(name.count + 3)) }
+        }
+        var levers = base
+        if let token = flag("voice-model") {
+            switch token {
+            case "0.6b": levers.model = .qwen3TTS_0_6b
+            case "1.7b": levers.model = .qwen3TTS_1_7b
+            default: throw FlagError(flag: "voice-model", given: token,
+                                     allowed: "0.6b|1.7b")
+            }
+        }
+        if let token = flag("decoder") {
+            switch token {
+            case "fused": levers.decoder = .fused
+            case "stepped": levers.decoder = .stepped
+            default: throw FlagError(flag: "decoder", given: token,
+                                     allowed: "fused|stepped")
+            }
+        }
+        if let token = flag("speech") {
+            switch token {
+            case "latency": levers.vocoder = .latencyOptimized
+            case "throughput": levers.vocoder = .throughputOptimized
+            default: throw FlagError(flag: "speech", given: token,
+                                     allowed: "latency|throughput")
+            }
+        }
+        if let token = flag("temperature") {
+            guard let value = Float(token) else {
+                throw FlagError(flag: "temperature", given: token,
+                                allowed: "a number, e.g. 0.7")
+            }
+            levers.temperature = value
+        }
+        if let token = flag("lead") {
+            guard let ms = Int(token.replacingOccurrences(of: "ms", with: "")) else {
+                throw FlagError(flag: "lead", given: token,
+                                allowed: "milliseconds, e.g. 400ms")
+            }
+            levers.lead = .milliseconds(ms)
+        }
+        return levers
+    }
 }
 
 extension NeuralVoice {

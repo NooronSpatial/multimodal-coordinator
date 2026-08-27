@@ -117,6 +117,69 @@ struct VoiceLeversTests {
         await voice.retire()
     }
 
+    // MARK: the one parser (D-072 F-3, AC-162)
+
+    @Test("every flag reaches the levers, in the app's own tokens")
+    func allFiveFlagsParse() throws {
+        let levers = try VoiceLevers.parsed(fromArguments: [
+            "--voice-model=1.7b", "--decoder=stepped", "--speech=throughput",
+            "--temperature=0.5", "--lead=250ms",
+        ])
+        #expect(levers.model == .qwen3TTS_1_7b)
+        #expect(levers.decoder == .stepped)
+        #expect(levers.vocoder == .throughputOptimized)
+        #expect(levers.temperature == 0.5)
+        #expect(levers.lead == .milliseconds(250))
+    }
+
+    @Test("no flags means base, untouched — lead stays derivable")
+    func absentFlagsKeepBase() throws {
+        let levers = try VoiceLevers.parsed(fromArguments: ["--mouth=neural"])
+        #expect(levers == VoiceLevers())
+        #expect(levers.lead == nil, "a parser that zeroes the lead rebuilds the slow-voice bug")
+    }
+
+    @Test("the small model parses with the token the phone persists")
+    func smallModelToken() throws {
+        let levers = try VoiceLevers.parsed(
+            fromArguments: ["--voice-model=0.6b"],
+            base: VoiceLevers(model: .qwen3TTS_1_7b))
+        #expect(levers.model == .qwen3TTS_0_6b)
+    }
+
+    @Test("--decoder=banana is refused in our words, never silently .fused")
+    func bananaIsRefused() {
+        // The D-072 rejection sentence, pinned: the hand-rolled parse
+        // turned this exact string into `.fused` without complaint.
+        #expect(throws: VoiceLevers.FlagError(
+            flag: "decoder", given: "banana", allowed: "fused|stepped")) {
+            _ = try VoiceLevers.parsed(fromArguments: ["--decoder=banana"])
+        }
+    }
+
+    @Test("an unreadable number is refused, not shrugged into the default")
+    func unreadableNumbersAreRefused() {
+        #expect(throws: VoiceLevers.FlagError.self) {
+            _ = try VoiceLevers.parsed(fromArguments: ["--temperature=warm"])
+        }
+        #expect(throws: VoiceLevers.FlagError.self) {
+            _ = try VoiceLevers.parsed(fromArguments: ["--lead=soon"])
+        }
+        #expect(throws: VoiceLevers.FlagError.self) {
+            _ = try VoiceLevers.parsed(fromArguments: ["--voice-model=3b"])
+        }
+        #expect(throws: VoiceLevers.FlagError.self) {
+            _ = try VoiceLevers.parsed(fromArguments: ["--speech=fast"])
+        }
+    }
+
+    @Test("the refusal names the flag, the wrong value, and the allowed tokens")
+    func refusalSpeaksOurWords() {
+        let error = VoiceLevers.FlagError(flag: "voice-model", given: "3b",
+                                          allowed: "0.6b|1.7b")
+        #expect(error.message == "--voice-model=3b — this project knows 0.6b|1.7b")
+    }
+
     @Test("a measured cushion is labelled as measured, a typed one is not")
     func measuredCushionIsLabelled() {
         let derived = VoiceLevers(decoder: .stepped).makeVoice()
