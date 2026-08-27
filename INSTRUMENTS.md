@@ -4166,6 +4166,23 @@ the review itself is owed a resumption.
 
 ## 54. The cushion sweep, and the drift that made half of it void
 
+> ⚠️ **EVERY NUMBER IN THIS SECTION WAS PRODUCED BY AN INSTRUMENT SINCE
+> FOUND UNRELIABLE, and is unverified until re-measured.** The 4o
+> adversarial review (2026-08-27, after this section was written) found
+> that the sweep could grade a FAILED decode as `0 ms/s` — the best
+> possible score — and fold it into a median, because `DigitalSilence`
+> answers 0 both for flawless speech and for none at all while the engine
+> keeps rendering zeros after a run dies. It also printed a one-run cell
+> identically to a repeated one, which is precisely how §54.2's 800 ms
+> was published and then withdrawn in §54.3a.
+>
+> Both faults are fixed. **The conclusions below are NOT re-run yet**, so
+> read them as the record of what the tool said, not as measurements this
+> project stands behind. The one claim that does not depend on the sweep
+> is §53's demolition of the old sizing rule, which was measured
+> independently.
+
+
 Ryad's Mac, 2026-08-27, milestone 4o's AC-178. The sweep answers the
 short reply and CANNOT answer the long one — and the second half is the
 more useful result, because the instrument is what said so.
