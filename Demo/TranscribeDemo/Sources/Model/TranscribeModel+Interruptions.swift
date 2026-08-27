@@ -1,4 +1,7 @@
 import AVFAudio
+#if canImport(UIKit)
+import UIKit
+#endif
 import Synchronization
 import MultiModalKit
 import MultiModalKitBench
@@ -47,6 +50,66 @@ extension TranscribeModel {
         @unknown default:
             break
         }
+    }
+
+    // MARK: - leaving the foreground (D-079)
+
+    /// THE CRASH THIS PREVENTS, and it is a crash, not a glitch.
+    ///
+    /// iOS forbids GPU work from the background. When the app leaves the
+    /// foreground while the LOCAL mind is generating, Metal refuses the
+    /// command buffer and MLX throws a C++ `std::runtime_error`. A C++
+    /// exception crossing into Swift cannot be caught — not by the
+    /// `do/catch` already wrapped around the token loop, not by anything —
+    /// so `libc++abi` terminates the process. From Ryad's phone:
+    ///
+    ///     IOGPUMetalError: Insufficient Permission (to submit GPU work
+    ///     from background)
+    ///     libc++abi: terminating due to uncaught exception of type
+    ///     std::runtime_error
+    ///
+    /// So the only cure is to not be generating when we go. Ruled out
+    /// before it was tried: `beginBackgroundTask` buys CPU time and never
+    /// GPU time — the restriction is on the hardware, not on the clock.
+    ///
+    /// **Why `willResignActive` and not `didEnterBackground`.** The later
+    /// notification fires when the app is ALREADY in the background, which
+    /// is already too late if a command buffer is in flight;
+    /// `willResignActive` always precedes it. The cost is named rather
+    /// than hidden: pulling down Control Centre or taking a call also
+    /// stops the reply, so a person loses a sentence they might have
+    /// kept. That trade is deliberate — a stopped reply is an annoyance a
+    /// tap recovers from, and a killed process is not.
+    ///
+    /// **The honest limit.** Cancellation is cooperative: the token loop
+    /// checks between tokens, so this wins the race only if MLX is
+    /// between command buffers when the notification arrives. It makes
+    /// the crash rare, and this app cannot make it impossible.
+    ///
+    /// The ear and the mouth need no such guard — Whisper and the neural
+    /// voice run on the ANE through CoreML, which the background does not
+    /// forbid. Only the MLX mind touches Metal.
+    func observeForegroundLoss() {
+        #if canImport(UIKit)
+        guard foregroundObserver == nil else { return }
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.willResignActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in await self?.handleForegroundLoss() }
+        }
+        #endif
+    }
+
+    /// The same two steps an audio interruption takes, and for the same
+    /// reason: the live turn dies HONESTLY rather than hanging, and the
+    /// words already spoken are kept.
+    private func handleForegroundLoss() async {
+        guard isListening else { return }
+        await coordinator?.interrupt()
+        wasInterrupted = true
+        stop()
     }
 
     /// The person tapped "resume". The thought is forgotten first — a call

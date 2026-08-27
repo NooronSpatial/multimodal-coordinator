@@ -102,6 +102,11 @@ extension TranscribeModel {
         }
         self.microphone = microphone
         observeInterruptions()
+        // The GPU guard (D-079). Registered beside the audio one because
+        // they answer the same question — "the platform is taking
+        // something away, what must stop first?" — and because both must
+        // be live for exactly as long as a conversation is.
+        observeForegroundLoss()
 
         // THE POINT OF AC-104 (D-048, AC-108). The reply renders on the
         // CAPTURE engine — the one whose audio unit does the echo
@@ -280,6 +285,14 @@ extension TranscribeModel {
             await MainActor.run { microphone = nil }
         }
         coordinator = nil
+        // BOTH observers go. The foreground one was added in the same
+        // breath as the audio one and must leave in the same breath: an
+        // observer outliving its pipeline would interrupt a coordinator
+        // that no longer exists on the next Control Centre swipe.
+        if let foregroundObserver {
+            NotificationCenter.default.removeObserver(foregroundObserver)
+            self.foregroundObserver = nil
+        }
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)
             self.interruptionObserver = nil

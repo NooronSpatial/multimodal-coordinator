@@ -3252,3 +3252,66 @@ container. The alternative was an existential nobody could hold.
 keeps open (`feed`, `openUtterance`, two `prewarm`s). `ModelBacked` is
 about weights on disk, not about who loads them when. That fork stays
 open and is now the older of the two.
+
+## D-079 — the app stops the mind before iOS kills the app (crash fix)
+
+**Date:** 2026-08-27 · **Decided by:** Ryad · **Ruling: A — the guard
+lives in the app, not in the library**
+
+### The crash, from Ryad's phone
+
+```
+IOGPUMetalError: Insufficient Permission (to submit GPU work from
+background) (00000006:kIOGPUCommandBufferCallbackErrorBackground
+ExecutionNotPermitted)
+libc++abi: terminating due to uncaught exception of type
+std::runtime_error: [METAL] Command buffer execution failed
+```
+
+iOS forbids GPU work from the background. The app left the foreground
+while the LOCAL mind was generating, Metal refused the command buffer,
+and MLX threw a **C++** `std::runtime_error`. A C++ exception crossing
+into Swift cannot be caught — the `do/catch` already wrapped around
+`MLXReplyRun`'s token loop never sees it — so `libc++abi` terminates the
+process. Not a glitch: a kill.
+
+Ruled out before it was tried: `beginBackgroundTask` buys CPU time and
+never GPU time. The restriction is on the hardware, not the clock. **The
+only cure is to not be generating when we go.**
+
+**Ruled: A.** `TranscribeModel` observes `willResignActiveNotification`
+and takes the same two steps an audio interruption already takes — the
+live turn dies honestly, the words already spoken are kept.
+
+*Rejected:* **B, guard inside `MLXReplyGenerator`** — the session's own
+recommendation, and it is the better engineering: the landmine is in the
+library, so every future caller inherits the crash. Ryad ruled otherwise
+and the reason is scope — `MultiModalKitMLX` today knows about weights
+and tokens and nothing about app lifecycle, and this project's own rule
+is that the app owns the platform (D-042 F-1, D-044). **The cost is
+named: the library still crashes for anyone else who backgrounds it
+mid-generation, and that is now a known, recorded hazard rather than an
+unknown one.**
+*Rejected:* **C, both** — the library half is what makes C differ from
+A, and A's ruling is precisely that the library half does not happen.
+
+### Two implementation notes, both costs rather than cleverness
+
+**`willResignActive`, not `didEnterBackground`.** The later notification
+fires when the app is ALREADY in the background — too late if a command
+buffer is in flight. The earlier one always precedes it. The price:
+pulling down Control Centre or taking a call also stops the reply. A
+stopped reply is an annoyance a tap recovers from; a killed process is
+not.
+
+**The honest limit.** Cancellation is cooperative. The token loop checks
+between tokens, so this wins the race only when MLX is between command
+buffers as the notification lands. It makes the crash rare; it cannot
+make it impossible, and no app-side fix can. **Unverified on hardware:**
+the fix is reasoned from the crash log and compiles, but nobody has yet
+backgrounded the phone mid-reply to watch it hold.
+
+### What needs no guard
+
+The ear and the mouth run on the ANE through CoreML, which the background
+does not forbid. Only the MLX mind touches Metal.

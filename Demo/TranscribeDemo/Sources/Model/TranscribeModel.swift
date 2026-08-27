@@ -430,5 +430,8 @@ final class TranscribeModel {
     var pipeline: Task<Void, Never>?
     var coordinator: TurnCoordinator<ContinuousClock>?
     var interruptionObserver: (any NSObjectProtocol)?
+    /// The other observer, and it guards against a CRASH rather than a
+    /// glitch — see `observeForegroundLoss()` (D-079).
+    var foregroundObserver: (any NSObjectProtocol)?
 
 }
