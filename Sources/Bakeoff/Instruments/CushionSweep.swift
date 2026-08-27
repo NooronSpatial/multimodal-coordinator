@@ -74,6 +74,21 @@ func runCushionSweep(_ arguments: [String]) async -> Never {
     // in the pair. That is the whole reason `--repeats` defaults to an
     // EVEN number: an odd count leaves one unpaired pass and the bias
     // comes back.
+    // COOLDOWN BETWEEN RUNS, and it is the difference between a valid
+    // measurement and a void one.
+    //
+    // The counterbalanced sweep answered the SHORT fixture and could say
+    // nothing about the long one: its drift probe moved 351 ms/s while
+    // the six cushions differed by 25, and its final run took 89.75 s for
+    // a sentence worth about 30. Sustained decoding heats this Mac faster
+    // than a sweep can outrun, so the machine — not the lever — becomes
+    // the loudest variable.
+    //
+    // A sleep in a MEASUREMENT tool is not the banned pattern: the ban is
+    // on tests waiting for time instead of for a fact. Here the wait IS
+    // the fact being controlled for.
+    let cooldown = arguments.first { $0.hasPrefix("--cooldown=") }
+        .flatMap { Double($0.dropFirst("--cooldown=".count)) } ?? 0
     let repeats = arguments.first { $0.hasPrefix("--repeats=") }
         .flatMap { Int($0.dropFirst("--repeats=".count)) } ?? 2
     guard repeats % 2 == 0, repeats > 0 else {
@@ -84,9 +99,13 @@ func runCushionSweep(_ arguments: [String]) async -> Never {
         exit(2)
     }
 
+    if cooldown > 0 {
+        print(String(format: "    cooling %.0f s between runs, so the machine"
+                     + " is not the loudest variable", cooldown))
+    }
     for fixture in fixtures {
-        await sweepFixture(fixture, cushions: cushions,
-                           repeats: repeats, levers: levers)
+        await sweepFixture(fixture, cushions: cushions, repeats: repeats,
+                           levers: levers, cooldown: cooldown)
     }
     print("\nThe smallest cushion whose MEDIAN silence reads 0 is the answer")
     print("AC-178 asks for. Read the felt pause beside it: that is its price.")
@@ -97,7 +116,8 @@ func runCushionSweep(_ arguments: [String]) async -> Never {
 /// One fixture, swept with its repeats and bracketed by drift probes.
 @MainActor
 private func sweepFixture(_ fixture: Fixture, cushions: [Duration],
-                          repeats: Int, levers: VoiceLevers) async {
+                          repeats: Int, levers: VoiceLevers,
+                          cooldown: Double) async {
     var rows: [Row] = []
     do {
         // THE DRIFT PROBE. One fixed cushion, measured before and after
@@ -112,6 +132,9 @@ private func sweepFixture(_ fixture: Fixture, cushions: [Duration],
                 if let row = await sweepOne(fixture: fixture, cushion: cushion,
                                             levers: levers, label: nil) {
                     rows.append(row)
+                }
+                if cooldown > 0 {
+                    try? await Task.sleep(for: .seconds(cooldown))
                 }
             }
         }
