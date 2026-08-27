@@ -310,7 +310,13 @@ struct AdaptiveLengthTests {
         adaptive.forget()
         #expect(adaptive.target == nil)
         adaptive.observe(Self.margin(length: 4000))
-        // A window still holding the 20 s would say mean 12 s → 3 s.
+        // ON THE WINDOW, not on the cushion (the 4o review's finding).
+        // Since D-080 the cushion is the last reply's own measured need,
+        // so it reads 1000 whether or not the 20 s survived — the
+        // assertion could no longer fail for the reason it was written.
+        // `typicalLength` is what forget() actually has to clear.
+        #expect(adaptive.typicalLength == .milliseconds(4000),
+                "a window still holding the 20 s would say mean 12 s")
         #expect(adaptive.target == .milliseconds(1000))
     }
 }

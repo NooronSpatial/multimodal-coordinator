@@ -105,3 +105,19 @@ struct DigitalSilenceTests {
         #expect(report.millisecondsPerSecond == 0)
     }
 }
+
+/// The review's finding 15: a zero minimum counted one "run" per non-zero
+/// sample, so the metric answered loudest when the audio was perfect.
+extension DigitalSilenceTests {
+    @Test("a zero minimum still needs a real run, not every sample boundary")
+    func zeroMinimumIsNotEverySample() {
+        let clean = [Float](repeating: 0.5, count: 500)
+        #expect(Self.measure(clean, minimumRun: 0).runs == 0)
+
+        var oneGap = [Float](repeating: 0.5, count: 100)
+        oneGap += [Float](repeating: 0, count: 3)
+        oneGap += [Float](repeating: 0.5, count: 100)
+        #expect(Self.measure(oneGap, minimumRun: 0).runs == 1,
+                "a zero minimum means every real run counts, not every sample")
+    }
+}

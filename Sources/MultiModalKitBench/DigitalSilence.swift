@@ -13,10 +13,25 @@ import Foundation
 /// contained not one silent sample.
 ///
 /// **When an `AVAudioPlayerNode` runs dry, the mixer renders exact
-/// zeros.** Speech never is exactly zero. So the signature needs no
-/// threshold at all, and INSTRUMENTS §53 records it agreeing with Ryad's
-/// ear on the two files he judged: 13 runs in the one he called hitchy,
-/// none in the one he called better.
+/// zeros.** Speech never is exactly zero. INSTRUMENTS §53 records this
+/// agreeing with Ryad's ear on the two files he judged: 13 runs in the
+/// one he called hitchy, none in the one he called better.
+///
+/// ## It is not threshold-FREE, and calling it that was wrong
+///
+/// The 4o review caught the overclaim. The AMPLITUDE has no threshold —
+/// that is the real improvement — but `minimumRunMilliseconds` is one,
+/// and at its 20 ms default it is about two render quanta wide. A player
+/// that runs dry for a single quantum and recovers is invisible here,
+/// and that is exactly the marginal regime the 800-vs-1600 ms decision
+/// turned on.
+///
+/// It is kept, with its reason: below ~20 ms a zero run is as likely to
+/// be a buffer boundary as a dropout, and counting boundaries as gaps
+/// would make every clean recording look broken. But a reader comparing
+/// two cushions near the margin should sweep this value the way §54
+/// swept the amplitude floor — the honest lesson of that failure is that
+/// ANY constant in a metric must be shown not to carry the result.
 public enum DigitalSilence {
 
     public struct Report: Sendable, Equatable {
@@ -54,7 +69,11 @@ public enum DigitalSilence {
                              longestMilliseconds: 0, spanMilliseconds: 0) }
 
         let msPerSample = 1000 / sampleRate
-        let minimumRun = Int((minimumRunMilliseconds / msPerSample).rounded(.up))
+        // AT LEAST ONE SAMPLE. With a minimum of 0 the comparison
+        // `current >= 0` is true at every non-zero sample, so the report
+        // counted one "run" per sample of speech — a metric that answers
+        // loudest when the audio is perfect.
+        let minimumRun = max(1, Int((minimumRunMilliseconds / msPerSample).rounded(.up)))
         var runs = 0
         var total = 0
         var longest = 0

@@ -29,9 +29,28 @@ final class MarginBox: Sendable {
     func reset() { _ = take() }
 }
 
+/// One spoken utterance, timed.
+///
+/// `completed` is the half the 4o review found missing: a decode that
+/// FAILS still returns timings, and every caller treated them as a
+/// result. `AdaptiveLead` has guarded this since 4m — `guard
+/// margin.completed` — while the measuring tools had no equivalent, so a
+/// broken run could be graded and folded into a median. A failure is
+/// still not thrown here, because a sweep wants to record the row and
+/// carry on; it is REPORTED, and the caller must look.
+/// What one timed utterance produced.
+struct Timing {
+    let firstAudio: Double
+    let total: Double
+    /// False when the decode reported `.failed`. The 4o review found every
+    /// caller treating a broken run's numbers as a result.
+    let completed: Bool
+}
+
 func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
-    -> (firstAudio: Double, total: Double) {
+    -> Timing {
     let run = try await mouth.openUtterance()
+    var failed = false
     let clock = ContinuousClock()
     let t0 = clock.now
     var firstAudio: Duration?
@@ -65,7 +84,9 @@ func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
     for await update in run.updates {
         switch update {
         case .started: if firstAudio == nil { firstAudio = t0.duration(to: clock.now) }
-        case .failed(let why): print("   ⚠️  \(why)")
+        case .failed(let why):
+            print("   ⚠️  \(why)")
+            failed = true
         case .finished: break
         }
     }
@@ -74,5 +95,6 @@ func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
     func ms(_ duration: Duration) -> Double {
         Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
     }
-    return (firstAudio.map(ms) ?? -1, ms(total))
+    return Timing(firstAudio: firstAudio.map(ms) ?? -1,
+                  total: ms(total), completed: !failed)
 }

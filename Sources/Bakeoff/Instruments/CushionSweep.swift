@@ -108,7 +108,9 @@ func runCushionSweep(_ arguments: [String]) async -> Never {
                            levers: levers, cooldown: cooldown)
     }
     print("\nThe smallest cushion whose MEDIAN silence reads 0 is the answer")
-    print("AC-178 asks for. Read the felt pause beside it: that is its price.")
+    print("AC-178 asks for — but ONLY from a cell with every run present.")
+    print("A cell marked ONE RUN is a single sample wearing a median's clothes,")
+    print("which is how 800 ms was published and then withdrawn (§54.3a).")
     print("Read the drift probe first: it says how much to trust the rest.")
     exit(0)
 }
@@ -130,12 +132,11 @@ private func sweepFixture(_ fixture: Fixture, cushions: [Duration],
             let order = pass.isMultiple(of: 2) ? cushions : cushions.reversed()
             for cushion in order {
                 if let row = await sweepOne(fixture: fixture, cushion: cushion,
-                                            levers: levers, label: nil) {
+                                            levers: levers, label: nil,
+                                            cooldown: cooldown) {
                     rows.append(row)
                 }
-                if cooldown > 0 {
-                    try? await Task.sleep(for: .seconds(cooldown))
-                }
+
             }
         }
         let driftAfter = await sweepOne(fixture: fixture, cushion: .milliseconds(800),
@@ -175,10 +176,16 @@ private func report(fixture: Fixture, rows: [Row], cushions: [Duration],
         guard !mine.isEmpty else { continue }
         let silences = mine.map(\.silencePerSecond).sorted()
         let pauses = mine.map(\.feltPauseMilliseconds).sorted()
-        print(String(format: "| %d ms | %d | %.0f | %.0f–%.0f | %.0f ms |",
+        // A SINGLE SURVIVING RUN IS MARKED, because it reads exactly like
+        // a repeated zero and is not one. §54.2 published 800 ms as the
+        // answer from a cell that captured one of its two runs; §54.3a
+        // corrected it to 1600 ms. The reader is told which cells can do
+        // that again.
+        let single = mine.count < 2 ? "  ⚠ ONE RUN" : ""
+        print(String(format: "| %d ms | %d | %.0f | %.0f–%.0f | %.0f ms |%@",
                      cushion.milliseconds, mine.count,
                      median(silences), silences.first ?? 0, silences.last ?? 0,
-                     median(pauses)))
+                     median(pauses), single))
     }
 }
 
@@ -199,7 +206,8 @@ extension Duration {
 @discardableResult
 @MainActor
 private func sweepOne(fixture: Fixture, cushion: Duration,
-                      levers: VoiceLevers, label: String?) async -> Row? {
+                      levers: VoiceLevers, label: String?,
+                      cooldown: Double = 0) async -> Row? {
     // ONE ENGINE PER RUN. voice-wer learned this the hard way: sharing an
     // engine put a fused utterance immediately after a stepped teardown
     // detaching from the same graph, and three captures came back empty.
@@ -220,20 +228,56 @@ private func sweepOne(fixture: Fixture, cushion: Duration,
     // the same rule voice-levers and voice-spike follow.
     _ = try? await measure(voice, "Warming up.")
 
+    // THE COOLDOWN GOES HERE, not between rows. The first version rested
+    // BEFORE the model load and the warm-up decode, so the machine
+    // reheated during exactly the work the rest was meant to protect —
+    // it cooled, then did two expensive things, then measured. Resting
+    // immediately before the measured decode is the only placement that
+    // does what the flag claims.
+    if cooldown > 0 {
+        try? await Task.sleep(for: .seconds(cooldown))
+    }
+
     capture.record()
     let timing = try? await measure(voice, fixture.text)
     let samples = capture.stop()
     await voice.retire()
 
+    // A BROKEN RUN IS NOT A PERFECT ONE, and it used to score as one.
+    //
+    // `DigitalSilence` returns 0 ms/s for flawless speech AND for no
+    // speech at all, and the old guard could not tell them apart: the
+    // engine keeps rendering zeros after a decode dies, so `samples` is
+    // never empty. A reply that threw two seconds in was graded 0 — the
+    // best possible score — and folded into the median that decided
+    // between 800 ms and 1600 ms.
+    //
+    // `AdaptiveLead` has guarded exactly this since 4m (`guard
+    // margin.completed`); the sweep now does too.
+    guard timing?.completed == true else {
+        print("| \(fixture.name) | \(cushion) | DECODE FAILED — not graded |")
+        return nil
+    }
     guard !samples.isEmpty, capture.sampleRate > 0 else {
         print("| \(fixture.name) | \(cushion) | CAPTURED NOTHING — not graded |")
+        return nil
+    }
+    // A run that produced no audible span is not a silent-free run: it is
+    // a run with nothing in it, and grading it 0 would be the §30 fault
+    // wearing the metric's clothes.
+    guard DigitalSilence.measure(samples: samples,
+                                 sampleRate: capture.sampleRate)
+        .spanMilliseconds > 0 else {
+        print("| \(fixture.name) | \(cushion) | NO AUDIBLE SPAN — not graded |")
         return nil
     }
     let silence = DigitalSilence.measure(samples: samples,
                                          sampleRate: capture.sampleRate)
     // The felt pause a person actually waits: the cushion banked before
     // playback starts, plus the decode that had to happen first.
-    let feltPause = timing.map { $0.firstAudio } ?? -1
+    // −1 never reaches a median now: a run without a first-audio stamp
+    // is not graded at all (the guard above), so this is always real.
+    let feltPause = timing?.firstAudio ?? -1
     if let label {
         print(String(format: "  %@ · %@: %.0f ms/s over %.2f s",
                      fixture.name, label, silence.millisecondsPerSecond,

@@ -21,6 +21,24 @@ import Synchronization
 ///
 /// ## What it deliberately does not do
 ///
+/// ⚠️ **D-080 CHANGED WHAT THIS TYPE SIZES FROM, and the paragraph below
+/// is kept as history rather than as a description of the code.** The
+/// cushion is no longer derived from a windowed length at a latest-wins
+/// factor: it is the cushion the LAST reply turned out to need, measured
+/// from its own decode steps (`DecodeDeficit.cushion`). The window
+/// survives as `typicalLength`, which prices the first reply (AC-179).
+///
+/// **The cost that ruling carries, named because the review made it
+/// concrete:** the measured cushion scales with the reply it came from,
+/// so a short reply followed by a long one under-banks — the whipsaw the
+/// window was built to prevent, back in a new form. SPEC §143a ruled this
+/// ship-and-measure; INSTRUMENTS §54 then recorded the long-reply
+/// measurement as VOID on this machine, so **the evidence that was meant
+/// to settle it does not exist yet**. The question is open, and it is
+/// open in writing rather than by omission.
+///
+/// The original reasoning, preserved:
+///
 /// **The RTF is latest-wins; the LENGTH is windowed — two estimators, on
 /// purpose (D-073).** The RTF is a property of the MACHINE: it drifts with
 /// thermals, this phone throttles (`ConservativeThermalPolicy`), and the
@@ -113,10 +131,17 @@ public final class AdaptiveLead: Sendable {
 
     /// What this conversation's replies have been running, in audio time.
     ///
-    /// It no longer SIZES the cushion (D-080 retired that), and it is not
-    /// dead weight: it is the only record of how long this person's
-    /// replies actually are, which is what prices the un-cushioned first
-    /// reply of a session (AC-179).
+    /// It no longer sizes the cushion (D-080 retired that).
+    ///
+    /// **Nothing reads it yet, and the review was right to say so.** An
+    /// earlier version of this comment claimed AC-179 and the sweep read
+    /// it; neither does. AC-179 prices the first reply from the CONSTANT
+    /// and §54's measured need, both of which exist without this. It is
+    /// kept for one stated reason: §143a's open question — whether a
+    /// cushion learned on a short reply survives a long one — can only be
+    /// answered by a rule that knows how long replies here actually are,
+    /// and deleting the record would mean re-earning it later. If that
+    /// question is closed another way, this should go with it.
     public var typicalLength: Duration? {
         learned.withLock { memory in
             guard !memory.lengths.isEmpty else { return nil }

@@ -13,14 +13,14 @@ struct AdaptiveLeadFollowsStallTests {
 
     /// A margin whose whole-run numbers say one thing and whose step
     /// record says another — which is the entire subject.
-    static func margin(audio: Double, wall: Double, worstLag: Double) -> DecodeMargin {
+    static func margin(audio: Double, wall: Double, requiredCushion: Double) -> DecodeMargin {
         DecodeMargin(audioMilliseconds: audio,
                      wallMilliseconds: wall,
                      prefillMilliseconds: 0,
                      steadyRealTimeFactor: wall / audio,
                      completed: true,
                      cushionMilliseconds: 0,
-                     requiredCushionMilliseconds: worstLag)
+                     requiredCushionMilliseconds: requiredCushion)
     }
 
     /// THE CASE §53 MEASURED AND THE OLD RULE CALLED "SAFE".
@@ -31,7 +31,7 @@ struct AdaptiveLeadFollowsStallTests {
     @Test("a stall repaid by the end still sizes the cushion")
     func stallRepaidStillSizes() {
         let adaptive = AdaptiveLead()
-        adaptive.observe(Self.margin(audio: 900, wall: 600, worstLag: 500))
+        adaptive.observe(Self.margin(audio: 900, wall: 600, requiredCushion: 500))
         #expect(adaptive.target == .milliseconds(500))
 
         // What the retired rule would have asked for, stated in the test
@@ -48,7 +48,7 @@ struct AdaptiveLeadFollowsStallTests {
         let adaptive = AdaptiveLead()
         // 2000 ms of audio in 2500 ms: 500 ms behind at the end, and the
         // running maximum of a steady climb is that same 500.
-        adaptive.observe(Self.margin(audio: 2000, wall: 2500, worstLag: 500))
+        adaptive.observe(Self.margin(audio: 2000, wall: 2500, requiredCushion: 500))
         #expect(adaptive.target == .milliseconds(500))
     }
 
@@ -57,7 +57,7 @@ struct AdaptiveLeadFollowsStallTests {
     @Test("a decoder that keeps up is asked for no cushion")
     func keepingUpAsksForNothing() {
         let adaptive = AdaptiveLead()
-        adaptive.observe(Self.margin(audio: 2000, wall: 1200, worstLag: 0))
+        adaptive.observe(Self.margin(audio: 2000, wall: 1200, requiredCushion: 0))
         #expect(adaptive.target == .zero)
     }
 
@@ -71,6 +71,27 @@ struct AdaptiveLeadFollowsStallTests {
                                       prefillMilliseconds: 0,
                                       steadyRealTimeFactor: 1.25))
         #expect(adaptive.target == nil)
+    }
+
+    /// THE WHIPSAW, PINNED AS A KNOWN COST rather than left to be
+    /// rediscovered (the 4o review's finding).
+    ///
+    /// The cushion is the last reply's measured need, and that need
+    /// scales with the reply. So a long reply followed by a short one
+    /// DROPS the cushion — and the next long reply is banked for a "yes".
+    /// SPEC §143a rules this ship-and-measure; this test states the
+    /// direction so a future change cannot make it worse invisibly.
+    @Test("a short reply after a long one lowers the cushion — the known cost")
+    func aShortReplyLowersTheCushion() {
+        let adaptive = AdaptiveLead()
+        adaptive.observe(Self.margin(audio: 20000, wall: 25000, requiredCushion: 5000))
+        #expect(adaptive.target == .milliseconds(5000))
+        adaptive.observe(Self.margin(audio: 2000, wall: 2500, requiredCushion: 500))
+        #expect(adaptive.target == .milliseconds(500),
+                "documented in §143a: the next long reply is banked for a short one")
+        // And the window still remembers the long reply, which is what
+        // any future fix would size from.
+        #expect(adaptive.typicalLength == .milliseconds(11000))
     }
 
     /// D-073's rule that survives: only FINISHED replies teach. A failed
