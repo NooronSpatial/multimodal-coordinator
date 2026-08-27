@@ -48,7 +48,7 @@ public enum MemoryHeadroom: Sendable, Equatable {
     /// nil — a caller that wants a number must handle "there isn't one".
     public var megabytes: Int? {
         switch self {
-        case .bytes(let b): b / 1_048_576
+        case .bytes(let bytes): bytes / 1_048_576
         case .exhausted: 0
         case .unavailable: nil
         }

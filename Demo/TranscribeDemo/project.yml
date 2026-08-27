@@ -23,6 +23,19 @@ targets:
         buildPhase: resources
       - path: ../../Fixtures/bakeoff-reference.txt
         buildPhase: resources
+    # SwiftLint while you type (Ryad's ruling 3 = B). It runs after the
+    # compile, warns rather than fails, and does NOTHING when swiftlint is
+    # not installed — a teammate without brew gets a hint, not a broken
+    # build. CI is where the same rules are enforced strictly.
+    postCompileScripts:
+      - script: |
+          if command -v swiftlint >/dev/null 2>&1; then
+            cd "$SRCROOT/../.." && swiftlint lint --quiet
+          else
+            echo "warning: swiftlint not installed — brew install swiftlint"
+          fi
+        name: SwiftLint
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: multimodal-coordinator
         product: MultiModalKit
@@ -35,6 +48,13 @@ targets:
       # never learns that TTSKit exists.
       - package: multimodal-coordinator
         product: MultiModalKitTTS
+      # The BENCH (4j). The phone's own measuring instruments —
+      # BenchConfiguration, BenchConditions, the sweep. This line was
+      # MISSING while the generated project carried the link anyway: the
+      # .pbxproj and its source of truth had drifted, and regenerating
+      # the project during the 2026-08-27 refactor is what exposed it.
+      - package: multimodal-coordinator
+        product: MultiModalKitBench
       # The second MIND (4h, D-062 F-1 = A). Opt-in for the same reason.
       # NOTE: MLX cannot run on the iOS SIMULATOR at all (D-061) — the
       # demo says so honestly rather than hiding the option (AC-131).

@@ -74,9 +74,9 @@ public final class ManualClock: Clock, Sendable {
     }
 
     public func sleep(until deadline: Instant, tolerance: Duration? = nil) async throws {
-        let id: UInt64 = state.withLock { s in
-            defer { s.nextID += 1 }
-            return s.nextID
+        let id: UInt64 = state.withLock { clockState in
+            defer { clockState.nextID += 1 }
+            return clockState.nextID
         }
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
@@ -85,16 +85,16 @@ public final class ManualClock: Clock, Sendable {
                     case alreadyCancelled
                     case parked([Observer])
                 }
-                let decision: Decision = state.withLock { s in
+                let decision: Decision = state.withLock { clockState in
                     if Task.isCancelled {
                         return .alreadyCancelled           // the cancel handler ran before we parked
                     }
-                    if deadline <= s.now {
+                    if deadline <= clockState.now {
                         return .wakeNow                    // no waiting for the past
                     }
-                    s.sleepers.append(Sleeper(id: id, deadline: deadline, continuation: continuation))
-                    let satisfied = s.observers.filter { $0.threshold <= s.sleepers.count }
-                    s.observers.removeAll { $0.threshold <= s.sleepers.count }
+                    clockState.sleepers.append(Sleeper(id: id, deadline: deadline, continuation: continuation))
+                    let satisfied = clockState.observers.filter { $0.threshold <= clockState.sleepers.count }
+                    clockState.observers.removeAll { $0.threshold <= clockState.sleepers.count }
                     return .parked(satisfied)
                 }
                 switch decision {
@@ -109,9 +109,9 @@ public final class ManualClock: Clock, Sendable {
                 }
             }
         } onCancel: {
-            let claimed: Sleeper? = state.withLock { s in
-                guard let index = s.sleepers.firstIndex(where: { $0.id == id }) else { return nil }
-                return s.sleepers.remove(at: index)        // the claim ticket
+            let claimed: Sleeper? = state.withLock { clockState in
+                guard let index = clockState.sleepers.firstIndex(where: { $0.id == id }) else { return nil }
+                return clockState.sleepers.remove(at: index)        // the claim ticket
             }
             claimed?.continuation.resume(throwing: CancellationError())
         }
@@ -128,17 +128,17 @@ public final class ManualClock: Clock, Sendable {
                 case wake(Sleeper)
                 case done
             }
-            let step: Step = state.withLock { s in
-                precondition(target >= s.now, "ManualClock cannot move backwards")
-                let due = s.sleepers
+            let step: Step = state.withLock { clockState in
+                precondition(target >= clockState.now, "ManualClock cannot move backwards")
+                let due = clockState.sleepers
                     .filter { $0.deadline <= target }
                     .min { ($0.deadline.offset, $0.id) < ($1.deadline.offset, $1.id) }
                 guard let next = due else {
-                    s.now = target
+                    clockState.now = target
                     return .done
                 }
-                s.now = max(s.now, next.deadline)          // the woken one sees its own moment
-                s.sleepers.removeAll { $0.id == next.id }  // the claim ticket, advance's side
+                clockState.now = max(clockState.now, next.deadline)          // the woken one sees its own moment
+                clockState.sleepers.removeAll { $0.id == next.id }  // the claim ticket, advance's side
                 return .wake(next)
             }
             switch step {
@@ -156,11 +156,11 @@ public final class ManualClock: Clock, Sendable {
     /// Event-driven — resumed from sleep's own registration, never polled.
     public func waitForSleepers(atLeast threshold: Int) async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let ready: Bool = state.withLock { s in
-                if s.sleepers.count >= threshold {
+            let ready: Bool = state.withLock { clockState in
+                if clockState.sleepers.count >= threshold {
                     return true
                 }
-                s.observers.append(Observer(threshold: threshold, continuation: continuation))
+                clockState.observers.append(Observer(threshold: threshold, continuation: continuation))
                 return false
             }
             if ready {

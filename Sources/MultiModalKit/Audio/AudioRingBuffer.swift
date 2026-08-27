@@ -41,26 +41,26 @@ public final class AudioRingProducer: Sendable {
         guard let base = samples.baseAddress, samples.count > 0 else { return }
         assert(samples.count <= storage.capacity,
                "audio chunk larger than the whole ring — capacity is misconfigured")
-        let n = min(samples.count, storage.capacity)
-        let source = base + (samples.count - n)          // newest part wins
+        let frameCount = min(samples.count, storage.capacity)
+        let source = base + (samples.count - frameCount)          // newest part wins
 
         // Producer owns both counters; relaxed load of our own value is fine.
-        let h = storage.head.load(ordering: .relaxed)
+        let head = storage.head.load(ordering: .relaxed)
 
         // Announce the intention BEFORE touching a single slot. Sequentially
         // consistent so this store cannot sink below the copy that follows —
         // a release store would only hold back what came before it.
-        storage.reserved.store(h + n, ordering: .sequentiallyConsistent)
+        storage.reserved.store(head + frameCount, ordering: .sequentiallyConsistent)
 
-        let start = h & storage.mask
-        let firstPart = min(n, storage.capacity - start)
+        let start = head & storage.mask
+        let firstPart = min(frameCount, storage.capacity - start)
         (storage.slab + start).update(from: source, count: firstPart)
-        if n > firstPart {                               // wrap around the seam
-            storage.slab.update(from: source + firstPart, count: n - firstPart)
+        if frameCount > firstPart {                               // wrap around the seam
+            storage.slab.update(from: source + firstPart, count: frameCount - firstPart)
         }
         // Publish: "the bytes are ready." Anyone who acquires `head` after
         // this store is guaranteed to see the copied samples.
-        storage.head.store(h + n, ordering: .releasing)
+        storage.head.store(head + frameCount, ordering: .releasing)
     }
 }
 
@@ -106,7 +106,7 @@ public final class AudioRingConsumer: Sendable {
         for _ in 0..<2 {                                  // one honest retry, never a spin
             // Acquire pairs with the producer's release: after this load we
             // are guaranteed to see every byte published up to `h`.
-            let h = storage.head.load(ordering: .acquiring)
+            let head = storage.head.load(ordering: .acquiring)
             // `reserved` is the pessimistic edge: it includes a copy that is
             // still in flight. Safety is judged against it, never against
             // `head` (D-015) — `head` only says how far we may read.
@@ -117,31 +117,31 @@ public final class AudioRingConsumer: Sendable {
                 totalDroppedNow += lost
                 start = reserved - storage.capacity
             }
-            let available = max(0, h - start)             // an in-flight write can put start past head
+            let available = max(0, head - start)             // an in-flight write can put start past head
             if available == 0 {
                 storage.tail = start
                 break
             }
-            let n = min(available, destination.count)
-            let s = start & storage.mask
-            let firstPart = min(n, storage.capacity - s)
-            dst.update(from: storage.slab + s, count: firstPart)
-            if n > firstPart {                            // wrap around the seam
-                (dst + firstPart).update(from: storage.slab, count: n - firstPart)
+            let frameCount = min(available, destination.count)
+            let startIndex = start & storage.mask
+            let firstPart = min(frameCount, storage.capacity - startIndex)
+            dst.update(from: storage.slab + startIndex, count: firstPart)
+            if frameCount > firstPart {                            // wrap around the seam
+                (dst + firstPart).update(from: storage.slab, count: frameCount - firstPart)
             }
             // Validate: did the producer lap into what we just copied — or is
             // it lapping into it at this very moment? `reserved` answers both.
             let reservedAfterCopy = storage.reserved.load(ordering: .acquiring)
             if reservedAfterCopy - start <= storage.capacity {   // clean copy
-                storage.tail = start + n
+                storage.tail = start + frameCount
                 if totalDroppedNow > 0 {
                     storage.dropped.wrappingAdd(totalDroppedNow, ordering: .relaxed)
                 }
-                return ReadResult(framesRead: n, framesDropped: totalDroppedNow)
+                return ReadResult(framesRead: frameCount, framesDropped: totalDroppedNow)
             }
             // Torn copy: treat it as dropped and retry once from fresh data.
-            totalDroppedNow += n
-            storage.tail = start + n
+            totalDroppedNow += frameCount
+            storage.tail = start + frameCount
         }
         if totalDroppedNow > 0 {
             storage.dropped.wrappingAdd(totalDroppedNow, ordering: .relaxed)
@@ -168,10 +168,16 @@ final class RingStorage: @unchecked Sendable {
     /// promise that a read never returns a mix of old and new frames.
     let reserved: Atomic<Int>
 
+    // swiftlint:disable large_tuple
     /// Padding so the producer's counters and the consumer's statistics sit on
     /// different cache lines — the hot core and the cool core must not fight
     /// over one 64-byte line.
+    ///
+    /// Seven `Int64`s ARE the point: this is 56 bytes of nothing, not a value
+    /// anyone reads. A struct here would invite someone to give the fields
+    /// meaning; a tuple cannot.
     private let _padding: (Int64, Int64, Int64, Int64, Int64, Int64, Int64) = (0, 0, 0, 0, 0, 0, 0)
+    // swiftlint:enable large_tuple
 
     /// Dropped-frame statistics. Written by the consumer only.
     let dropped: Atomic<Int>

@@ -115,15 +115,15 @@ public struct SpeechPhraser: Sendable {
     /// The index just past the first clause mark whose neighbor is
     /// whitespace — the cut point of the oldest completed phrase.
     private func boundary() -> String.Index? {
-        var i = buffer.startIndex
-        while i < buffer.endIndex {
-            if ".,:;?!".contains(buffer[i]) {
-                let next = buffer.index(after: i)
+        var cursor = buffer.startIndex
+        while cursor < buffer.endIndex {
+            if ".,:;?!".contains(buffer[cursor]) {
+                let next = buffer.index(after: cursor)
                 if next < buffer.endIndex, buffer[next].isWhitespace {
                     return next
                 }
             }
-            i = buffer.index(after: i)
+            cursor = buffer.index(after: cursor)
         }
         return nil
     }

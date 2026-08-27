@@ -38,6 +38,9 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
         public var emittedFinal = false
     }
 
+    /// The continuation each open run's updates are yielded into.
+    private typealias UpdateSink = AsyncStream<TranscriptionUpdate>.Continuation
+
     private struct State {
         var nextRun = 0
         var records: [RunRecord] = []
@@ -69,8 +72,7 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
     /// Delivers the batch final NOW — the moment the "decode" finishes.
     /// Conformant twin of `forceFinal`: exactly once, then the stream ends.
     public func releaseFinal(run index: Int) {
-        let (final, continuation) = state.withLock {
-            state -> (String?, AsyncStream<TranscriptionUpdate>.Continuation?) in
+        let (final, continuation) = state.withLock { state -> (String?, UpdateSink?) in
             guard index < state.records.count,
                   state.records[index].audioFinished,
                   !state.records[index].emittedFinal,
@@ -128,8 +130,7 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
 
     fileprivate func feed(run index: Int, chunk: AudioChunk) {
         enum Verdict { case partial(String), fail(TranscriptionFailure), nothing }
-        let (verdict, continuation) = state.withLock {
-            state -> (Verdict, AsyncStream<TranscriptionUpdate>.Continuation?) in
+        let (verdict, continuation) = state.withLock { state -> (Verdict, UpdateSink?) in
             state.records[index].fedChunks.append(chunk)
             let count = state.records[index].fedChunks.count
             let continuation = state.continuations[index]
@@ -153,8 +154,7 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
     }
 
     fileprivate func finishAudio(run index: Int) {
-        let (final, continuation) = state.withLock {
-            state -> (String?, AsyncStream<TranscriptionUpdate>.Continuation?) in
+        let (final, continuation) = state.withLock { state -> (String?, UpdateSink?) in
             state.records[index].audioFinished = true
             switch planFor(index) {
             case .normal, .batch(manualRelease: false): break
@@ -174,8 +174,7 @@ public final class ScriptedTranscriber: TranscriptionEngine, Sendable {
     }
 
     fileprivate func cancel(run index: Int) {
-        let continuation = state.withLock {
-            state -> AsyncStream<TranscriptionUpdate>.Continuation? in
+        let continuation = state.withLock { state -> UpdateSink? in
             state.records[index].cancelled = true
             if case .silent = planFor(index) { return nil }   // defiance: ignore it
             return state.continuations[index]   // batch and normal: conformant

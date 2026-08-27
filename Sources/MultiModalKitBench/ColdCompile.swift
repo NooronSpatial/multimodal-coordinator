@@ -137,7 +137,7 @@ public struct CompiledPlanCache: Sendable {
             // Absence NAMES each neighbourhood, from the same read the
             // verdict came from. "tmp holds: [nothing]" is itself the
             // line AC-172's fall-through to C rests on.
-            let where_ = directories.map(\.lastPathComponent).joined(separator: " or ")
+            let locations = directories.map(\.lastPathComponent).joined(separator: " or ")
             let hoods = scans.map { scan -> String in
                 guard let names = scan.names else {
                     return "\(scan.directory.lastPathComponent) is unreadable or absent"
@@ -146,7 +146,7 @@ public struct CompiledPlanCache: Sendable {
                 return "\(scan.directory.lastPathComponent) holds: [\(list)]"
             }.joined(separator: " · ")
             return ClearReport(deleted: [], failed: [], summary:
-                "no compiled-plan cache found under \(where_)"
+                "no compiled-plan cache found under \(locations)"
                 + " — the next load was already going to be cold, or the cache"
                 + " lives somewhere this control does not reach. \(hoods)")
         }

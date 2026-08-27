@@ -158,8 +158,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     }
 
     fileprivate func cancel(reply index: Int, ignoresCancel: Bool) {
-        let continuation = state.withLock {
-            state -> AsyncStream<ReplyUpdate>.Continuation? in
+        let continuation = state.withLock { state -> AsyncStream<ReplyUpdate>.Continuation? in
             state.records[index].cancelled = true
             if ignoresCancel { return nil }   // defiance: the stream stays open
             return state.continuations.removeValue(forKey: index)

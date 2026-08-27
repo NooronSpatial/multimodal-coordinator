@@ -1,0 +1,363 @@
+import Foundation
+import FoundationModels
+import Synchronization
+import Testing
+@testable import MultiModalKit
+
+/// THE REPLY CONFORMANCE KIT (SPEC 4f §73, the D-017 pattern's third
+/// seam): the promises every self-generating `ReplyRun` must keep. The
+/// scripted generator is test-driven by design, so the kit does not apply
+/// to it — the same note `SynthesizerConformanceKit` carries.
+enum ReplyConformanceKit {
+
+    static func drain(_ run: any ReplyRun) async -> [ReplyUpdate] {
+        var collected: [ReplyUpdate] = []
+        for await update in run.updates { collected.append(update) }
+        return collected
+    }
+
+    /// For the CANCEL-side promises, where the contract is that the
+    /// stream ENDS: an unbounded drain would turn a broken cancel into a
+    /// 60-second suite-limit death, and a red test must fail FAST. The
+    /// mutation that removes cancel's finish was measured doing exactly
+    /// that — three tests red at 60 s each — before this bound existed.
+    static func drainBounded(_ run: any ReplyRun,
+                             within: Duration = .seconds(5)) async -> [ReplyUpdate]? {
+        let box = Mutex<[ReplyUpdate]>([])
+        let ended = Mutex(false)
+        let collector = Task {
+            for await update in run.updates { box.withLock { $0.append(update) } }
+            ended.withLock { $0 = true }
+        }
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: within)
+        while clock.now < deadline {
+            if ended.withLock({ $0 }) { return box.withLock { $0 } }
+            await Task.yield()
+        }
+        collector.cancel()
+        return nil   // the stream never ended — the caller names that failure
+    }
+
+    static func terminals(in updates: [ReplyUpdate]) -> [ReplyUpdate] {
+        updates.filter {
+            if case .token = $0 { return false } else { return true }
+        }
+    }
+
+    /// Promise 1: tokens as they are born, then EXACTLY one terminal,
+    /// then the stream ends — `drain` returning at all is the ending.
+    static func verifyTokensThenExactlyOneTerminal(
+        _ generator: any ReplyGenerating, expecting tokens: [String]
+    ) async throws {
+        let run = try await generator.openReply(to: "a final transcript")
+        let updates = await drain(run)
+        #expect(updates == tokens.map { .token($0) } + [.finished])
+    }
+
+    /// Promise 2: a cancelled reply ends its stream WITHOUT a terminal.
+    static func verifyCancelEndsWithoutATerminal(
+        _ generator: any ReplyGenerating
+    ) async throws {
+        let run = try await generator.openReply(to: "about to be interrupted")
+        await run.cancel()
+        guard let updates = await drainBounded(run) else {
+            Issue.record("a cancelled reply's stream must END"); return
+        }
+        #expect(terminals(in: updates).isEmpty,
+                "a cancelled reply reports no terminal — the seam's contract")
+    }
+
+    /// Spins until `condition` is true or the deadline passes — the house
+    /// until, so a red here dies in seconds, never at the suite limit.
+    @discardableResult
+    static func until(_ condition: @Sendable () -> Bool,
+                      within: Duration = .seconds(5)) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: within)
+        while clock.now < deadline {
+            if condition() { return true }
+            await Task.yield()
+        }
+        return false
+    }
+
+    /// Promise 3, made DETERMINISTIC by the review: nothing AFTER the
+    /// cancel reaches a listener.
+    ///
+    /// The first shape of this promise asserted `updates.isEmpty` with no
+    /// ordering between the worker's first yield and the cancel — and the
+    /// review MEASURED the flake: about 1 leak in 800 runs across five
+    /// independent 20,000-run probes, because a PRE-cancel token is legal
+    /// under the seam contract, sits in the stream's buffer, and outlives
+    /// `finish()`. Production was right; the assertion conflated "nothing
+    /// after cancel" with "nothing at all". Now every step is event-gated:
+    /// the legitimate token is AWAITED and asserted PRESENT, the cancel
+    /// returns, the gate opens, the source defiantly yields more — and
+    /// none of it may arrive.
+    static func verifyNothingAfterTheCancelSurvives(
+        _ generator: any ReplyGenerating,
+        releaseDefiance: @escaping @Sendable () -> Void,
+        cancellationSeen: @escaping @Sendable () -> Bool
+    ) async throws {
+        let run = try await generator.openReply(to: "the ghost's transcript")
+        let collected = Mutex<[ReplyUpdate]>([])
+        let ended = Mutex(false)
+        // ONE consumer for the whole stream — AsyncStream is single-
+        // consumer, so the mid-test observation points are reads of this
+        // shared record, never a second iterator.
+        let collector = Task {
+            for await update in run.updates {
+                collected.withLock { $0.append(update) }
+            }
+            ended.withLock { $0 = true }
+        }
+        defer { collector.cancel() }
+
+        // EVENT-GATED: the pre-cancel token must arrive before the cancel
+        // means anything.
+        #expect(await until({ !collected.withLock { $0.isEmpty } }),
+                "the legitimate pre-cancel token must arrive")
+        #expect(collected.withLock { $0.first } == .token("before"),
+                "the pre-cancel token is LEGAL — the run was still alive")
+
+        await run.cancel()
+        // THE DETERMINISTIC CANCEL-PROPAGATION FACT. The old assertion
+        // (`!capExhausted`) was measured INERT: deleting the run's
+        // work.cancel() left every test green, because the bounded drain
+        // returned long before the spin cap tripped. This one cannot pass
+        // by timing: it waits for the source to REPORT the cancellation.
+        #expect(await until(cancellationSeen),
+                "the cancel must actually reach the source's task")
+
+        releaseDefiance()
+        #expect(await until({ ended.withLock { $0 } }),
+                "a cancelled reply's stream must END")
+        let updates = collected.withLock { $0 }
+        #expect(updates == [.token("before")],
+                "nothing AFTER the cancel may reach a listener")
+    }
+
+    /// Promise 4: `openReply` HANDS OFF. The coordinator awaits it inline
+    /// on its one serial loop, so an open that waits for generation is
+    /// 4e's barge bug one seam over. Proven by reaching the next line
+    /// while the source is still mid-stream.
+    static func verifyOpenReplyHandsOff(
+        _ generator: any ReplyGenerating
+    ) async throws {
+        let run = try await generator.openReply(to: "a long thought")
+        // Reached: open returned while the scripted source is still
+        // spinning. The cancel below is what releases it.
+        await run.cancel()
+        guard let updates = await drainBounded(run) else {
+            Issue.record("a cancelled reply's stream must END"); return
+        }
+        #expect(terminals(in: updates).isEmpty)
+    }
+
+    /// Promise 5: a failing generation is ONE `.failed`, terminal, end.
+    static func verifyFailureIsOneTerminal(
+        _ generator: any ReplyGenerating
+    ) async throws {
+        let run = try await generator.openReply(to: "doomed")
+        let updates = await drain(run)
+        let ends = terminals(in: updates)
+        #expect(ends.count == 1)
+        if case .failed = ends.first {} else {
+            Issue.record("the one terminal must be .failed, got \(ends)")
+        }
+    }
+}
+
+// MARK: - the kit, applied to the REAL generator over scripted streams
+
+@Suite(.timeLimit(.minutes(1)))
+struct AppleReplyGeneratorTests {
+
+    static func generator(_ plan: ScriptedSnapshotSource.Plan,
+                          refusal: String = "I can't answer that.") -> AppleReplyGenerator {
+        AppleReplyGenerator(source: ScriptedSnapshotSource(plan), spokenRefusal: refusal)
+    }
+
+    static func forged(_ text: String = "forged") -> LanguageModelSession.GenerationError.Context {
+        .init(debugDescription: text)
+    }
+
+    // MARK: the kit's five promises
+
+    @Test("cumulative snapshots become suffix tokens, then finished, once")
+    func tokensThenFinished() async throws {
+        try await ReplyConformanceKit.verifyTokensThenExactlyOneTerminal(
+            Self.generator(.snapshots(["The", "The capital", "The capital of France."])),
+            expecting: ["The", " capital", " of France."])
+    }
+
+    @Test("cancel ends the stream without a terminal")
+    func cancelNoTerminal() async throws {
+        try await ReplyConformanceKit.verifyCancelEndsWithoutATerminal(
+            Self.generator(.spinsUntilCancelled))
+    }
+
+    @Test("nothing AFTER the cancel survives — gated defiance, event-gated end to end")
+    func nothingSurvivesCancel() async throws {
+        let source = ScriptedSnapshotSource(.gatedDefiance(before: "before", after: "before, and a ghost"))
+        try await ReplyConformanceKit.verifyNothingAfterTheCancelSurvives(
+            AppleReplyGenerator(source: source),
+            releaseDefiance: { source.release() },
+            cancellationSeen: { source.sawCancellation })
+        #expect(!source.capExhausted, "the gate must be OPENED, not waited out")
+    }
+
+    @Test("openReply hands off — generation never blocks the opener")
+    func openHandsOff() async throws {
+        let source = ScriptedSnapshotSource(.spinsUntilCancelled)
+        let generator = AppleReplyGenerator(source: source)
+        try await ReplyConformanceKit.verifyOpenReplyHandsOff(generator)
+        // DETERMINISTIC, where `!capExhausted` was measured INERT (the
+        // review deleted work.cancel() and all 13 tests stayed green —
+        // the bounded drain returned before the spin cap could trip).
+        // Waiting for the source to REPORT the cancellation cannot pass
+        // by timing.
+        #expect(await ReplyConformanceKit.until({ source.sawCancellation }),
+                "the cancel must actually reach the source's task")
+    }
+
+    @Test("a throwing source is one .failed, terminal")
+    func failureIsOneTerminal() async throws {
+        try await ReplyConformanceKit.verifyFailureIsOneTerminal(
+            Self.generator(.snapshotsThenThrow(["part"],
+                NSError(domain: "test", code: 1))))
+    }
+
+    // MARK: the tripwire, end to end (D-058)
+
+    @Test("a REVISING stream: true tokens out, then one honest failure, never the rewrite")
+    func revisionFiresTheTripwire() async throws {
+        let run = try await Self.generator(
+            .snapshots(["The answer is yes", "The answer is no, actually"])
+        ).openReply(to: "anything")
+        let updates = await ReplyConformanceKit.drain(run)
+
+        #expect(updates.first == .token("The answer is yes"),
+                "text that extended truthfully was true when emitted — it flows")
+        guard case .failed(let reason)? = updates.last else {
+            Issue.record("the tripwire must end the run with .failed, got \(updates)")
+            return
+        }
+        #expect(reason.contains("revised"), "the failure names the crime")
+        #expect(!updates.contains(.token("The answer is no, actually")),
+                "the rewrite must never reach a mouth")
+        #expect(ReplyConformanceKit.terminals(in: updates).count == 1)
+    }
+
+    @Test("an unchanged snapshot says nothing — no empty tokens")
+    func unchangedSnapshotsAreSilent() async throws {
+        try await ReplyConformanceKit.verifyTokensThenExactlyOneTerminal(
+            Self.generator(.snapshots(["Same", "Same", "Same but longer"])),
+            expecting: ["Same", " but longer"])
+    }
+
+    // MARK: AC-114 — the nine cases, FORGED (Context has a public init)
+
+    @Test("a guardrail violation is SPOKEN, and the turn completes (F-4 = A)")
+    func guardrailIsSpoken() async throws {
+        let run = try await Self.generator(
+            .snapshotsThenThrow([], LanguageModelSession.GenerationError
+                .guardrailViolation(Self.forged())),
+            refusal: "I can't help with that.")
+            .openReply(to: "something the model declines")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.token("I can't help with that."), .finished],
+                "a refusal is an ordinary outcome — silence would look like a bug")
+    }
+
+    @Test("a model refusal is SPOKEN the same way (F-4 = A)")
+    func refusalIsSpoken() async throws {
+        let run = try await Self.generator(
+            .snapshotsThenThrow([], LanguageModelSession.GenerationError
+                .refusal(.init(transcriptEntries: []), Self.forged())))
+            .openReply(to: "declined")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.token("I can't answer that."), .finished])
+    }
+
+    @Test("the context window overflowing is a named failure")
+    func contextWindowFails() async throws {
+        let run = try await Self.generator(
+            .snapshotsThenThrow(["partial"], LanguageModelSession.GenerationError
+                .exceededContextWindowSize(Self.forged())))
+            .openReply(to: "too long a conversation")
+        let updates = await ReplyConformanceKit.drain(run)
+        guard case .failed(let reason)? = updates.last else {
+            Issue.record("expected .failed, got \(updates)"); return
+        }
+        #expect(reason.contains("context window"))
+    }
+
+    @Test("assets unavailable names the Simulator lesson — availability lied")
+    func assetsUnavailableFails() async throws {
+        let run = try await Self.generator(
+            .snapshotsThenThrow([], LanguageModelSession.GenerationError
+                .assetsUnavailable(Self.forged())))
+            .openReply(to: "anything")
+        let updates = await ReplyConformanceKit.drain(run)
+        guard case .failed(let reason)? = updates.last else {
+            Issue.record("expected .failed, got \(updates)"); return
+        }
+        #expect(reason.contains("availability said yes"))
+    }
+
+    @Test("rate limiting, concurrency, decoding, guides: each one honest .failed")
+    func remainingCasesFail() async throws {
+        let errors: [LanguageModelSession.GenerationError] = [
+            .rateLimited(Self.forged()),
+            .concurrentRequests(Self.forged()),
+            .decodingFailure(Self.forged()),
+            .unsupportedGuide(Self.forged()),
+            .unsupportedLanguageOrLocale(Self.forged())
+        ]
+        for error in errors {
+            let run = try await Self.generator(.snapshotsThenThrow([], error))
+                .openReply(to: "anything")
+            let updates = await ReplyConformanceKit.drain(run)
+            let ends = ReplyConformanceKit.terminals(in: updates)
+            #expect(ends.count == 1, "exactly one terminal for \(error)")
+            if case .failed = ends.first {} else {
+                Issue.record("expected .failed for \(error), got \(updates)")
+            }
+        }
+    }
+
+    // MARK: AC-110 — unavailability refuses at the door
+
+    /// Gated INVERSELY to the model-gated suites: it runs only where the
+    /// model is NOT available (this Mac today, most CI runners), and
+    /// skips honestly on a machine where it is — the same honesty, the
+    /// other way round.
+    @Test("openReply throws the honest reason when the model is unavailable")
+    func unavailableRefusesAtTheDoor() async throws {
+        guard AppleReplyGenerator.availability != nil else { return }
+        await #expect(throws: AppleReplyGenerator.Unavailable.self) {
+            _ = try await AppleReplyGenerator().openReply(to: "anything")
+        }
+    }
+}
+
+/// AC-110's words, pinned: when the model vanishes BETWEEN turns,
+/// `openReply` throws `Unavailable` mid-session and the coordinator's
+/// failure text carries `String(describing:)` of it — which for a bare
+/// enum was "modelNotReady", gibberish on a screen. Found by the 4f
+/// review. The library owns the sentence so no screen can drift from it.
+@Suite struct UnavailableWordsTests {
+    @Test("every unavailability reason describes itself in honest words")
+    func reasonsSpeak() {
+        #expect(String(describing: AppleReplyGenerator.Unavailable.modelNotReady)
+            == "the on-device model is still downloading — try later")
+        #expect(String(describing: AppleReplyGenerator.Unavailable.appleIntelligenceNotEnabled)
+            == "Apple Intelligence is switched off in Settings")
+        #expect(String(describing: AppleReplyGenerator.Unavailable.deviceNotEligible)
+            == "this device cannot run the on-device model")
+        #expect(String(describing: AppleReplyGenerator.Unavailable.unknown("case 9"))
+            .contains("case 9"))
+    }
+}

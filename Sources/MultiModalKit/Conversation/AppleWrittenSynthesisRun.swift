@@ -82,14 +82,14 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     // MARK: - the seam (hands off, the conformance promise)
 
     func feed(_ token: String) async {
-        let startDrain = state.withLock { s -> Bool in
-            guard !s.retired else { return false }
-            let completed = s.phraser.feed(token)
+        let startDrain = state.withLock { guarded -> Bool in
+            guard !guarded.retired else { return false }
+            let completed = guarded.phraser.feed(token)
             guard !completed.isEmpty else { return false }
-            s.phrasesInFlight += completed.count
-            s.pending.append(contentsOf: completed)
-            guard !s.draining else { return false }
-            s.draining = true
+            guarded.phrasesInFlight += completed.count
+            guarded.pending.append(contentsOf: completed)
+            guard !guarded.draining else { return false }
+            guarded.draining = true
             return true
         }
         if startDrain { beginDraining() }
@@ -97,17 +97,17 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
 
     func finishTokens() async {
         enum Outcome { case startDrain, settle(Owed) }
-        let outcome = state.withLock { s -> Outcome in
-            guard !s.retired, !s.tokensFinished else { return .settle(.nothing) }
-            s.tokensFinished = true
-            if let rest = s.phraser.flush() {
-                s.phrasesInFlight += 1
-                s.pending.append(rest)
-                guard !s.draining else { return .settle(.nothing) }
-                s.draining = true
+        let outcome = state.withLock { guarded -> Outcome in
+            guard !guarded.retired, !guarded.tokensFinished else { return .settle(.nothing) }
+            guarded.tokensFinished = true
+            if let rest = guarded.phraser.flush() {
+                guarded.phrasesInFlight += 1
+                guarded.pending.append(rest)
+                guard !guarded.draining else { return .settle(.nothing) }
+                guarded.draining = true
                 return .startDrain
             }
-            return .settle(Self.owed(by: s))
+            return .settle(Self.owed(by: guarded))
         }
         switch outcome {
         case .startDrain: beginDraining()
@@ -116,13 +116,12 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     }
 
     func cancel() async {
-        let (first, pendingWrite) = state.withLock {
-            s -> (Bool, CheckedContinuation<Void, Never>?) in
-            let was = s.retired
-            s.retired = true
-            s.pending.removeAll()
-            let write = s.writeDone
-            s.writeDone = nil
+        let (first, pendingWrite) = state.withLock { guarded -> (Bool, CheckedContinuation<Void, Never>?) in
+            let was = guarded.retired
+            guarded.retired = true
+            guarded.pending.removeAll()
+            let write = guarded.writeDone
+            guarded.writeDone = nil
             return (!was, write)
         }
         // The stranded-write cure (measured above): the framework will
@@ -146,9 +145,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     /// ONE answer to "is this reply complete?" — no lead exists here
     /// (Apple's synthesis outruns real time on every measured device),
     /// so the only debts are the terminal or nothing.
-    private static func owed(by s: Guarded) -> Owed {
-        guard !s.retired, s.tokensFinished, s.phrasesInFlight == 0,
-              s.scheduled == s.played else { return .nothing }
+    private static func owed(by guarded: Guarded) -> Owed {
+        guard !guarded.retired, guarded.tokensFinished, guarded.phrasesInFlight == 0,
+              guarded.scheduled == guarded.played else { return .nothing }
         return .finish
     }
 
@@ -160,9 +159,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     /// Every terminal path ends here; only the first acts (the retire
     /// doctrine, adopted rather than retrofitted).
     private func report(_ terminal: SynthesisUpdate) {
-        let first = state.withLock { s -> Bool in
-            let was = s.retired
-            s.retired = true
+        let first = state.withLock { guarded -> Bool in
+            let was = guarded.retired
+            guarded.retired = true
             return !was
         }
         guard first else { return }
@@ -179,12 +178,12 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     private func beginDraining() {
         let task = Task { [self] in
             while true {
-                let next = state.withLock { s -> String? in
-                    guard !s.retired, !s.pending.isEmpty else {
-                        s.draining = false
+                let next = state.withLock { guarded -> String? in
+                    guard !guarded.retired, !guarded.pending.isEmpty else {
+                        guarded.draining = false
                         return nil
                     }
-                    return s.pending.removeFirst()
+                    return guarded.pending.removeFirst()
                 }
                 guard let next else { return }
                 await write(next)
@@ -198,9 +197,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
         // nothing to say must still be ACCOUNTED for, never synthesized.
         if SpeechPhraser.hasSpeakableContent(text) {
             await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
-                let proceed = state.withLock { s -> Bool in
-                    guard !s.retired else { return false }
-                    s.writeDone = done
+                let proceed = state.withLock { guarded -> Bool in
+                    guard !guarded.retired else { return false }
+                    guarded.writeDone = done
                     return true
                 }
                 guard proceed else {
@@ -218,10 +217,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
                         // Take-once from the shared slot: the terminator
                         // and a racing cancel() cannot both resume.
                         guard let pcm = buffer as? AVAudioPCMBuffer, pcm.frameLength > 0 else {
-                            let taken = self.state.withLock {
-                                s -> CheckedContinuation<Void, Never>? in
-                                let write = s.writeDone
-                                s.writeDone = nil
+                            let taken = self.state.withLock { guarded -> CheckedContinuation<Void, Never>? in
+                                let write = guarded.writeDone
+                                guarded.writeDone = nil
                                 return write
                             }
                             taken?.resume()
@@ -233,9 +231,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
             }
         }
 
-        let owed = state.withLock { s -> Owed in
-            s.phrasesInFlight -= 1
-            return Self.owed(by: s)
+        let owed = state.withLock { guarded -> Owed in
+            guarded.phrasesInFlight -= 1
+            return Self.owed(by: guarded)
         }
         settle(owed)
     }
@@ -259,9 +257,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
         // this from the start (`guard !samples.isEmpty`); this path never
         // learned it, and the asymmetry was the tell.
         guard buffer.frameLength > 0 else { return }
-        let mayRender = state.withLock { s -> Bool in
-            guard !s.retired else { return false }
-            s.scheduled += 1
+        let mayRender = state.withLock { guarded -> Bool in
+            guard !guarded.retired else { return false }
+            guarded.scheduled += 1
             return true
         }
         guard mayRender else { return }
@@ -273,14 +271,13 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
             // EVERY early return balances the count, or `finished` never
             // fires — the liveness law the counting exists to keep.
             guard state.withLock({ !$0.retired }) else { return bufferPlayed() }
-            let needsAttach = state.withLock { s -> Bool in
-                guard !s.attached else { return false }
-                s.attached = true
+            let needsAttach = state.withLock { guarded -> Bool in
+                guard !guarded.attached else { return false }
+                guarded.attached = true
                 return true
             }
             if needsAttach {
-                do { try host.attachForPlayback(player, format: handed.value.format) }
-                catch {
+                do { try host.attachForPlayback(player, format: handed.value.format) } catch {
                     state.withLock { $0.attached = false }
                     bufferPlayed()
                     report(.failed("the host refused the written reply: \(error)"))
@@ -291,9 +288,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
                                   completionCallbackType: .dataPlayedBack) { [weak self] _ in
                 self?.bufferPlayed()
             }
-            let start = state.withLock { s -> Bool in
-                guard !s.retired, !s.startedReported else { return false }
-                s.startedReported = true
+            let start = state.withLock { guarded -> Bool in
+                guard !guarded.retired, !guarded.startedReported else { return false }
+                guarded.startedReported = true
                 return true
             }
             if start {
@@ -304,9 +301,9 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     }
 
     private func bufferPlayed() {
-        let owed = state.withLock { s -> Owed in
-            s.played += 1
-            return Self.owed(by: s)
+        let owed = state.withLock { guarded -> Owed in
+            guarded.played += 1
+            return Self.owed(by: guarded)
         }
         settle(owed)
     }

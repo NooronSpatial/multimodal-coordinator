@@ -20,25 +20,6 @@
 /// Deliberately clockless: the ceiling (AC-26) is counted in FRAMES of audio,
 /// and every event is stamped in audio time (D-011, D-021).
 public actor TranscriptionSession {
-    public struct Config: Sendable {
-        /// The shape of the audio the pump delivers.
-        public var format: AudioStreamFormat
-        /// The ceiling: audio longer than this is cut with `truncated` (AC-26).
-        public var maximumUtterance: Duration
-        /// Events a listener may fall behind by before the oldest is dropped.
-        public var listenerBufferCapacity: Int
-
-        public init(
-            format: AudioStreamFormat = AudioStreamFormat(),
-            maximumUtterance: Duration = .seconds(30),
-            listenerBufferCapacity: Int = Broadcast<TranscriptEvent>.defaultBufferCapacity
-        ) {
-            self.format = format
-            self.maximumUtterance = maximumUtterance
-            self.listenerBufferCapacity = listenerBufferCapacity
-        }
-    }
-
     /// Everything that can wake the loop, in one type.
     private enum Input: Sendable {
         case audio(AudioEvent)
@@ -194,118 +175,6 @@ public actor TranscriptionSession {
         }
     }
 
-    // MARK: - audio events (one at a time, in loop order)
-
-    private func handleAudio(
-        _ event: AudioEvent,
-        forwardingInto group: inout TaskGroup<Void>,
-        via input: AsyncStream<Input>.Continuation
-    ) async {
-        switch event {
-        case .speechStarted(let utterance, let at):
-            if let old = active {
-                active = nil               // decided in this same actor step
-                if allowsOverlap && old.settling {
-                    // D-028: the ONE consultation (AC-55). Synchronous reads,
-                    // no await between the question and the verdict's effect.
-                    // The reads live INSIDE the policy check on purpose: with
-                    // nil policy this path is the old code byte for byte —
-                    // not even a thermal-provider getter fires (AC-54).
-                    let verdict: (allowed: Bool, thermal: ThermalState)
-                    if let thermalPolicy {
-                        let thermal = diagnostics?.thermal.current ?? .nominal
-                        verdict = (thermalPolicy.allowSettlingDecode(
-                            thermal: thermal, activeSettlingDecodes: settlingRuns.count), thermal)
-                    } else {
-                        verdict = (true, .nominal)
-                    }
-                    if verdict.allowed {
-                        // D-024: a batch decode SURVIVES the next utterance —
-                        // its ticket moves to the settling table, stamped with
-                        // the audio it was fed.
-                        settlingRuns[old.utterance] = Settling(
-                            run: old.run, at: time(old.startFrames + old.fedFrames),
-                            utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
-                        diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
-                    } else {
-                        // The refusal (AC-56): loud and exactly once — a named
-                        // failure on the utterance, one health event, spans
-                        // ended here (one grave, every path). The ticket died
-                        // above; the cancel is the optimisation, as always.
-                        publish(.failed(.declinedUnderThermalPressure,
-                                        utterance: old.utterance,
-                                        at: time(old.startFrames + old.fedFrames)))
-                        diagnostics?.noteSettlingRefusal(
-                            utterance: old.utterance, thermal: verdict.thermal)
-                        endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
-                        await old.run.cancel()
-                    }
-                } else {
-                    // D-021 ruling 1, unchanged for streaming engines: the
-                    // new utterance retires the old one; ticket dead first.
-                    // Its spans end HERE — found by the first field session:
-                    // this branch dropped them, and Instruments closed the
-                    // orphans at recording-stop, inflating every statistic.
-                    endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
-                    await old.run.cancel()
-                }
-            }
-            // D-034: the utterance's number arrived WITH the event — the
-            // pump assigned it at birth. No local counter to desync.
-            do {
-                let run = try await engine.openRun(format: config.format)
-                // Reentrancy law: stop() may have run while we awaited.
-                guard !isStopped else { await run.cancel(); return }
-                active = Active(
-                    utterance: utterance, run: run, startFrames: at.frames,
-                    utteranceSpan: diagnostics?.signposts.begin("session.utterance"))
-                group.addTask {
-                    for await update in run.updates {
-                        input.yield(.update(utterance: utterance, update))
-                    }
-                }
-            } catch let failure as TranscriptionFailure {
-                publish(.failed(failure, utterance: utterance, at: at))   // D-021 ruling 4
-            } catch {
-                publish(.failed(.engineFailed(String(describing: error)),
-                                utterance: utterance, at: at))
-            }
-
-        case .audioSegment(let chunk):
-            guard var current = active, !current.truncated, !current.settling else { return }
-
-            if current.fedFrames + chunk.frameCount > ceilingFrames {
-                // The ceiling (AC-26, D-021 ruling 3): announce the cut, stop
-                // feeding, settle the run — its final may still arrive.
-                current.truncated = true
-                current.settling = true
-                active = current           // flags set BEFORE the await
-                publish(.truncated(utterance: current.utterance,
-                                   at: time(current.startFrames + current.fedFrames)))
-                await current.run.finishAudio()
-                return
-            }
-
-            let utterance = current.utterance
-            await current.run.feed(chunk)
-            // Reentrancy law: the world may have changed during the feed.
-            guard active?.utterance == utterance else { return }
-            current.fedFrames += chunk.frameCount
-            active = current
-
-        case .speechEnded:
-            guard let current = active, !current.settling else { return }
-            active?.settling = true
-            // The settle span: "no more audio" until the final lands — the
-            // pause a user would feel (AC-45).
-            active?.settleSpan = diagnostics?.signposts.begin("session.settle")
-            await current.run.finishAudio()
-
-        case .dropped:
-            break   // the pump's honesty about lost sound; not text business
-        }
-    }
-
     // MARK: - engine updates (the ticket's door)
 
     private func handleUpdate(_ update: TranscriptionUpdate, utterance: Int) {
@@ -362,5 +231,138 @@ public actor TranscriptionSession {
 
     private func time(_ frames: Int) -> AudioTime {
         AudioTime(frames: frames, sampleRate: config.format.sampleRate)
+    }
+}
+
+// MARK: - audio events (one at a time, in loop order)
+
+extension TranscriptionSession {
+    private func handleAudio(
+        _ event: AudioEvent,
+        forwardingInto group: inout TaskGroup<Void>,
+        via input: AsyncStream<Input>.Continuation
+    ) async {
+        switch event {
+        case .speechStarted(let utterance, let at):
+            await handleSpeechStarted(
+                utterance: utterance, at: at, forwardingInto: &group, via: input)
+
+        case .audioSegment(let chunk):
+            guard var current = active, !current.truncated, !current.settling else { return }
+
+            if current.fedFrames + chunk.frameCount > ceilingFrames {
+                // The ceiling (AC-26, D-021 ruling 3): announce the cut, stop
+                // feeding, settle the run — its final may still arrive.
+                current.truncated = true
+                current.settling = true
+                active = current           // flags set BEFORE the await
+                publish(.truncated(utterance: current.utterance,
+                                   at: time(current.startFrames + current.fedFrames)))
+                await current.run.finishAudio()
+                return
+            }
+
+            let utterance = current.utterance
+            await current.run.feed(chunk)
+            // Reentrancy law: the world may have changed during the feed.
+            guard active?.utterance == utterance else { return }
+            current.fedFrames += chunk.frameCount
+            active = current
+
+        case .speechEnded:
+            guard let current = active, !current.settling else { return }
+            active?.settling = true
+            // The settle span: "no more audio" until the final lands — the
+            // pause a user would feel (AC-45).
+            active?.settleSpan = diagnostics?.signposts.begin("session.settle")
+            await current.run.finishAudio()
+
+        case .dropped:
+            break   // the pump's honesty about lost sound; not text business
+        }
+    }
+
+    /// A new utterance: the run being fed is let go in this same actor step,
+    /// then ONE recognition is opened for the utterance that just began.
+    private func handleSpeechStarted(
+        utterance: Int,
+        at: AudioTime,
+        forwardingInto group: inout TaskGroup<Void>,
+        via input: AsyncStream<Input>.Continuation
+    ) async {
+        if let old = active {
+            active = nil               // decided in this same actor step
+            await retireOnNewUtterance(old)
+        }
+        // D-034: the utterance's number arrived WITH the event — the
+        // pump assigned it at birth. No local counter to desync.
+        do {
+            let run = try await engine.openRun(format: config.format)
+            // Reentrancy law: stop() may have run while we awaited.
+            guard !isStopped else { await run.cancel(); return }
+            active = Active(
+                utterance: utterance, run: run, startFrames: at.frames,
+                utteranceSpan: diagnostics?.signposts.begin("session.utterance"))
+            group.addTask {
+                for await update in run.updates {
+                    input.yield(.update(utterance: utterance, update))
+                }
+            }
+        } catch let failure as TranscriptionFailure {
+            publish(.failed(failure, utterance: utterance, at: at))   // D-021 ruling 4
+        } catch {
+            publish(.failed(.engineFailed(String(describing: error)),
+                            utterance: utterance, at: at))
+        }
+    }
+
+    /// The old run's ticket has already died at the call site. What is left
+    /// to decide is where its DECODE goes: settling (D-024), declined under
+    /// thermal pressure (D-028), or ended with the utterance (D-021).
+    private func retireOnNewUtterance(_ old: Active) async {
+        if allowsOverlap && old.settling {
+            // D-028: the ONE consultation (AC-55). Synchronous reads,
+            // no await between the question and the verdict's effect.
+            // The reads live INSIDE the policy check on purpose: with
+            // nil policy this path is the old code byte for byte —
+            // not even a thermal-provider getter fires (AC-54).
+            let verdict: (allowed: Bool, thermal: ThermalState)
+            if let thermalPolicy {
+                let thermal = diagnostics?.thermal.current ?? .nominal
+                verdict = (thermalPolicy.allowSettlingDecode(
+                    thermal: thermal, activeSettlingDecodes: settlingRuns.count), thermal)
+            } else {
+                verdict = (true, .nominal)
+            }
+            if verdict.allowed {
+                // D-024: a batch decode SURVIVES the next utterance —
+                // its ticket moves to the settling table, stamped with
+                // the audio it was fed.
+                settlingRuns[old.utterance] = Settling(
+                    run: old.run, at: time(old.startFrames + old.fedFrames),
+                    utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+                diagnostics?.noteSettlingDecodes(count: settlingRuns.count)
+            } else {
+                // The refusal (AC-56): loud and exactly once — a named
+                // failure on the utterance, one health event, spans
+                // ended here (one grave, every path). The ticket died
+                // above; the cancel is the optimisation, as always.
+                publish(.failed(.declinedUnderThermalPressure,
+                                utterance: old.utterance,
+                                at: time(old.startFrames + old.fedFrames)))
+                diagnostics?.noteSettlingRefusal(
+                    utterance: old.utterance, thermal: verdict.thermal)
+                endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+                await old.run.cancel()
+            }
+        } else {
+            // D-021 ruling 1, unchanged for streaming engines: the
+            // new utterance retires the old one; ticket dead first.
+            // Its spans end HERE — found by the first field session:
+            // this branch dropped them, and Instruments closed the
+            // orphans at recording-stop, inflating every statistic.
+            endSpans(utteranceSpan: old.utteranceSpan, settleSpan: old.settleSpan)
+            await old.run.cancel()
+        }
     }
 }
