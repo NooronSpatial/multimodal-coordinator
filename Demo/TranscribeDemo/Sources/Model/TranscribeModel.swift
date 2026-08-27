@@ -433,5 +433,7 @@ final class TranscribeModel {
     /// The other observer, and it guards against a CRASH rather than a
     /// glitch — see `observeForegroundLoss()` (D-079).
     var foregroundObserver: (any NSObjectProtocol)?
+    /// Its symmetric half — see `rewarmMind()`.
+    var becameActiveObserver: (any NSObjectProtocol)?
 
 }

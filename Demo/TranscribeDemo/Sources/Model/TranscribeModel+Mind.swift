@@ -21,7 +21,7 @@ extension TranscribeModel {
         MLXReplyGenerator(
             model: localModel,
             instructions: "Your reply will be spoken aloud by a synthetic voice "
-                + "and never shown as text. Do "
+                + "and never shown as text. Answer in ONE short sentence. Do "
                 + "not add extra facts, background or explanation unless the "
                 + "person asks for them. Never use lists, bullet points, "
                 + "numbered items, markdown, code, or headings.",
@@ -245,6 +245,34 @@ extension TranscribeModel {
     /// between two turns, and caching "unavailable" would turn a
     /// temporary state into a permanent verdict. When the mind is ready,
     /// the warm-up is paid here, not inside the first felt pause.
+    /// Put the local mind down before the platform takes the GPU away
+    /// (D-079, the review's blocker).
+    ///
+    /// `retire()` cancels the warm-up task AND releases the weights, and
+    /// both halves are wanted here: the first is what stops Metal work
+    /// that iOS is about to refuse, and the second hands 2.2 GB back to a
+    /// system that is about to judge this app's footprint anyway.
+    ///
+    /// **The cost, named.** A retired mind is cold, so the first reply
+    /// after coming back pays the load again. `rewarmMind()` below is why
+    /// that is usually invisible: returning to the foreground starts the
+    /// warm-up immediately, in the same window the person spends looking
+    /// at the screen before they speak.
+    ///
+    /// The same honest limit as the rest of D-079 applies: cancellation is
+    /// cooperative, so this wins the race only when MLX is between command
+    /// buffers.
+    func retireLocalMind() async {
+        await localModel.retire()
+    }
+
+    /// The other half of `retireLocalMind()`: back in the foreground, warm
+    /// the mind again so the next reply does not pay for the retirement.
+    func rewarmMind() {
+        guard mind == .local else { return }
+        refreshMind()
+    }
+
     func refreshMind() {
         if mind == .local {
             // THE GUARD BELONGS HERE, not only on the Listen button.
