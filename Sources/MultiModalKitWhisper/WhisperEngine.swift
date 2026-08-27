@@ -99,6 +99,29 @@ public actor WhisperEngine: TranscriptionEngine {
         _ = try await loadedPipeline()
     }
 
+    private var isWarmed = false
+
+    /// Prewarms the CoreML models and compiles the Apple Neural Engine (ANE)
+    /// execution graph off-turn so Turn 1 does not pay the 1.5–2.5s compilation pause.
+    ///
+    /// Nonisolated and silent by design: matches `LocalMind.prewarm()` and
+    /// `AppleReplyGenerator.prewarm()`. Safe to call at launch or when selecting Whisper.
+    public nonisolated func prewarm() {
+        Task { await self.startPrewarm() }
+    }
+
+    func startPrewarm() async {
+        guard !isWarmed else { return }
+        guard await modelInstalled() else { return }
+        isWarmed = true
+        let dummy = [Float](repeating: 0, count: 8_000)
+        do {
+            _ = try await self.decode(dummy)
+        } catch {
+            isWarmed = false
+        }
+    }
+
     public func openRun(format: AudioStreamFormat) async throws -> any TranscriptionRun {
         // Ask the holder whether the models are already resident, rather
         // than a stored property it now owns. Same meaning, one source.

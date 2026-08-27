@@ -136,5 +136,14 @@ struct WhisperEngineConformanceTests {
         guard await engine.modelInstalled() else { return }
         try await EngineConformanceKit.verifyCancelEndsWithoutAFinal(engine)
     }
+
+    @Test("prewarm is safe and idempotent (model required; skips if absent)")
+    func prewarmIsSafeAndIdempotent() async throws {
+        let engine = WhisperEngine()
+        engine.prewarm()
+        guard await engine.modelInstalled() else { return }
+        try await engine.ensureModel()
+        engine.prewarm()
+    }
 }
 #endif

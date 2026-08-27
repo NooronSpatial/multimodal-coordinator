@@ -3909,3 +3909,88 @@ prefix list becomes evidence instead of a shrug.
 
 **Still owed: the cold trace itself (AC-172).** The next ❄ run carries
 the surviving report either way.
+
+## 52. The cold that would not come — the surviving ❄ report, the Mac's corroboration, and D-075
+
+The §51 fix held: the ❄'s next run (Ryad's phone, the 4n field session)
+kept its cache-clear report. The report was worth keeping, because it
+refuted the design's own premise.
+
+### The surviving report — Caches does not hold the cache
+
+The clear found NOTHING to delete, and the neighbourhood line — built
+for exactly this moment — named what the app's Caches actually holds:
+com.apple.dyld entries, speech assets, the app's own bundle id, and
+huggingface. No com.apple.e5rt, no com.apple.CoreML, no
+com.apple.mlcompiler. D-074's control was pointed at the right kind of
+directory on the wrong side of the sandbox wall: on iOS, the compiled
+plans this app pays 64.8 s for (§30) are not kept where the app can
+reach them.
+
+### The Mac's corroboration, measured 2026-08-26 on this machine
+
+- `~/Library/Caches/com.apple.e5rt.e5bundlecache` EXISTS at USER level
+  — outside any app container. It held **0 bytes** at the one snapshot
+  taken; when and why the OS fills or empties it was not observed, only
+  that this app's compiles left nothing there that day. Both facts
+  point the same way — the e5rt cache belongs to the system, not to the
+  app that triggered the compile.
+- The Mac's $TMPDIR held no e5rt/CoreML/mlcompiler staging at all. What
+  it DID hold: **152** leaked `cold-*` roots from this project's own
+  test fixtures — `makeContainer` never cleaned up after itself. (This
+  section first said "ten-plus, fixed": the count came from a truncated
+  listing and the fix only stopped FUTURE leaks — the review counted
+  the 152 still sitting there. Corrected, the backlog swept by hand,
+  fixtures now delete themselves.) The instrument that surveys tmp/ was
+  itself littering tmp/.
+
+### The ruling, and the code it changed
+
+**D-075 (route A):** the survey extends to the app's `tmp/` — the one
+cache-plausible container directory never yet looked at — and the
+ruling carries its own ending: an empty tmp/ falls through to C with no
+new fork. `CompiledPlanCache` now walks a list of directories, every
+entry says WHERE it was found, absence names EVERY neighbourhood
+separately, and a directory the control cannot read says "unreadable or
+absent" instead of posing as empty.
+
+### The adversarial review's harvest (D-041), and what it caught
+
+The first version of this section claimed "each rule pinned by a test,
+each test proven killable" over THREE run mutations. The review refused
+the claim and was right twice over — 14 confirmed findings, two major:
+
+1. **The byte evidence could lie.** A plain FILE matching a prefix (a
+   staging blob in tmp/, exactly what D-075 hunts) was deleted for real
+   but recorded as **0 bytes** — the byte counter enumerates a
+   directory's contents, and a file has none. The AC-172 number's own
+   evidence line would have under-reported every file-shaped cache.
+2. **A delete failure could report as success.** The COULD-NOT-DELETE
+   path had no test; the review proved by mutation that
+   failure-as-success stayed green across the whole suite — the §30
+   lie, one branch deeper.
+
+Also confirmed and closed: a matching symlink was "cleared" while its
+target survived (links are now skipped, visible in the neighbourhood
+line); the same directory passed twice reported one deletion as both
+done and failed; an all-failed clear opened with "cleared 0 ... 0
+bytes:"; an unreadable directory was admitted only when nothing matched
+anywhere; and the "holds: [nothing]" line — the exact evidence C rests
+on — was pinned by no test. The suite now holds 11 tests over this one
+type, and NINE mutations were each shown to kill their named test.
+Named limits that remain, on the record in the doc comment: byte walks
+are best-effort, location labels collide for same-named roots, and
+`survey()` alone cannot say "unreadable" — `clear()`'s summary is the
+honest reporter.
+
+### What the next ❄ run decides — AC-172, still owed
+
+Two outcomes, both terminal:
+
+1. **tmp/ holds a compile cache** → the clear deletes it, the probe's
+   fresh voice load IS the cold number, recorded here with its
+   configuration.
+2. **tmp/ holds nothing** → C by D-075: cold is system-owned, §30's
+   64.8 s stands as the recorded cold number, and AC-172 closes with
+   the honest line that the app cannot reproduce cold on demand — the
+   report's "tmp holds: [...]" line is the evidence that we looked.

@@ -3071,3 +3071,75 @@ attempt becomes a procedure that cannot be done wrong. *Rejected:* **A,
 clear-only** — cheaper, but it keeps the dance, and the dance is the
 proven failure. Cost accepted: the tap briefly stops any conversation,
 and the control refuses while listening.
+
+## D-075 — the cold hunt moves to tmp/, and an empty tmp/ ends it (Milestone 4n follow-up)
+
+**Date:** 2026-08-26 · **Decided by:** Ryad · **Ruling: AC-172's route
+= A — the cache survey extends to the app's tmp/; if tmp/ holds no
+cache either, the ruling falls through to C without a new fork**
+
+The evidence that forced this ruling: the ❄'s first surviving report
+(§52) proved the compiled-plan cache is NOT in the app's Caches on
+iOS — the neighbourhood line named what Caches actually holds
+(com.apple.dyld entries, speech, the bundle id, huggingface) and no
+e5rt, CoreML, or mlcompiler directory among them. On the Mac the same
+cache lives at USER level, `~/Library/Caches/com.apple.e5rt.e5bundlecache`
+— outside any app container. The working hypothesis, still a
+hypothesis: on iOS the compile cache belongs to a system daemon no app
+directory reaches.
+
+**Ruled: A.** The app's container has one cache-plausible directory the
+survey has never looked at — `tmp/`. One more surveyed directory is
+cheap, the report already names neighbourhoods, and D-074's control
+gains reach without changing shape. An empty tmp/ is then EVIDENCE,
+not a shrug: the fall-through to C is part of this ruling, so absence
+does not open a new fork — cold is accepted as system-owned, §30's
+64.8 s stands as the recorded cold number, and AC-172 closes with the
+honest line that the app cannot reproduce cold on demand.
+
+*Rejected:* **B — delete and re-download the voice (1.1 GB)** — pays a
+gigabyte of download per measurement, and may STILL come back warm: if
+the system cache is content-keyed, the re-downloaded bytes are the same
+bytes, the same key, the same compiled plan.
+*Rejected:* **C alone, accepted immediately** — surrenders while one
+unsurveyed directory remains. C may well be the destination; ruling it
+before tmp/ is surveyed would rest it on absence nobody looked for.
+
+**The cost, named:** the control now deletes inside a directory the OS
+also uses for its own staging. The writ stays narrow — only the three
+known prefixes are ever touched, everything else in tmp/ is surveyed by
+name and left alone — but a prefix list that overmatched would now
+overmatch in two places instead of one.
+
+## D-076 — the cold-start pair ships with the cold-route PR, on Ryad's own review (Milestone 4n follow-up)
+
+**Date:** 2026-08-26 · **Decided by:** Ryad · **Ruling: keep together —
+the turn-1 cold-start commits (4074d0c, 7420730) merge in the same PR
+as the D-075 work**
+
+While the D-075 session waited on its verification jobs, two commits
+landed on the branch from outside it: an iOS session-start fallback for
+the voice's lead (phone RTF constants 1.30/1.33, from §22's measured
+1.21× and §41's 1.33×) and a WhisperEngine.prewarm() that pays the ANE
+compile off-turn. Ryad ruled they ship now: **"i already reviewed and
+tested. the work is good."** That review-and-test is the D-041 gate for
+these commits, closed by the person the rule belongs to.
+
+*Rejected:* **splitting the streams** (the session's recommendation —
+a clean D-075-only PR, with the cold-start pair waiting for its own
+review and the §50 field evidence). Ryad's review had already happened;
+a split would have manufactured ceremony around work he had personally
+verified.
+
+**Recorded with the ruling, so the record stays whole:**
+- §50's suspect list stays OPEN. The pair mitigates the starvation
+  suspect; it does not convict it — turn 2's "Rome." is sub-second and
+  starvation cannot explain it. AC-173's margin-per-turn logging is the
+  instrument that still decides, and it logs the cushion in force, so
+  the next conversation log stays readable evidence either way.
+- The new prewarm is a fourth instance of the lazy-init class D-051's
+  accepted notes hold open (feed · openUtterance · mind-prewarm · now
+  ear-prewarm). The class-level cure remains an open fork.
+- The prewarm conformance test self-skips where no model is installed,
+  so CI exercises the guard path only — hardware-gated like the rest of
+  the engine suite, said here rather than discovered later.
