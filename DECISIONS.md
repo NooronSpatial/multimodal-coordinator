@@ -3316,6 +3316,66 @@ backgrounded the phone mid-reply to watch it hold.
 The ear and the mouth run on the ANE through CoreML, which the background
 does not forbid. Only the MLX mind touches Metal.
 
+## D-080 — the cushion stops averaging, because the drought comes in bursts (Milestone 4o)
+
+**Date:** 2026-08-27 · **Decided by:** Ryad · **Ruling: B — size the
+cushion from the WORST observed stall, not from the mean rate**
+
+### The rule this retires, and the measurement that retired it
+
+`PlaybackLead`'s formula — **`deficit = replyLength × (RTF − 1)`** —
+comes from D-046 and was inherited unchanged by 4m's learned cushion
+(D-073). It is not predictive of the silence it exists to prevent.
+
+Fed this Mac's honest measurement for the phone's own configuration
+(steady RTF 1.114), against condition D's 800 ms bank (INSTRUMENTS §53):
+
+| file | audio | the rule asks | it predicts | silence MEASURED |
+|---|---|---|---|---|
+| s2-stepped-draw3 | 6043 ms | 689 ms | **none — "safe"** | **394 ms** |
+| s3-stepped-draw1 | 11515 ms | 1313 ms | 513 ms | 1674 ms |
+
+Pooled: **1248 ms predicted uncovered against 5593 ms measured — under
+by 4.5×** — and on one file the rule calls a reply covered while its
+audio breaks. No constant inside the measured range repairs it: covering
+the worst file needs RTF ≈ 1.22, outside the 1.053–1.120 ever observed.
+
+**The defect is the rule's FORM.** The decoder does not run uniformly
+1.114× slow. It STALLS, and a stall drains a bank that the average says
+is deep enough. A mean cannot size a burst.
+
+**Ruled: B.** Measure per-step decode timing, track the worst lag seen,
+and size the bank from that. It fixes the CLASS: a rule that works on any
+device, rather than a number that works on one.
+
+*Rejected:* **A, measure the cushion instead of deriving it** — sweep the
+lead on the Mac, take the smallest value with zero digital silence.
+Gives a correct number today using the laboratory §53 just built, and
+becomes a table per device and per configuration rather than a rule; it
+also cannot adapt to a long reply mid-conversation. **Kept as 4o's
+verification method, which is the half of A that is worth having.**
+*Rejected:* **C, stop sizing and rebuffer** — never let the buffer fall
+below a floor, and pause at a phrase boundary when it does, the way
+video rebuffers. It converts thirteen mid-word gaps into one honest
+pause, which may yet be the better PRODUCT. Rejected as the fix because
+it hides the fault rather than removing it, and because it introduces a
+new audible failure while the old one is still unexplained.
+
+### What survives, and it matters
+
+`keepsUp` — `steadyRealTimeFactor < 1.0` — was **correct for every
+condition measured**: A, C and F never starved, D and B did. Steady RTF
+remains a sound keeps-up/does-not-keep-up FLAG. Only its use as a sizing
+formula is retired.
+
+### The cost, named
+
+Per-step timing does not exist today: `DecodeMargin` carries whole-run
+numbers only (audio, wall, prefill, steady RTF). So 4o must build the
+instrument before it can build the cure, and the first reply of a session
+still has no history to learn from — the same hole 4m left open, now
+inherited by its successor.
+
 ## D-081 — two review findings on a merged branch, fixed forward (PR #29 follow-up)
 
 **Date:** 2026-08-27 · **Decided by:** Ryad (fix both) · these are
