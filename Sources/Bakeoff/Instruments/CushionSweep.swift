@@ -58,22 +58,125 @@ func runCushionSweep(_ arguments: [String]) async -> Never {
     print("\n🛏  CUSHION SWEEP (AC-178) — serial, release, one machine")
     print("    silence = EXACT-ZERO runs ≥20 ms inside the speech span")
     print("    (an amplitude threshold was tried and proved an artifact, §53)")
-    print("\n| fixture | cushion | speech | silence runs | silence ms/s | felt pause |")
-    print("|---|---|---|---|---|---|")
+
+    // COUNTERBALANCED REPEATS, because the first version of this sweep
+    // measured the machine and not the lever.
+    //
+    // Running cushions in order confounds cushion size with elapsed time,
+    // and this Mac slows as it heats: the same long sentence took 33 s in
+    // one run and 53 s in another. The tell was that a BIGGER cushion
+    // appeared to produce MORE silence — and a reverse-order control
+    // showed the numbers rising with POSITION in both directions, which
+    // is drift, not the cushion.
+    //
+    // So each repeat sweeps the opposite way. A cushion measured early in
+    // one pass is measured late in the next, and a linear drift cancels
+    // in the pair. That is the whole reason `--repeats` defaults to an
+    // EVEN number: an odd count leaves one unpaired pass and the bias
+    // comes back.
+    let repeats = arguments.first { $0.hasPrefix("--repeats=") }
+        .flatMap { Int($0.dropFirst("--repeats=".count)) } ?? 2
+    guard repeats % 2 == 0, repeats > 0 else {
+        let complaint = "bakeoff: --repeats must be EVEN — an odd count"
+            + " leaves a pass unpaired and the drift it exists to cancel"
+            + " comes back\n"
+        FileHandle.standardError.write(Data(complaint.utf8))
+        exit(2)
+    }
 
     for fixture in fixtures {
-        for cushion in cushions {
-            await sweepOne(fixture: fixture, cushion: cushion, levers: levers)
-        }
+        await sweepFixture(fixture, cushions: cushions,
+                           repeats: repeats, levers: levers)
     }
-    print("\nThe smallest cushion whose silence column reads 0 is the answer")
-    print("AC-178 asks for. Read the felt pause beside it: that is what it costs.")
+    print("\nThe smallest cushion whose MEDIAN silence reads 0 is the answer")
+    print("AC-178 asks for. Read the felt pause beside it: that is its price.")
+    print("Read the drift probe first: it says how much to trust the rest.")
     exit(0)
 }
 
+/// One fixture, swept with its repeats and bracketed by drift probes.
+@MainActor
+private func sweepFixture(_ fixture: Fixture, cushions: [Duration],
+                          repeats: Int, levers: VoiceLevers) async {
+    var rows: [Row] = []
+    do {
+        // THE DRIFT PROBE. One fixed cushion, measured before and after
+        // everything else, so the machine's degradation is SHOWN rather
+        // than inferred. If these two disagree, every number between them
+        // carries that much doubt — and the reader can see how much.
+        let driftBefore = await sweepOne(fixture: fixture, cushion: .milliseconds(800),
+                                         levers: levers, label: "drift probe (before)")
+        for pass in 0..<repeats {
+            let order = pass.isMultiple(of: 2) ? cushions : cushions.reversed()
+            for cushion in order {
+                if let row = await sweepOne(fixture: fixture, cushion: cushion,
+                                            levers: levers, label: nil) {
+                    rows.append(row)
+                }
+            }
+        }
+        let driftAfter = await sweepOne(fixture: fixture, cushion: .milliseconds(800),
+                                        levers: levers, label: "drift probe (after)")
+        report(fixture: fixture, rows: rows, cushions: cushions,
+               driftBefore: driftBefore, driftAfter: driftAfter)
+    }
+}
+
+/// One measured run.
+private struct Row {
+    let cushionMilliseconds: Int
+    let silencePerSecond: Double
+    let feltPauseMilliseconds: Double
+    let spanSeconds: Double
+}
+
+/// The per-fixture table: one line per cushion, medians across repeats,
+/// with the spread shown rather than averaged away.
+@MainActor
+private func report(fixture: Fixture, rows: [Row], cushions: [Duration],
+                    driftBefore: Row?, driftAfter: Row?) {
+    print("\n### \(fixture.name)")
+    if let driftBefore, let driftAfter {
+        // The machine's own change, in the units of the thing being
+        // measured. A reader who sees 60 here should not believe a 40 ms/s
+        // difference between two cushions.
+        print(String(format:
+            "drift probe @800 ms — before %.0f ms/s · after %.0f ms/s · moved %.0f",
+            driftBefore.silencePerSecond, driftAfter.silencePerSecond,
+            abs(driftAfter.silencePerSecond - driftBefore.silencePerSecond)))
+    }
+    print("| cushion | runs | silence ms/s (median) | spread | felt pause (median) |")
+    print("|---|---|---|---|---|")
+    for cushion in cushions {
+        let mine = rows.filter { $0.cushionMilliseconds == cushion.milliseconds }
+        guard !mine.isEmpty else { continue }
+        let silences = mine.map(\.silencePerSecond).sorted()
+        let pauses = mine.map(\.feltPauseMilliseconds).sorted()
+        print(String(format: "| %d ms | %d | %.0f | %.0f–%.0f | %.0f ms |",
+                     cushion.milliseconds, mine.count,
+                     median(silences), silences.first ?? 0, silences.last ?? 0,
+                     median(pauses)))
+    }
+}
+
+private func median(_ sorted: [Double]) -> Double {
+    guard !sorted.isEmpty else { return 0 }
+    let middle = sorted.count / 2
+    return sorted.count.isMultiple(of: 2)
+        ? (sorted[middle - 1] + sorted[middle]) / 2
+        : sorted[middle]
+}
+
+extension Duration {
+    var milliseconds: Int {
+        Int(components.seconds * 1000 + components.attoseconds / 1_000_000_000_000_000)
+    }
+}
+
+@discardableResult
 @MainActor
 private func sweepOne(fixture: Fixture, cushion: Duration,
-                      levers: VoiceLevers) async {
+                      levers: VoiceLevers, label: String?) async -> Row? {
     // ONE ENGINE PER RUN. voice-wer learned this the hard way: sharing an
     // engine put a fused utterance immediately after a stepped teardown
     // detaching from the same graph, and three captures came back empty.
@@ -88,7 +191,7 @@ private func sweepOne(fixture: Fixture, cushion: Duration,
                             seed: 20260816)
     guard (try? await voice.ensureModel()) != nil else {
         print("| \(fixture.name) | \(cushion) | LOAD FAILED |")
-        return
+        return nil
     }
     // Warm-up, excluded: the first decode after a load compiles graphs,
     // the same rule voice-levers and voice-spike follow.
@@ -101,14 +204,20 @@ private func sweepOne(fixture: Fixture, cushion: Duration,
 
     guard !samples.isEmpty, capture.sampleRate > 0 else {
         print("| \(fixture.name) | \(cushion) | CAPTURED NOTHING — not graded |")
-        return
+        return nil
     }
     let silence = DigitalSilence.measure(samples: samples,
                                          sampleRate: capture.sampleRate)
     // The felt pause a person actually waits: the cushion banked before
     // playback starts, plus the decode that had to happen first.
     let feltPause = timing.map { $0.firstAudio } ?? -1
-    print(String(format: "| %@ | %@ | %.2f s | %d | %.0f | %.0f ms |",
-                 fixture.name, "\(cushion)", silence.spanMilliseconds / 1000,
-                 silence.runs, silence.millisecondsPerSecond, feltPause))
+    if let label {
+        print(String(format: "  %@ · %@: %.0f ms/s over %.2f s",
+                     fixture.name, label, silence.millisecondsPerSecond,
+                     silence.spanMilliseconds / 1000))
+    }
+    return Row(cushionMilliseconds: cushion.milliseconds,
+               silencePerSecond: silence.millisecondsPerSecond,
+               feltPauseMilliseconds: feltPause,
+               spanSeconds: silence.spanMilliseconds / 1000)
 }
