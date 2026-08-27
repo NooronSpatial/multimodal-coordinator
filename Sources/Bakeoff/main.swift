@@ -21,6 +21,27 @@ let arguments = CommandLine.arguments
 
 /// Drives one reply through a mouth and times the two moments that
 /// matter: when sound STARTS, and when the room goes quiet.
+/// One reply's margin, handed across threads.
+///
+/// `reportMargins` delivers on whatever thread finished the decode, and
+/// the sweep reads on its own — so the value crosses a boundary and needs
+/// the lock. The rules are this repo's usual two: nothing but the store
+/// happens under it, and it is never held across a suspension point.
+final class MarginBox: Sendable {
+    private let box = Mutex<DecodeMargin?>(nil)
+    func record(_ margin: DecodeMargin) { box.withLock { $0 = margin } }
+    /// Reads AND clears: a run that reported nothing must not silently
+    /// inherit the previous run's number.
+    func take() -> DecodeMargin? {
+        box.withLock { stored in
+            let margin = stored
+            stored = nil
+            return margin
+        }
+    }
+    func reset() { _ = take() }
+}
+
 func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
     -> (firstAudio: Double, total: Double)
 {
@@ -878,7 +899,20 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
         "The audio travels through a ring buffer into a pump that cuts it into small chunks.",
     ]
     let draws = 3
-    let lead = Duration.milliseconds(800)
+    let leadOverride: Duration? = {
+        do { return try VoiceLevers.parsed(fromArguments: arguments).lead }
+        catch { return nil }   // a bad value is reported by the parse below
+    }()
+    // `--lead=` is THE CONTROL for the starvation question (4l, 2026-08-27).
+    // Ryad's ear caught a hitch in audio rendered on this Mac with the
+    // phone's levers, and two explanations fit the same recording:
+    // the bank ran dry (RTF 1.114 > 1.0 with only 800 ms banked), or the
+    // throughput vocoder simply speaks in a choppier way. They are told
+    // apart by ONE variable — starvation disappears when the cushion is
+    // large enough, prosody does not — so the cushion had to stop being
+    // a constant here. Default unchanged, so every earlier number in
+    // INSTRUMENTS still describes the same run.
+    let lead = leadOverride ?? Duration.milliseconds(800)
 
     // ONE ENGINE PER VOICE, and that is a correction. Sharing a single
     // engine put every fused utterance immediately after a stepped
@@ -895,10 +929,71 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
     // engine itself, because it taps the mixer — but the voice only ever
     // sees a host, so the start-order rule that hung this tool now lives
     // in one place instead of here.
-    let stepped = NeuralVoice(renderingOn: AudioEnginePlaybackHost(engine: steppedEngine),
-                              lead: lead, multiCodeDecoderMode: .stepped)
-    let fused = NeuralVoice(renderingOn: AudioEnginePlaybackHost(engine: fusedEngine),
-                            lead: lead, multiCodeDecoderMode: .fused)
+    // WHICH MODEL SPEAKS (AC-163), through the library's one parser. The
+    // sweep raised a question its own numbers cannot answer: 1.7B makes
+    // MUCH shorter audio for the same sentence, and "compact" and
+    // "dropping words" look identical on a stopwatch. This tool is the
+    // one that can tell them apart, so it must be able to run either.
+    let werLevers: VoiceLevers
+    do {
+        werLevers = try VoiceLevers.parsed(fromArguments: arguments)
+    } catch let refusal as VoiceLevers.FlagError {
+        FileHandle.standardError.write(Data("bakeoff: \(refusal.message)\n".utf8))
+        exit(2)
+    }
+    let werModel = werLevers.model
+    // THE VOCODER IS A LEVER HERE TOO, and that is the point of this run:
+    // the phone cannot load `.fused` at all, so what it ships is
+    // `stepped + throughput` — a config this tool could not previously
+    // render, which meant every WER number here described a mouth the
+    // PHONE never uses. `--speech=throughput` renders the phone's exact
+    // levers on this Mac, so a Mac ear can judge what the phone speaks.
+    let stepped = NeuralVoice(variant: werModel,
+                              renderingOn: AudioEnginePlaybackHost(engine: steppedEngine),
+                              lead: lead, multiCodeDecoderMode: .stepped,
+                              speechDecoderMode: werLevers.vocoder)
+    let fused = NeuralVoice(variant: werModel,
+                            renderingOn: AudioEnginePlaybackHost(engine: fusedEngine),
+                            lead: lead, multiCodeDecoderMode: .fused,
+                            speechDecoderMode: werLevers.vocoder)
+    // `--save-audio=DIR` writes every graded capture as a WAV, so the ear
+    // ruling AC-163 asks for does not depend on standing beside this Mac
+    // while it speaks. Off by default: a measurement tool should not
+    // litter unless asked.
+    let audioDirectory: URL? = arguments
+        .first { $0.hasPrefix("--save-audio=") }
+        .map { URL(filePath: String($0.dropFirst("--save-audio=".count))) }
+    if let audioDirectory {
+        try? FileManager.default.createDirectory(
+            at: audioDirectory, withIntermediateDirectories: true)
+    }
+    func saveWav(_ samples: [Float], rate: Double, named name: String) -> String? {
+        guard let audioDirectory, rate > 0, !samples.isEmpty,
+              let format = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                                         sampleRate: rate, channels: 1,
+                                         interleaved: false),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format,
+                                            frameCapacity: AVAudioFrameCount(samples.count))
+        else { return nil }
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        samples.withUnsafeBufferPointer { source in
+            buffer.floatChannelData![0].update(from: source.baseAddress!,
+                                               count: samples.count)
+        }
+        let url = audioDirectory.appending(path: "\(name).wav")
+        do {
+            let file = try AVAudioFile(forWriting: url,
+                                       settings: format.settings,
+                                       commonFormat: .pcmFormatFloat32,
+                                       interleaved: false)
+            try file.write(from: buffer)
+            return url.lastPathComponent
+        } catch {
+            FileHandle.standardError.write(
+                Data("   could not save \(name).wav: \(error)\n".utf8))
+            return nil
+        }
+    }
     guard await stepped.modelInstalled() else {
         print("the neural voice's model is not installed — run: swift run bakeoff voice-install")
         exit(1)
@@ -941,15 +1036,18 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
                          mouth, seconds, peak))
             return
         }
+        let saved = saveWav(samples, rate: rate,
+                            named: "s\(sentenceIndex + 1)-\(mouth)-draw\(draw)")
         do {
             let m = try await BakeoffHarness.measure(
                 engine: whisper, label: mouth,
                 samples: samples, sampleRate: rate, reference: reference)
             rows.append(Row(mouth: mouth, sentence: sentenceIndex, draw: draw,
                             wer: m.score.wer, heard: m.text))
-            print(String(format: "      %-8@ draw %d — WER %.3f — %.2f s, peak %.3f — \"%@\"",
+            print(String(format: "      %-8@ draw %d — WER %.3f — %.2f s, peak %.3f — \"%@\"%@",
                          mouth as NSString, draw, m.score.wer, seconds, peak,
-                         m.text as NSString))
+                         m.text as NSString,
+                         saved.map { " → \($0)" } ?? "" as NSString as String))
         } catch {
             print("      \(mouth): transcription failed — \(error)")
         }
@@ -984,6 +1082,9 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
     }
 
     print("\n════════════════════════════════════════════════")
+    print("neural model under test: \(werModel == .qwen3TTS_1_7b ? "1.7B" : "0.6B")"
+        + " · vocoder \(werLevers.vocoder == .throughputOptimized ? "throughput" : "latency")"
+        + " · lead \(lead)")
     print("| mouth | draws graded | mean WER | worst |")
     print("|---|---|---|---|")
     for mouth in ["apple", "stepped", "fused"] {
@@ -1071,9 +1172,26 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
             FileHandle.standardError.write(Data("   load failed: \(error)\n".utf8))
             continue
         }
+        // THE STEADY NUMBERS, FROM OUR OWN INSTRUMENT (AC-163).
+        //
+        // This footer told the reader to "read the STEADY column from
+        // stderr" — and there is no such column: it depended on the
+        // VENDOR's logging, which prints nothing here today. The 4l run
+        // caught it the way §30's rule predicts: the instruction pointed
+        // at a number the instrument could not produce, so the sweep's
+        // headline totals were the only thing to read — and totals are
+        // NOT comparable across models, because a model that says the
+        // same sentence in less audio finishes sooner for a reason that
+        // has nothing to do with speed.
+        //
+        // `DecodeMargin` is ours, it is what the phone already logs, and
+        // it carries the audio length that makes the ratio meaningful.
+        let margins = MarginBox()
+        await voice.reportMargins { margin in margins.record(margin) }
         // Warm-up, excluded: the first decode after a load compiles and
         // warms graphs, the same rule voice-spike follows.
         _ = try? await measure(voice, "Warming up.")
+        margins.reset()
         // MEASURED AND PRINTED, not swallowed. This loop used to be
         // `_ = try? await measure(...)`: the result discarded, the error
         // dropped, and the numbers left entirely to TTSKit's own logging.
@@ -1084,14 +1202,27 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
         for run in 1...runsPerConfig {
             do {
                 let timing = try await measure(voice, sentence)
-                print(String(format: "| %@ | run %d | first audio %.0f ms | total %.0f ms |",
-                             lever.name, run, timing.firstAudio, timing.total))
+                // The margin for THIS run, or the honest absence of one.
+                // A row that cannot say its audio length says so, rather
+                // than borrowing the previous run's number.
+                let said: String
+                if let margin = margins.take() {
+                    said = String(format: "audio %.0f ms | steady %.3f%@",
+                                  margin.audioMilliseconds,
+                                  margin.steadyRealTimeFactor,
+                                  margin.completed ? "" : " (INCOMPLETE)")
+                } else {
+                    said = "audio — | steady — (no margin reported)"
+                }
+                print(String(format: "| %@ | run %d | first audio %.0f ms | total %.0f ms | %@ |",
+                             lever.name, run, timing.firstAudio, timing.total, said))
             } catch {
                 print("| \(lever.name) | run \(run) | DECODE FAILED — \(error) |")
             }
         }
     }
-    print("\nRead the STEADY column from stderr, median of \(runsPerConfig) per config.")
+    print("\nSTEADY is the column that compares: totals scale with how much"
+        + " audio a model made, \(runsPerConfig) runs per config, take the median.")
     exit(0)
 }
 
