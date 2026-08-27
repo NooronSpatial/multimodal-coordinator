@@ -80,7 +80,7 @@ final class MindProbe {
         "What is the capital of France? Answer in two short sentences.",
         "Count from one to ten in words.",
         "Say three short sentences about the sea.",
-        "Explain in four sentences why the sky is blue.",
+        "Explain in four sentences why the sky is blue."
     ]
 
     func run() async {

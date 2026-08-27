@@ -67,7 +67,7 @@ struct DiagnosticsTests {
             .thermal(.fair),          // the baseline — a listener knows NOW, not eventually
             .thermal(.serious),
             .thermal(.critical),
-            .thermal(.nominal),
+            .thermal(.nominal)
         ])
     }
 
@@ -98,7 +98,7 @@ struct DiagnosticsTests {
         #expect(Array(events.dropFirst()) == [
             .settlingDecodes(count: 1),
             .settlingDecodes(count: 2),
-            .settlingDecodes(count: 0),
+            .settlingDecodes(count: 0)
         ], "a repeated count must not repeat the event")
     }
 

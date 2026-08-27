@@ -291,8 +291,7 @@ public final class AudioEnginePlaybackHost: PlaybackHost, @unchecked Sendable {
             // unrepeatable.
             guard !engine.isRunning else { return }
             engine.prepare()
-            do { try engine.start() }
-            catch {
+            do { try engine.start() } catch {
                 engine.detach(node)
                 hosted.removeAll { $0.node === node }
                 throw PlaybackHostFailure.notRendering

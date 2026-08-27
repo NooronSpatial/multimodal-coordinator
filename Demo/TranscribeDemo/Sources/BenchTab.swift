@@ -214,7 +214,6 @@ struct BenchTab: View {
         }
     }
 
-
     /// Whether THIS device can have the big voice — asked once, of the
     /// vendor, which is the question the library's own guard now asks
     /// (AC-159). False on every iPhone and iPad; true on a Mac.

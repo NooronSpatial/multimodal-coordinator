@@ -18,7 +18,7 @@ struct ThinkGateTests {
         900, 901, 902,      // the model's private deliberation
         151668,             // </think>
         12,                 // "is"
-        13,                 // "the capital."
+        13                 // "the capital."
     ]
     private static let tokens = ThinkTokens(open: 151667, close: 151668)
 

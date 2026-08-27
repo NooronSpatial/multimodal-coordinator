@@ -558,8 +558,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         // real, but its truncated length must not teach the learner what
         // replies look like (the 4m review's confirmed finding).
         if terminal {
-            if case .failed = update { reportMargin(completed: false) }
-            else { reportMargin(completed: true) }
+            if case .failed = update { reportMargin(completed: false) } else { reportMargin(completed: true) }
         }
         out.yield(update)
         guard terminal else { return }

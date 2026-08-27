@@ -342,7 +342,6 @@ public final class MicrophoneSource: AudioSource {
     }
 }
 
-
 /// One atomic float, in a box that a closure can capture.
 ///
 /// `Atomic` is non-copyable, so a capture list cannot take it out of the

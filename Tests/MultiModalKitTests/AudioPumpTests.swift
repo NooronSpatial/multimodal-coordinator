@@ -159,7 +159,7 @@ struct AudioPumpTests {
             .audioSegment(Self.chunk(Self.loud, at: 3840)),
             .audioSegment(Self.chunk(Self.quiet, at: 4800)),  // tail: still speech, hangover running
             .audioSegment(Self.chunk(Self.quiet, at: 5760)),
-            .speechEnded(at: Self.t(6720)),            // the hangover is spent
+            .speechEnded(at: Self.t(6720))            // the hangover is spent
         ])
     }
 
@@ -189,7 +189,7 @@ struct AudioPumpTests {
             .speechStarted(utterance: 0, at: Self.t(3840)),
             .audioSegment(Self.chunk(Self.quiet, at: 1920)),  // the two NEWEST quiet chunks only
             .audioSegment(Self.chunk(Self.quiet, at: 2880)),
-            .audioSegment(Self.chunk(Self.loud, at: 3840)),
+            .audioSegment(Self.chunk(Self.loud, at: 3840))
         ])
     }
 
@@ -220,7 +220,7 @@ struct AudioPumpTests {
         #expect(events == [
             .speechStarted(utterance: 0, at: Self.t(0)),
             .audioSegment(Self.chunk(Self.loud, at: 0)),
-            .audioSegment(Self.chunk(Self.loud, at: 960)),
+            .audioSegment(Self.chunk(Self.loud, at: 960))
         ])
     }
 
@@ -252,7 +252,7 @@ struct AudioPumpTests {
             .dropped(frames: 1024, at: Self.t(0)),      // the gap, where it happened
             .speechStarted(utterance: 0, at: Self.t(1024)),           // audio time counts the lost frames
             .audioSegment(Self.chunk(Self.loud, at: 1024)),
-            .audioSegment(Self.chunk(Self.loud, at: 1984)),
+            .audioSegment(Self.chunk(Self.loud, at: 1984))
         ])
     }
 
@@ -349,7 +349,7 @@ struct AudioPumpTests {
             .audioSegment(Self.chunk(Self.loud, at: 2880)),   // the chunk that fired
             .audioSegment(Self.chunk(Self.quiet, at: 3840)),  // hangover tail
             .audioSegment(Self.chunk(Self.quiet, at: 4800)),
-            .speechEnded(at: Self.t(5760)),
+            .speechEnded(at: Self.t(5760))
         ])
     }
 

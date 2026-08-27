@@ -43,8 +43,7 @@ final class MarginBox: Sendable {
 }
 
 func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
-    -> (firstAudio: Double, total: Double)
-{
+    -> (firstAudio: Double, total: Double) {
     let run = try await mouth.openUtterance()
     let clock = ContinuousClock()
     let t0 = clock.now
@@ -349,7 +348,7 @@ if arguments.count > 1, arguments[1] == "mind-off" {
     let prompts = [
         "What is the capital of Italy?",
         "Name one thing a microphone does.",
-        "In one sentence, why is the sky blue?",
+        "In one sentence, why is the sky blue?"
     ]
     let spoken = "Your reply will be spoken aloud. Answer in one short, "
         + "plain sentence. No lists, no markdown."
@@ -448,7 +447,7 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
     let sentences = [
         "How is the weather today?",
         "The audio travels through a ring buffer into a pump that cuts it into small chunks.",
-        "Should I take a jacket?",
+        "Should I take a jacket?"
     ]
 
     // Flags, so the SAME instrument can measure the before and the after
@@ -667,8 +666,7 @@ if arguments.count > 1, arguments[1] == "voice-onmic" {
         print("❌ the neural model is not installed")
         microphone.stop(); exit(1)
     }
-    do { try await voice.ensureModel() }
-    catch { print("❌ load failed: \(error)"); microphone.stop(); exit(1) }
+    do { try await voice.ensureModel() } catch { print("❌ load failed: \(error)"); microphone.stop(); exit(1) }
 
     // The host's rate, read back AFTER an attach — 0 means nothing ever
     // rendered, which is itself the answer.
@@ -763,8 +761,7 @@ if arguments.count > 1, arguments[1] == "voice-selfecho" {
     let (producer, consumer) = AudioRing.create(minimumCapacity: 1 << 17)
     let microphone = MicrophoneSource(voiceProcessing: !rawMicrophone,
                                       hostsPlayback: shielded)
-    do { try microphone.start(into: producer) }
-    catch { print("❌ capture would not start: \(error)"); exit(1) }
+    do { try microphone.start(into: producer) } catch { print("❌ capture would not start: \(error)"); exit(1) }
     // ASKED FOR is not GOT — the echo probe's lesson. Without this line a
     // loud residual is ambiguous between "canceller refused" and
     // "canceller running but never shown the reply".
@@ -775,8 +772,7 @@ if arguments.count > 1, arguments[1] == "voice-selfecho" {
         print("❌ the neural model is not installed — run: swift run bakeoff voice-install")
         microphone.stop(); exit(1)
     }
-    do { try await voice.ensureModel() }
-    catch { print("❌ load failed: \(error)"); microphone.stop(); exit(1) }
+    do { try await voice.ensureModel() } catch { print("❌ load failed: \(error)"); microphone.stop(); exit(1) }
 
     // The measuring loop is the echo probe's, verbatim in spirit: the pump
     // is not running, so this is the ring's sole reader and the raw truth.
@@ -896,12 +892,11 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
     let sentences = [
         "How is the weather today?",
         "I can hear you. Say that again and I will stop talking.",
-        "The audio travels through a ring buffer into a pump that cuts it into small chunks.",
+        "The audio travels through a ring buffer into a pump that cuts it into small chunks."
     ]
     let draws = 3
     let leadOverride: Duration? = {
-        do { return try VoiceLevers.parsed(fromArguments: arguments).lead }
-        catch { return nil }   // a bad value is reported by the parse below
+        do { return try VoiceLevers.parsed(fromArguments: arguments).lead } catch { return nil }   // a bad value is reported by the parse below
     }()
     // `--lead=` is THE CONTROL for the starvation question (4l, 2026-08-27).
     // Ryad's ear caught a hitch in audio rendered on this Mac with the
@@ -1011,8 +1006,7 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
     print("    is non-deterministic in length (INSTRUMENTS §11, §13).\n")
 
     print("    loading…")
-    do { try await stepped.ensureModel(); try await fused.ensureModel() }
-    catch { print("load failed: \(error)"); exit(1) }
+    do { try await stepped.ensureModel(); try await fused.ensureModel() } catch { print("load failed: \(error)"); exit(1) }
     _ = try? await measure(stepped, "Warming up.")
     _ = try? await measure(fused, "Warming up.")
     _ = try? await BakeoffHarness.measure(engine: whisper, label: "warmup",
@@ -1142,7 +1136,7 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
         Lever(name: "rank 5: temperature 0 (on stepped)", multi: .stepped,
               speech: .latencyOptimized, temperature: 0),
         Lever(name: "rank 5b: temperature 0 (on fused)", multi: .fused,
-              speech: .latencyOptimized, temperature: 0),
+              speech: .latencyOptimized, temperature: 0)
     ]
 
     func banner(_ text: String) {
@@ -1334,7 +1328,7 @@ if arguments.count > 1, arguments[1] == "graph-probe" {
                              completionCallbackType: .dataPlayedBack) { _ in }
             p.play()
             engine.detach(p)
-        },
+        }
     ]
 
     // THE CHILD. One case, then the word that means it lived.
@@ -1445,8 +1439,7 @@ guard let reference = try? String(contentsOfFile: referencePath, encoding: .utf8
 
 // One harness for CLI and app: same chunking, same settle, same scoring.
 let loaded: (samples: [Float], sampleRate: Double)
-do { loaded = try BakeoffHarness.loadAudio(URL(fileURLWithPath: wavPath)) }
-catch { print("cannot read wav: \(wavPath) — \(error)"); exit(1) }
+do { loaded = try BakeoffHarness.loadAudio(URL(fileURLWithPath: wavPath)) } catch { print("cannot read wav: \(wavPath) — \(error)"); exit(1) }
 let samples = loaded.samples
 let sampleRate = loaded.sampleRate
 let seconds = Double(samples.count) / sampleRate
@@ -1467,8 +1460,7 @@ if await apple.modelInstalled() {
     print("apple: warm-up run (excluded from the numbers)…")
     _ = try? await run(apple, label: "warmup")
     print("apple: measured run…")
-    do { measurements.append(try await run(apple, label: "Apple SpeechAnalyzer (en_US)")) }
-    catch { print("apple: failed — \(error)") }
+    do { measurements.append(try await run(apple, label: "Apple SpeechAnalyzer (en_US)")) } catch { print("apple: failed — \(error)") }
 } else {
     print("apple: model not installed on this machine — skipped (runs on iPhone, or when the asset daemon heals)")
 }
@@ -1479,8 +1471,7 @@ if await whisper.modelInstalled() {
     print("whisper: warm-up run (excluded — CoreML graph compilation)…")
     _ = try? await run(whisper, label: "warmup")
     print("whisper: measured run…")
-    do { measurements.append(try await run(whisper, label: "Whisper base (WhisperKit)")) }
-    catch { print("whisper: failed — \(error)") }
+    do { measurements.append(try await run(whisper, label: "Whisper base (WhisperKit)")) } catch { print("whisper: failed — \(error)") }
 } else {
     print("whisper: model not installed — run once with ensureModel() first")
 }

@@ -178,7 +178,7 @@ struct TurnCoordinatorTests {
         .idle: [.listening],
         .listening: [.thinking, .idle],
         .thinking: [.speaking, .listening, .idle],
-        .speaking: [.listening, .idle],
+        .speaking: [.listening, .idle]
     ]
 
     // MARK: - the happy turn (AC-61, AC-70's shape)
@@ -222,7 +222,7 @@ struct TurnCoordinatorTests {
             .stateChanged(.speaking, turn: 0),
             .replyToken("done.", turn: 0),
             .turnCompleted(turn: 0),
-            .stateChanged(.idle, turn: 0),
+            .stateChanged(.idle, turn: 0)
         ])
     }
 
@@ -276,7 +276,7 @@ struct TurnCoordinatorTests {
             .replyToken("answer", turn: 1),
             .stateChanged(.speaking, turn: 1),
             .turnCompleted(turn: 1),
-            .stateChanged(.idle, turn: 1),
+            .stateChanged(.idle, turn: 1)
         ])
     }
 
@@ -334,7 +334,7 @@ struct TurnCoordinatorTests {
             .replyToken("OK.", turn: 1),
             .stateChanged(.speaking, turn: 1),
             .turnCompleted(turn: 1),
-            .stateChanged(.idle, turn: 1),
+            .stateChanged(.idle, turn: 1)
         ])
     }
 
@@ -391,7 +391,7 @@ struct TurnCoordinatorTests {
             .replyToken("OK.", turn: 1),
             .stateChanged(.speaking, turn: 1),
             .turnCompleted(turn: 1),
-            .stateChanged(.idle, turn: 1),
+            .stateChanged(.idle, turn: 1)
         ], "speaking may appear ONLY for turn 1 — a ghost 'started' flipping a turn is the ticket door failing")
     }
 
@@ -439,7 +439,7 @@ struct TurnCoordinatorTests {
             .replyToken("third", turn: 2),
             .stateChanged(.speaking, turn: 2),
             .turnCompleted(turn: 2),
-            .stateChanged(.idle, turn: 2),
+            .stateChanged(.idle, turn: 2)
         ])
     }
 
@@ -539,7 +539,7 @@ struct TurnCoordinatorTests {
         #expect(bench.generator.repliesOpened == 0, "the generator must never be opened (AC-64)")
         #expect(await bench.box.events == [
             .stateChanged(.listening, turn: 0),
-            .stateChanged(.idle, turn: 0),
+            .stateChanged(.idle, turn: 0)
         ])
     }
 
@@ -877,7 +877,7 @@ struct TurnCoordinatorTests {
             .replyToken("ok", turn: 0),
             .stateChanged(.speaking, turn: 0),
             .turnCompleted(turn: 0),
-            .stateChanged(.idle, turn: 0),
+            .stateChanged(.idle, turn: 0)
         ], "exactly one turn, exactly one thinking — order restored, duplicate dropped")
     }
 

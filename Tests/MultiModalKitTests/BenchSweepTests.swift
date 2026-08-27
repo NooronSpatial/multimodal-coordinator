@@ -157,7 +157,7 @@ struct BenchSweepTests {
         let stage = Recorder(conditions: [
             BenchConditions(thermal: "nominal", freeMegabytes: 934),
             BenchConditions(thermal: "fair", freeMegabytes: 900),
-            BenchConditions(thermal: "serious", freeMegabytes: 880),
+            BenchConditions(thermal: "serious", freeMegabytes: 880)
         ])
         let rows = try await BenchSweep.run(Self.one, runsEach: 3, on: stage)
         #expect(rows.map(\.conditions.thermal) == ["nominal", "fair", "serious"])
@@ -248,7 +248,7 @@ struct BenchSweepTests {
             BenchRow(configuration: Self.one[0], run: 1,
                      timing: .init(firstAudio: .milliseconds(177),
                                    total: .milliseconds(6578)),
-                     conditions: .init(thermal: "nominal", freeMegabytes: 934)),
+                     conditions: .init(thermal: "nominal", freeMegabytes: 934))
         ]
         #expect(BenchTable.markdown(rows) == """
         | config | run | first audio | total | thermal | free |
@@ -263,7 +263,7 @@ struct BenchSweepTests {
         let rows = [
             BenchRow(configuration: Self.one[0], run: 1,
                      timing: .init(firstAudio: nil, total: .milliseconds(903)),
-                     conditions: .init(thermal: "nominal", freeMegabytes: 934)),
+                     conditions: .init(thermal: "nominal", freeMegabytes: 934))
         ]
         let table = BenchTable.markdown(rows)
         #expect(table.contains("| — | 903 ms |"))
@@ -279,7 +279,7 @@ struct BenchSweepTests {
             BenchRow(configuration: Self.one[0], run: 1,
                      timing: .init(firstAudio: .milliseconds(1),
                                    total: .milliseconds(2)),
-                     conditions: .init(thermal: "nominal", freeMegabytes: nil)),
+                     conditions: .init(thermal: "nominal", freeMegabytes: nil))
         ]
         let table = BenchTable.markdown(rows)
         #expect(table.contains("| — |"))

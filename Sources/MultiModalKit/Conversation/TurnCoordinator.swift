@@ -133,7 +133,7 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             .idle: [.listening],
             .listening: [.thinking, .idle],
             .thinking: [.speaking, .listening, .idle],
-            .speaking: [.listening, .idle],
+            .speaking: [.listening, .idle]
         ]
     }
 

@@ -15,7 +15,6 @@ public protocol AudioSource: AnyObject {
     func stop()
 }
 
-
 /// Why a source could not start.
 public enum AudioSourceFailure: Error, Sendable, Equatable {
     /// The platform handed back an input format with no sample rate or

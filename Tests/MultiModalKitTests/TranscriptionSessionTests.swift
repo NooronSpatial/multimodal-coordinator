@@ -133,7 +133,7 @@ struct TranscriptionSessionTests {
         #expect(events == [
             .partial("u0:p1", utterance: 0, at: Self.t(1920)),   // after 2 chunks fed
             .partial("u0:p2", utterance: 0, at: Self.t(3840)),   // after 4 chunks fed
-            .final("u0:final(4 chunks)", utterance: 0, at: Self.t(3840)),
+            .final("u0:final(4 chunks)", utterance: 0, at: Self.t(3840))
         ])
     }
 
@@ -143,7 +143,7 @@ struct TranscriptionSessionTests {
     func lateFinalFromDeadUtteranceIsDropped() async {
         let engine = ScriptedTranscriber(plans: [
             .silent,                            // utterance 0: never answers, ignores cancel
-            .normal(partialEveryChunks: 100),   // utterance 1: behaves
+            .normal(partialEveryChunks: 100)   // utterance 1: behaves
         ])
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
@@ -166,7 +166,7 @@ struct TranscriptionSessionTests {
         }
 
         #expect(events == [
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(5760)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(5760))
         ], "the dead utterance's text leaked — the ticket failed")
     }
 
@@ -178,7 +178,7 @@ struct TranscriptionSessionTests {
             "transcription.en asset unavailable after attempted download, final state: Network Error")
         let engine = ScriptedTranscriber(plans: [
             .failWhileRunning(afterChunks: 2, spikeFailure),
-            .normal(partialEveryChunks: 100),
+            .normal(partialEveryChunks: 100)
         ])
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
@@ -196,7 +196,7 @@ struct TranscriptionSessionTests {
 
         #expect(events == [
             .failed(spikeFailure, utterance: 0, at: Self.t(1920)),
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(5760)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(5760))
         ])
     }
 
@@ -204,7 +204,7 @@ struct TranscriptionSessionTests {
     func openFailureIsAnEventToo() async {
         let engine = ScriptedTranscriber(plans: [
             .failOnOpen(.modelNotInstalled),
-            .normal(partialEveryChunks: 100),
+            .normal(partialEveryChunks: 100)
         ])
 
         let events = await Self.withSession(engine: engine) { _, feed, box in
@@ -221,7 +221,7 @@ struct TranscriptionSessionTests {
 
         #expect(events == [
             .failed(.modelNotInstalled, utterance: 0, at: Self.t(0)),
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(5760)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(5760))
         ])
     }
 

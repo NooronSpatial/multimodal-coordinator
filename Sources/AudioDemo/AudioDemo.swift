@@ -527,7 +527,6 @@ private final class EchoRun: ReplyRun, @unchecked Sendable {
 // the seam's whole promise. Its contract lives on in the library's
 // `ScriptedSynthesizer`, where the deterministic tests need it.)
 
-
 // MARK: - choosing the organs from the command line
 
 /// `--mind=echo|apple|local` (default: echo)

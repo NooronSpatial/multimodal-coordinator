@@ -1,0 +1,34 @@
+# SwiftLint — added 2026-08-27 on Ryad's ruling.
+#
+# Forks he ruled, recorded here because a config is a set of decisions:
+#   1 = A  the DEFAULT rule set, then silence what proves to be noise.
+#   2 = A  existing violations are FIXED, not baselined.
+#   3 = B  it runs in CI *and* as an Xcode build phase, so a violation
+#          is seen while typing rather than after a push.
+#
+# The one deviation from the defaults, and its reason:
+# `identifier_name` demands 3+ characters. This project's own seam
+# vocabulary uses `at:` — `speechStarted(utterance:at:)` — a PUBLIC
+# parameter label chosen deliberately. Renaming an API to satisfy a
+# linter's default minimum is the tail wagging the dog, so the minimum
+# drops to 2 and the words this project actually chose are named.
+# Single letters stay violations and get fixed.
+
+included:
+  - Sources
+  - Tests
+  - Demo/TranscribeDemo/Sources
+
+excluded:
+  - .build
+  - local_clone
+  - Demo/TranscribeDemo/TranscribeDemo.xcodeproj
+
+identifier_name:
+  min_length:
+    warning: 2
+    error: 2
+  allowed_names:
+    - at      # AudioEvent / TurnCoordinator: `speechStarted(utterance:at:)`
+    - ms      # milliseconds, in measurement code that prints them
+    - id      # listener and utterance identity

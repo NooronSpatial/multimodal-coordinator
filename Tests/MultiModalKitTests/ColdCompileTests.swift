@@ -43,7 +43,7 @@ struct CompiledPlanCacheTests {
         let root = try makeContainer(["Caches": [
             "com.apple.e5rt.e5bundlecachenewest": 4096,
             "com.apple.CoreML.something": 1024,
-            "unrelated.cache": 512,
+            "unrelated.cache": 512
         ]])
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = CompiledPlanCache(directories: [root.appending(path: "Caches")])
@@ -60,11 +60,11 @@ struct CompiledPlanCacheTests {
         // every older test and misses exactly this.
         let root = try makeContainer([
             "Caches": ["unrelated.cache": 512],
-            "tmp": ["com.apple.e5rt.e5bundlecachenewest": 2048],
+            "tmp": ["com.apple.e5rt.e5bundlecachenewest": 2048]
         ])
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = CompiledPlanCache(directories: [
-            root.appending(path: "Caches"), root.appending(path: "tmp"),
+            root.appending(path: "Caches"), root.appending(path: "tmp")
         ])
         let found = cache.survey()
         #expect(found.count == 1)
@@ -82,11 +82,11 @@ struct CompiledPlanCacheTests {
         // DIRECTORY. Both must fail here.
         let root = try makeContainer([
             "Caches": ["com.apple.e5rt.e5bundlecachenewest": 2048],
-            "tmp": ["com.apple.mlcompiler.cache": 1024, "unrelated.cache": 512],
+            "tmp": ["com.apple.mlcompiler.cache": 1024, "unrelated.cache": 512]
         ])
         defer { try? FileManager.default.removeItem(at: root) }
         let cache = CompiledPlanCache(directories: [
-            root.appending(path: "Caches"), root.appending(path: "tmp"),
+            root.appending(path: "Caches"), root.appending(path: "tmp")
         ])
         let report = cache.clear()
         #expect(report.deleted.count == 2)
@@ -108,11 +108,11 @@ struct CompiledPlanCacheTests {
     func absentCacheSaysSo() throws {
         let root = try makeContainer([
             "Caches": ["unrelated.cache": 64],
-            "tmp": ["leftover.tmp": 32],
+            "tmp": ["leftover.tmp": 32]
         ])
         defer { try? FileManager.default.removeItem(at: root) }
         let report = CompiledPlanCache(directories: [
-            root.appending(path: "Caches"), root.appending(path: "tmp"),
+            root.appending(path: "Caches"), root.appending(path: "tmp")
         ]).clear()
         #expect(report.deleted.isEmpty)
         #expect(report.summary.contains("no compiled-plan cache"),
@@ -131,7 +131,7 @@ struct CompiledPlanCacheTests {
         let root = try makeContainer(["Caches": ["unrelated.cache": 64]])
         defer { try? FileManager.default.removeItem(at: root) }
         let report = CompiledPlanCache(directories: [
-            root.appending(path: "Caches"), root.appending(path: "never-created"),
+            root.appending(path: "Caches"), root.appending(path: "never-created")
         ]).clear()
         #expect(report.summary.contains("never-created is unreadable or absent"))
     }
@@ -145,7 +145,7 @@ struct CompiledPlanCacheTests {
         let root = try makeContainer(["Caches": ["com.apple.e5rt.cache": 128]])
         defer { try? FileManager.default.removeItem(at: root) }
         let report = CompiledPlanCache(directories: [
-            root.appending(path: "Caches"), root.appending(path: "never-created"),
+            root.appending(path: "Caches"), root.appending(path: "never-created")
         ]).clear()
         #expect(report.deleted.count == 1)
         #expect(report.summary.contains("cleared 1"))
@@ -161,7 +161,7 @@ struct CompiledPlanCacheTests {
         let root = try makeContainer(["Caches": ["unrelated.cache": 64], "tmp": [:]])
         defer { try? FileManager.default.removeItem(at: root) }
         let report = CompiledPlanCache(directories: [
-            root.appending(path: "Caches"), root.appending(path: "tmp"),
+            root.appending(path: "Caches"), root.appending(path: "tmp")
         ]).clear()
         #expect(report.summary.contains("tmp holds: [nothing]"))
     }

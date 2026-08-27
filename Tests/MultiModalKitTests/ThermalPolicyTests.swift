@@ -143,7 +143,7 @@ struct ThermalPolicyTests {
 
         #expect(await box.events == [
             .failed(.declinedUnderThermalPressure, utterance: 0, at: Self.t(960)),
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560))
         ], "a refusal is one named failure; the ghost final must never surface")
 
         let healthEvents = await healthBox.events
@@ -199,7 +199,7 @@ struct ThermalPolicyTests {
 
         #expect(await box.events == [
             .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960)),
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560))
         ])
     }
 
@@ -285,7 +285,7 @@ struct ThermalPolicyTests {
         }
 
         #expect(await box.events == [
-            .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960)),
+            .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960))
         ], "no policy may ever gate the live turn (AC-55)")
     }
 
@@ -294,7 +294,7 @@ struct ThermalPolicyTests {
     @Test("A streaming engine's barge-in retirement never consults the policy")
     func streamingEnginesNeverConsultThePolicy() async {
         let engine = ScriptedTranscriber(plans: [
-            .normal(partialEveryChunks: 1), .normal(partialEveryChunks: 1),
+            .normal(partialEveryChunks: 1), .normal(partialEveryChunks: 1)
         ])
         let policy = RecordingPolicy(allow: false)      // would refuse, if asked
         let session = TranscriptionSession(engine: engine, thermalPolicy: policy)
@@ -369,7 +369,7 @@ struct ThermalPolicyTests {
 
         #expect(policy.recorded.isEmpty, "no consultation outside the settling move (AC-55)")
         #expect(await box.events == [
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560))
         ], "an unsettled barge is silent retirement — no declined failure, ever")
     }
 
@@ -440,7 +440,7 @@ struct ThermalPolicyTests {
         #expect(await box.events == [
             .failed(.declinedUnderThermalPressure, utterance: 1, at: Self.t(10560)),
             .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960)),
-            .final("u2:final(1 chunks)", utterance: 2, at: Self.t(20160)),
+            .final("u2:final(1 chunks)", utterance: 2, at: Self.t(20160))
         ])
 
         // The record: two consultations, exact inputs, the transition seen.
@@ -487,7 +487,7 @@ struct ThermalPolicyTests {
         #expect(policy.recorded.first ?? (.critical, -1) == (.nominal, 0),
                 "without diagnostics the policy sees .nominal — the default is then dormant by construction")
         #expect(await box.events == [
-            .failed(.declinedUnderThermalPressure, utterance: 0, at: Self.t(960)),
+            .failed(.declinedUnderThermalPressure, utterance: 0, at: Self.t(960))
         ])
     }
 }

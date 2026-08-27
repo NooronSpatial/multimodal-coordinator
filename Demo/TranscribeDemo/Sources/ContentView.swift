@@ -233,7 +233,6 @@ struct ChatTab: View {
         }
     }
 
-
     private func failed(_ reason: String) -> some View {
         ContentUnavailableView {
             Label("Something failed", systemImage: "exclamationmark.triangle")
@@ -376,7 +375,6 @@ struct ChatTab: View {
         }
     }
 
-
     private var turnLabel: String {
         switch model.turnState {
         case .idle: "idle"
@@ -385,7 +383,6 @@ struct ChatTab: View {
         case .speaking: "speaking — interrupt it with your voice"
         }
     }
-
 
     private var statusBar: some View {
         HStack(spacing: 16) {
@@ -411,7 +408,6 @@ struct ChatTab: View {
         .padding(.horizontal)
     }
 
-
     private var thermalText: String {
         switch model.thermal {
         case .nominal: "cool"
@@ -421,7 +417,6 @@ struct ChatTab: View {
         }
     }
 
-
     private var thermalColor: Color {
         switch model.thermal {
         case .nominal: .secondary
@@ -430,7 +425,6 @@ struct ChatTab: View {
         case .critical: .red
         }
     }
-
 
     private func icon(for utterance: TranscribeModel.Utterance) -> String {
         if utterance.failure != nil { return "xmark.circle" }

@@ -423,7 +423,7 @@ struct AppleReplyGeneratorTests {
             .concurrentRequests(Self.forged()),
             .decodingFailure(Self.forged()),
             .unsupportedGuide(Self.forged()),
-            .unsupportedLanguageOrLocale(Self.forged()),
+            .unsupportedLanguageOrLocale(Self.forged())
         ]
         for error in errors {
             let run = try await Self.generator(.snapshotsThenThrow([], error))

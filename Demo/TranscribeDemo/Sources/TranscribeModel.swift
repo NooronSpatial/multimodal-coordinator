@@ -764,7 +764,7 @@ final class TranscribeModel {
     func loadPreviousProbe() {
         guard let text = try? String(contentsOf: probeLog, encoding: .utf8)
         else { return }
-        // MARKED, so a restored trace can never impersonate a live run on
+        // MARK: D, so a restored trace can never impersonate a live run on
         // the Bench screen (the 4n review, and the null-run story of §51).
         probeLines = ["(restored from the previous run — not live)"]
             + text.split(separator: "\n").map(String.init)
@@ -1002,7 +1002,7 @@ final class TranscribeModel {
         // compile cache, so the hunt widened (D-075).
         let report = await Task.detached {
             CompiledPlanCache(directories: [
-                URL.cachesDirectory, FileManager.default.temporaryDirectory,
+                URL.cachesDirectory, FileManager.default.temporaryDirectory
             ]).clear()
         }.value
         probeSay(report.summary)
@@ -1601,7 +1601,7 @@ final class TranscribeModel {
 
         let engines: [(String, any TranscriptionEngine, Bool)] = [
             ("Apple SpeechAnalyzer", appleEngine, await appleEngine.modelInstalled()),
-            ("Whisper base", whisperEngine, await whisperEngine.modelInstalled()),
+            ("Whisper base", whisperEngine, await whisperEngine.modelInstalled())
         ]
         for (name, engine, installed) in engines {
             guard installed else {
@@ -2060,7 +2060,7 @@ final class TranscribeModel {
             .init(name: "3 vp+chain RESTART (MID)", vpInput: true, outputChain: true,
                   chainBeforeVP: false, restartOnChange: true, toneHz: 660),
             .init(name: "4 chain-then-vp (HIGH)", vpInput: true, outputChain: true,
-                  chainBeforeVP: true, restartOnChange: false, toneHz: 880),
+                  chainBeforeVP: true, restartOnChange: false, toneHz: 880)
         ]
 
         for arrangement in arrangements {

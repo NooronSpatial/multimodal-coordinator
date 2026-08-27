@@ -87,7 +87,7 @@ struct BatchTranscriptionTests {
         let events = await box.events
         #expect(events == [
             .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960)),
-            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560)),
+            .final("u1:final(1 chunks)", utterance: 1, at: Self.t(10560))
         ], "late finals must survive, in arrival order, tagged with their own utterance")
     }
 
@@ -154,7 +154,7 @@ struct BatchTranscriptionTests {
         let events = await box.events
         #expect(events == [
             .truncated(utterance: 0, at: Self.t(2880)),
-            .final("u0:final(3 chunks)", utterance: 0, at: Self.t(2880)),
+            .final("u0:final(3 chunks)", utterance: 0, at: Self.t(2880))
         ])
         #expect(engine.record(ofRun: 0)?.fedChunks.count == 3)
     }
@@ -187,7 +187,7 @@ struct BatchTranscriptionTests {
         }
 
         #expect(await box.events == [
-            .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960)),
+            .final("u0:final(1 chunks)", utterance: 0, at: Self.t(960))
         ])
     }
 }

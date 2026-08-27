@@ -393,8 +393,7 @@ struct MLXTokenSource: ReplyTokenStreaming {
                         for await event in try generateTokens(
                             input: input,
                             parameters: GenerateParameters(maxTokens: maxTokens),
-                            context: context)
-                        {
+                            context: context) {
                             if Task.isCancelled { break }
                             guard let id = event.token else { continue }
                             // LAYER 2: the net. One integer comparison,

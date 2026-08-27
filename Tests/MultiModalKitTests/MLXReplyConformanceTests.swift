@@ -233,7 +233,7 @@ struct MLXReplyGeneratorTests {
         for reason: MLXUnavailable in [
             .weightsNotInstalled("Qwen3-0.6B-4bit"),
             .platformCannotRunMLX,
-            .unknown("something new"),
+            .unknown("something new")
         ] {
             #expect(!reason.description.isEmpty)
             #expect(reason.description.first?.isUppercase == false,

@@ -38,11 +38,6 @@ protocol ReplyTokenStreaming: Sendable {
 public struct MLXReplyGenerator: ReplyGenerating {
     let source: any ReplyTokenStreaming
 
-    /// The seam a test reaches through (`@testable`), never a caller.
-    init(source: any ReplyTokenStreaming) {
-        self.source = source
-    }
-
     public func openReply(to transcript: String) async throws -> any ReplyRun {
         // At the door, every time — never cached.
         if let unavailable = source.unavailable { throw unavailable }

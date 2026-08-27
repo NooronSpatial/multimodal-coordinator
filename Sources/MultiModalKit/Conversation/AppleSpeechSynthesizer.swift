@@ -212,8 +212,7 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
 ///    continuation (itself thread-safe), never the queue — so no lock
 ///    ordering exists to invert.
 final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelegate,
-    @unchecked Sendable
-{
+    @unchecked Sendable {
     let updates: AsyncStream<SynthesisUpdate>
     private let out: AsyncStream<SynthesisUpdate>.Continuation
     private let synthesizer = AVSpeechSynthesizer()

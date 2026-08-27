@@ -52,7 +52,7 @@ struct LaunchOnceTests {
             { recorder.note("probe") },
             { recorder.note("speech model") },
             { recorder.note("voice") },
-            { recorder.note("mind") },
+            { recorder.note("mind") }
         ])
         #expect(recorder.seen == ["probe", "speech model", "voice", "mind"])
     }
@@ -62,7 +62,7 @@ struct LaunchOnceTests {
         let recorder = Recorder()
         await LaunchOnce().run([
             { recorder.note("voice") },
-            { recorder.note("mind") },
+            { recorder.note("mind") }
         ])
         let voice = recorder.seen.firstIndex(of: "voice")
         let mind = recorder.seen.firstIndex(of: "mind")
@@ -78,7 +78,7 @@ struct LaunchOnceTests {
 
         let first = Task {
             await launch.run([
-                { started.fire(); await release.wait(); recorder.note("voice") },
+                { started.fire(); await release.wait(); recorder.note("voice") }
             ])
         }
         await started.wait()                    // the sequence is IN FLIGHT
@@ -99,7 +99,7 @@ struct LaunchOnceTests {
 
         let first = Task {
             await launch.run([
-                { started.fire(); await release.wait(); recorder.note("voice") },
+                { started.fire(); await release.wait(); recorder.note("voice") }
             ])
         }
         await started.wait()

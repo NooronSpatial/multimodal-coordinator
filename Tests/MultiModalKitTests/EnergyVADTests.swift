@@ -67,14 +67,14 @@ import Testing
             chunk(0.6),                    // …speech again (one utterance)
             chunk(0.0, count: 300),        // real silence: over
             chunk(0.7),                    // a second utterance
-            chunk(0.0, count: 300),        // over again
+            chunk(0.0, count: 300)        // over again
         ]
         for c in script {
             if let t = vad.process(c) { transitions.append(t) }
         }
         #expect(transitions == [
             .speechStarted, .speechEnded,
-            .speechStarted, .speechEnded,
+            .speechStarted, .speechEnded
         ])
     }
 
@@ -158,7 +158,7 @@ import Testing
             chunk(0.5, count: 300),        // a real word: the whole window
             chunk(0.0, count: 300),        // real silence: over
             chunk(0.5, count: 100),        // another tick
-            chunk(0.0, count: 300),        // quiet
+            chunk(0.0, count: 300)        // quiet
         ]
         for c in script {
             if let t = vad.process(c) { transitions.append(t) }

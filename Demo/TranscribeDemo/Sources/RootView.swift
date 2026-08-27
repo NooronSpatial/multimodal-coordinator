@@ -51,7 +51,7 @@ struct RootView: View {
                 // ↓ MUST PRECEDE THE MIND. Swapping these two lines is a
                 //   memory bug that looks like nothing.
                 { await model.checkVoice() },
-                { await model.refreshMind() },
+                { await model.refreshMind() }
             ])
         }
     }

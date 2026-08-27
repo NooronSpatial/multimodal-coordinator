@@ -41,7 +41,7 @@ public struct BenchConfiguration: Sendable, Equatable, Hashable {
         .init(name: "stepped + temp 0", decoder: .stepped, vocoder: .latency,
               temperature: 0),
         .init(name: "stepped + throughput + temp 0", decoder: .stepped,
-              vocoder: .throughput, temperature: 0),
+              vocoder: .throughput, temperature: 0)
     ]
 
     /// The six `bakeoff voice-levers` compares, so a phone table and a Mac
@@ -54,6 +54,6 @@ public struct BenchConfiguration: Sendable, Equatable, Hashable {
         .init(name: "stepped + temp 0", decoder: .stepped, vocoder: .latency,
               temperature: 0),
         .init(name: "fused + temp 0", decoder: .fused, vocoder: .latency,
-              temperature: 0),
+              temperature: 0)
     ]
 }

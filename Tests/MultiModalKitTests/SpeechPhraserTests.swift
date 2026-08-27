@@ -9,8 +9,7 @@ import Testing
     /// Feeds a script and collects everything the phraser emits, the
     /// flush included — the way a SynthesisRun will drive it.
     private func speak(_ tokens: [String], config: SpeechPhraser.Config = .init())
-        -> [String]
-    {
+        -> [String] {
         var phraser = SpeechPhraser(config: config)
         var phrases: [String] = []
         for token in tokens {

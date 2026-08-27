@@ -279,8 +279,7 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
                 return true
             }
             if needsAttach {
-                do { try host.attachForPlayback(player, format: handed.value.format) }
-                catch {
+                do { try host.attachForPlayback(player, format: handed.value.format) } catch {
                     state.withLock { $0.attached = false }
                     bufferPlayed()
                     report(.failed("the host refused the written reply: \(error)"))

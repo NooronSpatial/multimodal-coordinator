@@ -123,7 +123,7 @@ struct VoiceLeversTests {
     func allFiveFlagsParse() throws {
         let levers = try VoiceLevers.parsed(fromArguments: [
             "--voice-model=1.7b", "--decoder=stepped", "--speech=throughput",
-            "--temperature=0.5", "--lead=250ms",
+            "--temperature=0.5", "--lead=250ms"
         ])
         #expect(levers.model == .qwen3TTS_1_7b)
         #expect(levers.decoder == .stepped)

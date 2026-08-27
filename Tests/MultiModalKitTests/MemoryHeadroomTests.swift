@@ -32,7 +32,7 @@ struct MemoryHeadroomTests {
         let reasons: [MemoryHeadroom.Reason] = [
             .noMemoryLimitOnThisPlatform,
             .taskInfoFailed(5),
-            .fieldNotReported,
+            .fieldNotReported
         ]
         for (i, a) in reasons.enumerated() {
             for (j, b) in reasons.enumerated() where i != j {
