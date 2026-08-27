@@ -45,7 +45,7 @@ enum EngineConformanceKit {
     /// and never after it.
     static func verifyPartialsRespectTheFinal(_ engine: any TranscriptionEngine) async throws {
         let run = try await engine.openRun(format: AudioStreamFormat())
-        for i in 0..<6 { await run.feed(chunk(at: i * 960)) }
+        for chunkIndex in 0..<6 { await run.feed(chunk(at: chunkIndex * 960)) }
         await run.finishAudio()
 
         let updates = await drain(run)

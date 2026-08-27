@@ -141,7 +141,7 @@ struct BatchTranscriptionTests {
             group.addTask { for await event in listener.events { await box.append(event) } }
 
             input.yield(.speechStarted(utterance: 0, at: Self.t(0)))
-            for i in 0..<5 { input.yield(.audioSegment(Self.chunk(at: i * Self.chunkFrames))) }
+            for chunkIndex in 0..<5 { input.yield(.audioSegment(Self.chunk(at: chunkIndex * Self.chunkFrames))) }
             #expect(await Self.until { await box.events.count >= 1 }, "no truncated event")
 
             engine.releaseFinal(run: 0)

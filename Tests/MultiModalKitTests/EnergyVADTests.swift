@@ -69,8 +69,8 @@ import Testing
             chunk(0.7),                    // a second utterance
             chunk(0.0, count: 300)        // over again
         ]
-        for c in script {
-            if let t = vad.process(c) { transitions.append(t) }
+        for audioChunk in script {
+            if let transition = vad.process(audioChunk) { transitions.append(transition) }
         }
         #expect(transitions == [
             .speechStarted, .speechEnded,
@@ -160,8 +160,8 @@ import Testing
             chunk(0.5, count: 100),        // another tick
             chunk(0.0, count: 300)        // quiet
         ]
-        for c in script {
-            if let t = vad.process(c) { transitions.append(t) }
+        for audioChunk in script {
+            if let transition = vad.process(audioChunk) { transitions.append(transition) }
         }
         #expect(transitions == [.speechStarted, .speechEnded])
     }

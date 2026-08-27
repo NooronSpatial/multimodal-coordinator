@@ -90,9 +90,9 @@ struct MLXMindLiveTests {
         var firstTokenAt: ContinuousClock.Instant?
         for await update in run.updates {
             switch update {
-            case .token(let t):
+            case .token(let token):
                 if firstTokenAt == nil { firstTokenAt = clock.now }
-                spoken += t
+                spoken += token
             case .finished, .failed: terminals.append(update)
             }
         }
@@ -134,9 +134,9 @@ struct MLXMindLiveTests {
         var first: ContinuousClock.Instant?
         var spoken = ""
         for await update in run.updates {
-            if case .token(let t) = update {
+            if case .token(let token) = update {
                 if first == nil { first = clock.now }
-                spoken += t
+                spoken += token
             }
         }
         let ttft = askStart.duration(to: first ?? clock.now)

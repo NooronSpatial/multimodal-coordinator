@@ -63,14 +63,14 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
             let task = Task {
                 switch plan {
                 case .tokens(let all):
-                    for t in all {
-                        continuation.yield(t)
+                    for token in all {
+                        continuation.yield(token)
                         counts.withLock { $0.yielded += 1 }
                     }
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
-                    for t in all {
-                        continuation.yield(t)
+                    for token in all {
+                        continuation.yield(token)
                         counts.withLock { $0.yielded += 1 }
                     }
                     continuation.finish(throwing: error)

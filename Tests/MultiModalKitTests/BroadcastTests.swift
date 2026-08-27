@@ -27,10 +27,10 @@ struct BroadcastTests {
         for value in 1...3 { broadcast.publish(value) }
         broadcast.finish()
 
-        let a = await Self.collect(first.events)
-        let b = await Self.collect(second.events)
-        #expect(a == [1, 2, 3])
-        #expect(b == [1, 2, 3])
+        let firstHeard = await Self.collect(first.events)
+        let secondHeard = await Self.collect(second.events)
+        #expect(firstHeard == [1, 2, 3])
+        #expect(secondHeard == [1, 2, 3])
     }
 
     @Test("A late listener hears only what comes next — no replay")

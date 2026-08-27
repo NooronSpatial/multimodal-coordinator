@@ -436,7 +436,7 @@ final class TranscribeModel {
     /// "0 MB" would be reporting a measurement it never made.
     func freeMegabytesNow() -> Int? {
         switch MemoryHeadroomReader.read() {
-        case .bytes(let b): Int(b / 1_048_576)
+        case .bytes(let bytes): Int(bytes / 1_048_576)
         case .exhausted: 0
         case .unavailable: nil
         }
@@ -673,8 +673,8 @@ final class TranscribeModel {
         // voice can coexist. It is the PHONE's dirty-memory headroom, not
         // a Mac's footprint — the distinction 4i exists for.
         switch MemoryHeadroomReader.read() {
-        case .bytes(let b):
-            out += "memory headroom: \(b / 1_048_576) MB before this app's limit\n"
+        case .bytes(let bytes):
+            out += "memory headroom: \(bytes / 1_048_576) MB before this app's limit\n"
         case .exhausted:
             out += "memory headroom: NONE — at or over the limit\n"
         case .unavailable(let why):
@@ -897,7 +897,7 @@ final class TranscribeModel {
 
     private func headroomNow() -> String {
         let free: String = switch MemoryHeadroomReader.read() {
-        case .bytes(let b): "\(b / 1_048_576) MB free (dirty)"
+        case .bytes(let bytes): "\(bytes / 1_048_576) MB free (dirty)"
         case .exhausted: "NONE — at or over the limit"
         case .unavailable(let why): "unavailable (\(why))"
         }
@@ -1996,8 +1996,8 @@ final class TranscribeModel {
                 try? await Task.sleep(for: .milliseconds(250))
                 scratch.withUnsafeMutableBufferPointer { buffer in
                     let result = consumer.read(into: buffer)
-                    for i in 0..<result.framesRead {
-                        let sample = buffer[i]
+                    for frame in 0..<result.framesRead {
+                        let sample = buffer[frame]
                         peak = max(peak, abs(sample))
                         sumOfSquares += sample * sample
                     }
@@ -2126,7 +2126,7 @@ final class TranscribeModel {
         engine.inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             guard let data = buffer.floatChannelData else { return }
             var peak: Float = 0
-            for i in 0..<Int(buffer.frameLength) { peak = max(peak, abs(data[0][i])) }
+            for frame in 0..<Int(buffer.frameLength) { peak = max(peak, abs(data[0][frame])) }
             meter.withLock {
                 $0.frames += Int(buffer.frameLength)
                 $0.peak = max($0.peak, peak)
@@ -2159,16 +2159,16 @@ final class TranscribeModel {
                                              frameCapacity: AVAudioFrameCount(mixerRate * 2)) {
                 buffer.frameLength = AVAudioFrameCount(mixerRate * 2)
                 if let channel = buffer.floatChannelData {
-                    for i in 0..<Int(buffer.frameLength) {
-                        channel[0][i] = 0.4 * sinf(2 * .pi * toneHz * Float(i) / Float(mixerRate))
+                    for frame in 0..<Int(buffer.frameLength) {
+                        channel[0][frame] = 0.4 * sinf(2 * .pi * toneHz * Float(frame) / Float(mixerRate))
                     }
                 }
-                let p = AVAudioPlayerNode()
-                engine.attach(p)
-                engine.connect(p, to: engine.mainMixerNode, format: toneFormat)
-                p.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
-                if engine.isRunning { p.play() }
-                player = p
+                let tonePlayer = AVAudioPlayerNode()
+                engine.attach(tonePlayer)
+                engine.connect(tonePlayer, to: engine.mainMixerNode, format: toneFormat)
+                tonePlayer.scheduleBuffer(buffer, at: nil, options: [], completionHandler: nil)
+                if engine.isRunning { tonePlayer.play() }
+                player = tonePlayer
             }
         }
 
@@ -2182,11 +2182,11 @@ final class TranscribeModel {
         let mixerRate = outputChain
             ? engine.mainMixerNode.outputFormat(forBus: 0).sampleRate : 0
 
-        if let p = player {
-            p.stop()
-            if engine.attachedNodes.contains(p),
-               !engine.outputConnectionPoints(for: p, outputBus: 0).isEmpty {
-                engine.detach(p)
+        if let tonePlayer = player {
+            tonePlayer.stop()
+            if engine.attachedNodes.contains(tonePlayer),
+               !engine.outputConnectionPoints(for: tonePlayer, outputBus: 0).isEmpty {
+                engine.detach(tonePlayer)
             }
         }
         engine.inputNode.removeTap(onBus: 0)

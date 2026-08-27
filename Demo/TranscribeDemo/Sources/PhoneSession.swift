@@ -150,9 +150,9 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
             var sawTerminal = false
             for await update in wrapped.updates {
                 switch update {
-                case .token(let t):
+                case .token(let token):
                     if first == nil { first = start.duration(to: clock.now) }
-                    text += t
+                    text += token
                 case .failed(let why): failure = why; sawTerminal = true
                 case .finished: sawTerminal = true
                 }
@@ -160,9 +160,9 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
             }
             out.finish()
             let total = start.duration(to: clock.now)
-            let ms = { (d: Duration) in
-                Int(Double(d.components.seconds) * 1000
-                    + Double(d.components.attoseconds) * 1e-15)
+            let ms = { (elapsed: Duration) in
+                Int(Double(elapsed.components.seconds) * 1000
+                    + Double(elapsed.components.attoseconds) * 1e-15)
             }
             // The witness knows the TURN; it does not know the session.
             // `id`, the memory peak, the elapsed seconds, the thermal state

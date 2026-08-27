@@ -84,8 +84,8 @@ func measure(_ mouth: any SpeechSynthesizing, _ text: String) async throws
     }
     let total = t0.duration(to: clock.now)
     await feeder.value
-    func ms(_ d: Duration) -> Double {
-        Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
+    func ms(_ duration: Duration) -> Double {
+        Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
     }
     return (firstAudio.map(ms) ?? -1, ms(total))
 }
@@ -182,9 +182,9 @@ if arguments.count > 1, arguments[1] == "fetch" {
     let ticks = Mutex(0)
     do {
         try await model.download { fraction in
-            let n = ticks.withLock { $0 += 1; return $0 }
-            if n <= 5 || n % 25 == 0 {
-                print(String(format: "  progress callback #%d: %.1f%%", n, fraction * 100))
+            let count = ticks.withLock { $0 += 1; return $0 }
+            if count <= 5 || count % 25 == 0 {
+                print(String(format: "  progress callback #%d: %.1f%%", count, fraction * 100))
             }
         }
     } catch {
@@ -289,11 +289,11 @@ if arguments.count > 1, arguments[1] == "ask" {
             let reply = try await mind.openReply(to: question)
             for await update in reply.updates {
                 switch update {
-                case .token(let t):
+                case .token(let piece):
                     if first == nil { first = start.duration(to: clock.now) }
                     pieces += 1
-                    said += t
-                    FileHandle.standardOutput.write(Data(t.utf8))   // AS IT ARRIVES
+                    said += piece
+                    FileHandle.standardOutput.write(Data(piece.utf8))   // AS IT ARRIVES
                 case .failed(let why): print("\n  ✗ \(why)")
                 case .finished: break
                 }
@@ -302,9 +302,9 @@ if arguments.count > 1, arguments[1] == "ask" {
             print("  ✗ refused at the door: \(error)")
             return
         }
-        let ms = { (d: Duration) in
-            Double(d.components.seconds) * 1000
-                + Double(d.components.attoseconds) * 1e-15
+        let ms = { (duration: Duration) in
+            Double(duration.components.seconds) * 1000
+                + Double(duration.components.attoseconds) * 1e-15
         }
         let total = start.duration(to: clock.now)
         let after = max(ms(total) - ms(first ?? total), 0.001)
@@ -366,9 +366,9 @@ if arguments.count > 1, arguments[1] == "mind-off" {
                 var failure: String?
                 for await update in reply.updates {
                     switch update {
-                    case .token(let t):
+                    case .token(let piece):
                         if first == nil { first = start.duration(to: clock.now) }
-                        text += t
+                        text += piece
                         pieces += 1
                     case .failed(let why): failure = why
                     case .finished: break
@@ -379,9 +379,9 @@ if arguments.count > 1, arguments[1] == "mind-off" {
                     print("  ✗ \(prompt) — \(failure)")
                     continue
                 }
-                let ms = { (d: Duration) in
-                    Double(d.components.seconds) * 1000
-                        + Double(d.components.attoseconds) * 1e-15
+                let ms = { (duration: Duration) in
+                    Double(duration.components.seconds) * 1000
+                        + Double(duration.components.attoseconds) * 1e-15
                 }
                 let after = max(ms(total) - ms(first ?? total), 0.001)
                 print(String(format: "  first token %6.0f ms · %3d pieces · %5.1f/s · thinks-aloud: %@",
@@ -416,9 +416,9 @@ if arguments.count > 1, arguments[1] == "mind-off" {
             let loadStart = loadClock.now
             _ = try? await model.ensureModel()
             let load = loadStart.duration(to: loadClock.now)
-            let msOf = { (d: Duration) in
-                Double(d.components.seconds) * 1000
-                    + Double(d.components.attoseconds) * 1e-15
+            let msOf = { (duration: Duration) in
+                Double(duration.components.seconds) * 1000
+                    + Double(duration.components.attoseconds) * 1e-15
             }
             // LOADING IS NOT WARMING. The first run of this tool measured
             // 1911 ms for the first question and 82 ms for the second,
@@ -485,13 +485,13 @@ if arguments.count > 1, arguments[1] == "voice-spike" {
     var appleFirst: [Double] = []
     for text in sentences {
         let short = text.count > 34 ? String(text.prefix(34)) + "…" : text
-        if let n = try? await measure(voice, text) {
-            neuralFirst.append(n.firstAudio)
-            print(String(format: "| %@ | neural | **%.0f ms** | %.0f ms |", short, n.firstAudio, n.total))
+        if let neural = try? await measure(voice, text) {
+            neuralFirst.append(neural.firstAudio)
+            print(String(format: "| %@ | neural | **%.0f ms** | %.0f ms |", short, neural.firstAudio, neural.total))
         }
-        if let a = try? await measure(AppleSpeechSynthesizer(), text) {
-            appleFirst.append(a.firstAudio)
-            print(String(format: "| %@ | Apple | **%.0f ms** | %.0f ms |", short, a.firstAudio, a.total))
+        if let apple = try? await measure(AppleSpeechSynthesizer(), text) {
+            appleFirst.append(apple.firstAudio)
+            print(String(format: "| %@ | Apple | **%.0f ms** | %.0f ms |", short, apple.firstAudio, apple.total))
         }
     }
     func mean(_ xs: [Double]) -> Double { xs.isEmpty ? 0 : xs.reduce(0, +) / Double(xs.count) }
@@ -512,10 +512,10 @@ struct SeededRNG: RandomNumberGenerator {
     init(seed: UInt64) { state = seed &* 6364136223846793005 &+ 1442695040888963407 }
     mutating func next() -> UInt64 {
         state = state &* 6364136223846793005 &+ 1442695040888963407
-        var z = state
-        z = (z ^ (z >> 30)) &* 0xBF58476D1CE4E5B9
-        z = (z ^ (z >> 27)) &* 0x94D049BB133111EB
-        return z ^ (z >> 31)
+        var mixed = state
+        mixed = (mixed ^ (mixed >> 30)) &* 0xBF58476D1CE4E5B9
+        mixed = (mixed ^ (mixed >> 27)) &* 0x94D049BB133111EB
+        return mixed ^ (mixed >> 31)
     }
 }
 
@@ -783,8 +783,8 @@ if arguments.count > 1, arguments[1] == "voice-selfecho" {
         var frames = 0
         scratch.withUnsafeMutableBufferPointer { buffer in
             let result = consumer.read(into: buffer)
-            for i in 0..<result.framesRead {
-                let sample = buffer[i]
+            for index in 0..<result.framesRead {
+                let sample = buffer[index]
                 peak = max(peak, abs(sample))
                 sumOfSquares += sample * sample
             }
@@ -1033,14 +1033,14 @@ if arguments.count > 1, arguments[1] == "voice-wer" {
         let saved = saveWav(samples, rate: rate,
                             named: "s\(sentenceIndex + 1)-\(mouth)-draw\(draw)")
         do {
-            let m = try await BakeoffHarness.measure(
+            let measured = try await BakeoffHarness.measure(
                 engine: whisper, label: mouth,
                 samples: samples, sampleRate: rate, reference: reference)
             rows.append(Row(mouth: mouth, sentence: sentenceIndex, draw: draw,
-                            wer: m.score.wer, heard: m.text))
+                            wer: measured.score.wer, heard: measured.text))
             print(String(format: "      %-8@ draw %d — WER %.3f — %.2f s, peak %.3f — \"%@\"%@",
-                         mouth as NSString, draw, m.score.wer, seconds, peak,
-                         m.text as NSString,
+                         mouth as NSString, draw, measured.score.wer, seconds, peak,
+                         measured.text as NSString,
                          saved.map { " → \($0)" } ?? "" as NSString as String))
         } catch {
             print("      \(mouth): transcription failed — \(error)")
@@ -1296,21 +1296,21 @@ if arguments.count > 1, arguments[1] == "graph-probe" {
         Probe(number: 2, what: "never attached → reset()",
               expectation: "survives") { player().reset() },
         Probe(number: 3, what: "never attached → stop(), reset()  [the cancel + teardown path]",
-              expectation: "survives") { let p = player(); p.stop(); p.reset() },
+              expectation: "survives") { let node = player(); node.stop(); node.reset() },
         Probe(number: 4, what: "attached to an engine NEVER started → stop(), reset(), detach",
               expectation: "survives") {
-            let engine = AVAudioEngine(), p = player()
-            engine.attach(p); p.stop(); p.reset(); engine.detach(p)
+            let engine = AVAudioEngine(), node = player()
+            engine.attach(node); node.stop(); node.reset(); engine.detach(node)
         },
         Probe(number: 5, what: "CONTROL — attach, connect, start, engine.stop(), detach",
               expectation: "4e fault #1 says ABORT") {
-            let engine = AVAudioEngine(), p = player()
-            engine.attach(p)
-            engine.connect(p, to: engine.mainMixerNode, format: monoFormat())
+            let engine = AVAudioEngine(), node = player()
+            engine.attach(node)
+            engine.connect(node, to: engine.mainMixerNode, format: monoFormat())
             engine.prepare()
             try engine.start()
             engine.stop()
-            engine.detach(p)
+            engine.detach(node)
         },
         Probe(number: 6, what: "never attached → play()",
               expectation: "ABORT") { player().play() },
@@ -1321,13 +1321,13 @@ if arguments.count > 1, arguments[1] == "graph-probe" {
         },
         Probe(number: 8, what: "attached to an engine never started → scheduleBuffer, play()",
               expectation: "survives") {
-            let engine = AVAudioEngine(), p = player()
-            engine.attach(p)
-            engine.connect(p, to: engine.mainMixerNode, format: monoFormat())
-            p.scheduleBuffer(oneBuffer(), at: nil, options: [],
-                             completionCallbackType: .dataPlayedBack) { _ in }
-            p.play()
-            engine.detach(p)
+            let engine = AVAudioEngine(), node = player()
+            engine.attach(node)
+            engine.connect(node, to: engine.mainMixerNode, format: monoFormat())
+            node.scheduleBuffer(oneBuffer(), at: nil, options: [],
+                                completionCallbackType: .dataPlayedBack) { _ in }
+            node.play()
+            engine.detach(node)
         }
     ]
 
@@ -1480,12 +1480,12 @@ guard !measurements.isEmpty else { print("\nno engine could run."); exit(1) }
 
 print("\n| Engine | WER | sub | ins | del | decode settle |")
 print("|---|---|---|---|---|---|")
-for m in measurements {
+for measurement in measurements {
     print(String(format: "| %@ | **%.1f%%** | %d | %d | %d | %.2f s |",
-                 m.engineName, m.score.wer * 100, m.score.substitutions,
-                 m.score.insertions, m.score.deletions, m.decodeSeconds))
+                 measurement.engineName, measurement.score.wer * 100, measurement.score.substitutions,
+                 measurement.score.insertions, measurement.score.deletions, measurement.decodeSeconds))
 }
 print("")
-for m in measurements {
-    print("— \(m.engineName) heard:\n\(m.text)\n")
+for measurement in measurements {
+    print("— \(measurement.engineName) heard:\n\(measurement.text)\n")
 }

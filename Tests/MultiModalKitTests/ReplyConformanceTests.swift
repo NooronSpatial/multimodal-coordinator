@@ -230,14 +230,14 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
             let task = Task {
                 switch plan {
                 case .snapshots(let all):
-                    for s in all {
-                        continuation.yield(s)
+                    for snapshot in all {
+                        continuation.yield(snapshot)
                         counts.withLock { $0.yielded += 1 }
                     }
                     continuation.finish()
                 case .snapshotsThenThrow(let all, let error):
-                    for s in all {
-                        continuation.yield(s)
+                    for snapshot in all {
+                        continuation.yield(snapshot)
                         counts.withLock { $0.yielded += 1 }
                     }
                     continuation.finish(throwing: error)

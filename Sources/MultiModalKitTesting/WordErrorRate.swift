@@ -54,34 +54,34 @@ public enum WordErrorRate {
         // dp[i][j] = cheapest way to turn ref[0..<i] into hyp[0..<j].
         var dp = Array(repeating: Array(repeating: 0, count: hyp.count + 1),
                        count: ref.count + 1)
-        for i in 0...ref.count { dp[i][0] = i }
-        for j in 0...hyp.count { dp[0][j] = j }
+        for row in 0...ref.count { dp[row][0] = row }
+        for col in 0...hyp.count { dp[0][col] = col }
         if !ref.isEmpty && !hyp.isEmpty {
-            for i in 1...ref.count {
-                for j in 1...hyp.count {
-                    if ref[i - 1] == hyp[j - 1] {
-                        dp[i][j] = dp[i - 1][j - 1]
+            for row in 1...ref.count {
+                for col in 1...hyp.count {
+                    if ref[row - 1] == hyp[col - 1] {
+                        dp[row][col] = dp[row - 1][col - 1]
                     } else {
-                        dp[i][j] = 1 + min(dp[i - 1][j - 1],   // substitute
-                                           dp[i - 1][j],       // delete from ref
-                                           dp[i][j - 1])       // insert from hyp
+                        dp[row][col] = 1 + min(dp[row - 1][col - 1],   // substitute
+                                               dp[row - 1][col],       // delete from ref
+                                               dp[row][col - 1])       // insert from hyp
                     }
                 }
             }
         }
 
         // Walk the table backwards to count each operation kind exactly.
-        var i = ref.count, j = hyp.count
+        var row = ref.count, col = hyp.count
         var substitutions = 0, insertions = 0, deletions = 0
-        while i > 0 || j > 0 {
-            if i > 0 && j > 0 && ref[i - 1] == hyp[j - 1] && dp[i][j] == dp[i - 1][j - 1] {
-                i -= 1; j -= 1
-            } else if i > 0 && j > 0 && dp[i][j] == dp[i - 1][j - 1] + 1 {
-                substitutions += 1; i -= 1; j -= 1
-            } else if i > 0 && dp[i][j] == dp[i - 1][j] + 1 {
-                deletions += 1; i -= 1
+        while row > 0 || col > 0 {
+            if row > 0 && col > 0 && ref[row - 1] == hyp[col - 1] && dp[row][col] == dp[row - 1][col - 1] {
+                row -= 1; col -= 1
+            } else if row > 0 && col > 0 && dp[row][col] == dp[row - 1][col - 1] + 1 {
+                substitutions += 1; row -= 1; col -= 1
+            } else if row > 0 && dp[row][col] == dp[row - 1][col] + 1 {
+                deletions += 1; row -= 1
             } else {
-                insertions += 1; j -= 1
+                insertions += 1; col -= 1
             }
         }
 

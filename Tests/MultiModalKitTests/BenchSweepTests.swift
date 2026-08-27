@@ -37,7 +37,7 @@ struct BenchSweepTests {
         /// got measured first was scheduling luck — the review reproduced
         /// both outcomes. A lever here makes the moment a fact.
         let cancelAfterMeasure: Int?
-        let conditions_: [BenchConditions]
+        let scriptedConditions: [BenchConditions]
 
         init(refusal: String? = nil,
              failOnMeasure: Int? = nil,
@@ -46,7 +46,7 @@ struct BenchSweepTests {
             self.refusal = refusal
             self.failOnMeasure = failOnMeasure
             self.cancelAfterMeasure = cancelAfterMeasure
-            self.conditions_ = conditions
+            self.scriptedConditions = conditions
         }
 
         struct Boom: Error {}
@@ -84,7 +84,7 @@ struct BenchSweepTests {
         func conditions() async -> BenchConditions {
             let index = log.withLock { $0.calls.filter { $0 == "conditions" }.count }
             note("conditions")
-            if index < conditions_.count { return conditions_[index] }
+            if index < scriptedConditions.count { return scriptedConditions[index] }
             return BenchConditions(thermal: "nominal", freeMegabytes: 934)
         }
 

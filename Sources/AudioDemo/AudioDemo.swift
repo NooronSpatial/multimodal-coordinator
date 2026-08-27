@@ -233,9 +233,9 @@ struct AudioDemo {
                     let result = consumer.read(into: buffer)
                     frames = result.framesRead
                     dropped = result.framesDropped
-                    for i in 0..<frames {
-                        sumOfSquares += buffer[i] * buffer[i]
-                        peak = max(peak, abs(buffer[i]))
+                    for frameIndex in 0..<frames {
+                        sumOfSquares += buffer[frameIndex] * buffer[frameIndex]
+                        peak = max(peak, abs(buffer[frameIndex]))
                     }
                 }
                 let rms = frames > 0 ? (sumOfSquares / Float(frames)).squareRoot() : 0

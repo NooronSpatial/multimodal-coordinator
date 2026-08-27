@@ -112,11 +112,11 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     // finished AsyncStream drops every later yield. The
                     // finish is the primary guard; the flag is the belt,
                     // kept because the finish lives in another method.
-                    let admitted: String? = self.state.withLock { s in
+                    let admitted: String? = self.state.withLock { guarded in
                         // An empty token is not silence to report — the
                         // detokenizer yields "" while a multi-token
                         // character is still incomplete.
-                        guard !s.retired, !token.isEmpty else { return nil }
+                        guard !guarded.retired, !token.isEmpty else { return nil }
                         return token
                     }
                     guard let admitted else {
@@ -149,9 +149,9 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// decode kept running and aborted the process — the structure that
     /// masks it here is not guaranteed to survive the next change.
     private func report(_ terminal: ReplyUpdate) {
-        let first = state.withLock { s -> Bool in
-            let was = s.retired
-            s.retired = true
+        let first = state.withLock { guarded -> Bool in
+            let was = guarded.retired
+            guarded.retired = true
             return !was
         }
         guard first else { return }
@@ -163,9 +163,9 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// The flag is raised in the SAME locked step that decides "was I
     /// first", so a token in flight sees it before its next yield.
     func cancel() async {
-        let first = state.withLock { s -> Bool in
-            let was = s.retired
-            s.retired = true
+        let first = state.withLock { guarded -> Bool in
+            let was = guarded.retired
+            guarded.retired = true
             return !was
         }
         work.withLock { $0 }?.cancel()

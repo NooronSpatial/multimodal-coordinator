@@ -120,11 +120,11 @@ final class MindProbe {
             row.cumulative = zip(lengths, lengths.dropFirst()).allSatisfy { $0 <= $1 }
             row.strictlyExtending = true
             row.scalarExtending = true
-            for i in 1..<max(1, snapshots.count) where i < snapshots.count {
-                let was = snapshots[i - 1], now = snapshots[i]
+            for index in 1..<max(1, snapshots.count) where index < snapshots.count {
+                let was = snapshots[index - 1], now = snapshots[index]
                 if !now.hasPrefix(was) {
                     row.strictlyExtending = false
-                    row.revisions.append((i, was, now))
+                    row.revisions.append((index, was, now))
                 }
                 if !Array(now.unicodeScalars).starts(with: Array(was.unicodeScalars)) {
                     row.scalarExtending = false
@@ -156,8 +156,8 @@ final class MindProbe {
                 out += "cumulative: \(row.cumulative) · strictly extending: \(row.strictlyExtending)"
                 out += " · grapheme split suspected: \(row.graphemeSplitSuspected)\n"
             }
-            for r in row.revisions {
-                out += "REVISION at \(r.step):\n  was: \(r.was)\n  now: \(r.now)\n"
+            for revision in row.revisions {
+                out += "REVISION at \(revision.step):\n  was: \(revision.was)\n  now: \(revision.now)\n"
             }
             out += "final: \(row.finalText)\n\n"
         }
@@ -178,8 +178,8 @@ final class MindProbe {
         return out
     }
 
-    private static func ms(_ d: Duration) -> Double {
-        Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
+    private static func ms(_ duration: Duration) -> Double {
+        Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
     }
 }
 

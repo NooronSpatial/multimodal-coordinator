@@ -91,11 +91,11 @@ struct PlaybackLeadStrandTests {
         }
     }
 
-    static func until(_ c: () async -> Bool, within: Duration = .seconds(5)) async -> Bool {
+    static func until(_ condition: () async -> Bool, within: Duration = .seconds(5)) async -> Bool {
         let clock = ContinuousClock()
         let deadline = clock.now.advanced(by: within)
         while clock.now < deadline {
-            if await c() { return true }
+            if await condition() { return true }
             await Task.yield()
         }
         return false
@@ -109,7 +109,7 @@ struct PlaybackLeadStrandTests {
     static func drainBounded(_ run: any SynthesisRun,
                              within: Duration) async -> [SynthesisUpdate] {
         let box = Mutex<[SynthesisUpdate]>([])
-        let collector = Task { for await u in run.updates { box.withLock { $0.append(u) } } }
+        let collector = Task { for await update in run.updates { box.withLock { $0.append(update) } } }
         _ = await until({ box.withLock { $0.contains(.finished) } }, within: within)
         collector.cancel()
         return box.withLock { $0 }
@@ -160,8 +160,8 @@ struct PlaybackLeadStrandTests {
         // accounting has happened; `scheduled > 0` proves audio was really
         // queued; `!tokensFinished` proves this is the ordering under test.
         #expect(await Self.until {
-            let c = run.counters
-            return c.phrasesInFlight == 0 && c.scheduled > 0 && !c.tokensFinished
+            let counters = run.counters
+            return counters.phrasesInFlight == 0 && counters.scheduled > 0 && !counters.tokensFinished
         }, "the last decode must be accounted for while the token stream is still open")
         #expect(run.counters.played == 0, "and nothing can have played, since nothing started")
 

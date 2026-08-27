@@ -94,58 +94,58 @@ struct AudioPumpTests {
 
     @Test("The pump parks on the injected clock, wakes on each poll, and leaves nothing behind")
     func pumpParksWakesAndStopsClean() async {
-        let f = Self.makeFixture()
+        let fixture = Self.makeFixture()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
+            group.addTask { await fixture.pump.run() }
 
-            #expect(await Self.parked(f.clock), "the pump never parked on the injected clock")
+            #expect(await Self.parked(fixture.clock), "the pump never parked on the injected clock")
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock), "the pump did not park again after one poll")
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock), "the pump did not park again after one poll")
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
-        #expect(f.clock.sleeperCount == 0, "a sleeper survived stop()")
+        #expect(fixture.clock.sleeperCount == 0, "a sleeper survived stop()")
     }
 
     @Test("stop() alone ends the loop — no cancellation, no clock advance")
     func stopAloneEndsTheLoop() async {
-        let f = Self.makeFixture()
+        let fixture = Self.makeFixture()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock), "the pump never parked on the injected clock")
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock), "the pump never parked on the injected clock")
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             // Deliberately no cancelAll() and no advance(): the group can only
             // finish here if stop() woke the parked loop by itself (D-014).
         }
 
-        #expect(f.clock.sleeperCount == 0, "a sleeper survived stop()")
+        #expect(fixture.clock.sleeperCount == 0, "a sleeper survived stop()")
     }
 
     // MARK: - AC-12 / AC-17 / AC-19: the full utterance, exactly
 
     @Test("A scripted utterance produces the exact event sequence, in timeline order")
     func scriptedUtteranceProducesTheExactEventSequence() async {
-        let f = Self.makeFixture()
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture()
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // pre-roll material
-            Self.write(f.producer, Self.loud, frames: 3 * Self.chunkFrames)   // the words
-            Self.write(f.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // exactly the hangover
+            Self.write(fixture.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // pre-roll material
+            Self.write(fixture.producer, Self.loud, frames: 3 * Self.chunkFrames)   // the words
+            Self.write(fixture.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // exactly the hangover
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
@@ -167,20 +167,20 @@ struct AudioPumpTests {
 
     @Test("Only the last two held chunks are pre-rolled, and they arrive before the live audio")
     func preRollDeliversTheChunksRecordedBeforeSpeech() async {
-        let f = Self.makeFixture()
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture()
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.quiet, frames: 4 * Self.chunkFrames)  // four quiet chunks
-            Self.write(f.producer, Self.loud, frames: 1 * Self.chunkFrames)
+            Self.write(fixture.producer, Self.quiet, frames: 4 * Self.chunkFrames)  // four quiet chunks
+            Self.write(fixture.producer, Self.loud, frames: 1 * Self.chunkFrames)
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
@@ -197,22 +197,22 @@ struct AudioPumpTests {
 
     @Test("A partial chunk waits for the next poll instead of being padded or judged")
     func partialChunkIsCarriedToTheNextPoll() async {
-        let f = Self.makeFixture()
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture()
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.loud, frames: 1440)   // one chunk and a half
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            Self.write(fixture.producer, Self.loud, frames: 1440)   // one chunk and a half
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.loud, frames: 480)    // completes the second chunk
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            Self.write(fixture.producer, Self.loud, frames: 480)    // completes the second chunk
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
@@ -228,22 +228,22 @@ struct AudioPumpTests {
 
     @Test("Frames lost to a full ring appear as a dropped event with the exact count")
     func droppedFramesAppearAsAnEventWithTheExactCount() async {
-        let f = Self.makeFixture(ringCapacity: 2048)
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture(ringCapacity: 2048)
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
             // Three honest microphone-sized writes: the ring's contract is
             // that ONE write never exceeds capacity (asserted in AudioRingBuffer).
             // 3072 written into a 2048 ring ⇒ exactly 1024 frames lost.
-            for _ in 0..<3 { Self.write(f.producer, Self.loud, frames: 1024) }
+            for _ in 0..<3 { Self.write(fixture.producer, Self.loud, frames: 1024) }
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
@@ -260,48 +260,48 @@ struct AudioPumpTests {
 
     @Test("Two listeners receive identical sequences")
     func everyListenerSeesTheSameSequence() async {
-        let f = Self.makeFixture()
-        let first = await f.pump.listen()
-        let second = await f.pump.listen()
+        let fixture = Self.makeFixture()
+        let first = await fixture.pump.listen()
+        let second = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.loud, frames: 2 * Self.chunkFrames)
+            Self.write(fixture.producer, Self.loud, frames: 2 * Self.chunkFrames)
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
-        let a = await Self.collect(first.events)
-        let b = await Self.collect(second.events)
-        #expect(a == b)
-        #expect(a.first == .speechStarted(utterance: 0, at: Self.t(0)))
-        #expect(a.count == 3)
+        let firstEvents = await Self.collect(first.events)
+        let secondEvents = await Self.collect(second.events)
+        #expect(firstEvents == secondEvents)
+        #expect(firstEvents.first == .speechStarted(utterance: 0, at: Self.t(0)))
+        #expect(firstEvents.count == 3)
     }
 
     // MARK: - AC-13: capture-to-speechStarted is an exact number, not a measurement
 
     @Test("Latency from capture to speechStarted is exact audio time")
     func latencyFromCaptureToSpeechStartedIsExact() async {
-        let f = Self.makeFixture()
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture()
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.quiet, frames: 2 * Self.chunkFrames)
-            Self.write(f.producer, Self.loud, frames: 1 * Self.chunkFrames)
+            Self.write(fixture.producer, Self.quiet, frames: 2 * Self.chunkFrames)
+            Self.write(fixture.producer, Self.loud, frames: 1 * Self.chunkFrames)
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
@@ -322,21 +322,21 @@ struct AudioPumpTests {
         // During candidacy the pump still believes "quiet", so the first two
         // loud chunks — the true start of the word — sit on the pre-roll
         // shelf and must come back out when the third chunk fires the start.
-        let f = Self.makeFixture(preRollChunks: 3, onsetChunks: 3)
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture(preRollChunks: 3, onsetChunks: 3)
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.quiet, frames: 1 * Self.chunkFrames)  // run-up quiet
-            Self.write(f.producer, Self.loud, frames: 3 * Self.chunkFrames)   // exactly the window
-            Self.write(f.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // exactly the hangover
+            Self.write(fixture.producer, Self.quiet, frames: 1 * Self.chunkFrames)  // run-up quiet
+            Self.write(fixture.producer, Self.loud, frames: 3 * Self.chunkFrames)   // exactly the window
+            Self.write(fixture.producer, Self.quiet, frames: 2 * Self.chunkFrames)  // exactly the hangover
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 
@@ -358,20 +358,20 @@ struct AudioPumpTests {
         // The turn-loop interplay proof: barge-in IS the pump's speechStarted
         // (D-031). Zero events here means a click provably cannot reach any
         // coordinator, in any state — there is no event to act on.
-        let f = Self.makeFixture(preRollChunks: 3, onsetChunks: 3)
-        let listener = await f.pump.listen()
+        let fixture = Self.makeFixture(preRollChunks: 3, onsetChunks: 3)
+        let listener = await fixture.pump.listen()
 
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await f.pump.run() }
-            #expect(await Self.parked(f.clock))
+            group.addTask { await fixture.pump.run() }
+            #expect(await Self.parked(fixture.clock))
 
-            Self.write(f.producer, Self.loud, frames: 2 * Self.chunkFrames)   // one short of the window
-            Self.write(f.producer, Self.quiet, frames: 6 * Self.chunkFrames)  // long silence after
+            Self.write(fixture.producer, Self.loud, frames: 2 * Self.chunkFrames)   // one short of the window
+            Self.write(fixture.producer, Self.quiet, frames: 6 * Self.chunkFrames)  // long silence after
 
-            await f.clock.advance(by: .milliseconds(10))
-            #expect(await Self.parked(f.clock))
+            await fixture.clock.advance(by: .milliseconds(10))
+            #expect(await Self.parked(fixture.clock))
 
-            await f.pump.stop()
+            await fixture.pump.stop()
             group.cancelAll()
         }
 

@@ -112,14 +112,14 @@ struct NeuralVoiceFailurePathTests {
         func decode(_ text: String,
                     temperature: Float?,
                     onStep: @escaping @Sendable ([Float]) -> Bool) async throws {
-            let plan = state.withLock { s -> DecodeScript in
-                let index = s.decodedTexts.count
-                s.decodedTexts.append(text)
+            let plan = state.withLock { guarded -> DecodeScript in
+                let index = guarded.decodedTexts.count
+                guarded.decodedTexts.append(text)
                 // Past the end of the script a decode simply succeeds — so
                 // a test that asserts "this was never decoded" fails
                 // LOUDLY if the run decodes it, rather than being rescued
                 // by a double that throws on everything.
-                return index < s.script.count ? s.script[index] : .steps(1)
+                return index < guarded.script.count ? guarded.script[index] : .steps(1)
             }
 
             switch plan {

@@ -66,7 +66,7 @@ struct TurnCoordinatorTests {
         private(set) var events: [TurnEvent] = []
         func append(_ event: TurnEvent) { events.append(event) }
         func states() -> [TurnState] {
-            events.compactMap { if case .stateChanged(let s, _) = $0 { s } else { nil } }
+            events.compactMap { if case .stateChanged(let state, _) = $0 { state } else { nil } }
         }
     }
 

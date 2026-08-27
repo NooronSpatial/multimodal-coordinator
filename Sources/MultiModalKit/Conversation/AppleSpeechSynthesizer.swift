@@ -79,8 +79,8 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
                 guard let language else { return true }
                 return voice.language.hasPrefix(language)
             }
-            .sorted { a, b in
-                (rank(a), a.name) < (rank(b), b.name)
+            .sorted { voiceA, voiceB in
+                (rank(voiceA), voiceA.name) < (rank(voiceB), voiceB.name)
             }
             .map {
                 InstalledVoice(id: $0.identifier, name: $0.name,
@@ -156,10 +156,10 @@ public final class AppleSpeechSynthesizer: SpeechSynthesizing {
         // then quality. A worse-sounding voice in the right accent still
         // beats a better one in the wrong language.
         return candidates
-            .max { a, b in
-                let exactA = a.language == language ? 1 : 0
-                let exactB = b.language == language ? 1 : 0
-                return (exactA, rank(a)) < (exactB, rank(b))
+            .max { voiceA, voiceB in
+                let exactA = voiceA.language == language ? 1 : 0
+                let exactB = voiceB.language == language ? 1 : 0
+                return (exactA, rank(voiceA)) < (exactB, rank(voiceB))
             }
     }
 
@@ -243,10 +243,10 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
     }
 
     func feed(_ token: String) async {
-        let phrases = state.withLock { s -> [String] in
-            guard !s.cancelled else { return [] }
-            let completed = s.phraser.feed(token)
-            s.queued += completed.count
+        let phrases = state.withLock { guarded -> [String] in
+            guard !guarded.cancelled else { return [] }
+            let completed = guarded.phraser.feed(token)
+            guarded.queued += completed.count
             return completed
         }
         // The reentrancy law is enforced inside `speak`, which re-reads the
@@ -258,16 +258,16 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
         // Same law, same reason: this is awaited too, so a barge may have
         // landed while we waited to run.
         enum Outcome { case speak(String), finishNow, wait }
-        let outcome = state.withLock { s -> Outcome in
-            guard !s.cancelled, !s.tokensFinished else { return .wait }
-            s.tokensFinished = true
-            if let rest = s.phraser.flush() {
-                s.queued += 1
+        let outcome = state.withLock { guarded -> Outcome in
+            guard !guarded.cancelled, !guarded.tokensFinished else { return .wait }
+            guarded.tokensFinished = true
+            if let rest = guarded.phraser.flush() {
+                guarded.queued += 1
                 return .speak(rest)
             }
             // Nothing left to say. If nothing is still sounding, the reply
             // is over NOW — a whitespace-only reply completes silently.
-            return s.finished == s.queued ? .finishNow : .wait
+            return guarded.finished == guarded.queued ? .finishNow : .wait
         }
         switch outcome {
         case .speak(let rest):
@@ -281,9 +281,9 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
     }
 
     func cancel() async {
-        let alreadyCancelled = state.withLock { s -> Bool in
-            let was = s.cancelled
-            s.cancelled = true
+        let alreadyCancelled = state.withLock { guarded -> Bool in
+            let was = guarded.cancelled
+            guarded.cancelled = true
             return was
         }
         guard !alreadyCancelled else { return }
@@ -316,9 +316,9 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
     func speechSynthesizer(
         _ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance
     ) {
-        let fire = state.withLock { s -> Bool in
-            guard !s.cancelled, !s.startedReported else { return false }
-            s.startedReported = true
+        let fire = state.withLock { guarded -> Bool in
+            guard !guarded.cancelled, !guarded.startedReported else { return false }
+            guarded.startedReported = true
             return true
         }
         if fire { out.yield(.started) }
@@ -327,9 +327,9 @@ final class AppleSynthesisRun: NSObject, SynthesisRun, AVSpeechSynthesizerDelega
     func speechSynthesizer(
         _ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance
     ) {
-        let done = state.withLock { s -> Bool in
-            s.finished += 1
-            return !s.cancelled && s.tokensFinished && s.finished == s.queued
+        let done = state.withLock { guarded -> Bool in
+            guarded.finished += 1
+            return !guarded.cancelled && guarded.tokensFinished && guarded.finished == guarded.queued
         }
         if done {
             out.yield(.finished)

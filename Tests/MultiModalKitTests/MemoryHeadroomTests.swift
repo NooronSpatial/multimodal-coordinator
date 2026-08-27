@@ -34,9 +34,9 @@ struct MemoryHeadroomTests {
             .taskInfoFailed(5),
             .fieldNotReported
         ]
-        for (i, a) in reasons.enumerated() {
-            for (j, b) in reasons.enumerated() where i != j {
-                #expect(MemoryHeadroom.unavailable(a) != MemoryHeadroom.unavailable(b))
+        for (index, reason) in reasons.enumerated() {
+            for (otherIndex, otherReason) in reasons.enumerated() where index != otherIndex {
+                #expect(MemoryHeadroom.unavailable(reason) != MemoryHeadroom.unavailable(otherReason))
             }
         }
     }

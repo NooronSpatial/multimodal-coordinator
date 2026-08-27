@@ -162,10 +162,10 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
     /// Capture has stopped, so every reply's node goes with it. A node
     /// left attached to a stopped engine is the leak in slow motion.
     func captureStopped() {
-        state.withLock { s in
-            s.capturing = false
-            for hosted in s.hosted { detachIfStillOurs(hosted.node) }
-            s.hosted = []
+        state.withLock { guarded in
+            guarded.capturing = false
+            for hosted in guarded.hosted { detachIfStillOurs(hosted.node) }
+            guarded.hosted = []
         }
     }
 
@@ -204,13 +204,13 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
     // MARK: - the seam
 
     public func attachForPlayback(_ node: AVAudioNode, format: AVAudioFormat) throws {
-        try state.withLock { s in
+        try state.withLock { guarded in
             // There is no useful "attach anyway". The engine would not be
             // pulling, so nothing would be heard and the caller would
             // wait forever for a completion — and the echo canceller
             // that is the entire reason to render here lives in an audio
             // unit that is not running either.
-            guard s.capturing else { throw PlaybackHostFailure.notRendering }
+            guard guarded.capturing else { throw PlaybackHostFailure.notRendering }
             // BOTH SIDES, and in this order. The caller's format can be
             // sound while the graph's is 0 Hz — reading `mainMixerNode`
             // is what forces the mixer→output connection, and that is
@@ -220,15 +220,15 @@ public final class MicrophonePlaybackHost: PlaybackHost, @unchecked Sendable {
             try PlaybackHostFailure.requireUsable(mixer.outputFormat(forBus: 0))
             engine.attach(node)
             engine.connect(node, to: mixer, format: format)
-            s.outputRate = mixer.outputFormat(forBus: 0).sampleRate
-            s.hosted.append(HostedNode(node))
+            guarded.outputRate = mixer.outputFormat(forBus: 0).sampleRate
+            guarded.hosted.append(HostedNode(node))
         }
     }
 
     public func detachFromPlayback(_ node: AVAudioNode) {
-        state.withLock { s in
-            guard s.hosted.contains(where: { $0.node === node }) else { return }
-            s.hosted.removeAll { $0.node === node }
+        state.withLock { guarded in
+            guard guarded.hosted.contains(where: { $0.node === node }) else { return }
+            guarded.hosted.removeAll { $0.node === node }
             detachIfStillOurs(node)
         }
     }

@@ -235,8 +235,8 @@ struct TranscriptionSessionTests {
 
         let events = await Self.withSession(engine: engine, config: config) { _, feed, box in
             feed.yield(.speechStarted(utterance: 0, at: Self.t(0)))
-            for i in 0..<5 {
-                feed.yield(.audioSegment(Self.chunk(at: i * Self.chunkFrames)))
+            for chunkIndex in 0..<5 {
+                feed.yield(.audioSegment(Self.chunk(at: chunkIndex * Self.chunkFrames)))
             }
             #expect(await Self.collected(box, atLeast: 1), "no truncated event arrived")
             feed.yield(.speechEnded(at: Self.t(5 * Self.chunkFrames)))
@@ -277,10 +277,10 @@ struct TranscriptionSessionTests {
             await session.stop()
         }
 
-        let a = await boxA.events
-        let b = await boxB.events
-        #expect(a == b)
-        #expect(a == [.final("u0:final(1 chunks)", utterance: 0, at: Self.t(960))])
+        let eventsA = await boxA.events
+        let eventsB = await boxB.events
+        #expect(eventsA == eventsB)
+        #expect(eventsA == [.final("u0:final(1 chunks)", utterance: 0, at: Self.t(960))])
     }
 
     // MARK: - AC-32: shutdown

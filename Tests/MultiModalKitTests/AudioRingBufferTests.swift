@@ -98,10 +98,10 @@ import Testing
         let writer = Task.detached {
             var next = 0
             while next < totalFrames {
-                let n = min(chunk, totalFrames - next)
-                let values = (0..<n).map { Float(next + $0) }
+                let frameCount = min(chunk, totalFrames - next)
+                let values = (0..<frameCount).map { Float(next + $0) }
                 values.withUnsafeBufferPointer { producer.write($0) }
-                next += n
+                next += frameCount
             }
         }
 
@@ -117,8 +117,8 @@ import Testing
             spins += 1
             let result = buffer.withUnsafeMutableBufferPointer { consumer.read(into: $0) }
             if result.framesRead > 0 {
-                for i in 0..<result.framesRead {
-                    let value = Int(buffer[i])
+                for index in 0..<result.framesRead {
+                    let value = Int(buffer[index])
                     if value <= highestSeen { orderViolations += 1 }
                     highestSeen = value
                 }
@@ -156,10 +156,10 @@ import Testing
             let writer = Task.detached {
                 var next = 0
                 while next < totalFrames {
-                    let n = min(writeChunk, totalFrames - next)
-                    let values = (0..<n).map { Float(next + $0) }
+                    let frameCount = min(writeChunk, totalFrames - next)
+                    let values = (0..<frameCount).map { Float(next + $0) }
                     values.withUnsafeBufferPointer { producer.write($0) }
-                    next += n
+                    next += frameCount
                 }
             }
 
@@ -170,8 +170,8 @@ import Testing
                 spins += 1
                 let result = buffer.withUnsafeMutableBufferPointer { consumer.read(into: $0) }
                 if result.framesRead > 0 {
-                    for i in 0..<result.framesRead {
-                        let value = Int(buffer[i])
+                    for index in 0..<result.framesRead {
+                        let value = Int(buffer[index])
                         if value <= highestSeen { violations += 1 }
                         highestSeen = value
                     }

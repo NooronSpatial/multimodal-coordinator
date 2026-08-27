@@ -112,8 +112,8 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             ($0.samples, $0.firstStep, $0.firstSamples)
         }
         guard samples > 0, let last = stepClock.withLock({ $0 }) else { return }
-        func ms(_ d: Duration) -> Double {
-            Double(d.components.seconds) * 1000 + Double(d.components.attoseconds) * 1e-15
+        func ms(_ duration: Duration) -> Double {
+            Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
         }
         let wall = ms(birth.duration(to: last))
         let audio = Double(samples) / format.sampleRate * 1000
@@ -210,10 +210,10 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// already applies to every state write in `TranscriptionSession` and
     /// `TurnCoordinator`. A fourth caller cannot half-apply an invariant
     /// that lives in one function.
-    private static func owed(by s: Guarded) -> Owed {
-        guard !s.cancelled, s.tokensFinished, s.phrasesInFlight == 0
+    private static func owed(by guarded: Guarded) -> Owed {
+        guard !guarded.cancelled, guarded.tokensFinished, guarded.phrasesInFlight == 0
         else { return .nothing }
-        return s.scheduled == s.played ? .finish : .releaseLead
+        return guarded.scheduled == guarded.played ? .finish : .releaseLead
     }
 
     /// Acts on the funnel's answer. **Never called while the lock is
@@ -264,14 +264,14 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// take the text, put it somewhere, return. The work happens
     /// elsewhere.
     func feed(_ token: String) async {
-        let startDrain = state.withLock { s -> Bool in
-            guard !s.cancelled else { return false }
-            let completed = s.phraser.feed(token)
+        let startDrain = state.withLock { guarded -> Bool in
+            guard !guarded.cancelled else { return false }
+            let completed = guarded.phraser.feed(token)
             guard !completed.isEmpty else { return false }
-            s.phrasesInFlight += completed.count
-            s.pending.append(contentsOf: completed)
-            guard !s.draining else { return false }
-            s.draining = true
+            guarded.phrasesInFlight += completed.count
+            guarded.pending.append(contentsOf: completed)
+            guard !guarded.draining else { return false }
+            guarded.draining = true
             return true
         }
         if startDrain { beginDraining() }
@@ -284,14 +284,14 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// audible reply, which is exactly the window a human interrupts in.
     func finishTokens() async {
         enum Outcome { case startDrain, settle(Owed) }
-        let outcome = state.withLock { s -> Outcome in
-            guard !s.cancelled, !s.tokensFinished else { return .settle(.nothing) }
-            s.tokensFinished = true
-            if let rest = s.phraser.flush() {
-                s.phrasesInFlight += 1
-                s.pending.append(rest)
-                guard !s.draining else { return .settle(.nothing) }
-                s.draining = true
+        let outcome = state.withLock { guarded -> Outcome in
+            guard !guarded.cancelled, !guarded.tokensFinished else { return .settle(.nothing) }
+            guarded.tokensFinished = true
+            if let rest = guarded.phraser.flush() {
+                guarded.phrasesInFlight += 1
+                guarded.pending.append(rest)
+                guard !guarded.draining else { return .settle(.nothing) }
+                guarded.draining = true
                 return .startDrain
             }
             // THROUGH THE FUNNEL (D-055 = B). This used to ask a smaller
@@ -305,7 +305,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             // A reply of pure whitespace still ends here silently — the
             // funnel returns `.finish` for it, because nothing was queued
             // and so `scheduled == played`.
-            return .settle(Self.owed(by: s))
+            return .settle(Self.owed(by: guarded))
         }
         switch outcome {
         case .startDrain: beginDraining()
@@ -328,12 +328,12 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     private func beginDraining() {
         let task = Task { [self] in
             while true {
-                let next = state.withLock { s -> String? in
-                    guard !s.cancelled, !s.pending.isEmpty else {
-                        s.draining = false
+                let next = state.withLock { guarded -> String? in
+                    guard !guarded.cancelled, !guarded.pending.isEmpty else {
+                        guarded.draining = false
                         return nil
                     }
-                    return s.pending.removeFirst()
+                    return guarded.pending.removeFirst()
                 }
                 guard let next else { return }
                 await speak(next)
@@ -361,11 +361,11 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// - Returns: true if this call is the one that retired the run.
     @discardableResult
     private func retire() -> Bool {
-        let already = state.withLock { s -> Bool in
-            let was = s.cancelled
-            s.cancelled = true
-            s.lead.abandon()      // same step, no gap: the ticket doctrine
-            s.pending.removeAll() // nothing queued will ever be spoken
+        let already = state.withLock { guarded -> Bool in
+            let was = guarded.cancelled
+            guarded.cancelled = true
+            guarded.lead.abandon()      // same step, no gap: the ticket doctrine
+            guarded.pending.removeAll() // nothing queued will ever be spoken
             return was
         }
         guard !already else { return false }
@@ -464,9 +464,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         // exactly why D-055's hole opened in the other one. The question
         // lives in `owed(by:)` now; this site's remaining job is the
         // decrement that makes the answer true.
-        let owed = state.withLock { s -> Owed in
-            s.phrasesInFlight -= 1
-            return Self.owed(by: s)
+        let owed = state.withLock { guarded -> Owed in
+            guarded.phrasesInFlight -= 1
+            return Self.owed(by: guarded)
         }
         settle(owed)
     }
@@ -474,9 +474,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// The reply is complete: whatever is held is all there will ever be.
     /// Runs on the mouth queue, like every other touch of the player.
     private func releaseLead() {
-        let start = state.withLock { s -> Bool in
-            guard !s.cancelled else { return false }
-            return s.lead.noMoreAudio()
+        let start = state.withLock { guarded -> Bool in
+            guard !guarded.cancelled else { return false }
+            return guarded.lead.noMoreAudio()
         }
         if start {
             player.play()
@@ -523,9 +523,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             // playing puts no sound in the room. `PlaybackLead` owns the
             // once-only guarantee, so there is no separate flag to keep
             // honest.
-            let start = state.withLock { s -> Bool in
-                guard !s.cancelled else { return false }
-                return s.lead.queue(.microseconds(
+            let start = state.withLock { guarded -> Bool in
+                guard !guarded.cancelled else { return false }
+                return guarded.lead.queue(.microseconds(
                     Int((Double(samples.count) / format.sampleRate * 1_000_000).rounded())))
             }
             if start {
@@ -546,9 +546,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// are possible, and a future change to the counters cannot leave this
     /// one behind.
     private func bufferPlayed() {
-        let owed = state.withLock { s -> Owed in
-            s.played += 1
-            return Self.owed(by: s)
+        let owed = state.withLock { guarded -> Owed in
+            guarded.played += 1
+            return Self.owed(by: guarded)
         }
         settle(owed)
     }

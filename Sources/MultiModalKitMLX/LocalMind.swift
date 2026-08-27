@@ -237,7 +237,7 @@ public actor LocalMindModel {
         let snapshot = try await hub.snapshot(
             from: repoID,
             matching: ["*.safetensors", "*.json", "*.txt"]
-        ) { p in progress(p.fractionCompleted) }
+        ) { downloadProgress in progress(downloadProgress.fractionCompleted) }
 
         guard snapshot != weights else { return }
         let files = FileManager.default
