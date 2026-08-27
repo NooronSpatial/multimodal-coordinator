@@ -3856,10 +3856,13 @@ failure is recorded in the commit.
 remains the keeps-up flag, unchanged in meaning and value. *Test:* the
 existing expectations still pass, byte for byte.
 
-**AC-178 — the sweep proves it on the Mac, and prices it.** `bakeoff
-voice-levers` gains a cushion sweep: for each lead in a range, decode the
-fixture and report DIGITAL SILENCE per second of speech AND the felt
-pause that lead costs (F-2's re-ruling evidence). *Evidence:* a table in
+**AC-178 — the sweep proves it on the Mac, prices it, and tests the
+length question.** `bakeoff voice-levers` gains a cushion sweep: for each
+lead in a range, decode the fixture and report DIGITAL SILENCE per second
+of speech AND the felt pause that lead costs (F-2's re-ruling evidence).
+It sweeps **two reply lengths, short and long**, because §143a's open
+question — whether a stall measured on a short reply banks enough for a
+long one — cannot be answered by a single fixture. *Evidence:* a table in
 INSTRUMENTS showing silence falling to zero, and the smallest lead that
 achieves it. *The metric is exact-zero-sample runs ≥20 ms inside the
 speech span — not an amplitude threshold, which §53 proved is an
@@ -3912,6 +3915,33 @@ Banking the full worst stall can only make that worse. So AC-178's sweep
 must report the FELT-PAUSE cost beside the silence, and this fork
 becomes re-rulable with numbers instead of taste — which is the only
 honest way to trade a crackle against a wait.
+
+## 143a. Recorded during AC-176: the stall does not scale with length
+
+Found while making AC-176 green, and ruled A by Ryad on the spot —
+**ship it and let AC-178's sweep say whether it bites.**
+
+The cushion is now the worst stall measured on the LAST reply. Lag,
+however, depends on length: under a uniformly slow decoder a 20-second
+reply falls four times further behind than a 4-second one.
+
+    reply 1:   4 s at 1.25x  ->  worst lag 1000 ms  ->  bank 1000 ms
+    reply 2:  20 s, same decoder  ->  needs 5000 ms  ->  runs dry
+
+So a short reply followed by a long one under-banks by exactly the factor
+4m existed to fix. The retired rule handled that case — it scaled with
+length — and could not see stalls; the new rule sees stalls and does not
+scale. The honest end state may be BOTH.
+
+*Rejected for now:* **B, scale the stall by the next reply's expected
+length** (`worstLag × typicalLength / thisLength`). It is the obvious
+repair and it is a guess about a mechanism nobody has measured — the
+mistake this whole milestone exists to undo. `typicalLength` is kept and
+tested precisely so B can be built the day the sweep asks for it.
+
+**AC-178 must therefore report silence against reply LENGTH, not only
+against cushion size**, or this question stays open after the milestone
+that found it.
 
 ## 143. Definition of done (4o)
 
