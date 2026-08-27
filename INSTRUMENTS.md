@@ -3994,3 +3994,35 @@ Two outcomes, both terminal:
    64.8 s stands as the recorded cold number, and AC-172 closes with
    the honest line that the app cannot reproduce cold on demand — the
    report's "tmp holds: [...]" line is the evidence that we looked.
+
+### The run came back — outcome 2, and AC-172 CLOSES as C
+
+Ryad's phone, 2026-08-27, the ❄ tapped with the D-075 build. The report
+survived and answered:
+
+```
+no compiled-plan cache found under Caches or tmp — the next load was
+already going to be cold, or the cache lives somewhere this control
+does not reach. Caches holds: [com.apple.dyld,
+com.apple.speech.localspeechrecognition, dev.nooron.TranscribeDemo,
+huggingface] · tmp holds: [CFNetworkDownload_… ×9 .tmp]
+```
+
+**tmp/ holds no compile cache either.** By D-075's own fall-through:
+**C — cold is system-owned on iOS.** No app-reachable directory holds
+the compiled plans; §30's measured **64.8 s** stands as the recorded
+cold number, with the honest caveat the ruling priced in: the app
+cannot reproduce cold on demand. The probe's fresh voice load after the
+no-op clear was warm-shaped, as expected: ~3.0 s, footprint 2332 →
+2485 MB, and — worth keeping — **both organs resident beside each
+other at 890 MB free, survived**, with the 4B mind holding 2159 MB.
+
+Two incidental finds from the neighbourhood lines, named so they are
+not lost: (1) the app's tmp/ carries NINE stale `CFNetworkDownload_*`
+temp files — download staging that never got cleaned; the report does
+not size non-matching entries by design, so their cost is unknown —
+housekeeping candidate, not ruled. (2) `com.apple.speech.
+localspeechrecognition` sits in app-Caches — the ear's system cache
+lives app-side even though the voice compiler's does not.
+
+**AC-172: CLOSED.**
