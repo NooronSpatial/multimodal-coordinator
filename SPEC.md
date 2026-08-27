@@ -3853,9 +3853,10 @@ failure is recorded in the commit.
 remains the keeps-up flag, unchanged in meaning and value. *Test:* the
 existing expectations still pass, byte for byte.
 
-**AC-178 — the sweep proves it on the Mac.** `bakeoff voice-levers`
-gains a cushion sweep: for each lead in a range, decode the fixture and
-report DIGITAL SILENCE per second of speech. *Evidence:* a table in
+**AC-178 — the sweep proves it on the Mac, and prices it.** `bakeoff
+voice-levers` gains a cushion sweep: for each lead in a range, decode the
+fixture and report DIGITAL SILENCE per second of speech AND the felt
+pause that lead costs (F-2's re-ruling evidence). *Evidence:* a table in
 INSTRUMENTS showing silence falling to zero, and the smallest lead that
 achieves it. *The metric is exact-zero-sample runs ≥20 ms inside the
 speech span — not an amplitude threshold, which §53 proved is an
@@ -3890,8 +3891,24 @@ it was wrong: `replyLength × (RTF − 1)` IS the running maximum when the
 rate is uniform. Uniformity was the false assumption; the arithmetic was
 never the problem.
 
-**F-2 — how much of the worst stall to bank.** All of it, or a fraction
-plus a floor. Costs felt pause 1:1, so it is a product decision.
+**F-2 — how much of the worst stall to bank. RULED: all of it.**
+
+The measured worst stall is a MEASUREMENT; a percentage of it is a
+guess. A fraction would be exactly the arbitrary insurance constant
+D-047 rejected — a number protecting against an unmeasured risk, and
+corrupting every measurement taken afterwards by putting a chosen
+constant inside the configuration under test.
+
+*Rejected:* **a fraction plus a floor** — two invented numbers where the
+evidence supports none, and no way to tell later which of them was
+carrying the result.
+
+**The tension, named rather than hidden.** The cushion costs felt pause
+1:1, and the field already reported 6.6 s as too long (INSTRUMENTS §50).
+Banking the full worst stall can only make that worse. So AC-178's sweep
+must report the FELT-PAUSE cost beside the silence, and this fork
+becomes re-rulable with numbers instead of taste — which is the only
+honest way to trade a crackle against a wait.
 
 ## 143. Definition of done (4o)
 
