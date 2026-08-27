@@ -85,7 +85,7 @@ public final class AdaptiveLead: Sendable {
         // margin without steps therefore teaches nothing, and the caller
         // falls back to the decoder's constant as it does on a first
         // reply.
-        guard let worstLag = margin.worstLagMilliseconds else { return }
+        guard let requiredCushion = margin.requiredCushionMilliseconds else { return }
         let length = Duration.milliseconds(margin.audioMilliseconds)
         learned.withLock { memory in
             memory.lengths.append(length)
@@ -107,7 +107,7 @@ public final class AdaptiveLead: Sendable {
             // sweep read to price a first reply, and removing it would
             // throw away the only record of what this conversation
             // sounds like.
-            memory.sized = .milliseconds(worstLag)
+            memory.sized = .milliseconds(requiredCushion)
         }
     }
 

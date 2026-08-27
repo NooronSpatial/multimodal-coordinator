@@ -120,7 +120,7 @@ struct AdaptiveLeadTests {
                      steadyRealTimeFactor: factor,
                      completed: true,
                      cushionMilliseconds: nil,
-                     worstLagMilliseconds: max(0, 6000 * (factor - 1)))
+                     requiredCushionMilliseconds: max(0, 6000 * (factor - 1)))
     }
 
     @Test("it knows nothing until something has been decoded")
@@ -226,7 +226,7 @@ struct AdaptiveLengthTests {
                      steadyRealTimeFactor: factor,
                      completed: true,
                      cushionMilliseconds: nil,
-                     worstLagMilliseconds: max(0, length * (factor - 1)))
+                     requiredCushionMilliseconds: max(0, length * (factor - 1)))
     }
 
     // ⚠️ WHAT D-080 CHANGED ABOUT THIS SUITE.
@@ -329,7 +329,7 @@ struct LearnerRefusalTests {
                      steadyRealTimeFactor: factor,
                      completed: true,
                      cushionMilliseconds: nil,
-                     worstLagMilliseconds: max(0, length * (factor - 1)))
+                     requiredCushionMilliseconds: max(0, length * (factor - 1)))
     }
 
     /// A failed decode's truncated length must not poison the window.
@@ -350,7 +350,7 @@ struct LearnerRefusalTests {
                                       steadyRealTimeFactor: 1.25,
                                       completed: false,
                                       cushionMilliseconds: nil,
-                                      worstLagMilliseconds: 500))
+                                      requiredCushionMilliseconds: 500))
         #expect(adaptive.target == .milliseconds(5000),
                 "a failed run's 500 ms stall must not replace a finished run's 5000")
         #expect(adaptive.typicalLength == .milliseconds(20000),

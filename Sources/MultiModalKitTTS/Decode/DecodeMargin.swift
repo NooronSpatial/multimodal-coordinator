@@ -40,23 +40,26 @@ public struct DecodeMargin: Sendable, Equatable {
     /// margins built outside a run (tests).
     public let cushionMilliseconds: Double?
 
-    /// HOW DEEP THE BANK HAD TO BE (4o, AC-176, D-080).
+    /// THE CUSHION THIS REPLY TURNED OUT TO NEED (4o, AC-176, D-080).
     ///
-    /// The running maximum of `elapsed − produced` across this reply's
-    /// decode steps — the deepest the player ever came to running dry.
+    /// The audio that had to be banked before playback started, computed
+    /// from this reply's own decode steps by `DecodeDeficit.cushion`. It
+    /// is an amount of AUDIO, not a wall time — the distinction the
+    /// review caught, and the reason a faster-than-real-time decoder was
+    /// previously under-banked.
     /// This is what sizes the next cushion, and it replaces
     /// `replyLength × (steadyRealTimeFactor − 1)`, which INSTRUMENTS §53
     /// measured predicting 1248 ms where 5593 ms of silence occurred.
     ///
     /// `nil` when no per-step record existed — margins built by hand in
     /// tests, and any decoder that reports no steps.
-    public let worstLagMilliseconds: Double?
+    public let requiredCushionMilliseconds: Double?
 
     init(audioMilliseconds: Double, wallMilliseconds: Double,
          prefillMilliseconds: Double, steadyRealTimeFactor: Double,
          completed: Bool = true, cushionMilliseconds: Double? = nil,
-         worstLagMilliseconds: Double? = nil) {
-        self.worstLagMilliseconds = worstLagMilliseconds
+         requiredCushionMilliseconds: Double? = nil) {
+        self.requiredCushionMilliseconds = requiredCushionMilliseconds
         self.audioMilliseconds = audioMilliseconds
         self.wallMilliseconds = wallMilliseconds
         self.prefillMilliseconds = prefillMilliseconds

@@ -115,8 +115,15 @@ struct DecodeStepRecordTests {
         #expect(steps.map(\.wallMilliseconds) == [500, 100])
         #expect(steps.map(\.audioMilliseconds) == [0, 900])
 
-        // The new rule banks the peak.
-        #expect(DecodeDeficit.worstLag(steps: steps) == 500)
+        // The corrected model: playback must not start before wall 500
+        // (nothing had arrived by then), and the cushion is the audio
+        // that exists at the first buffer boundary at or after it — the
+        // 900 ms that step 2 delivers. The pre-playback wait is NOT
+        // banked; it only delays the start.
+        // 600, not 500: at wall 600 the second step's time is spent and
+        // its 900 ms of audio has not arrived yet.
+        #expect(DecodeDeficit.requiredStart(steps: steps) == 600)
+        #expect(DecodeDeficit.cushion(steps: steps) == 900)
 
         // The old rule, written as the algebra it really is:
         //   audio × (RTF − 1)  ==  wall − audio
@@ -137,6 +144,6 @@ struct DecodeStepRecordTests {
         #expect(await Self.until { decoder.threw })
         await run.cancel()
         #expect(run.stepTotals.withLock { $0.steps }.isEmpty)
-        #expect(DecodeDeficit.worstLag(steps: run.stepTotals.withLock { $0.steps }) == 0)
+        #expect(DecodeDeficit.cushion(steps: run.stepTotals.withLock { $0.steps }) == 0)
     }
 }

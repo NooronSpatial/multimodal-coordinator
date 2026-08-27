@@ -22,54 +22,83 @@ public struct DecodeStep: Sendable, Equatable {
 }
 
 /// How deep the bank must be for the player never to run dry (4o, D-080,
-/// F-1 = b).
+/// F-1 = b) — **corrected by the review that followed**.
 ///
-/// ## The arithmetic, because it is the whole ruling
+/// ## The model, stated properly this time
 ///
-/// While a reply plays, the bank holds
+/// Three facts the first version got wrong, each confirmed by simulation
+/// against the real `PlaybackLead`:
 ///
-///     cushion + (audio produced so far) − (audio played so far)
+/// 1. **Playback does not begin at the run's birth.** It begins at `T0`,
+///    the first moment enough audio is queued. Nothing drains before
+///    that, so the LLM's time-to-first-clause and the decoder's prefill
+///    are not deficit — they only delay the start. Banking them cost
+///    500–2900 ms of pure felt pause in simulation.
+/// 2. **A step's audio arrives at the END of the step.** The bank bottoms
+///    out just before a slow step delivers, when `elapsed` has advanced
+///    and `produced` has not. Crediting the step's own audio at that
+///    instant understated the peak by one step.
+/// 3. **A wall time is not an audio length.** The required start is a
+///    WALL time; the cushion is an amount of AUDIO. They are equal only
+///    when the decoder never runs ahead of real time — and `.fused`
+///    measured 0.752, comfortably ahead, so the old rule under-banked
+///    exactly where it looked safest.
 ///
-/// and the player drinks in real time, so "audio played" IS elapsed wall
-/// time once playback has started. The bank empties exactly when
+/// ## The arithmetic
 ///
-///     cushion < (elapsed − produced)
+/// With playback starting at `T0` and the player draining in real time,
+/// the audio available just before step `j` delivers is `produced(j−1)`,
+/// and the audio consumed is `elapsed(j) − T0`. No underrun means
 ///
-/// at ANY moment — so the cushion must cover the **running maximum** of
-/// that difference. Not its value at the end, and not the largest single
-/// step.
+///     T0 ≥ elapsed(j) − produced(j−1)   for every j
 ///
-/// ## Why the old rule looked right for four milestones
-///
-/// `replyLength × (RTF − 1)` IS this running maximum — *when the decode
-/// rate is uniform*. Under a constant rate the deficit climbs steadily
-/// and its maximum is its final value, which is what that formula
-/// computes. Uniformity was the false assumption; the arithmetic was
-/// never wrong. The decoder stalls, and a stall reaches a peak the
-/// endpoint never records.
-///
-/// ## Why not the worst single step (F-1's rejected half)
-///
-/// Five 200 ms overruns in a row drain a bank exactly as one 1000 ms
-/// overrun does. A per-step maximum cannot see them, so it under-sizes
-/// precisely when the decoder is persistently — rather than
-/// spectacularly — late.
+/// so the player must not start before **`requiredStart`**, the maximum
+/// of that quantity. The cushion is then simply *how much audio exists by
+/// then* — which is what converts a wall time into the audio length
+/// `PlaybackLead` compares against.
 public enum DecodeDeficit {
-    /// The deepest the bank ever has to be, in milliseconds.
+
+    /// The wall time before which playback must not begin.
     ///
-    /// Returns 0 for an empty sequence and for any decode that never
-    /// falls behind — a decoder faster than the ear needs no cushion, and
-    /// saying "0" is the honest answer rather than a floor in disguise.
-    public static func worstLag(steps: some Sequence<DecodeStep>) -> Double {
+    /// Exposed separately because it is the honest intermediate: a reader
+    /// comparing this against `DecodeMargin.prefillMilliseconds` can see
+    /// at once whether a reply was late because the decoder stalled or
+    /// because the model took its time before saying anything.
+    public static func requiredStart(steps: some Sequence<DecodeStep>) -> Double {
+        var elapsed = 0.0
+        var producedBefore = 0.0
+        var required = 0.0
+        for step in steps {
+            elapsed += step.wallMilliseconds
+            // BEFORE crediting this step's audio: the bank is at its
+            // lowest in the instant between the wall time being spent and
+            // the samples arriving.
+            required = max(required, elapsed - producedBefore)
+            producedBefore += step.audioMilliseconds
+        }
+        return required
+    }
+
+    /// The audio that must be banked before playback starts.
+    ///
+    /// Zero for a decode that never needed to wait. **Conservative by at
+    /// most one step's audio**, and deliberately so: playback can only
+    /// begin on a buffer boundary, so the honest answer is the first
+    /// boundary at or after `requiredStart` rather than a value between
+    /// two of them that no player could act on.
+    public static func cushion(steps: some Sequence<DecodeStep>) -> Double {
+        let steps = Array(steps)
+        let required = requiredStart(steps: steps)
         var elapsed = 0.0
         var produced = 0.0
-        var worst = 0.0
         for step in steps {
             elapsed += step.wallMilliseconds
             produced += step.audioMilliseconds
-            worst = max(worst, elapsed - produced)
+            // The first buffer boundary at or after the required start.
+            // Everything queued by then IS the cushion.
+            if elapsed >= required { return produced }
         }
-        return worst
+        return produced
     }
 }
 

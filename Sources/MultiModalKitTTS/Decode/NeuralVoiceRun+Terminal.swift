@@ -17,7 +17,7 @@ extension NeuralVoiceRun {
         // The number that sizes the NEXT cushion (AC-176). Computed from
         // the step record rather than from the totals beside it, because
         // the totals are exactly what cannot see a stall.
-        let worstLag = DecodeDeficit.worstLag(steps: steps)
+        let requiredCushion = DecodeDeficit.cushion(steps: steps)
         guard samples > 0, let last = stepClock.withLock({ $0 }) else { return }
         func ms(_ duration: Duration) -> Double {
             Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
@@ -40,7 +40,7 @@ extension NeuralVoiceRun {
                                        steadyRealTimeFactor: steady,
                                        completed: completed,
                                        cushionMilliseconds: ms(leadInForce),
-                                       worstLagMilliseconds: worstLag))
+                                       requiredCushionMilliseconds: requiredCushion))
             }
         }
         if NeuralVoiceRun.traceSteps {

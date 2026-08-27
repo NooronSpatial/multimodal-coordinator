@@ -192,7 +192,7 @@ struct VoiceLeversTests {
                                               steadyRealTimeFactor: 1.21,
                                               completed: true,
                                               cushionMilliseconds: nil,
-                                              worstLagMilliseconds: 1260))
+                                              requiredCushionMilliseconds: 1260))
         #expect(derived.inForce.contains("measured here"))
 
         let typed = VoiceLevers(decoder: .stepped, lead: .milliseconds(250)).makeVoice()

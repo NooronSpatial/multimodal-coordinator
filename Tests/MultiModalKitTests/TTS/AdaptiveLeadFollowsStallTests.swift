@@ -20,7 +20,7 @@ struct AdaptiveLeadFollowsStallTests {
                      steadyRealTimeFactor: wall / audio,
                      completed: true,
                      cushionMilliseconds: 0,
-                     worstLagMilliseconds: worstLag)
+                     requiredCushionMilliseconds: worstLag)
     }
 
     /// THE CASE §53 MEASURED AND THE OLD RULE CALLED "SAFE".
@@ -85,7 +85,7 @@ struct AdaptiveLeadFollowsStallTests {
                                       steadyRealTimeFactor: 2.25,
                                       completed: false,
                                       cushionMilliseconds: 0,
-                                      worstLagMilliseconds: 500))
+                                      requiredCushionMilliseconds: 500))
         #expect(adaptive.target == nil)
     }
 }
