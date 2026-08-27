@@ -166,6 +166,7 @@
 			buildConfigurationList = 3D997CD369BEE75007A2F0BC /* Build configuration list for PBXNativeTarget "TranscribeDemo" */;
 			buildPhases = (
 				1588CC8687A6E11D9A560861 /* Sources */,
+				98B71003CBBB260829360AA8 /* SwiftLint */,
 				239DED780A0A122EB46375C7 /* Resources */,
 				64DCFEB2EA1B0FBC80FF16D9 /* Frameworks */,
 			);
@@ -233,6 +234,28 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		98B71003CBBB260829360AA8 /* SwiftLint */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = SwiftLint;
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if command -v swiftlint >/dev/null 2>&1; then\n  cd \"$SRCROOT/../..\" && swiftlint lint --quiet\nelse\n  echo \"warning: swiftlint not installed — brew install swiftlint\"\nfi\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		1588CC8687A6E11D9A560861 /* Sources */ = {

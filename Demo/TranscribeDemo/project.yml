@@ -23,6 +23,19 @@ targets:
         buildPhase: resources
       - path: ../../Fixtures/bakeoff-reference.txt
         buildPhase: resources
+    # SwiftLint while you type (Ryad's ruling 3 = B). It runs after the
+    # compile, warns rather than fails, and does NOTHING when swiftlint is
+    # not installed — a teammate without brew gets a hint, not a broken
+    # build. CI is where the same rules are enforced strictly.
+    postCompileScripts:
+      - script: |
+          if command -v swiftlint >/dev/null 2>&1; then
+            cd "$SRCROOT/../.." && swiftlint lint --quiet
+          else
+            echo "warning: swiftlint not installed — brew install swiftlint"
+          fi
+        name: SwiftLint
+        basedOnDependencyAnalysis: false
     dependencies:
       - package: multimodal-coordinator
         product: MultiModalKit
