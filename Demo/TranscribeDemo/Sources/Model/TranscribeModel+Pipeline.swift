@@ -289,10 +289,10 @@ extension TranscribeModel {
         // breath as the audio one and must leave in the same breath: an
         // observer outliving its pipeline would interrupt a coordinator
         // that no longer exists on the next Control Centre swipe.
-        if let foregroundObserver {
-            NotificationCenter.default.removeObserver(foregroundObserver)
-            self.foregroundObserver = nil
-        }
+        // The foreground observers are NOT removed here any more. They
+        // are armed at launch and must outlive any single conversation:
+        // the MLX mind runs on the GPU during the launch prewarm, with no
+        // pipeline at all, which is the window the review found unguarded.
         if let interruptionObserver {
             NotificationCenter.default.removeObserver(interruptionObserver)
             self.interruptionObserver = nil

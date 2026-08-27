@@ -3315,3 +3315,68 @@ backgrounded the phone mid-reply to watch it hold.
 
 The ear and the mouth run on the ANE through CoreML, which the background
 does not forbid. Only the MLX mind touches Metal.
+
+## D-081 — two review findings on a merged branch, fixed forward (PR #29 follow-up)
+
+**Date:** 2026-08-27 · **Decided by:** Ryad (fix both) · these are
+CORRECTIONS, not new design
+
+The adversarial review of PR #29 finished after Ryad had already merged
+it. It confirmed two MAJOR defects, both on `main`. Recorded here rather
+than quietly patched, because both are faults this project's own rules
+were supposed to prevent.
+
+### 1. A behaviour change inside a commit that claimed none
+
+`ab6bd92` — "ModelBacked: one contract for the four organs' weights" —
+also deleted **`Answer in ONE short sentence. `** from the LOCAL mind's
+instructions. Nothing in that commit's message mentions a prompt, and no
+lint rule touched it: the deleted text sat on a 78-character line with no
+length limit configured, and the byte-identical sentence on the Apple
+mind survived the same commit.
+
+Three consequences, and the third is the expensive one:
+
+1. The two minds were given different prompts while the doc comment
+   above still claimed "the same sentence the Apple mind gets".
+2. The 4B model was free to answer in paragraphs, which changes reply
+   length — and reply length is what 4m's cushion learns from.
+3. `bakeoff ask`'s comment says its prompt is "WORD FOR WORD the demo's
+   text … a field report cannot be chased with a different prompt than
+   the one that produced it." Since `ab6bd92` that was false. **Every
+   Mac measurement of the local mind was taken against a prompt the
+   phone no longer ran.**
+
+Restored. **The lesson, which is the reason this entry exists:** a
+"mechanical" commit is exactly where a behaviour change hides, because
+nobody is reading it for behaviour. The review found it by set-diffing
+string literals between the old and new files — a check worth repeating
+whenever a big file is split.
+
+### 2. D-079's guard was armed everywhere except where it was needed
+
+`observeForegroundLoss()` was registered inside `start()` and removed in
+`stop()`, and its handler opened with `guard isListening`. But the MLX
+mind runs Metal work during **launch**: `refreshMind()` prewarms it
+seconds before anyone can tap Listen. Backgrounding in that window
+reached the identical crash D-079 was written to prevent, through the one
+path the fix did not watch.
+
+Fixed in three places:
+
+- **Armed at launch**, first in `RootView`'s sequence — before anything
+  can touch the GPU — and no longer torn down by `stop()`, because the
+  observer must outlive any single conversation.
+- **`guard isListening` removed** from the handler. The mind can be on
+  the GPU with no conversation at all.
+- **The mind is retired**, not merely interrupted: `retire()` cancels the
+  warm-up AND releases 2.2 GB to a system that is about to judge this
+  app's footprint.
+
+**The cost, named:** a retired mind is cold, so the first reply after
+returning pays the load again. `rewarmMind()` on
+`didBecomeActiveNotification` is the symmetric half — the warm-up starts
+while the person is still looking at the screen. **The honest limit is
+unchanged:** cancellation is cooperative, so this wins the race only when
+MLX is between command buffers, and it remains **unverified on
+hardware**.

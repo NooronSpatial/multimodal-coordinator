@@ -89,6 +89,14 @@ extension TranscribeModel {
     /// The ear and the mouth need no such guard — Whisper and the neural
     /// voice run on the ANE through CoreML, which the background does not
     /// forbid. Only the MLX mind touches Metal.
+    ///
+    /// **Armed at LAUNCH, not at Listen — the review's blocker (2026-08-27).**
+    /// The first version registered this only inside `start()` and opened
+    /// with `guard isListening`, which watches everything except the
+    /// window where the danger is highest: `refreshMind()` prewarms the
+    /// MLX mind during app launch, running Metal work seconds before
+    /// anyone can tap anything. Backgrounding there crashed exactly as
+    /// D-079 describes, through the one path the fix did not watch.
     func observeForegroundLoss() {
         #if canImport(UIKit)
         guard foregroundObserver == nil else { return }
@@ -99,6 +107,16 @@ extension TranscribeModel {
         ) { [weak self] _ in
             Task { @MainActor in await self?.handleForegroundLoss() }
         }
+        // The symmetric half: coming BACK, warm the mind again so the
+        // retirement above is paid for in a window the person spends
+        // looking at the screen rather than waiting for a reply.
+        becameActiveObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            Task { @MainActor in self?.rewarmMind() }
+        }
         #endif
     }
 
@@ -106,6 +124,12 @@ extension TranscribeModel {
     /// reason: the live turn dies HONESTLY rather than hanging, and the
     /// words already spoken are kept.
     private func handleForegroundLoss() async {
+        // NO `guard isListening`. The mind can be on the GPU with no
+        // conversation at all — the launch prewarm is exactly that — so a
+        // guard on listening would skip the very window this exists for.
+        // Retiring the mind is safe whether or not one is running:
+        // `retire()` is idempotent, and the next reply rebuilds it.
+        await retireLocalMind()
         guard isListening else { return }
         await coordinator?.interrupt()
         wasInterrupted = true

@@ -45,6 +45,13 @@ struct RootView: View {
                 // kill — read back before anything else so the evidence of
                 // a death survives the death.
                 { await model.loadPreviousProbe() },
+                // THE GPU GUARD FIRST, before anything can touch Metal
+                // (D-079, the review's blocker). `refreshMind()` below
+                // prewarms MLX during launch, seconds before anyone can
+                // tap Listen — so arming this inside `start()` watched
+                // everything except the window where the crash was most
+                // likely.
+                { await model.observeForegroundLoss() },
                 // Both models are asked about at launch: the transcriber's
                 // and the voice's. Asking never downloads either.
                 { await model.checkModel() },
