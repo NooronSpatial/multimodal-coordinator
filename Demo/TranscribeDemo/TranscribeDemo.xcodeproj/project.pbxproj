@@ -19,7 +19,7 @@
 		4EB28B5FCB38875D917262F5 /* BenchTab+Levers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99669AEF2FADAD85F6FAC7B3 /* BenchTab+Levers.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
 		6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */ = {isa = PBXBuildFile; productRef = B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */; };
-		80C7530167B4686EF7C896BF /* MultiModalKitMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */; };
+		80C7530167B4686EF7C896BF /* MultiModalKitBench in Frameworks */ = {isa = PBXBuildFile; productRef = B73F37DC7231E5744F928FE4 /* MultiModalKitBench */; };
 		825FD2BEFCB696CA449683AB /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 384627647A92F1081CF1B513 /* RootView.swift */; };
 		91D87217FBAB26491A4C6EAF /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40055F8D39F68DAC340E1E1 /* TranscribeModel.swift */; };
 		9D87E5D4DECC2D79482B487D /* ChatTab+Turn.swift in Sources */ = {isa = PBXBuildFile; fileRef = 842432F8319C95B44FD13EB8 /* ChatTab+Turn.swift */; };
@@ -27,6 +27,7 @@
 		B09590FB80812A64FF93D3B0 /* TranscribeModel+Events.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10EABF4C13F76A5E9AE1393E /* TranscribeModel+Events.swift */; };
 		B3237F3178EFE5F317501E3F /* TranscribeModel+Pipeline.swift in Sources */ = {isa = PBXBuildFile; fileRef = 649EDF90C9D9AF455031915F /* TranscribeModel+Pipeline.swift */; };
 		B5B7DC5D9CFD596F299ECB34 /* TranscribeModel+Levers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C873B54248B8B407AFA850E /* TranscribeModel+Levers.swift */; };
+		C1427CD7F001103EA2A23D40 /* MultiModalKitMLX in Frameworks */ = {isa = PBXBuildFile; productRef = 043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */; };
 		C68E60A56CC492F1955D92CF /* TranscribeModel+AudioProbes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0C5B51CE51BAF0036623F55 /* TranscribeModel+AudioProbes.swift */; };
 		D19E09984090DB4AD69F151F /* TranscribeModel+Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = B513EAD414A289109C9F1FA1 /* TranscribeModel+Settings.swift */; };
 		D3A65446091A4E8385B23902 /* PhoneBenchStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2026FC13FC455C7918599406 /* PhoneBenchStage.swift */; };
@@ -76,7 +77,8 @@
 				20195D84C77681B83F3CD2CB /* MultiModalKitTesting in Frameworks */,
 				310C0A66C7D5AE9E8949A90E /* MultiModalKitWhisper in Frameworks */,
 				6DF111453C38F4F9FC98DA75 /* MultiModalKitTTS in Frameworks */,
-				80C7530167B4686EF7C896BF /* MultiModalKitMLX in Frameworks */,
+				80C7530167B4686EF7C896BF /* MultiModalKitBench in Frameworks */,
+				C1427CD7F001103EA2A23D40 /* MultiModalKitMLX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -177,6 +179,7 @@
 				0A2CF38D0EAC11F37DB3D116 /* MultiModalKitTesting */,
 				91D46599C4B27B19A9112CC8 /* MultiModalKitWhisper */,
 				B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */,
+				B73F37DC7231E5744F928FE4 /* MultiModalKitBench */,
 				043A7AA45C2390C0CD0E8EE7 /* MultiModalKitMLX */,
 			);
 			productName = TranscribeDemo;
@@ -479,6 +482,10 @@
 		B1C9D83CF52F623CBEC145B8 /* MultiModalKitTTS */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MultiModalKitTTS;
+		};
+		B73F37DC7231E5744F928FE4 /* MultiModalKitBench */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = MultiModalKitBench;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
