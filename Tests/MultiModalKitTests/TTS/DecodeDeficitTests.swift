@@ -1,5 +1,5 @@
 import Testing
-import MultiModalKitTTS
+@testable import MultiModalKitTTS
 
 /// 4o — AC-175. The statistic that replaces an average (D-080, F-1 = b).
 ///
@@ -90,5 +90,71 @@ struct DecodeDeficitTests {
         let oldRule = audio * (factor - 1)
         #expect(DecodeDeficit.worstLag(steps: steps) == 500)
         #expect(oldRule == 500)
+    }
+}
+
+/// 4o — AC-177. `keepsUp` survives D-080, and is now pinned.
+///
+/// The criterion said "the existing expectations still pass, byte for
+/// byte". There were none: `keepsUp` had no test and no caller anywhere
+/// in the repo. So this suite is AC-177 paid honestly rather than
+/// declared — the flag is the ONE part of the retired rule's machinery
+/// that measurement vindicated, and it was resting on nothing.
+///
+/// INSTRUMENTS §53 is the evidence: across six measured configurations,
+/// every one with a steady factor below 1.0 produced zero digital
+/// silence, and both above it starved. The flag was right every time; it
+/// was its use as a SIZING formula that was wrong (D-080).
+@Suite("keeps-up is a flag, and it stayed one")
+struct KeepsUpTests {
+
+    static func margin(factor: Double) -> DecodeMargin {
+        DecodeMargin(audioMilliseconds: 1000,
+                     wallMilliseconds: 1000 * factor,
+                     prefillMilliseconds: 0,
+                     steadyRealTimeFactor: factor)
+    }
+
+    /// §53's own numbers, both sides of the line. These are the measured
+    /// medians for 0.6B on this Mac, not invented values.
+    @Test("the configurations that never starved all read keepsUp")
+    func measuredFastConfigurationsKeepUp() {
+        // A · fused + latency (0.757) · F · fused + throughput (0.877)
+        #expect(Self.margin(factor: 0.757).keepsUp)
+        #expect(Self.margin(factor: 0.877).keepsUp)
+    }
+
+    @Test("the configurations that DID starve all read not-keepsUp")
+    func measuredSlowConfigurationsDoNot() {
+        // D · stepped + throughput (1.114) · B · stepped + latency (1.004)
+        #expect(!Self.margin(factor: 1.114).keepsUp)
+        #expect(!Self.margin(factor: 1.004).keepsUp)
+    }
+
+    /// The boundary, stated: exactly 1.0 does NOT keep up. A decoder
+    /// running at precisely real time has no margin for the next stall,
+    /// and the flag must not call that safe.
+    @Test("exactly real time is not keeping up")
+    func exactlyRealTimeIsNotSafe() {
+        #expect(!Self.margin(factor: 1.0).keepsUp)
+        #expect(Self.margin(factor: 0.999).keepsUp)
+    }
+
+    /// THE SEPARATION D-080 RULED, in one test: the flag and the cushion
+    /// now answer different questions from different data. A decode can
+    /// keep up on average and still have stalled badly enough to need a
+    /// bank — which is the whole reason the average was retired as a
+    /// sizing input.
+    @Test("a decode can keep up on average and still have needed a cushion")
+    func keepingUpDoesNotMeanNoCushion() {
+        let steps = [
+            DecodeStep(wallMilliseconds: 800, audioMilliseconds: 0),
+            DecodeStep(wallMilliseconds: 100, audioMilliseconds: 1400)
+        ]
+        // 1400 ms of audio in 900 ms of wall: comfortably faster than the
+        // ear, and the flag says so.
+        #expect(Self.margin(factor: 900.0 / 1400.0).keepsUp)
+        // And it still ran 800 ms dry in the middle.
+        #expect(DecodeDeficit.worstLag(steps: steps) == 800)
     }
 }
