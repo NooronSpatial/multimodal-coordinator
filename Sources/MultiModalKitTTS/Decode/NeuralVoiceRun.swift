@@ -63,11 +63,45 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// when nobody is asking.
     static let traceSteps = ProcessInfo.processInfo.environment["MMK_TRACE_TTS"] == "1"
     let stepClock = Mutex<ContinuousClock.Instant?>(nil)
-    let birth = ContinuousClock().now
+
+    /// WHERE TIME COMES FROM (4o, AC-174).
+    ///
+    /// A time SOURCE, not a `Clock`, and the difference is the whole
+    /// reason this is a closure rather than a generic parameter: this
+    /// type only ever READS the clock — it stamps an instant and
+    /// subtracts. It never sleeps, never schedules, never waits on a
+    /// deadline. `AudioPump` is generic over `Clock` because it genuinely
+    /// suspends until the next poll; making this type generic would push
+    /// a type parameter through `NeuralVoice` for a capability nobody
+    /// calls.
+    ///
+    /// Injected because the determinism law says so and because AC-174's
+    /// record is now load-bearing: the step's WALL TIME is what sizes the
+    /// cushion (D-080), and a field pinned by nothing is the kind of
+    /// instrument §53 caught lying.
+    let now: @Sendable () -> ContinuousClock.Instant
+    let birth: ContinuousClock.Instant
     struct Totals {
         var samples = 0
         var firstStep: ContinuousClock.Instant?
         var firstSamples = 0
+        /// THE RECORD THAT DID NOT EXIST (4o, AC-174). One entry per
+        /// decode step: what it cost and what it produced.
+        ///
+        /// This callback already stamped a clock and already counted
+        /// samples — it simply threw the INTERVAL away, keeping only
+        /// totals. That is why four milestones could see an average and
+        /// never a stall, and why D-046's rule survived being wrong
+        /// (D-080).
+        ///
+        /// Kept whole rather than folded into a running maximum on
+        /// purpose: `DecodeDeficit.worstLag` is a pure function over a
+        /// sequence, so it can be tested with no decoder, no clock and no
+        /// audio — and a sequence can answer questions a running maximum
+        /// has already forgotten, which the sweep of AC-178 will need.
+        /// The cost is bounded and small: a 30-second reply at ~20 ms per
+        /// step is about 1500 entries of two Doubles.
+        var steps: [DecodeStep] = []
     }
     let stepTotals = Mutex(Totals())
     /// The owned worker. Held so `cancel()` can stop it.
@@ -114,7 +148,11 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// 16 kHz, which is the "drunk" voice the field reported.
     init(decoder: any TTSDecoding, host: any PlaybackHost,
          lead: PlaybackLead, temperature: Float? = nil,
-         onMargin: (@Sendable (DecodeMargin) -> Void)? = nil) throws {
+         onMargin: (@Sendable (DecodeMargin) -> Void)? = nil,
+         now: @escaping @Sendable () -> ContinuousClock.Instant
+            = { ContinuousClock().now }) throws {
+        self.now = now
+        self.birth = now()
         self.onMargin = onMargin
         self.state = Mutex(Guarded(lead: lead))
         self.leadInForce = lead.target

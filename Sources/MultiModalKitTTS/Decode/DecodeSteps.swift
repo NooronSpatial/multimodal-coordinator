@@ -72,3 +72,27 @@ public enum DecodeDeficit {
         return worst
     }
 }
+
+extension Duration {
+    /// This duration in milliseconds.
+    ///
+    /// Open-coded in two places before 4o and about to become three, which
+    /// is how two ways to state one fact begin. `components` rather than
+    /// any Double conversion because attoseconds are exact integers here
+    /// and the arithmetic should not visit a lossy type on the way.
+    var milliseconds: Double {
+        // INTEGER FIRST, and that is not fussiness. 50 ms is 5×10¹⁶
+        // attoseconds, which is larger than 2⁵³ — so `Double(attoseconds)`
+        // cannot hold it exactly and 50 ms arrives as 50.00000000000001.
+        // The repo's own rule is that test values must be binary-exact,
+        // and this helper feeds them: it broke AC-174's first run.
+        //
+        // So divide in `Int64` down to MICROSECONDS (10¹² attoseconds),
+        // where the numbers are small enough to be exact, and only then
+        // convert. Resolution is 1 µs, which is three orders finer than
+        // any decode step this measures.
+        let microseconds = components.seconds * 1_000_000
+            + components.attoseconds / 1_000_000_000_000
+        return Double(microseconds) / 1000
+    }
+}
