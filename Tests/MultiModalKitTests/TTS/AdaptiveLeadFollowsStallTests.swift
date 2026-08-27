@@ -89,3 +89,42 @@ struct AdaptiveLeadFollowsStallTests {
         #expect(adaptive.target == nil)
     }
 }
+
+/// 4o — AC-179. The first reply of a session has nothing measured to
+/// learn from, so ONE constant speaks for it. This suite pins what that
+/// constant is and what it costs, so the gap is a known number rather
+/// than a surprise in a field report.
+@Suite("the first reply's cushion is stated, not assumed")
+struct FirstReplyCushionTests {
+
+    /// Nothing learned yet means the learner says NOTHING — it does not
+    /// invent a starting value. The fallback is the caller's decision,
+    /// made in one visible place.
+    @Test("a fresh learner offers no cushion at all")
+    func freshLearnerIsSilent() {
+        #expect(AdaptiveLead().target == nil)
+        #expect(AdaptiveLead().typicalLength == nil)
+    }
+
+    /// THE PRICE, PINNED (INSTRUMENTS §54). The constant asks 396 ms on
+    /// `.stepped`; the sweep measured a short reply needing 1600 ms to
+    /// fall silent-free on the same levers. That is roughly a fourfold
+    /// shortfall, and this test exists so a change to either number
+    /// cannot quietly widen it.
+    @Test("the Mac's first reply is under-cushioned, by a number we know")
+    func theFirstReplyIsUnderCushioned() {
+        let fallback = NeuralVoice.defaultLead(for: .stepped)
+        #expect(fallback == .milliseconds(396))
+
+        let measuredNeed = Duration.milliseconds(1600)     // §54.3a
+        #expect(fallback < measuredNeed,
+                "if this ever passes, §54's sweep and this constant have met — update both")
+    }
+
+    /// The other decoder keeps up on this Mac, so its first reply needs
+    /// nothing — and the constant says so rather than banking anyway.
+    @Test("a decoder that keeps up gets no first-reply cushion either")
+    func fusedNeedsNoFallback() {
+        #expect(NeuralVoice.defaultLead(for: .fused) == .zero)
+    }
+}

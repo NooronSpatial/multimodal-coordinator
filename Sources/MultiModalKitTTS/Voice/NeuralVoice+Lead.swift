@@ -80,7 +80,33 @@ extension NeuralVoice {
         #endif
     }
 
-    /// The cushion this decoder actually needs, derived not guessed.
+    /// THE FIRST REPLY'S CUSHION, and the one place that decides it
+    /// (4o, AC-179).
+    ///
+    /// Every other cushion in this project is now MEASURED: the run
+    /// records its decode steps, `DecodeDeficit.worstLag` finds the
+    /// deepest the bank ever had to be, and `AdaptiveLead` banks exactly
+    /// that (D-080). None of it is available before the first reply of a
+    /// session has been decoded, so this constant is what speaks first.
+    ///
+    /// **It is computed with the rule D-080 RETIRED**, and that is stated
+    /// rather than hidden: `replyLength × (RTF − 1)` for a nominal six
+    /// seconds. Keeping it is deliberate — 4o's non-goals exclude the
+    /// first reply, because closing it needs a calibration at load time
+    /// on a device where load time already kills the app (§29). What 4o
+    /// owes is the PRICE, not the cure.
+    ///
+    /// **The price, measured (INSTRUMENTS §54).** On this Mac with the
+    /// phone's own levers, a short reply needs **1600 ms** to fall
+    /// silent-free. This constant asks for **396 ms** on `.stepped`, and
+    /// the sweep measured ~98 ms of silence per second of speech at
+    /// 400 ms. So the first reply of a session is UNDER-CUSHIONED by
+    /// about 4× on this machine, and the person hears it.
+    ///
+    /// The iOS constants (D-076) land nearer by accident than by design:
+    /// 1.30–1.33 gives ~1980 ms, close to the 1600 that measured clean —
+    /// which is a coincidence of two wrong methods, not a verification of
+    /// either.
     public nonisolated static func defaultLead(
         for mode: Qwen3MultiCodeDecoderMode
     ) -> Duration {
