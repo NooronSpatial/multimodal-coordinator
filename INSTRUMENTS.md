@@ -4200,12 +4200,12 @@ counterbalanced passes:
 | 1600 ms | 0 | 0–0 | 2548 ms |
 | 3200 ms | 0 | 0–0 | 4324 ms |
 
-**800 ms is the smallest cushion that silences a short reply**, and it
-costs about 1.6 s of felt pause — F-2's price, in a number. The drift
-probe moved 177 ms/s against an effect of 221, so the margin is tighter
-than it looks; the zeros at 800/1600/3200 are what carry it.
-
-*Caveat:* the 800 ms cell captured only one of its two runs.
+This table reads *800 ms* as the answer, and **§54.3a corrects it to
+1600 ms** — the 800 ms cell captured only one of its two runs, and a
+single-run zero is not a result. The drift probe moved 177 ms/s here
+against an effect of 221, so the margin was always tighter than the
+zeros make it look. Left in place rather than edited away, because the
+correction is the point.
 
 ### 54.3 The long reply: VOID, and the probe is what proved it
 
@@ -4229,7 +4229,42 @@ OPEN.
 **The honest boundary this establishes:** *this Mac is a valid
 laboratory for short-reply cushion questions and not for long-reply
 ones,* because sustained decoding heats it faster than a sweep can
-outrun. A cooldown between runs is the next attempt.
+outrun.
+
+### 54.3a The cooldown attempt, and why it is the end of this road
+
+A third sweep added 45 s of rest between every run. It did **not**
+rescue the long fixture:
+
+```
+drift probe @800 ms:  before 379 → after 694 ms/s   (moved 315, was 351)
+all six cushions:     545 … 571                     (spread 26)
+```
+
+Drift 315 against an effect of 26 — the same verdict. The reason is
+arithmetic rather than bad luck: **the long decode itself runs 45–91 s**,
+so a 45-second rest cannot return the machine to where it started. A
+cooldown long enough would have to exceed the run it follows, and a
+sweep built that way would take hours to answer a question the phone
+could be asked directly.
+
+**It also corrected the SHORT answer, which is the more useful finding.**
+With cooldowns, 800 ms no longer silenced the short reply — one run 0,
+one run 121 ms/s. Across all three sweeps the smallest cushion that is
+zero in *every* run is **1600 ms**, not 800:
+
+| cushion | sweep 2 | sweep 3 (cooled) | verdict |
+|---|---|---|---|
+| 800 ms | 0 (one run only) | 61 (spread 0–121) | **marginal** |
+| 1600 ms | 0 (0–0) | 0 (0–0) | **clean** |
+
+So §54.2's 800 ms was a single-run zero reading as a result. **AC-178's
+answer is 1600 ms, at ~2.4 s of felt pause** — and the difference
+between the two numbers is exactly what repeats exist to find.
+
+**Stopping here is the ruling this section makes:** more sweeps on this
+machine buy variance, not knowledge. The long-reply question needs the
+phone, or a machine that does not throttle.
 
 ### 54.4 Why the drift probe exists at all
 
