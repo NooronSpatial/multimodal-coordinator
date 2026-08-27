@@ -3997,7 +3997,7 @@ Two outcomes, both terminal:
 
 ### The run came back — outcome 2, and AC-172 CLOSES as C
 
-Ryad's phone, 2026-08-28, the ❄ tapped with the D-075 build. The report
+Ryad's phone, 2026-08-27, the ❄ tapped with the D-075 build. The report
 survived and answered:
 
 ```
