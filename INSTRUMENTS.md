@@ -4163,3 +4163,136 @@ INCOMPLETE — four of its agents died on connection errors, including the
 judge examining whether the metric tracks the ear. Every corrected
 number above was re-derived independently before being written here, but
 the review itself is owed a resumption.
+
+## 54. The cushion sweep, and the drift that made half of it void
+
+> ⚠️ **EVERY NUMBER IN THIS SECTION WAS PRODUCED BY AN INSTRUMENT SINCE
+> FOUND UNRELIABLE, and is unverified until re-measured.** The 4o
+> adversarial review (2026-08-27, after this section was written) found
+> that the sweep could grade a FAILED decode as `0 ms/s` — the best
+> possible score — and fold it into a median, because `DigitalSilence`
+> answers 0 both for flawless speech and for none at all while the engine
+> keeps rendering zeros after a run dies. It also printed a one-run cell
+> identically to a repeated one, which is precisely how §54.2's 800 ms
+> was published and then withdrawn in §54.3a.
+>
+> Both faults are fixed. **The conclusions below are NOT re-run yet**, so
+> read them as the record of what the tool said, not as measurements this
+> project stands behind. The one claim that does not depend on the sweep
+> is §53's demolition of the old sizing rule, which was measured
+> independently.
+
+
+Ryad's Mac, 2026-08-27, milestone 4o's AC-178. The sweep answers the
+short reply and CANNOT answer the long one — and the second half is the
+more useful result, because the instrument is what said so.
+
+### 54.1 The metric, chosen after the first one was refuted
+
+**Exact-zero runs ≥20 ms inside the speech span.** When an
+`AVAudioPlayerNode` runs dry the mixer renders literal zeros; speech
+never is exactly zero, so the signature needs no threshold.
+
+This session's FIRST metric used an invented amplitude floor of 0.005.
+The adversarial review killed it: the floor cut through quiet-but-real
+speech, it was knife-edge (the same recording read 9 or 68 ms/s as the
+floor moved from 0.002 to 0.010), and it produced a confident false
+conclusion — a "residual no cushion can fix" that contained not one
+silent sample. `DigitalSilence` is the replacement, with seven tests;
+two of them exist because of that failure (quiet speech is not a
+dropout; the cushion's own leading silence is not counted against it —
+a metric that counted it would report the cure as the disease).
+
+### 54.2 The short reply: 800 ms, and what it costs
+
+0.6B · stepped + throughput (the phone's own levers), medians of two
+counterbalanced passes:
+
+| cushion | median silence | spread | felt pause |
+|---|---|---|---|
+| 0 | 221 ms/s | 124–317 | 588 ms |
+| 200 ms | 217 | 149–286 | 608 ms |
+| 400 ms | 90 | 0–180 | 1425 ms |
+| **800 ms** | **0** | 0–0 | 1613 ms |
+| 1600 ms | 0 | 0–0 | 2548 ms |
+| 3200 ms | 0 | 0–0 | 4324 ms |
+
+This table reads *800 ms* as the answer, and **§54.3a corrects it to
+1600 ms** — the 800 ms cell captured only one of its two runs, and a
+single-run zero is not a result. The drift probe moved 177 ms/s here
+against an effect of 221, so the margin was always tighter than the
+zeros make it look. Left in place rather than edited away, because the
+correction is the point.
+
+### 54.3 The long reply: VOID, and the probe is what proved it
+
+```
+drift probe @800 ms:  before 337 → after 688 ms/s   (moved 351)
+all six cushions:     536 … 562                     (spread 25)
+```
+
+**The drift is fourteen times the effect.** Nothing in that table says
+anything about the cushion. The probe's last run took **89.75 s** for a
+sentence worth about 30 — by then this Mac is in a state where no lever
+is measurable.
+
+**This retracts a claim made earlier the same day.** A counterbalanced
+pair had suggested the cushion "barely helps long replies" (362 → 316
+ms/s across a sixteen-fold increase in bank size). That difference sits
+inside the same drift, so it is withdrawn. §143a's question — whether a
+stall measured on a short reply banks enough for a long one — is still
+OPEN.
+
+**The honest boundary this establishes:** *this Mac is a valid
+laboratory for short-reply cushion questions and not for long-reply
+ones,* because sustained decoding heats it faster than a sweep can
+outrun.
+
+### 54.3a The cooldown attempt, and why it is the end of this road
+
+A third sweep added 45 s of rest between every run. It did **not**
+rescue the long fixture:
+
+```
+drift probe @800 ms:  before 379 → after 694 ms/s   (moved 315, was 351)
+all six cushions:     545 … 571                     (spread 26)
+```
+
+Drift 315 against an effect of 26 — the same verdict. The reason is
+arithmetic rather than bad luck: **the long decode itself runs 45–91 s**,
+so a 45-second rest cannot return the machine to where it started. A
+cooldown long enough would have to exceed the run it follows, and a
+sweep built that way would take hours to answer a question the phone
+could be asked directly.
+
+**It also corrected the SHORT answer, which is the more useful finding.**
+With cooldowns, 800 ms no longer silenced the short reply — one run 0,
+one run 121 ms/s. Across all three sweeps the smallest cushion that is
+zero in *every* run is **1600 ms**, not 800:
+
+| cushion | sweep 2 | sweep 3 (cooled) | verdict |
+|---|---|---|---|
+| 800 ms | 0 (one run only) | 61 (spread 0–121) | **marginal** |
+| 1600 ms | 0 (0–0) | 0 (0–0) | **clean** |
+
+So §54.2's 800 ms was a single-run zero reading as a result. **AC-178's
+answer is 1600 ms, at ~2.4 s of felt pause** — and the difference
+between the two numbers is exactly what repeats exist to find.
+
+**Stopping here is the ruling this section makes:** more sweeps on this
+machine buy variance, not knowledge. The long-reply question needs the
+phone, or a machine that does not throttle.
+
+### 54.4 Why the drift probe exists at all
+
+The first sweep ran cushions in ascending order and reported a BIGGER
+cushion producing MORE silence — which would have been written down as a
+finding. A reverse-order control showed the numbers rising with POSITION
+in both directions: the sweep was measuring the machine warming up.
+
+So the tool now sweeps each repeat the opposite way (a linear drift
+cancels in the pair), refuses an odd `--repeats` in words rather than
+silently leaving a pass unpaired, prints medians with their spread, and
+brackets every fixture with a fixed-cushion probe. **A reader who sees
+the probe move 351 should not believe a 25 ms/s difference between two
+cushions** — and that sentence is the whole reason the probe is there.

@@ -136,6 +136,11 @@ let package = Package(
                 // The second mind, so `mind-off` can put the two brains on
                 // the same question (AC-130).
                 "MultiModalKitMLX",
+                // The bench's measuring types — `cushion-sweep` reads
+                // `DigitalSilence` from here rather than carrying its own
+                // copy, because the metric must be the SAME one the tests
+                // pin (4o, AC-178).
+                "MultiModalKitBench",
                 // Direct, so `voice-levers` can name the decoder modes it
                 // is comparing (AC-106). A TOOL target, tier 2 of D-016 —
                 // the core still knows nothing about any of this.

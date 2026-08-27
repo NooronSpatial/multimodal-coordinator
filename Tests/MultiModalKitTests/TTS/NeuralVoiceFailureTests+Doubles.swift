@@ -24,6 +24,11 @@ enum DecodeScript: Sendable {
     case stepsUntilStoppedThenThrows(String)
     /// A fixed number of steps, then returns normally.
     case steps(Int)
+    /// One step per entry, each producing that many SAMPLES — so a test
+    /// can state exactly how much audio each step made (4o, AC-174).
+    /// `.steps(n)` produces empty steps, which is the right shape for the
+    /// failure paths and the wrong one for measuring audio.
+    case stepsProducing([Int])
 }
 
 struct DecodeFailure: Error, CustomStringConvertible {
@@ -94,6 +99,16 @@ final class ScriptedDecoder: TTSDecoding, @unchecked Sendable {
 
         case .steps(let count):
             for _ in 0..<count where !step(onStep) { return }
+
+        case .stepsProducing(let sampleCounts):
+            for count in sampleCounts {
+                let keep = onStep([Float](repeating: 0, count: count))
+                state.withLock {
+                    $0.stepsTaken += 1
+                    if !keep { $0.wasStopped = true }
+                }
+                if !keep { return }
+            }
 
         case .stepsUntilStopped:
             await stepUntilStopped(onStep)

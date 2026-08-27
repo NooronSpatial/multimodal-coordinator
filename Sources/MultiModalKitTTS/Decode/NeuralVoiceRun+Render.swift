@@ -52,14 +52,26 @@ extension NeuralVoiceRun {
                     // have stayed blank. A dead instrument costs a whole
                     // field trip, which is the most expensive thing in
                     // this project.
-                    let now = ContinuousClock().now
+                    let now = self.now()
+                    // The step's own cost: from the PREVIOUS step's stamp,
+                    // or from the run's birth for the first one — which
+                    // makes step 1 carry the prefill, exactly where it
+                    // belongs (AC-106 separated prefill from steady rate
+                    // for the same reason).
+                    let previous = self.stepClock.withLock { $0 }
+                    let took = (previous ?? self.birth).duration(to: now)
                     self.stepClock.withLock { $0 = now }
+                    let audioMilliseconds =
+                        Double(samples.count) * 1000 / Double(self.decoder.sampleRate)
                     self.stepTotals.withLock {
                         if $0.firstStep == nil {
                             $0.firstStep = now
                             $0.firstSamples = samples.count
                         }
                         $0.samples += samples.count
+                        $0.steps.append(DecodeStep(
+                            wallMilliseconds: took.milliseconds,
+                            audioMilliseconds: audioMilliseconds))
                     }
                     self.render(samples)
                     return true

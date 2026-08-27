@@ -189,7 +189,10 @@ struct VoiceLeversTests {
         derived.adaptive.observe(DecodeMargin(audioMilliseconds: 6000,
                                               wallMilliseconds: 7260,
                                               prefillMilliseconds: 100,
-                                              steadyRealTimeFactor: 1.21))
+                                              steadyRealTimeFactor: 1.21,
+                                              completed: true,
+                                              cushionMilliseconds: nil,
+                                              requiredCushionMilliseconds: 1260))
         #expect(derived.inForce.contains("measured here"))
 
         let typed = VoiceLevers(decoder: .stepped, lead: .milliseconds(250)).makeVoice()

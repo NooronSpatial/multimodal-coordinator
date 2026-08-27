@@ -3774,3 +3774,182 @@ death line) · margins on every turn row · zero warnings · 20× stable ·
 review before merge, with all fixes pushed BEFORE the PR is called ready
 (the lesson of #22 and #24) · teach-back — including 4m's, still owed:
 why two estimators, and why the mean and not the median.
+
+# Milestone 4o — the cushion sized by the worst stall, not the average
+
+**SPEC SIGNED by Ryad, 2026-08-27.** Both forks ruled at sign-off:
+F-1 = (b) the running maximum, F-2 = bank all of it and price the pause.
+
+## 138. Why this exists
+
+INSTRUMENTS §53 reproduced the phone's hitching ON A MAC and then killed
+the rule that was supposed to prevent it. `deficit = replyLength ×
+(RTF − 1)` (D-046, inherited by D-073) predicted 1248 ms of uncovered
+deficit where 5593 ms of true digital silence was measured — under by
+4.5× — and on one file it called a reply covered while its audio broke.
+D-080 ruled the cure: size the bank from the worst STALL, because a mean
+cannot size a burst.
+
+Two assets this milestone starts with, both earned on 2026-08-27:
+
+- **A laboratory.** The defect reproduces on this Mac in a saved file:
+  the phone's configuration starves in 6 of 9 files (92.9 ms of digital
+  silence per second of speech); the same configuration with a bigger
+  cushion starves in 0 of 9.
+- **A metric that matches Ryad's ear.** Runs of EXACT digital silence —
+  what the mixer renders when the player runs dry, needing no chosen
+  threshold. He called the 13-run file hitchy and the 0-run file better.
+  The session's first metric, an amplitude threshold, was an ARTIFACT and
+  the adversarial review killed it; that failure is why this spec names
+  the metric precisely.
+
+## 139. Scope
+
+1. **Per-step decode timing.** The decoder reports how long each step
+   took and how much audio it produced. Today `DecodeMargin` carries
+   whole-run numbers only, so nothing in this project can see a stall.
+2. **A stall statistic.** From those steps, the worst observed lag — the
+   largest amount by which the decoder fell behind the audio it had
+   already committed to play.
+3. **A cushion derived from it**, replacing the mean-based derivation
+   inside `AdaptiveLead`.
+4. **A sweep that proves it**, on the Mac, measuring digital silence
+   across cushion sizes (option A's half, kept by D-080 as the
+   verification).
+
+## 140. Non-goals
+
+- **The first reply of a session.** It has no history to learn from. 4m
+  left this open, this milestone inherits it, and closing it is not
+  attempted here — it is named in AC-179 so the next field log can price
+  it rather than rediscover it.
+- **Rebuffering** (D-080's rejected option C). It may yet be the better
+  PRODUCT, and it is a separate ruling on a separate day.
+- **The stepped decoder's own choppiness.** §53's factorial cannot
+  separate a decoder that stalls from a vocoder that pauses; this
+  milestone treats starvation only.
+- **The phone.** Every criterion below is provable on the Mac. Field
+  confirmation is welcome and is not a gate.
+
+## 141. Acceptance criteria
+
+**AC-174 — a step is timed, and the record says so.** The neural voice's
+run records, per decode step, the wall time it took and the audio
+milliseconds it produced. *Test:* a scripted decoder with known step
+durations produces a step record of the expected length and values.
+
+**AC-175 — the worst stall is a number, computed from steps alone.** A
+pure function turns a sequence of steps into the largest lag between
+audio committed and audio delivered. *Test:* a hand-built sequence with
+one deliberate 900 ms stall in an otherwise fast run reports 900 ms, not
+the mean; a uniformly slow run reports its steady deficit. Both values
+are binary-exact.
+
+**AC-176 — the cushion follows the worst stall.** `AdaptiveLead` sizes
+from AC-175's statistic instead of `replyLength × (RTF − 1)`. *Test:*
+fed §53's real numbers, the new rule asks for at least the silence that
+was actually measured on the file the old rule called "safe" (394 ms).
+*Red first:* the same test against the old rule must fail, and the
+failure is recorded in the commit.
+
+**AC-177 — `keepsUp` is untouched.** `steadyRealTimeFactor < 1.0`
+remains the keeps-up flag, unchanged in meaning and value. *Test:* the
+existing expectations still pass, byte for byte.
+
+**AC-178 — the sweep proves it on the Mac, prices it, and tests the
+length question.** `bakeoff voice-levers` gains a cushion sweep: for each
+lead in a range, decode the fixture and report DIGITAL SILENCE per second
+of speech AND the felt pause that lead costs (F-2's re-ruling evidence).
+It sweeps **two reply lengths, short and long**, because §143a's open
+question — whether a stall measured on a short reply banks enough for a
+long one — cannot be answered by a single fixture. *Evidence:* a table in
+INSTRUMENTS showing silence falling to zero, and the smallest lead that
+achieves it. *The metric is exact-zero-sample runs ≥20 ms inside the
+speech span — not an amplitude threshold, which §53 proved is an
+artifact.*
+
+**AC-179 — the first reply is measured, not guessed.** With no history,
+the code must state in ONE place what it falls back to and why. The
+sweep reports what that fallback costs in silence on the first reply.
+*Evidence:* the number, in INSTRUMENTS, beside the sweep.
+
+## 142. The forks
+
+**F-1 — what "the worst stall" means. RULED (b): the largest CUMULATIVE
+lag reached at any point in the run.**
+
+This fork was drafted as one for the data to settle, and that was wrong:
+it is arithmetic, not an experiment. The bank level is
+
+    cushion + (audio produced) − (audio played)
+
+so the bank must cover the RUNNING MAXIMUM of `elapsed − produced`. The
+deficit is cumulative by construction: five 200 ms overruns in a row
+drain a bank exactly as one 1000 ms overrun does, and (a) cannot see
+them.
+
+*Rejected:* **(a), the largest single step's overrun** — a component of
+(b), never a substitute. It under-sizes whenever slowness PERSISTS
+across steps, which is the failure §53 already measured.
+
+This also names what was wrong with the old rule rather than only that
+it was wrong: `replyLength × (RTF − 1)` IS the running maximum when the
+rate is uniform. Uniformity was the false assumption; the arithmetic was
+never the problem.
+
+**F-2 — how much of the worst stall to bank. RULED: all of it.**
+
+The measured worst stall is a MEASUREMENT; a percentage of it is a
+guess. A fraction would be exactly the arbitrary insurance constant
+D-047 rejected — a number protecting against an unmeasured risk, and
+corrupting every measurement taken afterwards by putting a chosen
+constant inside the configuration under test.
+
+*Rejected:* **a fraction plus a floor** — two invented numbers where the
+evidence supports none, and no way to tell later which of them was
+carrying the result.
+
+**The tension, named rather than hidden.** The cushion costs felt pause
+1:1, and the field already reported 6.6 s as too long (INSTRUMENTS §50).
+Banking the full worst stall can only make that worse. So AC-178's sweep
+must report the FELT-PAUSE cost beside the silence, and this fork
+becomes re-rulable with numbers instead of taste — which is the only
+honest way to trade a crackle against a wait.
+
+## 143a. Recorded during AC-176: the stall does not scale with length
+
+Found while making AC-176 green, and ruled A by Ryad on the spot —
+**ship it and let AC-178's sweep say whether it bites.**
+
+The cushion is now the worst stall measured on the LAST reply. Lag,
+however, depends on length: under a uniformly slow decoder a 20-second
+reply falls four times further behind than a 4-second one.
+
+    reply 1:   4 s at 1.25x  ->  worst lag 1000 ms  ->  bank 1000 ms
+    reply 2:  20 s, same decoder  ->  needs 5000 ms  ->  runs dry
+
+So a short reply followed by a long one under-banks by exactly the factor
+4m existed to fix. The retired rule handled that case — it scaled with
+length — and could not see stalls; the new rule sees stalls and does not
+scale. The honest end state may be BOTH.
+
+*Rejected for now:* **B, scale the stall by the next reply's expected
+length** (`worstLag × typicalLength / thisLength`). It is the obvious
+repair and it is a guess about a mechanism nobody has measured — the
+mistake this whole milestone exists to undo. `typicalLength` is kept and
+tested precisely so B can be built the day the sweep asks for it.
+
+**AC-178 must therefore report silence against reply LENGTH, not only
+against cushion size**, or this question stays open after the milestone
+that found it.
+
+## 143. Definition of done (4o)
+
+Per-step timing tested against a scripted decoder · the stall statistic
+proven by a hand-built sequence with binary-exact values · the new
+cushion RED against the old rule before it is green · `keepsUp`
+unchanged · the sweep's silence table in INSTRUMENTS with the smallest
+zero-silence lead · the first-reply fallback stated and priced · zero
+warnings · swiftlint --strict at zero · 20× stable · adversarially
+reviewed before merge with every fix pushed BEFORE the PR is called
+ready · teach-back.
