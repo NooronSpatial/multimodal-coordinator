@@ -40,9 +40,23 @@ public struct DecodeMargin: Sendable, Equatable {
     /// margins built outside a run (tests).
     public let cushionMilliseconds: Double?
 
+    /// HOW DEEP THE BANK HAD TO BE (4o, AC-176, D-080).
+    ///
+    /// The running maximum of `elapsed − produced` across this reply's
+    /// decode steps — the deepest the player ever came to running dry.
+    /// This is what sizes the next cushion, and it replaces
+    /// `replyLength × (steadyRealTimeFactor − 1)`, which INSTRUMENTS §53
+    /// measured predicting 1248 ms where 5593 ms of silence occurred.
+    ///
+    /// `nil` when no per-step record existed — margins built by hand in
+    /// tests, and any decoder that reports no steps.
+    public let worstLagMilliseconds: Double?
+
     init(audioMilliseconds: Double, wallMilliseconds: Double,
          prefillMilliseconds: Double, steadyRealTimeFactor: Double,
-         completed: Bool = true, cushionMilliseconds: Double? = nil) {
+         completed: Bool = true, cushionMilliseconds: Double? = nil,
+         worstLagMilliseconds: Double? = nil) {
+        self.worstLagMilliseconds = worstLagMilliseconds
         self.audioMilliseconds = audioMilliseconds
         self.wallMilliseconds = wallMilliseconds
         self.prefillMilliseconds = prefillMilliseconds

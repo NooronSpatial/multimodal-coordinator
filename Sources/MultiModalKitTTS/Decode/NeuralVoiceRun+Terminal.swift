@@ -11,9 +11,13 @@ extension NeuralVoiceRun {
         // stderr to read, and the phone is where this number is now
         // needed. The printing stays opt-in; the reporting does not.
         guard NeuralVoiceRun.traceSteps || onMargin != nil else { return }
-        let (samples, firstStep, firstSamples) = stepTotals.withLock {
-            ($0.samples, $0.firstStep, $0.firstSamples)
+        let (samples, firstStep, firstSamples, steps) = stepTotals.withLock {
+            ($0.samples, $0.firstStep, $0.firstSamples, $0.steps)
         }
+        // The number that sizes the NEXT cushion (AC-176). Computed from
+        // the step record rather than from the totals beside it, because
+        // the totals are exactly what cannot see a stall.
+        let worstLag = DecodeDeficit.worstLag(steps: steps)
         guard samples > 0, let last = stepClock.withLock({ $0 }) else { return }
         func ms(_ duration: Duration) -> Double {
             Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
@@ -35,7 +39,8 @@ extension NeuralVoiceRun {
                                        prefillMilliseconds: prefill,
                                        steadyRealTimeFactor: steady,
                                        completed: completed,
-                                       cushionMilliseconds: ms(leadInForce)))
+                                       cushionMilliseconds: ms(leadInForce),
+                                       worstLagMilliseconds: worstLag))
             }
         }
         if NeuralVoiceRun.traceSteps {

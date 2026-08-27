@@ -101,11 +101,26 @@ struct LeadFollowsDecoderTests {
 @Suite("the lead learns from the machine")
 struct AdaptiveLeadTests {
 
+    /// A UNIFORMLY slow decode of a six-second reply.
+    ///
+    /// The `worstLag` is stated rather than derived, and for a uniform
+    /// rate it is exactly what the retired rule computed: the deficit
+    /// climbs steadily, so its running maximum is its endpoint,
+    /// `6000 × (factor − 1)`. That is why these tests keep their old
+    /// expected values after D-080 — under uniformity the two rules
+    /// agree, and this helper is the uniform case.
+    ///
+    /// The cases where they DIVERGE — a stall repaid before the end — are
+    /// in `AdaptiveLeadFollowsStallTests`, because this helper cannot
+    /// express them: a single whole-run number has no shape.
     static func margin(factor: Double) -> DecodeMargin {
         DecodeMargin(audioMilliseconds: 6000,
                      wallMilliseconds: 6000 * factor,
                      prefillMilliseconds: 100,
-                     steadyRealTimeFactor: factor)
+                     steadyRealTimeFactor: factor,
+                     completed: true,
+                     cushionMilliseconds: nil,
+                     worstLagMilliseconds: max(0, 6000 * (factor - 1)))
     }
 
     @Test("it knows nothing until something has been decoded")
@@ -208,22 +223,43 @@ struct AdaptiveLengthTests {
         DecodeMargin(audioMilliseconds: length,
                      wallMilliseconds: length * factor,
                      prefillMilliseconds: 100,
-                     steadyRealTimeFactor: factor)
+                     steadyRealTimeFactor: factor,
+                     completed: true,
+                     cushionMilliseconds: nil,
+                     worstLagMilliseconds: max(0, length * (factor - 1)))
     }
 
-    /// THE CONTROL that kills today's code: two margins identical except
-    /// for the reply's length must size different cushions. Today both
-    /// produce deficit(6 s, RTF) — the length has no effect at all.
-    @Test("the reply's LENGTH reaches the cushion — the assertion §48 was missing")
+    // ⚠️ WHAT D-080 CHANGED ABOUT THIS SUITE.
+    //
+    // These tests were 4m's thesis: the cushion is sized from a WINDOW of
+    // reply lengths. D-080 retired that as the SIZING input — INSTRUMENTS
+    // §53 measured the rule predicting 1248 ms where 5593 ms of silence
+    // occurred — and the cushion now comes from the decode's measured
+    // worst stall instead.
+    //
+    // The window itself was NOT deleted, and these tests were not
+    // rewritten into weaker claims. They still assert exactly what 4m
+    // proved — that the window learns this conversation's lengths, means
+    // them, and lets one monologue fade over four turns — through
+    // `typicalLength`. What changed is what that number is FOR: it prices
+    // the un-cushioned first reply (AC-179) rather than sizing every
+    // cushion.
+    //
+    // The values below are unchanged because this helper is the UNIFORM
+    // case, where the running maximum equals the endpoint and both rules
+    // agree. `AdaptiveLeadFollowsStallTests` holds the cases where they
+    // diverge.
+
+    @Test("the reply's LENGTH reaches the window — the assertion §48 was missing")
     func lengthReachesTheCushion() {
         let short = AdaptiveLead()
         short.observe(Self.margin(length: 4000))
         let long = AdaptiveLead()
         long.observe(Self.margin(length: 8000))
-        #expect(short.target != long.target,
-                "identical except for length — a learner that sizes them the same is sizing from a constant")
-        #expect(short.target == .milliseconds(1000))   // 4 s × 0.25
-        #expect(long.target == .milliseconds(2000))    // 8 s × 0.25
+        #expect(short.typicalLength != long.typicalLength,
+                "identical except for length — a learner that reads them the same is reading a constant")
+        #expect(short.typicalLength == .milliseconds(4000))
+        #expect(long.typicalLength == .milliseconds(8000))
     }
 
     @Test("the window is the MEAN of the last four lengths")
@@ -231,8 +267,8 @@ struct AdaptiveLengthTests {
         let adaptive = AdaptiveLead()
         adaptive.observe(Self.margin(length: 4000))
         adaptive.observe(Self.margin(length: 8000))
-        // mean(4 s, 8 s) = 6 s → 6 s × 0.25 = 1.5 s
-        #expect(adaptive.target == .milliseconds(1500))
+        // mean(4 s, 8 s) = 6 s
+        #expect(adaptive.typicalLength == .milliseconds(6000))
     }
 
     /// AC-165 — one long reply protects the next ones, then fades as the
@@ -241,15 +277,15 @@ struct AdaptiveLengthTests {
     func longReplyFades() {
         let adaptive = AdaptiveLead()
         adaptive.observe(Self.margin(length: 20000))
-        #expect(adaptive.target == .milliseconds(5000))     // 20 s alone
+        #expect(adaptive.typicalLength == .milliseconds(20000))   // 20 s alone
         adaptive.observe(Self.margin(length: 4000))
         adaptive.observe(Self.margin(length: 4000))
         adaptive.observe(Self.margin(length: 4000))
-        // window [20, 4, 4, 4] → mean 8 s → 2 s: still protected
-        #expect(adaptive.target == .milliseconds(2000))
+        // window [20, 4, 4, 4] → mean 8 s: the monologue still counts
+        #expect(adaptive.typicalLength == .milliseconds(8000))
         adaptive.observe(Self.margin(length: 4000))
-        // window [4, 4, 4, 4] → mean 4 s → 1 s: the monologue has left
-        #expect(adaptive.target == .milliseconds(1000))
+        // window [4, 4, 4, 4] → mean 4 s: the monologue has left
+        #expect(adaptive.typicalLength == .milliseconds(4000))
     }
 
     /// The teach-back split, asserted: length is windowed, RTF is latest.
@@ -258,9 +294,11 @@ struct AdaptiveLengthTests {
         let adaptive = AdaptiveLead()
         adaptive.observe(Self.margin(length: 8000, factor: 1.5))
         adaptive.observe(Self.margin(length: 4000, factor: 1.25))
-        // mean(8 s, 4 s) = 6 s sized at the LATEST factor 1.25 → 1.5 s.
-        // A learner averaging the RTF too would say 6 s × 0.375 = 2.25 s.
-        #expect(adaptive.target == .milliseconds(1500))
+        // mean(8 s, 4 s) = 6 s in the window, while the CUSHION is the
+        // latest reply's measured stall — 4000 × 0.25 — and owes nothing
+        // to the 8 s reply before it.
+        #expect(adaptive.typicalLength == .milliseconds(6000))
+        #expect(adaptive.target == .milliseconds(1000))
     }
 
     /// AC-166 — forget forgets the lengths too, not just the size: the
@@ -281,6 +319,19 @@ struct AdaptiveLengthTests {
 @Suite("what the learner refuses to learn")
 struct LearnerRefusalTests {
 
+    /// The uniform-rate margin, same shape as `AdaptiveLeadTests`': under a
+    /// constant rate the running maximum IS the endpoint, so `worstLag`
+    /// is `length × (factor − 1)`.
+    static func margin(length: Double, factor: Double = 1.25) -> DecodeMargin {
+        DecodeMargin(audioMilliseconds: length,
+                     wallMilliseconds: length * factor,
+                     prefillMilliseconds: 100,
+                     steadyRealTimeFactor: factor,
+                     completed: true,
+                     cushionMilliseconds: nil,
+                     worstLagMilliseconds: max(0, length * (factor - 1)))
+    }
+
     /// A failed decode's truncated length must not poison the window.
     /// The review walked the chain: NeuralVoiceRun reports a margin on the
     /// `.failed` terminal too, with `audioMilliseconds` equal to however
@@ -290,18 +341,20 @@ struct LearnerRefusalTests {
     @Test("a failed run teaches nothing — its truncated length stays out of the window")
     func failedRunTeachesNothing() {
         let adaptive = AdaptiveLead()
-        adaptive.observe(DecodeMargin(audioMilliseconds: 20000,
-                                      wallMilliseconds: 25000,
-                                      prefillMilliseconds: 100,
-                                      steadyRealTimeFactor: 1.25))
-        #expect(adaptive.target == .milliseconds(5000))     // 20 s × 0.25
+        adaptive.observe(Self.margin(length: 20000))
+        #expect(adaptive.target == .milliseconds(5000))
+        #expect(adaptive.typicalLength == .milliseconds(20000))
         adaptive.observe(DecodeMargin(audioMilliseconds: 2000,
                                       wallMilliseconds: 2500,
                                       prefillMilliseconds: 100,
                                       steadyRealTimeFactor: 1.25,
-                                      completed: false))
+                                      completed: false,
+                                      cushionMilliseconds: nil,
+                                      worstLagMilliseconds: 500))
         #expect(adaptive.target == .milliseconds(5000),
-                "the poisoned window would say mean 11 s → 2750 ms — under-banked for the next long reply")
+                "a failed run's 500 ms stall must not replace a finished run's 5000")
+        #expect(adaptive.typicalLength == .milliseconds(20000),
+                "the poisoned window would say mean 11 s — and AC-179 prices the first reply from it")
     }
 
     @Test("a failed run before any finished one leaves the learner empty")
@@ -325,15 +378,10 @@ struct LearnerRefusalTests {
     @Test("the cushion RISES when the machine slows — latest-wins in the harmful direction")
     func rtfRises() {
         let adaptive = AdaptiveLead()
-        adaptive.observe(DecodeMargin(audioMilliseconds: 6000,
-                                      wallMilliseconds: 6360,
-                                      prefillMilliseconds: 100,
-                                      steadyRealTimeFactor: 1.06))
-        adaptive.observe(DecodeMargin(audioMilliseconds: 6000,
-                                      wallMilliseconds: 9000,
-                                      prefillMilliseconds: 100,
-                                      steadyRealTimeFactor: 1.5))
-        // mean(6 s, 6 s) = 6 s at the LATEST factor 1.5 → exactly 3 s.
+        adaptive.observe(Self.margin(length: 6000, factor: 1.06))
+        adaptive.observe(Self.margin(length: 6000, factor: 1.5))
+        // The hot reply's own stall — 6000 × 0.5 — and the cool one before
+        // it buys no discount.
         #expect(adaptive.target == .milliseconds(3000),
                 "a min-ratchet would still say 360 ms and the hot phone runs dry")
     }
