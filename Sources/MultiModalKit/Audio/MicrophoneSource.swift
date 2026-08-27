@@ -230,24 +230,7 @@ public final class MicrophoneSource: AudioSource {
         }
         sampleRate = format.sampleRate
 
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [latestLevel] buffer, _ in
-            // Iron laws territory. View → copy → return. Nothing else.
-            guard let channels = buffer.floatChannelData else { return }
-            let frames = Int(buffer.frameLength)
-            producer.write(UnsafeBufferPointer(start: channels[0], count: frames))
-
-            // The level, computed here because here is the only place
-            // the RAW signal exists — everywhere downstream is gated.
-            // A loop and one relaxed atomic store: no lock, no
-            // allocation, nothing that can block a render callback.
-            var sumOfSquares: Float = 0
-            for index in 0..<frames {
-                let sample = channels[0][index]
-                sumOfSquares += sample * sample
-            }
-            let rms = (sumOfSquares / Float(max(frames, 1))).squareRoot()
-            latestLevel.store(rms)
-        }
+        installCaptureTap(on: input, format: format, into: producer)
 
         // WATCH FOR THE ENGINE KILLING ITS OWN GRAPH. Installed before
         // `start`, because a reconfiguration provoked BY starting is
@@ -310,6 +293,31 @@ public final class MicrophoneSource: AudioSource {
         // engine that is not pulling, and until this line it was not.
         playbackHost.captureStarted()
         captureBegan = true          // the session is now in use; keep it
+    }
+
+    /// The capture tap: view the incoming buffer, copy channel 0 into the
+    /// ring, store the raw input level, return.
+    private func installCaptureTap(on input: AVAudioInputNode,
+                                   format: AVAudioFormat,
+                                   into producer: AudioRingProducer) {
+        input.installTap(onBus: 0, bufferSize: 1024, format: format) { [latestLevel] buffer, _ in
+            // Iron laws territory. View → copy → return. Nothing else.
+            guard let channels = buffer.floatChannelData else { return }
+            let frames = Int(buffer.frameLength)
+            producer.write(UnsafeBufferPointer(start: channels[0], count: frames))
+
+            // The level, computed here because here is the only place
+            // the RAW signal exists — everywhere downstream is gated.
+            // A loop and one relaxed atomic store: no lock, no
+            // allocation, nothing that can block a render callback.
+            var sumOfSquares: Float = 0
+            for index in 0..<frames {
+                let sample = channels[0][index]
+                sumOfSquares += sample * sample
+            }
+            let rms = (sumOfSquares / Float(max(frames, 1))).squareRoot()
+            latestLevel.store(rms)
+        }
     }
 
     public func stop() {

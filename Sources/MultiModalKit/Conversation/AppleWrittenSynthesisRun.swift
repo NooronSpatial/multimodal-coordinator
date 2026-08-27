@@ -116,8 +116,7 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
     }
 
     func cancel() async {
-        let (first, pendingWrite) = state.withLock {
-            guarded -> (Bool, CheckedContinuation<Void, Never>?) in
+        let (first, pendingWrite) = state.withLock { guarded -> (Bool, CheckedContinuation<Void, Never>?) in
             let was = guarded.retired
             guarded.retired = true
             guarded.pending.removeAll()
@@ -218,8 +217,7 @@ final class AppleWrittenSynthesisRun: NSObject, SynthesisRun, @unchecked Sendabl
                         // Take-once from the shared slot: the terminator
                         // and a racing cancel() cannot both resume.
                         guard let pcm = buffer as? AVAudioPCMBuffer, pcm.frameLength > 0 else {
-                            let taken = self.state.withLock {
-                                guarded -> CheckedContinuation<Void, Never>? in
+                            let taken = self.state.withLock { guarded -> CheckedContinuation<Void, Never>? in
                                 let write = guarded.writeDone
                                 guarded.writeDone = nil
                                 return write

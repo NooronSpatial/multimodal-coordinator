@@ -14,92 +14,6 @@ import Testing
 @Suite("the bench sweep")
 struct BenchSweepTests {
 
-    /// A stage that records everything, and can be told to fail.
-    ///
-    /// `Mutex`, not an actor: the recorder must be readable from the test
-    /// body without an await, and it holds nothing across a suspension.
-    final class Recorder: BenchStage, Sendable {
-        struct Settings: Sendable, Equatable { let token: Int }
-
-        struct Log: Sendable {
-            var calls: [String] = []
-            var restored: [Int] = []
-            var prepared: [String] = []
-            var thermalSeries: [String] = []
-        }
-
-        let log = Mutex(Log())
-        let refusal: String?
-        let failOnMeasure: Int?
-        /// Cancels the sweep from INSIDE its own task, after row N has been
-        /// measured. The old cancellation test called `task.cancel()` from
-        /// the test thread immediately after spawning, and whether ANY row
-        /// got measured first was scheduling luck — the review reproduced
-        /// both outcomes. A lever here makes the moment a fact.
-        let cancelAfterMeasure: Int?
-        let scriptedConditions: [BenchConditions]
-
-        init(refusal: String? = nil,
-             failOnMeasure: Int? = nil,
-             cancelAfterMeasure: Int? = nil,
-             conditions: [BenchConditions] = []) {
-            self.refusal = refusal
-            self.failOnMeasure = failOnMeasure
-            self.cancelAfterMeasure = cancelAfterMeasure
-            self.scriptedConditions = conditions
-        }
-
-        struct Boom: Error {}
-
-        private func note(_ what: String) {
-            log.withLock { $0.calls.append(what) }
-        }
-
-        func snapshot() async -> Settings {
-            note("snapshot")
-            return Settings(token: 7)
-        }
-
-        func restore(_ settings: Settings) async {
-            log.withLock {
-                $0.calls.append("restore")
-                $0.restored.append(settings.token)
-            }
-        }
-
-        func refusalReason() async -> String? {
-            note("refusalReason")
-            return refusal
-        }
-
-        func prepare(_ configuration: BenchConfiguration) async throws {
-            log.withLock {
-                $0.calls.append("prepare")
-                $0.prepared.append(configuration.name)
-            }
-        }
-
-        func resetCounters() async { note("reset") }
-
-        func conditions() async -> BenchConditions {
-            let index = log.withLock { $0.calls.filter { $0 == "conditions" }.count }
-            note("conditions")
-            if index < scriptedConditions.count { return scriptedConditions[index] }
-            return BenchConditions(thermal: "nominal", freeMegabytes: 934)
-        }
-
-        func measure() async throws -> BenchTiming {
-            let index = log.withLock { $0.calls.filter { $0 == "measure" }.count }
-            note("measure")
-            if let failOnMeasure, index == failOnMeasure { throw Boom() }
-            if let cancelAfterMeasure, index == cancelAfterMeasure {
-                withUnsafeCurrentTask { $0?.cancel() }
-            }
-            return BenchTiming(firstAudio: .milliseconds(177),
-                               total: .milliseconds(6578))
-        }
-    }
-
     static let one = [BenchConfiguration(name: "stepped + latency",
                                          decoder: .stepped, vocoder: .latency)]
 
@@ -300,5 +214,91 @@ struct BenchSweepTests {
         #expect(BenchConfiguration.phone.allSatisfy { $0.decoder == .stepped })
         #expect(BenchConfiguration.mac.contains { $0.decoder == .fused },
                 "the Mac list must still cover it, or §31 is unreproducible")
+    }
+}
+
+/// A stage that records everything, and can be told to fail.
+///
+/// `Mutex`, not an actor: the recorder must be readable from the test
+/// body without an await, and it holds nothing across a suspension.
+private final class Recorder: BenchStage, Sendable {
+    struct Settings: Sendable, Equatable { let token: Int }
+
+    struct Log: Sendable {
+        var calls: [String] = []
+        var restored: [Int] = []
+        var prepared: [String] = []
+        var thermalSeries: [String] = []
+    }
+
+    let log = Mutex(Log())
+    let refusal: String?
+    let failOnMeasure: Int?
+    /// Cancels the sweep from INSIDE its own task, after row N has been
+    /// measured. The old cancellation test called `task.cancel()` from
+    /// the test thread immediately after spawning, and whether ANY row
+    /// got measured first was scheduling luck — the review reproduced
+    /// both outcomes. A lever here makes the moment a fact.
+    let cancelAfterMeasure: Int?
+    let scriptedConditions: [BenchConditions]
+
+    init(refusal: String? = nil,
+         failOnMeasure: Int? = nil,
+         cancelAfterMeasure: Int? = nil,
+         conditions: [BenchConditions] = []) {
+        self.refusal = refusal
+        self.failOnMeasure = failOnMeasure
+        self.cancelAfterMeasure = cancelAfterMeasure
+        self.scriptedConditions = conditions
+    }
+
+    struct Boom: Error {}
+
+    private func note(_ what: String) {
+        log.withLock { $0.calls.append(what) }
+    }
+
+    func snapshot() async -> Settings {
+        note("snapshot")
+        return Settings(token: 7)
+    }
+
+    func restore(_ settings: Settings) async {
+        log.withLock {
+            $0.calls.append("restore")
+            $0.restored.append(settings.token)
+        }
+    }
+
+    func refusalReason() async -> String? {
+        note("refusalReason")
+        return refusal
+    }
+
+    func prepare(_ configuration: BenchConfiguration) async throws {
+        log.withLock {
+            $0.calls.append("prepare")
+            $0.prepared.append(configuration.name)
+        }
+    }
+
+    func resetCounters() async { note("reset") }
+
+    func conditions() async -> BenchConditions {
+        let index = log.withLock { $0.calls.filter { $0 == "conditions" }.count }
+        note("conditions")
+        if index < scriptedConditions.count { return scriptedConditions[index] }
+        return BenchConditions(thermal: "nominal", freeMegabytes: 934)
+    }
+
+    func measure() async throws -> BenchTiming {
+        let index = log.withLock { $0.calls.filter { $0 == "measure" }.count }
+        note("measure")
+        if let failOnMeasure, index == failOnMeasure { throw Boom() }
+        if let cancelAfterMeasure, index == cancelAfterMeasure {
+            withUnsafeCurrentTask { $0?.cancel() }
+        }
+        return BenchTiming(firstAudio: .milliseconds(177),
+                           total: .milliseconds(6578))
     }
 }

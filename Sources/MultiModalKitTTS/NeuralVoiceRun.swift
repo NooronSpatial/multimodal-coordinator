@@ -31,18 +31,18 @@ import Synchronization
 /// the engine happens on one serial queue.
 final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     let updates: AsyncStream<SynthesisUpdate>
-    private let out: AsyncStream<SynthesisUpdate>.Continuation
+    let out: AsyncStream<SynthesisUpdate>.Continuation
 
-    private let decoder: any TTSDecoding
-    private let host: any PlaybackHost
-    private let player = AVAudioPlayerNode()
-    private let format: AVAudioFormat
+    let decoder: any TTSDecoding
+    let host: any PlaybackHost
+    let player = AVAudioPlayerNode()
+    let format: AVAudioFormat
     /// The engine's one thread. Same reasoning as the Apple mouth: FIFO
     /// matters, and Swift actors make no ordering promise between two
     /// independent callers.
-    private let mouth = DispatchQueue(label: "dev.nooron.MultiModalKit.neuralMouth")
+    let mouth = DispatchQueue(label: "dev.nooron.MultiModalKit.neuralMouth")
 
-    private struct Guarded {
+    struct Guarded {
         var phraser = SpeechPhraser()
         var scheduled = 0          // buffers handed to the player
         var played = 0             // buffers the player reported done
@@ -58,18 +58,18 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var tokensFinished = false
         var cancelled = false
     }
-    private let state: Mutex<Guarded>
+    let state: Mutex<Guarded>
     /// Step tracing, opt-in through the environment so it costs nothing
     /// when nobody is asking.
     static let traceSteps = ProcessInfo.processInfo.environment["MMK_TRACE_TTS"] == "1"
-    private let stepClock = Mutex<ContinuousClock.Instant?>(nil)
-    private let birth = ContinuousClock().now
-    private struct Totals {
+    let stepClock = Mutex<ContinuousClock.Instant?>(nil)
+    let birth = ContinuousClock().now
+    struct Totals {
         var samples = 0
         var firstStep: ContinuousClock.Instant?
         var firstSamples = 0
     }
-    private let stepTotals = Mutex(Totals())
+    let stepTotals = Mutex(Totals())
     /// The owned worker. Held so `cancel()` can stop it.
     private let drainTask = Mutex<Task<Void, Never>?>(nil)
 
@@ -101,47 +101,10 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// The cushion this run was BUILT with — what was really in force,
     /// kept for the margin because asking the voice afterwards returns
     /// the value the learner just adapted to (the 4n review's blocker).
-    private let leadInForce: Duration
+    let leadInForce: Duration
 
-    private func reportMargin(completed: Bool) {
-        // The HANDLER is not gated by the trace flag: a phone has no
-        // stderr to read, and the phone is where this number is now
-        // needed. The printing stays opt-in; the reporting does not.
-        guard NeuralVoiceRun.traceSteps || onMargin != nil else { return }
-        let (samples, firstStep, firstSamples) = stepTotals.withLock {
-            ($0.samples, $0.firstStep, $0.firstSamples)
-        }
-        guard samples > 0, let last = stepClock.withLock({ $0 }) else { return }
-        func ms(_ duration: Duration) -> Double {
-            Double(duration.components.seconds) * 1000 + Double(duration.components.attoseconds) * 1e-15
-        }
-        let wall = ms(birth.duration(to: last))
-        let audio = Double(samples) / format.sampleRate * 1000
-        var line = String(
-            format: "   MARGIN . %.0f ms audio decoded in %.0f ms wall . RTF %.2f",
-            audio, wall, wall / audio)
-        if let first = firstStep {
-            let steadyWall = ms(first.duration(to: last))
-            let steadyAudio = Double(samples - firstSamples) / format.sampleRate * 1000
-            if steadyAudio > 0 {
-                let prefill = ms(birth.duration(to: first))
-                let steady = steadyWall / steadyAudio
-                line += String(format: " . prefill %.0f ms . STEADY %.3f", prefill, steady)
-                onMargin?(DecodeMargin(audioMilliseconds: audio,
-                                       wallMilliseconds: wall,
-                                       prefillMilliseconds: prefill,
-                                       steadyRealTimeFactor: steady,
-                                       completed: completed,
-                                       cushionMilliseconds: ms(leadInForce)))
-            }
-        }
-        if NeuralVoiceRun.traceSteps {
-            FileHandle.standardError.write(Data((line + "\n").utf8))
-        }
-    }
-
-    private let temperature: Float?
-    private let onMargin: (@Sendable (DecodeMargin) -> Void)?
+    let temperature: Float?
+    let onMargin: (@Sendable (DecodeMargin) -> Void)?
 
     /// The sample rate comes from the DECODER, not from a parameter beside
     /// it. It used to be passed in — always as `Double(kit.sampleRate)`,
@@ -183,7 +146,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     // MARK: - the funnel: what a complete reply owes (D-055 = B)
 
     /// What the reply owes right now — **asked in ONE place.**
-    private enum Owed {
+    enum Owed {
         /// Not complete, or already dead. Nothing to do.
         case nothing
         /// Everything queued has been HEARD. Report the terminal.
@@ -210,7 +173,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// already applies to every state write in `TranscriptionSession` and
     /// `TurnCoordinator`. A fourth caller cannot half-apply an invariant
     /// that lives in one function.
-    private static func owed(by guarded: Guarded) -> Owed {
+    static func owed(by guarded: Guarded) -> Owed {
         guard !guarded.cancelled, guarded.tokensFinished, guarded.phrasesInFlight == 0
         else { return .nothing }
         return guarded.scheduled == guarded.played ? .finish : .releaseLead
@@ -220,12 +183,20 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// held** — `report` finishes a stream and `releaseLead` touches the
     /// player, and this file's whole safety proof is that nothing
     /// suspends or reaches hardware under the mutex.
-    private func settle(_ owed: Owed) {
+    func settle(_ owed: Owed) {
         switch owed {
         case .nothing: break
         case .finish: report(.finished, terminal: true)
         case .releaseLead: mouth.async { [self] in releaseLead() }
         }
+    }
+
+    /// The four counters, carried by name rather than by position.
+    struct Counters {
+        let phrasesInFlight: Int
+        let scheduled: Int
+        let played: Int
+        let tokensFinished: Bool
     }
 
     /// A SNAPSHOT OF THE COUNTERS, for tests that must gate on an ordering
@@ -242,9 +213,10 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     ///
     /// Internal, like the type, so it widens no public surface — the same
     /// bargain as `AudioEnginePlaybackHost.hostedCount`.
-    var counters: (phrasesInFlight: Int, scheduled: Int, played: Int, tokensFinished: Bool) {
+    var counters: Counters {
         state.withLock {
-            ($0.phrasesInFlight, $0.scheduled, $0.played, $0.tokensFinished)
+            Counters(phrasesInFlight: $0.phrasesInFlight, scheduled: $0.scheduled,
+                     played: $0.played, tokensFinished: $0.tokensFinished)
         }
     }
 
@@ -360,7 +332,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     ///
     /// - Returns: true if this call is the one that retired the run.
     @discardableResult
-    private func retire() -> Bool {
+    func retire() -> Bool {
         let already = state.withLock { guarded -> Bool in
             let was = guarded.cancelled
             guarded.cancelled = true
@@ -388,200 +360,5 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
             host.detachFromPlayback(player)
         }
         out.finish()          // no terminal: the seam's cancel contract
-    }
-
-    // MARK: - decode, then render
-
-    private func speak(_ text: String) async {
-        // NOTHING TO SAY, SO NOTHING IS DECODED (AC-106).
-        //
-        // A whitespace or punctuation-only phrase gives this model no
-        // reason to stop, so it decodes toward its 245-step cap — about
-        // 19.6 seconds of audio for a phrase containing nothing — and
-        // the turn loop waits inline for every one of them. The
-        // accounting below still runs, unchanged: the phrase is counted
-        // as done, which is what keeps `finished` honest.
-        //
-        // The Apple mouth deliberately does NOT get this guard. Its
-        // failure mode is different (it may decline to REPORT on an
-        // unspeakable utterance, which the counting already survives),
-        // it is proven, and it costs nothing there.
-        if SpeechPhraser.hasSpeakableContent(text) {
-            do {
-                // The batching pin that used to sit here moved to
-                // `TTSKitDecoder` with the comment that explains it: it is
-                // about the VENDOR's own branching, so it belongs beside
-                // the vendor (D-053 F-6).
-                try await decoder.decode(
-                    text, temperature: temperature
-                ) { [weak self] samples in
-                    guard let self else { return false }
-                    // The decode's own cancellation channel: returning false
-                    // stops it at the next step. The ticket upstream is still
-                    // the guarantee; this only saves the compute.
-                    guard self.state.withLock({ !$0.cancelled }) else { return false }
-                    // DIAGNOSTIC (AC-102): is a slow first sound the MODEL's
-                    // prefill or OUR integration? A step trace separates
-                    // them — many fast steps means the model streams and we
-                    // are holding it up somewhere; one long wait then a
-                    // flood means the wait is prefill.
-                    // ALWAYS COUNTED, never gated. This accumulation sat
-                    // inside `if traceSteps` for exactly one commit, and
-                    // that commit shipped a comment promising the
-                    // opposite — so on a phone, where no environment
-                    // variable can be set, `samples` stayed 0, the guard
-                    // in `reportMargin` returned early, and the screen
-                    // that was added to answer the field's question would
-                    // have stayed blank. A dead instrument costs a whole
-                    // field trip, which is the most expensive thing in
-                    // this project.
-                    let now = ContinuousClock().now
-                    self.stepClock.withLock { $0 = now }
-                    self.stepTotals.withLock {
-                        if $0.firstStep == nil {
-                            $0.firstStep = now
-                            $0.firstSamples = samples.count
-                        }
-                        $0.samples += samples.count
-                    }
-                    self.render(samples)
-                    return true
-                }
-            } catch {
-                let live = state.withLock { !$0.cancelled }
-                if live { report(.failed("neural voice: \(error)"), terminal: true) }
-            }
-        }
-
-        // THE LIVENESS STEP. A reply shorter than the lead has queued
-        // everything it will ever queue, and the target will never be
-        // reached. If nothing released it here, the player would never
-        // start, no buffer would ever report played, `finished` would
-        // never fire, and the turn would hang — with the audio sitting
-        // complete and silent in the node.
-        //
-        // This was the ONLY site that asked the full question, which is
-        // exactly why D-055's hole opened in the other one. The question
-        // lives in `owed(by:)` now; this site's remaining job is the
-        // decrement that makes the answer true.
-        let owed = state.withLock { guarded -> Owed in
-            guarded.phrasesInFlight -= 1
-            return Self.owed(by: guarded)
-        }
-        settle(owed)
-    }
-
-    /// The reply is complete: whatever is held is all there will ever be.
-    /// Runs on the mouth queue, like every other touch of the player.
-    private func releaseLead() {
-        let start = state.withLock { guarded -> Bool in
-            guard !guarded.cancelled else { return false }
-            return guarded.lead.noMoreAudio()
-        }
-        if start {
-            player.play()
-            report(.started, terminal: false)
-        }
-    }
-
-    /// One decode step's samples, handed to the player.
-    private func render(_ samples: [Float]) {
-        guard !samples.isEmpty else { return }
-        // Only the SAMPLES cross onto the queue: `[Float]` is Sendable,
-        // `AVAudioPCMBuffer` is not, so the buffer is born and used
-        // entirely on the mouth's own thread — the same rule the Apple
-        // mouth learned, for the same reason.
-        state.withLock { $0.scheduled += 1 }
-
-        mouth.async { [self] in
-            // EVERY early return from here must balance the count above,
-            // or `finished` never fires and the turn hangs forever — the
-            // liveness promise the conformance kit exists to catch.
-            guard state.withLock({ !$0.cancelled }) else { return bufferPlayed() }
-            guard let buffer = AVAudioPCMBuffer(
-                    pcmFormat: format,
-                    frameCapacity: AVAudioFrameCount(samples.count)),
-                  let channel = buffer.floatChannelData
-            else { return bufferPlayed() }
-            buffer.frameLength = AVAudioFrameCount(samples.count)
-            samples.withUnsafeBufferPointer { source in
-                channel[0].update(from: source.baseAddress!, count: samples.count)
-            }
-            // `.dataPlayedBack`, not the default. The legacy overload
-            // reports when the player has CONSUMED a buffer, which can be
-            // a buffer or more before any of it reaches the room — and
-            // this count is what decides `.finished`, whose whole meaning
-            // under D-029 is "the room is quiet". Consumed is not quiet.
-            player.scheduleBuffer(buffer, at: nil, options: [],
-                                  completionCallbackType: .dataPlayedBack) {
-                [weak self] _ in
-                self?.bufferPlayed()
-            }
-            // AUDIBLE now means THE PLAYER WAS STARTED, which is a
-            // stricter reading of D-045 F-2 than the one this file
-            // shipped with: scheduling a buffer onto a node that is not
-            // playing puts no sound in the room. `PlaybackLead` owns the
-            // once-only guarantee, so there is no separate flag to keep
-            // honest.
-            let start = state.withLock { guarded -> Bool in
-                guard !guarded.cancelled else { return false }
-                return guarded.lead.queue(.microseconds(
-                    Int((Double(samples.count) / format.sampleRate * 1_000_000).rounded())))
-            }
-            if start {
-                player.play()
-                report(.started, terminal: false)
-            }
-        }
-    }
-
-    /// The third site that learns a reply became complete, and the third
-    /// through the funnel (D-055 = B).
-    ///
-    /// Its answer can only be `.finish` or `.nothing` in practice: reaching
-    /// here means a buffer was HEARD, so the player was started, so
-    /// `PlaybackLead.noMoreAudio()` already returned its one `true` and a
-    /// `.releaseLead` answer would do nothing. Routing it anyway is the
-    /// point of a funnel — the site does not get to decide which answers
-    /// are possible, and a future change to the counters cannot leave this
-    /// one behind.
-    private func bufferPlayed() {
-        let owed = state.withLock { guarded -> Owed in
-            guarded.played += 1
-            return Self.owed(by: guarded)
-        }
-        settle(owed)
-    }
-
-    private func report(_ update: SynthesisUpdate, terminal: Bool) {
-        // The margin says HOW the run ended: a failed run's numbers are
-        // real, but its truncated length must not teach the learner what
-        // replies look like (the 4m review's confirmed finding).
-        if terminal {
-            if case .failed = update { reportMargin(completed: false) } else { reportMargin(completed: true) }
-        }
-        out.yield(update)
-        guard terminal else { return }
-        // LATCH BEFORE TEARDOWN. `teardown` gives the player node back to
-        // the engine, so anything still willing to touch that node after
-        // this line aborts the process — see `retire`.
-        retire()
-        out.finish()
-        teardown()
-    }
-
-    /// GIVE THE NODE BACK. Every reply attaches a fresh player to the
-    /// engine, and until now none of them was ever detached — so a long
-    /// conversation grew its audio graph without bound, and an engine
-    /// handed in by a caller (the `renderingOn:` case) kept collecting
-    /// dead nodes for as long as the app lived.
-    ///
-    /// On the mouth queue like every other touch of the player, and
-    /// after the stream has finished, so nothing is still counting on it.
-    private func teardown() {
-        mouth.async { [self] in
-            player.stop()
-            host.detachFromPlayback(player)
-        }
     }
 }

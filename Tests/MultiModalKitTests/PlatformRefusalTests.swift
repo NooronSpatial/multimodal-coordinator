@@ -19,7 +19,10 @@ struct TokenizerFolderTests {
         let small = NeuralVoice(variant: .qwen3TTS_0_6b)
         let large = NeuralVoice(variant: .qwen3TTS_1_7b)
         #expect(small.localTokenizerFolder == large.localTokenizerFolder,
-                "TTSKit downloads ONE tokenizer repo for every variant; a variant-specific folder here is a folder nobody fills")
+                """
+                TTSKit downloads ONE tokenizer repo for every variant; \
+                a variant-specific folder here is a folder nobody fills
+                """)
     }
 
     /// The constant is QUOTED, deliberately. If a vendor bump changes the
@@ -30,7 +33,10 @@ struct TokenizerFolderTests {
         let voice = NeuralVoice(variant: .qwen3TTS_1_7b)
         #expect(voice.localTokenizerFolder.path()
                     .hasSuffix("huggingface/models/Qwen/Qwen3-0.6B"),
-                Comment(rawValue: "TTSKit's defaultTokenizerRepo is Qwen/Qwen3-0.6B for BOTH sizes — was \(voice.localTokenizerFolder.path())"))
+                Comment(rawValue: """
+                    TTSKit's defaultTokenizerRepo is Qwen/Qwen3-0.6B for BOTH sizes \
+                    — was \(voice.localTokenizerFolder.path())
+                    """))
         // And the code must READ the vendor rather than restate it: the
         // suffix above pins the value, this pins the source.
         #expect(voice.localTokenizerFolder.path()

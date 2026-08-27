@@ -17,13 +17,15 @@ struct LaunchOnceTests {
         var seen: [String] { steps.withLock { $0 } }
     }
 
+    /// The state a `Latch` keeps behind its mutex.
+    private struct LatchState {
+        var fired = false
+        var waiters: [CheckedContinuation<Void, Never>] = []
+    }
+
     /// A one-shot event, so the concurrency tests gate on a fact.
     final class Latch: Sendable {
-        private struct Guarded {
-            var fired = false
-            var waiters: [CheckedContinuation<Void, Never>] = []
-        }
-        private let state = Mutex(Guarded())
+        private let state = Mutex(LatchState())
         func fire() {
             let waking = state.withLock { guarded -> [CheckedContinuation<Void, Never>] in
                 guarded.fired = true

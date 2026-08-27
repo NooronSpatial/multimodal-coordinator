@@ -10,40 +10,6 @@ import Testing
 @Suite("a retirable resource")
 struct RetirableTests {
 
-    /// A one-shot event. The tests need "the build has started" and "let the
-    /// build finish" as facts, never as timings — CLAUDE.md §3.3.
-    final class Latch: Sendable {
-        private struct Guarded {
-            var fired = false
-            var waiters: [CheckedContinuation<Void, Never>] = []
-        }
-        private let state = Mutex(Guarded())
-
-        func fire() {
-            // Snapshot under the lock, resume OUTSIDE it: resuming a
-            // continuation while holding a lock is the rule that once killed
-            // a process in this project (§4.1, lock rule 2).
-            let waking = state.withLock { guarded -> [CheckedContinuation<Void, Never>] in
-                guarded.fired = true
-                let all = guarded.waiters
-                guarded.waiters = []
-                return all
-            }
-            for waiter in waking { waiter.resume() }
-        }
-
-        func wait() async {
-            await withCheckedContinuation { continuation in
-                let alreadyFired = state.withLock { guarded -> Bool in
-                    if guarded.fired { return true }
-                    guarded.waiters.append(continuation)
-                    return false
-                }
-                if alreadyFired { continuation.resume() }
-            }
-        }
-    }
-
     /// Counts builds and discards without an actor hop.
     final class Ledger: Sendable {
         let builds = Mutex(0)
@@ -244,5 +210,41 @@ struct RetirableTests {
 
         let recovered = try await holder.value { ledger.nextBuild() }
         #expect(recovered == 1, "a failed build must not block every later one")
+    }
+}
+
+// MARK: test support
+
+/// A one-shot event. The tests need "the build has started" and "let the
+/// build finish" as facts, never as timings — CLAUDE.md §3.3.
+private final class Latch: Sendable {
+    private struct Guarded {
+        var fired = false
+        var waiters: [CheckedContinuation<Void, Never>] = []
+    }
+    private let state = Mutex(Guarded())
+
+    func fire() {
+        // Snapshot under the lock, resume OUTSIDE it: resuming a
+        // continuation while holding a lock is the rule that once killed
+        // a process in this project (§4.1, lock rule 2).
+        let waking = state.withLock { guarded -> [CheckedContinuation<Void, Never>] in
+            guarded.fired = true
+            let all = guarded.waiters
+            guarded.waiters = []
+            return all
+        }
+        for waiter in waking { waiter.resume() }
+    }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            let alreadyFired = state.withLock { guarded -> Bool in
+                if guarded.fired { return true }
+                guarded.waiters.append(continuation)
+                return false
+            }
+            if alreadyFired { continuation.resume() }
+        }
     }
 }

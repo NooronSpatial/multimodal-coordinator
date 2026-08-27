@@ -63,53 +63,19 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
             let task = Task {
                 switch plan {
                 case .tokens(let all):
-                    for token in all {
-                        continuation.yield(token)
-                        counts.withLock { $0.yielded += 1 }
-                    }
+                    yieldAll(all, into: continuation)
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
-                    for token in all {
-                        continuation.yield(token)
-                        counts.withLock { $0.yielded += 1 }
-                    }
+                    yieldAll(all, into: continuation)
                     continuation.finish(throwing: error)
                 case .spinsUntilCancelled:
-                    for _ in 0..<100_000 {
-                        if Task.isCancelled {
-                            counts.withLock { $0.sawCancellation = true }
-                            continuation.finish()
-                            return
-                        }
-                        await Task.yield()
-                    }
-                    counts.withLock { $0.capExhausted = true }
+                    await spinUntilCancelled()
                     continuation.finish()
                 case .finishesAfterRelease(let before):
-                    continuation.yield(before)
-                    counts.withLock { $0.yielded += 1 }
-                    var opened = false
-                    for _ in 0..<200_000 {
-                        if Task.isCancelled {
-                            counts.withLock { $0.sawCancellation = true }
-                        }
-                        if counts.withLock({ $0.released }) { opened = true; break }
-                        await Task.yield()
-                    }
-                    if !opened { counts.withLock { $0.capExhausted = true } }
+                    await yieldThenHoldAtTheGate(before, into: continuation)
                     continuation.finish()
                 case .gatedDefiance(let before, let after):
-                    continuation.yield(before)
-                    counts.withLock { $0.yielded += 1 }
-                    var opened = false
-                    for _ in 0..<200_000 {
-                        if Task.isCancelled {
-                            counts.withLock { $0.sawCancellation = true }
-                        }
-                        if counts.withLock({ $0.released }) { opened = true; break }
-                        await Task.yield()
-                    }
-                    if !opened { counts.withLock { $0.capExhausted = true } }
+                    await yieldThenHoldAtTheGate(before, into: continuation)
                     // THE DEFIANT YIELD, after the test's cancel returned.
                     continuation.yield(after)
                     counts.withLock { $0.yielded += 1 }
@@ -118,6 +84,50 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// Yields every token in birth order, counting each one.
+    private func yieldAll(
+        _ all: [String],
+        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+    ) {
+        for token in all {
+            continuation.yield(token)
+            counts.withLock { $0.yielded += 1 }
+        }
+    }
+
+    /// Spins until the run's task is cancelled, capped so a red test dies
+    /// fast and never hangs. The caller finishes the stream either way.
+    private func spinUntilCancelled() async {
+        for _ in 0..<100_000 {
+            if Task.isCancelled {
+                counts.withLock { $0.sawCancellation = true }
+                return
+            }
+            await Task.yield()
+        }
+        counts.withLock { $0.capExhausted = true }
+    }
+
+    /// Yields `before`, then holds at the gate until the TEST calls
+    /// `release()` — capped, so an unreleased gate ends the test instead of
+    /// hanging it. Shared by both gated plans.
+    private func yieldThenHoldAtTheGate(
+        _ before: String,
+        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+    ) async {
+        continuation.yield(before)
+        counts.withLock { $0.yielded += 1 }
+        var opened = false
+        for _ in 0..<200_000 {
+            if Task.isCancelled {
+                counts.withLock { $0.sawCancellation = true }
+            }
+            if counts.withLock({ $0.released }) { opened = true; break }
+            await Task.yield()
+        }
+        if !opened { counts.withLock { $0.capExhausted = true } }
     }
 }
 
