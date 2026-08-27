@@ -3868,11 +3868,27 @@ sweep reports what that fallback costs in silence on the first reply.
 
 ## 142. The forks
 
-**F-1 — what "the worst stall" means.** (a) the largest single step's
-overrun; (b) the largest cumulative lag reached at any point in the run
-— a run of five 200 ms overruns drains a bank as surely as one of
-1000 ms. *No recommendation yet: AC-174's data decides it, and ruling
-before the data would be the mistake D-054 exists to prevent.*
+**F-1 — what "the worst stall" means. RULED (b): the largest CUMULATIVE
+lag reached at any point in the run.**
+
+This fork was drafted as one for the data to settle, and that was wrong:
+it is arithmetic, not an experiment. The bank level is
+
+    cushion + (audio produced) − (audio played)
+
+so the bank must cover the RUNNING MAXIMUM of `elapsed − produced`. The
+deficit is cumulative by construction: five 200 ms overruns in a row
+drain a bank exactly as one 1000 ms overrun does, and (a) cannot see
+them.
+
+*Rejected:* **(a), the largest single step's overrun** — a component of
+(b), never a substitute. It under-sizes whenever slowness PERSISTS
+across steps, which is the failure §53 already measured.
+
+This also names what was wrong with the old rule rather than only that
+it was wrong: `replyLength × (RTF − 1)` IS the running maximum when the
+rate is uniform. Uniformity was the false assumption; the arithmetic was
+never the problem.
 
 **F-2 — how much of the worst stall to bank.** All of it, or a fraction
 plus a floor. Costs felt pause 1:1, so it is a product decision.
