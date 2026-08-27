@@ -1011,6 +1011,18 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
         + "that cuts it into small chunks."
     let runsPerConfig = 3
 
+    // WHICH MODEL SPEAKS, parsed by the library's one parser (D-072 F-3,
+    // AC-163): `--voice-model=1.7b` runs the whole sweep on the big model
+    // so its rows land beside 0.6B's from the same stopwatch. A value the
+    // project cannot honor refuses here, never a silent 0.6B.
+    let sweepModel: TTSModelVariant
+    do {
+        sweepModel = try VoiceLevers.parsed(fromArguments: arguments).model
+    } catch let refusal as VoiceLevers.FlagError {
+        FileHandle.standardError.write(Data("bakeoff: \(refusal.message)\n".utf8))
+        exit(2)
+    }
+
     struct Lever {
         let name: String
         let multi: Qwen3MultiCodeDecoderMode
@@ -1036,7 +1048,8 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
         FileHandle.standardError.write(Data("\n=== \(text) ===\n".utf8))
     }
 
-    print("\n🔧 VOICE LEVERS (AC-106) — serial, release, one machine")
+    let sweepModelName = sweepModel == .qwen3TTS_1_7b ? "1.7B" : "0.6B"
+    print("\n🔧 VOICE LEVERS (AC-106) — serial, release, one machine · model \(sweepModelName)")
     print("    watch STEADY, not RTF: the whole-run factor still carries prefill")
 
     for lever in levers {
@@ -1045,7 +1058,8 @@ if arguments.count > 1, arguments[1] == "voice-levers" {
         // samples in-graph, so it is NOT expected to match `.stepped`
         // sample-for-sample even seeded — the seed removes run-to-run
         // noise WITHIN a config, which is what a median needs.
-        let voice = NeuralVoice(lead: .zero,
+        let voice = NeuralVoice(variant: sweepModel,
+                                lead: .zero,
                                 multiCodeDecoderMode: lever.multi,
                                 speechDecoderMode: lever.speech,
                                 temperature: lever.temperature,

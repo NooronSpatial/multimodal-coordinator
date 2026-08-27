@@ -78,21 +78,30 @@ print the usage line, it silently starts the Apple engine.
 
 ### The neural voice's levers
 
-**These four are read only when `--mouth=neural` AND `--talk` are both
+**These five are read only when `--mouth=neural` AND `--talk` are both
 present.** `chosenMouth` returns the Apple voice before it ever looks at
-them, and is itself only called inside the turn loop. Without both, all four
+them, and is itself only called inside the turn loop. Without both, all five
 are silently ignored.
+
+Since D-072 the five parse in the LIBRARY (`VoiceLevers.parsed`), shared
+with `bakeoff voice-levers` — and **a wrong value now refuses instead of
+silently defaulting**: `--decoder=banana` exits with
+`--decoder=banana — this project knows fused|stepped`. (The `--decoder
+stepped` space-form trap below is unchanged: an unrecognized TOKEN is still
+not a flag at all.)
 
 | flag | values | default | note |
 |---|---|---|---|
+| `--voice-model=` | `0.6b` · `1.7b` | `0.6b` | the phone's own tokens; **1.7b is macOS-only** (the vendor restricts it, D-072) |
 | `--decoder=` | `fused` · `stepped` | `fused` | `.fused` cannot load on iOS 18+; the Mac has no such bug |
 | `--speech=` | `latency` · `throughput` | `latency` | |
 | `--temperature=` | e.g. `0.7` | the model's own | |
 | `--lead=` | `400ms` or `400` | **derived from the decoder** | the unit is optional here |
 
-When it does build a neural voice, it says so on stderr first:
+When it does build a neural voice, it says so on stderr first — the banner
+now reads the VOICE (`inForce`), so it names the model too:
 
-    voice: decoder=stepped, speech=throughputOptimized, temperature=0.7, lead=0.25 seconds
+    voice: 0.6B · stepped · throughput · temp 0.7 · lead 250 ms
 
 That banner is the point — the slow voice was a silent disagreement between
 the decoder in use and a cushion sized for a different one. Note the limit
@@ -155,7 +164,7 @@ Each answers one question and writes its numbers into
 | `bakeoff [wav] [reference]` | which transcriber has the lower WER | positional; defaults `Fixtures/ryad-en.wav`, `Fixtures/bakeoff-reference.txt` |
 | `bakeoff voice-install` | is the voice model on disk — fetch it if not | — |
 | `bakeoff voice-spike` | time to first audio, per sentence, neural vs Apple | `--stepped`, `--lead=400` |
-| `bakeoff voice-levers` | all six decoder settings, measured serially | — |
+| `bakeoff voice-levers` | all six decoder settings, measured serially | `--voice-model=1.7b` runs the sweep on the big model (AC-163) |
 | `bakeoff voice-wer` | speak → record → transcribe → score | — |
 | `bakeoff voice-onmic` | a reply rendered on a LIVE capture engine | `--no-output-chain` |
 | `bakeoff voice-selfecho` | does the assistant's voice cross its own gate | `--no-shield`, `--no-vp` (the eyes control), `--gate=0.021` |
