@@ -3777,6 +3777,9 @@ why two estimators, and why the mean and not the median.
 
 # Milestone 4o — the cushion sized by the worst stall, not the average
 
+**SPEC SIGNED by Ryad, 2026-08-27.** Both forks ruled at sign-off:
+F-1 = (b) the running maximum, F-2 = bank all of it and price the pause.
+
 ## 138. Why this exists
 
 INSTRUMENTS §53 reproduced the phone's hitching ON A MAC and then killed
