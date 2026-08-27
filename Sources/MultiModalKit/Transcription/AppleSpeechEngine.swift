@@ -21,7 +21,7 @@ import Synchronization
 ///    bake-off, when 46.5 s of speech came back as 14 words (1 substitution,
 ///    78 deletions — the first sentence, perfect, then silence). The run's
 ///    ONE final is the JOIN of all segment finals, emitted at settle.
-public final class AppleSpeechEngine: TranscriptionEngine, Sendable {
+public final class AppleSpeechEngine: TranscriptionEngine, ModelBacked, Sendable {
     public let capabilities = EngineCapabilities(emitsPartials: true)
 
     private let locale: Locale

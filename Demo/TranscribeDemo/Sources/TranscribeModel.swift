@@ -565,7 +565,7 @@ final class TranscribeModel {
         MLXReplyGenerator(
             model: localModel,
             instructions: "Your reply will be spoken aloud by a synthetic voice "
-                + "and never shown as text. Answer in ONE short sentence. Do "
+                + "and never shown as text. Do "
                 + "not add extra facts, background or explanation unless the "
                 + "person asks for them. Never use lists, bullet points, "
                 + "numbered items, markdown, code, or headings.",

@@ -15,7 +15,7 @@ import WhisperKit
 /// An actor on purpose: WhisperKit's pipeline is one mutable object, and
 /// several settling decodes may exist at once (D-024) — actor isolation
 /// serializes them without a single manual lock.
-public actor WhisperEngine: TranscriptionEngine {
+public actor WhisperEngine: TranscriptionEngine, ModelBacked {
     public nonisolated let capabilities = EngineCapabilities(
         emitsPartials: false,
         wantsWholeUtterance: true,

@@ -74,7 +74,7 @@ public struct DecodeMargin: Sendable, Equatable {
     }
 }
 
-public actor NeuralVoice: SpeechSynthesizing {
+public actor NeuralVoice: SpeechSynthesizing, ModelBacked {
     /// Which Qwen3 variant to speak with. 0.6B is the smaller, faster
     /// one; the bake-off's numbers decide whether the larger earns its
     /// download.

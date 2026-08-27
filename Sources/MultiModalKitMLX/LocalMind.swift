@@ -127,7 +127,7 @@ public enum MLXRuntime {
 /// same semantics, so an app that already knows one engine knows this
 /// one: `modelInstalled()` never triggers work, and `ensureModel()` is
 /// idempotent.
-public actor LocalMindModel {
+public actor LocalMindModel: ModelBacked {
     /// Nonisolated: it never changes, and a caller needs the path to say
     /// WHERE it is looking — a question that should not require awaiting
     /// an actor that may be busy loading 2 GB.
@@ -249,10 +249,22 @@ public actor LocalMindModel {
         try files.moveItem(at: snapshot, to: weights)
     }
 
+    /// `ModelBacked`'s half of the pair (D-078, fork B1).
+    ///
+    /// The protocol asks "put the weights on disk"; the method below also
+    /// HANDS BACK the loaded container so a caller can run the model. Two
+    /// different jobs, so the value-returning one stays this type's own
+    /// and the conformance is this one line. Folding them together would
+    /// have needed an `associatedtype`, which makes `any ModelBacked`
+    /// nearly unusable for the caller the protocol exists to serve.
+    public func ensureModel() async throws {
+        _ = try await ensureModelLoaded()
+    }
+
     /// Loads the weights. Idempotent; the load half is skipped when the
     /// model is already resident.
     @discardableResult
-    public func ensureModel() async throws -> ModelContainer {
+    public func ensureModelLoaded() async throws -> ModelContainer {
         guard MLXRuntime.isAvailable else { throw MLXUnavailable.platformCannotRunMLX }
         guard modelInstalled() else {
             throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
@@ -368,7 +380,7 @@ struct MLXTokenSource: ReplyTokenStreaming {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
-                    let container = try await model.ensureModel()
+                    let container = try await model.ensureModelLoaded()
                     let gateTokens = try await model.thinkTokens()
                     // Built INSIDE the closure: `Chat.Message` is not
                     // Sendable, so only the strings cross the boundary.

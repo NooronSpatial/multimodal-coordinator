@@ -100,17 +100,20 @@ struct AudioDemo {
         // download left the ring honestly counting 43,206,464 dropped frames
         // (900 s × 48 kHz) that nobody was reading. The ring told the truth;
         // the ordering was the bug.
+        // THE CAST IS GONE (D-078). This asked the same two questions
+        // through four force casts decided by a STRING, against an object
+        // built somewhere else — if the two ever disagreed the app would
+        // not misbehave, it would crash. `ModelBacked` is the contract
+        // both engines already honoured without one, so the question is
+        // now asked of the protocol and the concrete types are nobody's
+        // business here.
+        let backed = engine as? any ModelBacked
         func modelReady() async -> Bool {
-            switch choice {
-            case "apple": await (engine as! AppleSpeechEngine).modelInstalled()
-            default: await (engine as! WhisperEngine).modelInstalled()
-            }
+            guard let backed else { return true }
+            return await backed.modelInstalled()
         }
         func ensure() async throws {
-            switch choice {
-            case "apple": try await (engine as! AppleSpeechEngine).ensureModel()
-            default: try await (engine as! WhisperEngine).ensureModel()
-            }
+            try await backed?.ensureModel()
         }
         var engineReady = await modelReady()
         if !engineReady {

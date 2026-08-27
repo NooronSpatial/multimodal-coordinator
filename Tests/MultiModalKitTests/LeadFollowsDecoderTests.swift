@@ -114,10 +114,14 @@ struct AdaptiveLeadTests {
     }
 
     @Test("the iPhone's measured 1.21 asks for about 1.26 s, not 396 ms")
-    func thePhonesNumber() {
+    func thePhonesNumber() throws {
         let adaptive = AdaptiveLead()
         adaptive.observe(Self.margin(factor: 1.21))
-        let learned = try! #require(adaptive.target)
+        // `throws` + `try`, not `try!`: a force-try here kills the whole
+        // test PROCESS with signal 5 instead of failing this one test red,
+        // taking every later suite down with it (the same trap already
+        // documented in ColdCompileTests).
+        let learned = try #require(adaptive.target)
         #expect(learned > .milliseconds(1200))
         #expect(learned < .milliseconds(1300))
         #expect(learned > NeuralVoice.defaultLead(for: .stepped),
