@@ -32,3 +32,14 @@ identifier_name:
     - at      # AudioEvent / TurnCoordinator: `speechStarted(utterance:at:)`
     - ms      # milliseconds, in measurement code that prints them
     - id      # listener and utterance identity
+
+# COMMENTS ARE NOT CODE, and in this repo that is not a technicality.
+# Its comments carry the evidence for past bugs — the four attempts at the
+# audio graph's build order, the 43-million-frame drop, the reason a lead
+# is derived and not typed. A file is "too long" when its CODE is too
+# long; counting the scars as bulk would push a reader toward deleting
+# them, which is the one edit this project must never invite.
+file_length:
+  ignore_comment_only_lines: true
+type_body_length:
+  ignore_comment_only_lines: true

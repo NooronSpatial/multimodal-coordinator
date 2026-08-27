@@ -164,6 +164,11 @@ private func graphProbeMeasure(_ probe: Probe) -> ProbeVerdict {
         try child.run()
         let data = pipe.fileHandleForReading.readDataToEndOfFile()
         child.waitUntilExit()
+        // The rule prefers the FAILABLE initialiser so invalid bytes
+        // surface. Here the bytes are a child probe's stdout searched for one
+        // marker word: a nil would turn "the child printed something odd"
+        // into "the child said nothing" — the harder failure to read.
+        // swiftlint:disable:next optional_data_string_conversion
         let out = String(decoding: data, as: UTF8.self)
         if child.terminationStatus == 0, out.contains("SURVIVED") {
             verdict = "survives"

@@ -108,45 +108,56 @@ public struct VoiceLevers: Sendable, Equatable {
                 .map { String($0.dropFirst(name.count + 3)) }
         }
         var levers = base
-        if let token = flag("voice-model") {
-            switch token {
-            case "0.6b": levers.model = .qwen3TTS_0_6b
-            case "1.7b": levers.model = .qwen3TTS_1_7b
-            default: throw FlagError(flag: "voice-model", given: token,
-                                     allowed: "0.6b|1.7b")
-            }
-        }
-        if let token = flag("decoder") {
-            switch token {
-            case "fused": levers.decoder = .fused
-            case "stepped": levers.decoder = .stepped
-            default: throw FlagError(flag: "decoder", given: token,
-                                     allowed: "fused|stepped")
-            }
-        }
-        if let token = flag("speech") {
-            switch token {
-            case "latency": levers.vocoder = .latencyOptimized
-            case "throughput": levers.vocoder = .throughputOptimized
-            default: throw FlagError(flag: "speech", given: token,
-                                     allowed: "latency|throughput")
-            }
-        }
-        if let token = flag("temperature") {
-            guard let value = Float(token) else {
-                throw FlagError(flag: "temperature", given: token,
-                                allowed: "a number, e.g. 0.7")
-            }
-            levers.temperature = value
-        }
-        if let token = flag("lead") {
-            guard let ms = Int(token.replacingOccurrences(of: "ms", with: "")) else {
-                throw FlagError(flag: "lead", given: token,
-                                allowed: "milliseconds, e.g. 400ms")
-            }
-            levers.lead = .milliseconds(ms)
-        }
+        if let token = flag("voice-model") { levers.model = try Self.model(from: token) }
+        if let token = flag("decoder") { levers.decoder = try Self.decoder(from: token) }
+        if let token = flag("speech") { levers.vocoder = try Self.vocoder(from: token) }
+        if let token = flag("temperature") { levers.temperature = try Self.temperature(from: token) }
+        if let token = flag("lead") { levers.lead = try Self.lead(from: token) }
         return levers
+    }
+
+    // ONE FLAG EACH, and the reason is not only the complexity rule: a
+    // reader checking "what does --speech accept?" reads four lines
+    // instead of finding them inside a forty-line function. Each throws
+    // rather than falling back, which is the whole point — the parse this
+    // replaced turned `--decoder=banana` into `.fused` in silence.
+
+    private static func model(from token: String) throws -> TTSModelVariant {
+        switch token {
+        case "0.6b": .qwen3TTS_0_6b
+        case "1.7b": .qwen3TTS_1_7b
+        default: throw FlagError(flag: "voice-model", given: token, allowed: "0.6b|1.7b")
+        }
+    }
+
+    private static func decoder(from token: String) throws -> Qwen3MultiCodeDecoderMode {
+        switch token {
+        case "fused": .fused
+        case "stepped": .stepped
+        default: throw FlagError(flag: "decoder", given: token, allowed: "fused|stepped")
+        }
+    }
+
+    private static func vocoder(from token: String) throws -> Qwen3SpeechDecoderMode {
+        switch token {
+        case "latency": .latencyOptimized
+        case "throughput": .throughputOptimized
+        default: throw FlagError(flag: "speech", given: token, allowed: "latency|throughput")
+        }
+    }
+
+    private static func temperature(from token: String) throws -> Float {
+        guard let value = Float(token) else {
+            throw FlagError(flag: "temperature", given: token, allowed: "a number, e.g. 0.7")
+        }
+        return value
+    }
+
+    private static func lead(from token: String) throws -> Duration {
+        guard let milliseconds = Int(token.replacingOccurrences(of: "ms", with: "")) else {
+            throw FlagError(flag: "lead", given: token, allowed: "milliseconds, e.g. 400ms")
+        }
+        return .milliseconds(milliseconds)
     }
 }
 

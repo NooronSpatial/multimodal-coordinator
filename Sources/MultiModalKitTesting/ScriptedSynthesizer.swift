@@ -138,8 +138,7 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
     }
 
     fileprivate func cancel(utterance index: Int, ignoresCancel: Bool) {
-        let continuation = state.withLock {
-            state -> AsyncStream<SynthesisUpdate>.Continuation? in
+        let continuation = state.withLock { state -> AsyncStream<SynthesisUpdate>.Continuation? in
             state.records[index].cancelled = true
             if ignoresCancel { return nil }
             return state.continuations.removeValue(forKey: index)

@@ -168,10 +168,16 @@ final class RingStorage: @unchecked Sendable {
     /// promise that a read never returns a mix of old and new frames.
     let reserved: Atomic<Int>
 
+    // swiftlint:disable large_tuple
     /// Padding so the producer's counters and the consumer's statistics sit on
     /// different cache lines — the hot core and the cool core must not fight
     /// over one 64-byte line.
+    ///
+    /// Seven `Int64`s ARE the point: this is 56 bytes of nothing, not a value
+    /// anyone reads. A struct here would invite someone to give the fields
+    /// meaning; a tuple cannot.
     private let _padding: (Int64, Int64, Int64, Int64, Int64, Int64, Int64) = (0, 0, 0, 0, 0, 0, 0)
+    // swiftlint:enable large_tuple
 
     /// Dropped-frame statistics. Written by the consumer only.
     let dropped: Atomic<Int>

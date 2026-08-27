@@ -132,99 +132,10 @@ extension TranscribeModel {
         // this voice at all, and they do not depend on where it renders.
         let captureHost = microphone.playbackHost
         pipeline = Task { [weak self] in
-            if let self, mouth == .neural {
-                // WHERE THE REPLY RENDERS (4g): behind the shield it
-                // goes to the CAPTURE engine's host — the whole point,
-                // the canceller can only remove what its own unit
-                // renders (D-043). Unshielded, the 4e arrangement stands.
-                await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
-                await neuralVoice.reportMargins { margin in
-                    // The graph's rate is refreshed HERE, with the
-                    // margin, because it only becomes real when a reply
-                    // has actually rendered: the host records it during
-                    // attach rather than by poking a mixer that may not
-                    // exist yet. Asking at start-up would have printed
-                    // "not rendered yet" forever, which is the same
-                    // family of mistake as the instrument that shipped
-                    // dead an hour ago.
-                    Task { @MainActor in
-                        self.voiceMargin = margin
-                        self.attach(margin)
-                    }
-                }
-            }
-            // Listeners are taken BEFORE the pumps run: no event is missed.
-            let audioForSession = await pump.listen()
-            let audioForUI = await pump.listen()          // the multicast, used for real
-            let transcripts = await transcription.listen()
-            let health = diagnostics.health()
-            let audioForTurns = coordinator == nil ? nil : await pump.listen()
-            let transcriptsForTurns = coordinator == nil ? nil : await transcription.listen()
-            let turnEvents = coordinator == nil ? nil : await coordinator?.listen()
-
-            await withTaskGroup(of: Void.self) { group in
-                group.addTask { await pump.run() }
-                group.addTask { await transcription.run(events: audioForSession.events) }
-                if let coordinator, let audioForTurns, let transcriptsForTurns {
-                    group.addTask {
-                        await coordinator.run(audio: audioForTurns.events,
-                                              transcripts: transcriptsForTurns.events)
-                    }
-                }
-                if let turnEvents {
-                    group.addTask { [weak self] in
-                        for await event in turnEvents.events {
-                            await self?.show(turn: event)
-                        }
-                    }
-                }
-                // The thermal watcher — cancelled with the group, never
-                // stop()ped: diagnostics lives across Listen sessions.
-                group.addTask { await diagnostics.run() }
-                group.addTask { [weak self] in
-                    for await event in health.events {
-                        await self?.show(health: event)
-                    }
-                }
-                group.addTask { [weak self] in
-                    for await event in audioForUI.events {
-                        await self?.show(audio: event)
-                    }
-                }
-                // THE LEVEL METER. A poll, deliberately: the level is a
-                // lock-free atomic written by the audio thread, and the
-                // screen only needs it as fast as a person can read it.
-                // Nothing downstream depends on this task, and it ends
-                // with the group like everything else here.
-                group.addTask { [weak self] in
-                    while !Task.isCancelled {
-                        guard let self else { return }
-                        let (level, alive, reconfigs) = await MainActor.run {
-                            (self.microphone?.inputLevel ?? 0,
-                             self.microphone?.engineIsRunning ?? false,
-                             self.microphone?.configurationChanges ?? 0)
-                        }
-                        await MainActor.run {
-                            self.inputLevel = level
-                            self.inputPeak = max(self.inputPeak, level)
-                            self.engineAlive = alive
-                            self.engineReconfigurations = reconfigs
-                        }
-                        try? await Task.sleep(for: .milliseconds(100))
-                    }
-                }
-                group.addTask { [weak self] in
-                    for await event in transcripts.events {
-                        await self?.show(transcript: event)
-                    }
-                }
-                // The group is the wall: stop() ends the streams, then this
-                // scope drains and returns. Nothing outlives the pipeline.
-                _ = await group.next()
-                await pump.stop()
-                await transcription.stop()
-                await coordinator?.stop()
-            }
+            guard let self else { return }
+            await self.runPipeline(pump: pump, transcription: transcription,
+                                   coordinator: coordinator, diagnostics: diagnostics,
+                                   captureHost: captureHost)
         }
     }
 
@@ -388,4 +299,139 @@ extension TranscribeModel {
             self?.start()
         }
     }
+
+    /// The conversation's own task tree, lifted out of `start()`.
+    ///
+    /// It is ONE structured group on purpose (D-014): every listener is a
+    /// child of this task, so cancelling `pipeline` cancels all of them and
+    /// none can outlive the conversation that made it.
+    private func runPipeline(pump: AudioPump<ContinuousClock>,
+                             transcription: TranscriptionSession,
+                             coordinator: TurnCoordinator<ContinuousClock>?,
+                             diagnostics: PipelineDiagnostics,
+                             captureHost: MicrophonePlaybackHost) async {
+        if mouth == .neural {
+            // WHERE THE REPLY RENDERS (4g): behind the shield it
+            // goes to the CAPTURE engine's host — the whole point,
+            // the canceller can only remove what its own unit
+            // renders (D-043). Unshielded, the 4e arrangement stands.
+            await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
+            await neuralVoice.reportMargins { margin in
+                // The graph's rate is refreshed HERE, with the
+                // margin, because it only becomes real when a reply
+                // has actually rendered: the host records it during
+                // attach rather than by poking a mixer that may not
+                // exist yet. Asking at start-up would have printed
+                // "not rendered yet" forever, which is the same
+                // family of mistake as the instrument that shipped
+                // dead an hour ago.
+                Task { @MainActor in
+                    self.voiceMargin = margin
+                    self.attach(margin)
+                }
+            }
+        }
+        // Listeners are taken BEFORE the pumps run: no event is missed.
+        let audioForSession = await pump.listen()
+        let audioForUI = await pump.listen()          // the multicast, used for real
+        let transcripts = await transcription.listen()
+        let health = diagnostics.health()
+        let audioForTurns = coordinator == nil ? nil : await pump.listen()
+        let transcriptsForTurns = coordinator == nil ? nil : await transcription.listen()
+        let turnEvents = coordinator == nil ? nil : await coordinator?.listen()
+
+        await runListeners(pump: pump, transcription: transcription,
+                           coordinator: coordinator, diagnostics: diagnostics,
+                           health: health,
+                           audioForSession: audioForSession, audioForUI: audioForUI,
+                           transcripts: transcripts, audioForTurns: audioForTurns,
+                           transcriptsForTurns: transcriptsForTurns, turnEvents: turnEvents)
+    }
+
+    // swiftlint:disable function_parameter_count function_body_length
+    /// The task GROUP itself: one child per listener, all of them children
+    /// of the caller's task so a cancel reaches every one (D-014).
+    ///
+    /// The long parameter list is the point rather than a smell: these are
+    /// the ALREADY-OPENED listener handles. Opening them inside this
+    /// function would change WHO subscribes first, and subscription order
+    /// is the one thing the multicast's drop accounting depends on. The
+    /// body is one `addTask` per listener — long, but flat and additive,
+    /// and splitting it would scatter a task tree that must be read whole.
+    private func runListeners(pump: AudioPump<ContinuousClock>,
+                              transcription: TranscriptionSession,
+                              coordinator: TurnCoordinator<ContinuousClock>?,
+                              diagnostics: PipelineDiagnostics,
+                              health: Broadcast<HealthEvent>.Listener,
+                              audioForSession: Broadcast<AudioEvent>.Listener,
+                              audioForUI: Broadcast<AudioEvent>.Listener,
+                              transcripts: Broadcast<TranscriptEvent>.Listener,
+                              audioForTurns: Broadcast<AudioEvent>.Listener?,
+                              transcriptsForTurns: Broadcast<TranscriptEvent>.Listener?,
+                              turnEvents: Broadcast<TurnEvent>.Listener?) async {
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await pump.run() }
+            group.addTask { await transcription.run(events: audioForSession.events) }
+            if let coordinator, let audioForTurns, let transcriptsForTurns {
+                group.addTask {
+                    await coordinator.run(audio: audioForTurns.events,
+                                          transcripts: transcriptsForTurns.events)
+                }
+            }
+            if let turnEvents {
+                group.addTask { [weak self] in
+                    for await event in turnEvents.events {
+                        await self?.show(turn: event)
+                    }
+                }
+            }
+            // The thermal watcher — cancelled with the group, never
+            // stop()ped: diagnostics lives across Listen sessions.
+            group.addTask { await diagnostics.run() }
+            group.addTask { [weak self] in
+                for await event in health.events {
+                    await self?.show(health: event)
+                }
+            }
+            group.addTask { [weak self] in
+                for await event in audioForUI.events {
+                    await self?.show(audio: event)
+                }
+            }
+            // THE LEVEL METER. A poll, deliberately: the level is a
+            // lock-free atomic written by the audio thread, and the
+            // screen only needs it as fast as a person can read it.
+            // Nothing downstream depends on this task, and it ends
+            // with the group like everything else here.
+            group.addTask { [weak self] in
+                while !Task.isCancelled {
+                    guard let self else { return }
+                    let (level, alive, reconfigs) = await MainActor.run {
+                        (self.microphone?.inputLevel ?? 0,
+                         self.microphone?.engineIsRunning ?? false,
+                         self.microphone?.configurationChanges ?? 0)
+                    }
+                    await MainActor.run {
+                        self.inputLevel = level
+                        self.inputPeak = max(self.inputPeak, level)
+                        self.engineAlive = alive
+                        self.engineReconfigurations = reconfigs
+                    }
+                    try? await Task.sleep(for: .milliseconds(100))
+                }
+            }
+            group.addTask { [weak self] in
+                for await event in transcripts.events {
+                    await self?.show(transcript: event)
+                }
+            }
+            // The group is the wall: stop() ends the streams, then this
+            // scope drains and returns. Nothing outlives the pipeline.
+            _ = await group.next()
+            await pump.stop()
+            await transcription.stop()
+            await coordinator?.stop()
+        }
+    }
+    // swiftlint:enable function_parameter_count function_body_length
 }

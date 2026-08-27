@@ -27,6 +27,15 @@ import SwiftUI
 @Observable
 final class MindProbe {
 
+    /// One place where the model REVISED text it had already emitted —
+    /// the thing this probe exists to catch (AC-111). A named type rather
+    /// than a tuple so the three fields cannot be read in the wrong order.
+    struct Revision {
+        let step: Int
+        let was: String
+        let now: String
+    }
+
     struct PromptResult: Identifiable {
         let id: Int
         let prompt: String
@@ -36,7 +45,7 @@ final class MindProbe {
         var cumulative = false          // lengths never shrink
         var strictlyExtending = false   // new.hasPrefix(old), every pair
         var scalarExtending = false     // same, at unicode-scalar level
-        var revisions: [(step: Int, was: String, now: String)] = []
+        var revisions: [Revision] = []
         var finalText = ""
         var failure: String?
 
@@ -124,7 +133,7 @@ final class MindProbe {
                 let was = snapshots[index - 1], now = snapshots[index]
                 if !now.hasPrefix(was) {
                     row.strictlyExtending = false
-                    row.revisions.append((index, was, now))
+                    row.revisions.append(Revision(step: index, was: was, now: now))
                 }
                 if !Array(now.unicodeScalars).starts(with: Array(was.unicodeScalars)) {
                     row.scalarExtending = false

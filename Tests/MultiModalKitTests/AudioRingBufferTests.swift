@@ -12,7 +12,8 @@ import Testing
     }
 
     /// Helper: read up to `max` frames into a fresh array.
-    private func read(_ consumer: AudioRingConsumer, max: Int) -> (values: [Float], result: AudioRingConsumer.ReadResult) {
+    private func read(_ consumer: AudioRingConsumer,
+                      max: Int) -> (values: [Float], result: AudioRingConsumer.ReadResult) {
         var buffer = [Float](repeating: .nan, count: max)
         let result = buffer.withUnsafeMutableBufferPointer { consumer.read(into: $0) }
         return (Array(buffer.prefix(result.framesRead)), result)
