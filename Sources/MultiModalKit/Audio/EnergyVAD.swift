@@ -61,8 +61,8 @@ public struct EnergyVAD: VoiceActivityDetecting {
         guard let base = chunk.baseAddress, chunk.count > 0 else { return nil }
 
         var sumOfSquares: Float = 0
-        for i in 0..<chunk.count {
-            let sample = base[i]
+        for index in 0..<chunk.count {
+            let sample = base[index]
             sumOfSquares += sample * sample
         }
         let rms = (sumOfSquares / Float(chunk.count)).squareRoot()

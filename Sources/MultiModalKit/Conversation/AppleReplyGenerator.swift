@@ -222,9 +222,9 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                     // because the finish lives in someone else's method,
                     // and the 4b precedent is to record redundancy, not
                     // pretend each line is load-bearing alone.
-                    let token: String? = try self.state.withLock { s in
-                        guard !s.retired else { return nil }
-                        let suffix = try s.differ.advance(to: snapshot)
+                    let token: String? = try self.state.withLock { guarded in
+                        guard !guarded.retired else { return nil }
+                        let suffix = try guarded.differ.advance(to: snapshot)
                         return suffix.isEmpty ? nil : suffix
                     }
                     guard let token else {
@@ -300,9 +300,9 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// the latch 4e's review had to force onto `NeuralVoiceRun` after a
     /// failed decode kept running and aborted the process.
     private func report(_ terminal: ReplyUpdate) {
-        let first = state.withLock { s -> Bool in
-            let was = s.retired
-            s.retired = true
+        let first = state.withLock { guarded -> Bool in
+            let was = guarded.retired
+            guarded.retired = true
             return !was
         }
         guard first else { return }
@@ -314,9 +314,9 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// The flag is raised in the same locked step that decides "was I
     /// first", so a snapshot mid-flight sees it before its next yield.
     func cancel() async {
-        let first = state.withLock { s -> Bool in
-            let was = s.retired
-            s.retired = true
+        let first = state.withLock { guarded -> Bool in
+            let was = guarded.retired
+            guarded.retired = true
             return !was
         }
         work.withLock { $0 }?.cancel()

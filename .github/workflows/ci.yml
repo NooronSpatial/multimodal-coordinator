@@ -20,3 +20,16 @@ jobs:
         run: swift build -Xswiftc -warnings-as-errors
       - name: Test
         run: swift test -Xswiftc -warnings-as-errors
+
+      # SwiftLint runs AFTER the tests, on purpose. A style complaint must
+      # never be the thing that hides a red test from a reader scanning a
+      # failed run — the compiler and the suite speak first.
+      #
+      # `--strict` makes every warning an error, which is the same bargain
+      # the build already takes with -warnings-as-errors: a rule worth
+      # having is worth failing on, and a rule not worth failing on should
+      # be switched off in .swiftlint.yml with a reason beside it.
+      - name: Lint (strict — warnings are errors)
+        run: |
+          brew install swiftlint
+          swiftlint lint --strict

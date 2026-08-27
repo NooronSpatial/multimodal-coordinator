@@ -3192,3 +3192,126 @@ hold real time on the phone. The phone runs 0.6B at 1.05–1.37; 1.7B
 costs 1.1–1.3× more, which puts it at roughly 1.4–1.8 there. Real time
 gone by a margin no cushion can bank — exactly as written, now with
 numbers behind it.
+
+## D-078 — the four organs finally share one contract for their weights (refactor, step 1)
+
+**Date:** 2026-08-27 · **Decided by:** Ryad · **Rulings: the seam gap =
+B (one `ModelBacked` protocol, adopted by all four organs) · its shape =
+B1 (the protocol returns nothing; the mind keeps its value-returning
+method under a second name)**
+
+### How a linter found a design hole
+
+SwiftLint, added the same day, flagged four `force_cast` violations in
+`AudioDemo`. The code behind them:
+
+```swift
+case "apple": await (engine as! AppleSpeechEngine).modelInstalled()
+default:      await (engine as! WhisperEngine).modelInstalled()
+```
+
+A force cast chosen by a **string**, against an object constructed
+somewhere else. If the two ever disagreed the app would not degrade — it
+would crash. But the cast was the symptom. The cause: `modelInstalled()`
+and `ensureModel()` were declared on FOUR types — `AppleSpeechEngine`,
+`WhisperEngine`, `LocalMindModel`, `NeuralVoice` — and on **no protocol
+at all**. A caller holding `any TranscriptionEngine` could not ask either
+question, so it reached for the only tool left.
+
+**Ruled: B.** One protocol, `ModelBacked`, adopted by all four. It states
+the doctrine `WhisperEngine` already followed and nobody could depend on:
+asking is free and never downloads · fetching is explicit and idempotent
+· "installed" means offline-capable.
+
+*Rejected:* **A, add the pair to `TranscriptionEngine` only** — kills the
+cast, and leaves the mind and the mouth duplicating the same two methods
+with no contract. It fixes the instance and not the class, which is the
+fault D-051's open note already names three times over.
+*Rejected:* **C, work around it in the CLI** — hides a missing seam
+behind a local switch, and the next caller rediscovers the hole.
+
+### F-1 — what `ensureModel()` returns (ruled B1)
+
+Three organs return `Void`; `LocalMindModel.ensureModel()` returned its
+loaded `ModelContainer` so a caller could run the model.
+
+**Ruled: B1 — the protocol returns nothing.** "Make sure the weights are
+on disk" and "give me the loaded thing" are two jobs. The conformance is
+one line calling the other method, now named `ensureModelLoaded()`.
+
+*Rejected:* **B2, an `associatedtype Loaded`** — more faithful to the
+four shapes, and it makes `any ModelBacked` nearly unusable, which is
+precisely the caller this protocol exists to serve. A protocol that
+cannot be held existentially would not have removed a single cast.
+
+**The cost, named:** `LocalMindModel` now has two methods one letter
+apart in meaning, and a reader must notice which one hands back the
+container. The alternative was an existential nobody could hold.
+
+**What this does NOT fix:** the lazy-init class D-051's accepted note
+keeps open (`feed`, `openUtterance`, two `prewarm`s). `ModelBacked` is
+about weights on disk, not about who loads them when. That fork stays
+open and is now the older of the two.
+
+## D-079 — the app stops the mind before iOS kills the app (crash fix)
+
+**Date:** 2026-08-27 · **Decided by:** Ryad · **Ruling: A — the guard
+lives in the app, not in the library**
+
+### The crash, from Ryad's phone
+
+```
+IOGPUMetalError: Insufficient Permission (to submit GPU work from
+background) (00000006:kIOGPUCommandBufferCallbackErrorBackground
+ExecutionNotPermitted)
+libc++abi: terminating due to uncaught exception of type
+std::runtime_error: [METAL] Command buffer execution failed
+```
+
+iOS forbids GPU work from the background. The app left the foreground
+while the LOCAL mind was generating, Metal refused the command buffer,
+and MLX threw a **C++** `std::runtime_error`. A C++ exception crossing
+into Swift cannot be caught — the `do/catch` already wrapped around
+`MLXReplyRun`'s token loop never sees it — so `libc++abi` terminates the
+process. Not a glitch: a kill.
+
+Ruled out before it was tried: `beginBackgroundTask` buys CPU time and
+never GPU time. The restriction is on the hardware, not the clock. **The
+only cure is to not be generating when we go.**
+
+**Ruled: A.** `TranscribeModel` observes `willResignActiveNotification`
+and takes the same two steps an audio interruption already takes — the
+live turn dies honestly, the words already spoken are kept.
+
+*Rejected:* **B, guard inside `MLXReplyGenerator`** — the session's own
+recommendation, and it is the better engineering: the landmine is in the
+library, so every future caller inherits the crash. Ryad ruled otherwise
+and the reason is scope — `MultiModalKitMLX` today knows about weights
+and tokens and nothing about app lifecycle, and this project's own rule
+is that the app owns the platform (D-042 F-1, D-044). **The cost is
+named: the library still crashes for anyone else who backgrounds it
+mid-generation, and that is now a known, recorded hazard rather than an
+unknown one.**
+*Rejected:* **C, both** — the library half is what makes C differ from
+A, and A's ruling is precisely that the library half does not happen.
+
+### Two implementation notes, both costs rather than cleverness
+
+**`willResignActive`, not `didEnterBackground`.** The later notification
+fires when the app is ALREADY in the background — too late if a command
+buffer is in flight. The earlier one always precedes it. The price:
+pulling down Control Centre or taking a call also stops the reply. A
+stopped reply is an annoyance a tap recovers from; a killed process is
+not.
+
+**The honest limit.** Cancellation is cooperative. The token loop checks
+between tokens, so this wins the race only when MLX is between command
+buffers as the notification lands. It makes the crash rare; it cannot
+make it impossible, and no app-side fix can. **Unverified on hardware:**
+the fix is reasoned from the crash log and compiles, but nobody has yet
+backgrounded the phone mid-reply to watch it hold.
+
+### What needs no guard
+
+The ear and the mouth run on the ANE through CoreML, which the background
+does not forbid. Only the MLX mind touches Metal.
