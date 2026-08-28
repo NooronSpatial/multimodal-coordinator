@@ -123,16 +123,16 @@ extension TranscribeModel {
             out += "\(MLXRuntime.activeMemoryBytes / 1_048_576) MB · peak "
             out += "\(MLXRuntime.peakMemoryBytes / 1_048_576) MB\n"
         }
-        if let why = mindUnavailable { out += "mind unavailable: \(why)\n" }
-        if let status = localDownloadStatus { out += "download: \(status)\n" }
+        if let why = mindAssets.unavailable { out += "mind unavailable: \(why)\n" }
+        if let status = mindAssets.downloadStatus { out += "download: \(status)\n" }
         out += "weights expected at: \(localModel.weights.path)\n"
         out += "\nNOTE: the `mind:` line under each turn is the brain that\n"
         out += "ACTUALLY answered, taken from the generator the coordinator\n"
         out += "held — not from the picker above. If they disagree, that is\n"
         out += "the finding.\n\n"
-        if !probeLines.isEmpty {
+        if !probe.lines.isEmpty {
             out += "\n## pressure probe\n\n```\n"
-            out += probeLines.joined(separator: "\n")
+            out += probe.lines.joined(separator: "\n")
             out += "\n```\n\n"
         }
         if turns.isEmpty { out += "_(no turns recorded yet)_\n" }
@@ -180,24 +180,24 @@ extension TranscribeModel {
     var memoryConflict: String? { nil }
 
     func downloadLocalMind() {
-        guard localDownloadProgress == nil else {
-            localDownloadStatus = "already downloading — ignoring the tap."
+        guard mindAssets.downloadProgress == nil else {
+            mindAssets.downloadStatus = "already downloading — ignoring the tap."
             return
         }
-        localDownloadProgress = 0
-        localDownloadStatus = "starting the local mind (\(LocalMind.sizeOnDisk))…"
+        mindAssets.downloadProgress = 0
+        mindAssets.downloadStatus = "starting the local mind (\(LocalMind.sizeOnDisk))…"
         Task { [localModel] in
             do {
-                self.localDownloadStatus = "asking Hugging Face for \(LocalMind.repoID)…"
+                self.mindAssets.downloadStatus = "asking Hugging Face for \(LocalMind.repoID)…"
                 try await localModel.download { fraction in
                     Task { @MainActor in
-                        self.localDownloadProgress = fraction
-                        self.localDownloadStatus = String(
+                        self.mindAssets.downloadProgress = fraction
+                        self.mindAssets.downloadStatus = String(
                             format: "downloading the local mind — %.0f%%",
                             fraction * 100)
                     }
                 }
-                self.localDownloadProgress = nil
+                self.mindAssets.downloadProgress = nil
                 // Proof, not hope: the download returning is not the same
                 // as the files being usable. And it must judge the model
                 // it actually DOWNLOADED — `localModel` may have been
@@ -205,14 +205,14 @@ extension TranscribeModel {
                 // the first version reporting a perfectly good download as
                 // broken because it asked the wrong object.
                 let installed = localModel.modelInstalled()
-                self.localDownloadStatus = installed
+                self.mindAssets.downloadStatus = installed
                     ? "installed at \(localModel.weights.lastPathComponent)."
                     : "download finished but the files are NOT usable — "
                         + "expected them at \(localModel.weights.path)"
                 self.refreshMind()
             } catch {
-                self.localDownloadProgress = nil
-                self.localDownloadStatus = "download FAILED: \(error)"
+                self.mindAssets.downloadProgress = nil
+                self.mindAssets.downloadStatus = "download FAILED: \(error)"
             }
         }
     }
@@ -287,35 +287,35 @@ extension TranscribeModel {
             // with the picker permanently out of reach: a crash loop the
             // person could not escape from inside the app.
             guard memoryConflict == nil else {
-                mindUnavailable = memoryConflict
+                mindAssets.unavailable = memoryConflict
                 return                      // load NOTHING
             }
             // The simulator answer is STRUCTURAL, not a missing file
             // (D-061): MLX wants a shared-storage Metal heap and the
             // simulator's driver refuses. Saying so beats a dead button.
             guard MLXRuntime.isAvailable else {
-                mindUnavailable = String(describing: MLXUnavailable.platformCannotRunMLX)
+                mindAssets.unavailable = String(describing: MLXUnavailable.platformCannotRunMLX)
                 return
             }
             guard localModel.modelInstalled() else {
-                mindUnavailable = "the local mind is not downloaded yet — "
+                mindAssets.unavailable = "the local mind is not downloaded yet — "
                     + "tap Download (\(LocalMind.sizeOnDisk), once)."
                 return
             }
-            mindUnavailable = nil
+            mindAssets.unavailable = nil
             localMind.prewarm()   // the measured 1.7 s load, paid off-turn
             return
         }
-        guard mind == .apple else { mindUnavailable = nil; return }
+        guard mind == .apple else { mindAssets.unavailable = nil; return }
         switch AppleReplyGenerator.availability {
         case nil:
-            mindUnavailable = nil
+            mindAssets.unavailable = nil
             appleMind.prewarm()
         case .some(let reason):
             // THE LIBRARY OWNS THE WORDS (4f review): the same sentence a
             // mid-session failure prints is the one this caption shows, so
             // the two surfaces cannot drift apart.
-            mindUnavailable = String(describing: reason)
+            mindAssets.unavailable = String(describing: reason)
         }
     }
 }

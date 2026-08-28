@@ -11,26 +11,26 @@ import Observation
 // `TranscribeModel` — the measurements: the lever sweep (AC-146 … AC-151)
 // and the bake-off against the committed fixture (AC-43).
 extension TranscribeModel {
-    var sweepMarkdown: String { BenchTable.markdown(sweepRows) }
+    var sweepMarkdown: String { BenchTable.markdown(sweep.rows) }
 
     func runSweep() {
-        guard !sweepRunning else { return }
+        guard !sweep.running else { return }
         let plan = BenchConfiguration.phone
         let runsEach = 3
-        sweepRows = []
-        sweepProgress = 0
-        sweepTotal = plan.count * runsEach
-        sweepRefusal = nil
-        sweepRunning = true
-        sweepTask = Task {
-            defer { sweepRunning = false; sweepTask = nil }
+        sweep.rows = []
+        sweep.progress = 0
+        sweep.total = plan.count * runsEach
+        sweep.refusal = nil
+        sweep.running = true
+        sweep.task = Task {
+            defer { sweep.running = false; sweep.task = nil }
             do {
-                sweepRows = try await BenchSweep.run(
+                sweep.rows = try await BenchSweep.run(
                     plan, runsEach: runsEach, on: PhoneBenchStage(model: self))
             } catch BenchSweep.Refusal.refused(let why) {
-                sweepRefusal = why
+                sweep.refusal = why
             } catch {
-                sweepRefusal = "\(error)"
+                sweep.refusal = "\(error)"
             }
         }
     }
@@ -38,9 +38,9 @@ extension TranscribeModel {
     /// Cancellation keeps the rows already measured — a sweep stopped
     /// halfway still measured what it measured — and the levers still come
     /// back to what the person chose (AC-151).
-    func stopSweep() { sweepTask?.cancel() }
+    func stopSweep() { sweep.task?.cancel() }
 
-    func noteSweepMeasurement() { sweepProgress += 1 }
+    func noteSweepMeasurement() { sweep.progress += 1 }
 
     /// The voice the bench measures — the same object the conversation
     /// speaks with, never a fresh one built for the occasion. A bench that

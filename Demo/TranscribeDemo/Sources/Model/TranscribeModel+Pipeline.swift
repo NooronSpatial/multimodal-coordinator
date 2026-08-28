@@ -56,7 +56,7 @@ extension TranscribeModel {
         // ANY mind that cannot answer, not just Apple's: the review found
         // the Local mind able to start a session in which every turn fails
         // at the door — a dead conversation that looks alive.
-        if talkEnabled, mind != .echo, let why = mindUnavailable { return why }
+        if talkEnabled, mind != .echo, let why = mindAssets.unavailable { return why }
         return nil
     }
 

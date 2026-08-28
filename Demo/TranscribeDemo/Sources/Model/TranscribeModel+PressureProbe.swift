@@ -28,19 +28,19 @@ extension TranscribeModel {
         else { return }
         // MARK: D, so a restored trace can never impersonate a live run on
         // the Bench screen (the 4n review, and the null-run story of §51).
-        probeLines = ["(restored from the previous run — not live)"]
+        probe.lines = ["(restored from the previous run — not live)"]
             + text.split(separator: "\n").map(String.init)
     }
 
     private func probeSay(_ line: String) {
-        probeLines.append(line)
+        probe.lines.append(line)
         // Capped, because a 250 ms sampler over a long load writes a lot,
         // and a file that grows without bound is its own bug. The OLDEST
         // lines go, never the newest — the last line before a death is
         // the whole point.
-        if probeLines.count > 4_000 { probeLines.removeFirst(500) }
+        if probe.lines.count > 4_000 { probe.lines.removeFirst(500) }
         // Append and flush NOW. Not at the end — there may not be an end.
-        try? probeLines.joined(separator: "\n")
+        try? probe.lines.joined(separator: "\n")
             .write(to: probeLog, atomically: true, encoding: .utf8)
     }
 
@@ -61,8 +61,8 @@ extension TranscribeModel {
     /// log says whether it was actually the cause, because re-enabling a
     /// suspect on a hunch is how a second afternoon gets lost (D-054).
     private func watchSystemPressure() {
-        guard pressureMonitor == nil else { return }
-        pressureMonitor = MemoryPressureMonitor { [weak self] level in
+        guard probe.monitor == nil else { return }
+        probe.monitor = MemoryPressureMonitor { [weak self] level in
             Task { @MainActor in
                 self?.probeSay("  *** SYSTEM MEMORY PRESSURE: \(level) ***")
             }
@@ -76,26 +76,26 @@ extension TranscribeModel {
         // LAUNCH load was still running started a second one into the same
         // file. Two writers, one file, and a trace nobody can read. Same
         // class as the double model load, one layer up.
-        guard !samplerBusy else {
+        guard !probe.samplerBusy else {
             probeSay("  (\(label): a load is already being sampled — "
                 + "not starting a second, and not touching that trace)")
             // The count belongs to the OTHER sampler; poison ours so the
             // null-run verdict stays silent instead of judging this phase
             // by a foreign number (the 4n review).
-            lastPhaseSamples = -1
+            probe.lastPhaseSamples = -1
             return try await work()
         }
-        samplerBusy = true
+        probe.samplerBusy = true
         // NOT watching system pressure here any more — see the comment on
         // `watchSystemPressure`. It is wired to nothing until it is safe.
-        defer { samplerBusy = false }
-        lastPhaseSamples = 0
+        defer { probe.samplerBusy = false }
+        probe.lastPhaseSamples = 0
         let sampler = Task { [weak self] in
             for tick in 0..<2_400 {          // 10 minutes, capped
                 try? await Task.sleep(for: .milliseconds(250))
                 guard !Task.isCancelled, let self else { return }
                 await MainActor.run {
-                    self.lastPhaseSamples += 1
+                    self.probe.lastPhaseSamples += 1
                     self.probeSay(String(format: "    %@ +%.1fs  %@",
                                          label, Double(tick) * 0.25,
                                          self.headroomNow()))
@@ -154,7 +154,7 @@ extension TranscribeModel {
         // the ❄ came back with that report ERASED — this reset destroyed
         // the one line that says whether the clear found anything, which
         // is the line the whole control exists to produce.
-        if fresh { probeLines = [] }
+        if fresh { probe.lines = [] }
         probeSay("# pressure probe — \(LocalMind.repoID)")
 
         // HONEST BASELINE. The first version called this "baseline" while
@@ -178,7 +178,7 @@ extension TranscribeModel {
         do {
             try await sampling("voice") { try await neuralVoice.ensureModel() }
             if let warning = PressurePhaseVerdict.nullRunLine(
-                samples: lastPhaseSamples, label: "voice") {
+                samples: probe.lastPhaseSamples, label: "voice") {
                 probeSay(warning)
                 voicePhaseWasNull = true
             }
@@ -214,7 +214,7 @@ extension TranscribeModel {
     /// that cannot be done wrong.
     func runColdProbe() async {
         guard !isListening else {
-            probeLines = ["cold probe refused: the conversation is running — stop Listen first"]
+            probe.lines = ["cold probe refused: the conversation is running — stop Listen first"]
             return
         }
         // THE SAME FUNNEL AS settleLevers (the 4n review). The first
@@ -231,7 +231,7 @@ extension TranscribeModel {
             settleWaiters = []
             for waiter in waking { waiter.resume() }
         }
-        probeLines = []
+        probe.lines = []
         probeSay("# cold-compile probe — D-074 = B")
         // Off the MainActor: the byte walk and the deletes are file I/O,
         // and the screen should not stutter for them. Caches AND tmp —
