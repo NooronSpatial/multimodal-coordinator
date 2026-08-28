@@ -302,6 +302,22 @@ public final class MicrophoneSource: AudioSource {
                                    into producer: AudioRingProducer) {
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { [latestLevel] buffer, _ in
             // Iron laws territory. View → copy → return. Nothing else.
+            // CHANNEL 0, AND WHAT THAT ASSUMES.
+            //
+            // `floatChannelData` is an array of pointers, one per
+            // channel: `channels[0]` is the left, `channels[1]` would be
+            // the right on a stereo source. Every capture this project
+            // has measured is MONO — the built-in microphones and the
+            // Continuity chain all present one channel — so taking
+            // channel 0 takes the whole signal.
+            //
+            // The gap, stated because nothing checks it: the format guard
+            // above requires `channelCount > 0`, not `== 1`. A stereo
+            // input would therefore be accepted and only its LEFT channel
+            // would reach the ring — quieter than expected and missing
+            // half the room, with nothing reporting why. No device has
+            // done this here; if one ever does, this comment is where the
+            // search should start.
             guard let channels = buffer.floatChannelData else { return }
             let frames = Int(buffer.frameLength)
             producer.write(UnsafeBufferPointer(start: channels[0], count: frames))
