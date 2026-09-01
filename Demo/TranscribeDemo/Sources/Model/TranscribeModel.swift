@@ -129,14 +129,9 @@ final class TranscribeModel {
 
     // MARK: - the sweep (AC-146 … AC-151)
 
-    var sweepRows: [BenchRow] = []
-    var sweepRunning = false
-    var sweepProgress = 0
-    var sweepTotal = 0
-    /// Why the sweep would not run, or nil. AC-146: it REFUSES rather than
-    /// dying, and an instrument that crashes the app is not an instrument.
-    var sweepRefusal: String?
-    var sweepTask: Task<Void, Never>?
+    /// The sweep's own state, in `SweepState` — six properties that only
+    /// the sweep touches, kept together where they can be read at once.
+    let sweep = SweepState()
 
     /// The mind. Changing it restarts the pipeline, like the mouth.
     var mind: MindChoice = TranscribeModel.storedMind {
@@ -151,7 +146,6 @@ final class TranscribeModel {
     /// three reasons are different sentences on purpose: a person whose
     /// device cannot run the model needs different words from one whose
     /// download is still running.
-    var mindUnavailable: String?
     /// The shield probe's label-and-latch (the echo probe's law: one
     /// field is both, so a parked error cannot disable the instrument).
     var shieldStatus: String?
@@ -197,6 +191,9 @@ final class TranscribeModel {
     /// when a person taps Download. Asking whether it is installed never
     /// starts anything.
     let localModel = LocalMindModel(repoID: LocalMind.repoID)
+
+    /// The weights' own state, in `MindAssetsState`.
+    let mindAssets = MindAssetsState()
     /// THE CONVERSATION LOG. Built because a field report — "sometimes it
     /// just replies my question" — cannot be chased without the real
     /// exchange, and because the one fact that separates the two likely
@@ -217,50 +214,14 @@ final class TranscribeModel {
     /// session it happened.
     var sessionStart: ContinuousClock.Instant?
 
-    /// Fraction complete while the weights come down, or nil.
-    /// Fraction complete while the weights come down, or nil.
-    var localDownloadProgress: Double?
-
     // MARK: - the pressure probe (4i, AC-132's field half)
 
-    var probeLines: [String] = []
-
-    /// SAMPLES THE DESCENT while something expensive loads.
-    ///
-    /// The steady footprint is not what kills: TTSKit reports "Loading 6
-    /// CoreML models concurrently", and six simultaneous compiles need
-    /// transient memory far above what the finished models hold. That
-    /// peak is invisible from outside — the app simply stops.
-    ///
-    /// So this writes a reading every 250 ms, flushed, while the load
-    /// runs. If jetsam takes the process, the LAST line is how close it
-    /// got before dying, which is the number nothing else can give us.
-    var samplerBusy = false
-    /// How many lines the LAST sampled phase actually wrote. Zero after a
-    /// phase means the load returned inside one sample interval — nothing
-    /// was watched, and AC-170 says the trace must say so instead of
-    /// blessing it. The first field run printed `survived: yes` around
-    /// exactly that, and only a human comparing four identical numbers by
-    /// eye caught it.
-    var lastPhaseSamples = 0
-
-    /// The kernel's own alarm, recorded into the same trace. AC-139
-    /// showed both in-process numbers blind to a load that kills, because
-    /// CoreML prepares models in system daemons — so this is the only
-    /// instrument positioned to see it (INSTRUMENTS §30).
-    var pressureMonitor: MemoryPressureMonitor?
+    /// The probe's own state, in `ProbeState`.
+    let probe = ProbeState()
 
     /// Fetches the weights. EXPLICIT — a person taps, nothing else.
     /// What the download is doing, in words, at every stage.
     ///
-    /// STICKY on purpose, and it exists because of a field report:
-    /// "downloading is not starting after i klick the button". The old
-    /// version reported only through `localDownloadProgress`, so a
-    /// failure BEFORE the first progress callback showed as a flicker and
-    /// the button coming back — visually identical to the tap doing
-    /// nothing. A silent failure and an ignored tap must never look the
-    /// same. `refreshMind()` deliberately does not clear this.
-    var localDownloadStatus: String?
 
     /// Every English voice this phone has, best quality first.
     /// Computed once: the list only changes when someone downloads a

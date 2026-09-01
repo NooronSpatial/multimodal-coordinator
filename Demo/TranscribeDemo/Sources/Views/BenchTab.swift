@@ -33,7 +33,7 @@ struct BenchTab: View {
 
                     if model.probeSilence == nil && model.probeStatus == nil
                         && model.shieldStatus == nil && model.shieldReport.isEmpty
-                        && model.probeLines.isEmpty {
+                        && model.probe.lines.isEmpty {
                         ContentUnavailableView(
                             "Nothing measured yet",
                             systemImage: "gauge.with.needle",
@@ -47,11 +47,11 @@ struct BenchTab: View {
                     // it (AC-171). "i tap the gauge but i dont see nothing
                     // happening" — the lines went only to the shareable log,
                     // so a running probe and a dead button looked identical.
-                    if !model.probeLines.isEmpty {
+                    if !model.probe.lines.isEmpty {
                         Divider()
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Pressure probe").font(.headline)
-                            ForEach(Array(model.probeLines.suffix(40).enumerated()),
+                            ForEach(Array(model.probe.lines.suffix(40).enumerated()),
                                     id: \.offset) { _, line in
                                 Text(line)
                                     .font(.system(.caption2, design: .monospaced))
@@ -220,7 +220,7 @@ struct BenchTab: View {
             HStack {
                 Text("Sweep").font(.headline)
                 Spacer()
-                if model.sweepRunning {
+                if model.sweep.running {
                     Button("Stop", role: .destructive) { model.stopSweep() }
                 } else {
                     Button("Run") { model.runSweep() }
@@ -237,22 +237,22 @@ struct BenchTab: View {
                  + "we already understand.")
                 .font(.caption).foregroundStyle(.secondary)
 
-            if model.sweepRunning {
+            if model.sweep.running {
                 HStack(spacing: 8) {
                     ProgressView()
-                    Text("\(model.sweepProgress) of \(model.sweepTotal)")
+                    Text("\(model.sweep.progress) of \(model.sweep.total)")
                         .font(.caption.monospaced())
                 }
             }
 
             // AC-146: it refuses, and says why, rather than dying.
-            if let refusal = model.sweepRefusal {
+            if let refusal = model.sweep.refusal {
                 Label(refusal, systemImage: "hand.raised")
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
 
-            if !model.sweepRows.isEmpty {
+            if !model.sweep.rows.isEmpty {
                 // The table EXACTLY as it will be pasted, so what is read on
                 // the phone and what lands in INSTRUMENTS cannot differ.
                 ScrollView(.horizontal, showsIndicators: true) {

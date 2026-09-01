@@ -89,10 +89,10 @@ struct SettingsTab: View {
                         // dies silently. On a simulator it says WHY it
                         // cannot run (D-061, structural); with no weights
                         // it offers the one action that fixes that.
-                        Text(model.mindUnavailable
+                        Text(model.mindAssets.unavailable
                              ?? "local weights ready · answers never leave this device")
                             .font(.caption2)
-                            .foregroundStyle(model.mindUnavailable == nil
+                            .foregroundStyle(model.mindAssets.unavailable == nil
                                              ? AnyShapeStyle(.secondary)
                                              : AnyShapeStyle(Color.orange))
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,7 +100,7 @@ struct SettingsTab: View {
                         // one, whether the download is running, finished
                         // or failed. A tap must never be able to look
                         // like nothing happened.
-                        if let status = model.localDownloadStatus {
+                        if let status = model.mindAssets.downloadStatus {
                             Text(status)
                                 .font(.caption2)
                                 .foregroundStyle(status.contains("FAILED")
@@ -110,9 +110,9 @@ struct SettingsTab: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .textSelection(.enabled)
                         }
-                        if let fraction = model.localDownloadProgress {
+                        if let fraction = model.mindAssets.downloadProgress {
                             ProgressView(value: fraction)
-                        } else if model.mindUnavailable?.contains("not downloaded") == true {
+                        } else if model.mindAssets.unavailable?.contains("not downloaded") == true {
                             Button("Download the local mind · \(TranscribeModel.LocalMind.sizeOnDisk)") {
                                 model.downloadLocalMind()
                             }
@@ -126,10 +126,10 @@ struct SettingsTab: View {
                         // "ready" stays modest — availability is necessary,
                         // not sufficient (the Simulator lied, INSTRUMENTS
                         // §22); a failed first turn still tells the truth.
-                        Text(model.mindUnavailable
+                        Text(model.mindAssets.unavailable
                              ?? "on-device model ready · answers are spoken, one session per turn")
                             .font(.caption2)
-                            .foregroundStyle(model.mindUnavailable == nil
+                            .foregroundStyle(model.mindAssets.unavailable == nil
                                              ? AnyShapeStyle(.secondary)
                                              : AnyShapeStyle(Color.red))
                             .frame(maxWidth: .infinity, alignment: .leading)
