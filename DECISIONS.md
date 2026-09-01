@@ -3467,3 +3467,59 @@ which the tiered policy (2026-08-09) allows no exception to.
 
 Whether Kokoro speaks in this app. That is AC-189, and it is a HALT after
 the numbers exist — adopt, keep Qwen3, or ship both.
+
+## D-083 — the spike moves outside the package, because the graph refused it (Milestone 4p)
+
+**Date:** 2026-09-01 · **Decided by:** Ryad · **Ruling: B — measure Kokoro
+in a separate project first; fork nothing**
+
+D-082 ruled F-1 = A on a fact set that did not include this one. The pins
+were read only when the dependency was actually added, and they do not fit.
+
+### What was measured, not guessed
+
+```
+error: root depends on 'mlx-swift-lm' 3.0.0..<4.0.0 and root depends on 'mlx-swift' 0.30.2.
+'mlx-swift-lm' >= 3.0.0 practically depends on 'mlx-swift' 0.31.3..<0.32.0
+```
+
+- `kokoro-ios` 1.0.11 → `mlx-swift` **exactly 0.30.2**
+- `MisakiSwift` (the G2P alone) → `mlx-swift` **exactly 0.30.2**
+- `mlx-swift-lm` ≥ 3.0.0, which the Qwen mind needs → **0.31.3..<0.32.0**
+
+No overlap, and no partial route: even taking the G2P by itself drags the
+same pin. **The mind and this mouth cannot share one package graph.**
+
+The escape routes were checked and are worse. `adriancmurray/kokoro-ios`
+relaxes the pins but has **no tags at all**. `mweinbach/kokoro-swift`
+would resolve (it pins 0.31.3) but has **no licence file**, which ends it
+for a public repository whatever it measures. `mattmireles/kokoro-coreml`
+is a Python conversion pipeline, not a Swift package.
+
+### Options
+
+**B. Measure outside the package first. — RULED.** `Spikes/KokoroSpike`
+is its own Xcode project with its own SPM graph. It links the vendor
+untouched, at the vendor's own pin, and answers 4p's only question
+without a fork. If the number is good, forking three repositories becomes
+a decision made with eyes open.
+
+*Rejected: A, fork the trio and relax the pins now.* Three forks to
+maintain, and an unknown — whether their code survives MLX 0.30 → 0.31 —
+paid for before a single measurement exists. Chasing a README's number by
+forking is the same error as adopting on a README's number, only slower.
+
+*Rejected: C, stop 4p here.* Defensible and cheap, but the question is
+worth one day: the cushion work still owed after 4o could be made
+pointless by a decoder with RTF below 1.0.
+
+### What this costs, named
+
+The spike does **not** exercise this library's audio graph, its phraser,
+its lead, or its barge-in. It measures a decoder and nothing else. So a
+good number here is permission to integrate, never proof that integration
+will behave — AC-183 (digital silence) and AC-184 (WER) stay unanswered
+until the mouth is inside a real pipeline.
+
+D-082's F-1 ruling is **not edited**. It was right on what was known; this
+entry is what changed.

@@ -4071,6 +4071,27 @@ Studio ones) and `mweinbach/kokoro-swift` (both backends, more surface
 than a spike needs). Either may return if F-2's choice measures badly —
 that would be a new entry, not a silent switch.
 
+## 148a. Recorded during AC-186: the graph refused the dependency
+
+The licence audit was done before the spec was written; the PINS were not,
+and they are what stopped the milestone's first hour. `kokoro-ios` and
+`MisakiSwift` both require `mlx-swift` **exactly 0.30.2**; `mlx-swift-lm`,
+which the Qwen mind needs, requires 0.31.3..<0.32.0. SPM refuses the graph.
+
+D-083 rules the consequence: **the spike is a separate Xcode project**
+(`Spikes/KokoroSpike`), linking the vendor untouched at the vendor's own
+pin. F-1's ruling — the adapter lives inside `MultiModalKitTTS` — is
+unchanged and simply not reached yet; it applies the day integration is
+ruled, and not before.
+
+**What this does to the criteria.** AC-180, AC-181 and AC-187 stand as
+written. AC-182 and AC-185 are answered by the spike. **AC-183 and AC-184
+cannot be answered by it** — digital silence and WER are properties of
+this library's mouth inside its own pipeline, and the spike has neither.
+They are deferred to the integration milestone that AC-189's fork may
+open, and this section is where that debt is recorded rather than
+quietly dropped.
+
 ## 149. Definition of done (4p)
 
 The adapter conforms to the existing seam with its sample rate read, not

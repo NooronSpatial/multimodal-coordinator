@@ -18,6 +18,9 @@ included:
   - Sources
   - Tests
   - Demo/TranscribeDemo/Sources
+  # The 4p spike (D-082). A throwaway instrument still gets linted: the
+  # rules are the house's, not the milestone's.
+  - Spikes/KokoroSpike/Sources
 
 excluded:
   - .build

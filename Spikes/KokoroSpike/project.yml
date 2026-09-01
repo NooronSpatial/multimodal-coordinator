@@ -1,0 +1,56 @@
+# The Kokoro spike (Milestone 4p, D-082 · the ruling that followed the
+# dependency wall).
+#
+# Regenerate with: cd Spikes/KokoroSpike && xcodegen
+#
+# WHY THIS IS A SEPARATE PROJECT, AND NOT A PRODUCT OF THE ROOT PACKAGE.
+# `kokoro-ios` pins mlx-swift to EXACTLY 0.30.2. `mlx-swift-lm`, which the
+# Qwen mind needs, requires 0.31.3..<0.32.0. SPM refuses the graph:
+#
+#   error: root depends on 'mlx-swift-lm' 3.0.0..<4.0.0
+#          and root depends on 'mlx-swift' 0.30.2.
+#
+# So the spike never meets the mind. It links `kokoro-ios` untouched, at
+# the vendor's own pin, and answers 4p's only question — is this decoder
+# fast enough on Ryad's phone — without a single fork.
+#
+# NOTE: MLX does not run on the iOS SIMULATOR. This is a device build.
+name: KokoroSpike
+options:
+  bundleIdPrefix: dev.nooron
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+packages:
+  KokoroSwift:
+    url: https://github.com/mlalma/kokoro-ios
+    from: 1.0.11
+targets:
+  KokoroSpike:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    postCompileScripts:
+      - script: |
+          if command -v swiftlint >/dev/null 2>&1; then
+            cd "$SRCROOT/../.." && swiftlint lint --quiet
+          else
+            echo "warning: swiftlint not installed — brew install swiftlint"
+          fi
+        name: SwiftLint
+        basedOnDependencyAnalysis: false
+    dependencies:
+      - package: KokoroSwift
+        product: KokoroSwift
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        # iPhone only. The alternative is declaring iPad orientations for
+        # a device this spike will never be measured on.
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
