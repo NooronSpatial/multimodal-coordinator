@@ -29,6 +29,14 @@ enum DecodeScript: Sendable {
     /// `.steps(n)` produces empty steps, which is the right shape for the
     /// failure paths and the wrong one for measuring audio.
     case stepsProducing([Int])
+    /// THE ONE-SHOT SHAPE (4p, AC-181). Waits — event-gated, never timed
+    /// — until the test calls `release()`, so a cancel can land while
+    /// this decode is "in flight". Then it takes exactly ONE step and
+    /// returns, **whatever the callback answers**, because a one-shot
+    /// decoder's whole buffer already exists by the time anyone can ask
+    /// it to stop. Kokoro (StyleTTS 2) is not autoregressive; this case
+    /// is that fact made testable without the vendor.
+    case oneShotWhenReleased
 }
 
 struct DecodeFailure: Error, CustomStringConvertible {
@@ -54,6 +62,7 @@ final class ScriptedDecoder: TTSDecoding, @unchecked Sendable {
         var wasStopped = false
         var threw = false
         var capExhausted = false
+        var released = false
     }
     private let state: Mutex<Guarded>
 
@@ -78,6 +87,11 @@ final class ScriptedDecoder: TTSDecoding, @unchecked Sendable {
     var threw: Bool { state.withLock { $0.threw } }
     var capExhausted: Bool { state.withLock { $0.capExhausted } }
     var stepsTaken: Int { state.withLock { $0.stepsTaken } }
+
+    /// Lets a `.oneShotWhenReleased` decode deliver its single step. The
+    /// test calls this AFTER the cancel it wants to prove arrived too
+    /// late — which is what makes the ordering a fact rather than a race.
+    func release() { state.withLock { $0.released = true } }
 
     func decode(_ text: String,
                 temperature: Float?,
@@ -117,6 +131,13 @@ final class ScriptedDecoder: TTSDecoding, @unchecked Sendable {
             await stepUntilStopped(onStep)
             state.withLock { $0.threw = true }
             throw DecodeFailure(description: why)
+
+        case .oneShotWhenReleased:
+            await waitForRelease()
+            // The answer is RECORDED (so a test can see the run did try
+            // to stop it) and then IGNORED — there is no next step to
+            // skip. That asymmetry is the limit AC-181 exists to pin.
+            _ = step(onStep)
         }
     }
 
@@ -128,6 +149,17 @@ final class ScriptedDecoder: TTSDecoding, @unchecked Sendable {
             if !keep { $0.wasStopped = true }
         }
         return keep
+    }
+
+    /// Spins on the release flag with the same cap and the same yield as
+    /// `stepUntilStopped`: a release that never comes dies as a clean
+    /// assertion (`capExhausted`) instead of hanging the suite.
+    private func waitForRelease() async {
+        for _ in 0..<stepCap {
+            if state.withLock({ $0.released }) { return }
+            await Task.yield()
+        }
+        state.withLock { $0.capExhausted = true }
     }
 
     private func stepUntilStopped(_ onStep: @escaping @Sendable ([Float]) -> Bool) async {
