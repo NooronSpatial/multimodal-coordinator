@@ -3380,3 +3380,90 @@ while the person is still looking at the screen. **The honest limit is
 unchanged:** cancellation is cooperative, so this wins the race only when
 MLX is between command buffers, and it remains **unverified on
 hardware**.
+
+## D-082 — Kokoro is measured before it is believed (Milestone 4p)
+
+**Date:** 2026-09-01 · **Decided by:** Ryad · **Rulings: the candidate =
+A (spike it behind the existing seam and measure) · F-1 = A (the adapter
+lives inside `MultiModalKitTTS`; `TTSDecoding` stays internal) · F-2 =
+`mlalma/kokoro-ios`**
+
+### The number that opened the question
+
+The iPhone's neural RTF is **1.21**. Every cushion this project owns —
+D-046's rule, D-073's learner, D-080's stall statistic — exists to paper
+over a decoder that speaks slower than speech. §143a is open because none
+of them scale with reply length. A decoder with RTF below 1.0 does not
+make the cushion smaller; it makes it unnecessary.
+
+Kokoro-82M is a StyleTTS 2 + ISTFTNet model of 82 M parameters, roughly
+seven times smaller than the 0.6B Qwen3 variant this app ships, and its
+Swift port claims ~3.3× faster than real time on an iPhone 13 Pro.
+
+**That claim is a README's.** The standing rule — audio graphs are
+MEASURED, harness before belief — is why this is a spike and not a swap.
+
+### Options
+
+**A. Spike it behind `TTSDecoding` and measure. — RULED.** D-053 F-6
+built that seam so a second decoder would cost an adapter, not a rewrite.
+This is the first time the seam is asked to pay for itself.
+
+*Rejected: B, park it until the walkthrough finishes.* Defensible — the
+walkthrough is teaching Ryad the pipeline he must own — but the cushion
+work owed after 4o (re-running the sweep, rewriting §54) is work that a
+sub-1.0 RTF could make pointless. Measuring first prices that risk.
+
+*Rejected: C, adopt it now.* Fast and indefensible: it swaps the mouth on
+a vendor's README. The exact failure this project's instrument discipline
+exists to prevent.
+
+### F-1 — the adapter lives inside `MultiModalKitTTS`
+
+`TTSDecoding` is **internal**, so this was never a matter of taste: a
+separate target could not conform to it without making the seam public.
+
+*Rejected: a new `MultiModalKitKokoro` target.* It is the cleaner end
+state, and it would force `TTSDecoding` public today. D-017's rule is
+that public surface is earned by a second **kept** implementation, and a
+spike is not kept until it survives its own numbers. **The cost of A,
+named:** anyone linking the mouth now pulls both vendors. If 4p ends in
+adoption, the split becomes the adoption PR's own ruling.
+
+### F-2 — `mlalma/kokoro-ios`
+
+Its G2P is self-contained (MisakiSwift), so eSpeak NG — GPL, and
+therefore poison for a public repo someone might link — stays out. Its
+performance claim is the only one of the three made on an iPhone.
+
+*Rejected:* `mattmireles/kokoro-coreml` (Apple Neural Engine, but its
+numbers are Mac Studio ones) and `mweinbach/kokoro-swift` (both backends,
+more surface than a spike needs). Either may return if this one measures
+badly — as a new entry, never as a silent switch.
+
+### The four dependency questions, answered
+
+This is an **optional-module** dependency: it enters `MultiModalKitTTS`
+beside TTSKit. The core `MultiModalKit` keeps zero runtime dependencies,
+which the tiered policy (2026-08-09) allows no exception to.
+
+1. **Not the point of the project?** Correct. This project is about the
+   coordination pipeline — the ring, the pump, the tickets, the cushion.
+   Inventing a TTS model is not in it. Same reasoning that admitted
+   WhisperKit and TTSKit.
+2. **Swift 6 clean?** **UNKNOWN, and it is an acceptance gate.** The
+   package states iOS 18 / macOS 15. Nothing here may claim it builds
+   warning-free until it has.
+3. **Permissive licence, maintained?** MIT, and its G2P Apache-2.0 — both
+   verified on 2026-09-01. **Maintained is the weak half:** it is a young
+   single-maintainer package, not a vendor SDK like argmax's. Recorded as
+   a risk, not waved away.
+4. **Could we remove it in a day?** Yes, and the count is the answer: one
+   adapter file, one instrument file, one `Package.swift` edit. Nothing
+   else in the repo may name the vendor — the same rule `TTSKitDecoder`
+   already lives under.
+
+### What this decision does NOT decide
+
+Whether Kokoro speaks in this app. That is AC-189, and it is a HALT after
+the numbers exist — adopt, keep Qwen3, or ship both.
