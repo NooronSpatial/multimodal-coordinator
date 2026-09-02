@@ -50,7 +50,7 @@ enum SpikeAssets {
     static func isInstalled(_ asset: Asset) -> Bool {
         let path = location(of: asset)
         guard let size = try? FileManager.default
-            .attributesOfItem(atPath: path.path())[.size] as? Int else { return false }
+            .attributesOfItem(atPath: path.path(percentEncoded: false))[.size] as? Int else { return false }
         return size == asset.expectedBytes
     }
 
@@ -73,7 +73,7 @@ enum SpikeAssets {
         let reporter = ProgressReporter(expected: asset.expectedBytes, report: progress)
         let (temporary, _) = try await URLSession.shared.download(from: asset.url,
                                                                   delegate: reporter)
-        let attributes = try? FileManager.default.attributesOfItem(atPath: temporary.path())
+        let attributes = try? FileManager.default.attributesOfItem(atPath: temporary.path(percentEncoded: false))
         let written = attributes?[.size] as? Int ?? 0
         guard written == asset.expectedBytes else {
             try? FileManager.default.removeItem(at: temporary)

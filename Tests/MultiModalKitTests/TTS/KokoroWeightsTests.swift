@@ -34,7 +34,11 @@ struct KokoroWeightsTests {
     /// gigabyte per assertion would make an honest test suite expensive
     /// enough to be skipped, which is how suites rot.
     static func write(_ url: URL, bytes: Int) {
-        FileManager.default.createFile(atPath: url.path(), contents: nil)
+        // `percentEncoded: false`, the same rule the type under test had
+        // to learn: this helper's first version used `path()` and wrote
+        // Fact 8's fixtures into a `%20` folder, so the test was red for
+        // a second, different reason than the one it was written for.
+        FileManager.default.createFile(atPath: url.path(percentEncoded: false), contents: nil)
         guard let handle = try? FileHandle(forWritingTo: url) else { return }
         try? handle.truncate(atOffset: UInt64(bytes))
         try? handle.close()
@@ -127,6 +131,40 @@ struct KokoroWeightsTests {
             }
             #expect(Set(paths).count == paths.count)
         }
+    }
+
+    /// Fact 8 — **THE FIELD BUG, PINNED. A directory with a space in its
+    /// name.**
+    ///
+    /// iOS puts these weights under `Library/Application Support`, and
+    /// the first field run of this mouth reported every file ABSENT after
+    /// a seventeen-minute download that had in fact succeeded. The
+    /// report printed the directory as `Application%20Support` — because
+    /// `URL.path()` percent-encodes BY DEFAULT, and a path string with a
+    /// literal `%20` names a folder that does not exist. `FileManager`
+    /// was asked about the wrong place while the URL-based calls beside
+    /// it wrote to the right one.
+    ///
+    /// Seven tests above passed against a temporary directory with no
+    /// space in it. This one has a space, and it is the one that would
+    /// have gone red on the Mac instead of on the phone. The Qwen mouth
+    /// wrote the same lesson beside its own check a year ago: "writing
+    /// down where a file OUGHT to be instead of asking where it IS."
+    @Test("a directory with a space in its name is still checked correctly")
+    func aDirectoryWithASpaceIsCheckedCorrectly() {
+        let parent = FileManager.default.temporaryDirectory
+            .appending(path: "kokoro weights \(UUID().uuidString)", directoryHint: .isDirectory)
+        try? FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: parent) }
+
+        let weights = KokoroWeights(directory: parent, precision: .float16)
+        Self.write(weights.sourceFile, bytes: KokoroWeights.sourceBytes)
+        Self.write(weights.voiceFile, bytes: KokoroWeights.voiceBytes)
+        Self.write(weights.modelFile, bytes: 8)
+
+        #expect(weights.isInstalled(),
+                "every file is present and the right size; only the path has a space")
+        #expect(weights.missingReport() == nil)
     }
 
     /// Fact 7. The failure says the numbers, because "download failed" is

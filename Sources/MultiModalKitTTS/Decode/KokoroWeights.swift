@@ -86,7 +86,7 @@ public struct KokoroWeights: Sendable {
     public func isInstalled() -> Bool {
         exists(voiceFile, bytes: Self.voiceBytes)
             && exists(sourceFile, bytes: Self.sourceBytes)
-            && (precision == .float32 || FileManager.default.fileExists(atPath: modelFile.path()))
+            && (precision == .float32 || FileManager.default.fileExists(atPath: modelFile.path(percentEncoded: false)))
     }
 
     /// Present AND the right size. Present-but-wrong is the case that
@@ -96,8 +96,17 @@ public struct KokoroWeights: Sendable {
         sizeOnDisk(url) == bytes
     }
 
+    /// `percentEncoded: false` ON EVERY PATH STRING IN THIS FILE, and the
+    /// reason is a field bug rather than style. `URL.path()` percent
+    /// encodes by default, so under iOS's `Library/Application Support` it
+    /// hands `FileManager` a string containing a literal `%20` — a folder
+    /// that does not exist. The first field run downloaded 327 MB
+    /// successfully into the right place and then reported every file
+    /// absent, because the URL-based calls wrote there and the
+    /// string-based checks looked somewhere else. Fact 8 in the tests is
+    /// the directory with a space that would have caught it on the Mac.
     private func sizeOnDisk(_ url: URL) -> Int? {
-        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path())
+        let attributes = try? FileManager.default.attributesOfItem(atPath: url.path(percentEncoded: false))
         return attributes?[.size] as? Int
     }
 
@@ -122,7 +131,7 @@ public struct KokoroWeights: Sendable {
                 continue
             }
         }
-        if precision != .float32, !FileManager.default.fileExists(atPath: modelFile.path()) {
+        if precision != .float32, !FileManager.default.fileExists(atPath: modelFile.path(percentEncoded: false)) {
             lines.append("\(modelFile.lastPathComponent): absent — the "
                          + "\(precision.rawValue) cast was not built")
         }
@@ -132,7 +141,7 @@ public struct KokoroWeights: Sendable {
         guard !lines.isEmpty else {
             return "isInstalled() said no but every file checks out — that is a bug in this type"
         }
-        return lines.joined(separator: " · ") + " · in \(directory.path())"
+        return lines.joined(separator: " · ") + " · in \(directory.path(percentEncoded: false))"
     }
 
     /// Fetches what is missing and builds the cast copy. Idempotent.
@@ -157,7 +166,7 @@ public struct KokoroWeights: Sendable {
     /// `isInstalled()` would call ready.
     func buildCast() throws {
         guard let dtype = precision.dtype,
-              !FileManager.default.fileExists(atPath: modelFile.path()) else { return }
+              !FileManager.default.fileExists(atPath: modelFile.path(percentEncoded: false)) else { return }
         let arrays = try MLX.loadArrays(url: sourceFile)
         let cast = arrays.mapValues { $0.asType(dtype) }
         let partial = directory.appending(path: "kokoro-\(precision.rawValue).partial.safetensors")
@@ -172,7 +181,7 @@ public struct KokoroWeights: Sendable {
                           progress: @escaping @Sendable (Double) -> Void) async throws {
         let reporter = DownloadProgress(expected: bytes, report: progress)
         let (temporary, _) = try await URLSession.shared.download(from: url, delegate: reporter)
-        let attributes = try? FileManager.default.attributesOfItem(atPath: temporary.path())
+        let attributes = try? FileManager.default.attributesOfItem(atPath: temporary.path(percentEncoded: false))
         let written = attributes?[.size] as? Int ?? 0
         guard written == bytes else {
             try? FileManager.default.removeItem(at: temporary)
