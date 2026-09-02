@@ -89,9 +89,16 @@ extension TranscribeModel {
             // and the one that caught a wrong model path in this very
             // milestone: a load can succeed against files the check
             // cannot find.
-            voiceState = await neuralVoice.modelInstalled()
-                ? .ready
-                : .failed("loaded, but the disk check disagrees")
+            // AND SAY WHAT THE DISK ACTUALLY SHOWS (4q). "the disk check
+            // disagrees" was true and useless on Kokoro's first field
+            // run; a check that cannot name the file and the size it saw
+            // is shrugging, not reporting.
+            if await neuralVoice.modelInstalled() {
+                voiceState = .ready
+            } else {
+                let detail = (neuralVoice as? KokoroVoice)?.installationProblem()
+                voiceState = .failed(detail ?? "loaded, but the disk check disagrees")
+            }
         } catch {
             voiceState = .failed(String(describing: error))
         }

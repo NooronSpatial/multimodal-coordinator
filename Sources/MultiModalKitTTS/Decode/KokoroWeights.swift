@@ -93,8 +93,46 @@ public struct KokoroWeights: Sendable {
     /// matters: it is what a half-finished download leaves behind, and it
     /// looks exactly like success to `fileExists`.
     private func exists(_ url: URL, bytes: Int) -> Bool {
+        sizeOnDisk(url) == bytes
+    }
+
+    private func sizeOnDisk(_ url: URL) -> Int? {
         let attributes = try? FileManager.default.attributesOfItem(atPath: url.path())
-        return attributes?[.size] as? Int == bytes
+        return attributes?[.size] as? Int
+    }
+
+    /// WHY `isInstalled()` said no, in a sentence a person can act on.
+    ///
+    /// The first field run of this mouth answered "loaded, but the disk
+    /// check disagrees" — true, useless, and exactly the kind of message
+    /// this project refuses in an instrument. A check that cannot say
+    /// WHICH file and WHAT size it saw is not reporting, it is shrugging.
+    ///
+    /// Returns `nil` when everything is in place.
+    public func missingReport() -> String? {
+        guard !isInstalled() else { return nil }
+        var lines: [String] = []
+        for (url, expected) in [(sourceFile, Self.sourceBytes), (voiceFile, Self.voiceBytes)] {
+            switch sizeOnDisk(url) {
+            case nil:
+                lines.append("\(url.lastPathComponent): absent")
+            case let found? where found != expected:
+                lines.append("\(url.lastPathComponent): \(found) bytes, expected \(expected)")
+            default:
+                continue
+            }
+        }
+        if precision != .float32, !FileManager.default.fileExists(atPath: modelFile.path()) {
+            lines.append("\(modelFile.lastPathComponent): absent — the "
+                         + "\(precision.rawValue) cast was not built")
+        }
+        // Absence of a reason with a failing check is itself a finding:
+        // it means `isInstalled` and this report disagree, which is a bug
+        // here rather than a missing file.
+        guard !lines.isEmpty else {
+            return "isInstalled() said no but every file checks out — that is a bug in this type"
+        }
+        return lines.joined(separator: " · ") + " · in \(directory.path())"
     }
 
     /// Fetches what is missing and builds the cast copy. Idempotent.

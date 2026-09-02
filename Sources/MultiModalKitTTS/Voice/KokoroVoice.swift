@@ -102,6 +102,13 @@ public actor KokoroVoice: SpokenVoice {
     /// network unplugged, at the precision it was configured for.
     public func modelInstalled() async -> Bool { weights.isInstalled() }
 
+    /// Why not, when not. `nil` when the weights are in place.
+    ///
+    /// `ModelBacked` asks only a yes/no, and yes/no is what the demo's
+    /// screen showed on this mouth's first field run: "loaded, but the
+    /// disk check disagrees". True, and useless.
+    public nonisolated func installationProblem() -> String? { weights.missingReport() }
+
     /// Fetches what is missing and builds the fp16 cast. Idempotent: with
     /// the assets on disk this is a cast check, not a fetch.
     public func ensureModel() async throws { try await weights.ensure() }
