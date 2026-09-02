@@ -204,4 +204,66 @@ struct VoiceLeversTests {
                 "a human's number is not this machine's measurement")
         #expect(typed.inForce.contains("250 ms"))
     }
+
+    // MARK: - the neural-voice lever (4q, D-084)
+
+    /// The lever's tokens are the ones the app persists and the ones the
+    /// terminal accepts — the same string in both places, which is why
+    /// D-072 F-1 put parsing in the library rather than in an executable.
+    @Test("the voice lever parses in both directions")
+    func theVoiceLeverParses() throws {
+        let toKokoro = try VoiceLevers.parsed(fromArguments: ["--voice=kokoro"],
+                                              base: VoiceLevers(voice: .qwen3))
+        #expect(toKokoro.voice == .kokoro)
+        let toQwen = try VoiceLevers.parsed(fromArguments: ["--voice=qwen3"],
+                                            base: VoiceLevers(voice: .kokoro))
+        #expect(toQwen.voice == .qwen3)
+    }
+
+    /// A value this project cannot honor throws, with the allowed tokens
+    /// beside the wrong one. D-072 exists because a hand-rolled ternary
+    /// turned `--decoder=banana` into `.fused` in silence.
+    @Test("an unknown voice is refused in our words, never guessed")
+    func anUnknownVoiceIsRefused() {
+        #expect(throws: VoiceLevers.FlagError.self) {
+            try VoiceLevers.parsed(fromArguments: ["--voice=banana"])
+        }
+    }
+
+    /// **`--voice` is not `--mouth`.** The demo already spends `--mouth`
+    /// on apple|neural, and the first draft of this lever stole the name:
+    /// `absentFlagsKeepBase`, which passes `--mouth=neural` precisely
+    /// because it is meant to be ignored, went red immediately. This test
+    /// keeps that boundary explicit instead of leaving it to luck.
+    @Test("--mouth is still not this lever's flag")
+    func mouthIsNotThisLever() throws {
+        let levers = try VoiceLevers.parsed(fromArguments: ["--mouth=neural"],
+                                            base: VoiceLevers(voice: .kokoro))
+        #expect(levers.voice == .kokoro, "an unrelated flag must change nothing here")
+    }
+
+    /// **Switching voices must not destroy Qwen's settings.** They mean
+    /// nothing to Kokoro, so the temptation is to clear them; a person who
+    /// switches back would then find their configuration gone.
+    @Test("choosing Kokoro keeps Qwen's knobs untouched")
+    func switchingVoicesKeepsTheOtherSettings() throws {
+        let base = VoiceLevers(voice: .qwen3, model: .qwen3TTS_1_7b,
+                               decoder: .stepped, vocoder: .throughputOptimized,
+                               temperature: 0.5, lead: .milliseconds(400))
+        let switched = try VoiceLevers.parsed(fromArguments: ["--voice=kokoro"], base: base)
+        #expect(switched.voice == .kokoro)
+        #expect(switched.model == .qwen3TTS_1_7b)
+        #expect(switched.decoder == .stepped)
+        #expect(switched.vocoder == .throughputOptimized)
+        #expect(switched.temperature == 0.5)
+        #expect(switched.lead == .milliseconds(400))
+    }
+
+    /// D-084's ruling as a fact rather than a paragraph: the voice a fresh
+    /// configuration asks for is the one §55 measured at RTF 0.20.
+    @Test("the default voice is Kokoro, which is what D-084 ruled")
+    func theDefaultVoiceIsKokoro() {
+        #expect(VoiceLevers().voice == .kokoro)
+        #expect(VoiceLevers.phoneDefault.voice == .kokoro)
+    }
 }
