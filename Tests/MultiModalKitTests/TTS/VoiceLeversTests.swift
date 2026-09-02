@@ -266,4 +266,39 @@ struct VoiceLeversTests {
         #expect(VoiceLevers().voice == .kokoro)
         #expect(VoiceLevers.phoneDefault.voice == .kokoro)
     }
+
+    /// **The factory returns what the lever asks for**, and the type it
+    /// returns names no vendor. Before `SpokenVoice` existed the demo
+    /// stored a concrete `NeuralVoice`, so a second mouth could be BUILT
+    /// and never CHOSEN — D-078's hole, in the mouths.
+    @Test("the factory builds the voice the lever names")
+    func theFactoryHonoursTheLever() async {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "kokoro-factory-\(UUID().uuidString)")
+        let weights = KokoroWeights(directory: directory)
+
+        let kokoro = VoiceLevers(voice: .kokoro).makeSpokenVoice(kokoroWeights: weights)
+        #expect(kokoro is KokoroVoice)
+        #expect(kokoro.inForce.contains("Kokoro"))
+
+        let qwen = VoiceLevers(voice: .qwen3).makeSpokenVoice(kokoroWeights: weights)
+        #expect(qwen is NeuralVoice)
+        #expect(!qwen.inForce.contains("Kokoro"))
+    }
+
+    /// **`inForce` describes ITSELF, which is the reason it moved onto the
+    /// protocol.** A shared implementation would have printed "0.6B ·
+    /// fused · latency" about a model that has no model variant, no
+    /// decoder mode and no vocoder mode — Qwen's words about a stranger.
+    @Test("each voice reports its own levers, not the other's")
+    func inForceSpeaksEachVoicesOwnWords() {
+        let weights = KokoroWeights(directory: FileManager.default.temporaryDirectory)
+        let kokoro = KokoroVoice(weights: weights)
+        #expect(kokoro.inForce.contains("float16"), "its precision, which Qwen has no word for")
+        #expect(kokoro.inForce.contains("phrases ≤ 60"), "its memory bound, which Qwen does not need")
+
+        let qwen = NeuralVoice(variant: .qwen3TTS_0_6b)
+        #expect(qwen.inForce.contains("0.6B"))
+        #expect(!qwen.inForce.contains("phrases"))
+    }
 }

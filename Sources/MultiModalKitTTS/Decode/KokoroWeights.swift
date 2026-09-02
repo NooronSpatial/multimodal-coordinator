@@ -59,6 +59,18 @@ public struct KokoroWeights: Sendable {
         self.precision = precision
     }
 
+    /// The ordinary place: `Application Support/Kokoro`.
+    ///
+    /// A convenience, not a default — `init` still demands a directory,
+    /// because a wrong default WRITES a third of a gigabyte somewhere. A
+    /// caller that wants the ordinary place asks for it by name.
+    public static func inApplicationSupport(precision: Precision = .float16) -> KokoroWeights {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory,
+                                            in: .userDomainMask)[0]
+        return KokoroWeights(directory: base.appending(path: "Kokoro", directoryHint: .isDirectory),
+                             precision: precision)
+    }
+
     var sourceFile: URL { directory.appending(path: "kokoro-v1_0.safetensors") }
     var voiceFile: URL { directory.appending(path: "af_heart.safetensors") }
 

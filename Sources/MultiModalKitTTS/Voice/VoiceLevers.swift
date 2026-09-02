@@ -103,6 +103,30 @@ public struct VoiceLevers: Sendable, Equatable {
     public static let phoneDefault = VoiceLevers(decoder: .stepped,
                                                  vocoder: .throughputOptimized)
 
+    /// THE ONE DOOR THE APP USES (4q). Returns whichever mouth this
+    /// configuration asks for, as `any SpokenVoice` — so a screen, a
+    /// pipeline and a settings apply can all hold a voice without naming
+    /// a vendor. That is the hole D-078 closed for the ears and Ryad's
+    /// ruling A closes for the mouths.
+    ///
+    /// `makeVoice()` below stays and stays concrete: the bake-off
+    /// instruments sweep QWEN's levers, and a tool that measures
+    /// `.fused` against `.stepped` is entitled to say so in its types.
+    public func makeSpokenVoice(
+        kokoroWeights: KokoroWeights = .inApplicationSupport()
+    ) -> any SpokenVoice {
+        switch voice {
+        case .kokoro:
+            // `lead ?? .zero`: for this mouth an absent lead is genuinely
+            // zero rather than "derive one". At RTF 0.20 there is nothing
+            // to cushion — and D-084 keeps the cushion apparatus in place
+            // regardless, unused rather than deleted.
+            KokoroVoice(weights: kokoroWeights, lead: lead ?? .zero)
+        case .qwen3:
+            makeVoice()
+        }
+    }
+
     public func makeVoice() -> NeuralVoice {
         NeuralVoice(variant: model,
                     lead: lead,

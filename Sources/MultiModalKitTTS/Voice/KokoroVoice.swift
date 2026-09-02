@@ -1,5 +1,6 @@
 import AVFAudio
 import Foundation
+import MLX
 import MultiModalKit
 
 /// The second mouth (4q, D-084): Kokoro-82M, decoded by `KokoroDecoder`
@@ -31,7 +32,7 @@ import MultiModalKit
 ///
 /// So this voice cuts phrases shorter than the first mouth does, and the
 /// number is derived rather than chosen — see `phraseCharacters`.
-public actor KokoroVoice: SpeechSynthesizing, ModelBacked {
+public actor KokoroVoice: SpokenVoice {
     /// HOW SHORT A PHRASE MUST BE KEPT, and the arithmetic behind it.
     ///
     /// The fixtures §55 measured give this mouth's speaking rate:
@@ -58,14 +59,22 @@ public actor KokoroVoice: SpeechSynthesizing, ModelBacked {
     /// person should be able to overrule by ear.
     public static let phraseCharacters = 60
 
-    private let weights: KokoroWeights
-    private let lead: Duration
-    private let phraseCharacters: Int
+    /// `nonisolated` because they are immutable and `Sendable`, and
+    /// because `inForce` must be readable from a screen without an
+    /// `await` — AC-143's whole point is that the line a person reads
+    /// describes the object that will speak.
+    private nonisolated let weights: KokoroWeights
+    private nonisolated let lead: Duration
+    private nonisolated let phraseCharacters: Int
 
     private var decoder: KokoroDecoder?
     private var providedHost: (any PlaybackHost)?
     private var ownHost: AudioEnginePlaybackHost?
     private var speaking: NeuralVoiceRun?
+    private var marginHandler: (@Sendable (DecodeMargin) -> Void)?
+    /// A retired voice never loads again — that is what retiring MEANS
+    /// (D-070). One latch, checked at the one door that builds anything.
+    private var isRetired = false
 
     /// - Parameters:
     ///   - weights: where the model lives and at which precision. fp16 is
@@ -119,6 +128,34 @@ public actor KokoroVoice: SpeechSynthesizing, ModelBacked {
         ownHost = nil
     }
 
+    /// Installs the margin observer. Always installed on the run, even
+    /// when nobody registered a handler — margins used to be computed
+    /// only if someone was watching, and a voice that measures itself
+    /// only when observed is not measuring itself.
+    public func reportMargins(to handler: @escaping @Sendable (DecodeMargin) -> Void) {
+        marginHandler = handler
+    }
+
+    /// Releases the weights and takes any reply in progress with it.
+    ///
+    /// The order is D-070's and D-079's, both paid for in the field: latch
+    /// FIRST, in this actor step and before any await, so a caller
+    /// arriving during a suspension already finds a voice that says no.
+    /// Then cancel the reply — without that the run keeps itself alive
+    /// through its drain task and holds the weights, so retiring frees
+    /// nothing exactly while the assistant is speaking, which is when a
+    /// lever gets changed. Then drop the decoder, and let MLX return what
+    /// it was holding.
+    public func retire() async {
+        isRetired = true
+        shutdown()
+        let dying = speaking
+        speaking = nil
+        await dying?.cancel()
+        decoder = nil
+        MLX.Memory.clearCache()
+    }
+
     public func openUtterance() async throws -> any SynthesisRun {
         let decoder = try loadedDecoder()
         let host: any PlaybackHost
@@ -131,10 +168,12 @@ public actor KokoroVoice: SpeechSynthesizing, ModelBacked {
             ownHost = fresh
             host = fresh
         }
+        let listener = marginHandler
         let run = try NeuralVoiceRun(
             decoder: decoder, host: host,
             lead: PlaybackLead(target: lead),
-            phrasing: SpeechPhraser.Config(maxPhraseCharacters: phraseCharacters))
+            phrasing: SpeechPhraser.Config(maxPhraseCharacters: phraseCharacters),
+            onMargin: { margin in listener?(margin) })
         speaking = run
         return run
     }
@@ -143,9 +182,30 @@ public actor KokoroVoice: SpeechSynthesizing, ModelBacked {
     /// is seconds; rebuilding per utterance would pay for it on every
     /// reply.
     private func loadedDecoder() throws -> KokoroDecoder {
+        guard !isRetired else { throw KokoroVoiceRetired() }
         if let decoder { return decoder }
         let fresh = try KokoroDecoder(weights: weights)
         decoder = fresh
         return fresh
+    }
+}
+
+public struct KokoroVoiceRetired: Error, CustomStringConvertible {
+    public var description: String {
+        "this Kokoro voice was retired; retiring is terminal (D-070)"
+    }
+}
+
+extension KokoroVoice {
+    /// What is ACTUALLY in force, read off this voice (AC-143, now a
+    /// `SpokenVoice` requirement).
+    ///
+    /// Kokoro's levers are not Qwen's, and this line is the proof that
+    /// making `inForce` a protocol requirement was the right shape: it
+    /// names precision and the phrase cap, because those are what this
+    /// mouth actually has. A shared implementation would have printed
+    /// "0.6B · fused · latency" about a model with none of those things.
+    public nonisolated var inForce: String {
+        "Kokoro-82M · \(weights.precision.rawValue) · phrases ≤ \(phraseCharacters) chars"
     }
 }
