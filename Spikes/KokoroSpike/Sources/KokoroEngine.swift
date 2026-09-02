@@ -35,18 +35,33 @@ actor KokoroEngine: SpikeMouth {
 
     private var tts: KokoroTTS?
     private var voice: MLXArray?
+    private(set) var precision: WeightPrecision = .float32
 
-    /// Loads the weights and one voice style. Both are files the app
-    /// downloaded; nothing here reaches the network.
-    func load() throws {
+    /// `SpikeMouth`'s door: reload at whatever precision is currently
+    /// selected. A default argument cannot satisfy a protocol
+    /// requirement, and defaulting to fp32 here would silently undo a
+    /// choice the person made on the screen.
+    func load() throws { try load(precision: precision) }
+
+    /// Loads the weights and one voice style. Both are files on disk;
+    /// nothing here reaches the network.
+    func load(precision: WeightPrecision) throws {
         // BEFORE the weights, not after: the limit must be in place for
         // the very first allocation the loader makes.
         MLX.Memory.cacheLimit = Self.cacheLimitBytes
+        // DROP THE OLD MODEL FIRST. Switching precision with the previous
+        // weights still held would measure both at once and blame the new
+        // one — the reload is exactly when the peak is most fragile.
+        tts = nil
+        voice = nil
+        MLX.Memory.clearCache()
+        try precision.build()
+        self.precision = precision
         // The vendor's `init` force-tries its own weight load, so a
-        // corrupt download crashes rather than throws. The download side
-        // checks the byte count for exactly that reason.
-        let engine = KokoroTTS(modelPath: SpikeAssets.location(of: SpikeAssets.model),
-                               g2p: .misaki)
+        // corrupt file crashes rather than throws. The download side
+        // checks the byte count, and `build()` writes through a
+        // temporary name, for exactly that reason.
+        let engine = KokoroTTS(modelPath: precision.location, g2p: .misaki)
         let arrays = try MLX.loadArrays(url: SpikeAssets.location(of: SpikeAssets.voice))
         guard let style = arrays.values.first else {
             throw SpikeFailure.voiceFileEmpty(SpikeAssets.voice.name)

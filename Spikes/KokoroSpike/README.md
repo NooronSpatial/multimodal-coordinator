@@ -92,6 +92,38 @@ audio" and "decode time" are the same number, and there is no starvation
 to measure inside a sentence — the gap, if any, moves to the seam
 *between* phrases.
 
+## The length sweep
+
+Kokoro's peak went 900 MB at 2.7 s of audio to 2300 MB at 13.7 s. Qwen's
+sat at ~600 MB whatever it was given. The two decoders fail in opposite
+directions: Kokoro's TIME is bounded and its MEMORY is not; Qwen's memory
+is bounded and its time is not.
+
+Two points are not a curve, and the app never decodes 13.7 seconds at
+once — the phraser cuts replies into sentences. So the sweep walks six
+**nested prefixes of the same sentence**, holding vocabulary, prosody and
+phoneme mix constant so that only length varies. The first and last rungs
+are the two fixtures already measured, which anchors the ladder to numbers
+we have.
+
+Each row now reports the process at **rest** as well as its **peak**, so
+the fixed cost of holding a model is told apart from the transient cost of
+using it, and the copied table carries a megabytes-per-extra-second column
+computed between rungs.
+
+## Half precision, and a mislabelled repository
+
+The plan was to price `bf16` by downloading `mlx-community/Kokoro-82M-bf16`.
+**That repository is fp32 in disguise:** its `kokoro-v1_0.safetensors` is
+327,115,152 bytes with all 548 tensors `F32` — byte for byte the same file
+as the fp32 mirror, checked by reading both headers.
+
+So the app casts the weights itself, once, on the phone, and writes the
+result beside the original. fp16 is Apple's native fast path; bf16 keeps
+fp32's exponent range with fewer mantissa bits, and is the one to try if
+fp16 overflows somewhere in the vocoder. Both are guesses until they are
+heard — which is why the picker sits beside a Play toggle.
+
 ## Reading the memory number
 
 Peak is **this process's own footprint** (`phys_footprint` — what Xcode's

@@ -82,11 +82,32 @@ struct ContentView: View {
     }
 
     @ViewBuilder private var controls: some View {
+        Section("Kokoro weights") {
+            Picker("precision", selection: Binding(
+                get: { model.precision },
+                set: { new in Task { await model.reload(at: new) } })) {
+                    ForEach(WeightPrecision.allCases, id: \.self) { precision in
+                        Text(precision.label).tag(precision)
+                    }
+                }
+            if let bytes = model.precision.bytes {
+                LabeledContent("on disk", value: "\(bytes / 1_048_576) MB")
+            }
+            Text("There is no half-precision Kokoro to download — the "
+                 + "`bf16` repository is fp32 in disguise (548 F32 tensors, "
+                 + "the same 327,115,152 bytes). These are cast on this phone, "
+                 + "once each.")
+            .font(.footnote).foregroundStyle(.secondary)
+        }
         Section("run") {
             Toggle("play the last run aloud", isOn: $model.speakAloud)
             Toggle("also measure Qwen3-TTS (~1 GB download)", isOn: $model.includeQwen)
-            Button("Measure") { Task { await model.runAll() } }
+            Button("Compare the two mouths") { Task { await model.runAll() } }
                 .disabled(isBusy)
+            Button("Length sweep — six rungs, Kokoro only") {
+                Task { await model.runLadder() }
+            }
+            .disabled(isBusy)
         }
     }
 
@@ -95,14 +116,17 @@ struct ContentView: View {
             Section(mouth) {
                 ForEach(model.rows.filter { $0.mouth == mouth }) { row in
                     HStack {
-                        Text(row.fixture).frame(width: 46, alignment: .leading)
-                        Text(row.counted ? "counted" : "warm-up")
-                            .font(.caption).foregroundStyle(.secondary)
-                            .frame(width: 60, alignment: .leading)
-                        Spacer()
-                        Text("\(row.footprintPeakBytes / 1_048_576) MB")
+                        Text(row.fixture).frame(width: 40, alignment: .leading)
+                        Text(String(format: "%.1fs", row.audioMilliseconds / 1000))
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                        Text(String(format: "%.0f ms", row.wallMilliseconds))
+                            .frame(width: 44, alignment: .leading)
+                        Spacer()
+                        // Peak OVER rest: the transient cost of using the
+                        // model, with the cost of merely holding it taken
+                        // out. That difference is the ladder's question.
+                        Text("+\((row.footprintPeakBytes - row.footprintBaselineBytes) / 1_048_576)")
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Text("\(row.footprintPeakBytes / 1_048_576) MB")
                             .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
                         Text(String(format: "%.2f", row.realTimeFactor))
                             .font(.body.monospacedDigit())

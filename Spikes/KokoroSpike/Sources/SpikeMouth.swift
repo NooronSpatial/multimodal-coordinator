@@ -71,6 +71,7 @@ actor FootprintSampler {
 
     func start() {
         peak = ProcessMemory.footprintBytes ?? 0
+        baseline = peak
         task = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.sample()
@@ -84,13 +85,19 @@ actor FootprintSampler {
         peak = max(peak, now)
     }
 
-    /// Stops the sampler and reports the highest it saw. One last sample
-    /// is taken first, so a decode that ends between two ticks still
-    /// contributes its final reading.
-    func stop() -> Int {
+    /// The footprint when `start()` was called — the process at REST,
+    /// before this decode allocated anything. Reported beside the peak so
+    /// the fixed cost of holding a model can be told apart from the
+    /// transient cost of using it.
+    private(set) var baseline = 0
+
+    /// Stops the sampler and reports the highest it saw, with the rest
+    /// figure beside it. One last sample is taken first, so a decode that
+    /// ends between two ticks still contributes its final reading.
+    func stop() -> (peak: Int, baseline: Int) {
         task?.cancel()
         task = nil
         sample()
-        return peak
+        return (peak, baseline)
     }
 }

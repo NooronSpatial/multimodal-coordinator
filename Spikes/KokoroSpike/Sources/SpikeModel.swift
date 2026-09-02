@@ -20,6 +20,10 @@ struct SpikeRow: Sendable, Identifiable {
     /// The SHARED memory number: this process's peak footprint while the
     /// decode ran, sampled the same way for both mouths.
     let footprintPeakBytes: Int
+    /// The process at REST before this decode — so the fixed cost of
+    /// HOLDING a model is told apart from the transient cost of USING it.
+    /// That separation is the whole question of the length sweep.
+    let footprintBaselineBytes: Int
     /// The vendor's own counter, where it keeps one. MLX does, CoreML
     /// does not — so this column is empty for Qwen, and saying so is the
     /// point.
@@ -52,6 +56,33 @@ final class SpikeModel {
             + "speaking or has finally stopped and is waiting for an answer.")
     ]
 
+    /// THE LENGTH LADDER (Ryad's ruling A, after the two-mouth table).
+    ///
+    /// Nested PREFIXES of the same sentence, not five unrelated ones:
+    /// vocabulary, prosody and phoneme mix are held constant so the only
+    /// thing that varies is length. The first and last rungs are the two
+    /// fixtures already measured, which anchors the ladder to numbers we
+    /// have rather than starting a fresh scale.
+    ///
+    /// The question it answers: Kokoro's peak went 900 MB at 2.7 s to
+    /// 2300 MB at 13.7 s. Two points are not a curve, and the app never
+    /// decodes 13.7 seconds at once — the phraser cuts replies into
+    /// sentences — so what matters is the shape down at sentence size.
+    static let ladder: [(name: String, text: String)] = [
+        ("L1", "The audio travels."),
+        ("L2", "The audio travels through a ring buffer."),
+        ("L3", "The audio travels through a ring buffer into a pump."),
+        ("L4", "The audio travels through a ring buffer into a pump "
+            + "that cuts it into small chunks."),
+        ("L5", "The audio travels through a ring buffer into a pump "
+            + "that cuts it into small chunks, and each chunk is handed "
+            + "to a listener."),
+        ("L6", "The audio travels through a ring buffer "
+            + "into a pump that cuts it into small chunks, and each chunk is "
+            + "handed to a listener that decides whether the person is still "
+            + "speaking or has finally stopped and is waiting for an answer.")
+    ]
+
     /// How many COUNTED runs per sentence, after the warm-up. Three, so a
     /// median exists; a single sample is one sample wearing a median's
     /// clothes.
@@ -64,6 +95,10 @@ final class SpikeModel {
     /// the demo's copy cannot be borrowed. Off by default: a person who
     /// only wants the Kokoro number should not be made to pay for it.
     var includeQwen = false
+    /// Which weights Kokoro loads. `mlx-community/Kokoro-82M-bf16` turned
+    /// out to be fp32 in disguise, so half precision is built on the
+    /// phone — see `WeightPrecision`.
+    var precision: WeightPrecision = .float32
 
     private let kokoro = KokoroEngine()
     private let qwen = QwenEngine()
@@ -137,11 +172,28 @@ final class SpikeModel {
     func loadModel() async {
         phase = .loadingKokoro
         do {
-            try await kokoro.load()
+            try await kokoro.load(precision: precision)
             phase = .ready
         } catch {
             phase = .failed(String(describing: error))
         }
+    }
+
+    /// Rebuilds Kokoro at another precision. Converting 548 tensors takes
+    /// a moment the first time and nothing afterwards.
+    func reload(at precision: WeightPrecision) async {
+        self.precision = precision
+        rows.removeAll()
+        await loadModel()
+    }
+
+    /// The length sweep: one mouth, six rungs, same stopwatch.
+    func runLadder() async {
+        rows.removeAll()
+        for rung in Self.ladder {
+            guard await measure(kokoro, rung) else { return }
+        }
+        phase = .ready
     }
 
     /// The measured pass: every mouth, every sentence, one warm-up then
@@ -193,7 +245,7 @@ final class SpikeModel {
             do {
                 let result = try await mouth.speak(fixture.text)
                 let wall = start.duration(to: clock.now)
-                let peak = await sampler.stop()
+                let watched = await sampler.stop()
                 let audioMilliseconds =
                     Double(result.samples.count) * 1000 / Double(result.sampleRate)
                 guard audioMilliseconds > 0 else {
@@ -205,7 +257,8 @@ final class SpikeModel {
                                      counted: attempt > 0,
                                      wallMilliseconds: wall.milliseconds,
                                      audioMilliseconds: audioMilliseconds,
-                                     footprintPeakBytes: peak,
+                                     footprintPeakBytes: watched.peak,
+                                     footprintBaselineBytes: watched.baseline,
                                      vendorPeakBytes: mouth.vendorPeakBytes))
                 if speakAloud, attempt == Self.repeats {
                     // Only the last run is played, so listening never
@@ -223,22 +276,26 @@ final class SpikeModel {
 
     /// The report, as text he can copy out of the phone into INSTRUMENTS.
     var report: String {
-        var lines = ["KOKORO vs QWEN (4p) — one app, one stopwatch, one sampler",
-                     "RTF is wall ÷ audio; lower is better. Peak is this PROCESS's",
-                     "footprint sampled every \(FootprintSampler.intervalMilliseconds) ms",
-                     "— a spike shorter than that interval is invisible, so a peak is a",
-                     "floor, never a ceiling.",
+        var lines = ["KOKORO SPIKE (4p) — one app, one stopwatch, one sampler",
+                     "RTF is wall ÷ audio; lower is better. Peak and rest are this",
+                     "PROCESS's footprint, sampled every "
+                        + "\(FootprintSampler.intervalMilliseconds) ms — a spike shorter",
+                     "than that interval is invisible, so a peak is a floor, never a ceiling.",
+                     "Kokoro weights: \(precision.label)"
+                        + (precision.bytes.map { ", \($0 / 1_048_576) MB on disk" } ?? ""),
                      "",
-                     "| mouth | fixture | run | wall ms | audio ms | RTF | peak MB | vendor peak MB |",
-                     "|---|---|---|---|---|---|---|---|"]
+                     "| mouth | fixture | run | wall ms | audio ms | RTF | rest MB | peak MB | over rest MB |",
+                     "|---|---|---|---|---|---|---|---|---|"]
         for row in rows {
-            let vendor = row.vendorPeakBytes.map { "\($0 / 1_048_576)" } ?? "—"
-            lines.append(String(format: "| %@ | %@ | %@ | %.0f | %.0f | %.2f | %d | %@ |",
+            lines.append(String(format: "| %@ | %@ | %@ | %.0f | %.0f | %.2f | %d | %d | %d |",
                                 row.mouth, row.fixture, row.counted ? "counted" : "warm-up",
                                 row.wallMilliseconds, row.audioMilliseconds, row.realTimeFactor,
-                                row.footprintPeakBytes / 1_048_576, vendor))
+                                row.footprintBaselineBytes / 1_048_576,
+                                row.footprintPeakBytes / 1_048_576,
+                                (row.footprintPeakBytes - row.footprintBaselineBytes) / 1_048_576))
         }
         lines.append("")
+        lines.append(contentsOf: slopeLines)
         for mouth in mouthNames {
             for fixture in Self.fixtures {
                 if let median = medianRTF(mouth: mouth, fixture: fixture.name) {
@@ -254,6 +311,31 @@ final class SpikeModel {
         lines.append("MLX cache limit: \(KokoroEngine.cacheLimitBytes / 1_048_576) MB")
         lines.append("field reference: Qwen3 RTF 1.21 in the live app (INSTRUMENTS)")
         return lines.joined(separator: "\n")
+    }
+
+    /// The ladder's answer, computed rather than eyeballed: how many
+    /// megabytes each extra second of speech costs, between consecutive
+    /// rungs. A flat column means the cost is linear; a rising one means
+    /// it is not, and either way the phrase-sized end is where the app
+    /// lives.
+    private var slopeLines: [String] {
+        let points = Self.ladder.compactMap { rung -> (audio: Double, over: Double)? in
+            let counted = rows.filter { $0.fixture == rung.name && $0.counted }
+            guard let row = counted.first else { return nil }
+            let over = Double(row.footprintPeakBytes - row.footprintBaselineBytes)
+            return (row.audioMilliseconds / 1000, over / 1_048_576)
+        }
+        guard points.count > 1 else { return [] }
+        var lines = ["| from → to (s of audio) | MB per extra second |", "|---|---|"]
+        for (previous, next) in zip(points, points.dropFirst()) {
+            let seconds = next.audio - previous.audio
+            guard seconds > 0 else { continue }
+            lines.append(String(format: "| %.1f → %.1f | %.0f |",
+                                previous.audio, next.audio,
+                                (next.over - previous.over) / seconds))
+        }
+        lines.append("")
+        return lines
     }
 }
 

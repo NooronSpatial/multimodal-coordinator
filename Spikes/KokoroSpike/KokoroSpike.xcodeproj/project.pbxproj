@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		42D644C3B5A97D1A322ED2C0 /* WeightPrecision.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A669634745F18CA54E6919D /* WeightPrecision.swift */; };
 		6A32BCA291E92E83F406D3C1 /* KokoroSpikeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231AF2E70F0E6F33032DDA52 /* KokoroSpikeApp.swift */; };
 		80EA6908AC2BAF4A93F53008 /* SpikeAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89076075F042B66586162EBF /* SpikeAssets.swift */; };
 		8F382277630D172B620D27A6 /* QwenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D240ACABC4C4354B586CF2EB /* QwenEngine.swift */; };
@@ -35,6 +36,7 @@
 
 /* Begin PBXFileReference section */
 		231AF2E70F0E6F33032DDA52 /* KokoroSpikeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroSpikeApp.swift; sourceTree = "<group>"; };
+		4A669634745F18CA54E6919D /* WeightPrecision.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightPrecision.swift; sourceTree = "<group>"; };
 		6DF491FA987CBD50A1F36976 /* KokoroEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroEngine.swift; sourceTree = "<group>"; };
 		7C6677502C7307C3907A5697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		89076075F042B66586162EBF /* SpikeAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAssets.swift; sourceTree = "<group>"; };
@@ -75,6 +77,7 @@
 				89076075F042B66586162EBF /* SpikeAssets.swift */,
 				DBCAB91623B29E01A88105FB /* SpikeModel.swift */,
 				C93441FBCD1883A1BB007B03 /* SpikeMouth.swift */,
+				4A669634745F18CA54E6919D /* WeightPrecision.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -183,6 +186,7 @@
 				80EA6908AC2BAF4A93F53008 /* SpikeAssets.swift in Sources */,
 				96EE93BA0C1AAB3FC190A5BC /* SpikeModel.swift in Sources */,
 				EA7FD8D290EC0BC1234FB842 /* SpikeMouth.swift in Sources */,
+				42D644C3B5A97D1A322ED2C0 /* WeightPrecision.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
