@@ -20,11 +20,29 @@ actor KokoroEngine {
     struct Measurement: Sendable {
         let wallMilliseconds: Double
         let audioMilliseconds: Double
+        /// MLX's live tensor memory after the decode, and the highest it
+        /// has ever been in this process. Added after the first field run
+        /// died on memory: a spike that measures speed and cannot say how
+        /// close it came to jetsam is measuring half the question
+        /// (AC-185).
+        let activeBytes: Int
+        let peakBytes: Int
         /// This project's convention, stated because the vendor's README
         /// uses the reciprocal: **wall ÷ audio**, so lower is better and
         /// 1.0 is exactly real time. The phone's Qwen3 number is 1.21.
         var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
     }
+
+    /// MLX's buffer cache, bounded (20 MB).
+    ///
+    /// NOT a tuning knob — the fix for the first field run, which spoke
+    /// beautifully and was then killed. MLX keeps freed GPU buffers in a
+    /// cache that grows without a limit, and eight decodes in a row grow
+    /// it past what a phone will tolerate. This is the same value and the
+    /// same reason as `LocalMind.cacheLimitBytes` in the library, whose
+    /// comment already says it: an unbounded cache "drives a phone into
+    /// jetsam".
+    static let cacheLimitBytes = 20 * 1024 * 1024
 
     /// Kokoro's own rate, read from the vendor rather than written here —
     /// the same rule `TTSDecoding.sampleRate` exists to keep. A decoder
@@ -37,6 +55,9 @@ actor KokoroEngine {
     /// Loads the weights and one voice style. Both are files the app
     /// downloaded; nothing here reaches the network.
     func load(model: URL, voice voiceURL: URL) throws {
+        // BEFORE the weights, not after: the limit must be in place for
+        // the very first allocation the loader makes.
+        MLX.Memory.cacheLimit = Self.cacheLimitBytes
         // The vendor's `init` force-tries its own weight load, so a
         // corrupt download crashes rather than throws. The download side
         // checks the byte count for exactly that reason.
@@ -62,10 +83,16 @@ actor KokoroEngine {
         // language from the caller, never from the voice file.
         let (samples, _) = try tts.generateAudio(voice: voice, language: .enUS, text: text)
         let wall = start.duration(to: clock.now)
+        // AFTER the stopwatch stops. Returning the cache is housekeeping,
+        // not decoding, and charging it to the decode would make this
+        // decoder look slower than it is.
+        MLX.Memory.clearCache()
         let audioMilliseconds = Double(samples.count) * 1000 / Double(Self.sampleRate)
         return (samples, Measurement(
             wallMilliseconds: wall.milliseconds,
-            audioMilliseconds: audioMilliseconds))
+            audioMilliseconds: audioMilliseconds,
+            activeBytes: MLX.Memory.activeMemory,
+            peakBytes: MLX.Memory.peakMemory))
     }
 }
 

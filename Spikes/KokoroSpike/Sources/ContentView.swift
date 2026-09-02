@@ -84,6 +84,22 @@ struct ContentView: View {
                 }
             }
         }
+        Section("memory") {
+            // The first field run sounded excellent and was then killed.
+            // A speed number with no memory beside it is half a report.
+            if let peak = model.peakMegabytes {
+                LabeledContent("MLX peak", value: "\(peak) MB")
+            }
+            if let headroom = model.headroomMegabytes {
+                LabeledContent("headroom left", value: "\(headroom) MB")
+            } else {
+                Text("headroom: the platform will not say — 0 means both "
+                     + "\"no information\" and \"already over the limit\".")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+            LabeledContent("MLX cache limit",
+                           value: "\(KokoroEngine.cacheLimitBytes / 1_048_576) MB")
+        }
         Section("median of the counted runs") {
             ForEach(SpikeModel.fixtures, id: \.name) { fixture in
                 if let median = model.medianRTF(of: fixture.name) {

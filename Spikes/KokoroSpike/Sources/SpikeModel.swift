@@ -1,6 +1,9 @@
 import AVFoundation
 import Foundation
 import Observation
+#if os(iOS)
+import Darwin
+#endif
 
 /// One measured decode, as the screen shows it.
 struct SpikeRow: Sendable, Identifiable {
@@ -12,6 +15,11 @@ struct SpikeRow: Sendable, Identifiable {
     let counted: Bool
     let wallMilliseconds: Double
     let audioMilliseconds: Double
+    /// MLX's live tensor bytes after this decode, and the process's
+    /// all-time high. The first field run sounded excellent and was then
+    /// killed on memory, so speed alone is no longer the whole report.
+    let activeBytes: Int
+    let peakBytes: Int
     var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
 }
 
@@ -58,6 +66,27 @@ final class SpikeModel {
 
     init() {
         phase = SpikeAssets.allInstalled ? .loading : .needsAssets
+    }
+
+    /// Megabytes left before this process is killed, or nil when the
+    /// platform will not say. `os_proc_available_memory` answers 0 both
+    /// when it has no information AND when the process is already over
+    /// its limit — the library's `MemoryHeadroom` exists to keep those
+    /// two apart, and it cannot be linked here, so this reports the raw
+    /// number with that ambiguity stated rather than hidden.
+    var headroomMegabytes: Int? {
+        #if os(iOS)
+        let bytes = os_proc_available_memory()
+        return bytes > 0 ? bytes / 1_048_576 : nil
+        #else
+        return nil
+        #endif
+    }
+
+    /// The highest MLX peak any run has reported.
+    var peakMegabytes: Int? {
+        guard let peak = rows.map(\.peakBytes).max() else { return nil }
+        return peak / 1_048_576
     }
 
     var modelSizeText: String {
@@ -120,7 +149,9 @@ final class SpikeModel {
                     rows.append(SpikeRow(fixture: fixture.name,
                                          counted: attempt > 0,
                                          wallMilliseconds: result.measurement.wallMilliseconds,
-                                         audioMilliseconds: result.measurement.audioMilliseconds))
+                                         audioMilliseconds: result.measurement.audioMilliseconds,
+                                         activeBytes: result.measurement.activeBytes,
+                                         peakBytes: result.measurement.peakBytes))
                     if speakAloud, attempt == Self.repeats {
                         // Only the last run is played, so listening does
                         // not sit inside the timed sequence.
@@ -138,18 +169,24 @@ final class SpikeModel {
     /// The report, as text he can copy out of the phone into INSTRUMENTS.
     var report: String {
         var lines = ["KOKORO SPIKE (4p) — RTF is wall ÷ audio; lower is better",
-                     "| fixture | run | wall ms | audio ms | RTF |",
-                     "|---|---|---|---|---|"]
+                     "| fixture | run | wall ms | audio ms | RTF | MLX active MB | MLX peak MB |",
+                     "|---|---|---|---|---|---|---|"]
         for row in rows {
-            lines.append(String(format: "| %@ | %@ | %.0f | %.0f | %.2f |",
+            lines.append(String(format: "| %@ | %@ | %.0f | %.0f | %.2f | %d | %d |",
                                 row.fixture, row.counted ? "counted" : "warm-up",
-                                row.wallMilliseconds, row.audioMilliseconds, row.realTimeFactor))
+                                row.wallMilliseconds, row.audioMilliseconds, row.realTimeFactor,
+                                row.activeBytes / 1_048_576, row.peakBytes / 1_048_576))
         }
         for fixture in Self.fixtures {
             if let median = medianRTF(of: fixture.name) {
                 lines.append(String(format: "median RTF (%@): %.2f", fixture.name, median))
             }
         }
+        if let peak = peakMegabytes { lines.append("MLX peak: \(peak) MB") }
+        if let headroom = headroomMegabytes {
+            lines.append("headroom left: \(headroom) MB")
+        }
+        lines.append("MLX cache limit: \(KokoroEngine.cacheLimitBytes / 1_048_576) MB")
         lines.append("phone Qwen3 reference: RTF 1.21 (INSTRUMENTS)")
         return lines.joined(separator: "\n")
     }
