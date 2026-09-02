@@ -89,7 +89,17 @@ struct PhoneBenchStage: BenchStage {
         //    not speak and died in the sampler with "Can't get random value
         //    with an empty range". Ask the VOICE whether it has its files,
         //    not the screen what state it is showing.
-        guard await model.benchVoice.modelInstalled() else {
+        // 3. THE SWEEP IS QWEN'S (4q). Its rows vary `.fused` against
+        //    `.stepped` and `latency` against `throughput` — knobs Kokoro
+        //    does not have. Running it over Kokoro would print four
+        //    identical rows and call that a comparison, which is the kind
+        //    of lying instrument §30 taught this project to refuse.
+        guard let voice = model.benchVoice else {
+            return "This sweep varies Qwen3's decoder and vocoder, and the "
+                + "chosen voice is Kokoro — which has neither. Switch the "
+                + "voice to Qwen3 in Settings to measure them."
+        }
+        guard await voice.modelInstalled() else {
             return "The neural voice's model is not on this device. Install "
                 + "it from Settings first — there is nothing here to measure."
         }
@@ -152,7 +162,15 @@ struct PhoneBenchStage: BenchStage {
 
     func measure() async throws -> BenchTiming {
         defer { model.noteSweepMeasurement() }
-        return try await UtteranceStopwatch.time(model.benchVoice,
+        // Force-unwrapped ONLY because `refusal()` above already returned
+        // a sentence when this is nil, and a sweep never starts past its
+        // own refusal. If that ever stops being true this crashes loudly
+        // rather than measuring the wrong voice in silence.
+        guard let voice = model.benchVoice else {
+            throw BenchRefusal.configurationRefused(
+                "voice", "the sweep needs Qwen3; the chosen voice is Kokoro")
+        }
+        return try await UtteranceStopwatch.time(voice,
                                                  saying: Self.sentence,
                                                  clock: ContinuousClock())
     }

@@ -70,7 +70,10 @@ final class TranscribeModel {
     /// is an APP choosing what works on the device in its hand (D-027),
     /// not a reversal of the ruling; the library default is untouched and
     /// the honest cost is the 29%.
-    var neuralVoice = TranscribeModel.storedLevers.makeVoice()
+    /// `any SpokenVoice` (4q, Ryad's ruling A). It used to be a concrete
+    /// `NeuralVoice`, which meant a second mouth could be BUILT and never
+    /// CHOSEN — D-078's hole, in the mouths this time.
+    var neuralVoice: any SpokenVoice = TranscribeModel.storedLevers.makeSpokenVoice()
 
     /// THE FOUR LEVERS, on the phone (AC-143).
     ///

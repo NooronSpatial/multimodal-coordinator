@@ -87,7 +87,7 @@ extension TranscribeModel {
         if wasListening { await stopAndWait() }
 
         let retiring = neuralVoice
-        neuralVoice = levers.makeVoice()
+        neuralVoice = levers.makeSpokenVoice()
         voiceState = .checking
         await retiring.retire()
         await checkVoice()
@@ -143,7 +143,7 @@ extension TranscribeModel {
         }
         guard previous != levers else { return }
         leverRefusal = "\(describe(levers)) was refused — \(reason)"
-        neuralVoice = previous.makeVoice()
+        neuralVoice = previous.makeSpokenVoice()
         revertingLevers = true
         levers = previous
         revertingLevers = false
@@ -151,10 +151,19 @@ extension TranscribeModel {
         await checkVoice()
     }
 
+    /// What was asked for, in the refusal line. It names the MOUTH first
+    /// now: with two vendors, "fused + throughput was refused" describes
+    /// a configuration Kokoro does not have and would send a person
+    /// looking for a knob that is not there.
     private func describe(_ levers: VoiceLevers) -> String {
-        (levers.decoder == .fused ? "fused" : "stepped")
-            + " + " + (levers.vocoder == .throughputOptimized
-                       ? "throughput" : "latency")
+        switch levers.voice {
+        case .kokoro:
+            "Kokoro"
+        case .qwen3:
+            "Qwen3 " + (levers.decoder == .fused ? "fused" : "stepped")
+                + " + " + (levers.vocoder == .throughputOptimized
+                           ? "throughput" : "latency")
+        }
     }
 
     /// The mouth the coordinator gets. Apple's is cheap to build fresh;
@@ -174,6 +183,26 @@ extension TranscribeModel {
             // sees them all.
             renderingOn: shieldHost)
         case .neural: neuralVoice
+        }
+    }
+
+    /// How big the chosen voice's download is, in that voice's own
+    /// number.
+    ///
+    /// The screen used to say "1.1 GB" for every neural voice, which was
+    /// Qwen's figure. Kokoro's is a third of that, and a person deciding
+    /// whether to start a download over cellular deserves the real one.
+    /// Kokoro's is DERIVED from the byte counts the library checks
+    /// downloads against, so the sentence and the check cannot drift
+    /// apart; Qwen's stays a written figure because TTSKit does not
+    /// publish one.
+    var voiceDownloadSize: String {
+        switch levers.voice {
+        case .kokoro:
+            let bytes = KokoroWeights.sourceBytes + KokoroWeights.voiceBytes
+            return "\(bytes / 1_000_000) MB"
+        case .qwen3:
+            return "1.1 GB"
         }
     }
 

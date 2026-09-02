@@ -46,7 +46,17 @@ extension TranscribeModel {
     /// speaks with, never a fresh one built for the occasion. A bench that
     /// measured its own private voice would be measuring a configuration
     /// nobody is using.
-    var benchVoice: NeuralVoice { neuralVoice }
+    /// `nil` when the chosen mouth is not Qwen, and that is not a
+    /// limitation being hidden: this sweep varies `.fused` against
+    /// `.stepped` and `latency` against `throughput`, which are QWEN's
+    /// knobs. Kokoro has none of them, so a sweep of them over Kokoro
+    /// would print four identical rows and call it a comparison.
+    ///
+    /// The cast is confined to this one line on purpose. Everywhere else
+    /// the app holds `any SpokenVoice`; here a tool that measures one
+    /// vendor's levers asks for that vendor, and the `?` is how it admits
+    /// what it is.
+    var benchVoice: NeuralVoice? { neuralVoice as? NeuralVoice }
 
     /// AC-149. `bargeCount` and `onsetsWhileSpeaking` are NOT in `start()`'s
     /// reset list, so across a sweep they accumulate and every row reports

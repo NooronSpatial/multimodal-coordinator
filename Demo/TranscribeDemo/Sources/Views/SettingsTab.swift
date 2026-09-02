@@ -1,4 +1,7 @@
 import MultiModalKit
+// 4q: the neural-voice picker names `VoiceLevers.Voice`, which lives
+// in the opt-in TTS module. The app already links it for the mouth.
+import MultiModalKitTTS
 import SwiftUI
 
 /// THE SETTINGS TAB — every picker, every toggle, every download.
@@ -148,11 +151,39 @@ struct SettingsTab: View {
                         .disabled(model.isListening)
                     }
 
+                    // WHICH NEURAL VOICE (4q, D-084). Only when a neural
+                    // mouth is chosen at all — Apple's synthesizer has no
+                    // vendor to pick between, and a picker that does
+                    // nothing is a picker that teaches people to distrust
+                    // the screen.
+                    if model.mouth == .neural {
+                        HStack {
+                            Text("Neural voice").font(.subheadline)
+                            Spacer()
+                            Picker("Neural voice", selection: Bindable(model).levers.voice) {
+                                ForEach(VoiceLevers.Voice.allCases, id: \.self) { choice in
+                                    Text(choice.label).tag(choice)
+                                }
+                            }
+                            .labelsHidden()
+                            .pickerStyle(.segmented)
+                            .disabled(model.isListening)
+                        }
+                        // What is ACTUALLY in force, read off the voice
+                        // and not off the picker (AC-143). The two differ
+                        // whenever an apply has not landed — which is
+                        // exactly when a person is looking at this line.
+                        Text(model.voiceInForce)
+                            .font(.caption2.monospaced())
+                            .foregroundStyle(.secondary)
+                    }
+
                     switch model.voiceState {
                     case .modelMissing:
                         VStack(spacing: 4) {
-                            Text("The neural voice needs a 1.1 GB download. "
-                                 + "One time, over Wi-Fi — then it runs on this phone.")
+                            Text("The neural voice needs a \(model.voiceDownloadSize) "
+                                 + "download. One time, over Wi-Fi — then it runs "
+                                 + "on this phone.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .multilineTextAlignment(.center)
