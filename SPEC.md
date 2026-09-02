@@ -3953,3 +3953,152 @@ zero-silence lead · the first-reply fallback stated and priced · zero
 warnings · swiftlint --strict at zero · 20× stable · adversarially
 reviewed before merge with every fix pushed BEFORE the PR is called
 ready · teach-back.
+
+# Milestone 4p — Kokoro measured, not adopted
+
+## 144. Why this exists
+
+INSTRUMENTS records the iPhone's neural RTF as **1.21**: the Qwen3 mouth
+decodes slower than it speaks. Every cushion this project owns descends
+from that one number — D-046's rule, D-073's learner, D-080's stall
+statistic — and §143a is still open because none of them scale with reply
+length. The cushion is a patch over a decoder that cannot keep up.
+
+Kokoro-82M is ~7× smaller than the 0.6B variant this app ships, and the
+Swift port claims **~3.3× faster than real time on an iPhone 13 Pro**
+(RTF ≈ 0.30). If that number survives contact with our instruments on
+Ryad's phone, the cushion stops being a problem to size and becomes a
+problem to delete.
+
+That claim is a README's, not ours. This milestone exists to make it a
+measurement — and, per the standing rule, on the phone that reported the
+hitching, not only on the Mac that could not reproduce it.
+
+The licences were checked before the spec was written, because a licence
+is the one blocker no measurement can fix: Kokoro-82M is **Apache-2.0**,
+`mlalma/kokoro-ios` is **MIT**, `MisakiSwift` is **Apache-2.0**, and the
+port's default G2P is MisakiSwift with eSpeak NG (GPL) commented out.
+
+## 145. Scope
+
+1. **A `KokoroDecoder`** conforming to the existing internal
+   `TTSDecoding` seam — the one D-053 F-6 built so a second decoder
+   would cost an adapter rather than a rewrite. It is **one-shot**:
+   `onStep` is called once, with the whole buffer.
+2. **A `bakeoff voice-kokoro` instrument** that measures this mouth with
+   the gear the Qwen mouth was measured with — the same fixtures, the
+   same `DigitalSilence`, the same WER scorer.
+3. **A field run on the phone**, reported beside the Qwen numbers it is
+   meant to replace.
+4. **INSTRUMENTS §55**, and a decision entry that ends in a FORK.
+
+## 146. Non-goals
+
+- **Adopting it.** This milestone ends in numbers and a ruling to make,
+  never in a swapped mouth. AC-189 is the halt.
+- **Removing TTSKit or Qwen3.** Both mouths ship; D-077 keeps 1.7B on the
+  Mac and that is untouched.
+- **Making Kokoro stream.** StyleTTS 2 is not autoregressive; one-shot is
+  its honest shape, and pretending otherwise would measure a fiction.
+- **Non-English voices.** 54 exist; one is enough to answer the question.
+- **A public `TTSDecoding`.** F-1 = A keeps it internal (§148).
+
+## 147. Acceptance criteria
+
+- **AC-180** — `KokoroDecoder.sampleRate` is read from the loaded model,
+  never written as a constant. The fault this repeats is recorded: a
+  decoder and a format that disagree is the voice the field called
+  "speaking in weird way like someone drunk" — 24 kHz played as 16 kHz.
+- **AC-181** — the one-shot cancellation limit is WRITTEN, not
+  discovered: with a single step, `onStep` returning `false` can never
+  stop a decode already in flight. The run's `cancelled` flag remains the
+  guarantee — barge-in stays correct — and what is lost is only the
+  compute saving. Proven by a scripted single-step decoder: after a
+  barge, the run retires and publishes nothing.
+- **AC-182** — first-audio and steady RTF on the phone, over the same
+  three sentences §53 used, printed beside the Qwen3 numbers.
+- **AC-183** — `DigitalSilence` over Kokoro's output at the app's default
+  lead: zero runs, or the number of runs and their total.
+- **AC-184** — intelligibility as a NUMBER: the existing `voice-wer`
+  instrument scores Kokoro's speech, so "it sounds fine" is never the
+  evidence.
+- **AC-185** — footprint: weights on disk, and resident MB while
+  speaking, from the gauge §30 already uses.
+- **AC-186** — the dependency audit is in the PR: the three licences
+  above, and positive evidence that **eSpeak NG is not linked**.
+- **AC-187** — the four dependency questions (tiered policy, 2026-08-09)
+  answered in writing, including the load-bearing one: could we remove it
+  in a day? Behind `TTSDecoding`, yes — and the answer names the file
+  count.
+- **AC-188** — INSTRUMENTS §55: method, exact numbers, and the caveats,
+  with no claim that no run produced. Vendor README figures appear only
+  as quoted claims, marked as such.
+- **AC-189** — the closing fork, presented and not decided here: adopt ·
+  keep Qwen3 · ship both. Ryad rules it after the numbers exist.
+
+### Test matrix
+
+| criterion | test |
+|---|---|
+| AC-180 | adapter unit test: a stub model's rate reaches `sampleRate` |
+| AC-181 | scripted one-step decoder + barge → run retires, nothing published |
+| AC-182 | `bakeoff voice-kokoro` field run (device) |
+| AC-183 | `DigitalSilence` over the captured mix |
+| AC-184 | `bakeoff voice-wer` against the Kokoro mouth |
+| AC-185 | Xcode memory gauge, same method as §30 |
+| AC-186–188 | PR body + INSTRUMENTS §55, reviewed |
+| AC-189 | a HALT, not a test |
+
+## 148. The forks (ruled 2026-09-01)
+
+**F-1 — where the adapter lives. Ruled: A.** `KokoroDecoder` lives inside
+`MultiModalKitTTS`, so `TTSDecoding` stays internal.
+
+*Rejected: B, a new `MultiModalKitKokoro` target.* It is the cleaner
+end state and it forces `TTSDecoding` public today. D-017's rule is that
+public surface is earned by a second **kept** implementation, and a spike
+is not kept until it survives. The cost of A is named: anyone linking the
+mouth now pulls both vendors. If 4p ends in adoption, B becomes the
+adoption PR's own ruling.
+
+**F-2 — which port. Ruled: `mlalma/kokoro-ios` (MIT).** Its G2P is
+self-contained (MisakiSwift, Apache-2.0), it does not need eSpeak NG, and
+its performance claim is the only one made on an iPhone rather than a
+Mac.
+
+*Rejected:* `mattmireles/kokoro-coreml` (ANE, but its numbers are Mac
+Studio ones) and `mweinbach/kokoro-swift` (both backends, more surface
+than a spike needs). Either may return if F-2's choice measures badly —
+that would be a new entry, not a silent switch.
+
+## 148a. Recorded during AC-186: the graph refused the dependency
+
+The licence audit was done before the spec was written; the PINS were not,
+and they are what stopped the milestone's first hour. `kokoro-ios` and
+`MisakiSwift` both require `mlx-swift` **exactly 0.30.2**; `mlx-swift-lm`,
+which the Qwen mind needs, requires 0.31.3..<0.32.0. SPM refuses the graph.
+
+D-083 rules the consequence: **the spike is a separate Xcode project**
+(`Spikes/KokoroSpike`), linking the vendor untouched at the vendor's own
+pin. F-1's ruling — the adapter lives inside `MultiModalKitTTS` — is
+unchanged and simply not reached yet; it applies the day integration is
+ruled, and not before.
+
+**What this does to the criteria.** AC-180, AC-181 and AC-187 stand as
+written. AC-182 and AC-185 are answered by the spike. **AC-183 and AC-184
+cannot be answered by it** — digital silence and WER are properties of
+this library's mouth inside its own pipeline, and the spike has neither.
+They are deferred to the integration milestone that AC-189's fork may
+open, and this section is where that debt is recorded rather than
+quietly dropped.
+
+## 149. Definition of done (4p)
+
+The adapter conforms to the existing seam with its sample rate read, not
+assumed · the one-shot cancellation limit written and tested · the
+instrument runs on the Mac AND on the phone · digital silence, WER and
+footprint reported as numbers · licences audited with eSpeak NG proven
+absent · INSTRUMENTS §55 with method and caveats · zero warnings ·
+`swiftlint --strict` at zero · 20× stable · adversarially reviewed before
+merge with every fix pushed BEFORE the PR is called ready · the closing
+fork presented to Ryad · teach-back.

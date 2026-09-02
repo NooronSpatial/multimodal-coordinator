@@ -282,5 +282,47 @@ struct NeuralVoiceFailurePathTests {
         await voice.shutdown()
         await voice.shutdown()
     }
+
+    // MARK: - AC-181 (4p): the one-shot decoder's limit
+
+    /// **A LIMIT, PINNED — not a bug being fixed.**
+    ///
+    /// Kokoro is StyleTTS 2: not autoregressive, so it produces a whole
+    /// phrase at once. Fact 4 proves the cancel channel works when there
+    /// is a next step to skip. Here there is none, and this test says so
+    /// out loud: the callback answers `false`, the step happens anyway,
+    /// and **the compute is not saved**. That is the entire cost of a
+    /// one-shot decoder, and it is a cost, never a correctness hole —
+    /// because the ticket, not the callback, is the guarantee.
+    ///
+    /// The ordering is a fact, not a race: the decode parks until
+    /// `release()`, the test cancels FIRST, and only then releases. So
+    /// "the stop arrived while the decode was in flight" is guaranteed
+    /// rather than hoped for.
+    @Test("a one-shot decode cannot be stopped in flight, and still publishes nothing")
+    func aOneShotDecodeCannotBeStoppedInFlight() async throws {
+        let decoder = ScriptedDecoder([.oneShotWhenReleased])
+        let host = SpyPlaybackHost()
+        let run = try Self.makeRun(decoder, host)
+
+        await run.feed("A sentence this model renders in one piece. ")
+        #expect(await Self.until { decoder.callCount == 1 },
+                "the decode must be in flight before the cancel means anything")
+
+        await run.cancel()
+        decoder.release()          // only now may the single step land
+
+        #expect(await Self.until { decoder.stepsTaken == 1 },
+                "the step happens ANYWAY — the buffer existed before anyone could ask it to stop")
+        #expect(decoder.wasStopped,
+                "the run did answer false; it simply arrived too late to save any work")
+        #expect(!decoder.capExhausted, "the release must arrive, not be waited out")
+
+        let updates = await Self.drain(run)
+        #expect(updates.isEmpty,
+                "and nothing reaches the app: a cancelled reply reports no terminal")
+        #expect(await Self.until { host.liveNodeCount == 0 },
+                "the node goes back even on the one-shot path")
+    }
 }
 #endif

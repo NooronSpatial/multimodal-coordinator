@@ -3380,3 +3380,233 @@ while the person is still looking at the screen. **The honest limit is
 unchanged:** cancellation is cooperative, so this wins the race only when
 MLX is between command buffers, and it remains **unverified on
 hardware**.
+
+## D-082 — Kokoro is measured before it is believed (Milestone 4p)
+
+**Date:** 2026-09-01 · **Decided by:** Ryad · **Rulings: the candidate =
+A (spike it behind the existing seam and measure) · F-1 = A (the adapter
+lives inside `MultiModalKitTTS`; `TTSDecoding` stays internal) · F-2 =
+`mlalma/kokoro-ios`**
+
+### The number that opened the question
+
+The iPhone's neural RTF is **1.21**. Every cushion this project owns —
+D-046's rule, D-073's learner, D-080's stall statistic — exists to paper
+over a decoder that speaks slower than speech. §143a is open because none
+of them scale with reply length. A decoder with RTF below 1.0 does not
+make the cushion smaller; it makes it unnecessary.
+
+Kokoro-82M is a StyleTTS 2 + ISTFTNet model of 82 M parameters, roughly
+seven times smaller than the 0.6B Qwen3 variant this app ships, and its
+Swift port claims ~3.3× faster than real time on an iPhone 13 Pro.
+
+**That claim is a README's.** The standing rule — audio graphs are
+MEASURED, harness before belief — is why this is a spike and not a swap.
+
+### Options
+
+**A. Spike it behind `TTSDecoding` and measure. — RULED.** D-053 F-6
+built that seam so a second decoder would cost an adapter, not a rewrite.
+This is the first time the seam is asked to pay for itself.
+
+*Rejected: B, park it until the walkthrough finishes.* Defensible — the
+walkthrough is teaching Ryad the pipeline he must own — but the cushion
+work owed after 4o (re-running the sweep, rewriting §54) is work that a
+sub-1.0 RTF could make pointless. Measuring first prices that risk.
+
+*Rejected: C, adopt it now.* Fast and indefensible: it swaps the mouth on
+a vendor's README. The exact failure this project's instrument discipline
+exists to prevent.
+
+### F-1 — the adapter lives inside `MultiModalKitTTS`
+
+`TTSDecoding` is **internal**, so this was never a matter of taste: a
+separate target could not conform to it without making the seam public.
+
+*Rejected: a new `MultiModalKitKokoro` target.* It is the cleaner end
+state, and it would force `TTSDecoding` public today. D-017's rule is
+that public surface is earned by a second **kept** implementation, and a
+spike is not kept until it survives its own numbers. **The cost of A,
+named:** anyone linking the mouth now pulls both vendors. If 4p ends in
+adoption, the split becomes the adoption PR's own ruling.
+
+### F-2 — `mlalma/kokoro-ios`
+
+Its G2P is self-contained (MisakiSwift), so eSpeak NG — GPL, and
+therefore poison for a public repo someone might link — stays out. Its
+performance claim is the only one of the three made on an iPhone.
+
+*Rejected:* `mattmireles/kokoro-coreml` (Apple Neural Engine, but its
+numbers are Mac Studio ones) and `mweinbach/kokoro-swift` (both backends,
+more surface than a spike needs). Either may return if this one measures
+badly — as a new entry, never as a silent switch.
+
+### The four dependency questions, answered
+
+This is an **optional-module** dependency: it enters `MultiModalKitTTS`
+beside TTSKit. The core `MultiModalKit` keeps zero runtime dependencies,
+which the tiered policy (2026-08-09) allows no exception to.
+
+1. **Not the point of the project?** Correct. This project is about the
+   coordination pipeline — the ring, the pump, the tickets, the cushion.
+   Inventing a TTS model is not in it. Same reasoning that admitted
+   WhisperKit and TTSKit.
+2. **Swift 6 clean?** **UNKNOWN, and it is an acceptance gate.** The
+   package states iOS 18 / macOS 15. Nothing here may claim it builds
+   warning-free until it has.
+3. **Permissive licence, maintained?** MIT, and its G2P Apache-2.0 — both
+   verified on 2026-09-01. **Maintained is the weak half:** it is a young
+   single-maintainer package, not a vendor SDK like argmax's. Recorded as
+   a risk, not waved away.
+4. **Could we remove it in a day?** Yes, and the count is the answer: one
+   adapter file, one instrument file, one `Package.swift` edit. Nothing
+   else in the repo may name the vendor — the same rule `TTSKitDecoder`
+   already lives under.
+
+### What this decision does NOT decide
+
+Whether Kokoro speaks in this app. That is AC-189, and it is a HALT after
+the numbers exist — adopt, keep Qwen3, or ship both.
+
+## D-083 — the spike moves outside the package, because the graph refused it (Milestone 4p)
+
+**Date:** 2026-09-01 · **Decided by:** Ryad · **Ruling: B — measure Kokoro
+in a separate project first; fork nothing**
+
+D-082 ruled F-1 = A on a fact set that did not include this one. The pins
+were read only when the dependency was actually added, and they do not fit.
+
+### What was measured, not guessed
+
+```
+error: root depends on 'mlx-swift-lm' 3.0.0..<4.0.0 and root depends on 'mlx-swift' 0.30.2.
+'mlx-swift-lm' >= 3.0.0 practically depends on 'mlx-swift' 0.31.3..<0.32.0
+```
+
+- `kokoro-ios` 1.0.11 → `mlx-swift` **exactly 0.30.2**
+- `MisakiSwift` (the G2P alone) → `mlx-swift` **exactly 0.30.2**
+- `mlx-swift-lm` ≥ 3.0.0, which the Qwen mind needs → **0.31.3..<0.32.0**
+
+No overlap, and no partial route: even taking the G2P by itself drags the
+same pin. **The mind and this mouth cannot share one package graph.**
+
+The escape routes were checked and are worse. `adriancmurray/kokoro-ios`
+relaxes the pins but has **no tags at all**. `mweinbach/kokoro-swift`
+would resolve (it pins 0.31.3) but has **no licence file**, which ends it
+for a public repository whatever it measures. `mattmireles/kokoro-coreml`
+is a Python conversion pipeline, not a Swift package.
+
+### Options
+
+**B. Measure outside the package first. — RULED.** `Spikes/KokoroSpike`
+is its own Xcode project with its own SPM graph. It links the vendor
+untouched, at the vendor's own pin, and answers 4p's only question
+without a fork. If the number is good, forking three repositories becomes
+a decision made with eyes open.
+
+*Rejected: A, fork the trio and relax the pins now.* Three forks to
+maintain, and an unknown — whether their code survives MLX 0.30 → 0.31 —
+paid for before a single measurement exists. Chasing a README's number by
+forking is the same error as adopting on a README's number, only slower.
+
+*Rejected: C, stop 4p here.* Defensible and cheap, but the question is
+worth one day: the cushion work still owed after 4o could be made
+pointless by a decoder with RTF below 1.0.
+
+### What this costs, named
+
+The spike does **not** exercise this library's audio graph, its phraser,
+its lead, or its barge-in. It measures a decoder and nothing else. So a
+good number here is permission to integrate, never proof that integration
+will behave — AC-183 (digital silence) and AC-184 (WER) stay unanswered
+until the mouth is inside a real pipeline.
+
+D-082's F-1 ruling is **not edited**. It was right on what was known; this
+entry is what changed.
+
+## D-084 — the mouth changes: Kokoro fp16 becomes the default (Milestone 4p, AC-189)
+
+**Date:** 2026-09-02 · **Decided by:** Ryad · **Ruling: A — adopt
+Kokoro-82M at fp16 as the default mouth; Qwen3-TTS stays as an
+alternative behind the existing lever**
+
+### The evidence, and what makes it trustworthy
+
+INSTRUMENTS §55, measured on Ryad's iPhone with both mouths in ONE
+process, ONE stopwatch and ONE memory sampler:
+
+| | median RTF | peak at a 2.7 s sentence |
+|---|---|---|
+| Kokoro-82M fp16 | **0.20** | 667 MB |
+| Qwen3-TTS 0.6B | 1.35 | 598 MB |
+
+**About six times faster, for about seventy megabytes.**
+
+Two properties of that measurement matter more than the ratio:
+
+- **The harness did not flatter the challenger.** Qwen measured WORSE here
+  (1.35) than in the live app (1.21), and it ran second on a phone Kokoro
+  had already warmed. Every plausible correction moves the gap the wrong
+  way for Kokoro and it still wins by ~6×.
+- **The ear agrees, on the exact configuration being adopted.** Ryad on
+  fp16: *"fp16 sound the same, i cant hear a difference."* Half precision
+  is not a compromise taken on a number alone.
+
+The decisive fact behind the ratio: **the two decoders fail in opposite
+directions.** Kokoro's time is bounded and its memory is not; Qwen's
+memory is bounded and its time is not. Every cushion this project owns —
+D-046, D-073, D-080 — exists because Qwen's RTF is above 1.0. A decoder at
+0.20 does not make that apparatus smaller; it removes its reason to exist.
+
+### Options
+
+**A. Adopt Kokoro fp16 as the default. — RULED.**
+
+*Rejected: B, keep Qwen and shelve Kokoro.* No forks, no new
+dependencies, no risk — and the cushion apparatus stays load-bearing
+forever with §143a permanently open. It was defensible on surface area
+alone; it is not defensible against a 6× measured on the machine that
+reported the fault.
+
+*Rejected: C, defer the ruling.* Costs nothing except that a spike goes
+cold and has to be rebuilt to answer the same question again.
+
+### The price, named before it is paid
+
+1. **Three forks, or a vendored copy.** `kokoro-ios`, `MisakiSwift` and
+   `MLXUtilsLibrary` all pin `mlx-swift` to exactly 0.30.2, which the
+   Qwen MIND cannot use (D-083). Both routes are permitted by the
+   licences (MIT / Apache-2.0). **Which one is a ruling of its own, in
+   the integration milestone** — it is not decided here.
+2. **A one-shot decode cannot be stopped in flight** (AC-181, already
+   tested). Barge-in stays correct — the ticket is the guarantee — but
+   the compute is not saved. The cost is bounded by the phrase length,
+   which makes point 3 do double duty.
+3. **Memory grows with phrase length**, ~120 MB per second of audio on
+   top of ~336 MB fixed. Integration MUST cap phrase length. The phraser
+   already cuts at sentences, so this is a bound to state and enforce,
+   not a mechanism to invent.
+4. **A worse cold start.** ~9–11 s for the first decode in a process
+   against Qwen's ~5.9 s — Metal kernel compilation, once. It lands
+   exactly on §143a's first-reply hole, and 4p could not measure it
+   cleanly (§55 records why: the fp16 warm-up inherited fp32's compiled
+   kernels).
+5. **English only, in practice.** Kokoro ships 54 voices across 8
+   languages, but the Swift port's G2P is `MisakiSwift`, English. This
+   project is English-only today; the day it is not, this is where the
+   cost appears.
+
+### What this ruling does NOT do
+
+- **It does not delete the cushion.** `PlaybackLead`, `AdaptiveLead` and
+  D-080's stall statistic stay exactly as they are until Kokoro's RTF is
+  confirmed below 1.0 *inside this library's pipeline*. Removing them on
+  a bare-harness number would be the same mistake as adopting on a
+  README's.
+- **It does not make Kokoro proven.** §55 exercised no phraser, no
+  `PlaybackLead`, no barge-in, no microphone. AC-183 (digital silence)
+  and AC-184 (WER) are still unanswered and are the integration
+  milestone's first job (SPEC §148a).
+- **It does not retire Qwen.** It stays behind `VoiceLevers`, which is
+  what that lever is for, and it remains the only mouth this project has
+  ever run in a real conversation.

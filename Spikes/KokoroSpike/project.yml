@@ -1,0 +1,84 @@
+# The Kokoro spike (Milestone 4p, D-082 · the ruling that followed the
+# dependency wall).
+#
+# Regenerate with: cd Spikes/KokoroSpike && xcodegen
+#
+# WHY THIS IS A SEPARATE PROJECT, AND NOT A PRODUCT OF THE ROOT PACKAGE.
+# `kokoro-ios` pins mlx-swift to EXACTLY 0.30.2. `mlx-swift-lm`, which the
+# Qwen mind needs, requires 0.31.3..<0.32.0. SPM refuses the graph:
+#
+#   error: root depends on 'mlx-swift-lm' 3.0.0..<4.0.0
+#          and root depends on 'mlx-swift' 0.30.2.
+#
+# So the spike never meets the mind. It links `kokoro-ios` untouched, at
+# the vendor's own pin, and answers 4p's only question — is this decoder
+# fast enough on Ryad's phone — without a single fork.
+#
+# NOTE: MLX does not run on the iOS SIMULATOR. This is a device build.
+name: KokoroSpike
+options:
+  bundleIdPrefix: dev.nooron
+  deploymentTarget:
+    iOS: "18.0"
+  createIntermediateGroups: true
+packages:
+  KokoroSwift:
+    url: https://github.com/mlalma/kokoro-ios
+    from: 1.0.11
+  # The mouth this project already ships, so both are measured by one
+  # stopwatch in one process. `argmax-oss-swift` depends on
+  # argument-parser, vapor and swift-openapi — never mlx-swift — so the
+  # pin collision that exiled this spike does not reach TTSKit.
+  argmax-oss-swift:
+    url: https://github.com/argmaxinc/argmax-oss-swift
+    from: 1.1.0
+targets:
+  KokoroSpike:
+    type: application
+    platform: iOS
+    sources:
+      - Sources
+    postCompileScripts:
+      - script: |
+          if command -v swiftlint >/dev/null 2>&1; then
+            cd "$SRCROOT/../.." && swiftlint lint --quiet
+          else
+            echo "warning: swiftlint not installed — brew install swiftlint"
+          fi
+        name: SwiftLint
+        basedOnDependencyAnalysis: false
+    dependencies:
+      # `embed: true` is NOT decoration. KokoroSwift declares its library
+      # as `type: .dynamic`, so the app must carry the framework in its
+      # own bundle. Without this the project LINKS and BUILDS clean and
+      # then dies at launch on the device:
+      #
+      #   dyld: Library not loaded: @rpath/KokoroSwift.framework/KokoroSwift
+      #
+      # The tell was that every TRANSITIVE framework (MLX, MisakiSwift,
+      # Cmlx…) was embedded automatically and only the one we declared
+      # ourselves was missing. A build that succeeds and cannot launch is
+      # exactly the kind of green this project does not trust.
+      - package: KokoroSwift
+        product: KokoroSwift
+        embed: true
+      # NO `embed` here, and that is the mirror of the line above.
+      # KokoroSwift declares `type: .dynamic` and must be carried in the
+      # bundle; TTSKit declares no type, so SPM builds it STATIC and links
+      # it into the binary. Asking to embed a static product fails the
+      # build outright — "The file TTSKit couldn't be opened" — which is
+      # the friendlier of the two failures: the dynamic one built green
+      # and died on the device.
+      - package: argmax-oss-swift
+        product: TTSKit
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone: "UIInterfaceOrientationPortrait"
+        # iPhone only. The alternative is declaring iPad orientations for
+        # a device this spike will never be measured on.
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
