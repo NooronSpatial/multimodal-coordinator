@@ -41,8 +41,20 @@ targets:
         name: SwiftLint
         basedOnDependencyAnalysis: false
     dependencies:
+      # `embed: true` is NOT decoration. KokoroSwift declares its library
+      # as `type: .dynamic`, so the app must carry the framework in its
+      # own bundle. Without this the project LINKS and BUILDS clean and
+      # then dies at launch on the device:
+      #
+      #   dyld: Library not loaded: @rpath/KokoroSwift.framework/KokoroSwift
+      #
+      # The tell was that every TRANSITIVE framework (MLX, MisakiSwift,
+      # Cmlx…) was embedded automatically and only the one we declared
+      # ourselves was missing. A build that succeeds and cannot launch is
+      # exactly the kind of green this project does not trust.
       - package: KokoroSwift
         product: KokoroSwift
+        embed: true
     settings:
       base:
         CODE_SIGN_STYLE: Automatic
