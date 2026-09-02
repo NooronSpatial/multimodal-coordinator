@@ -9,11 +9,14 @@
 /* Begin PBXBuildFile section */
 		6A32BCA291E92E83F406D3C1 /* KokoroSpikeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231AF2E70F0E6F33032DDA52 /* KokoroSpikeApp.swift */; };
 		80EA6908AC2BAF4A93F53008 /* SpikeAssets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 89076075F042B66586162EBF /* SpikeAssets.swift */; };
+		8F382277630D172B620D27A6 /* QwenEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = D240ACABC4C4354B586CF2EB /* QwenEngine.swift */; };
 		9593136EB6FAB8BB25B67E97 /* KokoroSwift in Embed Frameworks */ = {isa = PBXBuildFile; productRef = 814063FF00F3AD1CE82BAA12 /* KokoroSwift */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		96EE93BA0C1AAB3FC190A5BC /* SpikeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = DBCAB91623B29E01A88105FB /* SpikeModel.swift */; };
 		9CB87C89FFF52452996711D3 /* KokoroEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DF491FA987CBD50A1F36976 /* KokoroEngine.swift */; };
 		BFCBE27C6876D54B641B5BE8 /* KokoroSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 814063FF00F3AD1CE82BAA12 /* KokoroSwift */; };
+		D80498154E23AED962E162CD /* TTSKit in Frameworks */ = {isa = PBXBuildFile; productRef = D3B65CD33399A3B1AADF52AA /* TTSKit */; };
 		E194A1AA620FABFE527CA33A /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6677502C7307C3907A5697 /* ContentView.swift */; };
+		EA7FD8D290EC0BC1234FB842 /* SpikeMouth.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93441FBCD1883A1BB007B03 /* SpikeMouth.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -35,7 +38,9 @@
 		6DF491FA987CBD50A1F36976 /* KokoroEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = KokoroEngine.swift; sourceTree = "<group>"; };
 		7C6677502C7307C3907A5697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		89076075F042B66586162EBF /* SpikeAssets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeAssets.swift; sourceTree = "<group>"; };
-		8D5F0DD6D06AB53461809F9A /* KokoroSpike.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KokoroSpike.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8D5F0DD6D06AB53461809F9A /* KokoroSpike.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = KokoroSpike.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C93441FBCD1883A1BB007B03 /* SpikeMouth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeMouth.swift; sourceTree = "<group>"; };
+		D240ACABC4C4354B586CF2EB /* QwenEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QwenEngine.swift; sourceTree = "<group>"; };
 		DBCAB91623B29E01A88105FB /* SpikeModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpikeModel.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -45,6 +50,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				BFCBE27C6876D54B641B5BE8 /* KokoroSwift in Frameworks */,
+				D80498154E23AED962E162CD /* TTSKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,8 +71,10 @@
 				7C6677502C7307C3907A5697 /* ContentView.swift */,
 				6DF491FA987CBD50A1F36976 /* KokoroEngine.swift */,
 				231AF2E70F0E6F33032DDA52 /* KokoroSpikeApp.swift */,
+				D240ACABC4C4354B586CF2EB /* QwenEngine.swift */,
 				89076075F042B66586162EBF /* SpikeAssets.swift */,
 				DBCAB91623B29E01A88105FB /* SpikeModel.swift */,
+				C93441FBCD1883A1BB007B03 /* SpikeMouth.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -98,6 +106,7 @@
 			name = KokoroSpike;
 			packageProductDependencies = (
 				814063FF00F3AD1CE82BAA12 /* KokoroSwift */,
+				D3B65CD33399A3B1AADF52AA /* TTSKit */,
 			);
 			productName = KokoroSpike;
 			productReference = 8D5F0DD6D06AB53461809F9A /* KokoroSpike.app */;
@@ -128,6 +137,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				EFA2622F72F5C0E8EE3CF35A /* XCRemoteSwiftPackageReference "kokoro-ios" */,
+				578623BC8735226644DCEAF8 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 9D093EE7E8D09F552DF8C221 /* Products */;
@@ -169,8 +179,10 @@
 				E194A1AA620FABFE527CA33A /* ContentView.swift in Sources */,
 				9CB87C89FFF52452996711D3 /* KokoroEngine.swift in Sources */,
 				6A32BCA291E92E83F406D3C1 /* KokoroSpikeApp.swift in Sources */,
+				8F382277630D172B620D27A6 /* QwenEngine.swift in Sources */,
 				80EA6908AC2BAF4A93F53008 /* SpikeAssets.swift in Sources */,
 				96EE93BA0C1AAB3FC190A5BC /* SpikeModel.swift in Sources */,
+				EA7FD8D290EC0BC1234FB842 /* SpikeMouth.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -183,7 +195,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9CNN68349Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -324,7 +335,6 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9CNN68349Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = UIInterfaceOrientationPortrait;
@@ -364,6 +374,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		578623BC8735226644DCEAF8 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/argmaxinc/argmax-oss-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.0;
+			};
+		};
 		EFA2622F72F5C0E8EE3CF35A /* XCRemoteSwiftPackageReference "kokoro-ios" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/mlalma/kokoro-ios";
@@ -379,6 +397,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = EFA2622F72F5C0E8EE3CF35A /* XCRemoteSwiftPackageReference "kokoro-ios" */;
 			productName = KokoroSwift;
+		};
+		D3B65CD33399A3B1AADF52AA /* TTSKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 578623BC8735226644DCEAF8 /* XCRemoteSwiftPackageReference "argmax-oss-swift" */;
+			productName = TTSKit;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -8,36 +8,36 @@ import Darwin
 /// One measured decode, as the screen shows it.
 struct SpikeRow: Sendable, Identifiable {
     let id = UUID()
+    let mouth: String
     let fixture: String
     /// `false` for the warm-up, which is REPORTED and never averaged —
-    /// the vendor's own claim is "after warm up", so hiding the cold run
-    /// would be measuring their best case and calling it the phone's.
+    /// Kokoro's vendor claim is explicitly "after warm up", and hiding a
+    /// cold run would be measuring their best case and calling it the
+    /// phone's.
     let counted: Bool
     let wallMilliseconds: Double
     let audioMilliseconds: Double
-    /// MLX's live tensor bytes after this decode, and the process's
-    /// all-time high. The first field run sounded excellent and was then
-    /// killed on memory, so speed alone is no longer the whole report.
-    let activeBytes: Int
-    let peakBytes: Int
+    /// The SHARED memory number: this process's peak footprint while the
+    /// decode ran, sampled the same way for both mouths.
+    let footprintPeakBytes: Int
+    /// The vendor's own counter, where it keeps one. MLX does, CoreML
+    /// does not — so this column is empty for Qwen, and saying so is the
+    /// point.
+    let vendorPeakBytes: Int?
     var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
 }
 
 /// The spike's whole state (4p, D-082).
-///
-/// One `@MainActor @Observable` model, one actor holding the vendor. The
-/// pattern is the demo app's, deliberately: this is a throwaway
-/// instrument, and a throwaway instrument that behaves differently from
-/// the real app measures a different app.
 @MainActor
 @Observable
 final class SpikeModel {
     enum Phase: Equatable {
         case needsAssets
         case downloading(name: String, fraction: Double)
-        case loading
+        case loadingKokoro
+        case loadingQwen
         case ready
-        case speaking(String)
+        case speaking(mouth: String, fixture: String)
         case failed(String)
     }
 
@@ -60,20 +60,26 @@ final class SpikeModel {
     private(set) var phase: Phase = .needsAssets
     private(set) var rows: [SpikeRow] = []
     var speakAloud = true
+    /// Qwen's weights are ~1 GB and this app has its own container, so
+    /// the demo's copy cannot be borrowed. Off by default: a person who
+    /// only wants the Kokoro number should not be made to pay for it.
+    var includeQwen = false
 
-    private let engine = KokoroEngine()
+    private let kokoro = KokoroEngine()
+    private let qwen = QwenEngine()
+    private var qwenLoaded = false
     private let player = SpikePlayer()
 
     init() {
-        phase = SpikeAssets.allInstalled ? .loading : .needsAssets
+        phase = SpikeAssets.allInstalled ? .loadingKokoro : .needsAssets
     }
 
     /// Megabytes left before this process is killed, or nil when the
     /// platform will not say. `os_proc_available_memory` answers 0 both
     /// when it has no information AND when the process is already over
-    /// its limit — the library's `MemoryHeadroom` exists to keep those
-    /// two apart, and it cannot be linked here, so this reports the raw
-    /// number with that ambiguity stated rather than hidden.
+    /// its limit — the library's `MemoryHeadroom` exists to keep those two
+    /// apart, and it cannot be linked here, so this reports the raw
+    /// number with the ambiguity stated rather than hidden.
     var headroomMegabytes: Int? {
         #if os(iOS)
         let bytes = os_proc_available_memory()
@@ -83,24 +89,31 @@ final class SpikeModel {
         #endif
     }
 
-    /// The highest MLX peak any run has reported.
-    var peakMegabytes: Int? {
-        guard let peak = rows.map(\.peakBytes).max() else { return nil }
-        return peak / 1_048_576
-    }
-
     var modelSizeText: String {
         String(format: "%.0f MB", Double(SpikeAssets.model.expectedBytes) / 1_000_000)
     }
 
-    /// Median wall ÷ audio over the counted runs of one fixture, or nil
-    /// while none exist. Median rather than mean, because one thermal
-    /// stall would drag a mean and the sweep already learned that lesson.
-    func medianRTF(of fixture: String) -> Double? {
-        let values = rows.filter { $0.fixture == fixture && $0.counted }
+    var mouthNames: [String] {
+        var names = [kokoro.name]
+        if includeQwen { names.append(qwen.name) }
+        return names
+    }
+
+    /// Median wall ÷ audio over the counted runs, per mouth and fixture.
+    /// Median rather than mean, because one thermal stall drags a mean
+    /// and the Mac sweep already learned that lesson.
+    func medianRTF(mouth: String, fixture: String) -> Double? {
+        let values = rows
+            .filter { $0.mouth == mouth && $0.fixture == fixture && $0.counted }
             .map(\.realTimeFactor).sorted()
         guard !values.isEmpty else { return nil }
         return values[values.count / 2]
+    }
+
+    func peakMegabytes(mouth: String) -> Int? {
+        let peaks = rows.filter { $0.mouth == mouth }.map(\.footprintPeakBytes)
+        guard let peak = peaks.max() else { return nil }
+        return peak / 1_048_576
     }
 
     func fetchAssets() async {
@@ -122,77 +135,129 @@ final class SpikeModel {
     }
 
     func loadModel() async {
-        phase = .loading
+        phase = .loadingKokoro
         do {
-            try await engine.load(model: SpikeAssets.location(of: SpikeAssets.model),
-                                  voice: SpikeAssets.location(of: SpikeAssets.voice))
+            try await kokoro.load()
             phase = .ready
         } catch {
             phase = .failed(String(describing: error))
         }
     }
 
-    /// The measured pass: one warm-up per sentence, then `repeats` counted
-    /// runs, in fixture order.
+    /// The measured pass: every mouth, every sentence, one warm-up then
+    /// `repeats` counted runs.
     ///
-    /// No cool-down between runs. The Mac sweep needed one and could not
-    /// afford it; here the honest move is to REPORT the order rather than
-    /// pretend it does not matter — every row is on screen, so a run that
-    /// drifts upward is visible instead of averaged away.
+    /// Kokoro goes first and Qwen second, always. That ORDER is a known
+    /// confound — this phone heats — and it is reported rather than
+    /// corrected, because every row stays on screen. The Mac sweep had to
+    /// counterbalance for exactly this reason; if the two mouths land
+    /// close enough for order to matter, that is the moment to spend the
+    /// same effort here.
     func runAll() async {
         rows.removeAll()
-        for fixture in Self.fixtures {
-            for attempt in 0...Self.repeats {
-                phase = .speaking(fixture.name)
-                do {
-                    let result = try await engine.speak(fixture.text)
-                    rows.append(SpikeRow(fixture: fixture.name,
-                                         counted: attempt > 0,
-                                         wallMilliseconds: result.measurement.wallMilliseconds,
-                                         audioMilliseconds: result.measurement.audioMilliseconds,
-                                         activeBytes: result.measurement.activeBytes,
-                                         peakBytes: result.measurement.peakBytes))
-                    if speakAloud, attempt == Self.repeats {
-                        // Only the last run is played, so listening does
-                        // not sit inside the timed sequence.
-                        player.play(result.samples, sampleRate: KokoroEngine.sampleRate)
-                    }
-                } catch {
-                    phase = .failed(String(describing: error))
-                    return
-                }
+        if includeQwen, !qwenLoaded {
+            phase = .loadingQwen
+            do {
+                try await qwen.load()
+                qwenLoaded = true
+            } catch {
+                phase = .failed("Qwen load failed: \(error)")
+                return
+            }
+        }
+        var mouths: [any SpikeMouth] = [kokoro]
+        if includeQwen { mouths.append(qwen) }
+
+        for mouth in mouths {
+            for fixture in Self.fixtures {
+                guard await measure(mouth, fixture) else { return }
             }
         }
         phase = .ready
     }
 
-    /// The report, as text he can copy out of the phone into INSTRUMENTS.
-    var report: String {
-        var lines = ["KOKORO SPIKE (4p) — RTF is wall ÷ audio; lower is better",
-                     "| fixture | run | wall ms | audio ms | RTF | MLX active MB | MLX peak MB |",
-                     "|---|---|---|---|---|---|---|"]
-        for row in rows {
-            lines.append(String(format: "| %@ | %@ | %.0f | %.0f | %.2f | %d | %d |",
-                                row.fixture, row.counted ? "counted" : "warm-up",
-                                row.wallMilliseconds, row.audioMilliseconds, row.realTimeFactor,
-                                row.activeBytes / 1_048_576, row.peakBytes / 1_048_576))
-        }
-        for fixture in Self.fixtures {
-            if let median = medianRTF(of: fixture.name) {
-                lines.append(String(format: "median RTF (%@): %.2f", fixture.name, median))
+    /// One fixture on one mouth: warm-up plus the counted runs. Returns
+    /// false when a decode failed, so the caller stops rather than
+    /// reporting a half table as if it were whole.
+    private func measure(_ mouth: any SpikeMouth,
+                         _ fixture: (name: String, text: String)) async -> Bool {
+        for attempt in 0...Self.repeats {
+            phase = .speaking(mouth: mouth.name, fixture: fixture.name)
+            // THE SAME STOPWATCH AND THE SAME SAMPLER FOR BOTH MOUTHS.
+            // Every line from here to the row is shared code; nothing a
+            // vendor does can put a thumb on this scale.
+            let sampler = FootprintSampler()
+            await sampler.start()
+            let clock = ContinuousClock()
+            let start = clock.now
+            do {
+                let result = try await mouth.speak(fixture.text)
+                let wall = start.duration(to: clock.now)
+                let peak = await sampler.stop()
+                let audioMilliseconds =
+                    Double(result.samples.count) * 1000 / Double(result.sampleRate)
+                guard audioMilliseconds > 0 else {
+                    phase = .failed("\(mouth.name) produced no audio for \(fixture.name)")
+                    return false
+                }
+                rows.append(SpikeRow(mouth: mouth.name,
+                                     fixture: fixture.name,
+                                     counted: attempt > 0,
+                                     wallMilliseconds: wall.milliseconds,
+                                     audioMilliseconds: audioMilliseconds,
+                                     footprintPeakBytes: peak,
+                                     vendorPeakBytes: mouth.vendorPeakBytes))
+                if speakAloud, attempt == Self.repeats {
+                    // Only the last run is played, so listening never
+                    // sits inside the timed sequence.
+                    player.play(result.samples, sampleRate: result.sampleRate)
+                }
+            } catch {
+                _ = await sampler.stop()
+                phase = .failed(String(describing: error))
+                return false
             }
         }
-        if let peak = peakMegabytes { lines.append("MLX peak: \(peak) MB") }
-        if let headroom = headroomMegabytes {
-            lines.append("headroom left: \(headroom) MB")
+        return true
+    }
+
+    /// The report, as text he can copy out of the phone into INSTRUMENTS.
+    var report: String {
+        var lines = ["KOKORO vs QWEN (4p) — one app, one stopwatch, one sampler",
+                     "RTF is wall ÷ audio; lower is better. Peak is this PROCESS's",
+                     "footprint sampled every \(FootprintSampler.intervalMilliseconds) ms",
+                     "— a spike shorter than that interval is invisible, so a peak is a",
+                     "floor, never a ceiling.",
+                     "",
+                     "| mouth | fixture | run | wall ms | audio ms | RTF | peak MB | vendor peak MB |",
+                     "|---|---|---|---|---|---|---|---|"]
+        for row in rows {
+            let vendor = row.vendorPeakBytes.map { "\($0 / 1_048_576)" } ?? "—"
+            lines.append(String(format: "| %@ | %@ | %@ | %.0f | %.0f | %.2f | %d | %@ |",
+                                row.mouth, row.fixture, row.counted ? "counted" : "warm-up",
+                                row.wallMilliseconds, row.audioMilliseconds, row.realTimeFactor,
+                                row.footprintPeakBytes / 1_048_576, vendor))
         }
+        lines.append("")
+        for mouth in mouthNames {
+            for fixture in Self.fixtures {
+                if let median = medianRTF(mouth: mouth, fixture: fixture.name) {
+                    lines.append(String(format: "median RTF %@ / %@: %.2f",
+                                        mouth, fixture.name, median))
+                }
+            }
+            if let peak = peakMegabytes(mouth: mouth) {
+                lines.append("peak footprint \(mouth): \(peak) MB")
+            }
+        }
+        if let headroom = headroomMegabytes { lines.append("headroom left: \(headroom) MB") }
         lines.append("MLX cache limit: \(KokoroEngine.cacheLimitBytes / 1_048_576) MB")
-        lines.append("phone Qwen3 reference: RTF 1.21 (INSTRUMENTS)")
+        lines.append("field reference: Qwen3 RTF 1.21 in the live app (INSTRUMENTS)")
         return lines.joined(separator: "\n")
     }
 }
 
-/// Playback, kept as small as it can be: this spike measures a decoder,
+/// Playback, kept as small as it can be: this spike measures decoders,
 /// and every line of audio graph here is a line that could explain a bad
 /// number with something other than the decoder.
 @MainActor
@@ -200,6 +265,7 @@ final class SpikePlayer {
     private let engine = AVAudioEngine()
     private let node = AVAudioPlayerNode()
     private var started = false
+    private var startedRate: Double?
 
     func play(_ samples: [Float], sampleRate: Int) {
         guard !samples.isEmpty,
@@ -214,15 +280,25 @@ final class SpikePlayer {
             guard let base = source.baseAddress else { return }
             channel[0].update(from: base, count: samples.count)
         }
+        // Two mouths could disagree on rate, so the graph is rebuilt when
+        // it changes rather than assumed constant. Both are 24 kHz today;
+        // "today" is not a guarantee, and a stale format is the fault the
+        // field heard as a drunk voice.
+        if started, startedRate != format.sampleRate {
+            node.stop()
+            engine.stop()
+            started = false
+        }
         if !started {
             #if os(iOS)
             try? AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try? AVAudioSession.sharedInstance().setActive(true)
             #endif
-            engine.attach(node)
+            if node.engine == nil { engine.attach(node) }
             engine.connect(node, to: engine.mainMixerNode, format: format)
             guard (try? engine.start()) != nil else { return }
             started = true
+            startedRate = format.sampleRate
         }
         node.scheduleBuffer(buffer, at: nil, options: .interrupts)
         node.play()

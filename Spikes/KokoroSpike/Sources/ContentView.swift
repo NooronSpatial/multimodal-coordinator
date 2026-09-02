@@ -7,26 +7,41 @@ struct ContentView: View {
         NavigationStack {
             List {
                 Section("state") { stateRow }
-                if case .ready = model.phase { controls } else if isSpeaking { controls }
+                if canRun { controls }
                 if !model.rows.isEmpty { results }
                 Section("what this measures") {
                     Text("RTF = decode wall time ÷ audio produced. **Lower is better**; "
-                         + "1.00 is exactly real time. This phone's Qwen3 mouth measured "
-                         + "**1.21** — slower than speech, which is why every cushion in "
-                         + "the library exists.")
+                         + "1.00 is exactly real time. In the live app, Qwen3 measured "
+                         + "**1.21** on this phone — slower than speech, which is why "
+                         + "every cushion in the library exists.")
                     .font(.footnote)
-                    Text("Kokoro is one-shot: it returns a whole sentence at once, so "
-                         + "\"time to first audio\" and \"decode time\" are the same number.")
+                    Text("Both mouths run through the same stopwatch and the same memory "
+                         + "sampler, in this one process, back to back. Kokoro is "
+                         + "one-shot, so its \"time to first audio\" and its decode time "
+                         + "are the same number.")
                     .font(.footnote)
+                    Text("Peak is this PROCESS's footprint, sampled every "
+                         + "\(FootprintSampler.intervalMilliseconds) ms. A spike shorter "
+                         + "than that is invisible, so a peak is a floor, never a ceiling.")
+                    .font(.footnote).foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle("Kokoro spike")
-            .task { if case .loading = model.phase { await model.loadModel() } }
+            .navigationTitle("Two mouths")
+            .task { if case .loadingKokoro = model.phase { await model.loadModel() } }
         }
     }
 
-    private var isSpeaking: Bool {
+    private var isBusy: Bool {
+        switch model.phase {
+        case .speaking, .loadingQwen, .downloading, .loadingKokoro: true
+        default: false
+        }
+    }
+
+    private var canRun: Bool {
+        if case .ready = model.phase { return true }
         if case .speaking = model.phase { return true }
+        if case .loadingQwen = model.phase { return true }
         return false
     }
 
@@ -34,7 +49,7 @@ struct ContentView: View {
         switch model.phase {
         case .needsAssets:
             VStack(alignment: .leading, spacing: 8) {
-                Text("The weights are not on this phone yet.")
+                Text("Kokoro's weights are not on this phone yet.")
                 Text("\(model.modelSizeText) over the network, once. Wi-Fi.")
                     .font(.footnote).foregroundStyle(.secondary)
                 Button("Download the model") { Task { await model.fetchAssets() } }
@@ -47,12 +62,19 @@ struct ContentView: View {
                 Text(String(format: "%.0f%%", fraction * 100))
                     .font(.footnote).foregroundStyle(.secondary)
             }
-        case .loading:
-            Label("loading the weights…", systemImage: "hourglass")
+        case .loadingKokoro:
+            Label("loading Kokoro's weights…", systemImage: "hourglass")
+        case .loadingQwen:
+            VStack(alignment: .leading, spacing: 4) {
+                Label("fetching and loading Qwen3-TTS…", systemImage: "hourglass")
+                Text("~1 GB, and this app has its own container — the demo's copy "
+                     + "cannot be borrowed. Once per install.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
         case .ready:
             Label("ready", systemImage: "checkmark.circle")
-        case .speaking(let fixture):
-            Label("decoding \(fixture)…", systemImage: "waveform")
+        case .speaking(let mouth, let fixture):
+            Label("\(mouth) — decoding \(fixture)…", systemImage: "waveform")
         case .failed(let why):
             Label(why, systemImage: "exclamationmark.triangle")
                 .foregroundStyle(.red)
@@ -62,34 +84,48 @@ struct ContentView: View {
     @ViewBuilder private var controls: some View {
         Section("run") {
             Toggle("play the last run aloud", isOn: $model.speakAloud)
-            Button("Measure both sentences") { Task { await model.runAll() } }
-                .disabled(isSpeaking)
+            Toggle("also measure Qwen3-TTS (~1 GB download)", isOn: $model.includeQwen)
+            Button("Measure") { Task { await model.runAll() } }
+                .disabled(isBusy)
         }
     }
 
     @ViewBuilder private var results: some View {
-        Section("runs") {
-            ForEach(model.rows) { row in
-                HStack {
-                    Text(row.fixture).frame(width: 52, alignment: .leading)
-                    Text(row.counted ? "counted" : "warm-up")
-                        .font(.caption).foregroundStyle(.secondary)
-                        .frame(width: 64, alignment: .leading)
-                    Spacer()
-                    Text(String(format: "%.0f ms", row.wallMilliseconds))
-                        .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
-                    Text(String(format: "RTF %.2f", row.realTimeFactor))
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(row.realTimeFactor < 1 ? .green : .red)
+        ForEach(model.mouthNames, id: \.self) { mouth in
+            Section(mouth) {
+                ForEach(model.rows.filter { $0.mouth == mouth }) { row in
+                    HStack {
+                        Text(row.fixture).frame(width: 46, alignment: .leading)
+                        Text(row.counted ? "counted" : "warm-up")
+                            .font(.caption).foregroundStyle(.secondary)
+                            .frame(width: 60, alignment: .leading)
+                        Spacer()
+                        Text("\(row.footprintPeakBytes / 1_048_576) MB")
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Text(String(format: "%.0f ms", row.wallMilliseconds))
+                            .font(.caption.monospacedDigit()).foregroundStyle(.secondary)
+                        Text(String(format: "%.2f", row.realTimeFactor))
+                            .font(.body.monospacedDigit())
+                            .foregroundStyle(row.realTimeFactor < 1 ? .green : .red)
+                    }
+                }
+                ForEach(SpikeModel.fixtures, id: \.name) { fixture in
+                    if let median = model.medianRTF(mouth: mouth, fixture: fixture.name) {
+                        HStack {
+                            Text("median \(fixture.name)").bold()
+                            Spacer()
+                            Text(String(format: "%.2f", median))
+                                .font(.body.monospacedDigit().bold())
+                                .foregroundStyle(median < 1 ? .green : .red)
+                        }
+                    }
+                }
+                if let peak = model.peakMegabytes(mouth: mouth) {
+                    LabeledContent("peak footprint", value: "\(peak) MB")
                 }
             }
         }
-        Section("memory") {
-            // The first field run sounded excellent and was then killed.
-            // A speed number with no memory beside it is half a report.
-            if let peak = model.peakMegabytes {
-                LabeledContent("MLX peak", value: "\(peak) MB")
-            }
+        Section("this phone") {
             if let headroom = model.headroomMegabytes {
                 LabeledContent("headroom left", value: "\(headroom) MB")
             } else {
@@ -99,20 +135,9 @@ struct ContentView: View {
             }
             LabeledContent("MLX cache limit",
                            value: "\(KokoroEngine.cacheLimitBytes / 1_048_576) MB")
-        }
-        Section("median of the counted runs") {
-            ForEach(SpikeModel.fixtures, id: \.name) { fixture in
-                if let median = model.medianRTF(of: fixture.name) {
-                    HStack {
-                        Text(fixture.name)
-                        Spacer()
-                        Text(String(format: "%.2f", median))
-                            .font(.body.monospacedDigit().bold())
-                            .foregroundStyle(median < 1 ? .green : .red)
-                    }
-                }
+            ShareLink(item: model.report) {
+                Label("Copy the table out", systemImage: "square.and.arrow.up")
             }
-            ShareLink(item: model.report) { Label("Copy the table out", systemImage: "square.and.arrow.up") }
         }
     }
 }

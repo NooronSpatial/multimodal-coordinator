@@ -25,6 +25,13 @@ packages:
   KokoroSwift:
     url: https://github.com/mlalma/kokoro-ios
     from: 1.0.11
+  # The mouth this project already ships, so both are measured by one
+  # stopwatch in one process. `argmax-oss-swift` depends on
+  # argument-parser, vapor and swift-openapi — never mlx-swift — so the
+  # pin collision that exiled this spike does not reach TTSKit.
+  argmax-oss-swift:
+    url: https://github.com/argmaxinc/argmax-oss-swift
+    from: 1.1.0
 targets:
   KokoroSpike:
     type: application
@@ -55,6 +62,15 @@ targets:
       - package: KokoroSwift
         product: KokoroSwift
         embed: true
+      # NO `embed` here, and that is the mirror of the line above.
+      # KokoroSwift declares `type: .dynamic` and must be carried in the
+      # bundle; TTSKit declares no type, so SPM builds it STATIC and links
+      # it into the binary. Asking to embed a static product fails the
+      # build outright — "The file TTSKit couldn't be opened" — which is
+      # the friendlier of the two failures: the dynamic one built green
+      # and died on the device.
+      - package: argmax-oss-swift
+        product: TTSKit
     settings:
       base:
         CODE_SIGN_STYLE: Automatic
