@@ -3523,3 +3523,90 @@ until the mouth is inside a real pipeline.
 
 D-082's F-1 ruling is **not edited**. It was right on what was known; this
 entry is what changed.
+
+## D-084 — the mouth changes: Kokoro fp16 becomes the default (Milestone 4p, AC-189)
+
+**Date:** 2026-09-02 · **Decided by:** Ryad · **Ruling: A — adopt
+Kokoro-82M at fp16 as the default mouth; Qwen3-TTS stays as an
+alternative behind the existing lever**
+
+### The evidence, and what makes it trustworthy
+
+INSTRUMENTS §55, measured on Ryad's iPhone with both mouths in ONE
+process, ONE stopwatch and ONE memory sampler:
+
+| | median RTF | peak at a 2.7 s sentence |
+|---|---|---|
+| Kokoro-82M fp16 | **0.20** | 667 MB |
+| Qwen3-TTS 0.6B | 1.35 | 598 MB |
+
+**About six times faster, for about seventy megabytes.**
+
+Two properties of that measurement matter more than the ratio:
+
+- **The harness did not flatter the challenger.** Qwen measured WORSE here
+  (1.35) than in the live app (1.21), and it ran second on a phone Kokoro
+  had already warmed. Every plausible correction moves the gap the wrong
+  way for Kokoro and it still wins by ~6×.
+- **The ear agrees, on the exact configuration being adopted.** Ryad on
+  fp16: *"fp16 sound the same, i cant hear a difference."* Half precision
+  is not a compromise taken on a number alone.
+
+The decisive fact behind the ratio: **the two decoders fail in opposite
+directions.** Kokoro's time is bounded and its memory is not; Qwen's
+memory is bounded and its time is not. Every cushion this project owns —
+D-046, D-073, D-080 — exists because Qwen's RTF is above 1.0. A decoder at
+0.20 does not make that apparatus smaller; it removes its reason to exist.
+
+### Options
+
+**A. Adopt Kokoro fp16 as the default. — RULED.**
+
+*Rejected: B, keep Qwen and shelve Kokoro.* No forks, no new
+dependencies, no risk — and the cushion apparatus stays load-bearing
+forever with §143a permanently open. It was defensible on surface area
+alone; it is not defensible against a 6× measured on the machine that
+reported the fault.
+
+*Rejected: C, defer the ruling.* Costs nothing except that a spike goes
+cold and has to be rebuilt to answer the same question again.
+
+### The price, named before it is paid
+
+1. **Three forks, or a vendored copy.** `kokoro-ios`, `MisakiSwift` and
+   `MLXUtilsLibrary` all pin `mlx-swift` to exactly 0.30.2, which the
+   Qwen MIND cannot use (D-083). Both routes are permitted by the
+   licences (MIT / Apache-2.0). **Which one is a ruling of its own, in
+   the integration milestone** — it is not decided here.
+2. **A one-shot decode cannot be stopped in flight** (AC-181, already
+   tested). Barge-in stays correct — the ticket is the guarantee — but
+   the compute is not saved. The cost is bounded by the phrase length,
+   which makes point 3 do double duty.
+3. **Memory grows with phrase length**, ~120 MB per second of audio on
+   top of ~336 MB fixed. Integration MUST cap phrase length. The phraser
+   already cuts at sentences, so this is a bound to state and enforce,
+   not a mechanism to invent.
+4. **A worse cold start.** ~9–11 s for the first decode in a process
+   against Qwen's ~5.9 s — Metal kernel compilation, once. It lands
+   exactly on §143a's first-reply hole, and 4p could not measure it
+   cleanly (§55 records why: the fp16 warm-up inherited fp32's compiled
+   kernels).
+5. **English only, in practice.** Kokoro ships 54 voices across 8
+   languages, but the Swift port's G2P is `MisakiSwift`, English. This
+   project is English-only today; the day it is not, this is where the
+   cost appears.
+
+### What this ruling does NOT do
+
+- **It does not delete the cushion.** `PlaybackLead`, `AdaptiveLead` and
+  D-080's stall statistic stay exactly as they are until Kokoro's RTF is
+  confirmed below 1.0 *inside this library's pipeline*. Removing them on
+  a bare-harness number would be the same mistake as adopting on a
+  README's.
+- **It does not make Kokoro proven.** §55 exercised no phraser, no
+  `PlaybackLead`, no barge-in, no microphone. AC-183 (digital silence)
+  and AC-184 (WER) are still unanswered and are the integration
+  milestone's first job (SPEC §148a).
+- **It does not retire Qwen.** It stays behind `VoiceLevers`, which is
+  what that lever is for, and it remains the only mouth this project has
+  ever run in a real conversation.
