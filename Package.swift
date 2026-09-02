@@ -69,6 +69,18 @@ let package = Package(
         // mlx-swift-lm's own dependency. This names what we were already
         // using, so a version bump upstream cannot silently take it away.
         .package(url: "https://github.com/ml-explore/mlx-swift", from: "0.31.0"),
+        // 4q (D-084): the mouth that replaces Qwen3 as the default.
+        //
+        // OUR FORK, and the README of that fork says why in full. Upstream
+        // pins mlx-swift to EXACTLY 0.30.2 while mlx-swift-lm needs
+        // 0.31.3+, so the published package cannot enter this graph at all
+        // (D-083). Two lines are changed there: the pin, and the G2P
+        // dependency, which carries the same pin and would drag it back.
+        //
+        // Tier 2, optional module only: it enters MultiModalKitTTS beside
+        // TTSKit, and the core MultiModalKit keeps its zero runtime
+        // dependencies.
+        .package(url: "https://github.com/NooronSpatial/kokoro-ios", from: "1.1.1"),
     ],
     targets: [
         .target(name: "MultiModalKit"),
@@ -91,6 +103,7 @@ let package = Package(
             dependencies: [
                 "MultiModalKit",
                 .product(name: "TTSKit", package: "argmax-oss-swift"),
+                .product(name: "KokoroSwift", package: "kokoro-ios"),
             ]
         ),
         .target(

@@ -1,5 +1,5 @@
 {
-  "originHash" : "7479941a441601401886033922aae09a1f2a6547db146e17f4189893a2395bb5",
+  "originHash" : "2a7587d2740bd89c955e34aa87ed50947859c7b4b33fa8370d8e14c27d56367b",
   "pins" : [
     {
       "identity" : "argmax-oss-swift",
@@ -20,6 +20,24 @@
       }
     },
     {
+      "identity" : "kokoro-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/NooronSpatial/kokoro-ios",
+      "state" : {
+        "revision" : "92a9e879d5d56bbdea1aa5d8995399429546631f",
+        "version" : "1.1.1"
+      }
+    },
+    {
+      "identity" : "misakiswift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/NooronSpatial/MisakiSwift",
+      "state" : {
+        "revision" : "a1d22ad044d38a657bd3925792c483e200f652ba",
+        "version" : "1.1.0"
+      }
+    },
+    {
       "identity" : "mlx-swift",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/ml-explore/mlx-swift",
@@ -35,6 +53,15 @@
       "state" : {
         "revision" : "bd4b7434e6bdb588c7ef55706ff8904cb7fd4c57",
         "version" : "3.31.4"
+      }
+    },
+    {
+      "identity" : "mlxutilslibrary",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mlalma/MLXUtilsLibrary.git",
+      "state" : {
+        "revision" : "41f6cfd5d68b65aa3c65a34efe3b71c371ed915b",
+        "version" : "0.0.6"
       }
     },
     {
@@ -125,6 +152,15 @@
       "state" : {
         "revision" : "8b4a38dc994a110abaec8a400615567bd996105f",
         "version" : "0.12.0"
+      }
+    },
+    {
+      "identity" : "zipfoundation",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/weichsel/ZIPFoundation.git",
+      "state" : {
+        "revision" : "22787ffb59de99e5dc1fbfe80b19c97a904ad48d",
+        "version" : "0.9.20"
       }
     }
   ],
