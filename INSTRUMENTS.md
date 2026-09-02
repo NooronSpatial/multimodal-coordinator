@@ -4296,3 +4296,132 @@ silently leaving a pass unpaired, prints medians with their spread, and
 brackets every fixture with a fixed-cushion probe. **A reader who sees
 the probe move 351 should not believe a 25 ms/s difference between two
 cushions** — and that sentence is the whole reason the probe is there.
+
+## 55. Kokoro against the shipped mouth, on Ryad's iPhone (4p, AC-182/185/188)
+
+Milestone 4p asked one question: is Kokoro-82M fast enough on the phone
+to make this project's whole cushion apparatus unnecessary? The answer is
+yes, by a margin large enough that the interesting question became memory
+instead.
+
+### The instrument
+
+`Spikes/KokoroSpike` — a separate Xcode project, because `kokoro-ios` and
+`MisakiSwift` both pin `mlx-swift` to **exactly 0.30.2** while
+`mlx-swift-lm` needs 0.31.3+, so the mouth and the Qwen MIND cannot share
+one package graph (D-083). TTSKit carries no MLX dependency, so BOTH
+mouths run in this one app.
+
+**The timing lives once**, in `SpikeModel`, wrapping both engines: a
+stopwatch each vendor starts for itself is a comparison with a thumb on
+the scale. RTF here is **wall ÷ audio produced** — this project's
+convention, the reciprocal of the vendor's README.
+
+**Memory is this PROCESS's `phys_footprint`, sampled every 20 ms**, and
+that choice is forced: MLX keeps a peak counter, CoreML does not, so no
+vendor number can compare two vendors. The cost is named — *a spike
+shorter than 20 ms is invisible, so a reported peak is a floor, never a
+ceiling.*
+
+Both mouths spoke the cushion sweep's own two sentences, character for
+character. Qwen ran `VoiceLevers.phoneDefault` (`.stepped` +
+`.throughputOptimized`, D-071) with `concurrentWorkerCount = 1` — the
+configuration the app really runs.
+
+### Speed — the two mouths, same session
+
+| mouth | fixture | median RTF | peak footprint |
+|---|---|---|---|
+| Kokoro-82M | short | **0.20** | 951 MB |
+| Kokoro-82M | long | **0.22** | 2369 MB |
+| Qwen3-TTS 0.6B | short | 1.35 | 598 MB |
+| Qwen3-TTS 0.6B | long | 1.51 | 609 MB |
+
+**About six times faster.** The field number for Qwen in the live app is
+1.21 (§ the 2026-08 screenshot); it measured WORSE here, at 1.35–1.51,
+which points the same way — Qwen ran second, on a phone Kokoro had
+already warmed. **The harness did not flatter the challenger.**
+
+**The two decoders fail in opposite directions, and that is the finding:**
+
+|  | Kokoro (one-shot) | Qwen (streaming) |
+|---|---|---|
+| time | bounded, 0.2× | unbounded, grows with length |
+| memory | unbounded, grows with length | bounded, ~600 MB flat |
+
+Two consequences measured rather than reasoned:
+
+- **End to end on the long sentence:** Kokoro finishes speaking at ~16.7 s
+  (3.0 s decode, then 13.7 s gapless). Qwen finishes at ~32 s, starving
+  on the way. That is §53's hitching, as a number.
+- **Qwen's output length is not reproducible** — 4000, 3600, 3760, 4000 ms
+  for one sentence; it is autoregressive with no seed. Kokoro returns
+  2725 ms every time. Qwen also speaks SLOWER: ~60% more audio for the
+  same words.
+
+### Memory against sentence length — the ladder
+
+Six nested PREFIXES of one sentence (vocabulary, prosody and phoneme mix
+held constant; only length varies), anchored at both ends by the two
+fixtures above. Peak footprint, counted runs:
+
+| audio | fp32 | fp16 | bf16 |
+|---|---|---|---|
+| 1.9 s | 750 MB | 564 MB | 564 MB |
+| 2.7 s | 874 MB | 667 MB | 658 MB |
+| 3.3 s | 975 MB | 739 MB | 731 MB |
+| 5.4 s | 1294 MB | 989 MB | 999 MB |
+| 7.5 s | 1546 MB | 1263 MB | 1260 MB |
+| 13.7 s | 2215 MB | 1935 MB | 2004 MB |
+
+Straight lines across a 7× range of lengths:
+
+```
+  peak ≈ FIXED + 120 MB × (seconds of audio)
+
+  fp32   ~515 MB fixed        fp16   ~336 MB fixed
+```
+
+**Half precision halves the FIXED half and does not touch the slope.** It
+shrinks the weights (327 → 164 MB); the intermediates are the same size
+whatever precision the weights are. It is also **not faster** — RTF is
+identical across all three, 0.19 at 1.9 s rising to ~0.32 at 13.7 s.
+
+Ryad's ear on fp16, in the same session as the numbers: *"fp16 sound the
+same, i cant hear a difference."*
+
+**At the size the app actually decodes** — the phraser cuts replies into
+sentences, so 13.7-second blocks never happen — fp16 Kokoro costs about
+**70 MB more than Qwen** on a 2.7 s sentence, while decoding six times
+faster. The 2.3 GB headline is a block this pipeline would never build.
+
+### Three things this section will not claim
+
+1. **The `MB per extra second` column in the tool's own output is
+   unreliable, and it is reported here as a fault.** It divides
+   `peak − rest`, and `rest` is unstable: it swung 541 → 1107 MB between
+   two identical L6 runs, because MLX does not return memory promptly
+   between decodes. The column therefore shows a NEGATIVE cost per second
+   at the first rung. Every number above comes from **peak against
+   length**, which is stable and linear.
+2. **fp16's faster warm-up is confounded, not measured.** 8907 ms (fp32)
+   against 2088 ms (fp16) looks like a four-fold cold-start win, but the
+   fp32 run was the FIRST in the process and paid for Metal kernel
+   compilation that fp16 then inherited. Measuring it needs fp16 first
+   from a fresh launch. Kokoro's true cold cost, once per process, is the
+   ~9–11 s figure — worse than Qwen's ~5.9 s, and it lands on §143a's
+   first-reply hole.
+3. **Order is a confound, stated rather than corrected.** Kokoro always
+   ran first and this phone heats. Every row stays on screen so drift is
+   visible — L5's fp32 runs went 0.24, 0.37, 0.33, which is drift and not
+   a property of the sentence. The Mac sweep had to counterbalance for
+   exactly this reason; the two mouths are far enough apart here that
+   order cannot explain the gap.
+
+### What is still unmeasured
+
+Nothing here exercises this library's pipeline: no phraser, no
+`PlaybackLead`, no barge-in, no microphone. **A good number here is
+permission to integrate, never proof that integration behaves.** AC-183
+(digital silence) and AC-184 (WER) are deferred to that work by SPEC
+§148a.
