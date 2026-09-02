@@ -74,13 +74,18 @@ let package = Package(
         // OUR FORK, and the README of that fork says why in full. Upstream
         // pins mlx-swift to EXACTLY 0.30.2 while mlx-swift-lm needs
         // 0.31.3+, so the published package cannot enter this graph at all
-        // (D-083). Two lines are changed there: the pin, and the G2P
-        // dependency, which carries the same pin and would drag it back.
+        // (D-083). Three lines are changed there: the pin; the G2P
+        // dependency, which carries the same pin and would drag it back;
+        // and `type: .dynamic`, removed — a dynamic KokoroSwift put MLXNN
+        // into the app twice (once in its framework, once statically via
+        // the mind) and the Objective-C runtime warned sixty times about
+        // "spurious casting failures and mysterious crashes". 1.1.2 is
+        // static, as is the MisakiSwift fork it depends on.
         //
         // Tier 2, optional module only: it enters MultiModalKitTTS beside
         // TTSKit, and the core MultiModalKit keeps its zero runtime
         // dependencies.
-        .package(url: "https://github.com/NooronSpatial/kokoro-ios", from: "1.1.1"),
+        .package(url: "https://github.com/NooronSpatial/kokoro-ios", from: "1.1.2"),
     ],
     targets: [
         .target(name: "MultiModalKit"),

@@ -1,5 +1,5 @@
 {
-  "originHash" : "47ed73fca8766a45fd7f174b1b9ae9443574fbbba576a6814b22bbd2747138b9",
+  "originHash" : "32fcfffbd5f8b0aab38139c3423c46006fdbe8fae7a26a3e531f92e61dbf8d04",
   "pins" : [
     {
       "identity" : "argmax-oss-swift",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/NooronSpatial/kokoro-ios",
       "state" : {
-        "revision" : "92a9e879d5d56bbdea1aa5d8995399429546631f",
-        "version" : "1.1.1"
+        "revision" : "926c2e5d740e2e8f73d34624e212ff9141f3ca7a",
+        "version" : "1.1.2"
       }
     },
     {
@@ -33,8 +33,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/NooronSpatial/MisakiSwift",
       "state" : {
-        "revision" : "a1d22ad044d38a657bd3925792c483e200f652ba",
-        "version" : "1.1.0"
+        "revision" : "684e46e2a52ac2c06cf4f73fa37ecfb44577255c",
+        "version" : "1.1.1"
       }
     },
     {
