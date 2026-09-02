@@ -2,6 +2,7 @@ import AVFAudio
 import Foundation
 import MLX
 import MultiModalKit
+import Synchronization
 
 /// The second mouth (4q, D-084): Kokoro-82M, decoded by `KokoroDecoder`
 /// and rendered by the SAME `NeuralVoiceRun` the first mouth uses.
@@ -32,6 +33,39 @@ import MultiModalKit
 ///
 /// So this voice cuts phrases shorter than the first mouth does, and the
 /// number is derived rather than chosen — see `phraseCharacters`.
+/// WHAT THE FIRST REPLY AFTER LAUNCH COSTS, and where (4q, the cold-start
+/// measurement §143a has waited for).
+///
+/// Two costs hide behind "cold", and they land in different places:
+///
+/// - **The load** — reading ~164 MB of fp16 weights and building the
+///   network. Paid at `ensureModel()`, i.e. at launch while the person is
+///   looking at the screen, exactly as the Qwen mouth pays its own.
+/// - **The first decode** — Metal compiles MLX's kernels the first time
+///   they run, and that happens inside the FIRST phrase of the first
+///   reply. The second decode in the same process pays none of it, so
+///   `first` against `second` is the compile cost with the arithmetic
+///   left to the reader.
+///
+/// §55 could not separate these: its fp16 run inherited kernels the fp32
+/// run had already compiled. This record is the instrument that run
+/// lacked, kept on the voice so a screen can show it and a field log can
+/// quote it.
+public struct KokoroColdStart: Sendable, Equatable {
+    public struct Decode: Sendable, Equatable {
+        public let wallMilliseconds: Double
+        public let audioMilliseconds: Double
+        public var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
+    }
+    /// nil until `ensureModel()` has loaded the decoder in this process.
+    public var loadMilliseconds: Double?
+    public var first: Decode?
+    public var second: Decode?
+    public var decodes = 0
+
+    public init() {}
+}
+
 public actor KokoroVoice: SpokenVoice {
     /// HOW SHORT A PHRASE MUST BE KEPT, and the arithmetic behind it.
     ///
@@ -72,6 +106,12 @@ public actor KokoroVoice: SpokenVoice {
     private var ownHost: AudioEnginePlaybackHost?
     private var speaking: NeuralVoiceRun?
     private var marginHandler: (@Sendable (DecodeMargin) -> Void)?
+    /// Behind a `Mutex` rather than actor-isolated because margins arrive
+    /// on the run's own thread, inside a `@Sendable` closure, and hopping
+    /// onto the actor from there would mean an unstructured `Task` in a
+    /// production path — the house rule says no. The proof: nothing
+    /// suspends while it is held, nothing resumes under it.
+    private nonisolated let coldStartRecord = Mutex(KokoroColdStart())
     /// A retired voice never loads again — that is what retiring MEANS
     /// (D-070). One latch, checked at the one door that builds anything.
     private var isRetired = false
@@ -109,9 +149,53 @@ public actor KokoroVoice: SpokenVoice {
     /// disk check disagrees". True, and useless.
     public nonisolated func installationProblem() -> String? { weights.missingReport() }
 
-    /// Fetches what is missing and builds the fp16 cast. Idempotent: with
-    /// the assets on disk this is a cast check, not a fetch.
-    public func ensureModel() async throws { try await weights.ensure() }
+    /// Fetches what is missing, builds the fp16 cast, and LOADS the
+    /// decoder. Idempotent: with the assets on disk this is a load, and
+    /// with the decoder built it is nothing.
+    ///
+    /// The load is the parity this method was missing. `NeuralVoice`'s
+    /// `ensureModel()` loads its pipeline, which is why the demo's
+    /// "preparing" step at launch is worth showing. This one only ensured
+    /// files, so the first reply paid the whole model load INLINE on the
+    /// coordinator's serial loop — the frozen-conversation fault the 4e
+    /// review fixed for Qwen, rebuilt here by omission. Now the load
+    /// happens while the person is looking at the screen, and it is
+    /// timed, because §143a needs the number.
+    public func ensureModel() async throws {
+        try await weights.ensure()
+        try warmDecoder()
+    }
+
+    /// What the first reply after launch costs, so far. Readable without
+    /// an `await` because a screen reads it and a field log quotes it.
+    public nonisolated var coldStart: KokoroColdStart { coldStartRecord.withLock { $0 } }
+
+    /// The first two decodes of the PROCESS, not of the reply: the record
+    /// is on the voice, and a retired-and-replaced voice (a phone call,
+    /// D-079) starts a fresh one — correct, because its kernels are
+    /// already compiled and its load is a new number.
+    private nonisolated func recordColdStart(_ margin: DecodeMargin) {
+        coldStartRecord.withLock { cold in
+            cold.decodes += 1
+            let decode = KokoroColdStart.Decode(
+                wallMilliseconds: margin.wallMilliseconds,
+                audioMilliseconds: margin.audioMilliseconds)
+            if cold.first == nil {
+                cold.first = decode
+            } else if cold.second == nil {
+                cold.second = decode
+            }
+        }
+    }
+
+    private func warmDecoder() throws {
+        guard decoder == nil else { return }
+        let clock = ContinuousClock()
+        let start = clock.now
+        _ = try loadedDecoder()
+        let took = start.duration(to: clock.now).milliseconds
+        coldStartRecord.withLock { $0.loadMilliseconds = took }
+    }
 
     /// The same fetch with a progress fraction, for a screen that would
     /// otherwise show nothing for 327 MB. `ensureModel()` stays the
@@ -180,7 +264,16 @@ public actor KokoroVoice: SpokenVoice {
             decoder: decoder, host: host,
             lead: PlaybackLead(target: lead),
             phrasing: SpeechPhraser.Config(maxPhraseCharacters: phraseCharacters),
-            onMargin: { margin in listener?(margin) })
+            // `[weak self]`, and the Mutex reached through it rather than
+            // copied out: `Mutex` is non-copyable, so `let record =
+            // coldStartRecord` is a consume the compiler refuses — and a
+            // strong `self` would close a cycle run → closure → voice →
+            // run. Reading a `nonisolated let` on the actor from this
+            // `@Sendable` closure needs no hop and no await.
+            onMargin: { [weak self] margin in
+                self?.recordColdStart(margin)
+                listener?(margin)
+            })
         speaking = run
         return run
     }

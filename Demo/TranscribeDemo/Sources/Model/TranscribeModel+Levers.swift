@@ -206,6 +206,38 @@ extension TranscribeModel {
         }
     }
 
+    /// What the first reply after launch cost, on the voice that will
+    /// speak — nil until there is a number, and nil for a mouth that
+    /// keeps no such record. The cast lives here, beside `benchVoice`'s,
+    /// so the view never names a vendor.
+    ///
+    /// Load is paid at launch; the first decode carries Metal's kernel
+    /// compile; the second carries nothing — the difference is the
+    /// compile, left for the reader to subtract rather than computed
+    /// across two phrases of different length.
+    var coldStartLine: String? {
+        guard let cold = (neuralVoice as? KokoroVoice)?.coldStart,
+              cold.loadMilliseconds != nil || cold.first != nil else { return nil }
+        return coldStartLine(cold)
+    }
+
+    /// One line for `KokoroColdStart`, in the order the costs are paid.
+    func coldStartLine(_ cold: KokoroColdStart) -> String {
+        var parts: [String] = []
+        if let load = cold.loadMilliseconds { parts.append(String(format: "load %.0f ms", load)) }
+        if let first = cold.first {
+            parts.append(String(format: "1st decode %.0f ms for %.1f s (%.2f×)",
+                                first.wallMilliseconds, first.audioMilliseconds / 1000,
+                                first.realTimeFactor))
+        }
+        if let second = cold.second {
+            parts.append(String(format: "2nd %.0f ms for %.1f s (%.2f×)",
+                                second.wallMilliseconds, second.audioMilliseconds / 1000,
+                                second.realTimeFactor))
+        }
+        return "cold: " + parts.joined(separator: " · ")
+    }
+
     /// What the voice that exists is set to — read from the VOICE, never
     /// from `levers` (AC-143). The two disagree whenever an apply has not
     /// landed yet, and that is exactly when a person is looking.

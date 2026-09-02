@@ -249,6 +249,9 @@ struct SettingsTab: View {
                     // device that produced the adjectives.
                     if model.mouth == .neural, model.voiceState == .ready {
                         VStack(alignment: .leading, spacing: 2) {
+                            // THE COLD START (4q, §143a's number) — the model
+                            // owns the cast and the words; see `coldStartLine`.
+                            if let cold = model.coldStartLine { Text(cold) }
                             if let margin = model.voiceMargin {
                                 Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
                                             margin.steadyRealTimeFactor,
