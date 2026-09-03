@@ -3676,3 +3676,37 @@ materialises.
 slower than speech. Kokoro is not that decoder; for it the hole was the
 cold start, and this ruling fills it. §143a stays open for the Qwen
 mouth, which D-084 keeps behind the lever.
+
+## D-086 — the demo asks the kernel for more memory (Milestone 4q)
+
+**Date:** 2026-09-03 · **Decided by:** Ryad · **Ruling: add
+`com.apple.developer.kernel.increased-memory-limit` to the demo**
+
+### The number that asked for it
+
+With the local 4B mind and the Kokoro mouth both resident, the phone
+reported **884 MB of headroom** before the app's limit (INSTRUMENTS §56).
+Alive, and tight enough that D-085's warm-up phrase was cut to one second
+and the mouth's phrase cap to 60 characters on memory grounds alone.
+
+### What the entitlement does, and does not
+
+It asks the kernel for a higher per-process limit than an app gets by
+default, on devices that grant one. It is the standard enabler for
+on-device language models and it costs one file.
+
+It **raises the ceiling and shrinks nothing.** The mind is still 2.2 GB,
+the mouth still costs ~120 MB per second of audio (§55), and the cache
+cap (D-079's family) still matters. How far the ceiling moves is
+device-dependent and is not written here as a number: the app already
+prints its headroom, and that line on the same phone, before and after,
+is the measurement. 884 MB is the "before".
+
+*Rejected: leave the default limit and shrink the models.* A smaller mind
+is a different product; a shorter phrase cap is already at the point
+where prosody pays for it. Asking for the memory that is physically there
+is the cheaper first move, and it is reversible in one line.
+
+**The cost, named:** an app that may use more memory is an app the
+system evicts others for. That is acceptable for a demo that exists to
+measure; it is a product question the day it ships as one.
