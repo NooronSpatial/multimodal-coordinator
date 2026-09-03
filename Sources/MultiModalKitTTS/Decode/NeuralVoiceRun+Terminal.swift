@@ -40,7 +40,14 @@ extension NeuralVoiceRun {
                                        steadyRealTimeFactor: steady,
                                        completed: completed,
                                        cushionMilliseconds: ms(leadInForce),
-                                       requiredCushionMilliseconds: requiredCushion))
+                                       requiredCushionMilliseconds: requiredCushion,
+                                       // Multiply BEFORE dividing, as `DecodeStep`
+                                       // does: 2400 × 1000 / 24000 is exactly 100,
+                                       // 2400 / 24000 × 1000 is 0.1 × 1000 and 0.1
+                                       // has no exact binary form. The test asserts
+                                       // with `==` and it is this order that lets it.
+                                       firstStepAudioMilliseconds:
+                                           Double(firstSamples) * 1000 / format.sampleRate))
             }
         }
         if NeuralVoiceRun.traceSteps {

@@ -65,6 +65,20 @@ public struct KokoroColdStart: Sendable, Equatable {
     public struct Decode: Sendable, Equatable {
         public let wallMilliseconds: Double
         public let audioMilliseconds: Double
+        /// The reply's FIRST PHRASE on its own — wall and audio — because
+        /// for a one-shot decoder that phrase is where any residual cold
+        /// lives, and a reply-level RTF averages it away. This is the
+        /// number that says whether D-085's short warm-up compiled every
+        /// kernel a long phrase needs.
+        public let firstPhrase: Phrase?
+        public var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
+    }
+
+    /// One phrase's cost. A sibling of `Decode` rather than a child: the
+    /// linter's one-level nesting rule, and the type reads the same.
+    public struct Phrase: Sendable, Equatable {
+        public let wallMilliseconds: Double
+        public let audioMilliseconds: Double
         public var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
     }
     /// The lazy MAP of the weights — see above. nil until `ensureModel()`.
@@ -224,7 +238,10 @@ public actor KokoroVoice: SpokenVoice {
             cold.decodes += 1
             let decode = KokoroColdStart.Decode(
                 wallMilliseconds: margin.wallMilliseconds,
-                audioMilliseconds: margin.audioMilliseconds)
+                audioMilliseconds: margin.audioMilliseconds,
+                firstPhrase: margin.firstStepAudioMilliseconds.map {
+                    .init(wallMilliseconds: margin.prefillMilliseconds, audioMilliseconds: $0)
+                })
             if cold.first == nil {
                 cold.first = decode
             } else if cold.second == nil {

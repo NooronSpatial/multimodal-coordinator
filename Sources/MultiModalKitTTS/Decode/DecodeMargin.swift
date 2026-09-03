@@ -55,10 +55,23 @@ public struct DecodeMargin: Sendable, Equatable {
     /// tests, and any decoder that reports no steps.
     public let requiredCushionMilliseconds: Double?
 
+    /// How much audio the FIRST step produced, beside `prefillMilliseconds`
+    /// which is how long it took (4q, D-085).
+    ///
+    /// For a streaming decoder the first step is a few frames and this is
+    /// a small number. For a one-shot decoder the first step IS the first
+    /// phrase, and without this number `prefill` cannot be read: 632 ms
+    /// is warm for a 2.5-second phrase and cold for a 1-second one. The
+    /// run has always counted these samples; it simply never reported
+    /// them. `nil` only from a margin built without a first step.
+    public let firstStepAudioMilliseconds: Double?
+
     init(audioMilliseconds: Double, wallMilliseconds: Double,
          prefillMilliseconds: Double, steadyRealTimeFactor: Double,
          completed: Bool = true, cushionMilliseconds: Double? = nil,
-         requiredCushionMilliseconds: Double? = nil) {
+         requiredCushionMilliseconds: Double? = nil,
+         firstStepAudioMilliseconds: Double? = nil) {
+        self.firstStepAudioMilliseconds = firstStepAudioMilliseconds
         self.requiredCushionMilliseconds = requiredCushionMilliseconds
         self.audioMilliseconds = audioMilliseconds
         self.wallMilliseconds = wallMilliseconds

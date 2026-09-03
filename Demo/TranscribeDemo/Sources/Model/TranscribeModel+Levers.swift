@@ -236,6 +236,14 @@ extension TranscribeModel {
             parts.append(String(format: "1st reply %.0f ms for %.1f s (%.2f×)",
                                 first.wallMilliseconds, first.audioMilliseconds / 1000,
                                 first.realTimeFactor))
+            // The first PHRASE on its own: the line that settles D-085's
+            // bet. A reply-level RTF averages residual cold away; this
+            // does not.
+            if let phrase = first.firstPhrase {
+                parts.append(String(format: "its 1st phrase %.0f ms for %.1f s (%.2f×)",
+                                    phrase.wallMilliseconds, phrase.audioMilliseconds / 1000,
+                                    phrase.realTimeFactor))
+            }
         }
         if let second = cold.second {
             parts.append(String(format: "2nd %.0f ms for %.1f s (%.2f×)",

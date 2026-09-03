@@ -4480,6 +4480,29 @@ empty until a second reply completes.
 Thermal read **serious** on both turns, charging on 5G. Recorded, not
 attributed.
 
+### After D-085 — the warm-up, one fresh launch
+
+| paid at launch | first phrase of first reply | warm rate |
+|---|---|---|
+| map 105 ms · **warm-up 1628 ms** | **632 ms** (was 1343 · 1403) | 0.25× (was 0.18 · 0.21) |
+
+**The cost moved.** The ~1.4 s that sat inside the first reply now sits
+inside "preparing"; the first phrase halved; headroom at rest stayed at
+885 MB, so the warm-up costs no memory that persists.
+
+**Whether it moved ALL of it is not settled by this line.** 632 ms is
+warm for a 2.5-second phrase and cold for a 1-second one, and the margin
+carried the first step's wall time without its audio. It does now
+(`firstStepAudioMilliseconds`); the next fresh launch prints the first
+phrase's own RTF, and that is the line that decides whether a one-second
+warm-up compiles every kernel a long phrase needs.
+
+**This launch was HOT.** The Chat screen read `hot`, D-028's thermal
+policy skipped one transcription decode outright ("device too hot"), and
+the warm rate slipped to 0.25× from 0.18–0.21× on the cooler launches.
+Charging on 5G with a 4B mind resident. These numbers are honest and they
+are a throttled phone's; they set a ceiling on the cost, not a floor.
+
 ### Still owed in this milestone
 
 AC-183 (digital silence over a real reply) and AC-184 (WER) — neither is
