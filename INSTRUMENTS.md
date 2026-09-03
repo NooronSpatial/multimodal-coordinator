@@ -4425,3 +4425,62 @@ Nothing here exercises this library's pipeline: no phraser, no
 permission to integrate, never proof that integration behaves.** AC-183
 (digital silence) and AC-184 (WER) are deferred to that work by SPEC
 §148a.
+
+
+## 56. Kokoro inside the pipeline — cold start and memory in situ (4q)
+
+The first numbers from the adopted mouth running in the real app: local
+4B mind resident, Whisper ear, speaker shield on, on Ryad's iPhone.
+
+### The cold start, separated at last
+
+`KokoroColdStart` records the first two replies of a process. Two fresh
+launches (the app killed, not backgrounded):
+
+| launch | map | first phrase (prefill) | rest of the reply | reply audio |
+|---|---|---|---|---|
+| 1 | 84 ms | **1343 ms** | 0.18× | 5.0 s |
+| 2 | 92 ms | **1403 ms** | 0.21× | 5.0 s |
+
+**Read "map", not "load".** MLX is lazy — its source says arrays "are not
+fully realized until they are evaluated" — so the 84–92 ms is the cost of
+mapping 164 MB of fp16 weights, not of reading them. The read happens
+inside the first phrase, alongside Metal's kernel compile. That is what
+the 1343–1403 ms is: about **a second, once per process**, and then the
+decoder runs at 0.18–0.21× — five times faster than speech, with the mind
+loaded beside it.
+
+D-085 moves that second to launch with a one-phrase warm-up. Whether a
+short phrase compiles every kernel a long one needs is a bet that the
+next fresh-launch line answers; it is not assumed here.
+
+### Memory in situ — the first time the two organs were weighed together
+
+From the conversation log's own header and turn lines:
+
+```
+memory headroom at start:   884 MB before this app's limit
+MLX active / peak:          2315 MB / 2696 MB   (mind + mouth)
+after two turns:            789 MB free
+```
+
+Alive, and tight. The 4B mind holds ~2.2 GB of the MLX figure; the mouth's
+share is consistent with §55's `336 MB + 120 MB × seconds` at the 60-char
+phrase cap. This is why the warm-up phrase is a second long and not the
+2.7-second fixture.
+
+### What the log did not say
+
+Turn 2 carried no `voice:` line. A margin is reported at a reply's
+terminal, and a cancelled reply has none, so the likeliest reading is
+that the second reply was cut off — stopping to take a screenshot would
+do it. Not a fault found; a gap named. `KokoroColdStart.second` stays
+empty until a second reply completes.
+
+Thermal read **serious** on both turns, charging on 5G. Recorded, not
+attributed.
+
+### Still owed in this milestone
+
+AC-183 (digital silence over a real reply) and AC-184 (WER) — neither is
+in this section, and this section does not stand in for them.

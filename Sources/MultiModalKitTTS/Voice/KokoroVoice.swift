@@ -36,16 +36,26 @@ import Synchronization
 /// WHAT THE FIRST REPLY AFTER LAUNCH COSTS, and where (4q, the cold-start
 /// measurement §143a has waited for).
 ///
-/// Two costs hide behind "cold", and they land in different places:
+/// Three costs hide behind "cold", and the first field run mislabelled
+/// one of them:
 ///
-/// - **The load** — reading ~164 MB of fp16 weights and building the
-///   network. Paid at `ensureModel()`, i.e. at launch while the person is
-///   looking at the screen, exactly as the Qwen mouth pays its own.
-/// - **The first decode** — Metal compiles MLX's kernels the first time
-///   they run, and that happens inside the FIRST phrase of the first
-///   reply. The second decode in the same process pays none of it, so
-///   `first` against `second` is the compile cost with the arithmetic
-///   left to the reader.
+/// - **The map** — `loadMilliseconds`. 84–92 ms on Ryad's phone, which
+///   is not a read of 164 MB: MLX is lazy, and its own source says arrays
+///   "are not fully realized until they are evaluated". This number is
+///   the cost of mapping the weights, and the first screen called it
+///   "load", which was true and misleading. It keeps the property name
+///   for source stability and the screen now calls it what it is.
+/// - **The warm-up** — `warmUpMilliseconds`. One short phrase decoded at
+///   `ensureModel()` and thrown away (D-085, Ryad's ruling B). This is
+///   where the weights are REALLY read and where Metal compiles MLX's
+///   kernels — paid at launch, while the person is looking at the
+///   screen, instead of inside the first reply. On the phone the first
+///   reply's first phrase cost 1343 and 1403 ms before this existed;
+///   the second phrase ran at 0.18–0.21×.
+/// - **The first reply** — `first`, then `second`. After the warm-up
+///   these should be warm from the start; if `first` is still slow, the
+///   short warm-up phrase did not compile every kernel a long phrase
+///   needs, and that is a finding rather than a rounding error.
 ///
 /// §55 could not separate these: its fp16 run inherited kernels the fp32
 /// run had already compiled. This record is the instrument that run
@@ -57,8 +67,11 @@ public struct KokoroColdStart: Sendable, Equatable {
         public let audioMilliseconds: Double
         public var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
     }
-    /// nil until `ensureModel()` has loaded the decoder in this process.
+    /// The lazy MAP of the weights — see above. nil until `ensureModel()`.
     public var loadMilliseconds: Double?
+    /// The discarded decode at launch: weights read, kernels compiled.
+    public var warmUpMilliseconds: Double?
+    /// The first two real replies of the process.
     public var first: Decode?
     public var second: Decode?
     public var decodes = 0
@@ -164,6 +177,38 @@ public actor KokoroVoice: SpokenVoice {
     public func ensureModel() async throws {
         try await weights.ensure()
         try warmDecoder()
+        try await warmKernels()
+    }
+
+    /// THE WARM-UP PHRASE, and why it is short (D-085).
+    ///
+    /// It has to be real words so the G2P and every layer run, and it has
+    /// to be SHORT because it runs at launch beside a 2.2 GB mind: the
+    /// first in-situ log showed 884 MB of headroom at start, and §55
+    /// measured ~120 MB of transient memory per second of audio. A
+    /// one-second phrase is a ~120 MB burst; the 2.7-second fixture would
+    /// be ~330 MB at the worst possible moment.
+    ///
+    /// The bet, stated: MLX kernels are specialised per operation and
+    /// type, not per sequence length, so a short phrase compiles what a
+    /// long one needs. `KokoroColdStart.first` is how that bet is checked
+    /// on the phone rather than assumed here.
+    static let warmUpPhrase = "Ready to talk."
+
+    /// One decode, discarded, timed. Idempotent: once per process.
+    ///
+    /// GPU work at launch is exactly the window D-079 guards, and this
+    /// mouth's decode is one-shot (AC-181): a retire that lands during it
+    /// cannot stop it, only outlive it. The exposure is one short phrase
+    /// wide and it is written down here rather than discovered.
+    private func warmKernels() async throws {
+        guard coldStartRecord.withLock({ $0.warmUpMilliseconds }) == nil,
+              let decoder else { return }
+        let clock = ContinuousClock()
+        let start = clock.now
+        try await decoder.decode(Self.warmUpPhrase, temperature: nil) { _ in true }
+        let took = start.duration(to: clock.now).milliseconds
+        coldStartRecord.withLock { $0.warmUpMilliseconds = took }
     }
 
     /// What the first reply after launch costs, so far. Readable without

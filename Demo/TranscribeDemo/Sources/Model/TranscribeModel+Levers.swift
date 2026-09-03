@@ -221,12 +221,19 @@ extension TranscribeModel {
         return coldStartLine(cold)
     }
 
-    /// One line for `KokoroColdStart`, in the order the costs are paid.
+    /// One line for `KokoroColdStart`, in the order the costs are paid:
+    /// map, warm-up (both at launch), then the first two real replies.
     func coldStartLine(_ cold: KokoroColdStart) -> String {
         var parts: [String] = []
-        if let load = cold.loadMilliseconds { parts.append(String(format: "load %.0f ms", load)) }
+        // "map", not "load": MLX is lazy and this number is the mapping of
+        // the weights, not the reading of them. The first field screen
+        // said "load 84 ms" and that was true and misleading.
+        if let map = cold.loadMilliseconds { parts.append(String(format: "map %.0f ms", map)) }
+        if let warm = cold.warmUpMilliseconds {
+            parts.append(String(format: "warm-up %.0f ms", warm))
+        }
         if let first = cold.first {
-            parts.append(String(format: "1st decode %.0f ms for %.1f s (%.2f×)",
+            parts.append(String(format: "1st reply %.0f ms for %.1f s (%.2f×)",
                                 first.wallMilliseconds, first.audioMilliseconds / 1000,
                                 first.realTimeFactor))
         }

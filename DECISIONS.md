@@ -3610,3 +3610,69 @@ cold and has to be rebuilt to answer the same question again.
 - **It does not retire Qwen.** It stays behind `VoiceLevers`, which is
   what that lever is for, and it remains the only mouth this project has
   ever run in a real conversation.
+
+## D-085 — the cold start is paid at launch, not in the first reply (Milestone 4q)
+
+**Date:** 2026-09-03 · **Decided by:** Ryad · **Ruling: B — warm the
+Kokoro decoder at `ensureModel()` with one short, discarded phrase**
+
+### The number this waited for
+
+§143a has been open since 4o: the first reply of a session has no history
+to learn from. For Kokoro the question became measurable once
+`KokoroColdStart` existed. On Ryad's phone, two fresh launches:
+
+```
+  first reply, first phrase (prefill):  1343 ms · 1403 ms
+  every phrase after:                   0.18× · 0.21×
+```
+
+So the cold penalty is roughly **a second, once per process**, and it is
+two things at once: MLX reading the weights it had only mapped, and
+Metal compiling the kernels the first time they run.
+
+**A number that was true and misleading:** `load 84 ms`. MLX is lazy —
+its own source says arrays "are not fully realized until they are
+evaluated" — so that was the cost of MAPPING 164 MB, not reading it.
+The parity fix that moved the load call to launch had not moved the load
+cost. The screen now says "map".
+
+### Options
+
+**B. Warm at launch with a tiny decode. — RULED.** One short phrase,
+decoded during the demo's "preparing" step and thrown away. Pays weights
+and kernels while the person is looking at the screen. It is also the
+only option that makes the launch-time number honest.
+
+*Rejected: A, leave it.* A one-second late first reply, once, is far
+less than Qwen's first reply ever cost. Defensible, and it leaves §143a's
+hole exactly where it was.
+
+*Rejected: C, force-evaluate the weights only.* Moves the read, not the
+compile — half the win, none of B's risk. Kept in mind if B's risk
+materialises.
+
+### The price, named
+
+1. **GPU work at launch is D-079's window.** The background guard is
+   armed first at launch (D-081) and `retireVoiceIfOnGPU()` retires the
+   voice on backgrounding — but Kokoro's decode is one-shot (AC-181), so
+   a retire that lands during the warm-up cannot stop it, only outlive
+   it. The exposure is one short phrase wide. D-079's own limit applies
+   unchanged: cooperative cancellation, unverified on hardware.
+2. **A memory burst beside a 2.2 GB mind.** The first in-situ log showed
+   884 MB of headroom at start and §55 measured ~120 MB per second of
+   audio, so the phrase is SHORT — "Ready to talk.", about a second —
+   rather than the 2.7-second fixture.
+3. **The bet inside the phrase.** MLX kernels are specialised per
+   operation and type, not per sequence length, so a short phrase should
+   compile what a long one needs. If the first real reply is still slow
+   after the warm-up, that bet lost — and `KokoroColdStart.first` is the
+   line that says so.
+
+### What this does NOT close
+
+§143a is about the CUSHION not scaling with reply length, for a decoder
+slower than speech. Kokoro is not that decoder; for it the hole was the
+cold start, and this ruling fills it. §143a stays open for the Qwen
+mouth, which D-084 keeps behind the lever.
