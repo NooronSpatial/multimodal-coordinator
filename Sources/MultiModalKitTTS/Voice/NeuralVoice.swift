@@ -23,7 +23,7 @@ import TTSKit
 /// An actor for the same reason `WhisperEngine` is one: it caches a
 /// loaded CoreML pipeline, and that is mutable state which must not be
 /// touched from two places at once.
-public actor NeuralVoice: SpeechSynthesizing, ModelBacked {
+public actor NeuralVoice: SpokenVoice {
     /// Which Qwen3 variant to speak with. 0.6B is the smaller, faster
     /// one; the bake-off's numbers decide whether the larger earns its
     /// download.

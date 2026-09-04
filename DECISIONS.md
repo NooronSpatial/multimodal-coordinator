@@ -3610,3 +3610,168 @@ cold and has to be rebuilt to answer the same question again.
 - **It does not retire Qwen.** It stays behind `VoiceLevers`, which is
   what that lever is for, and it remains the only mouth this project has
   ever run in a real conversation.
+
+## D-085 — the cold start is paid at launch, not in the first reply (Milestone 4q)
+
+**Date:** 2026-09-03 · **Decided by:** Ryad · **Ruling: B — warm the
+Kokoro decoder at `ensureModel()` with one short, discarded phrase**
+
+### The number this waited for
+
+§143a has been open since 4o: the first reply of a session has no history
+to learn from. For Kokoro the question became measurable once
+`KokoroColdStart` existed. On Ryad's phone, two fresh launches:
+
+```
+  first reply, first phrase (prefill):  1343 ms · 1403 ms
+  every phrase after:                   0.18× · 0.21×
+```
+
+So the cold penalty is roughly **a second, once per process**, and it is
+two things at once: MLX reading the weights it had only mapped, and
+Metal compiling the kernels the first time they run.
+
+**A number that was true and misleading:** `load 84 ms`. MLX is lazy —
+its own source says arrays "are not fully realized until they are
+evaluated" — so that was the cost of MAPPING 164 MB, not reading it.
+The parity fix that moved the load call to launch had not moved the load
+cost. The screen now says "map".
+
+### Options
+
+**B. Warm at launch with a tiny decode. — RULED.** One short phrase,
+decoded during the demo's "preparing" step and thrown away. Pays weights
+and kernels while the person is looking at the screen. It is also the
+only option that makes the launch-time number honest.
+
+*Rejected: A, leave it.* A one-second late first reply, once, is far
+less than Qwen's first reply ever cost. Defensible, and it leaves §143a's
+hole exactly where it was.
+
+*Rejected: C, force-evaluate the weights only.* Moves the read, not the
+compile — half the win, none of B's risk. Kept in mind if B's risk
+materialises.
+
+### The price, named
+
+1. **GPU work at launch is D-079's window.** The background guard is
+   armed first at launch (D-081) and `retireVoiceIfOnGPU()` retires the
+   voice on backgrounding — but Kokoro's decode is one-shot (AC-181), so
+   a retire that lands during the warm-up cannot stop it, only outlive
+   it. The exposure is one short phrase wide. D-079's own limit applies
+   unchanged: cooperative cancellation, unverified on hardware.
+2. **A memory burst beside a 2.2 GB mind.** The first in-situ log showed
+   884 MB of headroom at start and §55 measured ~120 MB per second of
+   audio, so the phrase is SHORT — "Ready to talk.", about a second —
+   rather than the 2.7-second fixture.
+3. **The bet inside the phrase.** MLX kernels are specialised per
+   operation and type, not per sequence length, so a short phrase should
+   compile what a long one needs. If the first real reply is still slow
+   after the warm-up, that bet lost — and `KokoroColdStart.first` is the
+   line that says so.
+
+### What this does NOT close
+
+§143a is about the CUSHION not scaling with reply length, for a decoder
+slower than speech. Kokoro is not that decoder; for it the hole was the
+cold start, and this ruling fills it. §143a stays open for the Qwen
+mouth, which D-084 keeps behind the lever.
+
+## D-086 — the demo asks the kernel for more memory (Milestone 4q)
+
+**Date:** 2026-09-03 · **Decided by:** Ryad · **Ruling: add
+`com.apple.developer.kernel.increased-memory-limit` to the demo**
+
+### The number that asked for it
+
+With the local 4B mind and the Kokoro mouth both resident, the phone
+reported **884 MB of headroom** before the app's limit (INSTRUMENTS §56).
+Alive, and tight enough that D-085's warm-up phrase was cut to one second
+and the mouth's phrase cap to 60 characters on memory grounds alone.
+
+### What the entitlement does, and does not
+
+It asks the kernel for a higher per-process limit than an app gets by
+default, on devices that grant one. It is the standard enabler for
+on-device language models and it costs one file.
+
+It **raises the ceiling and shrinks nothing.** The mind is still 2.2 GB,
+the mouth still costs ~120 MB per second of audio (§55), and the cache
+cap (D-079's family) still matters. How far the ceiling moves is
+device-dependent and is not written here as a number: the app already
+prints its headroom, and that line on the same phone, before and after,
+is the measurement. 884 MB is the "before".
+
+**Measured the same day, same phone — and corrected once:** the first
+"after" reported was 5,830 MB, read before the mind had loaded. Like
+for like, at the same ~2.3 GB of MLX memory, headroom went from
+**884 MB to 3,580 MB**. About 4×, and the limit itself from roughly
+3.2 GB to roughly 5.9 GB. The two
+rulings sized against the 884 — the 60-character phrase cap and the
+one-second warm-up phrase — now stand on a premise that has moved;
+INSTRUMENTS §56 records it and this entry does not re-rule them.
+
+*Rejected: leave the default limit and shrink the models.* A smaller mind
+is a different product; a shorter phrase cap is already at the point
+where prosody pays for it. Asking for the memory that is physically there
+is the cheaper first move, and it is reversible in one line.
+
+**The cost, named:** an app that may use more memory is an app the
+system evicts others for. That is acceptable for a demo that exists to
+measure; it is a product question the day it ships as one.
+
+## D-087 — four rulings on the twelve-turn log (Milestone 4q)
+
+**Date:** 2026-09-03 · **Decided by:** Ryad ("do your recommendation") ·
+**Rulings: the phrase cap returns to 120 · the warm-up phrase stays at
+one second · `prefill` gains a pure-decode stamp beside it (A) · a
+one-step reply reports its margin**
+
+### The log that asked for them
+
+Twelve turns on Ryad's phone: local 4B mind, Whisper, shield on, Kokoro
+speaking, thermal fair throughout. His verdict — natural, no echo, never
+stopped answering, "a little bit more time between thinking and
+speaking". The entitlement's like-for-like headroom: 884 → 3,580 MB.
+
+### 1. The cap returns to 120
+
+60 was never a taste; it was memory — sized against 884 MB with the mind
+resident. At 3,580 MB a 120-character phrase's ~1.3 GB peak is not a
+constraint, and every cut the 60 forced was a place prosody could break.
+*Rejected: keep 60.* Defensible only on a phone without the entitlement,
+and the cap is one parameter the day that phone appears.
+
+### 2. The warm-up phrase stays at one second
+
+Lengthening it would spend memory to answer a question the instrument
+could not yet ask. The residual in the first phrase may be the mind's
+token wait, not the decoder's compile — ruling 3 is what tells them
+apart. *Rejected: the 2.7-second fixture.* Right lever, wrong moment;
+it returns on evidence if ruling 3 shows the first phrase still slow.
+
+### 3. `prefill` gains a pure-decode stamp — A
+
+`prefill` is birth to the first step, and the run is born on the reply's
+FIRST TOKEN, so it has always contained the wait for the rest of the
+first phrase's tokens. The twelve-turn log made that visible at reply
+scale: turn 12's 19.6 s of audio at "RTF 0.369" is 7.2 s of wall on 6.7 s
+of the mind writing. The voice was pacing the mind.
+
+A stamp at the `decode` call, one field beside `prefill`, and the
+difference between them is the wait for text — now a number on the
+screen. *Rejected: B, redefine `prefill`.* It would make AC-106's name
+honest and break comparability with every prefill in §53–§56. *Rejected:
+C, leave it.* Half a second of ambiguity in the cold-start verdict,
+forever.
+
+### 4. A one-step reply reports its margin
+
+Six of the twelve turns had no `voice:` line, and every one was spoken —
+"Rome.", "Berlin.", "Good morning to you too!". The margin was reported
+only when audio existed AFTER the first step: always true for a
+streaming decoder, never true for a one-shot decoder's single-phrase
+reply. `steadyRealTimeFactor` is now optional and `keepsUp` falls back
+to the whole-reply rate; the margin itself is always reported. *Rejected:
+leave them invisible.* An instrument that cannot see short replies
+cannot learn from them, and short replies are most of a conversation.

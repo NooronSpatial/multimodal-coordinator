@@ -36,6 +36,20 @@ targets:
           fi
         name: SwiftLint
         basedOnDependencyAnalysis: false
+    # THE MEMORY ENTITLEMENT (Ryad, 2026-09-03; D-086). The standard enabler
+    # for on-device language models: it asks the kernel for a higher
+    # per-process limit than the default, on devices that grant one. It
+    # RAISES THE CEILING AND SHRINKS NOTHING — the 4B mind is still 2.2 GB
+    # and the mouth still costs ~120 MB per second of audio — and how much
+    # it raises it is device-dependent, so the proof is the app's own
+    # headroom line before and after on the same phone: 884 MB with mind
+    # and mouth resident was the "before". XcodeGen writes the
+    # .entitlements file from `properties`; the file is committed so the
+    # project opens with one click, like the .xcodeproj.
+    entitlements:
+      path: TranscribeDemo.entitlements
+      properties:
+        com.apple.developer.kernel.increased-memory-limit: true
     dependencies:
       - package: multimodal-coordinator
         product: MultiModalKit

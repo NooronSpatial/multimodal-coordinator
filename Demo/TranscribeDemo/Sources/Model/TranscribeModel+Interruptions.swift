@@ -115,7 +115,10 @@ extension TranscribeModel {
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            Task { @MainActor in self?.rewarmMind() }
+            Task { @MainActor in
+                self?.rewarmMind()
+                await self?.rewarmVoice()
+            }
         }
         #endif
     }
@@ -130,10 +133,65 @@ extension TranscribeModel {
         // Retiring the mind is safe whether or not one is running:
         // `retire()` is idempotent, and the next reply rebuilds it.
         await retireLocalMind()
+        // AND THE MOUTH, WHEN THE MOUTH IS ON THE GPU (4q).
+        //
+        // D-079 armed this guard for the MIND, because the mind was the
+        // only MLX organ. Kokoro is MLX too, so this milestone handed the
+        // app a second way into the identical crash: Metal work running
+        // after iOS has stopped tolerating it. Qwen is CoreML and pays
+        // nothing here, which is why this asks the LEVER rather than
+        // retiring whatever is loaded.
+        await retireVoiceIfOnGPU()
         guard isListening else { return }
         await coordinator?.interrupt()
         wasInterrupted = true
         stop()
+    }
+
+    /// Retires an MLX-backed mouth and stands a FRESH one in its place.
+    ///
+    /// The replacement is not optional: `retire()` is terminal by D-070 —
+    /// a retired voice never loads again — so retiring without replacing
+    /// would leave the app mute until relaunch. The fresh voice is
+    /// unloaded and costs nothing until the next reply, and the weights
+    /// are still on disk, so `modelInstalled()` stays true and the screen
+    /// does not flash "install the voice" at someone who just took a
+    /// phone call.
+    ///
+    /// The cost, named: the first reply after returning pays the model
+    /// load again. That is D-079's trade, taken knowingly for the mind
+    /// and taken again here for the same reason — a slow first reply
+    /// beats a killed app.
+    private func retireVoiceIfOnGPU() async {
+        guard levers.voice == .kokoro else { return }
+        let retiring = neuralVoice
+        neuralVoice = levers.makeSpokenVoice()
+        // AND SAY SO. The replacement is unloaded, so leaving `.ready` on
+        // screen would be the state lying about the object that will
+        // speak — AC-143's fault, in the one window where nobody is
+        // looking and therefore nobody would catch it. `rewarmVoice()`
+        // takes it back to ready.
+        voiceState = .preparing
+        await retiring.retire()
+    }
+
+    /// The other half of `retireVoiceIfOnGPU()`, and the half the review
+    /// found missing: back in the foreground, LOAD the replacement.
+    ///
+    /// Without this the fresh voice stayed unloaded until the next reply
+    /// asked it to speak — and `openUtterance` builds the decoder INLINE
+    /// on the coordinator's one serial loop, so the first reply after a
+    /// phone call paid the whole model load and kernel compile while the
+    /// conversation waited. That is the exact frozen-conversation fault
+    /// D-085's `ensureModel()` parity fix removed at launch, reappearing
+    /// on the return path.
+    ///
+    /// `checkVoice()` rather than a bare `ensureModel()`: it re-reports
+    /// the state as well as paying the load, and it already refuses when
+    /// the mind has claimed the memory (§27) or the weights are missing.
+    func rewarmVoice() async {
+        guard mouth == .neural, levers.voice == .kokoro else { return }
+        await checkVoice()
     }
 
     /// The person tapped "resume". The thought is forgotten first — a call

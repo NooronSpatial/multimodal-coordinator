@@ -43,7 +43,7 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     let mouth = DispatchQueue(label: "dev.nooron.MultiModalKit.neuralMouth")
 
     struct Guarded {
-        var phraser = SpeechPhraser()
+        var phraser: SpeechPhraser
         var scheduled = 0          // buffers handed to the player
         var played = 0             // buffers the player reported done
         var phrasesInFlight = 0    // decodes started but not finished
@@ -85,6 +85,16 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var samples = 0
         var firstStep: ContinuousClock.Instant?
         var firstSamples = 0
+        /// When the FIRST decode of this run was asked for — stamped in
+        /// `speak` immediately before `decoder.decode`, so the span to the
+        /// first step is decode alone (4q, D-087 = A). `birth` to the first
+        /// step is `prefill`, and prefill has always also contained the
+        /// wait for the first phrase's tokens: the run is born on the
+        /// reply's first token and the phraser cannot release a phrase
+        /// until enough of them have arrived. Twelve field turns showed
+        /// the "voice" rate pacing the MIND for that reason.
+        var firstDecodeStart: ContinuousClock.Instant?
+        var firstDecodeMilliseconds: Double?
         /// THE RECORD THAT DID NOT EXIST (4o, AC-174). One entry per
         /// decode step: what it cost and what it produced.
         ///
@@ -146,15 +156,23 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// Since the format built below is what the samples are played at, two
     /// ways to state it is exactly how a 24 kHz voice ends up played as
     /// 16 kHz, which is the "drunk" voice the field reported.
+    /// `phrasing` is how long a phrase may grow before it is cut, and for
+    /// one mouth it is a MEMORY bound rather than a taste (4q, D-084).
+    /// Kokoro decodes a phrase in one piece, so its transient allocation
+    /// scales with phrase length — INSTRUMENTS §55 measured ~120 MB per
+    /// second of audio. Qwen streams and does not care, which is why the
+    /// default is the phraser's own and nothing about the first mouth
+    /// changes.
     init(decoder: any TTSDecoding, host: any PlaybackHost,
          lead: PlaybackLead, temperature: Float? = nil,
+         phrasing: SpeechPhraser.Config = SpeechPhraser.Config(),
          onMargin: (@Sendable (DecodeMargin) -> Void)? = nil,
          now: @escaping @Sendable () -> ContinuousClock.Instant
             = { ContinuousClock().now }) throws {
         self.now = now
         self.birth = now()
         self.onMargin = onMargin
-        self.state = Mutex(Guarded(lead: lead))
+        self.state = Mutex(Guarded(phraser: SpeechPhraser(config: phrasing), lead: lead))
         self.leadInForce = lead.target
         self.temperature = temperature
         self.decoder = decoder

@@ -73,7 +73,21 @@ extension TranscribeModel {
             try await neuralVoice.ensureModel()
             voiceState = .ready
         } catch {
-            voiceState = .failed(String(describing: error))
+            // A FAILED WARM-UP IS NOT A FAILED MODEL. `ensureModel()` now
+            // ends in a GPU decode (D-085), so a hot phone, memory
+            // pressure beside the 2.2 GB mind, or a backgrounding
+            // mid-decode can throw with the weights perfectly installed.
+            // Marking the voice `.failed` there would refuse `start()`
+            // and show a red error for a model that works.
+            //
+            // The cold start is not hidden by this: `warmUpMilliseconds`
+            // stays nil, so the screen's cold line simply has no warm-up
+            // figure in it — the absence IS the report.
+            if await neuralVoice.modelInstalled() {
+                voiceState = .ready
+            } else {
+                voiceState = .failed(String(describing: error))
+            }
         }
     }
 
@@ -89,9 +103,16 @@ extension TranscribeModel {
             // and the one that caught a wrong model path in this very
             // milestone: a load can succeed against files the check
             // cannot find.
-            voiceState = await neuralVoice.modelInstalled()
-                ? .ready
-                : .failed("loaded, but the disk check disagrees")
+            // AND SAY WHAT THE DISK ACTUALLY SHOWS (4q). "the disk check
+            // disagrees" was true and useless on Kokoro's first field
+            // run; a check that cannot name the file and the size it saw
+            // is shrugging, not reporting.
+            if await neuralVoice.modelInstalled() {
+                voiceState = .ready
+            } else {
+                let detail = (neuralVoice as? KokoroVoice)?.installationProblem()
+                voiceState = .failed(detail ?? "loaded, but the disk check disagrees")
+            }
         } catch {
             voiceState = .failed(String(describing: error))
         }

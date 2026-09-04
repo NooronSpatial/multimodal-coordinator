@@ -81,7 +81,7 @@ extension TranscribeModel {
 
     private func stamp(_ margin: DecodeMargin, onto index: Int) {
         turns[index].voiceAudioMs = Int(margin.audioMilliseconds.rounded())
-        turns[index].voiceRTF = margin.steadyRealTimeFactor
+        turns[index].voiceRTF = margin.steadyRealTimeFactor ?? margin.realTimeFactor
         turns[index].cushionMs = margin.cushionMilliseconds.map { Int($0.rounded()) }
         turns[index].voiceCompleted = margin.completed
     }

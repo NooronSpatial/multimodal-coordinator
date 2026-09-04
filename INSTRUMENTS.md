@@ -4425,3 +4425,202 @@ Nothing here exercises this library's pipeline: no phraser, no
 permission to integrate, never proof that integration behaves.** AC-183
 (digital silence) and AC-184 (WER) are deferred to that work by SPEC
 §148a.
+
+
+## 56. Kokoro inside the pipeline — cold start and memory in situ (4q)
+
+The first numbers from the adopted mouth running in the real app: local
+4B mind resident, Whisper ear, speaker shield on, on Ryad's iPhone.
+
+### The cold start, separated at last
+
+`KokoroColdStart` records the first two replies of a process. Two fresh
+launches (the app killed, not backgrounded):
+
+| launch | map | first phrase (prefill) | rest of the reply | reply audio |
+|---|---|---|---|---|
+| 1 | 84 ms | **1343 ms** | 0.18× | 5.0 s |
+| 2 | 92 ms | **1403 ms** | 0.21× | 5.0 s |
+
+**Read "map", not "load".** MLX is lazy — its source says arrays "are not
+fully realized until they are evaluated" — so the 84–92 ms is the cost of
+mapping 164 MB of fp16 weights, not of reading them. The read happens
+inside the first phrase, alongside Metal's kernel compile. That is what
+the 1343–1403 ms is: about **a second, once per process**, and then the
+decoder runs at 0.18–0.21× — five times faster than speech, with the mind
+loaded beside it.
+
+D-085 moves that second to launch with a one-phrase warm-up. Whether a
+short phrase compiles every kernel a long one needs is a bet that the
+next fresh-launch line answers; it is not assumed here.
+
+### Memory in situ — the first time the two organs were weighed together
+
+From the conversation log's own header and turn lines:
+
+```
+memory headroom at start:   884 MB before this app's limit
+MLX active / peak:          2315 MB / 2696 MB   (mind + mouth)
+after two turns:            789 MB free
+```
+
+Alive, and tight. The 4B mind holds ~2.2 GB of the MLX figure; the mouth's
+share is consistent with §55's `336 MB + 120 MB × seconds` at the 60-char
+phrase cap. This is why the warm-up phrase is a second long and not the
+2.7-second fixture.
+
+### What the log did not say
+
+Turn 2 carried no `voice:` line. A margin is reported at a reply's
+terminal, and a cancelled reply has none, so the likeliest reading is
+that the second reply was cut off — stopping to take a screenshot would
+do it. Not a fault found; a gap named. `KokoroColdStart.second` stays
+empty until a second reply completes.
+
+Thermal read **serious** on both turns, charging on 5G. Recorded, not
+attributed.
+
+### After D-085 — the warm-up, one fresh launch
+
+| paid at launch | first phrase of first reply | warm rate |
+|---|---|---|
+| map 105 ms · **warm-up 1628 ms** | **632 ms** (was 1343 · 1403) | 0.25× (was 0.18 · 0.21) |
+
+**The cost moved.** The ~1.4 s that sat inside the first reply now sits
+inside "preparing"; the first phrase halved; headroom at rest stayed at
+885 MB, so the warm-up costs no memory that persists.
+
+**Whether it moved ALL of it is not settled by this line.** 632 ms is
+warm for a 2.5-second phrase and cold for a 1-second one, and the margin
+carried the first step's wall time without its audio. It does now
+(`firstStepAudioMilliseconds`); the next fresh launch prints the first
+phrase's own RTF, and that is the line that decides whether a one-second
+warm-up compiles every kernel a long phrase needs.
+
+**This launch was HOT.** The Chat screen read `hot`, D-028's thermal
+policy skipped one transcription decode outright ("device too hot"), and
+the warm rate slipped to 0.25× from 0.18–0.21× on the cooler launches.
+Charging on 5G with a 4B mind resident. These numbers are honest and they
+are a throttled phone's; they set a ceiling on the cost, not a floor.
+
+### The memory entitlement — before and after, same phone (D-086)
+
+`com.apple.developer.kernel.increased-memory-limit`, one file, then the
+app's own headroom line with the 4B mind and the Kokoro mouth resident:
+
+| | headroom before the app's limit | MLX active at the time |
+|---|---|---|
+| default limit | **884 MB** | 2315 MB |
+| with the entitlement, mind not yet loaded | 5,830 MB | — |
+| **with the entitlement, like for like** | **3,580 MB** | 2318 MB |
+
+**The 5,830 was first reported as the "after" and it was not like for
+like** — it was read before the 4B mind had loaded. The twelve-turn log
+that followed gives the honest pair: at the same ~2.3 GB of MLX memory,
+headroom went **884 → 3,580 MB, about 4×**, and the limit itself from
+roughly 3.2 GB to roughly 5.9 GB. That is the process's LIMIT moving,
+not free physical memory appearing: using it means the system evicts
+other apps to give it to this one, which is the cost D-086 names.
+
+Two earlier rulings were made against the 884: the mouth's 60-character
+phrase cap (§55's slope, `peak ≈ 336 MB + 120 MB × seconds`) and the
+one-second warm-up phrase of D-085. Both were sized to fit beside the
+mind in what was left. What was left is now six times larger. Neither
+number is changed here — they are Ryad's rulings, and this section only
+records that their premise moved.
+
+### Twelve turns, and what the margin could not see
+
+The same log: local 4B mind, Whisper, shield on, thermal `fair`
+throughout, MLX peak 3,017 MB after a 19.6-second reply. Ryad's verdict:
+natural, no echo, never stopped answering, "a little bit more time
+between thinking and speaking".
+
+**Six of twelve turns have no `voice:` line, and every one of them was
+spoken.** "Rome." · "The capital of Germany is Berlin." · "Good morning
+to you too!" — the short replies. The margin is reported only when audio
+exists AFTER the first step (`steadyAudio > 0`, AC-106's guard), and for
+a one-shot decoder a single-phrase reply IS one step. So the streaming
+mouth's instrument silently drops every one-phrase reply of the one-shot
+mouth: from this record, from `KokoroColdStart`, and from anything that
+learns from margins. A gap in the instrument, not in the voice.
+
+**The voice RTF on the long turns is the MIND's pace, not the decoder's.**
+Turn 12: 19.6 s of audio at "RTF 0.369" is 7.2 s of wall, and the mind
+took 6.7 s to write the reply. Each phrase waits for its tokens before
+it can be decoded, and the reply-level RTF counts that wait. This is the
+same confound as `prefill` (above), at reply scale — and the reason a
+pure-decode stamp is the next instrument rather than a nicety.
+
+**The pause between thinking and speaking**, as the log prices it: first
+word from the mind ~320 ms, then the rest of the first phrase's tokens
+(~40 characters at the mind's ~15 ms per character ≈ 500 ms, or fewer
+when a clause mark comes early), then that phrase's decode (~0.2× of
+its length). About a second before the first sound, and most of it is
+waiting for text, not making speech.
+
+### Still owed in this milestone
+
+AC-183 (digital silence over a real reply) and AC-184 (WER) — neither is
+in this section, and this section does not stand in for them.
+
+
+## 57. Kokoro graded: digital silence and WER, on the Mac (4q, AC-183 + AC-184)
+
+`swift run -c release bakeoff voice-kokoro --kokoro-weights=DIR --draws=2`
+— the adopted mouth measured the way the first one was: speak → capture
+at the mixer → exact-zero runs (§53's metric, ≥20 ms) → transcribe with
+Whisper → WER. Same text as the other instruments, character for
+character: the cushion sweep's `short` and `long`, and voice-wer's three
+sentences. Lead `.zero`, one engine per draw, fp16 weights, D-085's
+warm-up paid inside `ensureModel()` and excluded.
+
+| fixture | draw | audio s | first audio ms | decode RTF | 1st decode ms | silence runs | WER |
+|---|---|---|---|---|---|---|---|
+| short | 1 | 3.0 | 249 | 0.10 | 243 | 0 | 0.000 |
+| short | 2 | 2.9 | 201 | 0.07 | 191 | 0 | 0.000 |
+| long | 1 | 15.2 | 362 | 0.07 | 353 | 0 | 0.000 |
+| long | 2 | 15.2 | 351 | 0.07 | 348 | 0 | 0.000 |
+| wer1 | 1 | 2.1 | 148 | 0.08 | 144 | 0 | 0.000 |
+| wer1 | 2 | 2.1 | 137 | 0.07 | 132 | 0 | 0.000 |
+| wer2 | 1 | 4.5 | 126 | 0.07 | 120 | 0 | 0.000 |
+| wer2 | 2 | 4.5 | 159 | 0.08 | 157 | 0 | 0.000 |
+| wer3 | 1 | 5.8 | 362 | 0.07 | 352 | 0 | 0.000 |
+| wer3 | 2 | 5.8 | 351 | 0.07 | 349 | 0 | 0.000 |
+
+**AC-183: ten of ten graded draws, zero exact-silence runs at lead
+`.zero`.** A one-shot decoder at RTF 0.07 hands the player whole phrases
+faster than it can drink them; there is nothing for a cushion to cover.
+
+**AC-184: WER 0.000 on every draw.** Whisper heard every word of every
+sentence. The 15-second fixture came back with its clauses re-punctuated
+("…has finally stopped and is. Waiting for an answer.") — sentence marks,
+not words, and the scorer normalises them away; the words are all there.
+
+**First audio ≈ the first phrase's pure decode + ~10 ms.** With no
+cushion and a one-shot decoder, the felt pause on this Mac IS the decode
+of the first phrase: 120–360 ms depending on its length.
+
+### Caveats, so the table is not over-read
+
+- **This is a Mac.** Decode RTF 0.07–0.10 here; the phone measured 0.20
+  (§55, §56). Silence and WER are properties of the decoder's OUTPUT and
+  carry over; the timings do not.
+- **The first draft of this instrument printed "RTF 1.00" on every row
+  and was wrong.** It divided `Timing.total` by audio, and `total` runs to
+  `.finished` — which by D-029 means the room is quiet. It was measuring
+  playback. The column now comes from the run's own margin (decode wall ÷
+  audio), and the pure first-decode stamp of D-087 sits beside it.
+- **Metal's shader cache persists across processes on the Mac.** The
+  first process paid 5,296 ms for its first warm-up; the next process
+  paid 651 ms for the same step. On this machine the kernel compile is a
+  once-per-install cost, not once-per-launch — whether the phone caches
+  the same way is not known from here, and the phone's warm-up of
+  973–1,628 ms across launches suggests it is mostly the weight read.
+
+### What §57 closes and what it does not
+
+AC-183 and AC-184 are answered with numbers, on the Mac. What it does
+not do is revisit D-084's "keep the cushion" clause: that needs the same
+zero-silence result on the phone, where RTF is 0.20 and the mind shares
+the GPU. The instrument runs there unchanged the day it is asked to.

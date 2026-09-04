@@ -11,8 +11,8 @@ extension NeuralVoiceRun {
         // stderr to read, and the phone is where this number is now
         // needed. The printing stays opt-in; the reporting does not.
         guard NeuralVoiceRun.traceSteps || onMargin != nil else { return }
-        let (samples, firstStep, firstSamples, steps) = stepTotals.withLock {
-            ($0.samples, $0.firstStep, $0.firstSamples, $0.steps)
+        let (samples, firstStep, firstSamples, steps, firstDecode) = stepTotals.withLock {
+            ($0.samples, $0.firstStep, $0.firstSamples, $0.steps, $0.firstDecodeMilliseconds)
         }
         // The number that sizes the NEXT cushion (AC-176). Computed from
         // the step record rather than from the totals beside it, because
@@ -30,18 +30,42 @@ extension NeuralVoiceRun {
         if let first = firstStep {
             let steadyWall = ms(first.duration(to: last))
             let steadyAudio = Double(samples - firstSamples) / format.sampleRate * 1000
-            if steadyAudio > 0 {
-                let prefill = ms(birth.duration(to: first))
-                let steady = steadyWall / steadyAudio
-                line += String(format: " . prefill %.0f ms . STEADY %.3f", prefill, steady)
-                onMargin?(DecodeMargin(audioMilliseconds: audio,
-                                       wallMilliseconds: wall,
-                                       prefillMilliseconds: prefill,
-                                       steadyRealTimeFactor: steady,
-                                       completed: completed,
-                                       cushionMilliseconds: ms(leadInForce),
-                                       requiredCushionMilliseconds: requiredCushion))
-            }
+            let prefill = ms(birth.duration(to: first))
+            // A ONE-STEP REPLY IS STILL A REPLY (D-087). This used to report
+            // nothing unless audio existed after the first step, which is
+            // always true for a streaming decoder and never true for a
+            // one-shot decoder's single-phrase reply — so "Rome." and
+            // "Berlin." were spoken and never recorded. The steady rate is
+            // nil when there is nothing after the first step; the margin
+            // itself is not.
+            let steady: Double? = steadyAudio > 0 ? steadyWall / steadyAudio : nil
+            line += String(format: " . prefill %.0f ms", prefill)
+            if let steady { line += String(format: " . STEADY %.3f", steady) }
+            onMargin?(DecodeMargin(audioMilliseconds: audio,
+                                   wallMilliseconds: wall,
+                                   prefillMilliseconds: prefill,
+                                   steadyRealTimeFactor: steady,
+                                   completed: completed,
+                                   cushionMilliseconds: ms(leadInForce),
+                                   // REPORTED, BUT NOT TAUGHT (the review's
+                                   // third finding). D-087 made a one-step
+                                   // reply report its margin; it must not also
+                                   // make it size the next cushion. Step 1 is
+                                   // clocked from the run's BIRTH, so a lone
+                                   // step's wall is mostly prefill, and
+                                   // `AdaptiveLead` would learn a cushion made
+                                   // of the very cost AC-106 separated out.
+                                   // nil here is the same "teaches nothing"
+                                   // path a margin with no step record takes.
+                                   requiredCushionMilliseconds: steady == nil ? nil : requiredCushion,
+                                   // Multiply BEFORE dividing, as `DecodeStep`
+                                   // does: 2400 × 1000 / 24000 is exactly 100,
+                                   // 2400 / 24000 × 1000 is 0.1 × 1000 and 0.1
+                                   // has no exact binary form. The test asserts
+                                   // with `==` and it is this order that lets it.
+                                   firstStepAudioMilliseconds:
+                                       Double(firstSamples) * 1000 / format.sampleRate,
+                                   firstDecodeMilliseconds: firstDecode))
         }
         if NeuralVoiceRun.traceSteps {
             FileHandle.standardError.write(Data((line + "\n").utf8))

@@ -67,7 +67,9 @@ struct DecodeStepRecordTests {
         // engine and skips honestly where there is none (the D-022 rule).
         let host = AudioEnginePlaybackHost()
         defer { host.stopRendering() }
-        let time = ScriptedTime([.zero, .milliseconds(50),
+        // The second `.zero`: `speak` now stamps the decode call (D-087),
+        // one `now()` per phrase, so every scripted clock gains a delta.
+        let time = ScriptedTime([.zero, .zero, .milliseconds(50),
                                  .milliseconds(500), .milliseconds(50)])
         guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
                                             lead: PlaybackLead(target: .zero),
@@ -84,6 +86,57 @@ struct DecodeStepRecordTests {
         #expect(steps.count == 3)
         #expect(steps.map(\.audioMilliseconds) == [100, 200, 50])
         #expect(steps.map(\.wallMilliseconds) == [50, 500, 50])
+    }
+
+    /// THE FIRST STEP'S AUDIO REACHES THE MARGIN (4q, D-085).
+    ///
+    /// The run has always counted the first step's samples and never
+    /// reported them, so a phone showed "prefill 632 ms" with no way to
+    /// read it — warm for a 2.5-second phrase, cold for a 1-second one.
+    /// This pins that the number now travels: 2400 samples at 24 kHz is
+    /// exactly 100 ms, and the prefill beside it is the scripted 50 ms.
+    ///
+    /// Gated on the margin ARRIVING, with the house cap, rather than on a
+    /// drain: a margin is reported at the reply's terminal, and on this
+    /// real host the 350 ms of audio plays out and `finished` fires. On a
+    /// runner with no output the host refuses at construction and the
+    /// test skips honestly above, as the sibling test does.
+    @Test("the margin carries the first step's audio beside its wall time")
+    func marginCarriesFirstStepAudio() async throws {
+        let decoder = ScriptedDecoder([.stepsProducing([2400, 4800, 1200])],
+                                      sampleRate: 24_000)
+        let host = AudioEnginePlaybackHost()
+        defer { host.stopRendering() }
+        // birth · +30 ms until the decode is CALLED (the "token wait") ·
+        // +50 ms of decoding to the first step · then the rest. So prefill
+        // is 80 and the decode alone is 50 — two numbers that were one.
+        let time = ScriptedTime([.zero, .milliseconds(30), .milliseconds(50),
+                                 .milliseconds(500), .milliseconds(50)])
+        let captured = Mutex<DecodeMargin?>(nil)
+        guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
+                                            lead: PlaybackLead(target: .zero),
+                                            onMargin: { margin in captured.withLock { $0 = margin } },
+                                            now: time.now) else { return }
+        await run.feed("Three steps. ")
+        await run.finishTokens()
+
+        #expect(await Self.until { captured.withLock { $0 } != nil },
+                "the terminal must report a margin — a reply that never finishes has none")
+        let margin = captured.withLock { $0 }
+        #expect(margin?.firstStepAudioMilliseconds == 100,
+                "2400 samples at 24 kHz, multiplied before divided")
+        // ROUNDED, not `==`, and the reason is worth keeping: `prefill` is
+        // the run's own `ms()` helper — `attoseconds × 1e-15` — and 1e-15
+        // has no exact binary form, so the scripted 50 ms arrives as
+        // 50.00000000000001. That is a property of the existing field, not
+        // of this change; the NEW field above multiplies before dividing
+        // and is asserted exactly, which is the whole point of that order.
+        #expect(margin?.prefillMilliseconds.rounded() == 80,
+                "birth to the first step: the 30 ms wait AND the 50 ms decode")
+        #expect(margin?.firstDecodeMilliseconds.map { $0.rounded() } == 50,
+                "the decode alone, from the call to the first step (D-087 = A)")
+        #expect(margin?.steadyRealTimeFactor != nil, "three steps: there IS audio after the first")
+        #expect(margin?.audioMilliseconds == 350)
     }
 
     /// THE WHOLE POINT, END TO END — and the first draft of this test was
@@ -103,7 +156,7 @@ struct DecodeStepRecordTests {
                                       sampleRate: 24_000)
         let host = AudioEnginePlaybackHost()
         defer { host.stopRendering() }
-        let time = ScriptedTime([.zero, .milliseconds(500), .milliseconds(100)])
+        let time = ScriptedTime([.zero, .zero, .milliseconds(500), .milliseconds(100)])
         guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
                                             lead: PlaybackLead(target: .zero),
                                             now: time.now) else { return }

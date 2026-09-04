@@ -29,6 +29,14 @@ extension NeuralVoiceRun {
                 // `TTSKitDecoder` with the comment that explains it: it is
                 // about the VENDOR's own branching, so it belongs beside
                 // the vendor (D-053 F-6).
+                // THE PURE-DECODE STAMP (D-087 = A). Taken here, not at
+                // birth: the span from this instant to the first step is
+                // what the DECODER cost, with the mind's token wait left
+                // in `prefill` where it has always been. Only the run's
+                // first decode is stamped — that is the one the cold-start
+                // question is about.
+                let decodeStart = now()
+                stepTotals.withLock { if $0.firstDecodeStart == nil { $0.firstDecodeStart = decodeStart } }
                 try await decoder.decode(
                     text, temperature: temperature
                 ) { [weak self] samples in
@@ -67,6 +75,9 @@ extension NeuralVoiceRun {
                         if $0.firstStep == nil {
                             $0.firstStep = now
                             $0.firstSamples = samples.count
+                            if let start = $0.firstDecodeStart {
+                                $0.firstDecodeMilliseconds = start.duration(to: now).milliseconds
+                            }
                         }
                         $0.samples += samples.count
                         $0.steps.append(DecodeStep(

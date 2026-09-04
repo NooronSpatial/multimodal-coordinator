@@ -87,7 +87,7 @@ extension TranscribeModel {
         if wasListening { await stopAndWait() }
 
         let retiring = neuralVoice
-        neuralVoice = levers.makeVoice()
+        neuralVoice = levers.makeSpokenVoice()
         voiceState = .checking
         await retiring.retire()
         await checkVoice()
@@ -143,7 +143,7 @@ extension TranscribeModel {
         }
         guard previous != levers else { return }
         leverRefusal = "\(describe(levers)) was refused — \(reason)"
-        neuralVoice = previous.makeVoice()
+        neuralVoice = previous.makeSpokenVoice()
         revertingLevers = true
         levers = previous
         revertingLevers = false
@@ -151,10 +151,19 @@ extension TranscribeModel {
         await checkVoice()
     }
 
+    /// What was asked for, in the refusal line. It names the MOUTH first
+    /// now: with two vendors, "fused + throughput was refused" describes
+    /// a configuration Kokoro does not have and would send a person
+    /// looking for a knob that is not there.
     private func describe(_ levers: VoiceLevers) -> String {
-        (levers.decoder == .fused ? "fused" : "stepped")
-            + " + " + (levers.vocoder == .throughputOptimized
-                       ? "throughput" : "latency")
+        switch levers.voice {
+        case .kokoro:
+            "Kokoro"
+        case .qwen3:
+            "Qwen3 " + (levers.decoder == .fused ? "fused" : "stepped")
+                + " + " + (levers.vocoder == .throughputOptimized
+                           ? "throughput" : "latency")
+        }
     }
 
     /// The mouth the coordinator gets. Apple's is cheap to build fresh;
@@ -175,6 +184,83 @@ extension TranscribeModel {
             renderingOn: shieldHost)
         case .neural: neuralVoice
         }
+    }
+
+    /// How big the chosen voice's download is, in that voice's own
+    /// number.
+    ///
+    /// The screen used to say "1.1 GB" for every neural voice, which was
+    /// Qwen's figure. Kokoro's is a third of that, and a person deciding
+    /// whether to start a download over cellular deserves the real one.
+    /// Kokoro's is DERIVED from the byte counts the library checks
+    /// downloads against, so the sentence and the check cannot drift
+    /// apart; Qwen's stays a written figure because TTSKit does not
+    /// publish one.
+    var voiceDownloadSize: String {
+        switch levers.voice {
+        case .kokoro:
+            let bytes = KokoroWeights.sourceBytes + KokoroWeights.voiceBytes
+            return "\(bytes / 1_000_000) MB"
+        case .qwen3:
+            return "1.1 GB"
+        }
+    }
+
+    /// What the first reply after launch cost, on the voice that will
+    /// speak — nil until there is a number, and nil for a mouth that
+    /// keeps no such record. The cast lives here, beside `benchVoice`'s,
+    /// so the view never names a vendor.
+    ///
+    /// Load is paid at launch; the first decode carries Metal's kernel
+    /// compile; the second carries nothing — the difference is the
+    /// compile, left for the reader to subtract rather than computed
+    /// across two phrases of different length.
+    var coldStartLine: String? {
+        guard let cold = (neuralVoice as? KokoroVoice)?.coldStart,
+              cold.loadMilliseconds != nil || cold.first != nil else { return nil }
+        return coldStartLine(cold)
+    }
+
+    /// One line for `KokoroColdStart`, in the order the costs are paid:
+    /// map, warm-up (both at launch), then the first two real replies.
+    func coldStartLine(_ cold: KokoroColdStart) -> String {
+        var parts: [String] = []
+        // "map", not "load": MLX is lazy and this number is the mapping of
+        // the weights, not the reading of them. The first field screen
+        // said "load 84 ms" and that was true and misleading.
+        if let map = cold.loadMilliseconds { parts.append(String(format: "map %.0f ms", map)) }
+        if let warm = cold.warmUpMilliseconds {
+            parts.append(String(format: "warm-up %.0f ms", warm))
+        }
+        if let first = cold.first {
+            parts.append(String(format: "1st reply %.0f ms for %.1f s (%.2f×)",
+                                first.wallMilliseconds, first.audioMilliseconds / 1000,
+                                first.realTimeFactor))
+            // The first PHRASE on its own: the line that settles D-085's
+            // bet. A reply-level RTF averages residual cold away; this
+            // does not.
+            if let phrase = first.firstPhrase {
+                // DECODE and WAIT, told apart (D-087 = A). The old line's
+                // single number mixed the decoder's work with the mind's
+                // token wait, and could not say which was slow.
+                if let decode = phrase.decodeMilliseconds, let rtf = phrase.decodeRealTimeFactor,
+                   let waited = phrase.waitedForTextMilliseconds {
+                    parts.append(String(format: "its 1st phrase decode %.0f ms for %.1f s (%.2f×)"
+                                            + " · waited %.0f ms for text",
+                                        decode, phrase.audioMilliseconds / 1000, rtf, waited))
+                } else {
+                    parts.append(String(format: "its 1st phrase %.0f ms for %.1f s (%.2f×)",
+                                        phrase.wallMilliseconds, phrase.audioMilliseconds / 1000,
+                                        phrase.realTimeFactor))
+                }
+            }
+        }
+        if let second = cold.second {
+            parts.append(String(format: "2nd %.0f ms for %.1f s (%.2f×)",
+                                second.wallMilliseconds, second.audioMilliseconds / 1000,
+                                second.realTimeFactor))
+        }
+        return "cold: " + parts.joined(separator: " · ")
     }
 
     /// What the voice that exists is set to — read from the VOICE, never

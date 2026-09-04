@@ -25,6 +25,15 @@ extension TranscribeModel {
     // blob: a blob that fails to decode after a TTSKit rename would take
     // every setting with it, and these are the settings a person reaches
     // for when something is already wrong.
+    /// 4q. A key of its own, like every other lever, for the reason at
+    /// the top of this file: one blob that fails to decode takes every
+    /// setting with it, and these are the settings a person reaches for
+    /// when something is already wrong.
+    /// `neuralVoiceKey`, not `voiceKey` — that name is already spent on
+    /// the APPLE voice identifier eighteen lines up. Second name
+    /// collision of this milestone after `--mouth`, and both were caught
+    /// in seconds because the compiler and a test were watching.
+    private static let neuralVoiceKey = "dev.nooron.demo.levers.voice"
     private static let modelKey = "dev.nooron.demo.levers.model"
     private static let decoderKey = "dev.nooron.demo.levers.decoder"
     private static let vocoderKey = "dev.nooron.demo.levers.vocoder"
@@ -33,6 +42,13 @@ extension TranscribeModel {
     static var storedLevers: VoiceLevers {
         let defaults = UserDefaults.standard
         var levers = VoiceLevers.phoneDefault
+        // The stored token, or the default D-084 ruled. Written as the
+        // enum's own raw value so the terminal's `--voice=` and the
+        // phone's UserDefaults hold the SAME string (D-072 F-1).
+        if let token = defaults.string(forKey: neuralVoiceKey),
+           let stored = VoiceLevers.Voice(rawValue: token) {
+            levers.voice = stored
+        }
         if defaults.string(forKey: modelKey) == "1.7b" { levers.model = .qwen3TTS_1_7b }
         // SANITIZED against the platform (AC-161). Ryad's phone had "1.7b"
         // persisted from the field failure — the tap that produced the raw
@@ -58,6 +74,7 @@ extension TranscribeModel {
     }
     static func store(_ levers: VoiceLevers) {
         let defaults = UserDefaults.standard
+        defaults.set(levers.voice.rawValue, forKey: neuralVoiceKey)
         defaults.set(levers.model == .qwen3TTS_1_7b ? "1.7b" : "0.6b", forKey: modelKey)
         defaults.set(levers.decoder == .fused ? "fused" : "stepped", forKey: decoderKey)
         defaults.set(levers.vocoder == .throughputOptimized ? "throughput" : "latency",

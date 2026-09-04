@@ -48,12 +48,12 @@ enum WeightPrecision: String, CaseIterable, Sendable {
 
     var isBuilt: Bool {
         guard self != .float32 else { return SpikeAssets.isInstalled(SpikeAssets.model) }
-        return FileManager.default.fileExists(atPath: location.path())
+        return FileManager.default.fileExists(atPath: location.path(percentEncoded: false))
     }
 
     /// Bytes on disk, or nil when it has not been built.
     var bytes: Int? {
-        let attributes = try? FileManager.default.attributesOfItem(atPath: location.path())
+        let attributes = try? FileManager.default.attributesOfItem(atPath: location.path(percentEncoded: false))
         return attributes?[.size] as? Int
     }
 
