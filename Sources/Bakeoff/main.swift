@@ -30,6 +30,7 @@ if arguments.count > 1, arguments[1] == "voice-wer" { try await runVoiceWER(argu
 if arguments.count > 1, arguments[1] == "voice-levers" { try await runVoiceLevers(arguments) }
 if arguments.count > 1, arguments[1] == "cushion-sweep" { await runCushionSweep(arguments) }
 if arguments.count > 1, arguments[1] == "voice-install" { await runVoiceInstall() }
+if arguments.count > 1, arguments[1] == "voice-kokoro" { await runVoiceKokoro(arguments) }
 if arguments.count > 1, arguments[1] == "graph-probe" { await runGraphProbe(arguments) }
 
 let wavPath = arguments.count > 1 ? arguments[1] : "Fixtures/ryad-en.wav"

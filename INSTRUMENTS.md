@@ -4563,3 +4563,64 @@ waiting for text, not making speech.
 
 AC-183 (digital silence over a real reply) and AC-184 (WER) — neither is
 in this section, and this section does not stand in for them.
+
+
+## 57. Kokoro graded: digital silence and WER, on the Mac (4q, AC-183 + AC-184)
+
+`swift run -c release bakeoff voice-kokoro --kokoro-weights=DIR --draws=2`
+— the adopted mouth measured the way the first one was: speak → capture
+at the mixer → exact-zero runs (§53's metric, ≥20 ms) → transcribe with
+Whisper → WER. Same text as the other instruments, character for
+character: the cushion sweep's `short` and `long`, and voice-wer's three
+sentences. Lead `.zero`, one engine per draw, fp16 weights, D-085's
+warm-up paid inside `ensureModel()` and excluded.
+
+| fixture | draw | audio s | first audio ms | decode RTF | 1st decode ms | silence runs | WER |
+|---|---|---|---|---|---|---|---|
+| short | 1 | 3.0 | 249 | 0.10 | 243 | 0 | 0.000 |
+| short | 2 | 2.9 | 201 | 0.07 | 191 | 0 | 0.000 |
+| long | 1 | 15.2 | 362 | 0.07 | 353 | 0 | 0.000 |
+| long | 2 | 15.2 | 351 | 0.07 | 348 | 0 | 0.000 |
+| wer1 | 1 | 2.1 | 148 | 0.08 | 144 | 0 | 0.000 |
+| wer1 | 2 | 2.1 | 137 | 0.07 | 132 | 0 | 0.000 |
+| wer2 | 1 | 4.5 | 126 | 0.07 | 120 | 0 | 0.000 |
+| wer2 | 2 | 4.5 | 159 | 0.08 | 157 | 0 | 0.000 |
+| wer3 | 1 | 5.8 | 362 | 0.07 | 352 | 0 | 0.000 |
+| wer3 | 2 | 5.8 | 351 | 0.07 | 349 | 0 | 0.000 |
+
+**AC-183: ten of ten graded draws, zero exact-silence runs at lead
+`.zero`.** A one-shot decoder at RTF 0.07 hands the player whole phrases
+faster than it can drink them; there is nothing for a cushion to cover.
+
+**AC-184: WER 0.000 on every draw.** Whisper heard every word of every
+sentence. The 15-second fixture came back with its clauses re-punctuated
+("…has finally stopped and is. Waiting for an answer.") — sentence marks,
+not words, and the scorer normalises them away; the words are all there.
+
+**First audio ≈ the first phrase's pure decode + ~10 ms.** With no
+cushion and a one-shot decoder, the felt pause on this Mac IS the decode
+of the first phrase: 120–360 ms depending on its length.
+
+### Caveats, so the table is not over-read
+
+- **This is a Mac.** Decode RTF 0.07–0.10 here; the phone measured 0.20
+  (§55, §56). Silence and WER are properties of the decoder's OUTPUT and
+  carry over; the timings do not.
+- **The first draft of this instrument printed "RTF 1.00" on every row
+  and was wrong.** It divided `Timing.total` by audio, and `total` runs to
+  `.finished` — which by D-029 means the room is quiet. It was measuring
+  playback. The column now comes from the run's own margin (decode wall ÷
+  audio), and the pure first-decode stamp of D-087 sits beside it.
+- **Metal's shader cache persists across processes on the Mac.** The
+  first process paid 5,296 ms for its first warm-up; the next process
+  paid 651 ms for the same step. On this machine the kernel compile is a
+  once-per-install cost, not once-per-launch — whether the phone caches
+  the same way is not known from here, and the phone's warm-up of
+  973–1,628 ms across launches suggests it is mostly the weight read.
+
+### What §57 closes and what it does not
+
+AC-183 and AC-184 are answered with numbers, on the Mac. What it does
+not do is revisit D-084's "keep the cushion" clause: that needs the same
+zero-silence result on the phone, where RTF is 0.20 and the mind shares
+the GPU. The instrument runs there unchanged the day it is asked to.
