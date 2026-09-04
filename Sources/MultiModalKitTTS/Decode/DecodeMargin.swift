@@ -18,11 +18,27 @@ public struct DecodeMargin: Sendable, Equatable {
     /// Decode wall time ÷ audio produced, measured from the FIRST step
     /// onward so the fixed prefill is not smeared across it. This is the
     /// number that says whether the machine can stream this voice.
-    public let steadyRealTimeFactor: Double
+    /// `nil` for a reply with ONE step (4q, D-087). A one-shot decoder's
+    /// single-phrase reply has no "after the first step" to measure, and
+    /// the first version of this instrument silently dropped such replies
+    /// altogether — six of twelve field turns, every one of them spoken.
+    /// The rate still exists for them; it is `realTimeFactor` below.
+    public let steadyRealTimeFactor: Double?
+
+    /// Wall ÷ audio over the WHOLE reply, prefill and all. Always
+    /// present; what `keepsUp` falls back to when there is no steady step.
+    public var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
+
+    /// Decoder time alone, from the first `decode` call to the first
+    /// step (D-087 = A). `prefill` is birth to the first step and has
+    /// always included the wait for the first phrase's tokens; the
+    /// difference between the two is that wait. `nil` from a margin built
+    /// without a first decode.
+    public let firstDecodeMilliseconds: Double?
 
     /// Below 1.0 the decoder runs ahead of the ear. At or above it, the
     /// player will run dry unless a lead was banked first.
-    public var keepsUp: Bool { steadyRealTimeFactor < 1.0 }
+    public var keepsUp: Bool { (steadyRealTimeFactor ?? realTimeFactor) < 1.0 }
     /// Whether the run FINISHED. A failed decode reports its margin too —
     /// the numbers are real — but its `audioMilliseconds` is however much
     /// audio existed when the throw happened, not a reply the conversation
@@ -67,10 +83,12 @@ public struct DecodeMargin: Sendable, Equatable {
     public let firstStepAudioMilliseconds: Double?
 
     init(audioMilliseconds: Double, wallMilliseconds: Double,
-         prefillMilliseconds: Double, steadyRealTimeFactor: Double,
+         prefillMilliseconds: Double, steadyRealTimeFactor: Double?,
          completed: Bool = true, cushionMilliseconds: Double? = nil,
          requiredCushionMilliseconds: Double? = nil,
-         firstStepAudioMilliseconds: Double? = nil) {
+         firstStepAudioMilliseconds: Double? = nil,
+         firstDecodeMilliseconds: Double? = nil) {
+        self.firstDecodeMilliseconds = firstDecodeMilliseconds
         self.firstStepAudioMilliseconds = firstStepAudioMilliseconds
         self.requiredCushionMilliseconds = requiredCushionMilliseconds
         self.audioMilliseconds = audioMilliseconds

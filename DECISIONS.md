@@ -3719,3 +3719,59 @@ is the cheaper first move, and it is reversible in one line.
 **The cost, named:** an app that may use more memory is an app the
 system evicts others for. That is acceptable for a demo that exists to
 measure; it is a product question the day it ships as one.
+
+## D-087 — four rulings on the twelve-turn log (Milestone 4q)
+
+**Date:** 2026-09-03 · **Decided by:** Ryad ("do your recommendation") ·
+**Rulings: the phrase cap returns to 120 · the warm-up phrase stays at
+one second · `prefill` gains a pure-decode stamp beside it (A) · a
+one-step reply reports its margin**
+
+### The log that asked for them
+
+Twelve turns on Ryad's phone: local 4B mind, Whisper, shield on, Kokoro
+speaking, thermal fair throughout. His verdict — natural, no echo, never
+stopped answering, "a little bit more time between thinking and
+speaking". The entitlement's like-for-like headroom: 884 → 3,580 MB.
+
+### 1. The cap returns to 120
+
+60 was never a taste; it was memory — sized against 884 MB with the mind
+resident. At 3,580 MB a 120-character phrase's ~1.3 GB peak is not a
+constraint, and every cut the 60 forced was a place prosody could break.
+*Rejected: keep 60.* Defensible only on a phone without the entitlement,
+and the cap is one parameter the day that phone appears.
+
+### 2. The warm-up phrase stays at one second
+
+Lengthening it would spend memory to answer a question the instrument
+could not yet ask. The residual in the first phrase may be the mind's
+token wait, not the decoder's compile — ruling 3 is what tells them
+apart. *Rejected: the 2.7-second fixture.* Right lever, wrong moment;
+it returns on evidence if ruling 3 shows the first phrase still slow.
+
+### 3. `prefill` gains a pure-decode stamp — A
+
+`prefill` is birth to the first step, and the run is born on the reply's
+FIRST TOKEN, so it has always contained the wait for the rest of the
+first phrase's tokens. The twelve-turn log made that visible at reply
+scale: turn 12's 19.6 s of audio at "RTF 0.369" is 7.2 s of wall on 6.7 s
+of the mind writing. The voice was pacing the mind.
+
+A stamp at the `decode` call, one field beside `prefill`, and the
+difference between them is the wait for text — now a number on the
+screen. *Rejected: B, redefine `prefill`.* It would make AC-106's name
+honest and break comparability with every prefill in §53–§56. *Rejected:
+C, leave it.* Half a second of ambiguity in the cold-start verdict,
+forever.
+
+### 4. A one-step reply reports its margin
+
+Six of the twelve turns had no `voice:` line, and every one was spoken —
+"Rome.", "Berlin.", "Good morning to you too!". The margin was reported
+only when audio existed AFTER the first step: always true for a
+streaming decoder, never true for a one-shot decoder's single-phrase
+reply. `steadyRealTimeFactor` is now optional and `keepsUp` falls back
+to the whole-reply rate; the margin itself is always reported. *Rejected:
+leave them invisible.* An instrument that cannot see short replies
+cannot learn from them, and short replies are most of a conversation.

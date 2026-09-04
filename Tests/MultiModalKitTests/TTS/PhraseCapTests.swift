@@ -86,18 +86,22 @@ struct PhraseCapTests {
                 "the same words, in the same order, however they are grouped")
     }
 
-    /// Fact 4. The default this mouth ships is the one §55's arithmetic
-    /// produced, and it is half the phraser's own.
+    /// Fact 4. The default this mouth ships is the phraser's own 120 —
+    /// AGAIN. It was 60 for exactly one milestone, sized against 884 MB of
+    /// headroom; D-086's entitlement moved that to 3,580 MB like for
+    /// like and D-087 returned the cap.
     ///
     /// A constant compared to a literal proves little on its own — what
-    /// it pins is that the number cannot drift back to the streaming
-    /// mouth's default without someone editing this line and meeting the
-    /// reason in the doc comment beside it.
-    @Test("Kokoro's default cap is the measured 60, not the phraser's 120")
-    func kokoroDefaultsToTheMeasuredCap() {
-        #expect(KokoroVoice.phraseCharacters == 60)
-        #expect(SpeechPhraser.Config().maxPhraseCharacters == 120,
-                "the streaming mouth is untouched by this bound")
+    /// it pins is that the number cannot drift without someone editing
+    /// this line and meeting the two decisions in the doc comment beside
+    /// it. The cap MECHANISM (Facts 1–3) is what mattered, and it is
+    /// untouched: the day a phone without the entitlement needs 60 back,
+    /// it is one parameter.
+    @Test("Kokoro's default cap is the phraser's 120, restored by D-087")
+    func kokoroDefaultsToTheRestoredCap() {
+        #expect(KokoroVoice.phraseCharacters == 120)
+        #expect(KokoroVoice.phraseCharacters == SpeechPhraser.Config().maxPhraseCharacters,
+                "the two mouths share a cap once memory stops deciding it")
     }
 }
 #endif

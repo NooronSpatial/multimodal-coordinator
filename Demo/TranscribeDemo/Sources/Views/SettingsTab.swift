@@ -254,7 +254,7 @@ struct SettingsTab: View {
                             if let cold = model.coldStartLine { Text(cold) }
                             if let margin = model.voiceMargin {
                                 Text(String(format: "decode %.2f× real time%@ · prefill %.0f ms",
-                                            margin.steadyRealTimeFactor,
+                                            margin.steadyRealTimeFactor ?? margin.realTimeFactor,
                                             margin.keepsUp ? "" : "  ⚠️ TOO SLOW",
                                             margin.prefillMilliseconds))
                                     .foregroundStyle(margin.keepsUp

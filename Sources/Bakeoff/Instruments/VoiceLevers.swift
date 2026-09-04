@@ -141,7 +141,7 @@ private func runLeverRuns(voice: NeuralVoice, lever: Lever, sentence: String,
             if let margin = margins.take() {
                 said = String(format: "audio %.0f ms | steady %.3f%@",
                               margin.audioMilliseconds,
-                              margin.steadyRealTimeFactor,
+                              margin.steadyRealTimeFactor ?? margin.realTimeFactor,
                               margin.completed ? "" : " (INCOMPLETE)")
             } else {
                 said = "audio — | steady — (no margin reported)"

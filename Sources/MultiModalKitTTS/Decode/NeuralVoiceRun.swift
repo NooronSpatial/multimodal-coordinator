@@ -85,6 +85,16 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
         var samples = 0
         var firstStep: ContinuousClock.Instant?
         var firstSamples = 0
+        /// When the FIRST decode of this run was asked for — stamped in
+        /// `speak` immediately before `decoder.decode`, so the span to the
+        /// first step is decode alone (4q, D-087 = A). `birth` to the first
+        /// step is `prefill`, and prefill has always also contained the
+        /// wait for the first phrase's tokens: the run is born on the
+        /// reply's first token and the phraser cannot release a phrase
+        /// until enough of them have arrived. Twelve field turns showed
+        /// the "voice" rate pacing the MIND for that reason.
+        var firstDecodeStart: ContinuousClock.Instant?
+        var firstDecodeMilliseconds: Double?
         /// THE RECORD THAT DID NOT EXIST (4o, AC-174). One entry per
         /// decode step: what it cost and what it produced.
         ///

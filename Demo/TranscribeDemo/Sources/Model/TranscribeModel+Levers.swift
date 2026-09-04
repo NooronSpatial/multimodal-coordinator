@@ -240,9 +240,19 @@ extension TranscribeModel {
             // bet. A reply-level RTF averages residual cold away; this
             // does not.
             if let phrase = first.firstPhrase {
-                parts.append(String(format: "its 1st phrase %.0f ms for %.1f s (%.2f×)",
-                                    phrase.wallMilliseconds, phrase.audioMilliseconds / 1000,
-                                    phrase.realTimeFactor))
+                // DECODE and WAIT, told apart (D-087 = A). The old line's
+                // single number mixed the decoder's work with the mind's
+                // token wait, and could not say which was slow.
+                if let decode = phrase.decodeMilliseconds, let rtf = phrase.decodeRealTimeFactor,
+                   let waited = phrase.waitedForTextMilliseconds {
+                    parts.append(String(format: "its 1st phrase decode %.0f ms for %.1f s (%.2f×)"
+                                            + " · waited %.0f ms for text",
+                                        decode, phrase.audioMilliseconds / 1000, rtf, waited))
+                } else {
+                    parts.append(String(format: "its 1st phrase %.0f ms for %.1f s (%.2f×)",
+                                        phrase.wallMilliseconds, phrase.audioMilliseconds / 1000,
+                                        phrase.realTimeFactor))
+                }
             }
         }
         if let second = cold.second {

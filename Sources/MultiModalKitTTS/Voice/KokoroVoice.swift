@@ -77,9 +77,19 @@ public struct KokoroColdStart: Sendable, Equatable {
     /// One phrase's cost. A sibling of `Decode` rather than a child: the
     /// linter's one-level nesting rule, and the type reads the same.
     public struct Phrase: Sendable, Equatable {
+        /// Birth to the first step: decode PLUS the wait for the phrase's
+        /// tokens. The number the screen showed as "prefill".
         public let wallMilliseconds: Double
         public let audioMilliseconds: Double
+        /// Decoder time alone (D-087 = A). `nil` only from a margin built
+        /// without a first decode.
+        public let decodeMilliseconds: Double?
         public var realTimeFactor: Double { wallMilliseconds / audioMilliseconds }
+        /// The decoder's own rate on this phrase — the number that says
+        /// whether the warm-up compiled what a real phrase needs.
+        public var decodeRealTimeFactor: Double? { decodeMilliseconds.map { $0 / audioMilliseconds } }
+        /// What was spent waiting for text rather than making speech.
+        public var waitedForTextMilliseconds: Double? { decodeMilliseconds.map { wallMilliseconds - $0 } }
     }
     /// The lazy MAP of the weights — see above. nil until `ensureModel()`.
     public var loadMilliseconds: Double?
@@ -94,31 +104,29 @@ public struct KokoroColdStart: Sendable, Equatable {
 }
 
 public actor KokoroVoice: SpokenVoice {
-    /// HOW SHORT A PHRASE MUST BE KEPT, and the arithmetic behind it.
+    /// HOW LONG A PHRASE MAY GROW, and the arithmetic that moved it.
     ///
     /// The fixtures §55 measured give this mouth's speaking rate:
     /// 40 characters became 2.725 s and 224 became 13.7 s, so ~15
     /// characters per second. With `peak ≈ 336 + 120 × seconds`:
     ///
     /// ```
-    ///   60 chars ≈ 4.0 s ≈  816 MB     ← this default
-    ///  120 chars ≈ 8.0 s ≈ 1296 MB     ← the phraser's own default
+    ///   60 chars ≈ 4.0 s ≈  816 MB     ← the first default
+    ///  120 chars ≈ 8.0 s ≈ 1296 MB     ← this default, the phraser's own
     /// ```
     ///
-    /// 60 is chosen against a stated budget: the phone measured ~3.3 GB
-    /// of total footprint before jetsam, the local mind holds ~2.2 GB of
-    /// it, and what is left has to cover Whisper, the app and this mouth.
+    /// 60 was chosen against a budget: 884 MB of headroom with the 4B
+    /// mind resident, on the default process limit. D-086's entitlement
+    /// moved that to **3,580 MB like for like**, and D-087 returned the
+    /// cap to the phraser's own 120: a 1.3 GB peak inside 3.5 GB of room
+    /// is not a constraint, and every cut the 60 forced was a place
+    /// prosody could break. The 60 was never a taste; it was memory, and
+    /// the memory is no longer the limit.
     ///
-    /// **The cost is real and is not hidden:** a shorter cap cuts more
-    /// often, and every cut is a place prosody can break. It is cheap in
-    /// TIME — at RTF 0.20 a 4-second phrase decodes in 0.8 s, and the run
-    /// schedules phrases back to back — so the trade is memory against
-    /// how the voice reads, not memory against speed.
-    ///
-    /// A settable parameter rather than a constant, because the budget
-    /// above is one phone's, and because 60-versus-120 is a judgement a
-    /// person should be able to overrule by ear.
-    public static let phraseCharacters = 60
+    /// A settable parameter rather than a constant, because that budget
+    /// is one phone's with one entitlement, and because a person may
+    /// still want to overrule it by ear.
+    public static let phraseCharacters = 120
 
     /// `nonisolated` because they are immutable and `Sendable`, and
     /// because `inForce` must be readable from a screen without an
@@ -240,7 +248,8 @@ public actor KokoroVoice: SpokenVoice {
                 wallMilliseconds: margin.wallMilliseconds,
                 audioMilliseconds: margin.audioMilliseconds,
                 firstPhrase: margin.firstStepAudioMilliseconds.map {
-                    .init(wallMilliseconds: margin.prefillMilliseconds, audioMilliseconds: $0)
+                    .init(wallMilliseconds: margin.prefillMilliseconds, audioMilliseconds: $0,
+                          decodeMilliseconds: margin.firstDecodeMilliseconds)
                 })
             if cold.first == nil {
                 cold.first = decode

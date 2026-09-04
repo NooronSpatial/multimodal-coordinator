@@ -67,7 +67,9 @@ struct DecodeStepRecordTests {
         // engine and skips honestly where there is none (the D-022 rule).
         let host = AudioEnginePlaybackHost()
         defer { host.stopRendering() }
-        let time = ScriptedTime([.zero, .milliseconds(50),
+        // The second `.zero`: `speak` now stamps the decode call (D-087),
+        // one `now()` per phrase, so every scripted clock gains a delta.
+        let time = ScriptedTime([.zero, .zero, .milliseconds(50),
                                  .milliseconds(500), .milliseconds(50)])
         guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
                                             lead: PlaybackLead(target: .zero),
@@ -105,7 +107,10 @@ struct DecodeStepRecordTests {
                                       sampleRate: 24_000)
         let host = AudioEnginePlaybackHost()
         defer { host.stopRendering() }
-        let time = ScriptedTime([.zero, .milliseconds(50),
+        // birth · +30 ms until the decode is CALLED (the "token wait") ·
+        // +50 ms of decoding to the first step · then the rest. So prefill
+        // is 80 and the decode alone is 50 — two numbers that were one.
+        let time = ScriptedTime([.zero, .milliseconds(30), .milliseconds(50),
                                  .milliseconds(500), .milliseconds(50)])
         let captured = Mutex<DecodeMargin?>(nil)
         guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
@@ -126,8 +131,11 @@ struct DecodeStepRecordTests {
         // 50.00000000000001. That is a property of the existing field, not
         // of this change; the NEW field above multiplies before dividing
         // and is asserted exactly, which is the whole point of that order.
-        #expect(margin?.prefillMilliseconds.rounded() == 50,
-                "birth to the first step, as scripted")
+        #expect(margin?.prefillMilliseconds.rounded() == 80,
+                "birth to the first step: the 30 ms wait AND the 50 ms decode")
+        #expect(margin?.firstDecodeMilliseconds.map { $0.rounded() } == 50,
+                "the decode alone, from the call to the first step (D-087 = A)")
+        #expect(margin?.steadyRealTimeFactor != nil, "three steps: there IS audio after the first")
         #expect(margin?.audioMilliseconds == 350)
     }
 
@@ -148,7 +156,7 @@ struct DecodeStepRecordTests {
                                       sampleRate: 24_000)
         let host = AudioEnginePlaybackHost()
         defer { host.stopRendering() }
-        let time = ScriptedTime([.zero, .milliseconds(500), .milliseconds(100)])
+        let time = ScriptedTime([.zero, .zero, .milliseconds(500), .milliseconds(100)])
         guard let run = try? NeuralVoiceRun(decoder: decoder, host: host,
                                             lead: PlaybackLead(target: .zero),
                                             now: time.now) else { return }

@@ -295,7 +295,11 @@ struct VoiceLeversTests {
         let weights = KokoroWeights(directory: FileManager.default.temporaryDirectory)
         let kokoro = KokoroVoice(weights: weights)
         #expect(kokoro.inForce.contains("float16"), "its precision, which Qwen has no word for")
-        #expect(kokoro.inForce.contains("phrases ≤ 60"), "its memory bound, which Qwen does not need")
+        // Against the constant, not a literal: the cap was 60 for one
+        // milestone and 120 after D-087, and this line went red on the
+        // change — which is fine once, and noise every time after.
+        #expect(kokoro.inForce.contains("phrases ≤ \(KokoroVoice.phraseCharacters)"),
+                "its phrase bound, which Qwen does not carry")
 
         let qwen = NeuralVoice(variant: .qwen3TTS_0_6b)
         #expect(qwen.inForce.contains("0.6B"))
