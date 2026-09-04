@@ -3702,8 +3702,11 @@ device-dependent and is not written here as a number: the app already
 prints its headroom, and that line on the same phone, before and after,
 is the measurement. 884 MB is the "before".
 
-**Measured the same day, same phone:** headroom went from **884 MB to
-5,830 MB** with the mind and the mouth resident. About 6.6×. The two
+**Measured the same day, same phone — and corrected once:** the first
+"after" reported was 5,830 MB, read before the mind had loaded. Like
+for like, at the same ~2.3 GB of MLX memory, headroom went from
+**884 MB to 3,580 MB**. About 4×, and the limit itself from roughly
+3.2 GB to roughly 5.9 GB. The two
 rulings sized against the 884 — the 60-character phrase cap and the
 one-second warm-up phrase — now stand on a premise that has moved;
 INSTRUMENTS §56 records it and this entry does not re-rule them.

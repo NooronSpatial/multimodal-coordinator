@@ -4508,14 +4508,19 @@ are a throttled phone's; they set a ceiling on the cost, not a floor.
 `com.apple.developer.kernel.increased-memory-limit`, one file, then the
 app's own headroom line with the 4B mind and the Kokoro mouth resident:
 
-| | headroom before the app's limit |
-|---|---|
-| default limit | **884 MB** |
-| with the entitlement | **5,830 MB** |
+| | headroom before the app's limit | MLX active at the time |
+|---|---|---|
+| default limit | **884 MB** | 2315 MB |
+| with the entitlement, mind not yet loaded | 5,830 MB | — |
+| **with the entitlement, like for like** | **3,580 MB** | 2318 MB |
 
-About 6.6×. That is the process's LIMIT moving, not free physical memory
-appearing: using it means the system evicts other apps to give it to
-this one, which is the cost D-086 names.
+**The 5,830 was first reported as the "after" and it was not like for
+like** — it was read before the 4B mind had loaded. The twelve-turn log
+that followed gives the honest pair: at the same ~2.3 GB of MLX memory,
+headroom went **884 → 3,580 MB, about 4×**, and the limit itself from
+roughly 3.2 GB to roughly 5.9 GB. That is the process's LIMIT moving,
+not free physical memory appearing: using it means the system evicts
+other apps to give it to this one, which is the cost D-086 names.
 
 Two earlier rulings were made against the 884: the mouth's 60-character
 phrase cap (§55's slope, `peak ≈ 336 MB + 120 MB × seconds`) and the
@@ -4523,6 +4528,36 @@ one-second warm-up phrase of D-085. Both were sized to fit beside the
 mind in what was left. What was left is now six times larger. Neither
 number is changed here — they are Ryad's rulings, and this section only
 records that their premise moved.
+
+### Twelve turns, and what the margin could not see
+
+The same log: local 4B mind, Whisper, shield on, thermal `fair`
+throughout, MLX peak 3,017 MB after a 19.6-second reply. Ryad's verdict:
+natural, no echo, never stopped answering, "a little bit more time
+between thinking and speaking".
+
+**Six of twelve turns have no `voice:` line, and every one of them was
+spoken.** "Rome." · "The capital of Germany is Berlin." · "Good morning
+to you too!" — the short replies. The margin is reported only when audio
+exists AFTER the first step (`steadyAudio > 0`, AC-106's guard), and for
+a one-shot decoder a single-phrase reply IS one step. So the streaming
+mouth's instrument silently drops every one-phrase reply of the one-shot
+mouth: from this record, from `KokoroColdStart`, and from anything that
+learns from margins. A gap in the instrument, not in the voice.
+
+**The voice RTF on the long turns is the MIND's pace, not the decoder's.**
+Turn 12: 19.6 s of audio at "RTF 0.369" is 7.2 s of wall, and the mind
+took 6.7 s to write the reply. Each phrase waits for its tokens before
+it can be decoded, and the reply-level RTF counts that wait. This is the
+same confound as `prefill` (above), at reply scale — and the reason a
+pure-decode stamp is the next instrument rather than a nicety.
+
+**The pause between thinking and speaking**, as the log prices it: first
+word from the mind ~320 ms, then the rest of the first phrase's tokens
+(~40 characters at the mind's ~15 ms per character ≈ 500 ms, or fewer
+when a clause mark comes early), then that phrase's decode (~0.2× of
+its length). About a second before the first sound, and most of it is
+waiting for text, not making speech.
 
 ### Still owed in this milestone
 
