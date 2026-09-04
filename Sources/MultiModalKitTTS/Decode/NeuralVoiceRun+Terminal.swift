@@ -47,7 +47,17 @@ extension NeuralVoiceRun {
                                    steadyRealTimeFactor: steady,
                                    completed: completed,
                                    cushionMilliseconds: ms(leadInForce),
-                                   requiredCushionMilliseconds: requiredCushion,
+                                   // REPORTED, BUT NOT TAUGHT (the review's
+                                   // third finding). D-087 made a one-step
+                                   // reply report its margin; it must not also
+                                   // make it size the next cushion. Step 1 is
+                                   // clocked from the run's BIRTH, so a lone
+                                   // step's wall is mostly prefill, and
+                                   // `AdaptiveLead` would learn a cushion made
+                                   // of the very cost AC-106 separated out.
+                                   // nil here is the same "teaches nothing"
+                                   // path a margin with no step record takes.
+                                   requiredCushionMilliseconds: steady == nil ? nil : requiredCushion,
                                    // Multiply BEFORE dividing, as `DecodeStep`
                                    // does: 2400 × 1000 / 24000 is exactly 100,
                                    // 2400 / 24000 × 1000 is 0.1 × 1000 and 0.1

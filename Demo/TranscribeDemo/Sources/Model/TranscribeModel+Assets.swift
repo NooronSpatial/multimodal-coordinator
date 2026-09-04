@@ -73,7 +73,21 @@ extension TranscribeModel {
             try await neuralVoice.ensureModel()
             voiceState = .ready
         } catch {
-            voiceState = .failed(String(describing: error))
+            // A FAILED WARM-UP IS NOT A FAILED MODEL. `ensureModel()` now
+            // ends in a GPU decode (D-085), so a hot phone, memory
+            // pressure beside the 2.2 GB mind, or a backgrounding
+            // mid-decode can throw with the weights perfectly installed.
+            // Marking the voice `.failed` there would refuse `start()`
+            // and show a red error for a model that works.
+            //
+            // The cold start is not hidden by this: `warmUpMilliseconds`
+            // stays nil, so the screen's cold line simply has no warm-up
+            // figure in it — the absence IS the report.
+            if await neuralVoice.modelInstalled() {
+                voiceState = .ready
+            } else {
+                voiceState = .failed(String(describing: error))
+            }
         }
     }
 

@@ -268,11 +268,20 @@ public actor KokoroVoice: SpokenVoice {
         coldStartRecord.withLock { $0.loadMilliseconds = took }
     }
 
-    /// The same fetch with a progress fraction, for a screen that would
-    /// otherwise show nothing for 327 MB. `ensureModel()` stays the
-    /// protocol's shape; this is the app's door.
+    /// The same work as `ensureModel()`, with a progress fraction for the
+    /// fetch — for a screen that would otherwise show nothing for 327 MB.
+    /// `ensureModel()` stays the protocol's shape; this is the app's door.
+    ///
+    /// IT MUST LOAD AND WARM TOO. The first version called only
+    /// `weights.ensure(progress:)`, so this door silently did less than
+    /// the one beside it: files fetched, `modelInstalled()` true, screen
+    /// ready — and the decoder still nil, so the first reply paid the
+    /// whole cold start inline. Two doors into one room must leave the
+    /// room in the same state.
     public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws {
         try await weights.ensure(progress: progress)
+        try warmDecoder()
+        try await warmKernels()
     }
 
     // MARK: - speaking

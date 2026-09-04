@@ -91,11 +91,14 @@ func runVoiceKokoro(_ arguments: [String]) async {
     print("\n🗣  VOICE-KOKORO (AC-183 + AC-184) — one engine per draw, release build")
     print("    speak → capture at the mixer → exact-zero runs ≥20 ms → transcribe → WER")
     print("    weights: \(weights.directory.path(percentEncoded: false)) · \(weights.precision.rawValue)")
-    if let problem = weights.missingReport(), !weights.isInstalled() {
-        // Absent weights are fetched by ensureModel(); a WRONG-SIZED file
-        // is the case that must stop here, because the vendor force-tries
-        // its load and would crash instead of throwing.
-        print("    note: \(problem)")
+    // DAMAGE ONLY. The first version printed `missingReport()`, which is
+    // also true for the fp16 cast that has simply not been built yet —
+    // so a normal first run opened with a warning about a file it was
+    // about to create. Absent weights are fetched by `ensureModel()`; a
+    // WRONG-SIZED file is the case worth stopping for, because the vendor
+    // force-tries its load and would crash instead of throwing.
+    if let damage = weights.damagedReport() {
+        print("    ⚠ \(damage)")
     }
     let whisper = WhisperEngine()
     guard await whisper.modelInstalled() else {

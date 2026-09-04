@@ -67,7 +67,10 @@ struct KokoroWeightsTests {
             let weights = KokoroWeights(directory: directory, precision: .float32)
             Self.write(weights.voiceFile, bytes: KokoroWeights.voiceBytes)
             Self.write(weights.sourceFile, bytes: KokoroWeights.sourceBytes - 1)
-            #expect(FileManager.default.fileExists(atPath: weights.sourceFile.path()),
+            // `percentEncoded: false` — Fact 8 two tests below exists to
+            // kill exactly this call shape, and it was still here.
+            #expect(FileManager.default.fileExists(
+                atPath: weights.sourceFile.path(percentEncoded: false)),
                     "the file IS there — which is the trap")
             #expect(!weights.isInstalled(), "one byte short is not installed")
         }
@@ -130,6 +133,34 @@ struct KokoroWeightsTests {
                 KokoroWeights(directory: directory, precision: $0).modelFile
             }
             #expect(Set(paths).count == paths.count)
+        }
+    }
+
+    /// Fact 7b. **Damage and absence are different questions**, and the
+    /// instrument that warns a person needs the first one only.
+    ///
+    /// `missingReport()` is true for a first run where nothing has been
+    /// fetched yet AND for a truncated download that will crash the
+    /// vendor's force-tried load. `damagedReport()` answers only the
+    /// second, so a tool can warn without crying wolf on its own happy
+    /// path — which the bake-off instrument did.
+    @Test("damage is reported, a not-yet-built cast is not")
+    func damageIsToldApartFromAbsence() {
+        Self.withTemporaryDirectory { directory in
+            let weights = KokoroWeights(directory: directory, precision: .float16)
+            #expect(weights.damagedReport() == nil, "nothing on disk is absence, not damage")
+
+            Self.write(weights.sourceFile, bytes: KokoroWeights.sourceBytes)
+            Self.write(weights.voiceFile, bytes: KokoroWeights.voiceBytes)
+            #expect(!weights.isInstalled(), "the fp16 cast is not built — not installed")
+            #expect(weights.damagedReport() == nil,
+                    "and not damaged either: this is the ordinary first run")
+
+            Self.write(weights.voiceFile, bytes: KokoroWeights.voiceBytes - 1)
+            let damage = weights.damagedReport()
+            #expect(damage?.contains("af_heart.safetensors") == true)
+            #expect(damage?.contains("\(KokoroWeights.voiceBytes)") == true,
+                    "it names the size it expected, so a person can act on it")
         }
     }
 

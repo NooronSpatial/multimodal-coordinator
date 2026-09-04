@@ -110,6 +110,24 @@ public struct KokoroWeights: Sendable {
         return attributes?[.size] as? Int
     }
 
+    /// A file that is PRESENT and the WRONG SIZE — nothing else.
+    ///
+    /// `missingReport()` answers "why not installed", and absent files are
+    /// most of that answer: on a first run nothing is there yet and
+    /// `ensure()` is about to fetch it. Damage is the different case, and
+    /// the dangerous one: the vendor force-tries its weight load, so a
+    /// truncated file crashes instead of throwing. A caller that wants to
+    /// warn before doing anything wants THIS, not the other.
+    public func damagedReport() -> String? {
+        let lines = [(sourceFile, Self.sourceBytes), (voiceFile, Self.voiceBytes)]
+            .compactMap { url, expected -> String? in
+                guard let found = sizeOnDisk(url), found != expected else { return nil }
+                return "\(url.lastPathComponent): \(found) bytes, expected \(expected)"
+            }
+        guard !lines.isEmpty else { return nil }
+        return lines.joined(separator: " · ") + " · in \(directory.path(percentEncoded: false))"
+    }
+
     /// WHY `isInstalled()` said no, in a sentence a person can act on.
     ///
     /// The first field run of this mouth answered "loaded, but the disk
