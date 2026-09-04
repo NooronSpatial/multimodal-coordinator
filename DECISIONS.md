@@ -3702,6 +3702,12 @@ device-dependent and is not written here as a number: the app already
 prints its headroom, and that line on the same phone, before and after,
 is the measurement. 884 MB is the "before".
 
+**Measured the same day, same phone:** headroom went from **884 MB to
+5,830 MB** with the mind and the mouth resident. About 6.6×. The two
+rulings sized against the 884 — the 60-character phrase cap and the
+one-second warm-up phrase — now stand on a premise that has moved;
+INSTRUMENTS §56 records it and this entry does not re-rule them.
+
 *Rejected: leave the default limit and shrink the models.* A smaller mind
 is a different product; a shorter phrase cap is already at the point
 where prosody pays for it. Asking for the memory that is physically there

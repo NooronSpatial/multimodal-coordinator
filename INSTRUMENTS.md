@@ -4503,6 +4503,27 @@ the warm rate slipped to 0.25× from 0.18–0.21× on the cooler launches.
 Charging on 5G with a 4B mind resident. These numbers are honest and they
 are a throttled phone's; they set a ceiling on the cost, not a floor.
 
+### The memory entitlement — before and after, same phone (D-086)
+
+`com.apple.developer.kernel.increased-memory-limit`, one file, then the
+app's own headroom line with the 4B mind and the Kokoro mouth resident:
+
+| | headroom before the app's limit |
+|---|---|
+| default limit | **884 MB** |
+| with the entitlement | **5,830 MB** |
+
+About 6.6×. That is the process's LIMIT moving, not free physical memory
+appearing: using it means the system evicts other apps to give it to
+this one, which is the cost D-086 names.
+
+Two earlier rulings were made against the 884: the mouth's 60-character
+phrase cap (§55's slope, `peak ≈ 336 MB + 120 MB × seconds`) and the
+one-second warm-up phrase of D-085. Both were sized to fit beside the
+mind in what was left. What was left is now six times larger. Neither
+number is changed here — they are Ryad's rulings, and this section only
+records that their premise moved.
+
 ### Still owed in this milestone
 
 AC-183 (digital silence over a real reply) and AC-184 (WER) — neither is
