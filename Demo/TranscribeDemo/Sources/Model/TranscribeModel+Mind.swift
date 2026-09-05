@@ -17,15 +17,23 @@ extension TranscribeModel {
     /// Computed, not stored: `@Observable` cannot hold a `lazy`, and this
     /// costs nothing — the generator is a struct wrapping the SHARED
     /// actor, so every copy talks to the same loaded weights.
+    /// The instructions the local mind is given, in ONE place.
+    ///
+    /// Shared with `MemoryProbe` deliberately: instructions are part of
+    /// the prompt, so they are part of the prefill this milestone is
+    /// measuring. A probe with its own wording would measure a mind this
+    /// app does not ship.
+    static let spokenInstructions =
+        "Your reply will be spoken aloud by a synthetic voice "
+        + "and never shown as text. Answer in ONE short sentence. Do "
+        + "not add extra facts, background or explanation unless the "
+        + "person asks for them. Never use lists, bullet points, "
+        + "numbered items, markdown, code, or headings."
+
     private var localMind: MLXReplyGenerator {
-        MLXReplyGenerator(
-            model: localModel,
-            instructions: "Your reply will be spoken aloud by a synthetic voice "
-                + "and never shown as text. Answer in ONE short sentence. Do "
-                + "not add extra facts, background or explanation unless the "
-                + "person asks for them. Never use lists, bullet points, "
-                + "numbered items, markdown, code, or headings.",
-            maxTokens: 160)
+        MLXReplyGenerator(model: localModel,
+                          instructions: Self.spokenInstructions,
+                          maxTokens: 160)
     }
 
     private func record(_ turn: TurnReport) {

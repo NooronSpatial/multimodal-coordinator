@@ -33,6 +33,7 @@
 		8B8C76978D878D6A7BB6D01C /* MindProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9BAB7E15438A81D1763F2B75 /* MindProbe.swift */; };
 		93327912EA815444C534EF4D /* TranscribeModel+Levers.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6C688CF23F2E5F50ED68903 /* TranscribeModel+Levers.swift */; };
 		A4A07B36C111DBAE0E40EA30 /* ChatTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0D1CD307DBAA4EC0084A3C /* ChatTab.swift */; };
+		B306E4CB3837788F58E183AC /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17EFA62880E58A8B668F031B /* MemoryProbe.swift */; };
 		B55C8CA2213C71BFF850D6A6 /* PhoneBenchStage.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0A891611D3A4B8E559DB4C3 /* PhoneBenchStage.swift */; };
 		B6D4700CA39749CC9EAF626A /* PhoneSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = F65F3C8AC16A5263D6F942F4 /* PhoneSession.swift */; };
 		B9A9ED57147F2D5D5E4D2BE4 /* SettingsTab.swift in Sources */ = {isa = PBXBuildFile; fileRef = ED702F8110D649D4844745E7 /* SettingsTab.swift */; };
@@ -45,8 +46,9 @@
 
 /* Begin PBXFileReference section */
 		044965F93824B5D762FA9253 /* TranscribeModel+Mind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TranscribeModel+Mind.swift"; sourceTree = "<group>"; };
-		085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TranscribeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		085B44330D3DEB5202BAE9D7 /* TranscribeDemo.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TranscribeDemo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		0EE94382D9DC53D73F38E556 /* ChatTab+Turn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ChatTab+Turn.swift"; sourceTree = "<group>"; };
+		17EFA62880E58A8B668F031B /* MemoryProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProbe.swift; sourceTree = "<group>"; };
 		1D418CD5D552D1D351367B65 /* MindAssetsState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MindAssetsState.swift; sourceTree = "<group>"; };
 		211C5E7798C7FCD83D6F8D64 /* TranscribeModel+Events.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TranscribeModel+Events.swift"; sourceTree = "<group>"; };
 		222F04F05EBE7A7BF6C83F91 /* TranscribeDemoApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TranscribeDemoApp.swift; sourceTree = "<group>"; };
@@ -196,6 +198,7 @@
 		E6A3E9AC7163355F88C890E0 /* Instruments */ = {
 			isa = PBXGroup;
 			children = (
+				17EFA62880E58A8B668F031B /* MemoryProbe.swift */,
 				9BAB7E15438A81D1763F2B75 /* MindProbe.swift */,
 				E0A891611D3A4B8E559DB4C3 /* PhoneBenchStage.swift */,
 			);
@@ -310,6 +313,7 @@
 				35D6C1CB22235A77FEE9F503 /* BenchTab.swift in Sources */,
 				8355C2D1215CB4282D935CDB /* ChatTab+Turn.swift in Sources */,
 				A4A07B36C111DBAE0E40EA30 /* ChatTab.swift in Sources */,
+				B306E4CB3837788F58E183AC /* MemoryProbe.swift in Sources */,
 				58105E5B9F5F9E5BD5278433 /* MindAssetsState.swift in Sources */,
 				8B8C76978D878D6A7BB6D01C /* MindProbe.swift in Sources */,
 				B55C8CA2213C71BFF850D6A6 /* PhoneBenchStage.swift in Sources */,
@@ -345,7 +349,6 @@
 				CODE_SIGN_ENTITLEMENTS = TranscribeDemo.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9CNN68349Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo listens to the microphone to transcribe your speech — fully on this device, nothing leaves it.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcription runs entirely on this device.";
@@ -370,7 +373,6 @@
 				CODE_SIGN_ENTITLEMENTS = TranscribeDemo.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 9CNN68349Z;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "The demo listens to the microphone to transcribe your speech — fully on this device, nothing leaves it.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Transcription runs entirely on this device.";
