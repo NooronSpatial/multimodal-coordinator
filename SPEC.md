@@ -4102,3 +4102,212 @@ absent · INSTRUMENTS §55 with method and caveats · zero warnings ·
 `swiftlint --strict` at zero · 20× stable · adversarially reviewed before
 merge with every fix pushed BEFORE the PR is called ready · the closing
 fork presented to Ryad · teach-back.
+
+---
+
+# Milestone 4r — memory across turns
+
+## 150. Why this exists
+
+The twelve-turn field session (2026-09-04) returned one verdict and one
+complaint. The verdict: "natural, no echo, never stopped answering." The
+complaint was the gap between thinking and speaking. What the log does
+**not** record, because nobody tried it, is a second question that depends
+on the first — and it would have failed. Every turn hands the mind two
+messages and no more (`LocalMind.swift:278`):
+
+    var messages: [Chat.Message] = []
+    if let spoken { messages.append(.system(spoken)) }
+    messages.append(.user(prompt))
+
+That is not forgetting. It is never being told. **D-057 F-2 = A** ruled it
+on 2026-08-18 and logged three reasons, all of them about Apple's mind:
+a hard 4096-token budget read from the machine (AC-116), a barge colliding
+with `concurrentRequests`, and a cancelled turn still spending budget. The
+rejection line named this milestone in advance — *"Memory across turns is
+its own later milestone, named rather than smuggled in."*
+
+Two of those three reasons are gone for the mind the phone actually runs:
+Qwen3-4B has no 4096-token ceiling and no `concurrentRequests`. The third
+is **not** gone for the older citizen — `AppleReplyGenerator` still owns an
+`.exceededContextWindowSize` arm (line 269) — and both minds share ONE
+seam. So the bound in F-3 is not housekeeping. It is what keeps the first
+citizen alive while the second gets what it can afford.
+
+**And the cost is named before it is measured: history is prefill.** The
+only complaint the field log recorded was the delay before speech, and
+D-085 measured most of that as waiting for TEXT, not for audio. Every
+remembered turn lengthens the prompt the mind must read before its first
+token. A memory bought with the felt pause is not obviously a win, and
+this project does not get to guess which way that trade lands — which is
+why AC-197 is a measurement on the phone and the default depth is chosen
+from it, not from taste.
+
+## 151. Scope
+
+1. **A `ConversationMemory` value type** in core `MultiModalKit`: the past
+   turns, the bound, and the drop rule. Pure — no clock, no actor, no
+   tasks — so its whole suite runs synchronously and its rules are proven
+   rather than raced for. It sits **beside** `TranscriptLedger` and
+   replaces nothing: the ledger holds the pieces of *this* thought, this
+   holds the thoughts before it.
+2. **Roles cross the seam.** `ReplyGenerating` carries a context — the
+   current transcript plus prior turns, each tagged user or assistant —
+   instead of one flat string (F-1).
+3. **Both real minds map it to their own shape**: MLX to `[Chat.Message]`,
+   Apple to the messages it assembles per turn. The four scripted and echo
+   generators follow.
+4. **The coordinator records both halves.** The user's words come from the
+   ledger at the moment generation opens; the assistant's come from the
+   reply tokens the coordinator already forwards. Nothing new is
+   intercepted.
+5. **INSTRUMENTS §58** — felt pause and footprint against history depth,
+   on the phone that reported the delay.
+6. **A field run** where turn 2 depends on turn 1.
+
+## 152. Non-goals
+
+- **Persistence across app launches.** This is a SESSION memory — the word
+  the request used. Disk is a different milestone with different questions
+  (privacy, encryption, D-016's bias).
+- **Summarising or compressing old turns.** Dropping whole turns is the
+  bound this milestone ships. A summariser is a second model call in front
+  of every reply, which is the felt pause again.
+- **Making Apple's mind stateful.** D-057 F-2 stands: one session per
+  turn, the context assembled by us and visible. This milestone widens
+  what "assembled by us" contains; it does not move the state into the
+  vendor's session.
+- **Deciding the numbers.** Depth and budget are the app's (D-027). The
+  defaults come from AC-197.
+- **Tool calling, retrieval, speaker identity.** Named, not started.
+- **Changing what the ledger means.** D-040 F-2's rule is untouched: a
+  turn's words are forgotten only when the reply was fully SPOKEN.
+
+## 153. Acceptance criteria
+
+- **AC-190** — the second turn can see the first. A scripted generator
+  records the context it was handed; after two complete turns the second
+  context contains the first turn's user words AND the first turn's reply.
+- **AC-191** — **roles are not flattened.** The context distinguishes who
+  said what, and a test asserts the assistant's words are never presented
+  as the user's. This is F-1's whole argument made testable: a flat string
+  is a lossy encoding of exactly the thing being added.
+- **AC-192** — the bound drops **whole turns, oldest first**, and both
+  limits bite: a depth in turns and a character budget, whichever is
+  reached first. Half a turn is never kept — a question with no answer, or
+  an answer with no question, is worse for a model than nothing.
+- **AC-193** — a **barged** turn is recorded with the tokens that were
+  generated, marked interrupted. The pipeline does not know how much was
+  heard: the mouth reports `started` and `finished`, never progress. The
+  mark is what stops the mind from saying "as I explained" about a
+  sentence that was cut in half.
+- **AC-194** — a **failed** turn contributes the user's words and no
+  assistant reply, and the two memories never double-count: the same
+  sentence must not arrive as both "this thought" (the ledger, which keeps
+  it under D-040 F-2) and "a past turn".
+- **AC-195** — the handover happens in **one place**: the same
+  `synthesis .finished` arm that clears the ledger records the turn
+  (`TurnCoordinator+Stages.swift:110`). One place forgets; the same place
+  remembers.
+- **AC-196** — the memory survives **D-079's retire**. Backgrounding drops
+  2.2 GB of weights and must drop no words: text is not weights.
+- **AC-197** — **MEASURED ON THE PHONE.** Final-accepted to first audible
+  word at 0, 4 and 8 remembered turns, over §56's fixtures. The default
+  depth is then the number this measurement allows, and it is a decision
+  entry — not a number chosen because it sounded generous.
+- **AC-198** — footprint against depth, by §30's method. A longer prompt
+  is a larger KV cache, and this app already lives inside a jetsam limit
+  it has been killed by twice.
+- **AC-199** — the shared seam does not break the older citizen. The
+  character budget is the lever, its default is documented against the
+  measured 4096-token ceiling (AC-116), and the existing
+  `.exceededContextWindowSize` arm stays the honest backstop rather than
+  a crash.
+- **AC-200** — the field run: a real conversation on the phone where turn
+  2 refers to turn 1 without repeating it, the transcript in the PR body,
+  with each turn's felt pause beside it.
+
+### Test matrix
+
+| criterion | test |
+|---|---|
+| AC-190 | scripted generator + two driven turns; the second context inspected |
+| AC-191 | context unit test: assistant text never appears in a user slot |
+| AC-192 | `ConversationMemory` unit suite — depth bite, budget bite, whole-turn drop |
+| AC-193 | coordinator test: barge mid-reply → the turn is recorded, marked |
+| AC-194 | coordinator test: generation failure → user words once, no reply half |
+| AC-195 | coordinator test: ledger empty AND memory grown, same event |
+| AC-196 | MLX live test: retire between turns, context intact |
+| AC-197–198 | `bakeoff` field run (device) + Xcode memory gauge, INSTRUMENTS §58 |
+| AC-199 | budget unit test + the arm read in review; no device test claimed |
+| AC-200 | a field transcript, not a test |
+
+## 154. The forks
+
+**F-1 — WHAT CROSSES THE SEAM.**
+*A:* the coordinator flattens the history into the existing
+`openReply(to transcript: String)` — one string, no public break.
+*B:* the seam carries a structured context, turns tagged user/assistant,
+each generator mapping to its own native shape.
+*C:* the app owns it — wrap `ReplyGenerating` outside the library and
+change nothing inside.
+
+**Recommendation: B.** Roles are the thing being added, and A is a lossy
+encoding of precisely that: both real minds already have a role-tagged
+native shape (`Chat.Message`; Apple's per-turn messages) that A would
+force them to reconstruct by parsing a wall of text. The cost is named
+rather than hidden — `ReplyGenerating` is public and this is a breaking
+change — and its size is known: **six conformers, all in this repo**
+(`AppleReplyGenerator`, `MLXReplyGenerator`, `ScriptedReplyGenerator`,
+`PacedEchoReply`, `PhoneEchoReply`, `ThoughtWitness`). D-017's rule is
+satisfied the honest way: the second real citizen already exists.
+
+*Rejected A:* cheaper, until a model answers as the user because it could
+not tell the halves apart. *Rejected C:* every app then reimplements the
+bound, the drop rule and the barge rule — and this library's own demo
+would carry the logic the library exists to own.
+
+**F-2 — WHAT THE ASSISTANT'S HALF OF A TURN IS.**
+*A:* what was generated. *B:* what was actually SPOKEN. *C:* what was
+generated, with a barged turn marked interrupted.
+
+**Recommendation: C.** B is the correct answer and this pipeline cannot
+give it: the mouth reports `started` and `finished` and nothing between,
+so "how much did they hear" is not a fact this library owns today. A is
+worse than incomplete — it lets the mind refer back to words that were cut
+off mid-sentence. C is A plus one honest flag, and it names B as its own
+later work, gated on the mouth reporting spoken progress.
+
+**F-3 — WHAT BOUNDS IT.**
+*A:* a depth in turns. *B:* a character budget. *C:* both, whichever bites
+first.
+
+**Recommendation: C.** Turns are wildly unequal: three long answers can
+outweigh twenty short ones, so a depth alone cannot protect Apple's 4096
+tokens, and a budget alone can keep forty tiny turns and pay prefill for
+every one of them. Both numbers belong to the app (D-027); the defaults
+come from AC-197 and land in a decision entry.
+
+**F-4 — WHEN THE MEMORY ENDS.**
+*A:* one `start()`…`stop()` — a session is one press of Listen.
+*B:* it survives stop/start and ends only when the app clears it.
+*C:* a time-based expiry.
+
+**Recommendation: A**, with an explicit way for the app to clear it
+sooner. A boundary a person can SEE is the only kind they can trust. B is
+a memory with no visible end, which on a phone is a standing tax on every
+first token. C needs a clock and a number nobody has measured, and the
+ledger already refused a time-based expiry for exactly that reason
+(`TurnCoordinator.swift:290`).
+
+## 155. Definition of done (4r)
+
+`ConversationMemory` pure and proven synchronously · the seam carrying
+roles with all six conformers migrated · the coordinator recording in the
+one place that already forgets · barge and failure both honest · the
+memory surviving a retire · the felt pause and the footprint MEASURED on
+the phone at three depths, with the default depth ruled from those numbers
+in a decision entry · INSTRUMENTS §58 with method and caveats · a field
+conversation where turn 2 leans on turn 1 · zero warnings ·
+`swiftlint --strict` at zero · 20× stable · adversarially reviewed with
+every fix pushed BEFORE the PR is called ready · teach-back.
