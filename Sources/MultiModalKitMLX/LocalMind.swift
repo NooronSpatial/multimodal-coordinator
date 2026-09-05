@@ -204,7 +204,7 @@ public actor LocalMindModel: ModelBacked {
             let sacrifice = MLXTokenSource(model: self, instructions: instructions,
                                            maxTokens: 1)
             do {
-                for try await _ in sacrifice.tokens(for: "hi") { break }
+                for try await _ in sacrifice.tokens(for: ReplyContext(transcript: "hi")) { break }
             } catch { /* a warm-up that fails is not a turn that fails */ }
             await self.clearWarmTask()
         }
@@ -265,7 +265,7 @@ struct MLXTokenSource: ReplyTokenStreaming {
         return nil
     }
 
-    func tokens(for prompt: String) -> AsyncThrowingStream<String, any Error> {
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -274,11 +274,30 @@ struct MLXTokenSource: ReplyTokenStreaming {
                     // Built INSIDE the closure: `Chat.Message` is not
                     // Sendable, so only the strings cross the boundary.
                     let spoken = instructions
-                    try await container.perform { (context: ModelContext) in
+                    let asked = context.transcript
+                    let past = context.history
+                    try await container.perform { (model: ModelContext) in
                         var messages: [Chat.Message] = []
                         if let spoken { messages.append(.system(spoken)) }
-                        messages.append(.user(prompt))
-                        let input = try await context.processor.prepare(
+                        // THE PAST, IN ROLES (4r, F-1 = B). This is the
+                        // shape the seam was widened for: the model is
+                        // TOLD who said what instead of being handed a
+                        // wall of text to parse.
+                        //
+                        // A barged reply ends in an ellipsis and nothing
+                        // else (F-2 = C). It is punctuation, not English:
+                        // this library does not own the app's words
+                        // (D-027), and a trailing "…" reads as an
+                        // unfinished utterance in every language the
+                        // tokenizer knows. What it must NOT do is claim
+                        // the person heard all of it.
+                        for turn in past {
+                            messages.append(.user(turn.said))
+                            messages.append(.assistant(
+                                turn.replied + (turn.interrupted ? "…" : "")))
+                        }
+                        messages.append(.user(asked))
+                        let input = try await model.processor.prepare(
                             input: UserInput(
                                 chat: messages,
                                 // LAYER 1 (§86): ask the model not to think
@@ -289,12 +308,12 @@ struct MLXTokenSource: ReplyTokenStreaming {
 
                         var gate = gateTokens.map { ThinkGate($0) }
                         var detokenizer = NaiveStreamingDetokenizer(
-                            tokenizer: context.tokenizer)
+                            tokenizer: model.tokenizer)
 
                         for await event in try generateTokens(
                             input: input,
                             parameters: GenerateParameters(maxTokens: maxTokens),
-                            context: context) {
+                            context: model) {
                             if Task.isCancelled { break }
                             guard let id = event.token else { continue }
                             // LAYER 2: the net. One integer comparison,

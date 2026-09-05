@@ -37,7 +37,8 @@ extension Duration {
 struct PacedEchoReply: ReplyGenerating {
     let screen: Screen
 
-    func openReply(to transcript: String) async throws -> any ReplyRun {
+    func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        let transcript = context.transcript
         // AC-91: the milestone made visible. This prints what actually
         // CROSSED THE SEAM — the generator's own view, which is the only
         // honest witness that the whole thought arrived. Speak two

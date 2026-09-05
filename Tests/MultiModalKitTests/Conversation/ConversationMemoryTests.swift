@@ -13,9 +13,9 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct ConversationMemoryTests {
 
-    static func exchange(_ n: Int, size: Int = 1) -> ConversationTurn {
-        ConversationTurn(said: String(repeating: "q", count: size) + "\(n)",
-                         replied: String(repeating: "a", count: size) + "\(n)")
+    static func exchange(_ index: Int, size: Int = 1) -> ConversationTurn {
+        ConversationTurn(said: String(repeating: "q", count: size) + "\(index)",
+                         replied: String(repeating: "a", count: size) + "\(index)")
     }
 
     // MARK: - both halves, or nothing (AC-192)
@@ -73,7 +73,7 @@ struct ConversationMemoryTests {
     @Test("past the depth, the oldest whole exchange is dropped")
     func theDepthDropsTheOldest() {
         var memory = ConversationMemory(maxTurns: 3, maxCharacters: 100_000)
-        for n in 1...5 { memory.record(Self.exchange(n)) }
+        for index in 1...5 { memory.record(Self.exchange(index)) }
 
         #expect(memory.count == 3)
         #expect(memory.turns.map(\.said) == ["q3", "q4", "q5"])
@@ -88,7 +88,7 @@ struct ConversationMemoryTests {
     @Test("the budget bites while the depth still has room")
     func theBudgetBitesFirst() {
         var memory = ConversationMemory(maxTurns: 50, maxCharacters: 30)
-        for n in 1...6 { memory.record(Self.exchange(n, size: 5)) }   // 12 each
+        for index in 1...6 { memory.record(Self.exchange(index, size: 5)) }   // 12 each
 
         #expect(memory.count == 2, "30 characters holds two 12-character exchanges")
         #expect(memory.characters <= 30)
@@ -101,7 +101,7 @@ struct ConversationMemoryTests {
     @Test("the budget is paid in whole exchanges")
     func theBudgetNeverSplitsAnExchange() {
         var memory = ConversationMemory(maxTurns: 50, maxCharacters: 30)
-        for n in 1...6 { memory.record(Self.exchange(n, size: 5)) }
+        for index in 1...6 { memory.record(Self.exchange(index, size: 5)) }
 
         for turn in memory.turns {
             #expect(turn.said.count == 6 && turn.replied.count == 6,
@@ -164,7 +164,7 @@ struct ConversationMemoryTests {
     @Test("clearing forgets everything and stays usable")
     func clearingForgetsEverything() {
         var memory = ConversationMemory()
-        for n in 1...3 { memory.record(Self.exchange(n)) }
+        for index in 1...3 { memory.record(Self.exchange(index)) }
         memory.clear()
         #expect(memory.isEmpty)
         #expect(memory.characters == 0)
@@ -179,9 +179,9 @@ struct ConversationMemoryTests {
     func equalityIsOverTheConversation() {
         var one = ConversationMemory(maxTurns: 4, maxCharacters: 500)
         var two = ConversationMemory(maxTurns: 4, maxCharacters: 500)
-        for n in 1...3 {
-            one.record(Self.exchange(n))
-            two.record(Self.exchange(n))
+        for index in 1...3 {
+            one.record(Self.exchange(index))
+            two.record(Self.exchange(index))
         }
         #expect(one == two)
 

@@ -61,7 +61,7 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
     /// Opens the gate: the defiant `after` snapshots may now flow.
     func release() { counts.withLock { $0.released = true } }
 
-    func snapshots(for prompt: String) -> AsyncThrowingStream<String, any Error> {
+    func snapshots(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {

@@ -58,7 +58,7 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     var sawCancellation: Bool { counts.withLock { $0.sawCancellation } }
     func release() { counts.withLock { $0.released = true } }
 
-    func tokens(for prompt: String) -> AsyncThrowingStream<String, any Error> {
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {

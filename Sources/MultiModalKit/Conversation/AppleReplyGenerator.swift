@@ -22,7 +22,7 @@ protocol ReplySnapshotStreaming: Sendable {
     /// Opens one generation and returns its CUMULATIVE snapshots — the
     /// whole reply so far, again and again, which is the shape Apple's
     /// API actually has (SPEC §71, measured in INSTRUMENTS §22).
-    func snapshots(for prompt: String) -> AsyncThrowingStream<String, any Error>
+    func snapshots(for context: ReplyContext) -> AsyncThrowingStream<String, any Error>
 }
 
 /// The REAL stream: one `LanguageModelSession` per reply (D-057 F-2 = A),
@@ -32,7 +32,7 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
 
     var unavailable: (any Error)? { AppleReplyGenerator.availability }
 
-    func snapshots(for prompt: String) -> AsyncThrowingStream<String, any Error> {
+    func snapshots(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
         // The session is born INSIDE the stream's task, not in `openReply`:
         // the coordinator awaits `openReply` inline on its one serial loop,
         // and a model warm-up in that window is 4e's blocker 3 one seam
@@ -40,10 +40,10 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         // measured: 1839 ms cold vs ~280 ms warm).
         AsyncThrowingStream { continuation in
             let task = Task {
-                let session = instructions.map { LanguageModelSession(instructions: $0) }
-                    ?? LanguageModelSession()
+                let session = Self.session(instructions: instructions,
+                                           history: context.history)
                 do {
-                    for try await snapshot in session.streamResponse(to: prompt) {
+                    for try await snapshot in session.streamResponse(to: context.transcript) {
                         continuation.yield(snapshot.content)
                         try Task.checkCancellation()
                     }
@@ -54,6 +54,40 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// One session, built from a transcript WE assembled (4r, F-1 = B).
+    ///
+    /// Apple's native shape for "what was said before" is
+    /// `Transcript.Entry`, so the history is mapped onto it rather than
+    /// flattened into the prompt — a flattened past is a past the model
+    /// has to parse, and it is exactly the loss the seam was widened to
+    /// avoid.
+    ///
+    /// **Still one session per turn (D-057 F-2 = A).** The session is not
+    /// kept between replies and carries no state we did not put in it;
+    /// only the entries it is born with have grown.
+    ///
+    /// The current thought is deliberately NOT an entry here —
+    /// `streamResponse(to:)` supplies it — or the model would be shown the
+    /// question twice.
+    private static func session(instructions: String?,
+                                history: [ConversationTurn]) -> LanguageModelSession {
+        var entries: [Transcript.Entry] = []
+        if let instructions {
+            entries.append(.instructions(Transcript.Instructions(
+                segments: [.text(Transcript.TextSegment(content: instructions))],
+                toolDefinitions: [])))
+        }
+        for turn in history {
+            entries.append(.prompt(Transcript.Prompt(
+                segments: [.text(Transcript.TextSegment(content: turn.said))])))
+            entries.append(.response(Transcript.Response(
+                assetIDs: [],
+                segments: [.text(Transcript.TextSegment(
+                    content: turn.replied + (turn.interrupted ? "…" : "")))])))
+        }
+        return LanguageModelSession(transcript: Transcript(entries: entries))
     }
 }
 
@@ -166,9 +200,9 @@ public struct AppleReplyGenerator: ReplyGenerating {
         session.prewarm()
     }
 
-    public func openReply(to transcript: String) async throws -> any ReplyRun {
+    public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         if let unavailable = source.unavailable { throw unavailable }
-        return AppleReplyRun(source: source, prompt: transcript,
+        return AppleReplyRun(source: source, context: context,
                              spokenRefusal: spokenRefusal)
     }
 }
@@ -197,7 +231,7 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// `retired` flag is the guarantee (the ticket doctrine, fourth use).
     private let work = Mutex<Task<Void, Never>?>(nil)
 
-    init(source: any ReplySnapshotStreaming, prompt: String, spokenRefusal: String) {
+    init(source: any ReplySnapshotStreaming, context: ReplyContext, spokenRefusal: String) {
         var handle: AsyncStream<ReplyUpdate>.Continuation!
         self.updates = AsyncStream { handle = $0 }
         self.out = handle
@@ -206,7 +240,7 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await snapshot in source.snapshots(for: prompt) {
+                for try await snapshot in source.snapshots(for: context) {
                     guard let self else { return }
                     // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under
                     // one lock step.

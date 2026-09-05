@@ -73,10 +73,13 @@ struct ThoughtWitness: ReplyGenerating {
     let onThought: @Sendable (String) -> Void
     let onTurn: @Sendable (ConversationTurn) -> Void
 
-    func openReply(to transcript: String) async throws -> any ReplyRun {
-        onThought(transcript)
-        let run = try await wrapped.openReply(to: transcript)
-        return WitnessedRun(wrapped: run, heard: transcript,
+    func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        onThought(context.transcript)
+        // The CONTEXT is forwarded, not the transcript. A witness that
+        // rebuilt the argument would silently drop the memory it is
+        // supposed to be watching.
+        let run = try await wrapped.openReply(to: context)
+        return WitnessedRun(wrapped: run, heard: context.transcript,
                             mind: mindLabel, report: onTurn)
     }
 }
@@ -192,10 +195,10 @@ struct PhoneEchoReply: ReplyGenerating {
     /// delivered everything (AC-91).
     let onThought: @Sendable (String) -> Void
 
-    func openReply(to transcript: String) async throws -> any ReplyRun {
-        onThought(transcript)
+    func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        onThought(context.transcript)
         return PhoneEchoRun(words: ["You", " said:"]
-            + transcript.split(separator: " ").map { " " + $0 })
+            + context.transcript.split(separator: " ").map { " " + $0 })
     }
 }
 

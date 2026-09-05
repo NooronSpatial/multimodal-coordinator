@@ -65,10 +65,50 @@ public protocol ReplyRun: Sendable {
     func cancel() async
 }
 
+/// EVERYTHING THE MIND IS GIVEN TO ANSWER ONE QUESTION (4r, F-1 = B).
+///
+/// The seam was a bare `String`, and that was right while the current
+/// thought was the only thing to send. The moment the past travels too, a
+/// string becomes a lossy encoding of the one thing being added: WHO SAID
+/// WHAT. Both real minds already own a role-tagged native shape — MLX's
+/// `Chat.Message`, Apple's `Transcript.Entry` — and a flat string would
+/// force each of them to reconstruct it by parsing.
+///
+/// **D-057 F-2 is not reversed by this.** The mind still gets one
+/// stateless session per turn. What travels here is assembled by us and
+/// visible, which is precisely what that ruling asked for; only its
+/// CONTENTS have grown.
+public struct ReplyContext: Sendable, Equatable {
+    /// The thought being answered NOW — the ledger's whole text.
+    public let transcript: String
+    /// What came before, oldest first, already bounded by
+    /// `ConversationMemory`. Empty is the ordinary first turn.
+    public let history: [ConversationTurn]
+
+    public init(transcript: String, history: [ConversationTurn] = []) {
+        self.transcript = transcript
+        self.history = history
+    }
+}
+
 /// A factory for replies. The only thing the coordinator holds.
 public protocol ReplyGenerating: Sendable {
     /// Opens one reply. Throws when generation cannot start at all.
-    func openReply(to transcript: String) async throws -> any ReplyRun
+    func openReply(to context: ReplyContext) async throws -> any ReplyRun
+}
+
+extension ReplyGenerating {
+    /// One thought and no past — the shape every call site had before 4r.
+    ///
+    /// A convenience for CALLERS, never a way to conform: the requirement
+    /// above is the context one, so a generator that implements only this
+    /// does not conform and the compiler says so. It exists because most
+    /// of this library's tests are about turns and tickets, not memory,
+    /// and rewriting them all would have hidden the migration that
+    /// matters inside noise.
+    public func openReply(to transcript: String) async throws -> any ReplyRun {
+        try await openReply(to: ReplyContext(transcript: transcript))
+    }
 }
 
 // MARK: - the synthesis seam (F4 = A: state follows evidence, D-029)
