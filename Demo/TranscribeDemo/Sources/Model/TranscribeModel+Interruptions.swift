@@ -202,6 +202,7 @@ extension TranscribeModel {
         wasInterrupted = false
         reply = ""
         wholeThought = ""
+        remembering = ""
         start()
     }
 }

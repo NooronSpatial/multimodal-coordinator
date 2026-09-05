@@ -208,6 +208,51 @@ extension TurnCoordinatorTests {
                 "the session closed, so the conversation did")
     }
 
+    /// AC-196. An interruption that does not end the session — a call,
+    /// Siri, a route that vanished — keeps the CONVERSATION and drops only
+    /// the THOUGHT.
+    ///
+    /// The two halves are opposite on purpose. `resume()` clears the
+    /// ledger because a pre-call fragment joined to a post-call sentence
+    /// is one nonsense prompt (the 4d review's finding). The past is not a
+    /// fragment: it is finished exchanges, and the person coming back is
+    /// still in the same conversation.
+    ///
+    /// The consequence this does NOT cover, and that belongs to the field
+    /// report instead: backgrounding while LISTENING calls `stop()`, and
+    /// F-4 = A ends the conversation with the session.
+    @Test("an interruption keeps the conversation and drops the thought (AC-196)")
+    func anInterruptionKeepsTheConversation() async {
+        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+            await completeOneTurn(bench, utterance: 0,
+                                  saying: "before the call", answering: "Noted.", at: 0)
+
+            // A fragment arrives, then the platform takes the audio away.
+            bench.audio.yield(.speechStarted(utterance: 1, at: Self.t(96_000)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 1 })
+            bench.audio.yield(.speechStarted(utterance: 2, at: Self.t(144_000)))
+            #expect(await Self.until { await bench.coordinator.currentUtterance == 2 })
+            bench.transcripts.yield(.final("half a sen", utterance: 1, at: Self.t(97_000)))
+            #expect(await Self.until { await bench.coordinator.currentContext == "half a sen" })
+
+            await bench.coordinator.interrupt()
+            await bench.coordinator.resume()
+
+            #expect(await bench.coordinator.currentContext.isEmpty,
+                    "the fragment goes — it must not join what is said after the call")
+            #expect(await bench.coordinator.currentMemory.count == 1,
+                    "the conversation stays — an interruption is not a new conversation")
+            #expect(await bench.coordinator.currentMemory.first?.said == "before the call")
+
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+    }
+
     /// The app's earlier boundary, and the line it must not cross: forget
     /// the conversation, never the sentence the person is still saying.
     @Test("clearMemory() forgets the past and leaves the thought alone")

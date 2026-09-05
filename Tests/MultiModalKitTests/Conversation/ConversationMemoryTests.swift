@@ -59,9 +59,9 @@ struct ConversationMemoryTests {
     func theHalvesStayApart() {
         var memory = ConversationMemory()
         memory.record(ConversationTurn(said: "who made it?", replied: "Apple did."))
-        let turn = try? #require(memory.turns.first)
-        #expect(turn?.said == "who made it?")
-        #expect(turn?.replied == "Apple did.")
+        #expect(memory.count == 1)
+        #expect(memory.turns.first?.said == "who made it?")
+        #expect(memory.turns.first?.replied == "Apple did.")
     }
 
     // MARK: - the depth bound (F-3 = C, first limit)
@@ -171,6 +171,55 @@ struct ConversationMemoryTests {
 
         memory.record(Self.exchange(9))
         #expect(memory.count == 1, "a cleared memory is not a dead one")
+    }
+
+    /// Fact 13 — **THE OLDER MIND'S CEILING, PINNED AS A NUMBER (AC-199).**
+    ///
+    /// Both minds share one seam, so the smaller budget rules. Apple's was
+    /// MEASURED at 4096 tokens (AC-116), and at the ~4 characters per
+    /// token English averages that is roughly 16,000 characters for
+    /// EVERYTHING — instructions, the past, the question, and the reply
+    /// being generated into the same window.
+    ///
+    /// The shipped default gives the past 4,000 of them: a quarter, with
+    /// the other three quarters left to the parts that cannot be dropped.
+    /// This test does not prove the model survives; only a device can do
+    /// that, and `.exceededContextWindowSize` remains the honest backstop
+    /// when it does not. What it pins is that the number cannot drift
+    /// upward without someone reading this comment first.
+    ///
+    /// Provisional, and deliberately so: D-088 left the real depth to
+    /// AC-197's measurement of the felt pause on the phone.
+    @Test("the shipped budget stays well inside the older mind's measured ceiling")
+    func theDefaultBudgetRespectsTheSmallerMind() {
+        let config = TurnCoordinator<ContinuousClock>.Config()
+        #expect(config.maxMemoryCharacters == 4_000)
+        #expect(config.maxMemoryCharacters * 4 <= 16_000,
+                "the past alone must not be able to fill Apple's 4096-token window")
+        #expect(config.maxMemoryTurns == 6)
+
+        // And the memory built from that config agrees with it — a bound
+        // configured and then not applied is the failure this whole suite
+        // exists to catch.
+        var memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
+                                        maxCharacters: config.maxMemoryCharacters)
+        for index in 1...40 { memory.record(Self.exchange(index, size: 300)) }
+        #expect(memory.count <= config.maxMemoryTurns)
+        #expect(memory.characters <= config.maxMemoryCharacters)
+    }
+
+    /// Fact 14. `record` reports whether the exchange was TAKEN, because
+    /// one caller cannot be correct without knowing (F-5 = A): the
+    /// coordinator clears the ledger only for what the memory kept.
+    @Test("record says whether the memory took the exchange")
+    func recordReportsWhatItTook() {
+        var memory = ConversationMemory(maxTurns: 4, maxCharacters: 40)
+        #expect(memory.record(ConversationTurn(said: "q", replied: "a")) == true)
+        #expect(memory.record(ConversationTurn(said: "q", replied: "")) == false,
+                "half an exchange is refused, and the caller must be told")
+        #expect(memory.record(ConversationTurn(
+            said: String(repeating: "x", count: 100), replied: "y")) == false,
+                "and so is one that cannot fit alone — the cliff, reported")
     }
 
     /// Fact 12. Value equality, so a test can compare two memories without

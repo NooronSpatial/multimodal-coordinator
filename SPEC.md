@@ -4201,16 +4201,32 @@ from it, not from taste.
   heard: the mouth reports `started` and `finished`, never progress. The
   mark is what stops the mind from saying "as I explained" about a
   sentence that was cut in half.
-- **AC-194** — a **failed** turn contributes the user's words and no
-  assistant reply, and the two memories never double-count: the same
-  sentence must not arrive as both "this thought" (the ledger, which keeps
-  it under D-040 F-2) and "a past turn".
+- **AC-194** — a **failed** turn is **not remembered at all**, and its
+  words stay in the ledger. *(Corrected during implementation: as first
+  written this criterion said the failed turn "contributes the user's
+  words and no assistant reply", which contradicts its own second half.
+  D-040 F-2 settles it — a failure delivered nothing, so the ledger keeps
+  the words and sends them out again with the next thought. If the memory
+  ALSO held them the mind would receive the same sentence twice, once as
+  history and once inside the new transcript, and answer it twice.)*
 - **AC-195** — the handover happens in **one place**: the same
   `synthesis .finished` arm that clears the ledger records the turn
   (`TurnCoordinator+Stages.swift:110`). One place forgets; the same place
   remembers.
-- **AC-196** — the memory survives **D-079's retire**. Backgrounding drops
-  2.2 GB of weights and must drop no words: text is not weights.
+- **AC-196** — an interruption that does not end the session keeps the
+  conversation: `interrupt()`/`resume()` clears the THOUGHT (a pre-call
+  fragment must not join a post-call sentence — `TurnCoordinator.swift:290`)
+  and keeps the past. Text is not weights, and retiring 2.2 GB of mind
+  cannot reach words held on the coordinator.
+
+  **And the consequence, named here rather than discovered in the field:**
+  backgrounding *while listening* calls `stop()` (D-079's path), so F-4 = A
+  ends the conversation with the session. Coming back and pressing Listen
+  is a new conversation. That is the ruling working, not a defect — but it
+  is the kind of thing a person notices, so it belongs in AC-200's field
+  report. *(Corrected during implementation: as first written this
+  criterion claimed the memory survives backgrounding, which is true of
+  the retire and false of the session.)*
 - **AC-197** — **MEASURED ON THE PHONE.** Final-accepted to first audible
   word at 0, 4 and 8 remembered turns, over §56's fixtures. The default
   depth is then the number this measurement allows, and it is a decision
@@ -4237,7 +4253,7 @@ from it, not from taste.
 | AC-193 | coordinator test: barge mid-reply → the turn is recorded, marked |
 | AC-194 | coordinator test: generation failure → user words once, no reply half |
 | AC-195 | coordinator test: ledger empty AND memory grown, same event |
-| AC-196 | MLX live test: retire between turns, context intact |
+| AC-196 | coordinator test: interrupt/resume keeps the past, drops the thought |
 | AC-197–198 | `bakeoff` field run (device) + Xcode memory gauge, INSTRUMENTS §58 |
 | AC-199 | budget unit test + the arm read in review; no device test claimed |
 | AC-200 | a field transcript, not a test |

@@ -150,6 +150,7 @@ extension TranscribeModel {
         droppedFrames = 0
         reply = ""
         wholeThought = ""
+        remembering = ""
         feltPauseMilliseconds = nil
         wasInterrupted = false
     }

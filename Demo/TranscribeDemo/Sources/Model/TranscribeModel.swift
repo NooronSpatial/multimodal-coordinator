@@ -201,7 +201,7 @@ final class TranscribeModel {
     /// just replies my question" — cannot be chased without the real
     /// exchange, and because the one fact that separates the two likely
     /// causes is WHICH BRAIN answered, which no screenshot shows.
-    var turns: [ConversationTurn] = []
+    var turns: [TurnReport] = []
 
     /// A margin that arrived BEFORE its row existed, waiting for record().
     /// The 4n review broke the first version's assumption two ways: a
@@ -280,6 +280,9 @@ final class TranscribeModel {
     var reply = ""
     /// The whole thought the generator received (AC-91) — 4c made visible.
     var wholeThought = ""
+    /// What the mind was shown of the conversation before this thought
+    /// (4r). Empty on the first turn of a session, and after `stop()`.
+    var remembering = ""
     var feltPauseMilliseconds: Int?
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.

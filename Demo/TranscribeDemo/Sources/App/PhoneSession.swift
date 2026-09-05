@@ -70,11 +70,15 @@ struct ThoughtWitness: ReplyGenerating {
     /// to tell those two apart. An instrument that shows a number must be
     /// able to say whether it is switched on (D-054).
     let mindLabel: String
-    let onThought: @Sendable (String) -> Void
-    let onTurn: @Sendable (ConversationTurn) -> Void
+    /// The WHOLE context, not just the thought (4r). A witness that
+    /// reported only the current sentence could not tell a working memory
+    /// from a seam that quietly drops it — and the field report is the
+    /// evidence AC-200 asks for.
+    let onThought: @Sendable (ReplyContext) -> Void
+    let onTurn: @Sendable (TurnReport) -> Void
 
     func openReply(to context: ReplyContext) async throws -> any ReplyRun {
-        onThought(context.transcript)
+        onThought(context)
         // The CONTEXT is forwarded, not the transcript. A witness that
         // rebuilt the argument would silently drop the memory it is
         // supposed to be watching.
@@ -85,7 +89,12 @@ struct ThoughtWitness: ReplyGenerating {
 }
 
 /// One turn, as it really happened, for sharing off the phone.
-struct ConversationTurn: Sendable, Identifiable {
+///
+/// Renamed from `ConversationTurn` in 4r. The library now owns that name
+/// for the exchanges a mind is allowed to remember, and a demo-local type
+/// with the same name would have COMPILED — silently shadowing it — which
+/// is the kind of collision that is discovered a milestone late.
+struct TurnReport: Sendable, Identifiable {
     let id: Int
     let mind: String
     let heard: String
@@ -139,7 +148,7 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
     private let inner: any ReplyRun
 
     init(wrapped: any ReplyRun, heard: String, mind: String,
-         report: @escaping @Sendable (ConversationTurn) -> Void) {
+         report: @escaping @Sendable (TurnReport) -> Void) {
         self.inner = wrapped
         var handle: AsyncStream<ReplyUpdate>.Continuation!
         self.updates = AsyncStream { handle = $0 }
@@ -173,7 +182,7 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
             // model, which is the only place that holds a session clock and
             // a device to ask. Placeholders here, filled there — the same
             // arrangement `id: 0` already used.
-            report(ConversationTurn(
+            report(TurnReport(
                 id: 0, mind: mind, heard: heard, reply: text,
                 firstTokenMs: first.map(ms), totalMs: ms(total),
                 failure: failure, peakMemoryMB: nil, bargedIn: !sawTerminal,
@@ -193,10 +202,10 @@ struct PhoneEchoReply: ReplyGenerating {
     /// Reports the whole thought that crossed the seam — the generator's
     /// own view, which is the only honest witness that 4c's ledger
     /// delivered everything (AC-91).
-    let onThought: @Sendable (String) -> Void
+    let onThought: @Sendable (ReplyContext) -> Void
 
     func openReply(to context: ReplyContext) async throws -> any ReplyRun {
-        onThought(context.transcript)
+        onThought(context)
         return PhoneEchoRun(words: ["You", " said:"]
             + context.transcript.split(separator: " ").map { " " + $0 })
     }

@@ -28,8 +28,8 @@ extension TranscribeModel {
             maxTokens: 160)
     }
 
-    private func record(_ turn: ConversationTurn) {
-        turns.append(ConversationTurn(
+    private func record(_ turn: TurnReport) {
+        turns.append(TurnReport(
             id: turns.count + 1, mind: turn.mind, heard: turn.heard,
             reply: turn.reply, firstTokenMs: turn.firstTokenMs,
             totalMs: turn.totalMs, failure: turn.failure,
@@ -221,10 +221,20 @@ extension TranscribeModel {
     /// witness — the 🧠 line shows what the ledger delivered across the
     /// seam, whichever brain answers (AC-91's proof duty, unchanged).
     var currentGenerator: any ReplyGenerating {
-        let witness: @Sendable (String) -> Void = { [weak self] thought in
-            Task { @MainActor in self?.wholeThought = thought }
+        let witness: @Sendable (ReplyContext) -> Void = { [weak self] context in
+            Task { @MainActor in
+                self?.wholeThought = context.transcript
+                // WHAT THE MIND WAS ALLOWED TO REMEMBER, on screen (4r).
+                // A memory nobody can see is a memory nobody can report
+                // on, and AC-200 asks for a field conversation where turn
+                // 2 leans on turn 1 — which is unreadable without this.
+                self?.remembering = context.history.isEmpty ? "" :
+                    "remembering \(context.history.count) "
+                    + (context.history.count == 1 ? "exchange" : "exchanges")
+                    + (context.history.contains(where: \.interrupted) ? " · one cut off" : "")
+            }
         }
-        let sink: @Sendable (ConversationTurn) -> Void = { [weak self] turn in
+        let sink: @Sendable (TurnReport) -> Void = { [weak self] turn in
             Task { @MainActor in self?.record(turn) }
         }
         switch mind {
