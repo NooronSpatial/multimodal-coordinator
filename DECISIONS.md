@@ -3775,3 +3775,87 @@ reply. `steadyRealTimeFactor` is now optional and `keepsUp` falls back
 to the whole-reply rate; the margin itself is always reported. *Rejected:
 leave them invisible.* An instrument that cannot see short replies
 cannot learn from them, and short replies are most of a conversation.
+
+## D-088 — 4r's four forks, ruled (Milestone 4r)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad · **Rulings: F-1 = B, F-2 = C,
+F-3 = C, F-4 = A** — all four on the spec's recommendations, ruled at
+sign-off in one message.
+
+This entry does **not** reverse D-057 F-2. That ruling said the mind gets
+one stateless session per turn and "the context the model needs is
+assembled by us and visible". It stands. What changes is what "assembled
+by us" is allowed to contain — and its own rejection line named this
+milestone in advance.
+
+### F-1 = B — the seam carries ROLES, not a flat string
+
+`ReplyGenerating` takes a context of turns tagged user/assistant instead
+of one `String`. Roles are the thing being added, and a flat string is a
+lossy encoding of exactly that: both real minds already have a
+role-tagged native shape — MLX's `Chat.Message`, Apple's per-turn
+messages — which a flat string would force them to reconstruct by
+parsing.
+
+The cost is named rather than hidden. `ReplyGenerating` is public, so
+this is a breaking change; its size is known and small — **six
+conformers, all in this repository**: `AppleReplyGenerator`,
+`MLXReplyGenerator`, `ScriptedReplyGenerator`, `PacedEchoReply`,
+`PhoneEchoReply`, `ThoughtWitness`. D-017's rule (public surface is
+earned by a second real implementation) is satisfied the honest way: the
+second citizen already exists and has since 4h.
+
+*Rejected:* **A, flatten to the existing String seam.** Cheaper, and
+correct right up to the first time a model answers as the user because it
+could not tell the halves apart. *Rejected:* **C, the app owns it.** Then
+every app reimplements the bound, the drop rule and the barge rule, and
+this library's own demo carries the logic the library exists to own.
+
+### F-2 = C — what was GENERATED, with a barged turn marked
+
+*Rejected:* **B, what was actually spoken.** It is the correct answer and
+this pipeline cannot give it: `SynthesisRun` reports `started` and
+`finished` and nothing between, so "how much did they hear" is not a fact
+this library owns today. Recording it as if it were would be the kind of
+guess §71 warns about. B returns as its own milestone the day the mouth
+reports spoken progress.
+
+*Rejected:* **A, what was generated, unmarked.** Worse than incomplete —
+it lets the mind refer back to a sentence the person heard half of. C is
+A plus one honest flag, which is the cheapest thing that does not lie.
+
+### F-3 = C — a depth AND a character budget, whichever bites first
+
+Turns are wildly unequal: three long answers can outweigh twenty short
+ones. A depth alone therefore cannot protect the Apple mind's measured
+4096-token ceiling (AC-116), and a budget alone can keep forty tiny turns
+and pay prefill for every one of them. Both minds share one seam, so the
+older citizen sets the floor.
+
+Both numbers belong to the app (D-027). The **defaults** are not ruled
+here: AC-197 measures the felt pause at three depths on the phone, and
+the default depth is ruled from those numbers in a later entry.
+
+*Rejected:* **A, a turn count alone** and **B, a budget alone** — each
+protects one axis and is blind on the other.
+
+### F-4 = A — the memory ends with the Listen session
+
+One `start()`…`stop()` is one conversation, plus an explicit way for the
+app to clear it sooner. A boundary a person can SEE is the only kind they
+can trust.
+
+*Rejected:* **B, a memory that survives stop/start.** No visible end, and
+on a phone a standing tax on every first token. *Rejected:* **C, a time
+expiry.** It needs a clock and a number nobody has measured, and the
+ledger already refused a time-based expiry for that exact reason —
+"it has no clock, by design" (`TurnCoordinator.swift:290`).
+
+### The cost this milestone must keep honest
+
+History is prefill. The twelve-turn log's only complaint was the delay
+between thinking and speaking, and D-087 ruling 3 showed most of it is
+the wait for TEXT. Every remembered turn lengthens the prompt read before
+the first token. AC-197 exists so that trade is a measurement and the
+default depth is a consequence of it — never a number chosen because it
+sounded generous.
