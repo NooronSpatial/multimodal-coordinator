@@ -4692,3 +4692,80 @@ phone, with the reply text as the evidence.
 **Leaves AC-197 and AC-198 open**, and leaves the default depth of 6
 unruled — D-088 said the number comes from the measurement, and the
 measurement has not been taken. Six is a placeholder until it is.
+
+## 58b. The memory probe's sweep — AC-197 and AC-198, answered
+
+**Method.** Ryad's iPhone, 2026-09-05, `MemoryProbe` from the Bench tab.
+One question — *"Name one ocean."* — asked byte for byte identically at
+three depths, three draws each, reply capped at 16 tokens and cancelled.
+Warm draw discarded. **Thermal read `fair` on all nine rows**, which is
+the condition §58 could not hold and the reason this sweep can be read as
+one machine's answer.
+
+| depth | history chars | median first token | MLX peak |
+|---|---|---|---|
+| off | 0 | **321 ms** | 2,441 MB |
+| 4 | 482 | **645 ms** | 2,612 MB |
+| 8 | 942 | **962 ms** | 2,822 MB |
+
+Draws within each depth: 320/321/326, 615/645/670, 967/944/962. The
+spread is under 55 ms; the steps between depths are over 300 ms. The
+signal is far larger than the noise.
+
+### AC-197: the cost is LINEAR, and it is linear in characters
+
+    off → 4    +324 ms over 482 chars    0.672 ms/char
+    4  → 8     +317 ms over 460 chars    0.689 ms/char
+    off → 8    +641 ms over 942 chars    0.681 ms/char
+
+Three independent segments agreeing to within 2.5%. On this phone, with
+this 4-bit 4B mind:
+
+> **~0.68 ms of felt pause per character of remembered conversation**,
+> or about **80 ms per remembered exchange** at the sizes a real
+> conversation produces.
+
+The mouth is not in these numbers and does not need to be: it sits after
+the mind and its cost does not move with history, so the DIFFERENCE
+between rows lands on the felt pause unchanged.
+
+### AC-198: the memory is paid in TRANSIENT memory, not resident
+
+Active memory barely moved (2,353 → 2,353 → 2,389 MB). The whole cost is
+in the PEAK: **+381 MB at 942 characters, ~0.40 MB per character.** That
+is the prefill KV cache, allocated and given back.
+
+*Caveat on the column:* `peakMemory` is a running maximum over the
+process, and the sweep runs shallow → deep, so each row's peak is that
+depth's own high-water mark only because no deeper row preceded it. A
+sweep run in the other order would print three identical numbers.
+
+### THE FINDING, and it is not the one this section came for
+
+The shipped defaults were **depth 6, budget 4,000 characters**, set by
+D-088 as an explicit placeholder. Extrapolating the two fits — four times
+beyond the measured range, and said plainly — a full 4,000-character
+memory would cost:
+
+    +2,722 ms of felt pause        and        +1,618 MB transient
+
+The felt pause number alone is worse than the complaint that started 4o.
+The memory number is the serious one: this session had **3,622 MB of
+headroom with 2,353 MB already active — about 1,269 MB of room.** A
+1.6 GB prefill spike does not fit in it.
+
+**The shipped character budget is not merely slow. On the phone this
+project targets, it is a jetsam risk** — the crash class D-079 and
+INSTRUMENTS §27 already cost this app two field trips. It was never
+exercised, because a conversation has to run long before 4,000 characters
+of history accumulate, and no session has.
+
+The bound that matters is therefore the CHARACTER budget, not the depth:
+cost tracks characters, and exchanges vary in length by more than 4×.
+
+### What §58b closes
+
+**AC-197 and AC-198 are answered with numbers**, on the phone, at one
+thermal state, with the depth varied and nothing else. What remains is a
+ruling: the default depth and budget are still D-088's placeholders, and
+the numbers above say what each candidate costs.
