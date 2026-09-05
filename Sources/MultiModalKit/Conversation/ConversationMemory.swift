@@ -51,8 +51,37 @@ public struct ConversationMemory: Sendable, Equatable {
     /// with no question, is worse for a model than silence — it invites
     /// the mind to fill the gap. A turn the mind answered with zero tokens
     /// is therefore not an exchange and is not kept.
+    ///
+    /// Then the two bounds, in this order and for a reason: the depth is a
+    /// count and cannot be affected by trimming, so it goes first; the
+    /// budget is then paid in whole exchanges from the oldest end.
     public mutating func record(_ turn: ConversationTurn) {
-        _ = turn
+        // Whitespace is not words — the ledger's rule, met again, because
+        // a detokenizer really does yield a lone space. Trimming here also
+        // keeps invisible characters from spending the budget.
+        let said = turn.said.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replied = turn.replied.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !said.isEmpty, !replied.isEmpty else { return }
+
+        kept.append(ConversationTurn(said: said, replied: replied,
+                                     interrupted: turn.interrupted))
+
+        // The depth. Oldest first, so what remains is a SUFFIX.
+        if kept.count > maxTurns { kept.removeFirst(kept.count - maxTurns) }
+
+        // The budget, paid in whole exchanges. Never a trimmed reply:
+        // half an answer is the half-turn the guard above just refused.
+        //
+        // THE CLIFF IS DELIBERATE. An exchange too large to fit ALONE
+        // empties the memory, because a bound that makes an exception for
+        // the newest exchange is not a bound — and the older mind's
+        // `.exceededContextWindowSize` is the thing it is protecting
+        // (AC-199). Dropping the NEW one instead was rejected: it leaves a
+        // hole exactly where the current question's own context belongs.
+        var total = characters
+        while total > maxCharacters, !kept.isEmpty {
+            total -= kept.removeFirst().characters
+        }
     }
 
     /// The exchanges the mind may see, oldest first.
