@@ -3859,3 +3859,65 @@ the wait for TEXT. Every remembered turn lengthens the prompt read before
 the first token. AC-197 exists so that trade is a measurement and the
 default depth is a consequence of it — never a number chosen because it
 sounded generous.
+
+## D-089 — a barge is remembered, and D-040 F-2 is narrowed (Milestone 4r)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad · **Ruling: F-5 = A** — the
+barged exchange goes into the conversation, and the ledger lets it go.
+
+### The collision that raised the fork
+
+D-040 F-2 forgets a thought only when the reply was fully SPOKEN, so a
+barge left the words in the ledger to join the next thought. AC-193 also
+puts the barged exchange in the memory. Both together hand the mind the
+same sentence twice — once as a remembered turn, once glued to the front
+of the new question — and a mind given the same words twice answers them
+twice.
+
+### The ruling
+
+**A — record it, and clear the ledger.** A barge is the person saying "I
+heard enough": something WAS delivered. That is the opposite of a
+failure, where nothing reached them, so D-040 F-2's reason for keeping
+the words — "nothing answered them" — does not apply to this ending.
+
+*Rejected:* **B, remember nothing and keep the words as before.** It
+loses the fact that the mind already began answering, so it can begin the
+same answer again — exactly the repetition the interrupted mark exists to
+prevent. *Rejected:* **C, record the answer half only.** Forbidden by
+AC-192, and the worst of both: an answer with no question.
+
+### What this does to D-040 F-2, stated rather than implied
+
+Its rule was "forgotten only when the reply was fully spoken". It is now
+**"fully spoken, or interrupted by the person"**. A failed turn still
+keeps its words — nothing was delivered — so the core is intact, and this
+entry rather than a silent edit is where the narrowing lives.
+
+The test that asserted the old behaviour was not swapped quietly either:
+`aBargeCarriesTheThoughtForward` keeps its name, states the old
+expectation in its doc comment, and now checks BOTH halves — that the
+ledger let go **and** that the memory took it. A test that only checked
+the first would pass just as well if the words had vanished.
+
+### The trap found while tracing the ruling, and the invariant that kills it
+
+A barge during `thinking`, before the first token, has no answer half.
+The memory refuses it (both halves or nothing), and a coordinator that
+cleared the ledger anyway would make the person's question **vanish
+between two turns** — invisible to every other test.
+
+So the coordinator does not clear on barge. It clears on being told the
+memory took the exchange:
+
+> **the ledger forgets exactly what the memory took.**
+
+`ConversationMemory.record` returns that fact for this one caller. The
+invariant then covers all four endings without a special case:
+
+| ending | remembered | ledger |
+|---|---|---|
+| fully spoken | yes, unmarked | cleared |
+| barged | yes, marked — if both halves exist | cleared iff remembered |
+| failed | never | kept (D-040 F-2) |
+| zero tokens | nothing to remember | cleared: answered, with silence |

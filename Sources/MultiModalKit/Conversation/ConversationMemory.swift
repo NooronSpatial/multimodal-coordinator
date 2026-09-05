@@ -55,13 +55,19 @@ public struct ConversationMemory: Sendable, Equatable {
     /// Then the two bounds, in this order and for a reason: the depth is a
     /// count and cannot be affected by trimming, so it goes first; the
     /// budget is then paid in whole exchanges from the oldest end.
-    public mutating func record(_ turn: ConversationTurn) {
+    /// - Returns: whether this exchange became part of the memory. False
+    ///   means one of two things and the caller must treat both the same
+    ///   way — it was half a turn, or it could not fit alone. Either way
+    ///   nothing here remembers it, which is what a caller deciding
+    ///   whether to forget the words elsewhere needs to know (F-5 = A).
+    @discardableResult
+    public mutating func record(_ turn: ConversationTurn) -> Bool {
         // Whitespace is not words — the ledger's rule, met again, because
         // a detokenizer really does yield a lone space. Trimming here also
         // keeps invisible characters from spending the budget.
         let said = turn.said.trimmingCharacters(in: .whitespacesAndNewlines)
         let replied = turn.replied.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !said.isEmpty, !replied.isEmpty else { return }
+        guard !said.isEmpty, !replied.isEmpty else { return false }
 
         kept.append(ConversationTurn(said: said, replied: replied,
                                      interrupted: turn.interrupted))
@@ -82,6 +88,10 @@ public struct ConversationMemory: Sendable, Equatable {
         while total > maxCharacters, !kept.isEmpty {
             total -= kept.removeFirst().characters
         }
+        // Trimming only ever takes from the FRONT, so the exchange just
+        // appended has left only if everything has: the cliff, and the
+        // one case where a caller must keep the words somewhere else.
+        return !kept.isEmpty
     }
 
     /// The exchanges the mind may see, oldest first.

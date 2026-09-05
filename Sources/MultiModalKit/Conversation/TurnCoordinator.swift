@@ -65,6 +65,11 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         var replyRun: (any ReplyRun)?
         var synthesisRun: (any SynthesisRun)?
         var tokensFinished = false
+        /// The reply as it is BORN, kept so this turn can be remembered
+        /// (4r, AC-193). Accumulated from the same tokens the coordinator
+        /// already forwards to the mouth — nothing new is intercepted, and
+        /// a turn nobody remembers simply drops it with the ticket.
+        var generated = ""
     }
 
     /// AC-61: the legal-transition table. The funnel checks every change
@@ -118,6 +123,11 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// the speaker never got an answer. It is emptied on `turnCompleted`
     /// and nowhere else (F-2 = A).
     var ledger: TranscriptLedger
+    /// THE CONVERSATION BEFORE THIS THOUGHT (4r, D-088). The ledger's
+    /// opposite number: it holds what the ledger has FORGOTTEN, and the
+    /// two never hold the same sentence at once — a mind handed the same
+    /// words twice answers them twice.
+    var memory: ConversationMemory
     /// Everything at or below this utterance belongs to a conversation
     /// that `resume()` ended. Set only there; it fences pre-interruption
     /// speech out of the fresh thought (the 4d review's finding).
@@ -149,6 +159,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         self.diagnostics = diagnostics
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
         self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
+        self.memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
+                                         maxCharacters: config.maxMemoryCharacters)
     }
 
     /// The everyday coordinator: fully clockless — no reporter, no clock,
@@ -169,6 +181,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         self.diagnostics = diagnostics
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
         self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
+        self.memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
+                                         maxCharacters: config.maxMemoryCharacters)
     }
 
     /// The current state, for late listeners: ask for NOW, then listen —
@@ -185,6 +199,34 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// assistant is about to answer, and a test can gate on the FACT that
     /// a final was recorded instead of hoping two tasks raced its way.
     public var currentContext: String { ledger.text }
+
+    /// What the mind is allowed to remember, oldest first — the same
+    /// "ask for now, replay nothing" pattern as `currentContext` (D-030).
+    public var currentMemory: [ConversationTurn] { memory.turns }
+
+    /// Forgets the conversation without stopping the pipeline (F-4 = A's
+    /// second half: the session boundary is `stop()`, and this is the app
+    /// choosing an earlier one).
+    ///
+    /// It does NOT touch the ledger. The thought in flight is the person's
+    /// current sentence, and dropping it here would answer a question they
+    /// are still in the middle of asking.
+    public func clearMemory() { memory.clear() }
+
+    /// Moves one finished exchange out of the ledger's care and into the
+    /// memory (4r, F-5 = A).
+    ///
+    /// **The invariant this exists to hold: the ledger forgets exactly
+    /// what the memory took.** A barge before the first token has no
+    /// answer half, the memory refuses it, and the caller must therefore
+    /// leave the words where they are — otherwise the person's question
+    /// would vanish between two turns.
+    @discardableResult
+    func remember(_ live: LiveTurn, interrupted: Bool) -> Bool {
+        memory.record(ConversationTurn(said: ledger.text,
+                                       replied: live.generated,
+                                       interrupted: interrupted))
+    }
 
     /// Adds a listener. It hears everything published from now on (D-012).
     public func listen() -> Broadcast<TurnEvent>.Listener {
@@ -311,6 +353,11 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     public func stop() async {
         guard !isStopped else { return }
         isStopped = true
+        // THE SESSION BOUNDARY (F-4 = A). One `start()`…`stop()` is one
+        // conversation: a boundary the person can SEE, which is the only
+        // kind they can trust. A memory that survived this would be a
+        // standing tax on every first token with no visible way to end it.
+        memory.clear()
         let dying = current
         current = nil                      // the ticket dies HERE — no gap
         merge?.yield(.stopped)

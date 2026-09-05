@@ -124,7 +124,19 @@ extension TurnCoordinatorTests {
                 "a failure never answered the words, so they must survive (D-040 F-2)")
     }
 
-    @Test("A barge carries the interrupted thought forward (AC-89, F-3 = A, provisional)")
+    /// **CHANGED BY D-089 (F-5 = A), and the old expectation is written
+    /// down rather than quietly swapped.**
+    ///
+    /// Until 4r a barge left the words in the ledger, so the next thought
+    /// read "the interrupted thought and the rest of it". That was right
+    /// while there was nowhere else for them to go. Now they move into the
+    /// conversation instead — the person heard part of an answer, so the
+    /// exchange happened — and the next thought is only the new sentence.
+    ///
+    /// Nothing is lost: the assertion below checks BOTH halves, that the
+    /// ledger let go and that the memory took it. A test that only checked
+    /// the first would pass just as well if the words had vanished.
+    @Test("A barge moves the thought into the conversation, not into the next question (D-089)")
     func aBargeCarriesTheThoughtForward() async {
         let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
@@ -148,9 +160,13 @@ extension TurnCoordinatorTests {
             await bench.coordinator.stop()
         }
 
-        #expect(bench.generator.record(ofReply: 1)?.transcript
-                == "the interrupted thought and the rest of it",
-                "the barged reply never landed, so its words were never answered")
+        #expect(bench.generator.record(ofReply: 1)?.transcript == "and the rest of it",
+                "the barged thought was remembered, so it must not be re-asked (D-089)")
+        #expect(bench.generator.record(ofReply: 1)?.history.map(\.said)
+                == ["the interrupted thought"],
+                "and it must be REMEMBERED — the ledger let go, so the memory took it")
+        #expect(bench.generator.record(ofReply: 1)?.history.first?.interrupted == true,
+                "marked, or the mind may say \"as I explained\" about half a sentence")
     }
 
     @Test("An empty final is NOT rescued into a reply by a full ledger (AC-87)")

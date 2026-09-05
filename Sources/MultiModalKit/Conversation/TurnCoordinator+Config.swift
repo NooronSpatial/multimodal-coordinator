@@ -45,17 +45,33 @@ extension TurnCoordinator {
         /// wants none of this. `BargeWindow.measured` is the number for an
         /// app that does.
         public var bargeWindow: Duration
+        /// HOW MANY PAST EXCHANGES THE MIND MAY SEE (4r, F-3 = C).
+        public var maxMemoryTurns: Int
+        /// AND HOW MANY CHARACTERS THEY MAY TOTAL — the second bound,
+        /// because turns are wildly unequal and the older mind has a hard
+        /// ceiling a count alone cannot protect (AC-116, AC-199).
+        ///
+        /// **Both defaults are provisional.** AC-197 measures the felt
+        /// pause at three depths on the phone, and D-088 left the real
+        /// numbers to that measurement rather than to taste. Set
+        /// `maxMemoryTurns` to a small number and the memory is off in
+        /// everything but name; the app owns both (D-027).
+        public var maxMemoryCharacters: Int
 
         public init(
             listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity,
             replyGate: Duration = .zero,
             maxContextPieces: Int = 16,
-            bargeWindow: Duration = .zero
+            bargeWindow: Duration = .zero,
+            maxMemoryTurns: Int = 6,
+            maxMemoryCharacters: Int = 4000
         ) {
             self.listenerBufferCapacity = listenerBufferCapacity
             self.replyGate = replyGate
             self.maxContextPieces = maxContextPieces
             self.bargeWindow = bargeWindow
+            self.maxMemoryTurns = maxMemoryTurns
+            self.maxMemoryCharacters = maxMemoryCharacters
         }
     }
 }

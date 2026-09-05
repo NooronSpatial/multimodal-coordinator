@@ -99,6 +99,18 @@ extension TurnCoordinator {
         current = LiveTurn(turn: turn, utterance: utterance)
         if let dying {
             broadcast.publish(.turnBarged(turn: dying.turn))
+            // THE BARGE IS REMEMBERED (4r, F-5 = A). A barge is the person
+            // saying "I heard enough" — something WAS delivered, which is
+            // the opposite of a failure, so D-040 F-2's reason for keeping
+            // the words ("nothing answered them") does not apply here.
+            //
+            // The clear is CONDITIONAL, and that is the whole care in this
+            // arm: a barge during `thinking`, before the first token, has
+            // no answer half. The memory refuses it, `remember` says so,
+            // and the words stay in the ledger to join the next thought.
+            // Clearing unconditionally would make the person's question
+            // vanish between two turns.
+            if remember(dying, interrupted: true) { ledger.clear() }
         }
         transition(to: .listening, turn: turn)
         await dying?.replyRun?.cancel()      // optimization, after the

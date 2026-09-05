@@ -121,7 +121,12 @@ extension TurnCoordinator {
         via input: AsyncStream<Input>.Continuation
     ) async {
         do {
-            let run = try await replyGenerator.openReply(to: text)
+            // WHAT THE MIND IS GIVEN (4r, F-1 = B): this thought, and the
+            // bounded past with the halves kept apart. Built HERE rather
+            // than carried from the gate, for `handleGateExpired`'s reason
+            // one line up — anything that arrived in the meantime belongs.
+            let run = try await replyGenerator.openReply(
+                to: ReplyContext(transcript: text, history: memory.turns))
             // Reentrancy law: a barge or stop() may have run while we
             // awaited. The ticket answers.
             guard !isStopped, current?.turn == turn else {
