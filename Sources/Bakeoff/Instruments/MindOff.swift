@@ -29,8 +29,15 @@ func runMindOff(_ arguments: [String]) async {
     print("needs a signed device build), and nothing here should be read as")
     print("a claim about a phone.")
 
-    await mindOffRun("Apple · FoundationModels", AppleReplyGenerator(instructions: spoken),
-                     prompts: prompts)
+    // 4s: the first citizen needs OS 26 and this instrument no longer
+    // does. Saying which half of a bake-off did not run is the whole
+    // honesty of a bake-off (D-054).
+    if #available(macOS 26.0, *) {
+        await mindOffRun("Apple · FoundationModels", AppleReplyGenerator(instructions: spoken),
+                         prompts: prompts)
+    } else {
+        print("Apple · FoundationModels — NOT RUN: needs macOS 26, this Mac is older.")
+    }
 
     await mindOffLocal(arguments, prompts: prompts, spoken: spoken)
     exit(0)

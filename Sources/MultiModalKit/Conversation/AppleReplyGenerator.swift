@@ -27,6 +27,7 @@ protocol ReplySnapshotStreaming: Sendable {
 
 /// The REAL stream: one `LanguageModelSession` per reply (D-057 F-2 = A),
 /// carrying the app's told-it-is-speaking instructions (F-3 = A).
+@available(macOS 26.0, iOS 26.0, *)
 struct FoundationModelSnapshots: ReplySnapshotStreaming {
     let instructions: String?
 
@@ -107,6 +108,7 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
 /// measured answering `.available` and then failing every generation
 /// (INSTRUMENTS §22). So `openReply` refuses honestly when the enum says
 /// no, and a generation that fails anyway becomes one honest `.failed`.
+@available(macOS 26.0, iOS 26.0, *)
 public struct AppleReplyGenerator: ReplyGenerating {
 
     /// Why a reply cannot start. The three cases are real states of a
@@ -217,6 +219,7 @@ public struct AppleReplyGenerator: ReplyGenerating {
 /// latch — the `retire()` doctrine, adopted here on day one instead of
 /// being retrofitted by a review (D-051's blocker 1 was exactly this
 /// latch missing one caller).
+@available(macOS 26.0, iOS 26.0, *)
 final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     let updates: AsyncStream<ReplyUpdate>
     private let out: AsyncStream<ReplyUpdate>.Continuation

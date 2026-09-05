@@ -4,10 +4,23 @@ import PackageDescription
 let package = Package(
     name: "multimodal-coordinator",
     platforms: [
-        // Phase 2 floor (D-017): Apple's SpeechAnalyzer/SpeechTranscriber
-        // ship with OS 26. The bump is deliberate and logged.
-        .macOS("26.0"),
-        .iOS("26.0"),
+        // THE FLOOR, LOWERED (4s, D-091). It was macOS 26 / iOS 26 from
+        // D-017, because Apple's SpeechAnalyzer ships with OS 26 — and
+        // FoundationModels later joined it. Measured on 2026-09-05:
+        // exactly TWO files in the whole package needed that OS. The ring,
+        // the pump, the VAD, the coordinator, the memory, the Whisper ear,
+        // the MLX mind and both mouths all compiled at 18 unchanged.
+        //
+        // Those two types are now annotated instead of the package, so a
+        // person on iOS 18 gets the library and honestly cannot construct
+        // the two organs their OS does not have.
+        //
+        // These numbers are the dependencies' own, read from their
+        // manifests rather than guessed: kokoro-ios needs iOS 18 / macOS
+        // 15 and is the highest; `Mutex` (Synchronization) also needs 18.
+        // The floor cannot go lower without dropping a mouth.
+        .macOS("15.0"),
+        .iOS("18.0"),
     ],
     products: [
         .library(name: "MultiModalKit", targets: ["MultiModalKit"]),

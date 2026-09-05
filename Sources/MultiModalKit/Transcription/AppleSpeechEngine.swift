@@ -21,6 +21,7 @@ import Synchronization
 ///    bake-off, when 46.5 s of speech came back as 14 words (1 substitution,
 ///    78 deletions — the first sentence, perfect, then silence). The run's
 ///    ONE final is the JOIN of all segment finals, emitted at settle.
+@available(macOS 26.0, iOS 26.0, *)
 public final class AppleSpeechEngine: TranscriptionEngine, ModelBacked, Sendable {
     public let capabilities = EngineCapabilities(emitsPartials: true)
 
@@ -127,6 +128,7 @@ public final class AppleSpeechEngine: TranscriptionEngine, ModelBacked, Sendable
 /// API (spike lesson 3: its results stream must be read and must be killed);
 /// it is created once, cancelled on BOTH exit paths, and its only effect is
 /// yielding into `updates` — a dead run's yields die at the session's ticket.
+@available(macOS 26.0, iOS 26.0, *)
 private final class AppleRun: TranscriptionRun, @unchecked Sendable {
     let updates: AsyncStream<TranscriptionUpdate>
 

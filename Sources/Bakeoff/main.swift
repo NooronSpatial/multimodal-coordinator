@@ -60,16 +60,23 @@ func run(_ engine: any TranscriptionEngine, label: String) async throws -> Bakeo
 var measurements: [BakeoffMeasurement] = []
 
 // — Apple —
-let apple = AppleSpeechEngine()
-if await apple.modelInstalled() {
-    print("apple: warm-up run (excluded from the numbers)…")
-    _ = try? await run(apple, label: "warmup")
-    print("apple: measured run…")
-    do {
-        measurements.append(try await run(apple, label: "Apple SpeechAnalyzer (en_US)"))
-    } catch { print("apple: failed — \(error)") }
+// 4s: the ear ships with OS 26 and the library no longer requires it, so
+// a bake-off on an older Mac has to say which half is missing. A row
+// silently absent is how a bake-off starts lying (D-054).
+if #available(macOS 26.0, *) {
+    let apple = AppleSpeechEngine()
+    if await apple.modelInstalled() {
+        print("apple: warm-up run (excluded from the numbers)…")
+        _ = try? await run(apple, label: "warmup")
+        print("apple: measured run…")
+        do {
+            measurements.append(try await run(apple, label: "Apple SpeechAnalyzer (en_US)"))
+        } catch { print("apple: failed — \(error)") }
+    } else {
+        print("apple: model not installed on this machine — skipped (runs on iPhone, or when the asset daemon heals)")
+    }
 } else {
-    print("apple: model not installed on this machine — skipped (runs on iPhone, or when the asset daemon heals)")
+    print("apple: NOT RUN — SpeechAnalyzer needs macOS 26, this Mac is older.")
 }
 
 // — Whisper —

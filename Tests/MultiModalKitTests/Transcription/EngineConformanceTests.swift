@@ -108,6 +108,11 @@ struct ScriptedTranscriberConformanceTests {
 struct AppleSpeechEngineConformanceTests {
     @Test("cancel ends the stream without a final (model required; skips if absent)")
     func cancelWithoutFinal() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let engine = AppleSpeechEngine()
         guard await engine.modelInstalled() else { return }   // nothing to verify here
         try await EngineConformanceKit.verifyCancelEndsWithoutAFinal(engine)
@@ -125,6 +130,11 @@ import MultiModalKitWhisper
 struct WhisperEngineConformanceTests {
     @Test("one final, then silence, then the stream ends (model required; skips if absent)")
     func oneFinal() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let engine = WhisperEngine()
         guard await engine.modelInstalled() else { return }
         try await EngineConformanceKit.verifyOneFinalAndTermination(engine)
@@ -132,6 +142,11 @@ struct WhisperEngineConformanceTests {
 
     @Test("cancel ends the stream without a final (model required; skips if absent)")
     func cancelWithoutFinal() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let engine = WhisperEngine()
         guard await engine.modelInstalled() else { return }
         try await EngineConformanceKit.verifyCancelEndsWithoutAFinal(engine)
@@ -139,6 +154,11 @@ struct WhisperEngineConformanceTests {
 
     @Test("prewarm is safe and idempotent (model required; skips if absent)")
     func prewarmIsSafeAndIdempotent() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let engine = WhisperEngine()
         engine.prewarm()
         guard await engine.modelInstalled() else { return }
