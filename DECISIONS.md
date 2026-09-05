@@ -3921,3 +3921,83 @@ invariant then covers all four endings without a special case:
 | barged | yes, marked — if both halves exist | cleared iff remembered |
 | failed | never | kept (D-040 F-2) |
 | zero tokens | nothing to remember | cleared: answered, with silence |
+
+## D-090 — the repository gets a licence: Apache-2.0 (Milestone 4r)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad · **Ruling: F-6 = A**
+
+Until today this public repository had **no LICENSE file**. That is not
+"open by default": with no licence the legal position is all rights
+reserved, so every reader of this portfolio — including the ones it was
+built to persuade — was being told they may look and may not build. The
+gap was found by Ryad asking, not by an audit, and that is recorded
+because a licence is exactly the thing a process is supposed to catch.
+
+**A — Apache-2.0, for the patent grant.** This project is real-time
+audio, DSP and model integration, a field with patents, and a licence
+with no explicit grant is the first thing a company's counsel notices. It
+also composes: the four MIT dependencies sit inside an Apache-2.0 work
+without friction.
+
+*Rejected:* **B, MIT.** Shorter, and it matches four of the six
+dependencies. It loses only on the patent clause, and it would have been
+a defensible ruling.
+
+The text is the canonical Apache-2.0, copied byte for byte from a
+resolved checkout and diffed against it — only the copyright line
+differs. `NOTICE` lists all six source dependencies with the licence read
+from each one's own LICENSE file on the day, not from a README, and gives
+model weights their own honest paragraph: none are redistributed here,
+and only the one licence this project actually verified is named.
+
+## D-091 — the platform floor drops to iOS 18 / macOS 15 (Milestone 4s)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad ("go the minimum ios version
+possible") · **Ruling: annotate the two OS-26 types, not the package**
+
+### What D-017 charged, and what it was buying
+
+D-017 moved the floor to OS 26 in Phase 2 and stated the price openly:
+"anyone on an older OS can no longer build the library." Four milestones
+later that price was measured rather than assumed — lower the floor,
+build, read the errors — and it was being paid by the WHOLE library for
+**two files**:
+
+    AppleSpeechEngine     SpeechAnalyzer / SpeechTranscriber
+    AppleReplyGenerator   FoundationModels
+
+Everything else compiled at iOS 18 unchanged: the ring buffer, the pump,
+the VAD, the coordinator, the ledger, 4r's memory, the Whisper ear, the
+MLX mind and both mouths. The seams did their job — nothing else in the
+package had ever touched an OS-26 API.
+
+### Why the types are annotated and the package is not
+
+`@available(macOS 26.0, iOS 26.0, *)` on those two types, and the four
+call sites that build them now ASK first. Each refusal is a sentence a
+person can act on, which is this project's standing shape for
+unavailability (AC-110, `MLXUnavailable`) rather than a crash.
+
+*Rejected:* **moving them into their own opt-in product**, the shape
+D-017 used for WhisperKit and D-023 for MLX. It sounds right and it buys
+almost nothing here: **SwiftPM has no per-target platform floor**, so a
+separate target would need the identical annotations and would ALSO move
+two public types between modules — a breaking change for every consumer
+— to reverse D-057 F-5 = A, whose stated reason ("a system framework in
+an OS the platform floor already requires") is what this entry retires.
+If module hygiene later earns it, that is its own entry.
+
+### The floor is 18 and not lower, and the dependencies said so
+
+Read from their own manifests, not remembered: `kokoro-ios` needs iOS 18
+/ macOS 15 and is the highest of the six; `Mutex` (Synchronization) also
+needs 18; mlx-swift and mlx-swift-lm need 17; argmax-oss-swift and
+swift-transformers need 16. **Below 18 a mouth has to be dropped.**
+
+### The weakness, recorded rather than discovered later
+
+swift-testing forbids `@available` on a `@Suite` or a `@Test`, so the two
+OS-26 suites are gated at RUNTIME with `guard #available … else { return }`.
+On a host older than 26 they report **PASS having proven nothing**. The
+CI matrix must include a 26 host, and the guard's comment says so at
+every site so nobody meets this as a surprise.

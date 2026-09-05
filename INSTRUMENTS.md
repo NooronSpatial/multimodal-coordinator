@@ -4624,3 +4624,71 @@ AC-183 and AC-184 are answered with numbers, on the Mac. What it does
 not do is revisit D-084's "keep the cushion" clause: that needs the same
 zero-silence result on the phone, where RTF is 0.20 and the mind shares
 the GPU. The instrument runs there unchanged the day it is asked to.
+
+## 58. Memory across turns — the first field session (4r, AC-200)
+
+**Method.** Ryad's iPhone, 2026-09-05. Local 4B mind
+(`mlx-community/Qwen3-4B-4bit`), Apple ear, Kokoro mouth, speaker shield
+on, memory depth at the shipped default of 6 exchanges. Four turns of an
+ordinary conversation — not a script, and not a fixture. Numbers are the
+demo's own per-turn lines, copied rather than retyped.
+
+### AC-200: the milestone, answered in words rather than timings
+
+| turn | what he said | what it answered |
+|---|---|---|
+| 2 | "Tell me about the history of Algeria." | ancient civilisations … independence in 1962 |
+| 3 | "What's the capital of **this country**?" | "The capital of **Algeria** is Algiers." |
+| 4 | "the number of the population **there**?" | "The population of **Algeria** is approximately 44 million." |
+
+Turn 3 says *this country* and turn 4 says *there*. Neither sentence
+names Algeria. Before 4r each turn was answered on its own, so the only
+possible replies were a request for clarification or a guess. **This is
+the criterion met, and it is met by the reply's CONTENT — no timing here
+proves anything about memory.**
+
+### What the felt pause did, and why it is NOT AC-197
+
+| turn | exchanges shown | first word | thermal |
+|---|---|---|---|
+| 1 | 0 | **337 ms** | nominal |
+| 2 | 1 | **324 ms** | nominal |
+| 3 | 2 | **430 ms** | fair |
+| 4 | 3 | **426 ms** | fair |
+
+Read plainly: ~330 ms with nothing or one exchange behind it, ~428 ms
+with two or three. About **+100 ms**, which is the direction the
+milestone predicted — history is prefill — and roughly a quarter of the
+gap the twelve-turn log complained about.
+
+**It is not the AC-197 measurement, and must not be quoted as one.**
+Three confounds, all of them live here:
+
+1. **The questions differ.** Prefill is paid on the whole prompt, and a
+   longer question costs more with no memory at all.
+2. **Thermal moved nominal → fair between turns 2 and 3** — exactly where
+   the step appears. That alone can move these numbers.
+3. **Depth never reached the setting.** The lever was at 6; the
+   conversation had produced 3. The 4- and 8-deep rows do not exist.
+
+AC-197 needs the SAME question asked at depth **off / 4 / 8**, on one
+thermal state. The lever shipped for that reason and this session did not
+use it.
+
+### Memory, and the one number worth watching
+
+Header: headroom 3,622 MB · MLX active 2,315 MB · peak 3,062 MB.
+Per turn: free stayed 3,539–3,572 MB; MLX peak rose 2,486 → 2,892 MB
+between turns 1 and 2 and then **did not move again** across turns 3 and
+4. Three exchanges of history cost nothing measurable in resident memory
+at this depth, which is what a few hundred characters of extra prompt
+should cost. AC-198's real answer still needs the deep rows.
+
+### What §58 closes and what it does not
+
+**Closes AC-200.** The conversation remembers, in the field, on the
+phone, with the reply text as the evidence.
+
+**Leaves AC-197 and AC-198 open**, and leaves the default depth of 6
+unruled — D-088 said the number comes from the measurement, and the
+measurement has not been taken. Six is a placeholder until it is.
