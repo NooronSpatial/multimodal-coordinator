@@ -283,6 +283,16 @@ final class TranscribeModel {
     /// What the mind was shown of the conversation before this thought
     /// (4r). Empty on the first turn of a session, and after `stop()`.
     var remembering = ""
+    /// HOW MANY PAST EXCHANGES THE MIND MAY SEE (4r, AC-197).
+    ///
+    /// A lever rather than a constant because the milestone's central
+    /// question is a MEASUREMENT: history is prefill, and every remembered
+    /// exchange lengthens the prompt read before the first token. Zero is
+    /// the baseline — the conversation this app had before 4r — and the
+    /// other rows are measured against it on this phone.
+    ///
+    /// Read when the pipeline starts, so it is disabled while listening.
+    var memoryDepth = 6
     var feltPauseMilliseconds: Int?
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.

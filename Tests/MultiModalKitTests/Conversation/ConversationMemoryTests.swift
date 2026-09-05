@@ -208,6 +208,20 @@ struct ConversationMemoryTests {
         #expect(memory.characters <= config.maxMemoryCharacters)
     }
 
+    /// Fact 15. **A depth of zero is a memory switched off, not a crash.**
+    ///
+    /// The ledger refuses to be built that way and this does not, because
+    /// the two mean different things: a ledger holding nothing loses the
+    /// sentence being spoken now, while a memory holding nothing is just
+    /// the conversation this library had before 4r. AC-197's baseline row
+    /// is measured with exactly this.
+    @Test("a depth of zero remembers nothing and says so")
+    func zeroDepthIsAMemorySwitchedOff() {
+        var memory = ConversationMemory(maxTurns: 0, maxCharacters: 4_000)
+        #expect(memory.record(ConversationTurn(said: "q", replied: "a")) == false)
+        #expect(memory.isEmpty)
+    }
+
     /// Fact 14. `record` reports whether the exchange was TAKEN, because
     /// one caller cannot be correct without knowing (F-5 = A): the
     /// coordinator clears the ledger only for what the memory kept.

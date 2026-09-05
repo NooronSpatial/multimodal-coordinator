@@ -20,6 +20,7 @@
 		55B9A4FDCBFC12251974DD9E /* TranscribeModel+Bench.swift in Sources */ = {isa = PBXBuildFile; fileRef = EACCB656DAE880C89D8D29B4 /* TranscribeModel+Bench.swift */; };
 		575F4E41B849E6017220BA5E /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAFCFE69080BA65B1269D0B /* TranscribeModel.swift */; };
 		58105E5B9F5F9E5BD5278433 /* MindAssetsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D418CD5D552D1D351367B65 /* MindAssetsState.swift */; };
+		5B1D292BE79C5F15F887B9B8 /* SettingsTab+Memory.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD79D3B0BB8773C2F098857E /* SettingsTab+Memory.swift */; };
 		5E7F9BE14687B531F010C974 /* BenchTab+Levers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69080D9C13E4A61DC0B000E8 /* BenchTab+Levers.swift */; };
 		5FFF1441BD1768EC42E8DE60 /* TranscribeModel+Choices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99FAA79C5BB83567D044FE7A /* TranscribeModel+Choices.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
@@ -72,6 +73,7 @@
 		ED702F8110D649D4844745E7 /* SettingsTab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsTab.swift; sourceTree = "<group>"; };
 		F65F3C8AC16A5263D6F942F4 /* PhoneSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSession.swift; sourceTree = "<group>"; };
 		F84A473562F01BC5A69F1AE1 /* TranscribeModel+Assets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TranscribeModel+Assets.swift"; sourceTree = "<group>"; };
+		FD79D3B0BB8773C2F098857E /* SettingsTab+Memory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsTab+Memory.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -107,6 +109,7 @@
 				9E0D1CD307DBAA4EC0084A3C /* ChatTab.swift */,
 				0EE94382D9DC53D73F38E556 /* ChatTab+Turn.swift */,
 				ED702F8110D649D4844745E7 /* SettingsTab.swift */,
+				FD79D3B0BB8773C2F098857E /* SettingsTab+Memory.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -313,6 +316,7 @@
 				B6D4700CA39749CC9EAF626A /* PhoneSession.swift in Sources */,
 				0BA38203BC2A99C9845E8073 /* ProbeState.swift in Sources */,
 				483B5E456D525BC2CE1D4CEC /* RootView.swift in Sources */,
+				5B1D292BE79C5F15F887B9B8 /* SettingsTab+Memory.swift in Sources */,
 				B9A9ED57147F2D5D5E4D2BE4 /* SettingsTab.swift in Sources */,
 				E84AB073DAD101C57D1777F1 /* SweepState.swift in Sources */,
 				BCC7BA87FB4C5EF3D584BB0A /* TranscribeDemoApp.swift in Sources */,

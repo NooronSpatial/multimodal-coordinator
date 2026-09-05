@@ -38,9 +38,17 @@ public struct ConversationMemory: Sendable, Equatable {
     /// question is most likely to refer to.
     private var kept: [ConversationTurn] = []
 
+    /// **`maxTurns: 0` is legal here and is not in the ledger, and the
+    /// difference is not an oversight.** A ledger that can hold nothing
+    /// loses the sentence being spoken right now — that is a bug wearing
+    /// a bound. A memory that can hold nothing is simply a conversation
+    /// with no past, which is what this library did before 4r and what an
+    /// app is entitled to choose (D-027). AC-197 needs it too: the
+    /// zero-depth row is the baseline every other depth is measured
+    /// against.
     public init(maxTurns: Int = 6, maxCharacters: Int = 4000) {
-        precondition(maxTurns > 0, "a memory that can hold nothing is not a bound, it is a bug")
-        precondition(maxCharacters > 0, "same")
+        precondition(maxTurns >= 0, "a negative depth is not a bound, it is a bug")
+        precondition(maxCharacters > 0, "a memory with no room cannot hold half a word")
         self.maxTurns = maxTurns
         self.maxCharacters = maxCharacters
     }
@@ -72,8 +80,11 @@ public struct ConversationMemory: Sendable, Equatable {
         kept.append(ConversationTurn(said: said, replied: replied,
                                      interrupted: turn.interrupted))
 
-        // The depth. Oldest first, so what remains is a SUFFIX.
+        // The depth. Oldest first, so what remains is a SUFFIX — and at
+        // zero that takes the exchange just appended, which is the whole
+        // meaning of a memory switched off.
         if kept.count > maxTurns { kept.removeFirst(kept.count - maxTurns) }
+        guard !kept.isEmpty else { return false }
 
         // The budget, paid in whole exchanges. Never a trimmed reply:
         // half an answer is the half-turn the guard above just refused.

@@ -244,7 +244,12 @@ extension TranscribeModel {
                     // the shield on, its own cancelled reply still crosses
                     // the gate, and §43 measured the leak dying under 530 ms
                     // while real speech runs past 930. Ryad ruled 600 ms.
-                    bargeWindow: BargeWindow.measured),
+                    bargeWindow: BargeWindow.measured,
+                    // 4r, AC-197: the lever, read once when the session
+                    // starts. The character budget keeps the library's
+                    // default — this phone's mind has no 4096-token
+                    // ceiling, and the depth is the axis being measured.
+                    maxMemoryTurns: memoryDepth),
                 clock: ContinuousClock(),
                 latencyReporter: PhoneLatency(model: self),
                 // D-059 = A: dead turns reach the health stream — the road
