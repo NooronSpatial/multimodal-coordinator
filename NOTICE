@@ -1,0 +1,57 @@
+MultiModalKit
+Copyright 2026 Ryad Guerroudj
+
+This product includes software developed by third parties, listed below
+with the licence each one is distributed under. Every entry was read from
+the dependency's own LICENSE file in the resolved checkout, on 2026-09-05
+— not copied from a README and not remembered.
+
+The core library (`MultiModalKit`) has ZERO runtime dependencies by vow
+(D-016). Everything here reaches the build only through an OPT-IN product
+or a demo/test target.
+
+--------------------------------------------------------------------------
+SOURCE DEPENDENCIES
+--------------------------------------------------------------------------
+
+argmax-oss-swift — MIT License, Copyright (c) 2024 argmax, inc.
+    https://github.com/argmaxinc/argmax-oss-swift
+    Used by: MultiModalKitWhisper (opt-in). The Whisper-class ear.
+
+mlx-swift — MIT License, Copyright (c) 2023 ml-explore
+    https://github.com/ml-explore/mlx-swift
+    Used by: MultiModalKitMLX, MultiModalKitTTS (opt-in).
+
+mlx-swift-lm — MIT License, Copyright (c) 2024 ml-explore
+    https://github.com/ml-explore/mlx-swift-lm
+    Used by: MultiModalKitMLX (opt-in). The local mind's runtime.
+
+kokoro-ios — MIT License, Copyright (c) 2025 Lassi Maksimainen
+    https://github.com/NooronSpatial/kokoro-ios
+    Used by: MultiModalKitTTS (opt-in). The Kokoro mouth (D-084).
+
+swift-transformers — Apache License 2.0, Copyright 2022 Hugging Face SAS
+    https://github.com/huggingface/swift-transformers
+    Reached transitively through mlx-swift-lm. Tokenizers and Hub.
+
+MisakiSwift — Apache License 2.0
+    Reached transitively through kokoro-ios. Grapheme-to-phoneme.
+    eSpeak NG (GPL) is NOT linked — verified in the 4p licence audit.
+
+--------------------------------------------------------------------------
+MODEL WEIGHTS
+--------------------------------------------------------------------------
+
+No model weights are contained in this repository. They are downloaded at
+run time by the demo, from the publisher, into the app's own storage, and
+each carries the licence its publisher set — this project redistributes
+none of them.
+
+Verified by this project, because a licence is the one blocker no
+measurement can fix (SPEC §144):
+
+    Kokoro-82M (hexgrad)     Apache License 2.0
+
+Anyone shipping an application built on this library is responsible for
+reading the licence of every model they choose to download, including
+those this project has not audited.

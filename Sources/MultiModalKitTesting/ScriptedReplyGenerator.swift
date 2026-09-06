@@ -29,8 +29,17 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     }
 
     public struct ReplyRecord: Sendable {
-        public var transcript: String
+        /// EVERYTHING the seam was handed, kept whole (4r, F-1 = B). The
+        /// record is where AC-190 and AC-191 are proven, so it must hold
+        /// the past as well as the present — and hold it in ROLES, or the
+        /// test could not tell a flattened seam from a working one.
+        public var context: ReplyContext
         public var cancelled = false
+
+        /// The thought being answered — the shape tests have read since 4a.
+        public var transcript: String { context.transcript }
+        /// What the mind was allowed to remember.
+        public var history: [ConversationTurn] { context.history }
     }
 
     private struct State {
@@ -105,7 +114,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
 
     // MARK: - ReplyGenerating
 
-    public func openReply(to transcript: String) async throws -> any ReplyRun {
+    public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         // Record and continuation land in ONE lock: any observer that can
         // see the record can reach the stream. (The split version lost a
         // race — a test emitting between the two locks yielded into nothing
@@ -115,7 +124,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         let stream = AsyncStream<ReplyUpdate> { handle = $0 }
         let continuation = handle!
         let (index, plan) = state.withLock { state -> (Int, Plan) in
-            state.records.append(ReplyRecord(transcript: transcript))
+            state.records.append(ReplyRecord(context: context))
             let index = state.records.count - 1
             let plan = index < plans.count ? plans[index] : Plan.manual()
             if case .failOnOpen = plan {} else {

@@ -26,7 +26,7 @@ protocol ReplyTokenStreaming: Sendable {
     /// cached refusal would freeze a temporary state into a verdict.
     var unavailable: (any Error)? { get }
     /// Opens one generation and returns its tokens, in birth order.
-    func tokens(for prompt: String) -> AsyncThrowingStream<String, any Error>
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error>
 }
 
 // MARK: - the generator
@@ -38,10 +38,10 @@ protocol ReplyTokenStreaming: Sendable {
 public struct MLXReplyGenerator: ReplyGenerating {
     let source: any ReplyTokenStreaming
 
-    public func openReply(to transcript: String) async throws -> any ReplyRun {
+    public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         // At the door, every time — never cached.
         if let unavailable = source.unavailable { throw unavailable }
-        return MLXReplyRun(source: source, prompt: transcript)
+        return MLXReplyRun(source: source, context: context)
     }
 }
 
@@ -96,7 +96,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// source cannot be heard after a cancel.
     private let work = Mutex<Task<Void, Never>?>(nil)
 
-    init(source: any ReplyTokenStreaming, prompt: String) {
+    init(source: any ReplyTokenStreaming, context: ReplyContext) {
         var handle: AsyncStream<ReplyUpdate>.Continuation!
         self.updates = AsyncStream { handle = $0 }
         self.out = handle
@@ -104,7 +104,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await token in source.tokens(for: prompt) {
+                for try await token in source.tokens(for: context) {
                     guard let self else { return }
                     // Two guards keep a dead run silent, the same pair
                     // `AppleReplyRun` documents: this flag re-read, AND

@@ -174,11 +174,13 @@ enum ReplyConformanceKit {
 @Suite(.timeLimit(.minutes(1)))
 struct AppleReplyGeneratorTests {
 
+    @available(macOS 26.0, iOS 26.0, *)
     static func generator(_ plan: ScriptedSnapshotSource.Plan,
                           refusal: String = "I can't answer that.") -> AppleReplyGenerator {
         AppleReplyGenerator(source: ScriptedSnapshotSource(plan), spokenRefusal: refusal)
     }
 
+    @available(macOS 26.0, iOS 26.0, *)
     static func forged(_ text: String = "forged") -> LanguageModelSession.GenerationError.Context {
         .init(debugDescription: text)
     }
@@ -187,6 +189,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("cumulative snapshots become suffix tokens, then finished, once")
     func tokensThenFinished() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         try await ReplyConformanceKit.verifyTokensThenExactlyOneTerminal(
             Self.generator(.snapshots(["The", "The capital", "The capital of France."])),
             expecting: ["The", " capital", " of France."])
@@ -194,12 +201,22 @@ struct AppleReplyGeneratorTests {
 
     @Test("cancel ends the stream without a terminal")
     func cancelNoTerminal() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         try await ReplyConformanceKit.verifyCancelEndsWithoutATerminal(
             Self.generator(.spinsUntilCancelled))
     }
 
     @Test("nothing AFTER the cancel survives — gated defiance, event-gated end to end")
     func nothingSurvivesCancel() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = ScriptedSnapshotSource(.gatedDefiance(before: "before", after: "before, and a ghost"))
         try await ReplyConformanceKit.verifyNothingAfterTheCancelSurvives(
             AppleReplyGenerator(source: source),
@@ -210,6 +227,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("openReply hands off — generation never blocks the opener")
     func openHandsOff() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = ScriptedSnapshotSource(.spinsUntilCancelled)
         let generator = AppleReplyGenerator(source: source)
         try await ReplyConformanceKit.verifyOpenReplyHandsOff(generator)
@@ -224,6 +246,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("a throwing source is one .failed, terminal")
     func failureIsOneTerminal() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         try await ReplyConformanceKit.verifyFailureIsOneTerminal(
             Self.generator(.snapshotsThenThrow(["part"],
                 NSError(domain: "test", code: 1))))
@@ -233,6 +260,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("a REVISING stream: true tokens out, then one honest failure, never the rewrite")
     func revisionFiresTheTripwire() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let run = try await Self.generator(
             .snapshots(["The answer is yes", "The answer is no, actually"])
         ).openReply(to: "anything")
@@ -252,6 +284,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("an unchanged snapshot says nothing — no empty tokens")
     func unchangedSnapshotsAreSilent() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         try await ReplyConformanceKit.verifyTokensThenExactlyOneTerminal(
             Self.generator(.snapshots(["Same", "Same", "Same but longer"])),
             expecting: ["Same", " but longer"])
@@ -261,6 +298,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("a guardrail violation is SPOKEN, and the turn completes (F-4 = A)")
     func guardrailIsSpoken() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let run = try await Self.generator(
             .snapshotsThenThrow([], LanguageModelSession.GenerationError
                 .guardrailViolation(Self.forged())),
@@ -273,6 +315,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("a model refusal is SPOKEN the same way (F-4 = A)")
     func refusalIsSpoken() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let run = try await Self.generator(
             .snapshotsThenThrow([], LanguageModelSession.GenerationError
                 .refusal(.init(transcriptEntries: []), Self.forged())))
@@ -283,6 +330,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("the context window overflowing is a named failure")
     func contextWindowFails() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let run = try await Self.generator(
             .snapshotsThenThrow(["partial"], LanguageModelSession.GenerationError
                 .exceededContextWindowSize(Self.forged())))
@@ -296,6 +348,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("assets unavailable names the Simulator lesson — availability lied")
     func assetsUnavailableFails() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let run = try await Self.generator(
             .snapshotsThenThrow([], LanguageModelSession.GenerationError
                 .assetsUnavailable(Self.forged())))
@@ -309,6 +366,11 @@ struct AppleReplyGeneratorTests {
 
     @Test("rate limiting, concurrency, decoding, guides: each one honest .failed")
     func remainingCasesFail() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let errors: [LanguageModelSession.GenerationError] = [
             .rateLimited(Self.forged()),
             .concurrentRequests(Self.forged()),
@@ -336,6 +398,11 @@ struct AppleReplyGeneratorTests {
     /// other way round.
     @Test("openReply throws the honest reason when the model is unavailable")
     func unavailableRefusesAtTheDoor() async throws {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         guard AppleReplyGenerator.availability != nil else { return }
         await #expect(throws: AppleReplyGenerator.Unavailable.self) {
             _ = try await AppleReplyGenerator().openReply(to: "anything")
@@ -351,6 +418,11 @@ struct AppleReplyGeneratorTests {
 @Suite struct UnavailableWordsTests {
     @Test("every unavailability reason describes itself in honest words")
     func reasonsSpeak() {
+        // OS 26 only (4s). swift-testing forbids `@available` on a
+        // `@Test`, so the gate is a runtime one — and on an older
+        // machine this suite reports PASS without having proven
+        // anything, which is why the CI matrix must include a 26 host.
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
         #expect(String(describing: AppleReplyGenerator.Unavailable.modelNotReady)
             == "the on-device model is still downloading — try later")
         #expect(String(describing: AppleReplyGenerator.Unavailable.appleIntelligenceNotEnabled)

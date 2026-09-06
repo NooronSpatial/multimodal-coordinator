@@ -80,6 +80,15 @@ extension AudioDemo {
     static func chosenEar(_ choice: String) -> (engine: any TranscriptionEngine, name: String)? {
         switch choice {
         case "apple":
+            // 4s: the ear ships with OS 26 and the library no longer does,
+            // so the demo has to ASK. Same shape as every other
+            // unavailability in this project — a sentence a person can
+            // act on, never a crash.
+            guard #available(macOS 26.0, *) else {
+                print("--ear=apple needs macOS 26 — this Mac is older. "
+                      + "Use `whisper`, which runs from 15.")
+                return nil
+            }
             return (AppleSpeechEngine(), "Apple SpeechAnalyzer (en-US, streaming)")
         case "whisper":
             return (WhisperEngine(), "Whisper base (batch — text arrives after each pause)")

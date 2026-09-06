@@ -3835,3 +3835,291 @@ reply. `steadyRealTimeFactor` is now optional and `keepsUp` falls back
 to the whole-reply rate; the margin itself is always reported. *Rejected:
 leave them invisible.* An instrument that cannot see short replies
 cannot learn from them, and short replies are most of a conversation.
+
+## D-088 — 4r's four forks, ruled (Milestone 4r)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad · **Rulings: F-1 = B, F-2 = C,
+F-3 = C, F-4 = A** — all four on the spec's recommendations, ruled at
+sign-off in one message.
+
+This entry does **not** reverse D-057 F-2. That ruling said the mind gets
+one stateless session per turn and "the context the model needs is
+assembled by us and visible". It stands. What changes is what "assembled
+by us" is allowed to contain — and its own rejection line named this
+milestone in advance.
+
+### F-1 = B — the seam carries ROLES, not a flat string
+
+`ReplyGenerating` takes a context of turns tagged user/assistant instead
+of one `String`. Roles are the thing being added, and a flat string is a
+lossy encoding of exactly that: both real minds already have a
+role-tagged native shape — MLX's `Chat.Message`, Apple's per-turn
+messages — which a flat string would force them to reconstruct by
+parsing.
+
+The cost is named rather than hidden. `ReplyGenerating` is public, so
+this is a breaking change; its size is known and small — **six
+conformers, all in this repository**: `AppleReplyGenerator`,
+`MLXReplyGenerator`, `ScriptedReplyGenerator`, `PacedEchoReply`,
+`PhoneEchoReply`, `ThoughtWitness`. D-017's rule (public surface is
+earned by a second real implementation) is satisfied the honest way: the
+second citizen already exists and has since 4h.
+
+*Rejected:* **A, flatten to the existing String seam.** Cheaper, and
+correct right up to the first time a model answers as the user because it
+could not tell the halves apart. *Rejected:* **C, the app owns it.** Then
+every app reimplements the bound, the drop rule and the barge rule, and
+this library's own demo carries the logic the library exists to own.
+
+### F-2 = C — what was GENERATED, with a barged turn marked
+
+*Rejected:* **B, what was actually spoken.** It is the correct answer and
+this pipeline cannot give it: `SynthesisRun` reports `started` and
+`finished` and nothing between, so "how much did they hear" is not a fact
+this library owns today. Recording it as if it were would be the kind of
+guess §71 warns about. B returns as its own milestone the day the mouth
+reports spoken progress.
+
+*Rejected:* **A, what was generated, unmarked.** Worse than incomplete —
+it lets the mind refer back to a sentence the person heard half of. C is
+A plus one honest flag, which is the cheapest thing that does not lie.
+
+### F-3 = C — a depth AND a character budget, whichever bites first
+
+Turns are wildly unequal: three long answers can outweigh twenty short
+ones. A depth alone therefore cannot protect the Apple mind's measured
+4096-token ceiling (AC-116), and a budget alone can keep forty tiny turns
+and pay prefill for every one of them. Both minds share one seam, so the
+older citizen sets the floor.
+
+Both numbers belong to the app (D-027). The **defaults** are not ruled
+here: AC-197 measures the felt pause at three depths on the phone, and
+the default depth is ruled from those numbers in a later entry.
+
+*Rejected:* **A, a turn count alone** and **B, a budget alone** — each
+protects one axis and is blind on the other.
+
+### F-4 = A — the memory ends with the Listen session
+
+One `start()`…`stop()` is one conversation, plus an explicit way for the
+app to clear it sooner. A boundary a person can SEE is the only kind they
+can trust.
+
+*Rejected:* **B, a memory that survives stop/start.** No visible end, and
+on a phone a standing tax on every first token. *Rejected:* **C, a time
+expiry.** It needs a clock and a number nobody has measured, and the
+ledger already refused a time-based expiry for that exact reason —
+"it has no clock, by design" (`TurnCoordinator.swift:290`).
+
+### The cost this milestone must keep honest
+
+History is prefill. The twelve-turn log's only complaint was the delay
+between thinking and speaking, and D-087 ruling 3 showed most of it is
+the wait for TEXT. Every remembered turn lengthens the prompt read before
+the first token. AC-197 exists so that trade is a measurement and the
+default depth is a consequence of it — never a number chosen because it
+sounded generous.
+
+## D-089 — a barge is remembered, and D-040 F-2 is narrowed (Milestone 4r)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad · **Ruling: F-5 = A** — the
+barged exchange goes into the conversation, and the ledger lets it go.
+
+### The collision that raised the fork
+
+D-040 F-2 forgets a thought only when the reply was fully SPOKEN, so a
+barge left the words in the ledger to join the next thought. AC-193 also
+puts the barged exchange in the memory. Both together hand the mind the
+same sentence twice — once as a remembered turn, once glued to the front
+of the new question — and a mind given the same words twice answers them
+twice.
+
+### The ruling
+
+**A — record it, and clear the ledger.** A barge is the person saying "I
+heard enough": something WAS delivered. That is the opposite of a
+failure, where nothing reached them, so D-040 F-2's reason for keeping
+the words — "nothing answered them" — does not apply to this ending.
+
+*Rejected:* **B, remember nothing and keep the words as before.** It
+loses the fact that the mind already began answering, so it can begin the
+same answer again — exactly the repetition the interrupted mark exists to
+prevent. *Rejected:* **C, record the answer half only.** Forbidden by
+AC-192, and the worst of both: an answer with no question.
+
+### What this does to D-040 F-2, stated rather than implied
+
+Its rule was "forgotten only when the reply was fully spoken". It is now
+**"fully spoken, or interrupted by the person"**. A failed turn still
+keeps its words — nothing was delivered — so the core is intact, and this
+entry rather than a silent edit is where the narrowing lives.
+
+The test that asserted the old behaviour was not swapped quietly either:
+`aBargeCarriesTheThoughtForward` keeps its name, states the old
+expectation in its doc comment, and now checks BOTH halves — that the
+ledger let go **and** that the memory took it. A test that only checked
+the first would pass just as well if the words had vanished.
+
+### The trap found while tracing the ruling, and the invariant that kills it
+
+A barge during `thinking`, before the first token, has no answer half.
+The memory refuses it (both halves or nothing), and a coordinator that
+cleared the ledger anyway would make the person's question **vanish
+between two turns** — invisible to every other test.
+
+So the coordinator does not clear on barge. It clears on being told the
+memory took the exchange:
+
+> **the ledger forgets exactly what the memory took.**
+
+`ConversationMemory.record` returns that fact for this one caller. The
+invariant then covers all four endings without a special case:
+
+| ending | remembered | ledger |
+|---|---|---|
+| fully spoken | yes, unmarked | cleared |
+| barged | yes, marked — if both halves exist | cleared iff remembered |
+| failed | never | kept (D-040 F-2) |
+| zero tokens | nothing to remember | cleared: answered, with silence |
+
+## D-090 — the repository gets a licence: Apache-2.0 (Milestone 4r)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad · **Ruling: F-6 = A**
+
+Until today this public repository had **no LICENSE file**. That is not
+"open by default": with no licence the legal position is all rights
+reserved, so every reader of this portfolio — including the ones it was
+built to persuade — was being told they may look and may not build. The
+gap was found by Ryad asking, not by an audit, and that is recorded
+because a licence is exactly the thing a process is supposed to catch.
+
+**A — Apache-2.0, for the patent grant.** This project is real-time
+audio, DSP and model integration, a field with patents, and a licence
+with no explicit grant is the first thing a company's counsel notices. It
+also composes: the four MIT dependencies sit inside an Apache-2.0 work
+without friction.
+
+*Rejected:* **B, MIT.** Shorter, and it matches four of the six
+dependencies. It loses only on the patent clause, and it would have been
+a defensible ruling.
+
+The text is the canonical Apache-2.0, copied byte for byte from a
+resolved checkout and diffed against it — only the copyright line
+differs. `NOTICE` lists all six source dependencies with the licence read
+from each one's own LICENSE file on the day, not from a README, and gives
+model weights their own honest paragraph: none are redistributed here,
+and only the one licence this project actually verified is named.
+
+## D-091 — the platform floor drops to iOS 18 / macOS 15 (Milestone 4s)
+
+**Date:** 2026-09-05 · **Decided by:** Ryad ("go the minimum ios version
+possible") · **Ruling: annotate the two OS-26 types, not the package**
+
+### What D-017 charged, and what it was buying
+
+D-017 moved the floor to OS 26 in Phase 2 and stated the price openly:
+"anyone on an older OS can no longer build the library." Four milestones
+later that price was measured rather than assumed — lower the floor,
+build, read the errors — and it was being paid by the WHOLE library for
+**two files**:
+
+    AppleSpeechEngine     SpeechAnalyzer / SpeechTranscriber
+    AppleReplyGenerator   FoundationModels
+
+Everything else compiled at iOS 18 unchanged: the ring buffer, the pump,
+the VAD, the coordinator, the ledger, 4r's memory, the Whisper ear, the
+MLX mind and both mouths. The seams did their job — nothing else in the
+package had ever touched an OS-26 API.
+
+### Why the types are annotated and the package is not
+
+`@available(macOS 26.0, iOS 26.0, *)` on those two types, and the four
+call sites that build them now ASK first. Each refusal is a sentence a
+person can act on, which is this project's standing shape for
+unavailability (AC-110, `MLXUnavailable`) rather than a crash.
+
+*Rejected:* **moving them into their own opt-in product**, the shape
+D-017 used for WhisperKit and D-023 for MLX. It sounds right and it buys
+almost nothing here: **SwiftPM has no per-target platform floor**, so a
+separate target would need the identical annotations and would ALSO move
+two public types between modules — a breaking change for every consumer
+— to reverse D-057 F-5 = A, whose stated reason ("a system framework in
+an OS the platform floor already requires") is what this entry retires.
+If module hygiene later earns it, that is its own entry.
+
+### The floor is 18 and not lower, and the dependencies said so
+
+Read from their own manifests, not remembered: `kokoro-ios` needs iOS 18
+/ macOS 15 and is the highest of the six; `Mutex` (Synchronization) also
+needs 18; mlx-swift and mlx-swift-lm need 17; argmax-oss-swift and
+swift-transformers need 16. **Below 18 a mouth has to be dropped.**
+
+### The weakness, recorded rather than discovered later
+
+swift-testing forbids `@available` on a `@Suite` or a `@Test`, so the two
+OS-26 suites are gated at RUNTIME with `guard #available … else { return }`.
+On a host older than 26 they report **PASS having proven nothing**. The
+CI matrix must include a 26 host, and the guard's comment says so at
+every site so nobody meets this as a surprise.
+
+## D-092 — the memory's bound, set by measurement (Milestone 4r)
+
+**Date:** 2026-09-06 · **Decided by:** Ryad · **Ruling: F-8 = B — a
+600-character budget, with the depth cap at 8**
+
+D-088 shipped 6 turns and 4,000 characters and said in writing that both
+were placeholders until AC-197 existed. It exists (INSTRUMENTS §58b), and
+it changed more than the number.
+
+### What the sweep found
+
+The cost of history is **linear in CHARACTERS**, not in exchanges — three
+independent segments of the sweep agreeing to within 2.5%:
+
+    ~0.68 ms of felt pause      per character of remembered conversation
+    ~0.40 MB of TRANSIENT memory per character (the prefill KV cache)
+
+That settles which of F-3's two bounds is the real one. Exchanges vary in
+length by more than 4×, so a depth cannot price anything; the depth
+survives only as a sanity cap that stops forty one-word exchanges each
+paying their own prefill.
+
+### The finding that was not the one being looked for
+
+4,000 characters extrapolates to **+2,722 ms of felt pause and +1,618 MB
+of transient memory**. The field session that produced these numbers had
+**1,269 MB of room**. The shipped default could not fit in the phone it
+shipped for.
+
+It had never fired because no conversation had yet run long enough to
+accumulate 4,000 characters of history. **A placeholder that was never
+exercised was a jetsam risk with a countdown on it** — the crash class
+D-079 and §27 already cost this project two field trips. Recorded plainly
+because "we would have caught it later" is exactly what was not true: the
+later it fired, the longer the conversation, the worse the report.
+
+### Why 600 and not 300
+
+The felt pause argues downwards: 300 characters is ~204 ms against 600's
+~408 ms, and 4o exists because Ryad complained about this exact pause.
+
+**D-088's cliff argues back, and wins.** An exchange too large to fit
+alone empties the whole memory. His longest field exchange measured ~185
+characters, so a 300-character budget puts a silent memory-wipe within
+reach of ONE long answer. A memory that empties without saying so is
+worse than a smaller one that holds. 600 sits over three times clear of
+the largest exchange ever measured here.
+
+*Rejected:* **A, 300 characters (~204 ms).** Cheaper, and defensible if
+the cliff were re-ruled at the same time — an oversized exchange keeping
+the newest turn instead of wiping everything. That would be its own fork
+and it was not taken. *Rejected:* **C, 900 characters (~613 ms).** Buys
+about two more exchanges for another 200 ms, on the axis the person
+holding the phone has already complained about.
+
+### The cost, stated rather than buried
+
+The shipped memory adds **up to ~408 ms of felt pause and ~243 MB of
+transient memory**. That is not free, and it is roughly a third of the
+gap the twelve-turn log called "a little bit more time between thinking
+and speaking". It buys turn 3 being able to say "this country".

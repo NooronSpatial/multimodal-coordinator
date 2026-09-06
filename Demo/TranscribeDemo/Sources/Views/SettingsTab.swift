@@ -76,6 +76,7 @@ struct SettingsTab: View {
                         .pickerStyle(.menu)
                         .disabled(model.isListening)
                     }
+                    memorySection
                     if model.mind == .local {
                         // The model picker is gone (D-064): 4B is the local
                         // mind, full stop. A picker with one option is a

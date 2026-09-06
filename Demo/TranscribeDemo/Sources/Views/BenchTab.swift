@@ -22,6 +22,11 @@ struct BenchTab: View {
     let model: TranscribeModel
     let mindProbe: MindProbe
     @State private var showMindProbe = false
+    /// 4r, AC-197. Owned here rather than passed in: unlike `MindProbe` it
+    /// measures nothing until asked, and nothing outside this screen reads
+    /// its rows.
+    @State private var memoryProbe = MemoryProbe()
+    @State private var showMemoryProbe = false
 
     var body: some View {
         NavigationStack {
@@ -132,6 +137,16 @@ struct BenchTab: View {
                     }
                     .disabled(model.isListening)
                 }
+                // THE MEMORY PROBE (4r, AC-197): what history costs the
+                // felt pause, swept off · 4 · 8 with one question.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showMemoryProbe = true
+                    } label: {
+                        Label("Memory probe", systemImage: "clock.arrow.circlepath")
+                    }
+                    .disabled(model.isListening)
+                }
                 // THE SHIELD PROBE (4g, AC-119).
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -158,6 +173,17 @@ struct BenchTab: View {
                 NavigationStack {
                     List { MindProbeSection(probe: mindProbe) }
                         .navigationTitle("Mind probe")
+                }
+            }
+            .sheet(isPresented: $showMemoryProbe) {
+                NavigationStack {
+                    List {
+                        MemoryProbeSection(
+                            probe: memoryProbe,
+                            model: model.localModel,
+                            instructions: TranscribeModel.spokenInstructions)
+                    }
+                    .navigationTitle("Memory probe")
                 }
             }
         }

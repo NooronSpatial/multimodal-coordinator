@@ -26,6 +26,12 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
         + "Answer in ONE short sentence. Do not add extra facts unless asked."
     switch want {
     case "apple":
+        // 4s, and the same refusal the ear now makes one seam over.
+        guard #available(macOS 26.0, *) else {
+            refuse("--mind=apple needs macOS 26 — this Mac is older. "
+                + "Use `--mind=local`, which runs from 15.")
+            return PacedEchoReply(screen: screen)
+        }
         return AppleReplyGenerator(instructions: spoken)
     case "local":
         // A path is not a model. `--model=/nope` used to sail past this

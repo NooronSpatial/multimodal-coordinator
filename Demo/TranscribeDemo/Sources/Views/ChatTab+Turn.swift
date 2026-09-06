@@ -92,6 +92,17 @@ extension ChatTab {
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
+                // AND WHAT IT REMEMBERED (4r). Its own line, because the
+                // thought above is the person's words and this is not —
+                // running them together would make the memory look like
+                // something the speaker said.
+                if !model.remembering.isEmpty {
+                    Label(model.remembering, systemImage: "clock.arrow.circlepath")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
 
             // The gate, on screen and adjustable — a level means nothing

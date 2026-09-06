@@ -201,7 +201,7 @@ final class TranscribeModel {
     /// just replies my question" — cannot be chased without the real
     /// exchange, and because the one fact that separates the two likely
     /// causes is WHICH BRAIN answered, which no screenshot shows.
-    var turns: [ConversationTurn] = []
+    var turns: [TurnReport] = []
 
     /// A margin that arrived BEFORE its row existed, waiting for record().
     /// The 4n review broke the first version's assumption two ways: a
@@ -280,6 +280,24 @@ final class TranscribeModel {
     var reply = ""
     /// The whole thought the generator received (AC-91) — 4c made visible.
     var wholeThought = ""
+    /// What the mind was shown of the conversation before this thought
+    /// (4r). Empty on the first turn of a session, and after `stop()`.
+    var remembering = ""
+    /// HOW MANY PAST EXCHANGES THE MIND MAY SEE (4r, AC-197).
+    ///
+    /// A lever rather than a constant because the milestone's central
+    /// question is a MEASUREMENT: history is prefill, and every remembered
+    /// exchange lengthens the prompt read before the first token. Zero is
+    /// the baseline — the conversation this app had before 4r — and the
+    /// other rows are measured against it on this phone.
+    ///
+    /// Read when the pipeline starts, so it is disabled while listening.
+    ///
+    /// 8 after D-092 — the same sanity cap the library ships. The real
+    /// bound is the 600-character budget, which at the measured
+    /// ~0.68 ms/char holds the added felt pause under ~408 ms whatever
+    /// this picker says.
+    var memoryDepth = 8
     var feltPauseMilliseconds: Int?
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.
