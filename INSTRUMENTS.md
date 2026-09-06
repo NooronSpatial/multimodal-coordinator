@@ -4712,6 +4712,14 @@ Draws within each depth: 320/321/326, 615/645/670, 967/944/962. The
 spread is under 55 ms; the steps between depths are over 300 ms. The
 signal is far larger than the noise.
 
+**These rows bypass the shipped bound on purpose.** The probe hands the
+history straight to `ReplyContext` rather than through
+`ConversationMemory`, so the curve can be measured past what the app
+allows. After D-092 the shipped budget is 600 characters, which makes the
+942-character row **a point on a curve and not a configuration this app
+can be in**. Quoting 962 ms as "what memory costs" would be quoting an
+instrument's fixture as a product.
+
 ### AC-197: the cost is LINEAR, and it is linear in characters
 
     off → 4    +324 ms over 482 chars    0.672 ms/char

@@ -236,9 +236,17 @@ final class MemoryProbe {
         out += "\n## read this against\n\n"
         out += "- The thermal column. If it is not the same word on every row, the\n"
         out += "  sweep measured two machines and the difference is not history.\n"
-        out += "- The shipped character budget is 4,000 and the deepest row here is\n"
-        out += "  \(Self.filler.reduce(0) { $0 + $1.characters }) characters, so the budget never bit:\n"
-        out += "  every row differs by DEPTH alone, which is what AC-197 asked.\n"
+        // THIS PROBE BYPASSES `ConversationMemory` ON PURPOSE — it hands
+        // the history straight to `ReplyContext` so the deep rows exist at
+        // all. After D-092 the shipped budget is 600 characters, which
+        // means the 8-deep row here is a point on a CURVE and not a
+        // configuration this app can be in. Reading 962 ms as "what memory
+        // costs" would be reading an instrument's fixture as a product.
+        out += "- These rows bypass the shipped bound deliberately: the history goes\n"
+        out += "  straight to the seam, so the curve can be measured past what the\n"
+        out += "  app allows. The shipped budget is 600 characters (D-092), so only\n"
+        out += "  the 'off' row and the first ~600 characters are reachable in use.\n"
+        out += "  Deeper rows are the CURVE, not a configuration.\n"
         out += "- The mouth is not in these numbers. It sits after the mind and its\n"
         out += "  cost does not move with history, so the DIFFERENCE between rows\n"
         out += "  carries to the felt pause while the absolute values do not.\n"
