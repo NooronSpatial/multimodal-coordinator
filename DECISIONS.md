@@ -4001,3 +4001,65 @@ OS-26 suites are gated at RUNTIME with `guard #available … else { return }`.
 On a host older than 26 they report **PASS having proven nothing**. The
 CI matrix must include a 26 host, and the guard's comment says so at
 every site so nobody meets this as a surprise.
+
+## D-092 — the memory's bound, set by measurement (Milestone 4r)
+
+**Date:** 2026-09-06 · **Decided by:** Ryad · **Ruling: F-8 = B — a
+600-character budget, with the depth cap at 8**
+
+D-088 shipped 6 turns and 4,000 characters and said in writing that both
+were placeholders until AC-197 existed. It exists (INSTRUMENTS §58b), and
+it changed more than the number.
+
+### What the sweep found
+
+The cost of history is **linear in CHARACTERS**, not in exchanges — three
+independent segments of the sweep agreeing to within 2.5%:
+
+    ~0.68 ms of felt pause      per character of remembered conversation
+    ~0.40 MB of TRANSIENT memory per character (the prefill KV cache)
+
+That settles which of F-3's two bounds is the real one. Exchanges vary in
+length by more than 4×, so a depth cannot price anything; the depth
+survives only as a sanity cap that stops forty one-word exchanges each
+paying their own prefill.
+
+### The finding that was not the one being looked for
+
+4,000 characters extrapolates to **+2,722 ms of felt pause and +1,618 MB
+of transient memory**. The field session that produced these numbers had
+**1,269 MB of room**. The shipped default could not fit in the phone it
+shipped for.
+
+It had never fired because no conversation had yet run long enough to
+accumulate 4,000 characters of history. **A placeholder that was never
+exercised was a jetsam risk with a countdown on it** — the crash class
+D-079 and §27 already cost this project two field trips. Recorded plainly
+because "we would have caught it later" is exactly what was not true: the
+later it fired, the longer the conversation, the worse the report.
+
+### Why 600 and not 300
+
+The felt pause argues downwards: 300 characters is ~204 ms against 600's
+~408 ms, and 4o exists because Ryad complained about this exact pause.
+
+**D-088's cliff argues back, and wins.** An exchange too large to fit
+alone empties the whole memory. His longest field exchange measured ~185
+characters, so a 300-character budget puts a silent memory-wipe within
+reach of ONE long answer. A memory that empties without saying so is
+worse than a smaller one that holds. 600 sits over three times clear of
+the largest exchange ever measured here.
+
+*Rejected:* **A, 300 characters (~204 ms).** Cheaper, and defensible if
+the cliff were re-ruled at the same time — an oversized exchange keeping
+the newest turn instead of wiping everything. That would be its own fork
+and it was not taken. *Rejected:* **C, 900 characters (~613 ms).** Buys
+about two more exchanges for another 200 ms, on the axis the person
+holding the phone has already complained about.
+
+### The cost, stated rather than buried
+
+The shipped memory adds **up to ~408 ms of felt pause and ~243 MB of
+transient memory**. That is not free, and it is roughly a third of the
+gap the twelve-turn log called "a little bit more time between thinking
+and speaking". It buys turn 3 being able to say "this country".

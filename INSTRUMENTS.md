@@ -4766,6 +4766,11 @@ cost tracks characters, and exchanges vary in length by more than 4×.
 ### What §58b closes
 
 **AC-197 and AC-198 are answered with numbers**, on the phone, at one
-thermal state, with the depth varied and nothing else. What remains is a
-ruling: the default depth and budget are still D-088's placeholders, and
-the numbers above say what each candidate costs.
+thermal state, with the depth varied and nothing else.
+
+**Ruled the next day (D-092, F-8 = B):** the budget drops from 4,000
+characters to **600**, and the depth becomes a sanity cap at 8. The
+shipped memory therefore costs up to **~408 ms of felt pause and ~243 MB
+of transient memory** — stated here rather than buried, because it is
+about a third of the gap the twelve-turn log complained about, and it is
+what buys turn 3 the ability to say "this country".

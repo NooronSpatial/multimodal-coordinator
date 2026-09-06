@@ -292,7 +292,12 @@ final class TranscribeModel {
     /// other rows are measured against it on this phone.
     ///
     /// Read when the pipeline starts, so it is disabled while listening.
-    var memoryDepth = 6
+    ///
+    /// 8 after D-092 — the same sanity cap the library ships. The real
+    /// bound is the 600-character budget, which at the measured
+    /// ~0.68 ms/char holds the added felt pause under ~408 ms whatever
+    /// this picker says.
+    var memoryDepth = 8
     var feltPauseMilliseconds: Int?
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.

@@ -4227,13 +4227,20 @@ from it, not from taste.
   report. *(Corrected during implementation: as first written this
   criterion claimed the memory survives backgrounding, which is true of
   the retire and false of the session.)*
-- **AC-197** — **MEASURED ON THE PHONE.** Final-accepted to first audible
-  word at 0, 4 and 8 remembered turns, over §56's fixtures. The default
-  depth is then the number this measurement allows, and it is a decision
-  entry — not a number chosen because it sounded generous.
-- **AC-198** — footprint against depth, by §30's method. A longer prompt
-  is a larger KV cache, and this app already lives inside a jetsam limit
-  it has been killed by twice.
+- **AC-197** — **MEASURED ON THE PHONE.** ✅ *Answered 2026-09-05,
+  INSTRUMENTS §58b, ruled in D-092.* The `MemoryProbe` sweep put the cost
+  at **~0.68 ms of felt pause per character** of history — linear, three
+  segments agreeing within 2.5%, thermal `fair` on all nine rows. The
+  measurement was taken on the MIND's first token rather than the first
+  audible word, because the mouth sits after the mind and its cost does
+  not move with history; the difference between rows carries, the
+  absolute values do not.
+- **AC-198** — footprint against depth. ✅ *Answered 2026-09-05,
+  INSTRUMENTS §58b.* **~0.40 MB of TRANSIENT memory per character** —
+  resident memory barely moved and the whole cost is the prefill KV
+  cache, allocated and given back. This is the criterion that turned out
+  to matter most: it is what proved D-088's placeholder budget was a
+  jetsam risk rather than merely a slow default.
 - **AC-199** — the shared seam does not break the older citizen. The
   character budget is the lever, its default is documented against the
   measured 4096-token ceiling (AC-116), and the existing

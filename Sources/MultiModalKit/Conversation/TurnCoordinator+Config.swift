@@ -46,16 +46,17 @@ extension TurnCoordinator {
         /// app that does.
         public var bargeWindow: Duration
         /// HOW MANY PAST EXCHANGES THE MIND MAY SEE (4r, F-3 = C).
+        /// A sanity cap after D-092; the budget below is what bites.
         public var maxMemoryTurns: Int
         /// AND HOW MANY CHARACTERS THEY MAY TOTAL — the second bound,
         /// because turns are wildly unequal and the older mind has a hard
         /// ceiling a count alone cannot protect (AC-116, AC-199).
         ///
-        /// **Both defaults are provisional.** AC-197 measures the felt
-        /// pause at three depths on the phone, and D-088 left the real
-        /// numbers to that measurement rather than to taste. Set
-        /// `maxMemoryTurns` to a small number and the memory is off in
-        /// everything but name; the app owns both (D-027).
+        /// **Both defaults are MEASURED now** (D-092, INSTRUMENTS §58b):
+        /// ~0.68 ms of felt pause and ~0.40 MB of transient memory per
+        /// character on the phone this project targets. 600 characters is
+        /// ~408 ms and ~243 MB. Set `maxMemoryTurns` to 0 and the memory
+        /// is genuinely off; the app owns both numbers (D-027).
         public var maxMemoryCharacters: Int
 
         public init(
@@ -63,8 +64,8 @@ extension TurnCoordinator {
             replyGate: Duration = .zero,
             maxContextPieces: Int = 16,
             bargeWindow: Duration = .zero,
-            maxMemoryTurns: Int = 6,
-            maxMemoryCharacters: Int = 4000
+            maxMemoryTurns: Int = 8,
+            maxMemoryCharacters: Int = 600
         ) {
             self.listenerBufferCapacity = listenerBufferCapacity
             self.replyGate = replyGate

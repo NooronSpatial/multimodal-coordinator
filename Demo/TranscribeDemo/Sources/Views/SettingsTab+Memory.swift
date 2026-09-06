@@ -7,38 +7,35 @@
 import SwiftUI
 
 extension SettingsTab {
-    /// The memory lever and the sentence that makes it a measurement.
+    /// The memory lever, and the sentence that makes it a measurement.
     @ViewBuilder
     var memorySection: some View {
-        // MEMORY ACROSS TURNS (4r, AC-197). Read when the
-        // session starts, so it cannot change under a live
-        // conversation — hence disabled while listening, like
-        // the mind above it.
+        // MEMORY ACROSS TURNS (4r, AC-197). Read when the session starts,
+        // so it cannot change under a live conversation — hence disabled
+        // while listening, like the mind picker above it.
         HStack {
-    Text("Memory").font(.subheadline)
-    Spacer()
-    Picker("Memory", selection: Bindable(model).memoryDepth) {
-        Text("off").tag(0)
-        ForEach([2, 4, 6, 8], id: \.self) { depth in
-            Text("\(depth) turns").tag(depth)
+            Text("Memory").font(.subheadline)
+            Spacer()
+            Picker("Memory", selection: Bindable(model).memoryDepth) {
+                Text("off").tag(0)
+                ForEach([2, 4, 6, 8], id: \.self) { depth in
+                    Text("\(depth) turns").tag(depth)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.menu)
+            .disabled(model.isListening)
         }
-    }
-    .labelsHidden()
-    .pickerStyle(.menu)
-    .disabled(model.isListening)
-        }
-        // History is PREFILL: every remembered exchange
-        // lengthens the prompt the mind reads before its first
-        // token, and the felt pause is the number this project
-        // has spent three milestones on. Saying so here is what
-        // makes the picker a measurement rather than a taste.
+        // History is PREFILL, and after D-092 the price is a NUMBER:
+        // ~0.68 ms of felt pause per character on this phone (§58b). The
+        // 600-character budget is what actually bites, so printing the
+        // depth alone would suggest the depth is what costs.
         Text(model.memoryDepth == 0
-     ? "off · each question is answered on its own, as before 4r"
-     : "the mind sees the last \(model.memoryDepth) exchanges "
-       + "· costs felt pause, measured on this phone")
-    .font(.caption2)
-    .foregroundStyle(.secondary)
-    .frame(maxWidth: .infinity, alignment: .leading)
-
+             ? "off · each question is answered on its own, as before 4r"
+             : "up to \(model.memoryDepth) exchanges, capped at 600 characters "
+               + "· about +400 ms of felt pause at most (measured)")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

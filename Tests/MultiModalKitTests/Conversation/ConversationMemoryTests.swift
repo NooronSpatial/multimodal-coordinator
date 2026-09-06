@@ -173,39 +173,65 @@ struct ConversationMemoryTests {
         #expect(memory.count == 1, "a cleared memory is not a dead one")
     }
 
-    /// Fact 13 — **THE OLDER MIND'S CEILING, PINNED AS A NUMBER (AC-199).**
+    /// Fact 13 — **THE SHIPPED BOUND, AND THE MEASUREMENT THAT SET IT**
+    /// (AC-197/AC-198/AC-199, D-092, INSTRUMENTS §58b).
     ///
-    /// Both minds share one seam, so the smaller budget rules. Apple's was
-    /// MEASURED at 4096 tokens (AC-116), and at the ~4 characters per
-    /// token English averages that is roughly 16,000 characters for
-    /// EVERYTHING — instructions, the past, the question, and the reply
-    /// being generated into the same window.
+    /// The sweep on Ryad's phone found the cost linear in CHARACTERS —
+    /// ~0.68 ms of felt pause and ~0.40 MB of transient memory each, three
+    /// segments agreeing within 2.5%. So 600 characters is ~408 ms and
+    /// ~243 MB, which is what this project ships.
     ///
-    /// The shipped default gives the past 4,000 of them: a quarter, with
-    /// the other three quarters left to the parts that cannot be dropped.
-    /// This test does not prove the model survives; only a device can do
-    /// that, and `.exceededContextWindowSize` remains the honest backstop
-    /// when it does not. What it pins is that the number cannot drift
-    /// upward without someone reading this comment first.
+    /// **The number this replaced is the reason this test is not
+    /// decoration.** 4,000 was D-088's placeholder and extrapolates to
+    /// +2,722 ms and +1,618 MB against the 1,269 MB of room that session
+    /// had. It was a jetsam risk nobody had reached, because no
+    /// conversation had yet run long enough to fill it. A default that
+    /// dangerous should not be movable without meeting these lines.
     ///
-    /// Provisional, and deliberately so: D-088 left the real depth to
-    /// AC-197's measurement of the felt pause on the phone.
-    @Test("the shipped budget stays well inside the older mind's measured ceiling")
-    func theDefaultBudgetRespectsTheSmallerMind() {
+    /// It also still clears the OLDER mind's ceiling with room to spare:
+    /// Apple's was measured at 4096 tokens (AC-116), roughly 16,000
+    /// characters for the whole window, and the past may claim 600.
+    @Test("the shipped bound is the measured one, and it clears both limits")
+    func theShippedBoundIsTheMeasuredOne() {
         let config = TurnCoordinator<ContinuousClock>.Config()
-        #expect(config.maxMemoryCharacters == 4_000)
-        #expect(config.maxMemoryCharacters * 4 <= 16_000,
-                "the past alone must not be able to fill Apple's 4096-token window")
-        #expect(config.maxMemoryTurns == 6)
+        #expect(config.maxMemoryCharacters == 600)
+        #expect(config.maxMemoryTurns == 8)
 
-        // And the memory built from that config agrees with it — a bound
-        // configured and then not applied is the failure this whole suite
-        // exists to catch.
+        // The felt pause this buys, at the measured 0.68 ms per character.
+        #expect(Double(config.maxMemoryCharacters) * 0.68 < 500,
+                "a memory that costs half a second recreates the complaint it was added beside")
+        // And the transient spike, at the measured 0.40 MB per character,
+        // against the smallest headroom this app has been seen to have.
+        #expect(Double(config.maxMemoryCharacters) * 0.40 < 400,
+                "the prefill spike must stay far from the jetsam limit (D-079, §27)")
+        #expect(config.maxMemoryCharacters * 4 <= 16_000,
+                "and the past alone must not fill Apple's 4096-token window")
+
+        // A bound configured and then not applied is the failure this
+        // whole suite exists to catch.
         var memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
                                         maxCharacters: config.maxMemoryCharacters)
         for index in 1...40 { memory.record(Self.exchange(index, size: 300)) }
         #expect(memory.count <= config.maxMemoryTurns)
         #expect(memory.characters <= config.maxMemoryCharacters)
+    }
+
+    /// Fact 13b — **THE CLIFF STAYS OUT OF REACH, and that is why the
+    /// ruling was 600 and not 300.**
+    ///
+    /// An exchange too large to fit alone empties the memory (Fact 8).
+    /// Ryad's longest field exchange measured ~185 characters, so 300
+    /// would have put a silent memory-wipe within reach of ONE long
+    /// answer. 600 sits over three times clear of it.
+    @Test("an ordinary exchange cannot reach the cliff at the shipped bound")
+    func theCliffIsOutOfReachAtTheShippedBound() {
+        var memory = ConversationMemory()
+        let longestSeenInTheField = ConversationTurn(
+            said: String(repeating: "q", count: 40),
+            replied: String(repeating: "a", count: 145))
+        #expect(longestSeenInTheField.characters == 185)
+        let kept = memory.record(longestSeenInTheField)
+        #expect(kept, "the longest real exchange must never wipe the conversation")
     }
 
     /// Fact 15. **A depth of zero is a memory switched off, not a crash.**

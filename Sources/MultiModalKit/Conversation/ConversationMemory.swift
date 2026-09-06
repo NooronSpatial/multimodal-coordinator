@@ -16,6 +16,11 @@
 /// failing test until GREEN wires it.
 public struct ConversationMemory: Sendable, Equatable {
     /// How many past exchanges may be kept (F-3 = C, the first bound).
+    ///
+    /// A SANITY CAP after D-092, not the working bound: at the sizes a
+    /// real conversation produces, `maxCharacters` is reached first. It
+    /// still earns its place — it is what stops forty one-word exchanges
+    /// from each paying their own prefill.
     public let maxTurns: Int
     /// How many characters all kept exchanges may total (F-3 = C, the
     /// second bound).
@@ -25,10 +30,21 @@ public struct ConversationMemory: Sendable, Equatable {
     /// Apple mind's measured 4096-token ceiling (AC-116), and a budget
     /// alone can keep forty tiny turns and pay prefill for every one.
     ///
-    /// The NUMBERS are the app's (D-027). These defaults are a starting
-    /// point and are deliberately not ruled: AC-197 measures the felt
-    /// pause at three depths on the phone, and D-088 leaves the default
-    /// depth to that measurement.
+    /// **THE BOUND THAT ACTUALLY BITES, AND IT IS MEASURED** (D-092,
+    /// INSTRUMENTS §58b). On Ryad's phone, with a 4-bit 4B mind, history
+    /// costs **~0.68 ms of felt pause and ~0.40 MB of transient memory per
+    /// character** — three independent segments of the sweep agreeing to
+    /// within 2.5%. Cost tracks CHARACTERS, and exchanges vary in length
+    /// by more than 4×, so a depth alone cannot price anything.
+    ///
+    /// 600 characters is therefore ~408 ms and ~243 MB. The number that
+    /// was here before was 4,000, a placeholder, and it extrapolates to
+    /// **+2,722 ms and +1,618 MB** against the 1,269 MB of room that
+    /// session had. It was a jetsam risk that had simply never been
+    /// reached, because no conversation had run long enough to fill it.
+    ///
+    /// The NUMBERS are still the app's (D-027); these are what this
+    /// project ships after measuring, not before.
     public let maxCharacters: Int
 
     /// Oldest first — the conversation in the order it happened.
@@ -46,7 +62,7 @@ public struct ConversationMemory: Sendable, Equatable {
     /// app is entitled to choose (D-027). AC-197 needs it too: the
     /// zero-depth row is the baseline every other depth is measured
     /// against.
-    public init(maxTurns: Int = 6, maxCharacters: Int = 4000) {
+    public init(maxTurns: Int = 8, maxCharacters: Int = 600) {
         precondition(maxTurns >= 0, "a negative depth is not a bound, it is a bug")
         precondition(maxCharacters > 0, "a memory with no room cannot hold half a word")
         self.maxTurns = maxTurns
