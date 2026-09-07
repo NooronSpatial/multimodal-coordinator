@@ -17,10 +17,22 @@ import Testing
 @Suite(.timeLimit(.minutes(1)))
 struct AIRuntimeTests {
 
-    /// Spins until `condition` holds or the cap is hit. A cap, not a sleep:
-    /// a red test must fail FAST (§3.3), never hang.
-    static func until(_ condition: () async -> Bool, spins: Int = 20_000) async -> Bool {
-        for _ in 0..<spins {
+    /// Yields until `condition` holds or a DEADLINE passes — the bench's
+    /// shape (`TurnCoordinatorTests.until`), copied on purpose.
+    ///
+    /// The first version of this helper was bounded by a spin COUNT, which
+    /// is the exact thing §3.3 forbids ("never for N iterations"). A count
+    /// of yields is not a time budget: under load it can expire before a
+    /// child task has even been scheduled, and a test that fails for that
+    /// reason is lying about the code. Found by inspection after a 20×
+    /// loop failed once and could not be reproduced in 230 further runs;
+    /// whether it was this is not known, because that loop discarded the
+    /// failing run's output — a loop that cannot show the race cannot
+    /// find it. Both lessons are kept here rather than in a commit only.
+    static func until(_ condition: () async -> Bool, within: Duration = .seconds(10)) async -> Bool {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: within)
+        while clock.now < deadline {
             if await condition() { return true }
             await Task.yield()
         }
