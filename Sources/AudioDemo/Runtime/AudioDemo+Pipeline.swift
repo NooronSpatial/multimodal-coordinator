@@ -1,19 +1,34 @@
 import Foundation
 import MultiModalKit
 
-// Extends `AudioDemo` with the live pipeline: building the pump from the
-// levers, and running every listener — screen, health, transcripts and
-// (with `--talk`) the turn loop — in one task group.
+// Extends `AudioDemo` with what the FRONT DOOR needs from this machine:
+// the policy numbers it earned (as one configuration), and the screen
+// consumers that observe the session (as one function). The pump, the
+// session, the coordinator, the listener order and the task group are the
+// runtime's now (4t, D-093) — the hand-wiring that used to live here was
+// deleted, not wrapped (AC-208).
 
 extension AudioDemo {
-    /// The pump, wired to this machine's earned numbers.
-    static func makePump(
-        reading consumer: AudioRingConsumer, flags: DemoFlags,
-        sampleRate: Double, diagnostics: PipelineDiagnostics
-    ) -> AudioPump<ContinuousClock> {
+    /// What this machine established before the door opened: the ear
+    /// whose model is (or is not) ready, the ring's read side, and the
+    /// rate the microphone actually runs at. Three facts from startup,
+    /// carried as one thing because they ARE one thing.
+    struct Machine {
+        let ear: any TranscriptionEngine
+        let consumer: AudioRingConsumer
+        let sampleRate: Double
+    }
+
+    /// Every policy value this machine earned, passed through untouched
+    /// (AC-204). The runtime adds none of its own.
+    static func configuration(
+        flags: DemoFlags, machine: Machine, screen: Screen,
+        releaseSource: @escaping @Sendable () async -> Void
+    ) -> AIRuntime<ContinuousClock>.Configuration {
+        let sampleRate = machine.sampleRate
         let chunkFrames = Int(sampleRate * 0.02)          // 20 ms of sound per verdict
-        return AudioPump(
-            consumer: consumer,
+        return .init(
+            consumer: machine.consumer,
             // 0.02 is the LAPTOP gate. The 0.01 borrowed from the iPhone
             // tuning flaps on a Mac's ambient: field run 08-13 showed the
             // post-sentence level hovering AT 0.01 — the gate opened every
@@ -27,59 +42,50 @@ extension AudioDemo {
             vad: EnergyVAD(config: .init(threshold: flags.vadThreshold,
                                          hangoverFrames: Int(sampleRate * flags.hangoverMs / 1000),
                                          onsetFrames: Int(sampleRate * flags.onsetMs / 1000))),
+            ear: machine.ear,
+            // The Phase 4b slice (AC-84): with `--talk` the loop SPEAKS —
+            // a real mind and mouth behind the same seams the scripted
+            // organs proved. Without it, listen-only (F-3 = B): no mind,
+            // no mouth, no coordinator.
+            mind: flags.talk ? chosenMind(flags.arguments, screen: screen) : nil,
+            mouth: flags.talk ? chosenMouth(flags.arguments) : nil,
+            pump: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
+                        chunkFrames: chunkFrames, preRollChunks: 10),
+            transcription: .init(format: .init(sampleRate: sampleRate, channels: 1)),
+            // `--gate <ms>`: the AC-81 reply gate, this machine's to earn.
+            turns: .init(replyGate: .milliseconds(Int(flags.gateMs))),
             clock: ContinuousClock(),
-            config: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
-                          chunkFrames: chunkFrames, preRollChunks: 10),
-            diagnostics: diagnostics)
+            // Field forensics (the 08-13 --talk investigation): the demo
+            // was BLIND to listener overflow — the pump's broadcast drops
+            // oldest silently when a listener stalls (D-012). Health makes
+            // the invisible number visible.
+            diagnostics: PipelineDiagnostics(),
+            latencyReporter: ConsoleLatency(screen: screen),
+            // Nothing this app holds renders: the neural mouth, when
+            // chosen, owns its own engine. Step 2 of the teardown is
+            // therefore absent here and present on the phone.
+            stopRendering: nil,
+            releaseSource: releaseSource)
     }
 
-    /// Every listener, running until the process is killed.
-    static func runPipeline(
-        pump: AudioPump<ContinuousClock>, transcription: TranscriptionSession?,
-        ringDrops consumer: AudioRingConsumer, diagnostics: PipelineDiagnostics,
-        flags: DemoFlags
+    /// The screen, observing the session: health, per-utterance audio
+    /// forensics, transcripts, and (with `--talk`) the turns. One nested
+    /// group; when the runtime stops its actors every stream here ends
+    /// and this returns — nothing outlives the conversation.
+    static func observe(
+        _ session: AIRuntime<ContinuousClock>.Session, on screen: Screen,
+        ringDrops consumer: AudioRingConsumer
     ) async {
-        let screen = Screen()
-
         await withTaskGroup(of: Void.self) { group in
-            let audioForScreen = await pump.listen()
-            let health = diagnostics.health()          // listen BEFORE run: no replay
-            group.addTask { await diagnostics.run() }
-            group.addTask { await showHealth(health.events, on: screen) }
-            group.addTask { await pump.run() }
-            group.addTask {
-                await showAudio(audioForScreen.events, on: screen, ringDrops: consumer)
+            if let health = session.health {
+                group.addTask { await showHealth(health.events, on: screen) }
             }
-
-            if let transcription {
-                let audioForSession = await pump.listen()
-                let transcripts = await transcription.listen()
-                group.addTask { await transcription.run(events: audioForSession.events) }
-                group.addTask { await showTranscripts(transcripts.events, on: screen) }
-
-                if flags.talk {
-                    // The Phase 4b slice (AC-84): the loop now SPEAKS —
-                    // AVSpeechSynthesizer behind the same seam the scripted
-                    // voice proved. Real microphone barge-in, the R2 latency
-                    // seam on a real clock, and (--gate) the AC-81 reply
-                    // gate: the demo reuses the exact code paths the
-                    // deterministic tests prove.
-                    let coordinator = TurnCoordinator(
-                        replyGenerator: chosenMind(flags.arguments, screen: screen),
-                        synthesizer: chosenMouth(flags.arguments),
-                        config: .init(replyGate: .milliseconds(Int(flags.gateMs))),
-                        clock: ContinuousClock(),
-                        latencyReporter: ConsoleLatency(screen: screen))
-                    let audioForTurns = await pump.listen()
-                    let transcriptsForTurns = await transcription.listen()
-                    let turnEvents = await coordinator.listen()
-                    group.addTask {
-                        await coordinator.run(
-                            audio: audioForTurns.events,
-                            transcripts: transcriptsForTurns.events)
-                    }
-                    group.addTask { await showTurns(turnEvents.events, on: screen) }
-                }
+            group.addTask {
+                await showAudio(session.audio.events, on: screen, ringDrops: consumer)
+            }
+            group.addTask { await showTranscripts(session.transcripts.events, on: screen) }
+            if let turns = session.turns {
+                group.addTask { await showTurns(turns.events, on: screen) }
             }
         }
     }

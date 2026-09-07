@@ -109,16 +109,24 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
         }
     }
 
-    /// What the app may observe. Opened by the runtime BEFORE any loop
-    /// runs, which is the whole point of handing them over rather than
-    /// letting the app open its own.
-    public struct Listeners: Sendable {
+    /// What the app may observe, and the one thing it may steer.
+    ///
+    /// The listeners are opened by the runtime BEFORE any loop runs, which
+    /// is the whole point of handing them over rather than letting the app
+    /// open its own. The conversation is handed over because an app
+    /// interrupts it (a phone call, a Control Centre swipe), resumes it,
+    /// and clears its memory — that is the coordinator's public surface,
+    /// and hiding it would force the app back to hand-wiring.
+    public struct Session: Sendable {
         public let audio: Broadcast<AudioEvent>.Listener
         public let transcripts: Broadcast<TranscriptEvent>.Listener
         /// Present when a mind and a mouth were given.
         public let turns: Broadcast<TurnEvent>.Listener?
         /// Present when diagnostics were given.
         public let health: Broadcast<HealthEvent>.Listener?
+        /// Present when a mind and a mouth were given. Steer it; never
+        /// `stop()` it — the runtime does that, in order, on the way out.
+        public let conversation: TurnCoordinator<C>?
     }
 
     public let configuration: Configuration
@@ -129,11 +137,11 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
 
     /// Runs the spine until the calling task is cancelled (F-4 = A).
     ///
-    /// `observe` runs as one more child of the group, with the listeners
-    /// already open. When it, or any child, ends, the actors are stopped
+    /// `observe` runs as one more child of the group, with the session's
+    /// listeners already open. When it, or any child, ends, the actors are stopped
     /// so every stream finishes, the scope drains, and the teardown runs
     /// in order on the way out.
-    public func run(observing observe: @escaping @Sendable (Listeners) async -> Void) async {
+    public func run(observing observe: @escaping @Sendable (Session) async -> Void) async {
         let config = configuration
         // A mind without a mouth, or the reverse, is not a mode — it is a
         // bug in the caller (F-3 = B: together, or neither).
@@ -170,11 +178,12 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
             coordinator == nil ? nil : await pump.listen()
         let transcriptsForTurns: Broadcast<TranscriptEvent>.Listener? =
             coordinator == nil ? nil : await transcription.listen()
-        let listeners = Listeners(
+        let session = Session(
             audio: await pump.listen(),
             transcripts: await transcription.listen(),
             turns: await coordinator?.listen(),
-            health: config.diagnostics?.health())
+            health: config.diagnostics?.health(),
+            conversation: coordinator)
 
         // 3. ONE GROUP, AND THE GROUP IS THE WALL (D-014, the iOS demo's
         //    shape). Every loop is a child, so a cancel reaches all of
@@ -196,7 +205,7 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
             if let diagnostics = config.diagnostics {
                 group.addTask { await diagnostics.run() }
             }
-            group.addTask { await observe(listeners) }
+            group.addTask { await observe(session) }
 
             _ = await group.next()
             await pump.stop()
