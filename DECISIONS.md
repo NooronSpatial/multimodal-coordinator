@@ -4123,3 +4123,80 @@ The shipped memory adds **up to ~408 ms of felt pause and ~243 MB of
 transient memory**. That is not free, and it is roughly a third of the
 gap the twelve-turn log called "a little bit more time between thinking
 and speaking". It buys turn 3 being able to say "this country".
+
+## D-093 — the front door: five rulings at sign-off (Milestone 4t, Runtime Phase A)
+
+**Date:** 2026-09-07 · **Decided by:** Ryad · **Rulings: F-1 = B, F-2 = A,
+F-3 = B, F-4 = A, F-5 = A** — four on the spec's recommendations, and
+**F-5 against it**, which is recorded here with both arguments intact.
+
+### The reframe the spec rests on
+
+The two hand-wiring sites (`AudioDemo+Pipeline.swift:67`,
+`TranscribeModel+Pipeline.swift:218`) do not duplicate decisions — every
+differing value is policy D-027/AC-22 pushed out on purpose. They
+duplicate **sequence**: listeners before run loops, one task group, and
+the three-step teardown that the Mac demo never had. The milestone owns
+the order once and leaves every policy number app-owned.
+
+### F-1 = B — the door owns assembly AND teardown
+
+The teardown is the expensive half: the rule that cost a milestone, and
+the one a second caller (the Mac demo) silently lacks. *Rejected:* **A,
+assembly only** — keeps the cheap half and hands back the part that goes
+wrong. *Rejected:* **C, plus organ choice** — organ choice is policy, both
+demos already have UI for it, and a runtime that picks the mind would make
+AC-204 impossible on day one.
+
+### F-2 = A — one `Configuration` that CONTAINS the existing configs
+
+One parameter is a simple interface (the deep-module rule), and because
+the value only holds `AudioPump.Config`, `TranscriptionSession.Config` and
+`TurnCoordinator.Config` — types the app already owns — it adds no policy
+vocabulary. *Rejected:* **B, a ten-parameter initializer** — the shallow
+wrapper that leaks its insides, widened by every future lever.
+*Rejected:* **C, a builder of closures** — a concept with no second caller
+(R3).
+
+**A consequence found while designing, recorded here:** the source is
+NOT held by the runtime. `AudioSource` is `AnyObject` and not `Sendable`,
+and AC-22 says the app owns starting it (permissions, the session). So
+the app starts the source into the ring and hands the runtime the
+**consumer**; the teardown's steps 2 and 3 are app-supplied `@Sendable`
+closures (`stopRendering`, `releaseSource`) that the runtime calls **at
+the moment the order requires**. The runtime owns the sequence; the app
+owns the objects. That is F-1 = B honoured without a Sendable lie.
+
+### F-3 = B — listen-only is one door with optional organs
+
+Both demos already model it this way, and transcription-only was this
+library's entire job for two milestones. *Rejected:* **A, two doors** —
+80% shared body. *Rejected:* **C, no-op organs** — a fake mouth to avoid
+speaking is a lie told to the type system.
+
+### F-4 = A — a structured `run()`, teardown on the unwinding path
+
+§4.1 forbids a leaked unstructured `Task {}` in production paths, and both
+demos already own their task. *Rejected:* **B, `start()`/`stop()`** —
+moves a leaked task INTO the library. The cost is named: cancellation is
+the only way to stop, so the three teardown steps run on the unwinding
+path, which is where they are easiest to get wrong — AC-203 exists to
+catch exactly that. The shape copied is the iOS demo's own "the group is
+the wall": wait for the first child to end, stop the actors so every
+stream finishes, let the scope drain.
+
+### F-5 = A — it is called `AIRuntime`, and this overrules the recommendation
+
+The spec recommended **B, `ConversationRuntime`**, on the argument that a
+type which cannot see, cannot call a tool and has no permissions should
+not carry the platform's name — a cheque the code does not cover — and
+that renaming is one commit while there are two consumers.
+
+Ryad ruled **A**. The case for it, stated so it can be defended: the
+destination is known and written down (the brief's §10 target shape);
+every application that imports the door imports its NAME, so a rename
+later costs every consumer an edit at exactly the moment consumers exist;
+and a name that states the destination shapes the work toward it. The
+recommendation is kept here as the rejected option, not erased, because
+the risk it named is real: **the doc comment on `AIRuntime` must say
+what it does NOT yet do**, so the name cannot be read as a claim.
