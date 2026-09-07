@@ -20,7 +20,7 @@ the top, and — when the app is talking back — a spoken reply leaves at
 the bottom.
 
 ```
- microphone ──► MicrophoneSource (385)     the mic tap. The ONLY code that
+ microphone ──► MicrophoneSource     the mic tap. The ONLY code that
                      │ writes frames       runs on the audio thread: view
                      │                     the buffer, copy, return. Owns
                      │                     the ORDER of the session seam,
@@ -29,51 +29,51 @@ the bottom.
                      │                     level (4e), and it watches for
                      │                     the engine killing its own graph.
                      ▼
-                AudioRingBuffer (199)      lock-free SPSC ring; the one
+                AudioRingBuffer      lock-free SPSC ring; the one
                      │                     bridge off the audio thread;
                      │ drains              every dropped frame counted,
                      ▼                     exactly.
-                AudioPump (244)  actor     wakes on an injected clock,
+                AudioPump  actor     wakes on an injected clock,
                      │                     drains the ring, asks
-                     │                     EnergyVAD (99) "speech?" —
+                     │                     EnergyVAD "speech?" —
                      │                     hangover out — adds 200 ms
                      │                     pre-roll.
                      ▼  AudioEvents:  speechStarted / audioSegment /
                      │                speechEnded / dropped
                      ▼
-                TranscriptionSession (366) One loop, one truth:
+                TranscriptionSession One loop, one truth:
                      │                     utterance tickets, barge-in,
                      │                     settling decodes (D-024),
                      │                     the single transition funnel.
                      ▼  via the engine seam
-                TranscriptionEngine (99)   the protocol: capabilities +
+                TranscriptionEngine   the protocol: capabilities +
                   ├─ AppleSpeechEngine     openRun / feed / finishAudio.
-                  │    (254)               streaming, emits partials.
-                  └─ WhisperEngine (267)   whole-utterance, one-decode-
+                  │                  streaming, emits partials.
+                  └─ WhisperEngine   whole-utterance, one-decode-
                      │                     at-a-time waiter queue,
                      │                     offline-proven local load.
                      ▼
                 TranscriptEvents:  partial / final / failed / truncated
                      │                 ──► the app's screen
                      ▼
-                TurnCoordinator (692)      THE NAMESAKE. The conversation
+                TurnCoordinator      THE NAMESAKE. The conversation
                      │                     above the text: turn ticket,
                      │                     barge-in across the whole chain,
                      │                     the funnel + legal-pair table,
                      │                     the reply gate — the floor must
                      │                     stay yielded before it answers
                      │                     (4b, app's number) — and the
-                     │                     TranscriptLedger (98), which
+                     │                     TranscriptLedger, which
                      │                     keeps the WHOLE thought so a
                      │                     pause mid-sentence no longer
                      │                     costs the first half (4c).
                      ▼  via the turn seams (TurnCoordination, 91)
                   ├─ ReplyGenerating       final text in, reply tokens out
-                  │    └─ AppleReplyGenerator (326)   THE MIND (4f): Apple's
+                  │    └─ AppleReplyGenerator   THE MIND (4f): Apple's
                   │         on-device model, a SYSTEM framework, so core's
                   │         zero-dependency vow holds (D-057 F-5). One
                   │         session per turn; snapshots → SnapshotDiffer
-                  │         (70), the pure tripwire (D-058) — a revision
+                  │        , the pure tripwire (D-058) — a revision
                   │         of spoken text is a named failure, never
                   │         spoken garbage. Refusals are SPOKEN (F-4).
                   └─ SpeechSynthesizing    tokens in, spoken EVIDENCE out
@@ -82,22 +82,22 @@ the bottom.
                      │                     mouths" from a claim into a
                      │                     proof. Both pass one kit.
                      │
-                     ├─ AppleSpeechSynthesizer (320)   thin: hand text to
+                     ├─ AppleSpeechSynthesizer   thin: hand text to
                      │     the framework, report delegate evidence. Picks
                      │     the best INSTALLED voice. Behind the 4g shield
-                     │     it opens AppleWrittenSynthesisRun (307) instead:
+                     │     it opens AppleWrittenSynthesisRun instead:
                      │     write() hands us the PCM and the reply renders
                      │     on the capture host — both mouths, one road,
                      │     the canceller sees them all (AC-121).
                      │
-                     └─ NeuralVoice (307) ─► NeuralVoiceRun (574)
+                     └─ NeuralVoice ─► NeuralVoiceRun
                            MultiModalKitTTS, an OPT-IN product. Qwen3 via
                            CoreML. The DECODER decodes; WE render, onto a
                            PlaybackHost. `feed` hands off and returns —
                            it must never block the coordinator's loop.
                               │
-                              └─► TTSDecoding (60)   a seam of our own, so
-                                    ├─ TTSKitDecoder (73)   the vendor's
+                              └─► TTSDecoding   a seam of our own, so
+                                    ├─ TTSKitDecoder   the vendor's
                                     │    DECODE lives in ONE file. Its model
                                     │    lifecycle does not, by ruling
                                     │    (D-053 F-7 = A).
@@ -107,12 +107,44 @@ the bottom.
                                          asked to fail on command.
                      │
                      │  the phrasing for both lives in SpeechPhraser
-                     │  (130), pure and clockless; when to START lives in
-                     │  PlaybackLead (118), also pure.
+                     │ , pure and clockless; when to START lives in
+                     │  PlaybackLead, also pure.
                      ▼
                 TurnEvents:  stateChanged / replyToken / completed /
                              barged / failed  ──► the app's screen
 ```
+
+## The front door — the order, owned once (4t)
+
+Two applications used to assemble the spine by hand, and what they
+duplicated was not decisions — every differing value was policy pushed out
+of the library on purpose (D-027, AC-22). They duplicated SEQUENCE, and
+sequence is where the accidents lived. `AIRuntime` owns it:
+
+```
+ the app ──► AIRuntime(Configuration)      the app's OWN config types and
+                 │                          organs, passed through untouched;
+                 │ .run(observing:)         the door adds no policy (AC-204).
+                 ▼
+     1. build the actors          pump · TranscriptionSession · TurnCoordinator
+     2. open EVERY listener       the spine's own AND the app's — before any
+                                  loop starts, or the first utterance is lost,
+                                  intermittently (AC-202)
+     3. one task group            every loop a child; "the group is the wall":
+                                  the first child to end stops the actors, every
+                                  stream finishes, the scope drains (D-014)
+     4. teardown, in order        actors → stopRendering → releaseSource, on the
+                                  way out; the bodies of steps 2 and 3 are the
+                                  app's closures, the MOMENT is the door's (AC-203)
+                 │
+                 ▼ Session:  audio · transcripts · turns? · health? · conversation?
+             the app observes, and steers the one thing it may — the conversation
+```
+
+The name is the destination's, taken early by ruling (D-093 F-5). Today
+it composes a voice conversation and nothing else: it cannot see, cannot
+call a tool, has no permission layer and no model router. Read it as a
+direction, not a claim.
 
 ## The seams — each one has two real implementations
 
@@ -129,10 +161,11 @@ MLX emits tokens, which is what `ReplyUpdate` already carried.
 |---|---|
 | `AudioSource` | `MicrophoneSource` · `FakeMicrophone` |
 | `TranscriptionEngine` | `AppleSpeechEngine` · `WhisperEngine` · `ScriptedTranscriber` |
-| `ReplyGenerating` | `AppleReplyGenerator` · **`MLXReplyGenerator` (4h)** · the demos' generators · `ScriptedReplyGenerator` |
+| `ReplyGenerating` (takes a `ReplyContext` since 4r) | `AppleReplyGenerator` · **`MLXReplyGenerator` (4h)** · the demos' generators · `ScriptedReplyGenerator` |
 | `ReplySnapshotStreaming` (4f, internal) | `FoundationModelSnapshots` · a scripted source in the tests |
 | `ReplyTokenStreaming` (4h, internal) | `MLXTokenSource` · a scripted source in the tests |
 | `SpeechSynthesizing` | `AppleSpeechSynthesizer` · `NeuralVoice` · `ScriptedSynthesizer` |
+| `SpokenVoice` (4q) | `NeuralVoice` (Qwen3-TTS) · `KokoroVoice` |
 | `AudioSessionConfiguring` (4d) | the app's `PhoneSession` · `nil` on macOS |
 | `PlaybackHost` (4e) | `AudioEnginePlaybackHost` · `MicrophonePlaybackHost` |
 | `TTSDecoding` (4e, internal) | `TTSKitDecoder` · a scripted decoder in the tests |
@@ -242,32 +275,39 @@ variable, and every fault of that afternoon was findable in one command
 | The echo canceller switch, and what it measured | `Audio/MicrophoneSource.swift`, `INSTRUMENTS.md` §6, §8 |
 | The spans in Instruments | `Diagnostics/PipelineSignposter.swift` |
 | The manual clock and scripted engines | `Sources/MultiModalKitTesting/` |
-| The pipeline wired for real | `Demo/TranscribeDemo/Sources/TranscribeModel.swift`, `Sources/AudioDemo/AudioDemo.swift` |
+| The front door — assembly and teardown ORDER, owned once | `Runtime/AIRuntime.swift` |
+| The conversation before this thought — bounded, role-tagged (4r) | `Conversation/ConversationMemory.swift` |
+| What the mind is handed: this thought plus the past | `Conversation/TurnCoordination.swift` — `ReplyContext` |
+| The neural mouths behind one seam (4q) | `MultiModalKitTTS/Voice/SpokenVoice.swift`, `KokoroVoice.swift` |
+| The pipeline wired for real — through the door | `Demo/TranscribeDemo/Sources/Model/TranscribeModel+Pipeline.swift`, `Sources/AudioDemo/AudioDemo.swift` |
 
-## The shape in numbers
+## The shape in numbers — generated, never typed
 
-Everything that is not a test is 10,693 lines; the library core is 4,773,
-and the tests are 7,086 — more test than library, which is the point. The
-biggest file on the spine is `TurnCoordinator` at 676 lines. (Counted with
-`find Sources Tests Demo -name '*.swift' | xargs cat | wc -l`, excluding
-the untracked `local_clone/`.)
+This paragraph was wrong **four times**, twice inside its own correction —
+a number a human maintains in prose drifts, which is what D-054 rule 5 is
+about. So the numbers are now the OUTPUT of `Scripts/shape.sh`, pasted
+with the commit they were taken at, and the script is the authority: run
+it, and if it disagrees with this page, the page is stale and the script
+is right.
 
-*Two corrections live in that paragraph, and the second one is worse than
-the first.* It used to claim ~7,100 total against a breakdown of
-4,000 + 5,600, which cannot both be true. The version that fixed that then
-stated 6,127 tests and 667 lines of `TurnCoordinator` — and **both were
-wrong too**: 6,127 was counted mid-edit, before the same commit's own test
-file landed, and 667 was copied unchanged out of the paragraph being
-corrected, where it had never been right. An adversarial reviewer found it
-by running the command this paragraph hands the reader. A page that fixes
-un-re-run numbers with un-re-run numbers is the exact failure D-054 rule 5
-is about, committed inside the correction for it.
+```
+$ Scripts/shape.sh
+commit          b4e4ccc
+library core    6074 lines   Sources/MultiModalKit
+all sources     15066 lines   every product, demo and instrument under Sources/
+demo app        5383 lines   Demo/
+tests           12140 lines   Tests/
+TurnCoordinator 929 lines across 5 files
+runner          Test run with 482 tests in 64 suites
+```
 
-The test folder mirrors this map roughly one suite per box — **38 suites,
-356 tests**, all deterministic (injected clocks, no sleeps, event-gated),
-run 20× before any milestone closes. The suites that touch real speakers
-or real models are gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and
-skip honestly rather than failing for the wrong reason.
+More test than library, which is the point. The test folder mirrors this
+map roughly one suite per box; every suite is deterministic (injected
+clocks, no sleeps, event-gated) and the whole thing runs 20× before any
+milestone closes. The suites that touch real speakers or real models are
+gated (`MMK_LIVE_SYNTH=1`, model-installed checks) and skip honestly — and
+since D-091 the two OS-26 suites are gated at runtime, so on a host older
+than 26 they report PASS having proven nothing. CI needs a 26 host.
 
 If a box on this map ever stops being explainable in one sitting, that
 is a design smell, not a documentation problem — see the deep-module
