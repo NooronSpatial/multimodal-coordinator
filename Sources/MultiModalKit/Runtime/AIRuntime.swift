@@ -35,8 +35,6 @@
 ///    `releaseSource`. The app supplies the bodies of steps 2 and 3; the
 ///    runtime supplies the moment.
 ///
-/// RED skeleton: the shape without the judgment. Every rule above is a
-/// failing test until GREEN wires it.
 public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
 
     /// Everything the door needs, and nothing it decides (F-2 = A).
@@ -135,7 +133,92 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
     /// already open. When it, or any child, ends, the actors are stopped
     /// so every stream finishes, the scope drains, and the teardown runs
     /// in order on the way out.
-    public func run(observing observe: @Sendable (Listeners) async -> Void) async {
-        _ = observe
+    public func run(observing observe: @escaping @Sendable (Listeners) async -> Void) async {
+        let config = configuration
+        // A mind without a mouth, or the reverse, is not a mode — it is a
+        // bug in the caller (F-3 = B: together, or neither).
+        precondition((config.mind == nil) == (config.mouth == nil),
+                     "a conversation needs a mind AND a mouth; listen-only needs neither")
+
+        // 1. THE ACTORS — built, and NOT yet running. Nothing publishes
+        //    until step 3, which is what makes step 2 safe.
+        let pump = AudioPump(consumer: config.consumer, vad: config.vad, clock: config.clock,
+                             config: config.pump, diagnostics: config.diagnostics)
+        let transcription = TranscriptionSession(
+            engine: config.ear, config: config.transcription,
+            diagnostics: config.diagnostics, thermalPolicy: config.thermalPolicy)
+        let coordinator: TurnCoordinator<C>?
+        if let mind = config.mind, let mouth = config.mouth {
+            coordinator = TurnCoordinator(
+                replyGenerator: mind, synthesizer: mouth, config: config.turns,
+                clock: config.clock,
+                latencyReporter: config.latencyReporter ?? SilentLatency(),
+                diagnostics: config.diagnostics)
+        } else {
+            coordinator = nil
+        }
+
+        // 2. EVERY LISTENER, BEFORE ANY LOOP (AC-202) — the spine's own
+        //    and the app's. A listener opened after its loop has started
+        //    misses whatever was published in between; for the pump that
+        //    is the first utterance, and it is lost intermittently, which
+        //    is the worst way to lose anything. Subscription order also
+        //    decides the multicast's drop accounting, so the spine's own
+        //    listeners come first, as both demos had them.
+        let audioForSession = await pump.listen()
+        let audioForTurns: Broadcast<AudioEvent>.Listener? =
+            coordinator == nil ? nil : await pump.listen()
+        let transcriptsForTurns: Broadcast<TranscriptEvent>.Listener? =
+            coordinator == nil ? nil : await transcription.listen()
+        let listeners = Listeners(
+            audio: await pump.listen(),
+            transcripts: await transcription.listen(),
+            turns: await coordinator?.listen(),
+            health: config.diagnostics?.health())
+
+        // 3. ONE GROUP, AND THE GROUP IS THE WALL (D-014, the iOS demo's
+        //    shape). Every loop is a child, so a cancel reaches all of
+        //    them. The FIRST child to end — usually the observer, or a
+        //    loop noticing cancellation — trips the stops; the stops
+        //    finish every broadcast; every other child's `for await`
+        //    ends; the scope drains. Nothing outlives the conversation.
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await pump.run() }
+            group.addTask { await transcription.run(events: audioForSession.events) }
+            if let coordinator, let audioForTurns, let transcriptsForTurns {
+                group.addTask {
+                    await coordinator.run(audio: audioForTurns.events,
+                                          transcripts: transcriptsForTurns.events)
+                }
+            }
+            // The thermal watcher is app-owned and lives across sessions:
+            // run here, cancelled with the group, never stop()ped.
+            if let diagnostics = config.diagnostics {
+                group.addTask { await diagnostics.run() }
+            }
+            group.addTask { await observe(listeners) }
+
+            _ = await group.next()
+            await pump.stop()
+            await transcription.stop()
+            await coordinator?.stop()
+        }
+
+        // 4. THE TEARDOWN, IN ORDER, ON THE WAY OUT (AC-203). The actors
+        //    are stopped and the scope has drained — that was step 1.
+        //    Step 2 stops whatever renders, so its nodes leave a live
+        //    engine. Step 3 releases the source last: a session released
+        //    while an engine still renders fails with `IsBusy`, and that
+        //    failure hid under a `try?` for a whole milestone.
+        await config.stopRendering?()
+        await config.releaseSource()
     }
+}
+
+/// Nobody asked for latency reports. Not an organ and not a lie: the
+/// coordinator's clocked initializer requires a reporter, and "silence"
+/// is the honest value of an absent one.
+private struct SilentLatency: LatencyReporter {
+    func turnLatency(_ duration: Duration, turn: Int) {}
+    func cancelLatency(_ duration: Duration, turn: Int) {}
 }
