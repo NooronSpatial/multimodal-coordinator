@@ -4200,3 +4200,18 @@ and a name that states the destination shapes the work toward it. The
 recommendation is kept here as the rejected option, not erased, because
 the risk it named is real: **the doc comment on `AIRuntime` must say
 what it does NOT yet do**, so the name cannot be read as a claim.
+
+### Found while migrating: the app steers the conversation, so the door hands it back
+
+The phone interrupts, resumes and clears the coordinator from three
+places (`TranscribeModel+Interruptions.swift:42,146,201`). A door that
+built the coordinator and hid it would have sent the app straight back to
+hand-wiring. So what `run(observing:)` hands over is a `Session` — the
+opened listeners plus the one handle the app may steer, `conversation` —
+with one rule on it: never `stop()` it. Stopping is the door's, in order,
+on the way out.
+
+*(This paragraph was claimed by commit `0b76210`'s message and was not in
+it: the patch that added it failed on its anchor after the map had
+already been written, and the commit was not gated on that failure. Fixed
+forward here rather than amended — the history says what happened.)*
