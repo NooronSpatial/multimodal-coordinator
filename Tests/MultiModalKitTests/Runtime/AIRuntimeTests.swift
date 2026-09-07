@@ -12,38 +12,58 @@ import Testing
 /// written before, which is the milestone's own evidence it earned its
 /// place.
 ///
-/// No real microphone, no model, no clock advance: every fact is
-/// event-gated.
-@Suite(.timeLimit(.minutes(1)))
+/// **Nothing here polls.** The first version waited with a spin of
+/// `Task.yield()` — first capped by a COUNT (§3.3 forbids it in those
+/// words), then by a deadline. Both are polls. On the CI runner, whose
+/// cooperative pool is a few threads wide, three concurrent spinners made
+/// every other test crawl at ~2.2 s and the process then froze for six
+/// hours. So every wait is now an EVENT — an `AsyncStream` the observer
+/// signals into — raced against a SLEEPING deadline, which is a
+/// suspension and not a spin. A red test still dies in ten seconds.
+///
+/// `.serialized`: each test stands up and cancels a whole `AIRuntime` task
+/// tree. Four of those overlapping is the one thing 4t added to the test
+/// process, and until the runner's freeze is explained they do not overlap.
+/// Cost: milliseconds.
+@Suite(.timeLimit(.minutes(1)), .serialized)
 struct AIRuntimeTests {
 
-    /// Yields until `condition` holds or a DEADLINE passes — the bench's
-    /// shape (`TurnCoordinatorTests.until`), copied on purpose.
-    ///
-    /// The first version of this helper was bounded by a spin COUNT, which
-    /// is the exact thing §3.3 forbids ("never for N iterations"). A count
-    /// of yields is not a time budget: under load it can expire before a
-    /// child task has even been scheduled, and a test that fails for that
-    /// reason is lying about the code. Found by inspection after a 20×
-    /// loop failed once and could not be reproduced in 230 further runs;
-    /// whether it was this is not known, because that loop discarded the
-    /// failing run's output — a loop that cannot show the race cannot
-    /// find it. Both lessons are kept here rather than in a commit only.
-    static func until(_ condition: () async -> Bool, within: Duration = .seconds(10)) async -> Bool {
-        let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: within)
-        while clock.now < deadline {
-            if await condition() { return true }
-            await Task.yield()
-        }
-        return false
-    }
-
-    /// Records the ORDER things happened in, from any task.
+    /// Records the ORDER things happened in, from any task. Read only
+    /// AFTER the runtime has returned — never waited on.
     final class Recorder: Sendable {
         private let events = Mutex<[String]>([])
         func note(_ event: String) { events.withLock { $0.append(event) } }
         var log: [String] { events.withLock { $0 } }
+    }
+
+    /// The EVENT a test waits on (§3.3: gate on facts, never on delays or
+    /// counts). The observer `send`s a name; the test awaits that name,
+    /// racing a sleeping deadline. One wait per instance — an
+    /// `AsyncStream` has one consumer.
+    final class Signals: Sendable {
+        private let stream: AsyncStream<String>
+        private let emit: AsyncStream<String>.Continuation
+        init() {
+            (stream, emit) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .unbounded)
+        }
+        func send(_ name: String) { emit.yield(name) }
+        /// True when `name` arrives before the deadline. The loser of the
+        /// race is cancelled, never abandoned.
+        func heard(_ name: String, within deadline: Duration = .seconds(10)) async -> Bool {
+            await withTaskGroup(of: Bool.self) { group in
+                group.addTask { [stream] in
+                    for await event in stream where event == name { return true }
+                    return false
+                }
+                group.addTask {
+                    try? await Task.sleep(for: deadline)
+                    return false
+                }
+                let first = await group.next() ?? false
+                group.cancelAll()
+                return first
+            }
+        }
     }
 
     static func configuration(
@@ -79,19 +99,19 @@ struct AIRuntimeTests {
     @Test("the app's listeners are open before any loop publishes (AC-202)")
     func listenersAreOpenBeforeLoopsRun() async {
         let recorder = Recorder()
+        let signals = Signals()
         let runtime = AIRuntime(Self.configuration(
             recorder: recorder, diagnostics: PipelineDiagnostics()))
-        let heard = Recorder()
 
         let task = Task {
-            await runtime.run { listeners in
-                guard let health = listeners.health else { return }
+            await runtime.run { session in
+                guard let health = session.health else { return }
                 for await event in health.events {
-                    if case .thermal = event { heard.note("thermal"); return }
+                    if case .thermal = event { signals.send("thermal"); return }
                 }
             }
         }
-        #expect(await Self.until { heard.log.contains("thermal") },
+        #expect(await signals.heard("thermal"),
                 "the initial thermal event was published before the listener existed")
         task.cancel()
         await task.value
@@ -106,22 +126,24 @@ struct AIRuntimeTests {
     @Test("teardown runs actors → stopRendering → releaseSource (AC-203)")
     func teardownRunsInOrder() async {
         let recorder = Recorder()
+        let signals = Signals()
         let runtime = AIRuntime(Self.configuration(
             recorder: recorder,
             mind: ScriptedReplyGenerator.manual(replies: 1),
             mouth: ScriptedSynthesizer.manual(utterances: 1)))
 
         let task = Task {
-            await runtime.run { listeners in
-                guard let turns = listeners.turns else {
+            await runtime.run { session in
+                guard let turns = session.turns else {
                     recorder.note("NO TURNS LISTENER"); return
                 }
                 recorder.note("observing")
+                signals.send("observing")
                 for await _ in turns.events {}
                 recorder.note("turns ended")     // the coordinator was stopped
             }
         }
-        #expect(await Self.until { recorder.log.contains("observing") })
+        #expect(await signals.heard("observing"))
         task.cancel()
         await task.value
 
@@ -139,19 +161,21 @@ struct AIRuntimeTests {
     @Test("listen-only tears down source-last with no rendering step")
     func listenOnlyTearsDown() async {
         let recorder = Recorder()
+        let signals = Signals()
         var config = Self.configuration(recorder: recorder)
         config.stopRendering = nil
         let runtime = AIRuntime(config)
 
         let task = Task {
-            await runtime.run { listeners in
-                #expect(listeners.turns == nil, "no mind, no mouth, no turns")
+            await runtime.run { session in
+                #expect(session.turns == nil, "no mind, no mouth, no turns")
                 recorder.note("observing")
-                for await _ in listeners.transcripts.events {}
+                signals.send("observing")
+                for await _ in session.transcripts.events {}
                 recorder.note("transcripts ended")
             }
         }
-        #expect(await Self.until { recorder.log.contains("observing") })
+        #expect(await signals.heard("observing"))
         task.cancel()
         await task.value
 
