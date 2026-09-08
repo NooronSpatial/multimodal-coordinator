@@ -4320,3 +4320,61 @@ its remaining leg — +2,722 ms of felt pause at 4,000 characters — carries
 it alone. Named, not ruled: the Apple mind ignores "ONE short sentence"
 on open questions; `GenerationOptions.maximumResponseTokens` is the
 app-side cap, and it is its own fork when Ryad wants it.
+
+## D-097 — Arabic first: five rulings at sign-off (Milestone 4u)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad · **Rulings: F-1 = A,
+F-2 = `small`, F-3 = A, F-4 = A, F-5 = B** — and the milestone's order
+itself, *Arabic before German*, ruled the day before against the spec's
+suggestion of German first.
+
+### Why Arabic is a milestone and German is not
+
+Measured on macOS 26 with the phone's frameworks: Apple's
+`SpeechTranscriber` has no Arabic among its 30 locales, Apple's
+FoundationModels none among its 23 languages, Kokoro and Qwen3-TTS none,
+and `AVSpeechSynthesizer` exactly one Arabic voice (Majed, `ar-001`,
+compact). Arabic is therefore Whisper → Qwen3-4B → Majed: every organ its
+second-best citizen, the mouth its only one. German has a first-class
+citizen at every organ and follows as configuration once language is a
+setting that travels.
+
+### F-1 = A — language is a session setting
+
+The Apple ear needs its locale before capture starts, and a wrong
+detection on turn 1 would change the mind's language and the mouth's
+voice at once. *Rejected:* **B, per-utterance detection** — real, and its
+own later milestone once every organ takes a language at all.
+
+### F-2 = `small` — the Arabic ear is Whisper `small`, ruled outright
+
+The spec proposed measuring `base` and `small` and shipping the one that
+clears a WER Ryad sets. He ruled `small` directly. `base` is still
+measured on the fixture — as evidence of the gap, not as an input to the
+decision. *Rejected:* **`base`** — installed and ~140 MB, but weak on
+Arabic at that size. *Rejected:* **`medium`** — ~1.5 GB beside a 2.3 GB
+mind; its memory cost is not earned until `small` fails.
+
+### F-3 = A — one English line: answer in the language the person spoke
+
+Measured by AC-215 (five Arabic turns, Ryad's count). *Not rejected,
+deferred:* **B, the instruction in Arabic** — if A fails. *Rejected:*
+**C, a per-language instruction table** — two rows nobody asked for.
+
+### F-4 = A — Majed is the Arabic mouth, measured as the honest baseline
+
+*Rejected for now:* **B, a vendor spike first** — measure before
+shopping; and when the spike comes it starts with the licence audit,
+because the obvious multilingual TTS candidates are non-commercial.
+
+### F-5 = B — MSA and Darja are both measured, each with its own number
+
+The person holding the phone speaks Algerian Darja; Whisper, Qwen and
+Majed all do Modern Standard Arabic. An MSA-only result would be the Mac
+number when the phone is what hurts. *Rejected:* **A, MSA only.**
+
+### What this leaves open
+
+AC-219: the fixtures do not exist yet, and nothing measured is claimed
+until they do. The code — the Whisper hint, the normaliser, the phraser,
+the picker — proceeds tests-first without them.
