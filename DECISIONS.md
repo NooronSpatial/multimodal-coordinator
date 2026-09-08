@@ -4533,3 +4533,31 @@ will ask him to defend B without notes.
 prompt, not the lifecycle/admission/privacy lists (those are 4x), not
 tools (4w). The section-number / milestone-letter mismatch (§168–173 =
 4w, §174–179 = 4v) is deliberate and explained at the head of §174.
+
+## D-103 — 4v signed: the contract's six forks, all ruled as recommended (Milestone 4v)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("signed off and accept
+recommendations") · **Rulings:** F-1 = A, F-2 = A, F-3 = A, F-4 = A,
+F-5 = A, F-6 = A (SPEC §178).
+
+- **F-1 A** — `ReplyContext.options: GenerationOptions`. *Rejected:* a
+  second `openReply(to:options:)` (two ways to do one thing) and a second
+  protocol for text callers (the second seam §176 forbids).
+- **F-2 A** — `.finished(StopReason)` with `.unreported` for an engine
+  that cannot say. *Rejected:* a separate `.stopped` event (two terminals)
+  and a reason only on the whole-reply path (the stream stays blind).
+- **F-3 A** — one `ReplyFailure` enum with `.engine(String)` as the
+  honest catch-all. *Rejected:* keeping the string and adding a code.
+- **F-4 A** — `reply(to:)` as a protocol extension over `openReply`,
+  written once for every mind and every fake. *Rejected:* a `Proposing`
+  protocol per mind (two behaviours that can drift).
+- **F-5 A** — readiness as a pure function over a `DeviceReport` value.
+  *Rejected:* a `DeviceProbing` protocol (a protocol to fake where a
+  value would do).
+- **F-6 A** — the default budget is 1024 for everyone. *Rejected:* 512
+  for voice / 1024 for text (two defaults to explain).
+
+Build order (the spec's own): the seam first (types, terminal events,
+`reply(to:)`, the mechanical conformer changes), then the organs that
+hang on it (MLX, Apple, readiness, the two throws), then the measurements
+and the contract page. Teach-back on the six forks afterwards.
