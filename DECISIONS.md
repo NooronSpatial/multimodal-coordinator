@@ -4503,3 +4503,33 @@ has named itself and what blocks it. A spike for a slice with no date,
 built before the contract for the slice with one, is the ordering the
 brief itself warns against. Ryad rules; the 4v spec stays signed either
 way, and nothing in it is wasted — it moves, it is not thrown away.
+
+## D-102 — the fork of D-101 ruled B by delegation: the contract before the spike (Milestone 4v / 4w)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad, by delegation ("Okay. I
+understand. And it's fine. Do whatever you think is correct and has to
+be done first") after the recommendation was explained in plain words:
+*text first because Aura ships text first — not instead of voice.*
+
+**Ruling:** **B.** The next milestone is **4v — the mind's text contract
+(Aura's slice 1)**, SPEC §174–179. The tool spike signed in D-101 keeps
+every word of its spec (§168–173) and becomes **4w**; nothing is thrown
+away, it moves. The branch `milestone/4v-tool-spike` is renamed
+`milestone/4v-mind-contract` — the same two commits, no history
+rewritten.
+
+**Rejected — A, the spike first:** it serves the voice slice, which has
+no date, while the slice with a date is blocked by G1–G5; building it
+first would be the ordering the runtime brief itself warns against
+(R3: name the caller — the caller has named itself).
+
+**What delegation means here, so it is not misread later:** the fork was
+presented with two options and one recommendation, as the method
+requires; Ryad chose to adopt the recommendation rather than to
+overrule it. That is a ruling, and it is his — the teach-back for 4v
+will ask him to defend B without notes.
+
+**What 4v is not:** not a second seam, not a JSON validator, not Aura's
+prompt, not the lifecycle/admission/privacy lists (those are 4x), not
+tools (4w). The section-number / milestone-letter mismatch (§168–173 =
+4w, §174–179 = 4v) is deliberate and explained at the head of §174.

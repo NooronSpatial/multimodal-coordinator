@@ -4873,7 +4873,7 @@ diacritizer — training work, not integration.
 
 ---
 
-# Milestone 4v — the tool spike (Runtime Phase B, first piece)
+# Milestone 4w — the tool spike (Runtime Phase B; written as 4v, re-sequenced to 4w by D-102)
 
 ## 168. Why this exists
 
@@ -5072,3 +5072,240 @@ priced at under 10 ms on the phone · the call priced · INSTRUMENTS §64 ·
 the contract's fork presented on the numbers · 20× with evidence · zero
 warnings · lint zero · reviewed with every fix pushed before the PR is
 called ready · teach-back.
+
+# Milestone 4v — the mind's text contract (Aura's slice 1)
+
+> Written after §168–173. D-102 re-sequenced the two: section numbers
+> follow the order of writing, milestone letters the order of building.
+> The tool spike (§168–173) is 4w and its text is unchanged.
+
+## §174 — the caller, and the shape of the gap
+
+Aura's first slice is text in, text out, one complete reply: Aura's logic
+recommends, the mind proposes a session as JSON, Aura's validator
+disposes, and the person writes the plan they want (D-101). That slice
+is blocked by the left column below. Nothing on the voice path changes:
+the coordinator keeps calling `openReply(to:)` with defaults, and every
+existing test keeps its meaning.
+
+```
+today                                        Aura's slice 1 needs
+─────                                        ────────────────────
+init(model:, instructions:, maxTokens: 512)  instructions and budget PER CALL, ≥ 1024
+openReply(to: ReplyContext)                  the stream — or ONE WHOLE REPLY
+  ReplyContext { transcript, history }         + options
+  .token(String)                               .token(String)
+  .finished                                    .finished(StopReason)   ← why it ended
+  .failed(String)                              .failed(ReplyFailure)   ← countable
+temperature: the vendor's 0.6, hidden        temperature / seed chosen by the caller
+"installed" = a file exists                  installed = every file, every byte
+progress: Double                             bytes received / bytes expected
+unavailable: three strings, one of them      a typed verdict, computed from a
+  says "Simulator" on a real phone             device report a test can write by hand
+precondition on the mind/mouth pairing       a thrown, typed configuration error
+```
+
+The facts behind the right column, checked before this spec was written:
+
+- the MLX vendor already knows why a generation ended —
+  `GenerateCompletionInfo.stopReason` is `.stop` / `.length` /
+  `.cancelled` — and `MLXTokenSource` drops that event today
+  (`guard let id = event.token else { continue }`);
+- the vendor's sampler takes `temperature`, `topP`, `topK`,
+  `repetitionPenalty`; a seed is process-global (`MLXRandom.seed`);
+- Apple's `GenerationOptions` takes `sampling` (`.greedy` or
+  `.random(top:seed:)`), `temperature`, `maximumResponseTokens`; its
+  `GenerationError` has eight typed cases (`exceededContextWindowSize`,
+  `assetsUnavailable`, `guardrailViolation`, `unsupportedLanguageOrLocale`,
+  `decodingFailure`, `rateLimited`, `concurrentRequests`, `refusal`);
+- the caller's document (`AI_RUNTIME_REQUIREMENTS.md`) was **not** at its
+  path in Aura's `docs/` when this spec was drafted; the IDs below are
+  quoted from D-101's checked table, which was verified against it on
+  2026-09-08.
+
+## §175 — scope
+
+1. **Per-call options** — `GenerationOptions` on `ReplyContext` (F-1):
+   `instructions: String?`, `maxTokens: Int?`, `temperature: Float?`,
+   `seed: UInt64?`. `nil` means "the generator's own"; `.init()` is
+   today's behaviour. The initializer's default budget rises 512 → 1024
+   (F-6). Aura's G1, G2, G4.
+2. **A typed stop reason** — `.finished(StopReason)` (F-2): `.complete`
+   (the model ended its turn), `.tokenBudget` (the cap cut it),
+   `.unreported` (an engine that does not say). Aura's G3.
+3. **Typed failures** — `.failed(ReplyFailure)` (F-3): `.contextWindowExceeded`,
+   `.unavailable(MindUnavailable)`, `.refused` (a guardrail or refusal),
+   `.unsupportedLanguage`, `.busy`, `.engine(String)` for the rest. Every
+   case is `Equatable`, so a caller can count. Aura's G5.
+4. **The whole reply** — `reply(to:) async throws -> Reply` (F-4), where
+   `Reply { text, stop }`; a failure throws the `ReplyFailure`;
+   cancellation of the calling task ends the run. Aura's "one complete
+   reply".
+5. **Readiness, typed and injectable** — `MindUnavailable` (F-5):
+   `.osBelowFloor(required:)`, `.deviceCannotRun(.simulator | .noGPU)`,
+   `.notEnoughMemory(needed:, available:)`, `.weightsAbsent`,
+   `.installIncomplete(files:)`; a pure function of a `DeviceReport`
+   value the library fills on a live device and a test writes by hand.
+   The demo's three refusal strings become renderings of the enum, and
+   the word "Simulator" is said only when the report says so. Aura's
+   F1–F3.
+6. **Size-checked install** — the download writes a manifest (file →
+   bytes, from the Hub's listing); `installState()` verifies existence
+   and size of every listed file: `.installed`, `.incomplete(files:)`,
+   `.absent`, and `.installedUnverified` for a pre-4v install with no
+   manifest (the phones in the field). `modelInstalled()` stays as the
+   Bool view. Aura's L1.
+7. **Byte progress** — `InstallProgress { fraction, bytesReceived?,
+   bytesExpected? }`; the Hub path fills what its client gives, the
+   manifest fills `expected`, the fake fills all. Aura's L4.
+8. **No caller-reachable termination** — the two `precondition`s D-101
+   found reachable by a caller's configuration (the runtime's mind/mouth
+   pairing at `AIRuntime.swift:148`, the clockless coordinator's gate)
+   become thrown, typed `ConfigurationError`s; the internal ones stay —
+   they guard invariants no caller can reach. Aura's R8.
+9. **The contract, written** — one section in `ARCHITECTURE.md` ("the
+   mind's text contract") that is the page Aura reads: the types, the
+   defaults, the failure table, the readiness table, and what is
+   measured.
+
+**Named, not built (honest list):** R5 — `retire()` is already the
+foreground-release hook; 4v documents it in the contract and builds
+nothing new. Everything else in Aura's lifecycle/admission/privacy lists
+(L2, L3, L5–L7, R1–R4, R6, R7, S1–S6 — S4's privacy manifest included)
+is **4x**. Tools are **4w** (§168–173).
+
+## §176 — non-goals
+
+- No voice change: the coordinator, the phraser, barge-in, memory — untouched.
+- No JSON schema, no guided decoding, no validation in the library: Aura's
+  validator disposes (D-101); the mind returns text.
+- No prompt authoring for Aura: the instructions are the caller's.
+- No second seam: `ReplyGenerating` stays the one protocol; the whole
+  reply is written over it, not beside it.
+- No new dependency (the tiered policy holds; the core stays at zero).
+- No retry, no queueing, no admission policy — 4x.
+
+## §177 — acceptance criteria
+
+- **AC-231** `ReplyContext` gains `options: GenerationOptions` with a
+  default of `.init()`; every existing call site compiles unchanged; the
+  coordinator passes the default. A scripted mind records the context it
+  was given and the test reads the options back.
+- **AC-232** Per-call instructions reach the model: the MLX source builds
+  its `.system` message from `options.instructions ?? self.instructions`
+  (test: a scripted token source records the messages it received); the
+  Apple mind builds its session by the same rule (compile-gated on
+  macOS 26, runtime-gated test).
+- **AC-233** Per-call budget: `options.maxTokens ?? default` is what
+  reaches `GenerateParameters.maxTokens` / `maximumResponseTokens`; the
+  default is 1024 (F-6); a test with a scripted source asserts the
+  parameter it was handed.
+- **AC-234** Sampling reaches the vendor: MLX `temperature` and, when a
+  seed is given, `MLXRandom.seed` before generation; Apple `.greedy` for
+  temperature 0, `.random(top:seed:)` when a seed is given. Unit-tested
+  with a scripted source that records its parameters; **measured** on
+  the Mac (INSTRUMENTS §65): temperature 0 twice → byte-identical text;
+  seed + 0.6 twice → byte-identical; free → different.
+- **AC-235** `.finished(StopReason)`: the MLX source reads the `.info`
+  event it drops today and maps `.stop → .complete`, `.length →
+  .tokenBudget`; Apple reports `.unreported`; a scripted source that
+  emits `.info(length)` yields `.finished(.tokenBudget)`.
+- **AC-236** `.failed(ReplyFailure)`: Apple's eight cases map to the
+  table in §175/3; MLX refuses a prompt longer than the model's context
+  window as `.contextWindowExceeded` **before** generation (the vendor
+  does not throw for it); anything the vendor throws is `.engine(String)`.
+  Every case round-trips `Equatable`; a test counts two `.busy` in a
+  scripted run.
+- **AC-237** `reply(to:)` drains the stream into `Reply { text, stop }`;
+  a `.failed` throws its `ReplyFailure`; cancelling the calling task ends
+  the run and throws `CancellationError` — the test cancels a scripted
+  run that would never finish on its own, and the wait is an event (the
+  house rule), never a poll.
+- **AC-238** Readiness is a pure function: table test over hand-written
+  `DeviceReport`s — OS below floor → `.osBelowFloor`; simulator →
+  `.deviceCannotRun(.simulator)`; no GPU on a device → `.deviceCannotRun(.noGPU)`;
+  headroom below need → `.notEnoughMemory(needed:available:)` with the
+  numbers; no weights → `.weightsAbsent`; a short file →
+  `.installIncomplete(files:)`. The rendering of a device's verdict never
+  contains the word "Simulator".
+- **AC-239** The install manifest: after `ensureModel`, `manifest.json`
+  lists every file with its byte count; `installState()` returns
+  `.installed` for a matching tree, `.incomplete(files:)` after one file
+  is truncated in the test's temporary directory, `.absent` for none, and
+  `.installedUnverified` for files with no manifest.
+- **AC-240** Progress carries bytes when they are known: the fake reports
+  `bytesReceived/bytesExpected`; the Hub path reports its client's
+  fraction plus the manifest's expected bytes; the demo shows MB when
+  known and a fraction when not.
+- **AC-241** `AIRuntime.init` throws `ConfigurationError.mindWithoutMouth`
+  / `.mouthWithoutMind` instead of trapping; the clockless coordinator's
+  gate throws likewise; a test asserts each throw. The remaining
+  `precondition`s are listed in the contract with the invariant each
+  guards.
+- **AC-242** The voice path is untouched: every pre-4v test passes with
+  no edit except the mechanical pattern change (`.finished` →
+  `.finished(_)`, `.failed(String)` → `.failed(.engine(_))`) in fakes;
+  the demo builds; one phone run's log shows the same turn behaviour as
+  §61's.
+- **AC-243** The contract is written in `ARCHITECTURE.md` and one
+  paragraph in `README.md`; the generated counts in `ARCHITECTURE.md`
+  are regenerated, not typed.
+- **AC-244** Measured (INSTRUMENTS §65): the determinism probe of AC-234
+  and the price of one whole reply on the phone — a ~600-character JSON
+  proposal at the 1024 budget: first token, total, MLX peak — the numbers
+  Aura's morning check-in will pay.
+
+## §178 — the forks (Ryad rules)
+
+**F-1 — where per-call options live.**
+- *A:* `ReplyContext.options: GenerationOptions` — one seam, one struct,
+  the coordinator passes the default. **Recommended.**
+- *B:* a second method `openReply(to:options:)` — two ways to do one
+  thing; every fake grows a second entry.
+- *C:* a second protocol for text callers — the "second seam" §176 rejects.
+
+**F-2 — the stop reason.**
+- *A:* `.finished(StopReason)` with `.unreported` for engines that do not
+  say. One terminal, one meaning; the cost is a mechanical pattern change
+  in six conformers and their tests. **Recommended.**
+- *B:* keep `.finished` and add a separate `.stopped(reason)` event —
+  two terminals, and every consumer must know which one is last.
+- *C:* the reason only on the whole-reply path — the stream stays blind,
+  and the voice path can never learn it was cut by the cap.
+
+**F-3 — typed failures.**
+- *A:* one `ReplyFailure` enum with `.engine(String)` as the honest
+  catch-all. **Recommended.**
+- *B:* keep `.failed(String)` and add a `code` — a string a caller still
+  cannot switch over.
+
+**F-4 — the whole reply.**
+- *A:* `reply(to:)` as a protocol extension over `openReply` — written
+  once, true for every mind and every fake. **Recommended.**
+- *B:* a `Proposing` protocol each mind implements — a second seam, and
+  two behaviours that can drift.
+
+**F-5 — readiness.**
+- *A:* a pure function over a `DeviceReport` value; the library ships
+  `DeviceReport.current()`. A value is written by hand in a test in three
+  lines. **Recommended.**
+- *B:* a `DeviceProbing` protocol the mind calls — injectable too, but a
+  protocol to fake where a value would do.
+
+**F-6 — the default budget.**
+- *A:* 1024 for everyone — the cap is a ceiling, not a target; voice
+  replies are short by instruction, and the barge-in ends a runaway.
+  **Recommended.**
+- *B:* 512 for voice, 1024 only when asked — two defaults to explain.
+
+## §179 — definition of done
+
+The six forks ruled and logged · red → green per AC with scripted minds
+and hand-written device reports · the MLX `.info` event read, not
+dropped · the Apple mind's options and errors mapped under the
+runtime gate · the manifest written on a real download and verified on
+a truncated tree · the two preconditions turned into throws · INSTRUMENTS
+§65 with the determinism probe and the whole-reply price on the phone ·
+one phone log for AC-242 · the contract page in `ARCHITECTURE.md` · 20×
+with every failing log kept · zero warnings · lint zero · every review
+fix pushed before the PR is called ready · teach-back.
