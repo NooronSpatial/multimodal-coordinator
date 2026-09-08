@@ -125,6 +125,7 @@ extension TranscribeModel {
         var out = "# Conversation log — MultiModalKit demo\n\n"
         out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
         out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
+        out += "Apple ear (SpeechTranscriber) locales on this device: \(appleEarLocales)\n"
         out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
         out += "\(MLXRuntime.isAvailable)\n"

@@ -300,6 +300,11 @@ final class TranscribeModel {
     /// What the mind was shown of the conversation before this thought
     /// (4r). Empty on the first turn of a session, and after `stop()`.
     var remembering = ""
+    /// WHICH LOCALES APPLE'S EAR HAS, read from the phone itself (4u).
+    /// The Mac's copy of the framework listed thirty and no Arabic; the
+    /// log header prints THIS device's answer so the question is never
+    /// argued from the wrong machine again.
+    var appleEarLocales = "not read yet"
     /// HOW MANY PAST EXCHANGES THE MIND MAY SEE (4r, AC-197).
     ///
     /// A lever rather than a constant because the milestone's central
