@@ -4820,7 +4820,7 @@ sources, not from memory:
 | Chatterbox Multilingual, via speech-swift `ChatterboxTTS` | ✅ (Resemble's list) | MIT, 0.8B fp16 | Apache-2.0, MLX | iOS 18 | **spike** |
 | OmniVoice, via speech-swift `OmniVoiceTTS` | "600+ languages" — quality unknown | Apache-2.0, 0.8B fp16 / **int8** | Apache-2.0, MLX | iOS 18 | **spike** |
 | Piper `ar_JO-kareem` | ✅ | varies | **GPL-3.0**, eSpeak-ng phonemizer (GPL) | — | blocked |
-| Kokoro · Qwen3-TTS | ❌ | | | | not options |
+| Kokoro · Qwen3-TTS | ❌ | | | | not options — see the note below |
 | XTTS-v2 · Meta MMS · Fish/OpenAudio · F5 · Higgs | ✅ | **non-commercial** | | | blocked |
 
 **The constraint that decides this, in numbers.** A 0.8B mouth at fp16
@@ -4851,3 +4851,15 @@ Arabic may be weak — and one spike prices both for the cost of one
 project. The four dependency questions (tiered policy) are answered in
 writing before the first line, with the load-bearing one already
 answerable: removable in a day, behind `SpokenVoice`, as Kokoro was.
+
+**Kokoro, precisely, because it was asked twice.** The Kokoro-82M *model*
+speaks nine languages with 54 voices — American and British English,
+Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin
+(VOICES.md, verified 2026-09-08) — and neither Arabic nor German is among
+them. The *Swift port this repo ships* (`kokoro-ios` + `MisakiSwift`)
+phonemizes **English only**: its `Language` enum has three cases (`none`,
+`en-us`, `en-gb`) and its G2P has one source folder, `English`. So "Kokoro
+supports a lot of languages" was true of the model and misleading about
+what runs on the phone; the port would need a G2P per language before
+even Spanish, and Arabic would need a G2P *and* trained voices *and* a
+diacritizer — training work, not integration.
