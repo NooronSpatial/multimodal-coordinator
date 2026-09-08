@@ -5298,6 +5298,24 @@ is **4x**. Tools are **4w** (§168–173).
   **Recommended.**
 - *B:* 512 for voice, 1024 only when asked — two defaults to explain.
 
+**F-7 — what an Apple refusal IS (raised by the seam's review on
+2026-09-08, after F-1..F-6 were ruled; open).** Today, under D-057
+F-4 = A, the Apple mind SPEAKS a short refusal sentence and completes
+the turn — because silence makes a refusal look like a bug. §175/3
+lists `.refused` as a `ReplyFailure`, which is a turn that ends with
+nothing said. Both cannot be true at once.
+- *A:* keep D-057 — speak the refusal, end `.finished(.complete)`, and
+  delete `.refused` from `ReplyFailure`. A text caller cannot count
+  refusals.
+- *B:* `.failed(.refused)` — the list as written; reverses D-057 F-4 A
+  for voice: the person hears nothing.
+- *C:* a refusal is a way a reply ENDS — `StopReason.refused`. The mind
+  speaks its refusal sentence (voice keeps D-057), a text caller reads
+  `stop == .refused` and counts it, and `ReplyFailure.refused` goes.
+  Cost: one case moves from one enum to the other; the MLX mind never
+  reports it (Qwen has no refusal signal). **Recommended.**
+Until ruled, the Apple mind keeps today's behaviour.
+
 ## §179 — definition of done
 
 The six forks ruled and logged · red → green per AC with scripted minds
