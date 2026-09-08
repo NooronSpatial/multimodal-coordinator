@@ -5037,3 +5037,74 @@ The phone's numbers for the same fixture (AC-212 says "on the phone"),
 and everything after the ear. *The Darja fixture this section first
 listed as owed was withdrawn by D-098 (F-5 re-ruled: MSA only).* Then — the mind's Arabic (AC-215), Majed (AC-216), the full turn
 (AC-217), memory in Arabic (AC-218).
+
+## 63. The first Arabic conversation on the phone (4u, AC-215, AC-217, AC-218)
+
+**Method.** Ryad's iPhone, 2026-09-08, `milestone/4u-arabic`. Language
+→ العربية; ear Whisper `small` + `ar`; mind Local (Qwen3-4B-4bit); mouth
+Apple (Majed); speaker shield on; memory at the shipped bound. Five turns.
+**Thermal `serious` on every row** — the phone was already hot, most
+likely from the 460 MB download that preceded the session — so every
+timing here is a hot-phone number and is read as such.
+
+### AC-215 — spoken to in Arabic, the mind answers in Arabic: 5 of 5
+
+| turn | heard | reply | verdict |
+|---|---|---|---|
+| 1 | السلام عليكم | السلام عليكم ورحمة الله وبركاته. | Arabic, coherent |
+| 2 | وانا *(a fragment; barged)* | أنا روبوت مساعد يتحدث باللغة العربية | Arabic, coherent, to a fragment |
+| 3 | هل تسمعني؟ | نعم، أسمك "وانا"؟ | Arabic, coherent — **on a false premise** |
+| 4 | حدثني عن تونس | تونس هي دولة تقع في شمال إفريقيا، وتعتبر ميناء… | Arabic, coherent |
+| 5 | ما هي عاصمة هذا البلد؟ | عاصمة تونس هي تونس**城**. | Arabic, correct — **one Chinese character** |
+
+Five Arabic replies out of five; four coherent on a true premise. F-3 = A
+— one English line, "answer in the language the person spoke" — held on
+every turn. The two exceptions are the milestone's findings:
+
+**Turn 5 — the Chinese leak.** `城` (chéng, "city") inside an Arabic
+sentence, from a 4-bit 4B Qwen. A known failure mode of the model family
+— code-switching into Chinese — and one that English could never show,
+because English has nowhere to leak *from*. The mouth would have been
+handed a Chinese character to say in Arabic. Named, not fixed: the
+levers are the instruction (policy), or a script filter at the phraser
+(mechanism), and which one is a fork.
+
+**Turn 3 — the ear's fragment, carried by memory.** Whisper heard the
+interrupted turn 2 as "وانا"; the memory kept it as the person's words
+(F-5 = A, the barge is remembered); the mind read it as a name. This is
+§60's "Cherians" class, arriving through 4r's memory instead of dying
+with its turn. The mind was coherent; its premise was the ear's error.
+
+### AC-217 — the Arabic turn, priced (hot phone)
+
+| history behind the turn | first token | total |
+|---|---|---|
+| 0 | **289 ms** | 832 ms |
+| 1 (~43 chars) | 417 ms | 963 ms |
+| 2 (~82) | 467 ms | 895 ms |
+| 3 (~110) | 485 ms | 2,438 ms |
+| 4 (~218) | 625 ms | 1,139 ms |
+
+At zero history the Arabic first token — 289 ms — is **not** slower than
+English's 317 ms at nominal (§59). MLX peak 2,481 MB against 3,818 MB
+remaining. No `voice:` rows: the Apple mouth reports no decode margin.
+
+### AC-218 — memory in Arabic, and its cost per character
+
+**It works:** turn 5's "هذا البلد" resolved to Tunisia from turn 4. That
+is the §58 shape, in Arabic.
+
+**Its cost, from the field:** 289 → 625 ms over ~218 characters of
+history is **~1.5 ms per Arabic character**, against §58b's 0.68 for
+English — about 2.3×, the direction the spec predicted (the tokenizer
+spends more tokens per Arabic character). *Confounded by thermal
+`serious` throughout, and by turns of unequal length.* The Arabic memory
+probe (one question, one temperature, three depths) is the clean number
+and is still owed.
+
+### What §63 leaves open
+
+AC-212 on the phone (the Bench's bake-off row for the Arabic fixture);
+AC-216 (Majed, by Ryad's ear — no line in the log speaks to it); the
+Arabic probe sweep for AC-218's clean slope; and a fork on the Chinese
+leak.

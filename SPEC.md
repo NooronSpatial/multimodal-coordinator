@@ -4685,14 +4685,17 @@ character cap alone.
   in the field over five turns; Ryad reads the replies and counts the
   ones that are (a) Arabic, (b) coherent. Not a unit test — a model's
   language choice is not deterministic.
+  *Answered 2026-09-08, INSTRUMENTS §63: 5 of 5 Arabic; 4 coherent on a true premise; one Chinese character leaked (turn 5), one false premise carried by memory from a misheard fragment (turn 3).*
 - **AC-216** — Majed speaks the reply: `DigitalSilence` over the captured
   mix, and Ryad's ear on intelligibility — the only Arabic ear this
   project has.
 - **AC-217** — one full Arabic turn on the phone, priced: first token,
   felt pause, RTF, thermal, beside the English numbers.
+  *Answered 2026-09-08, §63, hot phone: first token 289 ms at zero history — not slower than English — rising to 625 ms at four exchanges.*
 - **AC-218** — memory works in Arabic: turn 2 leans on turn 1 in Arabic
   (the §58 shape), and the felt-pause cost per Arabic CHARACTER is
   measured — expected higher than English's 0.68 ms.
+  *Half answered 2026-09-08, §63: memory resolved "this country" in Arabic; the field slope is ~1.5 ms/char (2.3× English) under thermal serious. The probe's clean sweep is owed.*
 - **AC-219** — ✅ **the fixture exists before anything is measured.** ~30 s
   of read MSA in Ryad's voice with its reference text, committed with
   provenance (`ryad-ar-msa.wav`, 41 s). *The Darja recording this
