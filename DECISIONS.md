@@ -4448,3 +4448,58 @@ Nothing merged is undone. The language setting, the Whisper hint, the
 normaliser, the phraser's marks, the picker and the probe all stay on
 `main`, working. The debts listed above are debts with names, not
 features quietly dropped.
+
+## D-101 — 4v signed, the user disposes, and a fork raised by the caller's own document (Milestone 4v)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("signed off, I agree with
+your recommendation, but I want to give the user the ability to write the
+plan he wants — he takes his responsibility at the end") · **Rulings:
+F-1 = B, F-2 = A, F-3 = C, F-4 = B**, and one of his own:
+
+### The user disposes
+
+Aura's logic recommends and generates the plan; the runtime's mind
+explains and negotiates; **the person may write the plan they want, and
+the responsibility is theirs.** §172a's "who decides" is no longer a
+fork: the answer is the user, with Aura's validator as the only thing
+that says no. *Rejected by this:* a mind that may propose a change on its
+own initiative — it may explain, it may offer when asked, it may not act.
+
+### The fork the caller's document raises, not ruled here
+
+`Aura/docs/AI_RUNTIME_REQUIREMENTS.md` (Ryad, 2026-09-08) scopes Aura's
+first slice as **text-in, text-out, no voice, one complete reply** — the
+mind proposes a session as JSON, Aura's Swift validator disposes — and
+names seven generation requirements that *block* that slice. Checked
+against the library, one grep per claim, they hold:
+
+| Aura's | claim | library today |
+|---|---|---|
+| G1 | instructions fixed at init | `let instructions` on both minds — true |
+| G2 | token budget 512, fixed at init | `maxTokens: Int = 512` in the initializer — true |
+| G3 | no typed stop reason | `.finished` carries nothing — true |
+| G4 | sampling not passed through | `GenerateParameters(maxTokens:)` only; the vendor takes `temperature`, `topP` — true |
+| G5 | failures are a string | `.failed(String)` — true |
+| F1 | three unavailability cases, one naming the Simulator | true |
+| L1 | "installed" is existence, not size | the mind checks `fileExists` and one `.safetensors` — true (the Kokoro mouth counts bytes; the mind does not) |
+| L4 | progress is a bare fraction | `(Double) -> Void` — true |
+| R8 | entry points can terminate | seven `precondition`s, no `fatalError`; two are reachable by a caller's configuration (the clockless coordinator's gate, the runtime's mind/mouth pairing) — half true |
+| S4 | no privacy manifest | zero — true |
+| R5 | no foreground hook in the library | the demo has one, the library none — true |
+
+**The tool spike signed today (4v) serves Aura's voice slice, which has
+no date. The slice that has one is blocked by G1–G8.** So the fork:
+
+*A:* build 4v as signed — the tool spike first.
+*B:* re-target the next milestone to **Aura's slice-1 contract** — per-call
+instructions and token budget, a typed stop reason, deterministic
+sampling, typed failures, a whole-reply entry point, the typed and
+injectable unavailability verdicts (F1–F3), size-checked installs (L1),
+byte progress (L4), and the cheap resource hooks (R5, R8) — and let the
+tool spike follow as 4w.
+
+**Recommendation: B.** The brief's R3 is "name the caller"; the caller
+has named itself and what blocks it. A spike for a slice with no date,
+built before the contract for the slice with one, is the ordering the
+brief itself warns against. Ryad rules; the 4v spec stays signed either
+way, and nothing in it is wasted — it moves, it is not thrown away.

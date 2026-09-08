@@ -5050,9 +5050,19 @@ milestone starts from them:
   training plan. The brief's §5 says default-deny for a model-initiated
   write; in a voice app the confirmation is a *spoken turn*, which meets
   the barge window and the ticket doctrine head-on.
-- **Who decides.** Aura's logic recommends and plans; the mind explains
-  and negotiates. Whether the mind may ever *propose* a change on its own
-  is a policy Aura owns.
+- **Who decides — ruled (D-101).** Aura's logic recommends and plans; the
+  mind explains and negotiates; **the user may write the plan they want,
+  and the responsibility is theirs**, with Aura's validator the only
+  thing that says no. The mind may explain and may offer when asked; it
+  may not act on its own initiative.
+
+### 172b. Raised by the caller's own document (D-101)
+
+Aura's requirements scope its first slice as text-in, text-out, no
+voice, one complete reply — blocked by seven generation requirements
+(G1–G8) this library does not yet meet. Whether this spike runs first, or
+the slice-1 contract does and the spike follows as 4w, is D-101's fork,
+for Ryad. The spec above stays signed either way.
 
 ## 173. Definition of done (4v)
 
