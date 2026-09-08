@@ -4761,3 +4761,27 @@ measured for silence and by ear · one Arabic turn priced beside English
 both fixtures committed with provenance · INSTRUMENTS §62 with the
 MSA/Darja gap stated · zero warnings · lint zero · 20× · reviewed with
 every fix pushed before the PR is called ready · teach-back.
+
+## 166a. Recorded in the field: the Chinese leak (4u, INSTRUMENTS §63)
+
+Turn 5 of the first Arabic conversation ended "عاصمة تونس هي تونس城" —
+the capital of Tunisia is Tunis, and then one Chinese character, 城
+("city"). A 4-bit 4B Qwen code-switching into Chinese is a known failure
+mode of the family; English never shows it because English has nowhere
+to leak *from*. The mouth would have been handed a Chinese character to
+say in Arabic.
+
+**F-6 — WHAT STOPS A CHINESE CHARACTER REACHING THE MOUTH.**
+*A:* one more line in the app's instruction — "use only Arabic script" —
+policy (D-027), ~30 characters of prefill, its effect a field count.
+*B:* a mechanism: when the session language is Arabic, tokens carrying
+CJK scalars are dropped before the phraser sees them — deterministic,
+testable, and the library deciding what a mind may say.
+*C:* both — the line, and the filter as a net.
+
+**Recommendation: A first, measured by the next Arabic session; B only
+if A fails, and then narrowly** — CJK scalars only, only when the
+language is Arabic, because a Latin brand name or a digit is not a leak.
+*Rejected for now: B alone* — a filter that ships before the free lever
+was tried is the library taking a policy decision the app has not made.
+*Rejected: C* — two mechanisms for one unmeasured fault.
