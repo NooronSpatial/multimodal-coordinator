@@ -122,6 +122,20 @@ struct AppleSpeechEngineConformanceTests {
 #if canImport(MultiModalKitWhisper)
 import MultiModalKitWhisper
 
+/// The language hint is CARRIED (4u, AC-212). A signature addition has no
+/// runnable red — the old initializer simply did not take a language — so
+/// this pins the two facts a caller relies on: the hint is stored as given,
+/// and the default is no hint at all, which is the pre-4u behaviour for
+/// every caller that never asked. Whether the hint helps is the fixture's
+/// job (INSTRUMENTS §62), not this test's.
+@Suite struct WhisperLanguageHintTests {
+    @Test("the hint is stored as given, and absent by default")
+    func hintIsCarried() {
+        #expect(WhisperEngine(model: "small", language: "ar").language == "ar")
+        #expect(WhisperEngine().language == nil, "no hint is the old behaviour, unchanged")
+    }
+}
+
 /// The kit, applied to the WHISPER engine — gated on the model being on disk
 /// (WhisperKit's hub folder), so CI skips honestly. On a machine with the
 /// model this runs the real CoreML pipeline: expect seconds, not
