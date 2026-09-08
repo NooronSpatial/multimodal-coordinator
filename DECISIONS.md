@@ -4124,6 +4124,18 @@ transient memory**. That is not free, and it is roughly a third of the
 gap the twelve-turn log called "a little bit more time between thinking
 and speaking". It buys turn 3 being able to say "this country".
 
+### Correction, 2026-09-08 — the jetsam leg was wrong, and Ryad found it
+
+"1,269 MB of room" above subtracted the active MLX figure from a headroom
+that ALREADY counted it: `MemoryHeadroom` reports bytes REMAINING before
+the dirty-memory limit. The room was 3,622 MB, and the extrapolated
+1.6 GB spike would have fitted with two to spare. **The sentence "the
+shipped default could not fit in the phone it shipped for" is withdrawn.**
+The ruling stands on its other two legs — +2,722 ms of felt pause at 4,000
+characters, and the cliff argument for 600 over 300 — and is not changed.
+Recorded here rather than edited away, because a decision log that
+corrects itself silently is not one.
+
 ## D-093 — the front door: five rulings at sign-off (Milestone 4t, Runtime Phase A)
 
 **Date:** 2026-09-07 · **Decided by:** Ryad · **Rulings: F-1 = B, F-2 = A,

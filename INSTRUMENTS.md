@@ -4758,15 +4758,21 @@ memory would cost:
     +2,722 ms of felt pause        and        +1,618 MB transient
 
 The felt pause number alone is worse than the complaint that started 4o.
-The memory number is the serious one: this session had **3,622 MB of
-headroom with 2,353 MB already active — about 1,269 MB of room.** A
-1.6 GB prefill spike does not fit in it.
+The memory number needs the correction that follows, and it is kept
+here rather than quietly rewritten. This session had **3,622 MB of
+headroom** — and `MemoryHeadroom` reads the room REMAINING before the
+dirty-memory limit, with the 2,353 MB already active counted against it.
+*The first version of this paragraph subtracted the active figure a
+second time and printed "about 1,269 MB of room". Ryad questioned the
+arithmetic on 2026-09-08, and it was wrong* — the same not-like-for-like
+error as the 5,830 MB entitlement figure this document already corrected
+once. A 1.6 GB prefill spike fits in 3.6 GB with two to spare.
 
-**The shipped character budget is not merely slow. On the phone this
-project targets, it is a jetsam risk** — the crash class D-079 and
-INSTRUMENTS §27 already cost this app two field trips. It was never
-exercised, because a conversation has to run long before 4,000 characters
-of history accumulate, and no session has.
+**The jetsam claim is therefore withdrawn.** The 4,000-character budget
+was not a crash waiting to happen on this phone; it was a slow default.
+What stands, unchanged, is the felt pause: +2,722 ms at 4,000 characters
+is worse than the complaint that started 4o, and D-092's 600 rests on
+that leg and on the cliff argument alone.
 
 The bound that matters is therefore the CHARACTER budget, not the depth:
 cost tracks characters, and exchanges vary in length by more than 4×.
@@ -4819,15 +4825,17 @@ history past 600 and D-092's bound dropped the two oldest exchanges,
 leaving ~454. §58b's line (317 ms + 0.68 ms/char) predicts 694 and 626;
 the field says 642 and 542. The direction and the size both hold.
 
-### The number to watch
+### The number to watch — corrected
 
-MLX peak reached **3,346 MB against 3,671 MB of headroom — 325 MB of
-room**, tighter than 4r's 3,062 MB. It grew turn by turn (2,571 → 3,024 →
-3,130 → 3,346) and then stopped at turn 5, which is the bound doing its
-job. That margin is the transient prefill spike plus Kokoro's per-phrase
-allocation on top of a resident 2.3 GB mind; it is inside budget, and it
-is the first number that would move if either the bound or the phrase
-cap were loosened.
+MLX peak reached **3,346 MB**. At share time MLX was 2,318 MB active with
+**3,671 MB remaining** before the limit, so the peak sat ~1,028 MB above
+active and roughly **2.6 GB would still have been free at that instant**.
+*The first version of this paragraph printed "325 MB of room" by
+subtracting a peak TOTAL from a REMAINING headroom — not like-for-like.
+Ryad questioned it on 2026-09-08 and it was wrong.* The peak grew turn by
+turn (2,571 → 3,024 → 3,130 → 3,346) and stopped at turn 5, which is the
+600-character bound doing its job. It is a number to keep reporting
+like-for-like, not an alarm.
 
 ### What §59 closes
 
@@ -4892,7 +4900,8 @@ The voice stayed ahead of real time, but the margin went from ~5× to
 ~1.4×. The transcriber has a thermal policy (`ConservativeThermalPolicy`,
 D-028); **the voice has none.** The first-token rise is part history
 (§58b) and part heat, and this session cannot separate them — a heat
-sweep at fixed history would. MLX peak 3,256 MB against 3,683 MB headroom.
+sweep at fixed history would. MLX peak 3,256 MB — ~940 MB above the
+2,318 MB active at share time — with 3,683 MB still remaining.
 
 ### 5. What was done, and what was not
 
