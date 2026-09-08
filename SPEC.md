@@ -4870,3 +4870,195 @@ supports a lot of languages" was true of the model and misleading about
 what runs on the phone; the port would need a G2P per language before
 even Spanish, and Arabic would need a G2P *and* trained voices *and* a
 diacritizer — training work, not integration.
+
+---
+
+# Milestone 4v — the tool spike (Runtime Phase B, first piece)
+
+## 168. Why this exists
+
+The runtime brief's Phase B says the mind must be able to CALL something,
+and the architecture report named the hardest unsolved piece in the
+whole brief: the reply seam carries text tokens and nothing else.
+
+    ReplyUpdate   .token(String) · .finished · .failed(String)
+
+Measured before written, the two real minds are further along than that
+sentence implies — and in two incompatible shapes:
+
+| mind | native tool calling | shape |
+|---|---|---|
+| Apple FoundationModels | **yes, typed** — `protocol Tool { name; description; Arguments; call(arguments:) }`, `LanguageModelSession(tools:)`, transcript entries `.toolCalls` / `.toolOutput` | the framework executes the tool and continues the reply |
+| MLX (`mlx-swift-lm` 3.31.4) | **yes, parsed** — `UserInput(chat:tools:)` renders `ToolSpec`s into the template; `generateTokens` emits a `.toolCall(ToolCall)` event beside `.token` | the caller executes the tool and asks again with a `.tool` message |
+
+Our `MLXTokenSource` already runs that event loop and **drops every
+non-token event** (`guard let id = event.token else { continue }`) —
+which is exactly where a tool call would arrive today and vanish.
+
+So Phase B's contract cannot be designed from an argument. The Kokoro
+precedent (4p) is the order: a spike behind the seam, measured, then the
+contract. This milestone is that spike. It builds ONE throwaway tool that
+rehearses the caller that exists — Aura's *read the current session*,
+answered from a stub the demo owns — because its answer is checkable,
+it needs no permission, and it is the shape of the first real tool.
+
+## 168a. The caller: Aura (Ryad, 2026-09-08)
+
+The runtime's first consumer, in its owner's words, paraphrased: *the
+person wakes up, or checks in at any time, and asks for THE
+recommendation — push, rest, or recover — built from their body data
+(readiness, heart, sleep, injuries), their calendar and the weather; a
+plan is generated from it, and the plan runs on the Watch. What the
+runtime must give Aura is speech-to-speech, on-device: to talk about the
+session, to update it, to change it.*
+
+Read as organs and tools:
+
+| Aura needs | the runtime has | the runtime lacks |
+|---|---|---|
+| voice in, voice out, on device | ear · mind · mouth · `AIRuntime` · memory | — |
+| the mind knows today's facts | the instruction is the app's text (D-027) — Aura can put the day's summary there **today**, at §58b's 0.68 ms/char | a way to *pull* facts on demand instead of pushing them all |
+| the mind can read the session | — | a **read tool** |
+| the mind can change the session | — | a **write tool**, and the confirmation policy the brief's §5 demands for it |
+| the recommendation and the plan | — and deliberately so | nothing: **Aura's own logic decides.** §60 showed this mind inventing a border; in a training app an invented readiness is an injury. The mind explains and negotiates; it is not the coach. |
+| the Watch runs the plan | — | out of scope: Aura ↔ Watch |
+
+So Phase B's first real capability is **Aura's session** — a read and a
+write — and this spike's throwaway tool rehearses the read (F-3 below).
+The write, the confirmation-as-a-spoken-turn, and push-versus-pull of
+the day's facts are Phase B's own forks, named in §172a and not ruled
+here.
+
+## 169. Scope
+
+1. **A tool call crosses the seam.** `ReplyUpdate` learns how a reply
+   asks for a tool and how the answer goes back (F-1 rules the shape).
+2. **Both minds make the same call.** Apple through its `Tool`; MLX
+   through `.toolCall` — one throwaway tool, one seam, two citizens.
+3. **The turn survives it.** A slow tool, a failing tool, and a barge
+   DURING the call — the brief's three, as coordinator tests with the
+   scripted generator, and the ticket doctrine applied to a call in flight.
+4. **The plain path is measured.** With no tool called, the added cost
+   on the felt pause must be under 10 ms on the phone (the brief's
+   criterion 8), and no audio-thread allocation.
+5. **The call's own cost is measured.** Prefill of the tool spec
+   (characters again — §58b's slope), the round trip, and the reply's
+   first word after the answer returns, on the phone.
+6. **INSTRUMENTS §64**, and a fork at the end: the contract's shape, ruled
+   on the numbers.
+
+## 170. Non-goals
+
+- **A capability or tool contract.** Phase B's contract is what this
+  spike informs; designing it here is the guess 4p refused.
+- **A real capability.** The clock is a throwaway. Timer, weather,
+  calendar come with an application's sentence, not before.
+- **Permissions.** Reading the clock needs none; the policy layer waits
+  for a tool that does.
+- **Tool calls from the scripted or echo minds** beyond what the tests
+  need.
+- **Any change to memory, the phraser, the mouths.**
+
+## 171. Acceptance criteria
+
+- **AC-221** — the seam carries a call: a scripted generator can emit a
+  tool request and receive the answer; the coordinator delivers both.
+- **AC-222** — the MLX mind asks the clock and speaks the time. The
+  `.toolCall` event is no longer dropped; the answer returns as a `.tool`
+  message; the reply continues.
+- **AC-223** — the Apple mind asks the clock and speaks the time, through
+  its own `Tool`, with no `ReplyUpdate` changes it did not need.
+- **AC-224** — a SLOW tool does not stall the turn machinery: the
+  coordinator stays responsive (a barge lands) while the call is pending.
+- **AC-225** — a FAILING tool ends as an honest turn, not a crash: the
+  mind is told, the reply says so, the next turn runs clean.
+- **AC-226** — a BARGE during a call: the call's result is discarded by
+  the ticket, never spoken, never remembered.
+- **AC-227** — the plain path (no tool) adds **< 10 ms** to the felt pause
+  on the phone, measured before/after in one sitting; no audio-thread
+  allocation (graph probe).
+- **AC-228** — the tool path is priced on the phone: spec prefill,
+  round trip, first word after the answer.
+- **AC-229** — INSTRUMENTS §64, and the closing fork presented, not
+  decided.
+- **AC-230** — 20× with every failing log kept, zero warnings, lint zero,
+  both demos build.
+
+### Test matrix
+
+| criterion | test |
+|---|---|
+| AC-221 | coordinator test, scripted generator emitting a call |
+| AC-222 | MLX live test (model-gated, skips honestly) |
+| AC-223 | Apple live test (OS-26-gated, skips honestly) |
+| AC-224 · 225 · 226 | coordinator tests, scripted tool, manual clock |
+| AC-227 | phone, one sitting; `graph-probe` |
+| AC-228 | phone; INSTRUMENTS §64 |
+| AC-229 | the doc and a HALT |
+| AC-230 | the usual |
+
+## 172. The forks
+
+**F-1 — HOW A CALL CROSSES THE SEAM.**
+*A:* two new `ReplyUpdate` cases — `.toolRequested(ToolRequest)` and,
+from the caller, `ReplyRun.answer(_:)` — the reply stream pauses on the
+request and resumes on the answer.
+*B:* the run executes tools ITSELF: `openReply(to:tools:)` hands the run
+closures, and the seam stays `.token/.finished/.failed`.
+*C:* a separate seam beside `ReplyRun` for tools.
+
+**Recommendation: B.** Apple's mind ALREADY works this way — the
+framework calls the tool inside the session — so A would force the
+first citizen to fake a pause it does not have, and the seam's promise
+"tokens then one terminal" stays exactly true. The run owns the loop it
+already runs. *Rejected: A* — a two-way stream turns every coordinator
+arm into a state machine about calls; *Rejected: C* — a second seam for
+a thing that is part of ONE reply.
+
+**F-2 — WHO OWNS THE TOOL TABLE.**
+*A:* the app hands tools to the generator at construction.
+*B:* the coordinator holds them and passes them per reply.
+**Recommendation: A.** Tools are policy (which the app grants — the
+brief's §5), and the coordinator must not learn a `switch` (§3's
+registration rule). *Rejected: B.*
+
+**F-3 — THE THROWAWAY TOOL.** *A:* the clock. *B:* a timer (the brief's
+suggestion). *C:* **Aura's session read** — "what is today's session?",
+answered from a stub the demo owns (a fixed session with a readiness
+verdict). **Recommendation: C** — checkable, no permission, no callback,
+and it is the exact shape of Phase B's first real tool, so the spike's
+numbers transfer instead of being re-measured on a different question.
+*Rejected: A* — checkable but it rehearses nobody's caller. *Rejected:
+B* — needs a callback path the spike should not invent.
+
+**F-4 — WHAT THE MLX RUN DOES WITH A CALL IT CANNOT MATCH** (a name no
+tool has). *A:* report `.failed`. *B:* answer the model with an error
+message and let it recover in words. **Recommendation: B, measured** —
+it is what Apple's framework does, and a spoken "I couldn't do that" is
+the honest outcome AC-225 wants.
+
+### 172a. Named for Phase B, not ruled here
+
+Three forks the Aura requirement opens, written down so the contract
+milestone starts from them:
+
+- **Push or pull.** Aura's day has many facts. Pushing them all into the
+  instruction costs §58b's 0.68 ms per character on *every* turn; pulling
+  them through tools costs a round trip only when the mind asks.
+  Likely answer: a one-line summary pushed, the rest pulled — measured.
+- **The write, and its confirmation.** "Make it shorter" changes a
+  training plan. The brief's §5 says default-deny for a model-initiated
+  write; in a voice app the confirmation is a *spoken turn*, which meets
+  the barge window and the ticket doctrine head-on.
+- **Who decides.** Aura's logic recommends and plans; the mind explains
+  and negotiates. Whether the mind may ever *propose* a change on its own
+  is a policy Aura owns.
+
+## 173. Definition of done (4v)
+
+One throwaway tool called by both real minds through one seam · the
+three survival tests green under the ticket doctrine · the plain path
+priced at under 10 ms on the phone · the call priced · INSTRUMENTS §64 ·
+the contract's fork presented on the numbers · 20× with evidence · zero
+warnings · lint zero · reviewed with every fix pushed before the PR is
+called ready · teach-back.
