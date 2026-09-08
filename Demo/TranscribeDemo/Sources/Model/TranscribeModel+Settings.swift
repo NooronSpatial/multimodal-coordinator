@@ -97,6 +97,11 @@ extension TranscribeModel {
         UserDefaults.standard.string(forKey: mindKey)
             .flatMap(MindChoice.init(rawValue:)) ?? .echo
     }
+    static let languageKey = "dev.nooron.demo.language"
+    static var storedLanguage: LanguageChoice {
+        UserDefaults.standard.string(forKey: languageKey)
+            .flatMap(LanguageChoice.init(rawValue:)) ?? .english
+    }
     static let mouthKey = "dev.nooron.demo.mouth"
     static var storedMouth: MouthChoice {
         UserDefaults.standard.string(forKey: mouthKey)

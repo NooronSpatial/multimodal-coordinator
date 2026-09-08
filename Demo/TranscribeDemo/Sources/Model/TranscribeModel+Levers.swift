@@ -176,8 +176,13 @@ extension TranscribeModel {
         // enhanced or premium voice downloaded, this returns a compact
         // one and nothing changes — which is why the name is on screen.
         case .apple: AppleSpeechSynthesizer(
-            voiceIdentifier: appleVoiceIdentifier
-                ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier,
+            // English keeps the person's chosen voice; any other language
+            // takes the best installed voice FOR that language (4u) — the
+            // stored identifier is an English one and would read Arabic
+            // with an English mouth.
+            voiceIdentifier: language == .english
+                ? (appleVoiceIdentifier ?? AppleSpeechSynthesizer.bestInstalledVoice()?.identifier)
+                : AppleSpeechSynthesizer.bestInstalledVoice(forLanguage: language.voiceLanguage)?.identifier,
             // BEHIND THE SHIELD (4g, AC-121): Apple's PCM renders on the
             // capture engine too — both mouths, one road, the canceller
             // sees them all.
