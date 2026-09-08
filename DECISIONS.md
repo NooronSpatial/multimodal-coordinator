@@ -4233,3 +4233,35 @@ to download the model now hears about it on every sentence instead of
 once in a banner they scrolled past. *Rejected:* **revert** — it would
 have needed the one platform branch inside the runtime that AC-208 exists
 to refuse.
+
+## D-095 — the mind is asked to be honest; thinking stays off; a bigger mind does not fit (4r/4t field)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("do A") · **Ruling: lever A
+now; lever B a measured fork, unruled; lever C unavailable**
+
+A seventeen-turn session (INSTRUMENTS §60) showed the 4-bit 4B mind
+inventing a Tunisia–Egypt border, defending it from its own memory, then
+agreeing with whoever pushed last. Not a coordinator fault; a model this
+size produces plausible sentences, not facts. Three levers were named
+with their costs, and Ryad took the free one.
+
+**A — two sentences in the app's instruction** asking the mind to say
+when it is unsure or did not understand. POLICY, the app's (D-027); the
+library's default instruction is still `nil`. The cost is written beside
+it: ~82 characters of prefill, ~55 ms per turn at §58b's slope, paid
+knowingly. Its effect is a field measurement and is not claimed.
+
+*Not taken, not rejected:* **B, thinking on.** The only lever that moves
+accuracy, and it costs seconds of felt pause — the exact number 4o, 4q
+and 4r were spent on. It is a fork to be ruled on a measurement (thinking
+on vs off, the same questions, corrections counted, the pause priced),
+never on an argument.
+
+*Unavailable:* **C, a bigger or less-squeezed mind.** 4B at 8 bits and 8B
+at 4 bits are both ~4.5 GB against 3.6 GB of headroom on the phone this
+project targets. Stated so nobody spends a milestone finding it out.
+
+**What §60 also records, and this ruling does not address:** memory
+carries the model's errors forward (a 4r cost), and the voice has no
+thermal policy while the first `serious` session on record slowed it to
+RTF 0.70. Both are named debts, not smuggled fixes.

@@ -4833,3 +4833,83 @@ cap were loosened.
 
 **AC-205**, with the caveat above written where it will be read. 4t's
 measured criteria are all answered; the teach-back is what remains.
+
+## 60. The mind that agrees — hallucination, sycophancy, and memory carrying the error (4r/4t field)
+
+**Method.** Ryad's iPhone, 2026-09-08, `main` after 4t. Local 4B mind
+(`Qwen3-4B-4bit`), Apple ear, Kokoro mouth, memory at 600 characters.
+Seventeen turns. The shared log's header said `mind=Apple`; every turn
+said `Local (MLX)`. **Benign, confirmed by Ryad: the picker was switched
+after the session, and the header prints the picker at share time.**
+Recorded so the next reader does not treat it as the finding the log's
+own NOTE would make it.
+
+### 1. The invention, and the agreement
+
+| turn | heard | reply |
+|---|---|---|
+| 9 | "The neighbour's country." | "…Algeria to the **east**, Libya to the south, and **Egypt to the north**." |
+| 11 | "Does Tunisia has border with Egypt?" | "**Yes**, Tunisia shares a border with Egypt to the north." |
+| 15 | "Is not true. Egypt doesn't have a border with Tunisia." | "**Yes**, Egypt and Tunisia do **not** share a border…" |
+| 17 | "…separated by a country called Libya." | "You are correct…" |
+
+Algeria is to the west; there is no Egyptian border; the Mediterranean is
+to the north. Yesterday's session (§59's log) had the same class — Mali
+and Niger "to the west" of Algeria, Morocco "to the north". Geography is
+a consistent weak spot of this mind.
+
+Two failures, named: **hallucination** (a 4-bit 4B model producing the
+most plausible sentence, not a fact) and **sycophancy** (agreeing with
+whoever pushed last — turn 15's "Yes" prefixing a reversal is the tell).
+Not a coordinator fault: the pipeline delivered exactly what the model
+produced, and the model produced what a model this size and this
+quantised produces.
+
+### 2. Memory carries the error forward — a cost of 4r §58b did not price
+
+At turn 11 the model saw its own turn-9 claim in the history and
+**defended it**. Before 4r each turn was answered fresh and the mistake
+would have died with its turn. Memory makes the mind consistent —
+including consistent with its errors — and a person who then argues is
+arguing with a transcript. This is real and it is ours.
+
+### 3. A confident answer to a question nobody asked
+
+Turn 4: the ear heard "Cherians" (for *Algerians*, most likely). The mind
+answered about a community in Kerala. The pipeline is working as designed
+— the mind answers what the ear delivers — and the failure is a mind that
+does not say "I did not understand".
+
+### 4. Thermal `serious` from turn 5 — the first such session on record
+
+| | nominal (turns 1–4) | serious (turns 5–17) |
+|---|---|---|
+| first token, ~0–2 exchanges | 308–478 ms | 535–694 ms |
+| Kokoro RTF | — | **0.508 (t5) … 0.699 (t15)**, typical 0.2 |
+| turn 5 total | — | 7,904 ms for ~200 characters |
+
+The voice stayed ahead of real time, but the margin went from ~5× to
+~1.4×. The transcriber has a thermal policy (`ConservativeThermalPolicy`,
+D-028); **the voice has none.** The first-token rise is part history
+(§58b) and part heat, and this session cannot separate them — a heat
+sweep at fixed history would. MLX peak 3,256 MB against 3,683 MB headroom.
+
+### 5. What was done, and what was not
+
+**Lever A, applied (D-095):** two sentences in the phone's instruction —
+"If you are not sure, say so instead of guessing. If you did not
+understand, say so." Free in code; **not free in time**: ~82 characters
+of prefill at §58b's slope is ~55 ms on every turn. Whether it reduces
+invention and agreement is a **field measurement**: ask turn 9's question
+again, and "Cherians", and count what the mind does. Nothing here claims
+it works.
+
+**Lever B, not taken — a fork for Ryad:** thinking on. §86 gated Qwen's
+thinking off for the felt pause; with it on the model is markedly more
+accurate on facts, at a cost of seconds before the first word. The only
+lever that changes accuracy, and it costs exactly the number this project
+has spent three milestones on. Measured, or not at all.
+
+**Lever C, unavailable on this phone:** 4B at 8 bits ≈ 4.4 GB and 8B at
+4 bits ≈ 4.5 GB, against 3.6 GB of headroom with 2.3 GB already resident.
+Neither fits. Said plainly rather than implied.
