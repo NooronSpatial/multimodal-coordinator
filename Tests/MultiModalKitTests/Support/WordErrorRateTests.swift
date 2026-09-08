@@ -47,4 +47,55 @@ extension WordErrorRateTests {
                                         hypothesis: "chunks of 20 milliseconds")
         #expect(score.wer == 0)
     }
+
+    // MARK: - Arabic (4u, AC-213, F-5 = B)
+
+    /// The English normaliser scores Arabic as ALL WRONG in ways that have
+    /// nothing to do with what was said: a diacritic is not a letter, so
+    /// `isLetter` turns it into a space and breaks the word in two; the
+    /// four alef forms are four different letters; taa marbuta and alef
+    /// maqsura are spelled two ways by every writer alive. Whisper emits
+    /// none of the diacritics and any of the spellings. Each rule below
+    /// is one thing a native reader ignores and a byte comparison does not.
+    @Test("Arabic: diacritics (tashkeel) do not count")
+    func arabicDiacriticsDoNotCount() {
+        let score = WordErrorRate.score(reference: "مرحبا بكم", hypothesis: "مَرْحَبًا بِكُمْ")
+        #expect(score.wer == 0, "\(score)")
+    }
+
+    @Test("Arabic: the four alef forms are one letter")
+    func arabicAlefFormsAreOneLetter() {
+        #expect(WordErrorRate.score(reference: "أحمد إلى آخر", hypothesis: "احمد الى اخر").wer == 0)
+    }
+
+    @Test("Arabic: taa marbuta and alef maqsura fold to their common spellings")
+    func arabicTaaMarbutaAndAlefMaqsuraFold() {
+        #expect(WordErrorRate.score(reference: "العاصمة على", hypothesis: "العاصمه علي").wer == 0)
+    }
+
+    @Test("Arabic: tatweel (the stretching mark) is not a letter")
+    func arabicTatweelIsRemoved() {
+        #expect(WordErrorRate.score(reference: "الجزائر", hypothesis: "الـــجزائر").wer == 0)
+    }
+
+    @Test("Arabic: Arabic punctuation does not count")
+    func arabicPunctuationDoesNotCount() {
+        #expect(WordErrorRate.score(reference: "الأذن، والعقل، والفم؟", hypothesis: "الاذن والعقل والفم").wer == 0)
+    }
+
+    /// The ruler must still MEASURE: folding must not make different words
+    /// the same word.
+    @Test("Arabic: a real substitution still counts")
+    func arabicSubstitutionStillCounts() {
+        let score = WordErrorRate.score(reference: "عاصمة الجزائر", hypothesis: "عاصمة تونس")
+        #expect(score.substitutions == 1 && score.wer == 0.5)
+    }
+
+    /// And the English ruler is untouched by the Arabic rules — the same
+    /// four words the first test in this file has always used.
+    @Test("English normalisation is unchanged by the Arabic rules")
+    func englishIsUnchanged() {
+        #expect(WordErrorRate.normalize("The ring, may drop!") == ["the", "ring", "may", "drop"])
+        #expect(WordErrorRate.normalize("chunk 20 ms") == ["chunk", "twenty", "ms"])
+    }
 }
