@@ -13,6 +13,10 @@ import Testing
 final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     enum Plan: Sendable {
         case tokens([String])
+        /// The seam's events VERBATIM, `.stopped` included — so a test can
+        /// say what a source must never do (a token after its stop, two
+        /// stops) and read what the run makes of it (4v, AC-235).
+        case events([TokenEvent])
         /// Yields, then throws — the failure a real model cannot be asked
         /// to perform on demand.
         case tokensThenThrow([String], any Error)
@@ -58,12 +62,16 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     var sawCancellation: Bool { counts.withLock { $0.sawCancellation } }
     func release() { counts.withLock { $0.released = true } }
 
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {
                 case .tokens(let all):
                     yieldAll(all, into: continuation)
+                    continuation.finish()
+                case .events(let all):
+                    for event in all { continuation.yield(event) }
+                    counts.withLock { $0.yielded += all.count }
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
                     yieldAll(all, into: continuation)
@@ -77,7 +85,7 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
                 case .gatedDefiance(let before, let after):
                     await yieldThenHoldAtTheGate(before, into: continuation)
                     // THE DEFIANT YIELD, after the test's cancel returned.
-                    continuation.yield(after)
+                    continuation.yield(.token(after))
                     counts.withLock { $0.yielded += 1 }
                     continuation.finish()
                 }
@@ -89,10 +97,10 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     /// Yields every token in birth order, counting each one.
     private func yieldAll(
         _ all: [String],
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) {
         for token in all {
-            continuation.yield(token)
+            continuation.yield(.token(token))
             counts.withLock { $0.yielded += 1 }
         }
     }
@@ -115,9 +123,9 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     /// hanging it. Shared by both gated plans.
     private func yieldThenHoldAtTheGate(
         _ before: String,
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) async {
-        continuation.yield(before)
+        continuation.yield(.token(before))
         counts.withLock { $0.yielded += 1 }
         var opened = false
         for _ in 0..<200_000 {
@@ -236,6 +244,22 @@ struct MLXReplyGeneratorTests {
                 "a cancelled reply's stream must END")
         #expect(ReplyConformanceKit.terminals(in: seen.withLock { $0 }).isEmpty,
                 "a cancelled reply never claims completion, even when its source ends politely a moment later")
+    }
+
+    /// The internal seam's `.stopped` is a TERMINAL, the same word it is
+    /// on the public one: the FIRST reason is the reason, and a token that
+    /// arrives after it is a source breaking its contract — dropped, never
+    /// spoken. The only real source today yields one `.stopped` last, so
+    /// this pins the contract before a second source can drift from it.
+    @Test("the FIRST .stopped is terminal — a later token or reason is not heard")
+    func stoppedIsTerminalOnTheTokenSeam() async throws {
+        let (mind, _) = generator(.events([
+            .token("a"), .stopped(.complete), .token("LATE"), .stopped(.tokenBudget)
+        ]))
+        let run = try await mind.openReply(to: "a thought")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.token("a"), .finished(.complete)],
+                "the reason is the first one said; nothing after it is admitted")
     }
 
     @Test("every unavailability reason describes itself in honest words")

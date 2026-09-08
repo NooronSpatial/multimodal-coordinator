@@ -47,12 +47,16 @@ enum ReplyConformanceKit {
 
     /// Promise 1: tokens as they are born, then EXACTLY one terminal,
     /// then the stream ends — `drain` returning at all is the ending.
+    /// The stop reason defaults to `.unreported` — what a source that
+    /// says nothing about WHY yields (4v); a source that does say passes
+    /// what it said.
     static func verifyTokensThenExactlyOneTerminal(
-        _ generator: any ReplyGenerating, expecting tokens: [String]
+        _ generator: any ReplyGenerating, expecting tokens: [String],
+        endingWith stop: StopReason = .unreported
     ) async throws {
         let run = try await generator.openReply(to: "a final transcript")
         let updates = await drain(run)
-        #expect(updates == tokens.map { .token($0) } + [.finished])
+        #expect(updates == tokens.map { .token($0) } + [.finished(stop)])
     }
 
     /// Promise 2: a cancelled reply ends its stream WITHOUT a terminal.
@@ -272,11 +276,11 @@ struct AppleReplyGeneratorTests {
 
         #expect(updates.first == .token("The answer is yes"),
                 "text that extended truthfully was true when emitted — it flows")
-        guard case .failed(let reason)? = updates.last else {
+        guard case .failed(let failure)? = updates.last else {
             Issue.record("the tripwire must end the run with .failed, got \(updates)")
             return
         }
-        #expect(reason.contains("revised"), "the failure names the crime")
+        #expect(failure.description.contains("revised"), "the failure names the crime")
         #expect(!updates.contains(.token("The answer is no, actually")),
                 "the rewrite must never reach a mouth")
         #expect(ReplyConformanceKit.terminals(in: updates).count == 1)
@@ -309,7 +313,7 @@ struct AppleReplyGeneratorTests {
             refusal: "I can't help with that.")
             .openReply(to: "something the model declines")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't help with that."), .finished],
+        #expect(updates == [.token("I can't help with that."), .finished(.unreported)],
                 "a refusal is an ordinary outcome — silence would look like a bug")
     }
 
@@ -325,7 +329,7 @@ struct AppleReplyGeneratorTests {
                 .refusal(.init(transcriptEntries: []), Self.forged())))
             .openReply(to: "declined")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't answer that."), .finished])
+        #expect(updates == [.token("I can't answer that."), .finished(.unreported)])
     }
 
     @Test("the context window overflowing is a named failure")
@@ -340,10 +344,11 @@ struct AppleReplyGeneratorTests {
                 .exceededContextWindowSize(Self.forged())))
             .openReply(to: "too long a conversation")
         let updates = await ReplyConformanceKit.drain(run)
-        guard case .failed(let reason)? = updates.last else {
+        guard case .failed(let failure)? = updates.last else {
             Issue.record("expected .failed, got \(updates)"); return
         }
-        #expect(reason.contains("context window"))
+        #expect(failure == .contextWindowExceeded, "typed since 4v (AC-236)")
+        #expect(failure.description.contains("context window"))
     }
 
     @Test("assets unavailable names the Simulator lesson — availability lied")
@@ -358,10 +363,10 @@ struct AppleReplyGeneratorTests {
                 .assetsUnavailable(Self.forged())))
             .openReply(to: "anything")
         let updates = await ReplyConformanceKit.drain(run)
-        guard case .failed(let reason)? = updates.last else {
+        guard case .failed(let failure)? = updates.last else {
             Issue.record("expected .failed, got \(updates)"); return
         }
-        #expect(reason.contains("availability said yes"))
+        #expect(failure.description.contains("availability said yes"))
     }
 
     @Test("rate limiting, concurrency, decoding, guides: each one honest .failed")

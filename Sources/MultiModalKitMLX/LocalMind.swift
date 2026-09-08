@@ -265,7 +265,7 @@ struct MLXTokenSource: ReplyTokenStreaming {
         return nil
     }
 
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -323,10 +323,14 @@ struct MLXTokenSource: ReplyTokenStreaming {
                             // nil while a multi-token character is still
                             // incomplete — exactly what accented text does.
                             if let piece = detokenizer.next(), !piece.isEmpty {
-                                continuation.yield(piece)
+                                continuation.yield(.token(piece))
                             }
                         }
                     }
+                    // `.unreported` for now: the vendor's `.info` event
+                    // carries the real reason and is still dropped by the
+                    // `guard` above — reading it is AC-235's piece.
+                    continuation.yield(.stopped(.unreported))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -373,10 +377,13 @@ extension MLXReplyGenerator {
     ///   - instructions: how to speak. TEXT belongs to the app, never the
     ///     library (D-027, and D-057's F-3 for the first mind).
     ///   - maxTokens: a spoken reply that runs forever is a bug, not a
-    ///     feature.
+    ///     feature. 1024 since 4v (D-103 F-6 = A, AC-233): the cap is a
+    ///     ceiling, not a target — voice replies are short by instruction
+    ///     and the barge-in ends a runaway, while a text caller's whole
+    ///     document needs the room.
     public init(model: LocalMindModel,
                 instructions: String? = nil,
-                maxTokens: Int = 512) {
+                maxTokens: Int = 1024) {
         self.init(source: MLXTokenSource(model: model,
                                          instructions: instructions,
                                          maxTokens: maxTokens))

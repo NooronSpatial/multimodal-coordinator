@@ -270,17 +270,19 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                     }
                     self.out.yield(.token(token))
                 }
-                self?.report(.finished)
+                // `.unreported`: Apple's stream ends without saying why
+                // (AC-235 — the vendor has no stop reason to read).
+                self?.report(.finished(.unreported))
             } catch let revision as SnapshotRevision {
                 // The tripwire fired: the model rewrote text that may
                 // already be in the room. One honest failure, showing
                 // both sides — never the wrong words, spoken (D-058).
-                self?.report(.failed("the model revised text already emitted — "
-                    + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\""))
+                self?.report(.failed(.engine("the model revised text already emitted — "
+                    + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\"")))
             } catch let error as LanguageModelSession.GenerationError {
                 self?.settle(generation: error)
             } catch {
-                self?.report(.failed("reply generation failed: \(error)"))
+                self?.report(.failed(.engine("reply generation failed: \(error)")))
             }
         }
         work.withLock { $0 = task }
@@ -304,22 +306,24 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         case .guardrailViolation, .refusal:
             speakRefusalAndFinish()
         case .exceededContextWindowSize:
-            report(.failed("the conversation exceeded the model's context window"))
+            // Already unambiguous, so already typed (4v seam piece); the
+            // rest of the table in SPEC §175/3 lands with AC-236.
+            report(.failed(.contextWindowExceeded))
         case .assetsUnavailable:
             // The Simulator lesson (INSTRUMENTS §22): availability can
             // vouch for assets the model manager then cannot produce.
-            report(.failed("the model's assets are unavailable — "
-                + "availability said yes and the model said no"))
+            report(.failed(.engine("the model's assets are unavailable — "
+                + "availability said yes and the model said no")))
         case .rateLimited:
-            report(.failed("the system rate-limited generation"))
+            report(.failed(.engine("the system rate-limited generation")))
         case .concurrentRequests:
-            report(.failed("a second request reached one session — "
-                + "sessions are per-turn (D-057 F-2), so this is a coordination bug"))
+            report(.failed(.engine("a second request reached one session — "
+                + "sessions are per-turn (D-057 F-2), so this is a coordination bug")))
         case .unsupportedGuide, .unsupportedLanguageOrLocale, .decodingFailure:
-            report(.failed("generation failed: \(error.localizedDescription)"))
+            report(.failed(.engine("generation failed: \(error.localizedDescription)")))
         @unknown default:
-            report(.failed("generation failed with a case this library "
-                + "does not know yet: \(error.localizedDescription)"))
+            report(.failed(.engine("generation failed with a case this library "
+                + "does not know yet: \(error.localizedDescription)")))
         }
     }
 
@@ -330,7 +334,7 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         let live = state.withLock { !$0.retired }
         guard live else { return }
         out.yield(.token(spokenRefusal))
-        report(.finished)
+        report(.finished(.unreported))
     }
 
     /// EVERY terminal path ends here, and only the first one acts —

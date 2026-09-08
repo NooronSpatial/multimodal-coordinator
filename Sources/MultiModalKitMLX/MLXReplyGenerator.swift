@@ -25,8 +25,18 @@ protocol ReplyTokenStreaming: Sendable {
     /// time: weights can finish downloading between two turns, so a
     /// cached refusal would freeze a temporary state into a verdict.
     var unavailable: (any Error)? { get }
-    /// Opens one generation and returns its tokens, in birth order.
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error>
+    /// Opens one generation and returns its tokens, in birth order, and
+    /// — when the vendor says — why it stopped.
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error>
+}
+
+/// What the token seam carries (4v, D-103 F-2 = A). The vendor already
+/// knows why a generation ended (`GenerateCompletionInfo.stopReason`) and
+/// the source used to DROP that event; this enum is the room for it. A
+/// stream that ends without `.stopped` means the source could not say.
+enum TokenEvent: Sendable, Equatable {
+    case token(String)
+    case stopped(StopReason)
 }
 
 // MARK: - the generator
@@ -104,8 +114,26 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await token in source.tokens(for: context) {
+                // `.unreported` until the source says otherwise — a stream
+                // that ends without `.stopped` is an engine that could
+                // not say (AC-235).
+                var stop = StopReason.unreported
+                for try await event in source.tokens(for: context) {
                     guard let self else { return }
+                    guard case .token(let token) = event else {
+                        // `.stopped` is a TERMINAL on this seam too, the
+                        // same word it is one seam up: the FIRST reason is
+                        // the reason, and a token after it is the source
+                        // breaking its contract. The loop ends HERE, so
+                        // nothing later is admitted — the 4v review found
+                        // this loop still listening after the stop (a late
+                        // token was spoken; a second reason overwrote the
+                        // first). The only real source yields one
+                        // `.stopped` last; this pins the contract before a
+                        // second source can drift from it (AC-235).
+                        if case .stopped(let reason) = event { stop = reason }
+                        break
+                    }
                     // Two guards keep a dead run silent, the same pair
                     // `AppleReplyRun` documents: this flag re-read, AND
                     // the stream having been finished by `cancel()` — a
@@ -125,9 +153,11 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     }
                     self.out.yield(.token(admitted))
                 }
-                self?.report(.finished)
+                self?.report(.finished(stop))
             } catch {
-                self?.report(.failed("local generation failed: \(error)"))
+                // The honest catch-all for now; AC-236 refines the
+                // mapping (a too-long prompt is refused BEFORE this).
+                self?.report(.failed(.engine("local generation failed: \(error)")))
             }
         }
         work.withLock { $0 = task }

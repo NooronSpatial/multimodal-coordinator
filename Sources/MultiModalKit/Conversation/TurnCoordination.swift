@@ -49,10 +49,15 @@ public enum TurnEvent: Sendable, Equatable {
 
 /// What one reply generation can say back. Tokens as they are born, then
 /// exactly one terminal update, then the stream ends.
+///
+/// Both terminals carry a TYPED reason since 4v (D-103, F-2 = A and
+/// F-3 = A): one terminal, one meaning. The voice path ignores the
+/// reason; the text caller counts on it. `ReplyContract.swift` holds the
+/// values.
 public enum ReplyUpdate: Sendable, Equatable {
     case token(String)
-    case finished
-    case failed(String)
+    case finished(StopReason)
+    case failed(ReplyFailure)
 }
 
 /// ONE reply — one final transcript in, a token stream out.
@@ -84,10 +89,18 @@ public struct ReplyContext: Sendable, Equatable {
     /// What came before, oldest first, already bounded by
     /// `ConversationMemory`. Empty is the ordinary first turn.
     public let history: [ConversationTurn]
+    /// The levers for THIS call (4v, D-103 F-1 = A): one seam, one struct,
+    /// and the default is exactly the pre-4v behaviour (AC-231), so every
+    /// existing call site — the coordinator included — compiles unchanged
+    /// and passes it.
+    public let options: GenerationOptions
 
-    public init(transcript: String, history: [ConversationTurn] = []) {
+    public init(transcript: String,
+                history: [ConversationTurn] = [],
+                options: GenerationOptions = GenerationOptions()) {
         self.transcript = transcript
         self.history = history
+        self.options = options
     }
 }
 

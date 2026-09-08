@@ -62,6 +62,29 @@ extension TurnCoordinatorTests {
         #expect(second?.history.first?.interrupted == false)
     }
 
+    /// AC-231 (4v). The coordinator asks nothing special of the mind: the
+    /// options it passes are the defaults, so the voice path IS the pre-4v
+    /// path — `GenerationOptions()` means "the generator's own" on every
+    /// lever (D-103 F-1 = A). A coordinator that started tuning the mind
+    /// would show up here first.
+    @Test("the coordinator passes the default options (AC-231)")
+    func theCoordinatorPassesTheDefaultOptions() async {
+        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+            await completeOneTurn(bench, utterance: 0,
+                                  saying: "hello there", answering: "Hello.", at: 0)
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        let record = bench.generator.record(ofReply: 0)
+        #expect(record?.context.options == GenerationOptions(),
+                "every lever nil — the generator's own instructions, budget and sampling")
+    }
+
     /// AC-195. One event, both effects: the arm that forgets is the arm
     /// that remembers. A handover split across two places is a handover
     /// with a window in it where the words are in neither.
