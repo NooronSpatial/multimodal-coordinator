@@ -53,6 +53,7 @@ final class MemoryProbe {
     }
 
     private(set) var rows: [Row] = []
+    private(set) var measuredArabic = false
     private(set) var status: String?
     private(set) var shareText = ""
 
@@ -70,6 +71,33 @@ final class MemoryProbe {
     /// answered differently at depth 0, and a different answer is a
     /// different amount of work.
     static let question = "Name one ocean."
+
+    /// THE SAME PROBE IN ARABIC (4u, AC-218). §58b's 0.68 ms per character
+    /// is an ENGLISH number: the tokenizer spends more tokens per Arabic
+    /// character, so the cost per character is expected to be higher and
+    /// must be measured, not scaled. Same shape — one question answerable
+    /// with no history, eight fixed exchanges sized like real ones.
+    static let arabicQuestion = "اذكر محيطا واحدا."
+    static let arabicFiller: [ConversationTurn] = [
+        .init(said: "حدثني عن تاريخ الجزائر.",
+              replied: "تاريخ الجزائر حافل بالحضارات القديمة والحكم الروماني والفتح العربي "
+                     + "والنفوذ العثماني والاستعمار الفرنسي ثم الاستقلال سنة ألف وتسعمئة واثنين وستين."),
+        .init(said: "ما هي عاصمة هذا البلد؟",
+              replied: "عاصمة الجزائر هي مدينة الجزائر، على ساحل البحر الأبيض المتوسط."),
+        .init(said: "وكم عدد السكان هناك؟",
+              replied: "يبلغ عدد سكان الجزائر نحو أربعة وأربعين مليون نسمة حسب تقديرات سنة ألفين وثلاثة وعشرين."),
+        .init(said: "ما اللغات المستعملة فيها؟",
+              replied: "العربية والأمازيغية لغتان رسميتان، وتستعمل الفرنسية كثيرا في التجارة والتعليم."),
+        .init(said: "هل هي دولة كبيرة؟",
+              replied: "الجزائر أكبر دولة في إفريقيا من حيث المساحة، ومعظم أراضيها صحراء."),
+        .init(said: "كيف يكون الطقس في الصيف؟",
+              replied: "الساحل دافئ ورطب في الصيف، بينما يشتد الحر كثيرا في الداخل والصحراء."),
+        .init(said: "اذكر طبقا مشهورا.",
+              replied: "الكسكسي هو أشهر طبق جزائري، ويقدم عادة مع اللحم والخضر."),
+        .init(said: "متى بدأت حرب التحرير؟",
+              replied: "بدأت حرب التحرير الجزائرية سنة ألف وتسعمئة وأربعة "
+                     + "وخمسين وانتهت بالاستقلال سنة ألف وتسعمئة واثنين وستين.")
+    ]
 
     /// The filler conversation, sized like a real one: §58's turns ran
     /// about 30 characters of question and 140 of reply, and these match.
@@ -112,9 +140,12 @@ final class MemoryProbe {
 
     /// Runs the sweep. The model must already be installed; this probe
     /// loads and WARMS it first, and throws that warm draw away.
-    func run(model: LocalMindModel, instructions: String) async {
+    func run(model: LocalMindModel, instructions: String, arabic: Bool = false) async {
+        let question = arabic ? Self.arabicQuestion : Self.question
+        let filler = arabic ? Self.arabicFiller : Self.filler
         guard status == nil else { return }
         rows = []
+        measuredArabic = arabic
         shareText = ""
         status = "loading the mind…"
 
@@ -139,15 +170,15 @@ final class MemoryProbe {
         // pipeline warm-up. Charging that to depth 0 would print a curve
         // that slopes the wrong way and look like a finding.
         status = "warm-up (discarded)…"
-        _ = await firstToken(generator, history: [])
+        _ = await firstToken(generator, history: [], question: question)
 
         var identifier = 0
         for depth in Self.depths {
-            let history = Array(Self.filler.prefix(depth))
+            let history = Array(filler.prefix(depth))
             let characters = history.reduce(0) { $0 + $1.characters }
             for draw in 1...Self.draws {
                 status = "depth \(depth), draw \(draw) of \(Self.draws)…"
-                let outcome = await firstToken(generator, history: history)
+                let outcome = await firstToken(generator, history: history, question: question)
                 identifier += 1
                 rows.append(Row(
                     id: identifier, depth: depth, draw: draw,
@@ -171,8 +202,8 @@ final class MemoryProbe {
     /// One draw: open a reply, stop the clock on the FIRST token, and kill
     /// the run. Nothing after the first token is part of this measurement.
     private func firstToken(_ generator: MLXReplyGenerator,
-                            history: [ConversationTurn]) async -> Outcome {
-        let context = ReplyContext(transcript: Self.question, history: history)
+                            history: [ConversationTurn], question: String) async -> Outcome {
+        let context = ReplyContext(transcript: question, history: history)
         let start = ContinuousClock.now
         do {
             let run = try await generator.openReply(to: context)
@@ -209,8 +240,8 @@ final class MemoryProbe {
     /// The share text. Markdown, because a verdict that comes back as a
     /// screenshot cannot be pasted into INSTRUMENTS.md — the 4e lesson.
     private func report() -> String {
-        var out = "# Memory probe — AC-197 / AC-198\n\n"
-        out += "question asked at every depth: \"\(Self.question)\"\n"
+        var out = "# Memory probe — AC-197 / AC-198\(measuredArabic ? " · ARABIC (AC-218)" : "")\n\n"
+        out += "question asked at every depth: \"\(measuredArabic ? Self.arabicQuestion : Self.question)\"\n"
         out += "draws per depth: \(Self.draws) · reply capped at 16 tokens then cancelled\n"
         out += "measures the MIND's first token, not the first audible word\n\n"
         out += "| depth | history chars | draw | first token | thermal | MLX active | MLX peak |\n"
@@ -261,14 +292,17 @@ struct MemoryProbeSection: View {
     @Bindable var probe: MemoryProbe
     let model: LocalMindModel
     let instructions: String
+    /// The app's language: Arabic measures AC-218's own curve.
+    var arabic = false
 
     var body: some View {
-        Section("Memory probe — AC-197: what remembering costs") {
+        Section(arabic ? "Memory probe — AC-218: what remembering costs, in Arabic"
+                       : "Memory probe — AC-197: what remembering costs") {
             if let status = probe.status {
                 Label(status, systemImage: "hourglass").foregroundStyle(.secondary)
             } else {
                 Button {
-                    Task { await probe.run(model: model, instructions: instructions) }
+                    Task { await probe.run(model: model, instructions: instructions, arabic: arabic) }
                 } label: {
                     Label("Sweep off · 4 · 8", systemImage: "clock.arrow.circlepath")
                 }

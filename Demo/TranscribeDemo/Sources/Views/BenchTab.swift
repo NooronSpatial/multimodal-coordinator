@@ -181,7 +181,8 @@ struct BenchTab: View {
                         MemoryProbeSection(
                             probe: memoryProbe,
                             model: model.localModel,
-                            instructions: TranscribeModel.spokenInstructions)
+                            instructions: TranscribeModel.spokenInstructions,
+                            arabic: model.language == .arabic)
                     }
                     .navigationTitle("Memory probe")
                 }
