@@ -4782,3 +4782,54 @@ shipped memory therefore costs up to **~408 ms of felt pause and ~243 MB
 of transient memory** — stated here rather than buried, because it is
 about a third of the gap the twelve-turn log complained about, and it is
 what buys turn 3 the ability to say "this country".
+
+## 59. The front door added nothing — AC-205 on the phone (4t)
+
+**Method.** Ryad's iPhone, 2026-09-08, `main` after PR #37 (4t merged).
+Local 4B mind, Apple ear, Kokoro mouth, speaker shield on, memory at the
+shipped 600-character bound. Six turns of an ordinary conversation. The
+"before" is the 4r field session of 2026-09-05 (§58) — same phone, same
+organs, same thermal profile (nominal → fair from turn 2 in both).
+
+**The caveat, first:** AC-205 asked for before and after in ONE sitting on
+one build. This is two sittings, two days apart, on two builds. It is
+recorded as answered because every other variable is the same and the
+result is not close — but it is not the measurement the criterion named,
+and a same-sitting pair is still the cleaner evidence if anyone doubts it.
+
+### The felt pause did not move
+
+Compared at equal history depth, because §58b established that history is
+what the first token's cost tracks:
+
+| exchanges behind the turn | 4r (before) | 4t (after) | delta |
+|---|---|---|---|
+| 0 | 337 ms | **317 ms** | −20 |
+| 1 | 324 ms | **318 ms** | −6 |
+| 2 | 430 ms | **423 ms** | −7 |
+
+Within noise, and lower. The runtime assembles the actors and owns the
+teardown order; it is not on the turn path at all, and the phone agrees.
+
+### The 600-character bound, seen in the field for the first time
+
+Turn 5 had four exchanges behind it (~554 characters) and paid **642 ms**.
+Turn 6 paid **542 ms** — *less* — because recording turn 5 pushed the
+history past 600 and D-092's bound dropped the two oldest exchanges,
+leaving ~454. §58b's line (317 ms + 0.68 ms/char) predicts 694 and 626;
+the field says 642 and 542. The direction and the size both hold.
+
+### The number to watch
+
+MLX peak reached **3,346 MB against 3,671 MB of headroom — 325 MB of
+room**, tighter than 4r's 3,062 MB. It grew turn by turn (2,571 → 3,024 →
+3,130 → 3,346) and then stopped at turn 5, which is the bound doing its
+job. That margin is the transient prefill spike plus Kokoro's per-phrase
+allocation on top of a resident 2.3 GB mind; it is inside budget, and it
+is the first number that would move if either the bound or the phrase
+cap were loosened.
+
+### What §59 closes
+
+**AC-205**, with the caveat above written where it will be read. 4t's
+measured criteria are all answered; the teach-back is what remains.

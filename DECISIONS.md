@@ -4215,3 +4215,21 @@ on the way out.
 it: the patch that added it failed on its anchor after the map had
 already been written, and the commit was not gated on that failure. Fixed
 forward here rather than amended — the history says what happened.)*
+
+## D-094 — the Mac demo reports a missing model per utterance (Milestone 4t)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("keep")
+
+The front door requires an ear, so the Mac demo's old "voice detection
+only" mode — run without a speech model, say nothing about it after the
+banner — could not survive the migration without a special branch, which
+AC-208 forbids. It was replaced, without asking, by passing the unready ear
+in and letting every utterance report its transcription failure on screen.
+PR #37 named the change as reversible with one word; the word was *keep*.
+
+**Why keep:** failure is an event (AC-65) is the library's own rule, and
+the demo was the one place it did not apply to itself. A person who forgot
+to download the model now hears about it on every sentence instead of
+once in a banner they scrolled past. *Rejected:* **revert** — it would
+have needed the one platform branch inside the runtime that AC-208 exists
+to refuse.

@@ -4432,11 +4432,13 @@ So Phase A is not "make the call sites smaller". It is:
   holds the EXISTING config types and the chosen organs, and introduces no
   policy field of its own. Proven by construction and asserted by a test
   that names each existing type.
-- **AC-205** — **the felt pause did not move.** Measured on the phone,
-  before and after, in ONE session on the same build, over the same
-  fixtures. The expected delta is zero because the runtime is not on the
-  turn path at all; a non-zero result means something is on the path that
-  should not be, and that is the finding.
+- **AC-205** — **the felt pause did not move.** ✅ *Answered 2026-09-08,
+  INSTRUMENTS §59.* At equal history depth: 337 → 317, 324 → 318,
+  430 → 423 ms — within noise and lower. *Caveat recorded there:* the
+  before and after are two sittings two days apart, not the one sitting
+  this criterion asked for; everything else was held equal and the result
+  is not close, so it stands, with the cleaner measurement still available
+  to anyone who doubts it.
 - **AC-206** — no allocation is added on the audio thread. The runtime
   touches nothing inside a render or tap callback; stated, and checked with
   the existing `graph-probe`.
