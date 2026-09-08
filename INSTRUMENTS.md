@@ -5033,7 +5033,7 @@ above: it could not be measured before the fix.
 
 ### What §62 leaves open
 
-The phone's numbers for the same fixture (AC-212 says "on the phone");
-the Darja fixture and its number (F-5 = B, AC-219); and everything after
-the ear — the mind's Arabic (AC-215), Majed (AC-216), the full turn
+The phone's numbers for the same fixture (AC-212 says "on the phone"),
+and everything after the ear. *The Darja fixture this section first
+listed as owed was withdrawn by D-098 (F-5 re-ruled: MSA only).* Then — the mind's Arabic (AC-215), Majed (AC-216), the full turn
 (AC-217), memory in Arabic (AC-218).

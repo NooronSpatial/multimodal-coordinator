@@ -4663,8 +4663,8 @@ character cap alone.
   spike — the well-known multilingual TTS models are non-commercial.
 - **Language detection.** F-1 = A: a setting. Detection multiplies every
   organ's problem and the Apple ear needs its locale before it starts.
-- **Dialect support.** Darja is measured, not supported; the gap is a
-  number in §62, not a feature.
+- **Dialect support.** Not measured either, since D-098: F-5 was
+  re-ruled to MSA only, and the MSA/Darja gap is not claimed either way.
 - **Right-to-left UI.** The demo shows Arabic text; it does not lay it out.
 - **Making Apple's ear or mind speak Arabic.** They cannot.
 
@@ -4693,10 +4693,11 @@ character cap alone.
 - **AC-218** — memory works in Arabic: turn 2 leans on turn 1 in Arabic
   (the §58 shape), and the felt-pause cost per Arabic CHARACTER is
   measured — expected higher than English's 0.68 ms.
-- **AC-219** — **the fixture exists before anything is measured.** ~30 s
-  of read MSA in Ryad's voice with its reference text, and ~30 s of
-  Darja with a transcription he wrote himself, both committed with
-  provenance. Nothing in AC-212/216/217 is claimed without them.
+- **AC-219** — ✅ **the fixture exists before anything is measured.** ~30 s
+  of read MSA in Ryad's voice with its reference text, committed with
+  provenance (`ryad-ar-msa.wav`, 41 s). *The Darja recording this
+  criterion first asked for was withdrawn by D-098 (F-5 re-ruled: MSA
+  only).* Nothing in AC-212/216/217 is claimed without the fixture.
 - **AC-220** — zero warnings, `swiftlint --strict` at zero, 20× with
   every failing log kept, both demos build.
 
@@ -4743,7 +4744,8 @@ audit, because the obvious candidates are non-commercial.
 **F-5 — WHICH ARABIC IS MEASURED.** *A:* MSA only. *B:* MSA and Darja,
 each with its own fixture and its own number. **Recommendation: B.** The
 person holding the phone speaks Darja; an MSA-only result is the Mac
-number when the phone is what hurts.
+number when the phone is what hurts. *Ruled B at sign-off (D-097), then
+re-ruled A by Ryad (D-098): the Darja half is not wanted.*
 
 ## 167. Definition of done (4u)
 

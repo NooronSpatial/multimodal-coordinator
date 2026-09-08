@@ -4378,3 +4378,20 @@ number when the phone is what hurts. *Rejected:* **A, MSA only.**
 AC-219: the fixtures do not exist yet, and nothing measured is claimed
 until they do. The code — the Whisper hint, the normaliser, the phraser,
 the picker — proceeds tests-first without them.
+
+## D-098 — F-5 re-ruled: MSA only, no Darja fixture (Milestone 4u)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("we don't need Darja") ·
+**Reverses:** D-097's F-5 = B
+
+D-097 ruled that Modern Standard Arabic and Algerian Darja would each get
+a fixture and a number, on the argument that the person holding the phone
+speaks Darja and an MSA-only result would be the Mac number when the
+phone is what hurts. Ryad, who is that person, ruled the Darja half out.
+
+**F-5 = A — MSA only.** The one fixture is `ryad-ar-msa.wav`; AC-219's
+second recording is withdrawn; §62's "Darja half owed" is retracted. The
+gap between MSA and Darja is not measured and is not claimed either way.
+*The argument for B stands as written in D-097 — it was not wrong, it was
+not wanted* — and it returns the day a Darja number is asked for, with
+its fixture, as its own small milestone.

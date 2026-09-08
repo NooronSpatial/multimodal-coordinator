@@ -1,13 +1,12 @@
-# The Arabic fixtures (4u, AC-219, F-5 = B)
+# The Arabic fixture (4u, AC-219, F-5 = A by D-098)
 
-Two recordings, two numbers, because the person holding the phone speaks
-Algerian Darja and every organ on the Arabic path — Whisper, Qwen3-4B,
-Majed — does Modern Standard Arabic.
+One recording, Modern Standard Arabic — what Whisper, Qwen3-4B and Majed
+all do. A Darja recording was planned (D-097 F-5 = B) and withdrawn by
+Ryad (D-098); the MSA/Darja gap is not measured and not claimed.
 
 | file | what | reference |
 |---|---|---|
 | `ryad-ar-msa.wav` | ~30 s of MSA, READ, Ryad's voice | `bakeoff-reference-ar-msa.txt` — read verbatim |
-| `ryad-ar-darja.wav` | ~30 s of Darja, SPOKEN naturally | `bakeoff-reference-ar-darja.txt` — Ryad's own transcription of what he said |
 
 Format matches `ryad-en.wav`. The reference texts carry no tashkeel
 (diacritics): Whisper does not emit them, and the Arabic normaliser
