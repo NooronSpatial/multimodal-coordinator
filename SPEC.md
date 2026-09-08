@@ -4787,6 +4787,13 @@ language is Arabic, because a Latin brand name or a digit is not a leak.
 was tried is the library taking a policy decision the app has not made.
 *Rejected: C* — two mechanisms for one unmeasured fault.
 
+### Parked, 2026-09-08 (D-100)
+
+Merged as PR #43 in this state; the AI Runtime takes priority. Owed on
+return: AC-212 on the phone · AC-218's clean slope · F-7′, the neural
+Arabic mouth on iOS 18 (§166b) · the Chinese-leak count after D-099 ·
+the teach-back. German follows as configuration on the same setting.
+
 ## 166b. Recorded in the field: the mouth is robotic (4u, AC-216)
 
 Majed — Apple's compact Arabic voice, the only one installed — was judged
