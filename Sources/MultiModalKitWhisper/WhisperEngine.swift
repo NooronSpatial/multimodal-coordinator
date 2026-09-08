@@ -220,6 +220,16 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
         do {
             return try await held.value {
                 let config = WhisperKitConfig(model: model)
+                // WHERE THINGS LAND IS OURS, NOT A DEFAULT (4u, AC-212).
+                // WhisperKit resolves its tokenizer folder as
+                // `tokenizerFolder ?? downloadBase`, and with neither set
+                // the tokenizer's home depends on the vendor's default.
+                // `base` happened to land where `modelInstalled()` looks;
+                // `small` did not — a loaded pipeline and an "installed"
+                // of false, so the bake-off skipped the model it had just
+                // fetched. Naming the base makes the model AND the
+                // tokenizer land in the two folders this type checks.
+                config.downloadBase = URL.documentsDirectory.appending(path: "huggingface")
             // Errors only. WhisperKit defaults to verbose info logging
             // ("Loading models...", "Decoding Temperature: ..."), gated once
             // at its init by verbose + logLevel. NOT verbose=false: that maps
