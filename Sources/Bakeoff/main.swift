@@ -93,9 +93,7 @@ let whisper = WhisperEngine(model: whisperModel, language: whisperLanguage)
 if arguments.contains("--fetch"), await !whisper.modelInstalled() {
     print("whisper: fetching \(whisperModel)…")
     do {
-        try await whisper.download { fraction in
-            if Int(fraction * 100) % 25 == 0 { print("whisper: \(Int(fraction * 100))%") }
-        }
+        try await whisper.ensureModel()      // ModelBacked: fetch if missing, idempotent
         print("whisper: \(whisperModel) installed: \(await whisper.modelInstalled())")
     } catch { print("whisper: fetch FAILED — \(error)") }
 }
