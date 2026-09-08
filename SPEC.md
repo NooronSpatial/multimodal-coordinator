@@ -4704,7 +4704,7 @@ character cap alone.
   only).* Nothing in AC-212/216/217 is claimed without the fixture.
 - **AC-220** — zero warnings, `swiftlint --strict` at zero, 20× with
   every failing log kept, both demos build.
-
+  *20/20 on `b050b43` with every failing log kept, none produced; the package is untouched since. Zero warnings, lint zero, both demos build.*
 ### Test matrix
 
 | criterion | test |
