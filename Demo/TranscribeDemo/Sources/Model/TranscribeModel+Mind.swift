@@ -28,7 +28,16 @@ extension TranscribeModel {
         + "and never shown as text. Answer in ONE short sentence. Do "
         + "not add extra facts, background or explanation unless the "
         + "person asks for them. Never use lists, bullet points, "
-        + "numbered items, markdown, code, or headings."
+        + "numbered items, markdown, code, or headings. "
+        // LEVER A (D-095, INSTRUMENTS §60). A 4-bit 4B mind invents
+        // geography and then agrees with whoever pushes back; the ear's
+        // "Cherians" got a confident answer about Kerala. Two sentences
+        // ask for honesty instead. POLICY, the app's (D-027) — and it is
+        // prefill: ~82 characters at §58b's 0.68 ms/char is ~55 ms on
+        // every turn, paid knowingly. Whether it helps is a field
+        // measurement, not a claim; §60 says how to take it.
+        + "If you are not sure, say so instead of guessing. "
+        + "If you did not understand, say so."
 
     private var localMind: MLXReplyGenerator {
         MLXReplyGenerator(model: localModel,

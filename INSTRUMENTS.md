@@ -4758,15 +4758,21 @@ memory would cost:
     +2,722 ms of felt pause        and        +1,618 MB transient
 
 The felt pause number alone is worse than the complaint that started 4o.
-The memory number is the serious one: this session had **3,622 MB of
-headroom with 2,353 MB already active — about 1,269 MB of room.** A
-1.6 GB prefill spike does not fit in it.
+The memory number needs the correction that follows, and it is kept
+here rather than quietly rewritten. This session had **3,622 MB of
+headroom** — and `MemoryHeadroom` reads the room REMAINING before the
+dirty-memory limit, with the 2,353 MB already active counted against it.
+*The first version of this paragraph subtracted the active figure a
+second time and printed "about 1,269 MB of room". Ryad questioned the
+arithmetic on 2026-09-08, and it was wrong* — the same not-like-for-like
+error as the 5,830 MB entitlement figure this document already corrected
+once. A 1.6 GB prefill spike fits in 3.6 GB with two to spare.
 
-**The shipped character budget is not merely slow. On the phone this
-project targets, it is a jetsam risk** — the crash class D-079 and
-INSTRUMENTS §27 already cost this app two field trips. It was never
-exercised, because a conversation has to run long before 4,000 characters
-of history accumulate, and no session has.
+**The jetsam claim is therefore withdrawn.** The 4,000-character budget
+was not a crash waiting to happen on this phone; it was a slow default.
+What stands, unchanged, is the felt pause: +2,722 ms at 4,000 characters
+is worse than the complaint that started 4o, and D-092's 600 rests on
+that leg and on the cliff argument alone.
 
 The bound that matters is therefore the CHARACTER budget, not the depth:
 cost tracks characters, and exchanges vary in length by more than 4×.
@@ -4819,17 +4825,153 @@ history past 600 and D-092's bound dropped the two oldest exchanges,
 leaving ~454. §58b's line (317 ms + 0.68 ms/char) predicts 694 and 626;
 the field says 642 and 542. The direction and the size both hold.
 
-### The number to watch
+### The number to watch — corrected
 
-MLX peak reached **3,346 MB against 3,671 MB of headroom — 325 MB of
-room**, tighter than 4r's 3,062 MB. It grew turn by turn (2,571 → 3,024 →
-3,130 → 3,346) and then stopped at turn 5, which is the bound doing its
-job. That margin is the transient prefill spike plus Kokoro's per-phrase
-allocation on top of a resident 2.3 GB mind; it is inside budget, and it
-is the first number that would move if either the bound or the phrase
-cap were loosened.
+MLX peak reached **3,346 MB**. At share time MLX was 2,318 MB active with
+**3,671 MB remaining** before the limit, so the peak sat ~1,028 MB above
+active and roughly **2.6 GB would still have been free at that instant**.
+*The first version of this paragraph printed "325 MB of room" by
+subtracting a peak TOTAL from a REMAINING headroom — not like-for-like.
+Ryad questioned it on 2026-09-08 and it was wrong.* The peak grew turn by
+turn (2,571 → 3,024 → 3,130 → 3,346) and stopped at turn 5, which is the
+600-character bound doing its job. It is a number to keep reporting
+like-for-like, not an alarm.
 
 ### What §59 closes
 
 **AC-205**, with the caveat above written where it will be read. 4t's
 measured criteria are all answered; the teach-back is what remains.
+
+## 60. The mind that agrees — hallucination, sycophancy, and memory carrying the error (4r/4t field)
+
+**Method.** Ryad's iPhone, 2026-09-08, `main` after 4t. Local 4B mind
+(`Qwen3-4B-4bit`), Apple ear, Kokoro mouth, memory at 600 characters.
+Seventeen turns. The shared log's header said `mind=Apple`; every turn
+said `Local (MLX)`. **Benign, confirmed by Ryad: the picker was switched
+after the session, and the header prints the picker at share time.**
+Recorded so the next reader does not treat it as the finding the log's
+own NOTE would make it.
+
+### 1. The invention, and the agreement
+
+| turn | heard | reply |
+|---|---|---|
+| 9 | "The neighbour's country." | "…Algeria to the **east**, Libya to the south, and **Egypt to the north**." |
+| 11 | "Does Tunisia has border with Egypt?" | "**Yes**, Tunisia shares a border with Egypt to the north." |
+| 15 | "Is not true. Egypt doesn't have a border with Tunisia." | "**Yes**, Egypt and Tunisia do **not** share a border…" |
+| 17 | "…separated by a country called Libya." | "You are correct…" |
+
+Algeria is to the west; there is no Egyptian border; the Mediterranean is
+to the north. Yesterday's session (§59's log) had the same class — Mali
+and Niger "to the west" of Algeria, Morocco "to the north". Geography is
+a consistent weak spot of this mind.
+
+Two failures, named: **hallucination** (a 4-bit 4B model producing the
+most plausible sentence, not a fact) and **sycophancy** (agreeing with
+whoever pushed last — turn 15's "Yes" prefixing a reversal is the tell).
+Not a coordinator fault: the pipeline delivered exactly what the model
+produced, and the model produced what a model this size and this
+quantised produces.
+
+### 2. Memory carries the error forward — a cost of 4r §58b did not price
+
+At turn 11 the model saw its own turn-9 claim in the history and
+**defended it**. Before 4r each turn was answered fresh and the mistake
+would have died with its turn. Memory makes the mind consistent —
+including consistent with its errors — and a person who then argues is
+arguing with a transcript. This is real and it is ours.
+
+### 3. A confident answer to a question nobody asked
+
+Turn 4: the ear heard "Cherians" (for *Algerians*, most likely). The mind
+answered about a community in Kerala. The pipeline is working as designed
+— the mind answers what the ear delivers — and the failure is a mind that
+does not say "I did not understand".
+
+### 4. Thermal `serious` from turn 5 — the first such session on record
+
+| | nominal (turns 1–4) | serious (turns 5–17) |
+|---|---|---|
+| first token, ~0–2 exchanges | 308–478 ms | 535–694 ms |
+| Kokoro RTF | — | **0.508 (t5) … 0.699 (t15)**, typical 0.2 |
+| turn 5 total | — | 7,904 ms for ~200 characters |
+
+The voice stayed ahead of real time, but the margin went from ~5× to
+~1.4×. The transcriber has a thermal policy (`ConservativeThermalPolicy`,
+D-028); **the voice has none.** The first-token rise is part history
+(§58b) and part heat, and this session cannot separate them — a heat
+sweep at fixed history would. MLX peak 3,256 MB — ~940 MB above the
+2,318 MB active at share time — with 3,683 MB still remaining.
+
+### 5. What was done, and what was not
+
+**Lever A, applied (D-095):** two sentences in the phone's instruction —
+"If you are not sure, say so instead of guessing. If you did not
+understand, say so." Free in code; **not free in time**: ~82 characters
+of prefill at §58b's slope is ~55 ms on every turn. Whether it reduces
+invention and agreement is a **field measurement**: ask turn 9's question
+again, and "Cherians", and count what the mind does. Nothing here claims
+it works.
+
+**Lever B, not taken — a fork for Ryad:** thinking on. §86 gated Qwen's
+thinking off for the felt pause; with it on the model is markedly more
+accurate on facts, at a cost of seconds before the first word. The only
+lever that changes accuracy, and it costs exactly the number this project
+has spent three milestones on. Measured, or not at all.
+
+**Lever C, unavailable on this phone:** 4B at 8 bits ≈ 4.4 GB and 8B at
+4 bits ≈ 4.5 GB, against 3.6 GB of headroom with 2.3 GB already resident.
+Neither fits. Said plainly rather than implied.
+
+## 61. The Apple mind — better, longer, and the cliff (4r field, 2026-09-08)
+
+**Method.** Same phone, same session as §60's second half: the Local mind
+was retired and the picker switched to Apple, then a NEW Listen session
+(the `at` counter restarts at 3 s), five turns.
+
+### The cliff, met in the field
+
+| turn | heard | reply | history after |
+|---|---|---|---|
+| 21 | "Tell me about the history of Algeria." | four paragraphs, **~1,500 characters**, 104 s of audio | **empty** |
+| 22 | "What is the capital?" | "The capital of the **United States** is Washington, D.C." | — |
+
+Turn 22 had nothing behind it. Not because the Apple mind lacks memory —
+it maps the past to `Transcript.Entry` exactly as 4r built it — but
+because D-088 Fact 8 did what it says: **an exchange too large to fit
+alone empties the memory.** Turn 21's ~1,540 characters against a
+600-character bound wiped turns 18–20 with it. This is the precise risk
+D-092 named when choosing 600 over 300 ("a memory that empties without
+saying so is worse than a smaller one that holds"), reached from the other
+side by a mind whose answers are ten times longer. SPEC §161a is the fork.
+
+### The instruction, ignored
+
+Both minds are told "Answer in ONE short sentence." The Local mind obeys
+(§59, §60: 40–190 characters). The Apple mind produced four paragraphs
+to an open question and spoke them for **104 seconds**. That is Apple's
+model, not the wiring: this session found the instruction was a SECOND
+COPY of the string, already diverged from the Local mind's by lever A,
+and consolidated it — but the copy the Apple mind received on 2026-09-08
+did say "ONE short sentence". `GenerationOptions.maximumResponseTokens`
+is the app-side cap for it; not taken here, named in §161a.
+
+### Numbers
+
+| | |
+|---|---|
+| first token | 716 ms (turn 18, the session's first call) · 320–398 ms warm · 685 ms (turn 22) |
+| thermal | `serious` throughout — inherited from §60's session |
+| Kokoro RTF | 0.17–0.29 |
+| headroom | **5,874 MB remaining** with MLX at 158 MB active, against 3,683 MB in §60 with MLX at 2,318 MB |
+
+That last row is the corroboration of §58b/§59's correction: retiring the
+2.2 GB mind raised the reported headroom by ~2.2 GB, which is what a
+"bytes remaining" figure does and what a "peak total" would not.
+
+### What §61 records for later
+
+Apple answered every factual question in this session correctly and at
+length; the Local mind, in §60, answered briefly and invented a border.
+The trade is length and pause against accuracy, on the same phone, and it
+is now written down with numbers on both sides.

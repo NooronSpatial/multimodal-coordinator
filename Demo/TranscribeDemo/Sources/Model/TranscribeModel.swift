@@ -181,12 +181,13 @@ final class TranscribeModel {
     /// (D-057 F-3, mechanism-not-policy): this reply is spoken, never
     /// read — the probe's count-to-ten came back as a markdown list, and
     /// without this sentence a voice would read list numbering aloud.
+    ///
+    /// ONE string for both minds (§61). This used to be a second copy of
+    /// `spokenInstructions`, and the day lever A (D-095) was added to the
+    /// other copy the two diverged — the app's own voice, saying different
+    /// things to different minds without anyone deciding it should.
     let appleMind = AppleReplyGenerator(
-        instructions: "Your reply will be spoken aloud by a synthetic voice "
-            + "and never shown as text. Answer in ONE short sentence. Do not "
-            + "add extra facts, background or explanation unless the person "
-            + "asks for them. Never use lists, bullet points, numbered items, "
-            + "markdown, code, or headings.",
+        instructions: TranscribeModel.spokenInstructions,
         spokenRefusal: "I can't help with that one.")
 
     /// THE SECOND MIND's weights (4h, D-062 F-1 = A). `repoID` means the
