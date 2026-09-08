@@ -4412,3 +4412,39 @@ session, not a claim.
 deciding what a mind may say, before the free lever was tried. It returns,
 narrowly (CJK scalars only, Arabic only), if A fails. *Rejected:* **C,
 both** — two mechanisms for one unmeasured fault.
+
+## D-100 — Arabic is parked; the AI Runtime is the work (process pivot)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("keep the Arabic topic and
+focus on the AI runtime … later, when we are done, we come back to the
+other languages")
+
+### What is parked, and where it stands
+
+Milestone 4u merged as PR #43 with its criteria in this state:
+
+| closed | AC-211 language a setting · AC-212 (Mac half) · AC-213 · AC-214 · AC-215 · AC-216 · AC-217 · AC-218 (works; field slope) · AC-219 · AC-220 |
+|---|---|
+| **owed on return** | AC-212 on the phone (Bench → Bake-off) · AC-218's clean slope (the Arabic memory probe) · **F-7′** — the neural Arabic mouth on iOS 18: a spike of Chatterbox Multilingual and OmniVoice in one project (SPEC §166b) · a session counting the Chinese leak after D-099 · the 4u teach-back |
+
+The Apple voice stays as the Arabic mouth *until* F-7′ is spiked — Ryad
+called it robotic and rejected it as the answer, not as the interim.
+German follows Arabic as configuration on the same setting (§162) and is
+parked with it.
+
+### Why the pivot, in Ryad's words and the brief's
+
+Other applications — Aura, Lanegrade — are to build on this runtime
+rather than on their own AI plumbing. Phase A of the runtime brief (the
+front door) is done; Phase B (the capability and tool contract, proven by
+one capability) has not started, and its hardest piece — tool calling in
+a mind seam that carries only text tokens — has been named since the
+architecture report and spiked by nobody. Languages are product breadth;
+the contract is the product. The order is the ruling.
+
+### What this does NOT change
+
+Nothing merged is undone. The language setting, the Whisper hint, the
+normaliser, the phraser's marks, the picker and the probe all stay on
+`main`, working. The debts listed above are debts with names, not
+features quietly dropped.
