@@ -8,14 +8,14 @@ extension TurnCoordinatorTests {
     // MARK: - the review's regressions (adversarial pass, 2026-08-14)
 
     @Test("REGRESSION: a final that beat its own onset is answered ONCE, never twice")
-    func aFinalThatBeatItsOnsetIsAnsweredOnce() async {
+    func aFinalThatBeatItsOnsetIsAnsweredOnce() async throws {
         // The review's confirmed bug, reproduced. A final can reach the
         // merge BEFORE its own `speechStarted` (separate forwarders —
         // the coordinator documents this window). It was recorded into
         // the LIVE turn's thought AND stashed as a future trigger, so
         // after that turn completed and emptied the ledger, the replay
         // answered the very same sentence a second time.
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in

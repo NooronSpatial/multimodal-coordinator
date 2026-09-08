@@ -76,3 +76,32 @@ extension TurnCoordinator {
         }
     }
 }
+
+/// WHAT THE CLOCKLESS INITIALIZER REFUSES, AS AN ERROR (4v, AC-241; D-101's
+/// R8 row).
+///
+/// Until 4v this was a `precondition`, and D-101 judged it one of the two
+/// a caller can reach by CONFIGURATION rather than by a literal: an app
+/// that reads a gate from its settings and picks the everyday initializer
+/// would crash, not fail. A crash is a fact a person reads in a log; an
+/// error is a fact a caller can switch over and show. The five
+/// preconditions that stay guard literals (a capacity, a bound) and are
+/// listed in the contract page.
+///
+/// Not nested in `TurnCoordinator` on purpose: the actor is generic over
+/// its clock, and the error must not be — a caller spells it without
+/// choosing a clock it does not have.
+public enum TurnCoordinatorConfigurationError: Error, Sendable, Equatable, CustomStringConvertible {
+    /// `Config.replyGate` is non-zero, but the clockless initializer has
+    /// no clock to wait on — the gate is a duration, and a duration needs
+    /// time.
+    case replyGateNeedsAClock
+
+    public var description: String {
+        switch self {
+        case .replyGateNeedsAClock:
+            return "a reply gate needs time: pass a clock and a latency reporter "
+                + "(the clocked initializer), or leave replyGate at .zero"
+        }
+    }
+}

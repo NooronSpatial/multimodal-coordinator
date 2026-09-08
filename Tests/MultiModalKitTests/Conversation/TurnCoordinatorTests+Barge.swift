@@ -9,8 +9,8 @@ extension TurnCoordinatorTests {
     // MARK: - the happy turn (AC-61, AC-70's shape)
 
     @Test("One full turn: listening → thinking → speaking → idle, tokens included, exact sequence")
-    func happyTurnExactSequence() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func happyTurnExactSequence() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -54,8 +54,8 @@ extension TurnCoordinatorTests {
     // MARK: - barge-in in every phase (AC-62, AC-63)
 
     @Test("Barge-in during thinking, before any token: the dead turn's ghost tokens never surface")
-    func bargeDuringThinkingBeforeTokens() async {
-        let bench = Bench(
+    func bargeDuringThinkingBeforeTokens() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true), .manual()]),
             synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
@@ -106,8 +106,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn")
-    func bargeDuringSpeaking() async {
-        let bench = Bench(
+    func bargeDuringSpeaking() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true), .manual()]),
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true), .manual()]))
         let listener = await bench.coordinator.listen()
@@ -167,8 +167,8 @@ extension TurnCoordinatorTests {
     Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — \
     both runs die; a ghost 'started' cannot flip the new turn
     """)
-    func bargeMidGeneration() async {
-        let bench = Bench(
+    func bargeMidGeneration() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true), .manual()]),
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true), .manual()]))
         let listener = await bench.coordinator.listen()
@@ -224,8 +224,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("Rapid double barge: two dead turns, the third completes; exact event sequence")
-    func rapidDoubleBarge() async {
-        let bench = Bench(generator: .manual(replies: 3), synthesizer: .manual(utterances: 1))
+    func rapidDoubleBarge() async throws {
+        let bench = try Bench(generator: .manual(replies: 3), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -277,8 +277,8 @@ extension TurnCoordinatorTests {
     A stale settled final never opens thinking; \
     a future final waits for its onset — identity decides, deterministically
     """)
-    func staleSettledFinalIsNotAReplyTrigger() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func staleSettledFinalIsNotAReplyTrigger() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -311,8 +311,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns")
-    func missedOnsetHealsInsteadOfCorrupting() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func missedOnsetHealsInsteadOfCorrupting() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in

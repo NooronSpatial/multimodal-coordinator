@@ -165,14 +165,18 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
 
     /// The everyday coordinator: fully clockless — no reporter, no clock,
     /// not even a clock READ. Measurement is opt-in, never ambient.
+    ///
+    /// Throws `TurnCoordinatorConfigurationError.replyGateNeedsAClock` for
+    /// a non-zero gate (AC-241): a reply gate needs time — use the clocked
+    /// initializer. This was a `precondition` until 4v; the words are the
+    /// same, the caller now gets to read them.
     public init(
         replyGenerator: any ReplyGenerating,
         synthesizer: any SpeechSynthesizing,
         config: Config = Config(),
         diagnostics: PipelineDiagnostics? = nil
-    ) where C == ContinuousClock {
-        precondition(config.replyGate == .zero,
-                     "a reply gate needs time — use the clocked initializer")
+    ) throws(TurnCoordinatorConfigurationError) where C == ContinuousClock {
+        guard config.replyGate == .zero else { throw .replyGateNeedsAClock }
         self.replyGenerator = replyGenerator
         self.synthesizer = synthesizer
         self.config = config

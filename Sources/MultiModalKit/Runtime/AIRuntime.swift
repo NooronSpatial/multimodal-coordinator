@@ -129,9 +129,27 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
         public let conversation: TurnCoordinator<C>?
     }
 
+    /// The error `init` throws, spelled from the runtime so a caller
+    /// writes `AIRuntime<ContinuousClock>.ConfigurationError` (AC-241).
+    /// The type itself is not generic — see `AIRuntimeConfigurationError`.
+    public typealias ConfigurationError = AIRuntimeConfigurationError
+
     public let configuration: Configuration
 
-    public init(_ configuration: Configuration) {
+    /// Throws `ConfigurationError` for a mind without a mouth or the
+    /// reverse — at construction, before any loop exists (AC-241).
+    public init(_ configuration: Configuration) throws(ConfigurationError) {
+        // A mind without a mouth, or the reverse, is not a mode — it is a
+        // bug in the caller (F-3 = B: together, or neither). Until 4v this
+        // was a `precondition` inside `run`; D-101 judged it reachable by
+        // a caller's CONFIGURATION — an app assembling its organs from its
+        // own settings — so it is now an error the caller can read, and it
+        // is checked HERE so the mistake surfaces before a loop starts.
+        switch (configuration.mind == nil, configuration.mouth == nil) {
+        case (false, true): throw .mindWithoutMouth
+        case (true, false): throw .mouthWithoutMind
+        default: break
+        }
         self.configuration = configuration
     }
 
@@ -142,11 +160,10 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
     /// so every stream finishes, the scope drains, and the teardown runs
     /// in order on the way out.
     public func run(observing observe: @escaping @Sendable (Session) async -> Void) async {
+        // The mind/mouth pairing was checked by `init` (AC-241): a
+        // `Configuration` that reached this line has both organs or
+        // neither, so the `if let mind, let mouth` below is exhaustive.
         let config = configuration
-        // A mind without a mouth, or the reverse, is not a mode — it is a
-        // bug in the caller (F-3 = B: together, or neither).
-        precondition((config.mind == nil) == (config.mouth == nil),
-                     "a conversation needs a mind AND a mouth; listen-only needs neither")
 
         // 1. THE ACTORS — built, and NOT yet running. Nothing publishes
         //    until step 3, which is what makes step 2 safe.
@@ -230,4 +247,33 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
 private struct SilentLatency: LatencyReporter {
     func turnLatency(_ duration: Duration, turn: Int) {}
     func cancelLatency(_ duration: Duration, turn: Int) {}
+}
+
+/// WHAT THE FRONT DOOR REFUSES, AS AN ERROR (4v, AC-241; D-101's R8 row).
+///
+/// A conversation needs a mind AND a mouth; listen-only needs neither
+/// (F-3 = B). Until 4v that rule was a `precondition` — the right tool
+/// for an invariant a caller cannot reach, the wrong one for a
+/// configuration a caller assembles at runtime. Aura reads its organs
+/// from its own settings; a wrong pair must come back as a value it can
+/// switch over and show, not as a crash it reads in a log afterwards.
+///
+/// Not nested in `AIRuntime` on purpose: the runtime is generic over its
+/// clock and the error must not be — a `catch` should not have to name a
+/// clock. `AIRuntime.ConfigurationError` is a typealias to this type so
+/// the spec's spelling works too.
+public enum AIRuntimeConfigurationError: Error, Sendable, Equatable, CustomStringConvertible {
+    /// `mind` was given and `mouth` was `nil`.
+    case mindWithoutMouth
+    /// `mouth` was given and `mind` was `nil`.
+    case mouthWithoutMind
+
+    public var description: String {
+        switch self {
+        case .mindWithoutMouth:
+            return "a mind needs a mouth: pass a mouth with the mind, or neither (listen-only)"
+        case .mouthWithoutMind:
+            return "a mouth needs a mind: pass a mind with the mouth, or neither (listen-only)"
+        }
+    }
 }

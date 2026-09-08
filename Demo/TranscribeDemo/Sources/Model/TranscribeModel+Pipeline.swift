@@ -133,8 +133,20 @@ extension TranscribeModel {
         // coordinator, the listener order, the task group and the
         // teardown order are the runtime's now. What stays in this file is
         // every POLICY number this phone earned, passed in and visible.
-        let runtime = AIRuntime(makeConfiguration(reading: consumer, at: rate,
-                                                  hostedOn: microphone))
+        let runtime: AIRuntime<ContinuousClock>
+        do {
+            runtime = try AIRuntime(makeConfiguration(reading: consumer, at: rate,
+                                                      hostedOn: microphone))
+        } catch {
+            // The door refused the organs (AC-241): a mind without a mouth
+            // or the reverse. `makeConfiguration` pairs them from one
+            // switch, so this is a safety net — but the microphone is
+            // already capturing, and a net that leaks a source is not one.
+            engineState = .failed("Runtime: \(error)")
+            microphone.stop()
+            self.microphone = nil
+            return
+        }
         isListening = true
         inputPeak = 0
         pipeline = Task { [weak self] in
