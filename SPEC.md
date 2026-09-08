@@ -4689,6 +4689,7 @@ character cap alone.
 - **AC-216** — Majed speaks the reply: `DigitalSilence` over the captured
   mix, and Ryad's ear on intelligibility — the only Arabic ear this
   project has.
+  *Answered 2026-09-08 by Ryad's ear: "robotic" — the compact voice, the baseline F-4 asked for. §166b is the fork on what replaces it.*
 - **AC-217** — one full Arabic turn on the phone, priced: first token,
   felt pause, RTF, thermal, beside the English numbers.
   *Answered 2026-09-08, §63, hot phone: first token 289 ms at zero history — not slower than English — rising to 625 ms at four exchanges.*
@@ -4785,3 +4786,24 @@ language is Arabic, because a Latin brand name or a digit is not a leak.
 *Rejected for now: B alone* — a filter that ships before the free lever
 was tried is the library taking a policy decision the app has not made.
 *Rejected: C* — two mechanisms for one unmeasured fault.
+
+## 166b. Recorded in the field: the mouth is robotic (4u, AC-216)
+
+Majed — Apple's compact Arabic voice, the only one installed — was judged
+"robotic" by the person whose language it is. F-4 = A measured the
+baseline; this is the fork it deferred.
+
+**F-7 — THE ARABIC MOUTH AFTER THE BASELINE.**
+*A:* Apple's *enhanced* Majed — a download in Settings, zero code; the
+app already picks the best installed voice by language.
+*B:* a spike, Kokoro-style, on Piper's Arabic voice (`ar_JO-kareem`,
+MIT, ONNX): measured on the phone behind `SpeechSynthesizing` before
+anything is adopted.
+*C:* a spike on Chatterbox Multilingual (MIT, LLM-based, no Swift port).
+
+**Recommendation: A today, before anything is built.** It may be enough
+and it costs a download. B is the spike if A still sounds robotic; C is
+the bigger one if B's quality is not enough. *Not options:* Kokoro and
+Qwen3-TTS (no Arabic); XTTS-v2, Meta MMS, Fish/OpenAudio (non-commercial
+licences). The hard part in every candidate is the same: written Arabic
+carries no diacritics and a voice needs them.

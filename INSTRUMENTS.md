@@ -5102,9 +5102,18 @@ spends more tokens per Arabic character). *Confounded by thermal
 probe (one question, one temperature, three depths) is the clean number
 and is still owed.
 
+### AC-216 — Majed, by the only Arabic ear this project has
+
+Ryad, after the session: **"the Apple voice is robotic."** Majed is
+Apple's *compact* voice and, on the Mac, the only Arabic voice installed
+(quality 1 of 3). That is F-4 = A's baseline, measured. What follows is
+SPEC §166b's fork: the enhanced voice is a download, and the licence-
+clean neural candidates with Arabic are Piper (MIT, moderate) and
+Chatterbox Multilingual (MIT, heavy); Kokoro and Qwen3-TTS have no
+Arabic; XTTS, Meta's MMS and Fish are non-commercial.
+
 ### What §63 leaves open
 
 AC-212 on the phone (the Bench's bake-off row for the Arabic fixture);
-AC-216 (Majed, by Ryad's ear — no line in the log speaks to it); the
-Arabic probe sweep for AC-218's clean slope; and a fork on the Chinese
-leak.
+the Arabic probe sweep for AC-218's clean slope; F-6 on the Chinese
+leak; and F-7 on the mouth.
