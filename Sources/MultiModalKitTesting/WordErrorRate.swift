@@ -28,7 +28,7 @@ public enum WordErrorRate {
     /// implemented is a lie. Locale fixed to en_US for determinism.
     public static func normalize(_ text: String) -> [String] {
         var cleaned = ""
-        for character in text.lowercased() {
+        for character in Self.foldArabic(text).lowercased() {
             cleaned.append(character.isLetter || character.isNumber ? character : " ")
         }
         return cleaned.split(separator: " ").flatMap { token -> [String] in
@@ -44,6 +44,36 @@ public enum WordErrorRate {
             }
             return respelled.split(separator: " ").map(String.init)
         }
+    }
+
+    /// ARABIC, FOLDED BEFORE THE LETTER TEST (4u, AC-213, F-5 = B).
+    ///
+    /// A scalar-level pass that touches ONLY the Arabic block, so any other
+    /// text is byte-identical afterwards and English normalisation is
+    /// unchanged by construction. Each rule is one thing a native reader
+    /// ignores and a byte comparison does not:
+    ///
+    /// - tashkeel (U+064B–U+0652), the dagger alef (U+0670) and tatweel
+    ///   (U+0640) are removed — not letters, and NOT spaces: `isLetter`
+    ///   turned each one into a space and split the word in two;
+    /// - the hamza-carrying alefs أ إ آ fold to bare alef ا;
+    /// - taa marbuta ة folds to ه, alef maqsura ى to ي — two spellings
+    ///   every writer uses and Whisper emits either of.
+    ///
+    /// Not folded, and said so: Arabic-Indic digits (٠–٩). The reference
+    /// fixtures write numbers in words for that reason.
+    static func foldArabic(_ text: String) -> String {
+        var out = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars {
+            switch scalar.value {
+            case 0x064B...0x0652, 0x0670, 0x0640: continue
+            case 0x0623, 0x0625, 0x0622: out.append("\u{0627}")
+            case 0x0629: out.append("\u{0647}")
+            case 0x0649: out.append("\u{064A}")
+            default: out.append(scalar)
+            }
+        }
+        return String(out)
     }
 
     public static func score(reference: String, hypothesis: String) -> Score {

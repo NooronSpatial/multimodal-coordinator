@@ -117,7 +117,11 @@ public struct SpeechPhraser: Sendable {
     private func boundary() -> String.Index? {
         var cursor = buffer.startIndex
         while cursor < buffer.endIndex {
-            if ".,:;?!".contains(buffer[cursor]) {
+            // ASCII marks, and the Arabic comma `،`, question mark `؟`
+            // and semicolon `؛` (4u, AC-214) — the same clause marks in a
+            // different script. Until they were here an Arabic reply was
+            // never phrased: it reached the mouth cut by the cap alone.
+            if ".,:;?!،؟؛".contains(buffer[cursor]) {
                 let next = buffer.index(after: cursor)
                 if next < buffer.endIndex, buffer[next].isWhitespace {
                     return next
