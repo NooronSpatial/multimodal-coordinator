@@ -4556,3 +4556,42 @@ in one session, before and after · `ARCHITECTURE.md` showing the door and
 no longer hand-counting itself · zero warnings · `swiftlint --strict` at
 zero · 20× stable · adversarially reviewed with every fix pushed BEFORE
 the PR is called ready · teach-back.
+
+## 161a. Recorded in the field: the cliff, met (4r, INSTRUMENTS §61)
+
+D-088 ruled that an exchange too large to fit the character budget alone
+**empties the memory**, and D-092 chose 600 characters partly to keep
+that cliff three times clear of the longest exchange measured. The Apple
+mind then produced a 1,500-character answer, the cliff fired, and the
+next question was answered as if the conversation had never happened
+("the capital" → Washington). The rule is a bound that forgets silently,
+and the field has now shown what that costs.
+
+**F-9 — WHAT AN OVERSIZED EXCHANGE DOES TO THE MEMORY.**
+*A:* it empties the memory — today's rule (D-088 Fact 8).
+*B:* it is kept ALONE, over budget. The bound may be exceeded by at most
+one exchange; the next exchange evicts it if the two do not fit together.
+*C:* it is trimmed — the question whole, the head of the reply cut to
+fit, marked as trimmed the way a barge is marked interrupted.
+*D:* no library change; the app gives the Apple mind a larger budget.
+
+**Recommendation: B.** The memory's one job is never to forget the
+conversation silently, and "exceeded by at most one exchange" is a
+bounded, honest overshoot: the extra felt pause lands only on the turn
+right after a long answer — which is exactly the turn where the person
+most needs that answer remembered. *Rejected: A* — it is what just
+failed. *Rejected: C* — a new mechanism and a new mark for the same
+outcome, and the model then sees a truncated version of its own words.
+*Rejected: D* — the app's business regardless, and it moves the cliff
+rather than removing it; Apple's prefill cost per character is also
+unmeasured, so the larger number would be a guess.
+
+If B is ruled: D-088 Fact 8 and its test (`anOversizedExchangeLeavesNothing`)
+are reversed by a new decision entry, not edited; AC-192's "whole
+exchanges only" is untouched; AC-199's ceiling is untouched (one
+oversized exchange is far below 16,000 characters).
+
+**Named, not ruled:** the Apple mind ignores "ONE short sentence" on open
+questions. `GenerationOptions.maximumResponseTokens` is the app-side cap
+and is the lever if 104-second replies are not wanted. Its own fork, when
+Ryad wants it.

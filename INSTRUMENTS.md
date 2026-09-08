@@ -4922,3 +4922,56 @@ has spent three milestones on. Measured, or not at all.
 **Lever C, unavailable on this phone:** 4B at 8 bits ≈ 4.4 GB and 8B at
 4 bits ≈ 4.5 GB, against 3.6 GB of headroom with 2.3 GB already resident.
 Neither fits. Said plainly rather than implied.
+
+## 61. The Apple mind — better, longer, and the cliff (4r field, 2026-09-08)
+
+**Method.** Same phone, same session as §60's second half: the Local mind
+was retired and the picker switched to Apple, then a NEW Listen session
+(the `at` counter restarts at 3 s), five turns.
+
+### The cliff, met in the field
+
+| turn | heard | reply | history after |
+|---|---|---|---|
+| 21 | "Tell me about the history of Algeria." | four paragraphs, **~1,500 characters**, 104 s of audio | **empty** |
+| 22 | "What is the capital?" | "The capital of the **United States** is Washington, D.C." | — |
+
+Turn 22 had nothing behind it. Not because the Apple mind lacks memory —
+it maps the past to `Transcript.Entry` exactly as 4r built it — but
+because D-088 Fact 8 did what it says: **an exchange too large to fit
+alone empties the memory.** Turn 21's ~1,540 characters against a
+600-character bound wiped turns 18–20 with it. This is the precise risk
+D-092 named when choosing 600 over 300 ("a memory that empties without
+saying so is worse than a smaller one that holds"), reached from the other
+side by a mind whose answers are ten times longer. SPEC §161a is the fork.
+
+### The instruction, ignored
+
+Both minds are told "Answer in ONE short sentence." The Local mind obeys
+(§59, §60: 40–190 characters). The Apple mind produced four paragraphs
+to an open question and spoke them for **104 seconds**. That is Apple's
+model, not the wiring: this session found the instruction was a SECOND
+COPY of the string, already diverged from the Local mind's by lever A,
+and consolidated it — but the copy the Apple mind received on 2026-09-08
+did say "ONE short sentence". `GenerationOptions.maximumResponseTokens`
+is the app-side cap for it; not taken here, named in §161a.
+
+### Numbers
+
+| | |
+|---|---|
+| first token | 716 ms (turn 18, the session's first call) · 320–398 ms warm · 685 ms (turn 22) |
+| thermal | `serious` throughout — inherited from §60's session |
+| Kokoro RTF | 0.17–0.29 |
+| headroom | **5,874 MB remaining** with MLX at 158 MB active, against 3,683 MB in §60 with MLX at 2,318 MB |
+
+That last row is the corroboration of §58b/§59's correction: retiring the
+2.2 GB mind raised the reported headroom by ~2.2 GB, which is what a
+"bytes remaining" figure does and what a "peak total" would not.
+
+### What §61 records for later
+
+Apple answered every factual question in this session correctly and at
+length; the Local mind, in §60, answered briefly and invented a border.
+The trade is length and pause against accuracy, on the same phone, and it
+is now written down with numbers on both sides.
