@@ -126,9 +126,9 @@ extension TurnCoordinator {
             // 4r adds the other half of that sentence: forgotten by the
             // LEDGER, remembered by the conversation. The clear is still
             // unconditional here — a completed turn's words are answered
-            // whether or not the memory could hold them (an exchange too
-            // large to fit alone is D-088's cliff, and it is a cliff for
-            // the memory, never a reason to re-ask the person).
+            // whether or not the memory kept them (since D-096 it always
+            // keeps a whole exchange; only a half-turn or a switched-off
+            // memory refuses, and neither is a reason to re-ask the person).
             remember(live, interrupted: false)
             current = nil
             ledger.clear()

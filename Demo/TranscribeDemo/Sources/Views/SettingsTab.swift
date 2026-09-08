@@ -44,6 +44,8 @@ struct SettingsTab: View {
             }
             .padding(.horizontal)
 
+            languageSection
+
             // THE SECOND MOUTH, on screen (AC-105). Only shown when the
             // app is actually talking — a mouth picker above a silent
             // pipeline would be a control with nothing to control.

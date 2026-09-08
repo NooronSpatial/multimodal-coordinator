@@ -26,6 +26,14 @@ extension TranscribeModel {
     /// nothing left to drift. It returns a SENTENCE because a disabled
     /// control that cannot say why is only half honest.
     var listenRefusal: String? {
+        // ARABIC HAS ONE CITIZEN PER ORGAN (4u, INSTRUMENTS §62): the app
+        // says which, in a sentence a person can act on, rather than
+        // switching organs behind their back.
+        if language == .arabic {
+            if choice == .apple { return "Apple's ear has no Arabic — switch the ear to Whisper" }
+            if talkEnabled, mind == .apple { return "Apple's mind has no Arabic — switch the mind to Local" }
+            if talkEnabled, mouth == .neural { return "no neural voice speaks Arabic — switch the voice to Apple" }
+        }
         if engineState != .ready { return "the speech model is not ready yet" }
         if probeStatus != nil {
             return "an echo probe is measuring — it holds the audio session"

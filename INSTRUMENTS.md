@@ -4975,3 +4975,65 @@ Apple answered every factual question in this session correctly and at
 length; the Local mind, in §60, answered briefly and invented a border.
 The trade is length and pause against accuracy, on the same phone, and it
 is now written down with numbers on both sides.
+
+## 62. Arabic on the Mac — the ear, measured on Ryad's MSA fixture (4u, AC-212, AC-219)
+
+**Method.** `Fixtures/ryad-ar-msa.wav`: 41.3 s of Modern Standard Arabic,
+read by Ryad from `bakeoff-reference-ar-msa.txt` (67 words, committed
+before the recording so the recording follows the text). This Mac,
+2026-09-08. The command names everything:
+
+    swift run bakeoff Fixtures/ryad-ar-msa.wav Fixtures/bakeoff-reference-ar-msa.txt \
+        --model=small --language=ar --fetch
+
+Apple's ear is skipped: it has no Arabic locale (§162), and its model is
+not installed on this Mac in any case. **Decode times are this Mac's and
+do not transfer; the phone's are owed** (the criterion says "on the
+phone"). WER is a property of the transcript and carries.
+
+| ear | WER | sub | ins | del |
+|---|---|---|---|---|
+| Whisper `base`, no hint | **152.2%** | 67 | 35 | 0 |
+| Whisper `base` + `--language=ar` | **41.8%** | 21 | 4 | 3 |
+| Whisper `small`, no hint | **100.0%** | 54 | 0 | 13 |
+| Whisper `small` + `--language=ar` (D-097 F-2, the ruled ear) | **19.4%** | 12 | 1 | 0 |
+
+### What the numbers mean, read against the transcripts
+
+**No hint is not weak, it is the wrong script — at BOTH sizes.** `small`
+without the hint scores 100% (54 substitutions, 13 deletions); `base`
+without it, 67 substitutions
+and 35 insertions on 67 words: the decoder guessed the language from the
+first seconds and transcribed Arabic speech into something else entirely.
+The hint alone takes it to 41.8%, and that is the difference F-1 = A
+(language as a *setting*) exists to guarantee — a setting the app knows is
+worth more than a guess the ear makes.
+
+**At `small` + hint the errors are the ear's, and the normaliser hides
+none of them.** The twelve substitutions are real mishearings — `ص→س`
+(صباح → سباح, الصوتي → السوتي), `ث→م` (ثم → وما), `ب→ن` (الجواب →
+الجوان), `ض→ظ` (أعضاء → أعظاء) — and the one garbled run is the
+technical phrase "ينطق الصوت الاصطناعي الرد". The AC-213 rules folded
+exactly what they should (وأخيرا against واخيراً, the hamza alefs) and
+nothing else; every remaining diff is a different word.
+
+**Zero deletions.** `small` heard every word; it misspelled twelve. For a
+spoken assistant that is the better failure — the mind sees the sentence's
+shape — and it is what the phone should be able to match.
+
+### The bug the measurement found (fixed in cdeaab5)
+
+`small` downloaded and reported *not installed*. WhisperKit resolves its
+tokenizer folder as `tokenizerFolder ?? downloadBase`, and the engine set
+neither, so where the tokenizer landed depended on the vendor's default —
+`base`'s happened to be where `modelInstalled()` looks and `small`'s was
+not. Naming `downloadBase` put both the model and the tokenizer in the
+folders the engine verifies, for every model name. The proof is the row
+above: it could not be measured before the fix.
+
+### What §62 leaves open
+
+The phone's numbers for the same fixture (AC-212 says "on the phone");
+the Darja fixture and its number (F-5 = B, AC-219); and everything after
+the ear — the mind's Arabic (AC-215), Majed (AC-216), the full turn
+(AC-217), memory in Arabic (AC-218).

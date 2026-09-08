@@ -148,4 +148,33 @@ import Testing
         let phrases = speak(["pi", " is", " 3.14", " forever."])
         #expect(phrases == ["pi is 3.14 forever."])
     }
+
+    // MARK: - Arabic punctuation (4u, AC-214)
+
+    /// `boundary()` cut on `".,:;?!"` — ASCII — so an Arabic reply with
+    /// Arabic commas and question marks was never phrased: it reached the
+    /// mouth cut by the character cap alone. The comma `،` (U+060C), the
+    /// question mark `؟` (U+061F) and the semicolon `؛` (U+061B) are the
+    /// same clause marks in a different script.
+    private static func phrases(_ tokens: [String]) -> [String] {
+        var phraser = SpeechPhraser()
+        var out: [String] = []
+        for token in tokens { out.append(contentsOf: phraser.feed(token)) }
+        if let rest = phraser.flush() { out.append(rest) }
+        return out
+    }
+
+    @Test("an Arabic reply with no ASCII punctuation is cut at its own marks")
+    func arabicMarksCutPhrases() {
+        let out = Self.phrases(["الأذن،", " والعقل،", " والفم؟", " نعم؛", " تماما"])
+        #expect(out.count > 1, "one phrase means the Arabic marks were invisible: \(out)")
+        #expect(out.first == "الأذن،", "the first phrase ends at the Arabic comma: \(out)")
+    }
+
+    @Test("the Arabic question mark ends a phrase exactly like ASCII's")
+    func arabicQuestionMarkEndsAPhrase() {
+        let arabic = Self.phrases(["هل تعمل الذاكرة؟", " نعم"])
+        let ascii = Self.phrases(["Does memory work?", " Yes"])
+        #expect(arabic.count == ascii.count, "\(arabic) vs \(ascii)")
+    }
 }

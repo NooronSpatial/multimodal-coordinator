@@ -4567,7 +4567,7 @@ next question was answered as if the conversation had never happened
 ("the capital" → Washington). The rule is a bound that forgets silently,
 and the field has now shown what that costs.
 
-**F-9 — WHAT AN OVERSIZED EXCHANGE DOES TO THE MEMORY.**
+**F-9 — WHAT AN OVERSIZED EXCHANGE DOES TO THE MEMORY. Ruled: B (D-096, 2026-09-08).**
 *A:* it empties the memory — today's rule (D-088 Fact 8).
 *B:* it is kept ALONE, over budget. The bound may be exceeded by at most
 one exchange; the next exchange evicts it if the two do not fit together.
