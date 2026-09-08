@@ -44,9 +44,20 @@ extension TranscribeModel {
         // count. The Arabic-text version (B) is deferred until this fails.
         + "Answer in the language the person spoke."
 
+    /// The instruction FOR a language (4u, D-099 F-6 = A). Arabic gains one
+    /// line — "Write only in Arabic script." — because the 4-bit 4B mind
+    /// leaked a Chinese character into an Arabic sentence (§63), and the
+    /// free, app-owned lever is tried before any filter. English gets the
+    /// base string unchanged: the line would be wrong advice there.
+    static func spokenInstructions(for language: LanguageChoice) -> String {
+        language == .arabic
+            ? spokenInstructions + " Write only in Arabic script."
+            : spokenInstructions
+    }
+
     private var localMind: MLXReplyGenerator {
         MLXReplyGenerator(model: localModel,
-                          instructions: Self.spokenInstructions,
+                          instructions: Self.spokenInstructions(for: language),
                           maxTokens: 160)
     }
 

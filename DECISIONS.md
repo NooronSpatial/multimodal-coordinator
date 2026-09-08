@@ -4395,3 +4395,20 @@ gap between MSA and Darja is not measured and is not claimed either way.
 *The argument for B stands as written in D-097 — it was not wrong, it was
 not wanted* — and it returns the day a Darja number is asked for, with
 its fixture, as its own small milestone.
+
+## D-099 — the Chinese leak: one instruction line, Arabic only (Milestone 4u, F-6 = A)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("F-6 A")
+
+Turn 5 of the first Arabic session ended "عاصمة تونس هي تونس城" — a 4-bit
+4B Qwen code-switching into Chinese (INSTRUMENTS §63). **A — one more
+line in the app's instruction, "Write only in Arabic script.", added only
+when the session language is Arabic.** Policy, the app's (D-027); ~30
+characters of prefill, which at §63's field rate is ~45 ms a turn in
+Arabic and nothing in English. Its effect is a count in the next Arabic
+session, not a claim.
+
+*Rejected for now:* **B, a CJK filter before the phraser** — the library
+deciding what a mind may say, before the free lever was tried. It returns,
+narrowly (CJK scalars only, Arabic only), if A fails. *Rejected:* **C,
+both** — two mechanisms for one unmeasured fault.

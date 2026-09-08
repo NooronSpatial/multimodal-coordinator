@@ -4772,7 +4772,7 @@ mode of the family; English never shows it because English has nowhere
 to leak *from*. The mouth would have been handed a Chinese character to
 say in Arabic.
 
-**F-6 — WHAT STOPS A CHINESE CHARACTER REACHING THE MOUTH.**
+**F-6 — WHAT STOPS A CHINESE CHARACTER REACHING THE MOUTH. Ruled: A (D-099).**
 *A:* one more line in the app's instruction — "use only Arabic script" —
 policy (D-027), ~30 characters of prefill, its effect a field count.
 *B:* a mechanism: when the session language is Arabic, tokens carrying
