@@ -4807,3 +4807,47 @@ the bigger one if B's quality is not enough. *Not options:* Kokoro and
 Qwen3-TTS (no Arabic); XTTS-v2, Meta MMS, Fish/OpenAudio (non-commercial
 licences). The hard part in every candidate is the same: written Arabic
 carries no diacritics and a voice needs them.
+
+### 166b, continued — Apple's voice rejected; the mouth must run on iOS 18 (2026-09-08)
+
+Ryad: *"skip Apple voice. I need something else that works on iOS 18
+too."* F-7 = A is rejected, and the requirement is now written: the
+Arabic mouth is neural and runs on the D-091 floor. Verified from the
+sources, not from memory:
+
+| candidate | Arabic | weights | toolkit | floor | verdict |
+|---|---|---|---|---|---|
+| Chatterbox Multilingual, via speech-swift `ChatterboxTTS` | ✅ (Resemble's list) | MIT, 0.8B fp16 | Apache-2.0, MLX | iOS 18 | **spike** |
+| OmniVoice, via speech-swift `OmniVoiceTTS` | "600+ languages" — quality unknown | Apache-2.0, 0.8B fp16 / **int8** | Apache-2.0, MLX | iOS 18 | **spike** |
+| Piper `ar_JO-kareem` | ✅ | varies | **GPL-3.0**, eSpeak-ng phonemizer (GPL) | — | blocked |
+| Kokoro · Qwen3-TTS | ❌ | | | | not options |
+| XTTS-v2 · Meta MMS · Fish/OpenAudio · F5 · Higgs | ✅ | **non-commercial** | | | blocked |
+
+**The constraint that decides this, in numbers.** A 0.8B mouth at fp16
+is ~1.3–1.6 GB resident. Beside the 2.3 GB mind and Whisper `small`
+(~0.5 GB) that is ~4.2 GB against ~3.7 GB of headroom on Ryad's phone —
+**fp16 does not fit as a resident mouth.** OmniVoice's int8 (~0.8 GB)
+lands near 3.6 GB — borderline, and a measurement. Chatterbox is
+LLM-based and autoregressive (Qwen3-TTS's shape, which measured RTF 1.35
+on this phone); OmniVoice is non-autoregressive diffusion (Kokoro's
+shape, RTF 0.2). Nothing here has an iPhone RTF published; the toolkit's
+only iPhone figures are Kokoro's and Supertonic's.
+
+**The graph, stated before it bites (D-083's lesson).** speech-swift pins
+`mlx-swift-lm` **exactly 3.31.4** — this repo resolves **3.31.4** — and
+depends on WhisperKit by a different package URL than ours, plus
+hummingbird, an MCP SDK and websockets that every product of the package
+drags into the graph. So the spike is a SEPARATE Xcode project at the
+vendor's own pins, exactly as `Spikes/KokoroSpike` was, and the graph
+question is answered at adoption, not before.
+
+**F-7′ — WHICH MOUTH TO SPIKE.**
+*B:* Chatterbox Multilingual (fp16). *C:* OmniVoice (int8). *D:* both, in
+one spike, the same three Arabic sentences, on the phone: RTF, resident
+MB, and Ryad's ear — then adopt whichever survives behind `SpokenVoice`.
+**Recommendation: D.** The two answer different questions — Chatterbox
+is the quality bet that may not fit, OmniVoice is the fit bet whose
+Arabic may be weak — and one spike prices both for the cost of one
+project. The four dependency questions (tiered policy) are answered in
+writing before the first line, with the load-bearing one already
+answerable: removable in a day, behind `SpokenVoice`, as Kokoro was.
