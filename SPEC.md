@@ -4675,9 +4675,11 @@ character cap alone.
   test still passes unchanged.
 - **AC-212** — Whisper honours a language hint. With `"ar"` the Arabic
   fixture transcribes; WER reported for `base` and `small` on the phone.
-- **AC-213** — the Arabic normaliser: unit tests for each rule in scope
+  *Mac half answered 2026-09-08, INSTRUMENTS §62: base 152% → +hint 41.8%;
+  small 100% → +hint 19.4%. The phone's numbers are owed.*
+- **AC-213** — ✅ the Arabic normaliser: unit tests for each rule in scope
   item 3, and one that the ENGLISH normaliser is unchanged by them.
-- **AC-214** — the phraser cuts at `،` and `؟`: a test with an Arabic
+- **AC-214** — ✅ the phraser cuts at `،` and `؟`: a test with an Arabic
   reply that has no ASCII punctuation produces more than one phrase.
 - **AC-215** — spoken to in Arabic, the mind answers in Arabic. Measured
   in the field over five turns; Ryad reads the replies and counts the
