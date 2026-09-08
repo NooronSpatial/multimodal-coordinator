@@ -4277,3 +4277,46 @@ project targets. Stated so nobody spends a milestone finding it out.
 carries the model's errors forward (a 4r cost), and the voice has no
 thermal policy while the first `serious` session on record slowed it to
 RTF 0.70. Both are named debts, not smuggled fixes.
+
+## D-096 — the cliff is reversed: an oversized exchange is kept, alone (4r field, F-9 = B)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("F-9 B") · **Reverses:**
+D-088's Fact 8 — "an exchange too large to fit alone empties the memory"
+
+### What the field showed
+
+The Apple mind answered "the history of Algeria" in ~1,500 characters
+(INSTRUMENTS §61). Against the 600-character bound the exchange could
+not fit alone, D-088's rule emptied the memory — taking three earlier
+exchanges with it — and the next question, "what is the capital?", was
+answered as if the conversation had never happened. The rule was argued
+for as a "hard budget" protecting the older mind's ceiling; in use it was
+a bound that forgets silently, and D-092 had named exactly that as the
+worse failure when it chose 600 over 300.
+
+### The ruling
+
+**B — the oversized exchange is kept, alone, over budget.** The bound may
+be exceeded by at most one exchange, the newest; the next exchange
+evicts it if the two do not fit together. The overshoot lasts one turn,
+and it lands on the turn right after a long answer — the turn that most
+needs that answer remembered. AC-192 (whole exchanges only) is untouched.
+AC-199 is untouched: one oversized exchange is far below the 16,000
+characters Apple's ceiling allows, and the felt-pause cost of the
+overshoot is one turn's.
+
+*Rejected:* **A, keep the cliff** — it is what just failed.
+*Rejected:* **C, trim the reply to fit and mark it** — a new mechanism
+and a new mark for the same outcome, and the model then reasons from a
+truncated copy of its own words. *Rejected:* **D, a larger budget for
+the Apple mind in the app** — the app's business regardless, and it moves
+the cliff instead of removing it; Apple's prefill cost per character is
+unmeasured, so the number would have been a guess.
+
+### What this leaves standing, and what it names
+
+D-092's 600 stands. Its cliff argument for 600-over-300 is now moot, and
+its remaining leg — +2,722 ms of felt pause at 4,000 characters — carries
+it alone. Named, not ruled: the Apple mind ignores "ONE short sentence"
+on open questions; `GenerationOptions.maximumResponseTokens` is the
+app-side cap, and it is its own fork when Ryad wants it.
