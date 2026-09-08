@@ -59,7 +59,7 @@ func runAsk(_ arguments: [String]) async {
 }
 
 @MainActor
-private func askDefaultWeights(_ arguments: [String]) -> URL? {
+func askDefaultWeights(_ arguments: [String]) -> URL? {
     if let given = arguments.first(where: { $0.hasPrefix("--model=") }) {
         return URL(filePath: String(given.dropFirst("--model=".count)))
     }
@@ -90,8 +90,8 @@ private func askMakeMind(_ arguments: [String], model: LocalMindModel) -> MLXRep
 }
 
 @MainActor
-private func askLoadAndWarm(model: LocalMindModel, mind: MLXReplyGenerator,
-                            weights: URL, clock: ContinuousClock) async {
+func askLoadAndWarm(model: LocalMindModel, mind: MLXReplyGenerator,
+                    weights: URL, clock: ContinuousClock) async {
     let loadStart = clock.now
     print("loading \(weights.lastPathComponent)…")
     do { _ = try await model.ensureModel() } catch {
