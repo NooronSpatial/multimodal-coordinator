@@ -109,25 +109,45 @@ struct ConversationMemoryTests {
         }
     }
 
-    /// Fact 8 — **THE HARD BUDGET, AND ITS PRICE, WRITTEN DOWN.**
+    /// Fact 8 — **AN OVERSIZED EXCHANGE IS KEPT, ALONE, OVER BUDGET**
+    /// (F-9 = B, D-096 — reversing D-088's cliff).
     ///
-    /// One enormous answer that does not fit ALONE leaves the memory
-    /// empty. That is a cliff, and it is deliberate: the budget exists to
-    /// keep the older mind below `.exceededContextWindowSize`, and a bound
-    /// that makes an exception for the newest exchange is not a bound.
-    ///
-    /// The alternative — keep the old exchanges and drop the new one —
-    /// was rejected for Fact 5's reason: it puts a hole where the current
-    /// question's own context belongs.
-    @Test("an exchange too large to fit alone empties the memory")
-    func anOversizedExchangeLeavesNothing() {
+    /// The first rule here was the opposite: an exchange too large to fit
+    /// alone EMPTIED the memory, a "hard budget" argued for on the older
+    /// mind's ceiling. The field then produced it: the Apple mind answered
+    /// in ~1,500 characters, the cliff fired, and "what is the capital?"
+    /// was answered as if the conversation had never happened
+    /// (INSTRUMENTS §61). A bound that forgets silently is worse than a
+    /// bound that is exceeded by one exchange and says so.
+    @Test("an exchange too large to fit alone is kept alone, over budget")
+    func anOversizedExchangeIsKeptAlone() {
         var memory = ConversationMemory(maxTurns: 50, maxCharacters: 40)
         memory.record(Self.exchange(1, size: 5))
         #expect(memory.count == 1)
 
+        let big = ConversationTurn(said: String(repeating: "x", count: 100),
+                                   replied: "and then some")
+        let keptBig = memory.record(big)
+        #expect(keptBig, "the newest exchange is never the one the budget drops")
+        #expect(memory.count == 1, "the older exchange went; the oversized one stands alone")
+        #expect(memory.turns.first?.replied == "and then some")
+        #expect(memory.characters > memory.maxCharacters,
+                "exceeded by exactly one exchange — the honest overshoot D-096 allows")
+    }
+
+    /// Fact 8b. **The overshoot lasts one exchange.** The next one cannot
+    /// fit beside the oversized one, so the oversized one is evicted — the
+    /// bound is back under its number, and nothing was forgotten in
+    /// silence: the long answer was there for the turn that needed it.
+    @Test("the next exchange evicts the oversized one, and the bound holds again")
+    func theNextExchangeEvictsTheOversizedOne() {
+        var memory = ConversationMemory(maxTurns: 50, maxCharacters: 40)
         memory.record(ConversationTurn(said: String(repeating: "x", count: 100),
                                        replied: "and then some"))
-        #expect(memory.isEmpty, "nothing fits, so nothing is remembered — and no hole is left")
+        memory.record(Self.exchange(2, size: 5))          // 12 characters
+        #expect(memory.count == 1)
+        #expect(memory.turns.first?.said == "qqqqq2")
+        #expect(memory.characters <= memory.maxCharacters, "the bound holds again")
     }
 
     // MARK: - the interruption mark (F-2 = C, AC-193)
@@ -208,21 +228,30 @@ struct ConversationMemoryTests {
                 "and the past alone must not fill Apple's 4096-token window")
 
         // A bound configured and then not applied is the failure this
-        // whole suite exists to catch.
+        // whole suite exists to catch. Exchanges that FIT (204 characters
+        // each), so the bound is expected to hold exactly.
         var memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
                                         maxCharacters: config.maxMemoryCharacters)
-        for index in 1...40 { memory.record(Self.exchange(index, size: 300)) }
+        for index in 1...40 { memory.record(Self.exchange(index, size: 100)) }
         #expect(memory.count <= config.maxMemoryTurns)
         #expect(memory.characters <= config.maxMemoryCharacters)
+
+        // And the one way the bound MAY be exceeded since D-096 (F-9 = B):
+        // by the newest exchange alone. This assertion used to read
+        // "characters <= max" after 604-character exchanges — which was
+        // the cliff, asserted; the field reversed it (INSTRUMENTS §61).
+        memory.record(Self.exchange(41, size: 300))          // 604 characters
+        #expect(memory.count == 1, "nothing older can sit beside it")
+        #expect(memory.characters == 604, "exceeded by exactly the newest exchange, and no more")
     }
 
-    /// Fact 13b — **THE CLIFF STAYS OUT OF REACH, and that is why the
-    /// ruling was 600 and not 300.**
+    /// Fact 13b — an ordinary exchange fits the shipped bound whole.
     ///
-    /// An exchange too large to fit alone empties the memory (Fact 8).
-    /// Ryad's longest field exchange measured ~185 characters, so 300
-    /// would have put a silent memory-wipe within reach of ONE long
-    /// answer. 600 sits over three times clear of it.
+    /// This test was written when Fact 8 was a cliff, to show 600 kept it
+    /// three times clear of the longest field exchange (~185 characters).
+    /// D-096 removed the cliff, so it no longer guards against a wipe —
+    /// it now pins the plainer fact that a real exchange is kept without
+    /// the bound being exceeded at all.
     @Test("an ordinary exchange cannot reach the cliff at the shipped bound")
     func theCliffIsOutOfReachAtTheShippedBound() {
         var memory = ConversationMemory()
@@ -257,9 +286,9 @@ struct ConversationMemoryTests {
         #expect(memory.record(ConversationTurn(said: "q", replied: "a")) == true)
         #expect(memory.record(ConversationTurn(said: "q", replied: "")) == false,
                 "half an exchange is refused, and the caller must be told")
-        #expect(memory.record(ConversationTurn(
-            said: String(repeating: "x", count: 100), replied: "y")) == false,
-                "and so is one that cannot fit alone — the cliff, reported")
+        let keptOversized = memory.record(ConversationTurn(
+            said: String(repeating: "x", count: 100), replied: "y"))
+        #expect(keptOversized, "one that cannot fit alone is KEPT alone since D-096 — and so reported")
     }
 
     /// Fact 12. Value equality, so a test can compare two memories without

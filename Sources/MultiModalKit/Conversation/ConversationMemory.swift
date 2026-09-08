@@ -80,10 +80,10 @@ public struct ConversationMemory: Sendable, Equatable {
     /// count and cannot be affected by trimming, so it goes first; the
     /// budget is then paid in whole exchanges from the oldest end.
     /// - Returns: whether this exchange became part of the memory. False
-    ///   means one of two things and the caller must treat both the same
-    ///   way — it was half a turn, or it could not fit alone. Either way
-    ///   nothing here remembers it, which is what a caller deciding
-    ///   whether to forget the words elsewhere needs to know (F-5 = A).
+    ///   means it was half a turn, or the memory is switched off
+    ///   (`maxTurns == 0`). Since D-096 an exchange too large to fit alone
+    ///   is KEPT, so size never makes this false. The caller deciding
+    ///   whether to forget the words elsewhere relies on it (F-5 = A).
     @discardableResult
     public mutating func record(_ turn: ConversationTurn) -> Bool {
         // Whitespace is not words — the ledger's rule, met again, because
@@ -105,20 +105,21 @@ public struct ConversationMemory: Sendable, Equatable {
         // The budget, paid in whole exchanges. Never a trimmed reply:
         // half an answer is the half-turn the guard above just refused.
         //
-        // THE CLIFF IS DELIBERATE. An exchange too large to fit ALONE
-        // empties the memory, because a bound that makes an exception for
-        // the newest exchange is not a bound — and the older mind's
-        // `.exceededContextWindowSize` is the thing it is protecting
-        // (AC-199). Dropping the NEW one instead was rejected: it leaves a
-        // hole exactly where the current question's own context belongs.
+        // THE NEWEST EXCHANGE IS NEVER THE ONE THE BUDGET DROPS (F-9 = B,
+        // D-096). The first rule here was a cliff: an exchange too large to
+        // fit alone emptied the memory. The field produced it — the Apple
+        // mind's ~1,500-character answer wiped the conversation and the
+        // next question was answered as if it had never happened (§61).
+        // Now the bound may be exceeded by AT MOST ONE exchange, the newest;
+        // the next exchange evicts it if the two do not fit together. A
+        // bound that forgets silently is worse than one that overshoots
+        // once and says so — and the turn right after a long answer is
+        // exactly the turn that needs it remembered.
         var total = characters
-        while total > maxCharacters, !kept.isEmpty {
+        while total > maxCharacters, kept.count > 1 {
             total -= kept.removeFirst().characters
         }
-        // Trimming only ever takes from the FRONT, so the exchange just
-        // appended has left only if everything has: the cliff, and the
-        // one case where a caller must keep the words somewhere else.
-        return !kept.isEmpty
+        return true
     }
 
     /// The exchanges the mind may see, oldest first.
