@@ -127,7 +127,8 @@ struct ConversationMemoryTests {
 
         let big = ConversationTurn(said: String(repeating: "x", count: 100),
                                    replied: "and then some")
-        #expect(memory.record(big), "the newest exchange is never the one the budget drops")
+        let keptBig = memory.record(big)
+        #expect(keptBig, "the newest exchange is never the one the budget drops")
         #expect(memory.count == 1, "the older exchange went; the oversized one stands alone")
         #expect(memory.turns.first?.replied == "and then some")
         #expect(memory.characters > memory.maxCharacters,
@@ -227,12 +228,21 @@ struct ConversationMemoryTests {
                 "and the past alone must not fill Apple's 4096-token window")
 
         // A bound configured and then not applied is the failure this
-        // whole suite exists to catch.
+        // whole suite exists to catch. Exchanges that FIT (204 characters
+        // each), so the bound is expected to hold exactly.
         var memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
                                         maxCharacters: config.maxMemoryCharacters)
-        for index in 1...40 { memory.record(Self.exchange(index, size: 300)) }
+        for index in 1...40 { memory.record(Self.exchange(index, size: 100)) }
         #expect(memory.count <= config.maxMemoryTurns)
         #expect(memory.characters <= config.maxMemoryCharacters)
+
+        // And the one way the bound MAY be exceeded since D-096 (F-9 = B):
+        // by the newest exchange alone. This assertion used to read
+        // "characters <= max" after 604-character exchanges — which was
+        // the cliff, asserted; the field reversed it (INSTRUMENTS §61).
+        memory.record(Self.exchange(41, size: 300))          // 604 characters
+        #expect(memory.count == 1, "nothing older can sit beside it")
+        #expect(memory.characters == 604, "exceeded by exactly the newest exchange, and no more")
     }
 
     /// Fact 13b — an ordinary exchange fits the shipped bound whole.
@@ -276,9 +286,9 @@ struct ConversationMemoryTests {
         #expect(memory.record(ConversationTurn(said: "q", replied: "a")) == true)
         #expect(memory.record(ConversationTurn(said: "q", replied: "")) == false,
                 "half an exchange is refused, and the caller must be told")
-        #expect(memory.record(ConversationTurn(
-            said: String(repeating: "x", count: 100), replied: "y")) == true,
-                "one that cannot fit alone is KEPT alone since D-096 — and so reported")
+        let keptOversized = memory.record(ConversationTurn(
+            said: String(repeating: "x", count: 100), replied: "y"))
+        #expect(keptOversized, "one that cannot fit alone is KEPT alone since D-096 — and so reported")
     }
 
     /// Fact 12. Value equality, so a test can compare two memories without
