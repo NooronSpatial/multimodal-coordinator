@@ -102,7 +102,10 @@ if await whisper.modelInstalled() {
     _ = try? await run(whisper, label: "warmup")
     print("whisper: measured run…")
     do {
-        measurements.append(try await run(whisper, label: "Whisper base (WhisperKit)"))
+        // The row says which model and which hint — a table that said
+        // "base" for small would be the lying-instrument class (D-054).
+        let hint = whisperLanguage.map { " +\($0)" } ?? ""
+        measurements.append(try await run(whisper, label: "Whisper \(whisperModel)\(hint) (WhisperKit)"))
     } catch { print("whisper: failed — \(error)") }
 } else {
     print("whisper: model not installed — run once with ensureModel() first")
