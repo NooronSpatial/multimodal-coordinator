@@ -1,3 +1,4 @@
+import Speech
 import AVFAudio
 import Synchronization
 import MultiModalKit
@@ -14,6 +15,14 @@ extension TranscribeModel {
     // MARK: - the model asset (the app's job, never the library's)
 
     func checkModel() async {
+        // The ear's locales, once per launch, off the model check's path:
+        // `supportedLocales` is an async catalogue read, not a download.
+        if appleEarLocales == "not read yet" {
+            let locales = await SpeechTranscriber.supportedLocales.map(\.identifier).sorted()
+            let arabic = locales.filter { $0.hasPrefix("ar") }
+            appleEarLocales = "\(locales.count) total · Arabic: "
+                + (arabic.isEmpty ? "NONE" : arabic.joined(separator: " "))
+        }
         let installed = switch choice {
         case .apple: await appleEngine.modelInstalled()
         case .whisper: await whisperEngine.modelInstalled()

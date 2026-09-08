@@ -23,6 +23,11 @@ targets:
         buildPhase: resources
       - path: ../../Fixtures/bakeoff-reference.txt
         buildPhase: resources
+      # The Arabic fixture rides the same way (4u, AC-212 on the phone).
+      - path: ../../Fixtures/ryad-ar-msa.wav
+        buildPhase: resources
+      - path: ../../Fixtures/bakeoff-reference-ar-msa.txt
+        buildPhase: resources
     # SwiftLint while you type (Ryad's ruling 3 = B). It runs after the
     # compile, warns rather than fails, and does NOTHING when swiftlint is
     # not installed — a teammate without brew gets a hint, not a broken

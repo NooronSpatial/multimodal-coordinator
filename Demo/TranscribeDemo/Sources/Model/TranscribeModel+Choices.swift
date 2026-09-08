@@ -54,6 +54,24 @@ extension TranscribeModel {
         static let macBehaviour = "249–374 ms first word · reads through disfluency"
     }
 
+    /// THE LANGUAGE (4u, D-097 F-1 = A): a session setting, read when
+    /// Listen starts, never detected. It is the one lever that reaches
+    /// every organ — the ear's model and hint, the mouth's voice — and it
+    /// is POLICY, the app's: the runtime gains no field for it (AC-211).
+    enum LanguageChoice: String, CaseIterable, Identifiable {
+        case english = "English"
+        case arabic = "العربية"
+        var id: String { rawValue }
+        /// Whisper `small` for Arabic (D-097 F-2, ruled outright); `base`
+        /// stays the English model exactly as before 4u.
+        var whisperModel: String { self == .arabic ? "small" : "base" }
+        /// A hint only where it was measured to matter: base without one
+        /// transcribed 41 s of Arabic into the wrong script (152% WER).
+        var whisperHint: String? { self == .arabic ? "ar" : nil }
+        /// The language the Apple mouth picks its voice by.
+        var voiceLanguage: String { self == .arabic ? "ar" : "en" }
+    }
+
     enum EngineChoice: String, CaseIterable, Identifiable {
         case apple = "Apple"
         case whisper = "Whisper"

@@ -4595,3 +4595,271 @@ oversized exchange is far below 16,000 characters).
 questions. `GenerationOptions.maximumResponseTokens` is the app-side cap
 and is the lever if 104-second replies are not wanted. Its own fork, when
 Ryad wants it.
+
+---
+
+# Milestone 4u — Arabic (Ryad's ruling: Arabic first)
+
+## 162. Why this exists
+
+Ryad ruled Arabic before German, and the measurement that preceded the
+ruling says why this is a milestone and not a setting. Queried on macOS
+26 with the same frameworks the phone runs:
+
+| organ | Arabic |
+|---|---|
+| Apple `SpeechTranscriber` | **none** of its 30 locales |
+| Apple FoundationModels | **none** of its 23 languages |
+| Kokoro, the shipped mouth | no |
+| Qwen3-TTS | no |
+| Whisper `base` (multilingual, shipped) | yes — weak at this size, and no language hint is plumbed |
+| Qwen3-4B | yes — quality unmeasured |
+| Apple `AVSpeechSynthesizer` | **one** voice: Majed, `ar-001`, compact |
+
+So Arabic is the path **Whisper → Qwen3-4B → Majed**: every organ its
+second-best citizen, and the mouth its only one. German, by contrast,
+has a first-class citizen at every organ and is a configuration
+milestone that follows this one for free — the thing this milestone must
+also do is make *language* a setting that travels, so German costs
+nothing new.
+
+Two honest facts before scope. **"Arabic" here means Modern Standard
+Arabic** — that is what Whisper transcribes best, what Qwen writes, and
+what Majed speaks. Ryad speaks Algerian Darja, and a milestone that
+measured only MSA would be measuring on the Mac when the phone is what
+hurts. Both are measured (F-5). And **the phraser cuts on `".,:;?!"`**
+(`SpeechPhraser.swift:26`) — ASCII only. Arabic's comma `،` and question
+mark `؟` never end a phrase today, so an Arabic reply would be cut by the
+character cap alone.
+
+## 163. Scope
+
+1. **Language is a setting the APP passes to each organ**, never a field
+   on the runtime (AC-204 holds): the Apple ear's existing `locale`, a
+   new Whisper language hint, the instruction's language line, and the
+   mouth's voice by language.
+2. **Whisper takes a language hint** (`DecodingOptions.language`), and
+   the Arabic fixture is transcribed at `base` and `small` and scored.
+3. **An Arabic WER normaliser**: diacritics (tashkeel) stripped, alef
+   forms unified (ا أ إ آ), taa marbuta and alef maqsura folded, tatweel
+   removed — with tests, because the English normaliser scores Arabic as
+   all-wrong.
+4. **The phraser cuts at Arabic punctuation** (`،` `؟` `؛`).
+5. **The mind answers in the language it was spoken to** — the app's
+   instruction, one line, measured.
+6. **The Apple mouth speaks Arabic** with Majed, selected by language.
+7. **A demo language picker** (`en` / `ar`), disabled while listening,
+   read at start, feeding all of the above.
+8. **INSTRUMENTS §62**: WER by model size, first token in Arabic (the
+   tokenizer spends MORE tokens per Arabic character, so §58b's 0.68
+   ms/char is not transferable and is re-measured), Majed's RTF and
+   silence, thermal, and the MSA/Darja gap.
+
+## 164. Non-goals
+
+- **German.** Next, as configuration on top of this milestone's setting.
+- **A neural Arabic mouth.** None exists in the repo's vendors; finding
+  one is a spike gated on F-4, and the licence audit comes before the
+  spike — the well-known multilingual TTS models are non-commercial.
+- **Language detection.** F-1 = A: a setting. Detection multiplies every
+  organ's problem and the Apple ear needs its locale before it starts.
+- **Dialect support.** Not measured either, since D-098: F-5 was
+  re-ruled to MSA only, and the MSA/Darja gap is not claimed either way.
+- **Right-to-left UI.** The demo shows Arabic text; it does not lay it out.
+- **Making Apple's ear or mind speak Arabic.** They cannot.
+
+## 165. Acceptance criteria
+
+- **AC-211** — language is app-owned. The runtime's `Configuration` gains
+  no field; each organ takes its language at construction. The AC-204
+  test still passes unchanged.
+- **AC-212** — Whisper honours a language hint. With `"ar"` the Arabic
+  fixture transcribes; WER reported for `base` and `small` on the phone.
+  *Mac half answered 2026-09-08, INSTRUMENTS §62: base 152% → +hint 41.8%;
+  small 100% → +hint 19.4%. The phone's numbers are owed.*
+- **AC-213** — ✅ the Arabic normaliser: unit tests for each rule in scope
+  item 3, and one that the ENGLISH normaliser is unchanged by them.
+- **AC-214** — ✅ the phraser cuts at `،` and `؟`: a test with an Arabic
+  reply that has no ASCII punctuation produces more than one phrase.
+- **AC-215** — spoken to in Arabic, the mind answers in Arabic. Measured
+  in the field over five turns; Ryad reads the replies and counts the
+  ones that are (a) Arabic, (b) coherent. Not a unit test — a model's
+  language choice is not deterministic.
+  *Answered 2026-09-08, INSTRUMENTS §63: 5 of 5 Arabic; 4 coherent on a true premise; one Chinese character leaked (turn 5), one false premise carried by memory from a misheard fragment (turn 3).*
+- **AC-216** — Majed speaks the reply: `DigitalSilence` over the captured
+  mix, and Ryad's ear on intelligibility — the only Arabic ear this
+  project has.
+  *Answered 2026-09-08 by Ryad's ear: "robotic" — the compact voice, the baseline F-4 asked for. §166b is the fork on what replaces it.*
+- **AC-217** — one full Arabic turn on the phone, priced: first token,
+  felt pause, RTF, thermal, beside the English numbers.
+  *Answered 2026-09-08, §63, hot phone: first token 289 ms at zero history — not slower than English — rising to 625 ms at four exchanges.*
+- **AC-218** — memory works in Arabic: turn 2 leans on turn 1 in Arabic
+  (the §58 shape), and the felt-pause cost per Arabic CHARACTER is
+  measured — expected higher than English's 0.68 ms.
+  *Half answered 2026-09-08, §63: memory resolved "this country" in Arabic; the field slope is ~1.5 ms/char (2.3× English) under thermal serious. The probe's clean sweep is owed.*
+- **AC-219** — ✅ **the fixture exists before anything is measured.** ~30 s
+  of read MSA in Ryad's voice with its reference text, committed with
+  provenance (`ryad-ar-msa.wav`, 41 s). *The Darja recording this
+  criterion first asked for was withdrawn by D-098 (F-5 re-ruled: MSA
+  only).* Nothing in AC-212/216/217 is claimed without the fixture.
+- **AC-220** — zero warnings, `swiftlint --strict` at zero, 20× with
+  every failing log kept, both demos build.
+  *20/20 on `b050b43` with every failing log kept, none produced; the package is untouched since. Zero warnings, lint zero, both demos build.*
+### Test matrix
+
+| criterion | test |
+|---|---|
+| AC-211 | the existing AC-204 test, unchanged |
+| AC-212 | `bakeoff` on the Arabic fixture, `base` and `small`, device |
+| AC-213 | `WordErrorRateTests` — Arabic rules + English unchanged |
+| AC-214 | `SpeechPhraserTests` — an Arabic reply, no ASCII punctuation |
+| AC-215 | field: five Arabic turns, Ryad's count |
+| AC-216 | `DigitalSilence` + Ryad's ear |
+| AC-217 | field log, INSTRUMENTS §62 |
+| AC-218 | field: an Arabic "this country" turn + the ms/char sweep |
+| AC-219 | the files, with provenance, in the PR |
+| AC-220 | the usual, 20× |
+
+## 166. The forks
+
+**F-1 — HOW THE LANGUAGE IS KNOWN.** *A:* a session setting. *B:*
+detected per utterance. **Recommendation: A.** The Apple ear needs its
+locale before capture starts, and a wrong detection on turn 1 changes the
+mind's language and the mouth's voice at once. *Rejected: B* — real, and
+its own later milestone once every organ takes a language at all.
+
+**F-2 — WHICH WHISPER FOR ARABIC.** *A:* `base` (installed, ~140 MB,
+weak). *B:* `small` (~460 MB, markedly better on Arabic). *C:* `medium`
+(~1.5 GB, beside a 2.3 GB mind — tight). **Recommendation: measure A
+and B on the fixture and ship the one that clears a WER Ryad sets;
+prior: B.** *Rejected: C* — until B fails, its memory cost is not earned.
+
+**F-3 — WHAT THE INSTRUCTION SAYS.** *A:* one English line, "answer in
+the language the person spoke". *B:* the instruction translated into
+Arabic when the setting is Arabic. *C:* a per-language instruction table
+in the app. **Recommendation: A, measured by AC-215; B if A fails.**
+*Rejected: C* — a table with two rows is a table nobody asked for yet.
+
+**F-4 — THE ARABIC MOUTH.** *A:* ship Majed as the honest baseline and
+measure it. *B:* a vendor spike first. **Recommendation: A.** Measure
+before shopping — and the spike, when it comes, starts with the licence
+audit, because the obvious candidates are non-commercial.
+
+**F-5 — WHICH ARABIC IS MEASURED.** *A:* MSA only. *B:* MSA and Darja,
+each with its own fixture and its own number. **Recommendation: B.** The
+person holding the phone speaks Darja; an MSA-only result is the Mac
+number when the phone is what hurts. *Ruled B at sign-off (D-097), then
+re-ruled A by Ryad (D-098): the Darja half is not wanted.*
+
+## 167. Definition of done (4u)
+
+Language a setting that travels to every organ with no field on the
+runtime · a Whisper language hint, scored at two sizes on a real fixture
+· an Arabic normaliser with tests · the phraser cutting at Arabic
+punctuation · five Arabic turns in the field with Ryad's count · Majed
+measured for silence and by ear · one Arabic turn priced beside English
+· memory shown working in Arabic and its cost per character measured ·
+both fixtures committed with provenance · INSTRUMENTS §62 with the
+MSA/Darja gap stated · zero warnings · lint zero · 20× · reviewed with
+every fix pushed before the PR is called ready · teach-back.
+
+## 166a. Recorded in the field: the Chinese leak (4u, INSTRUMENTS §63)
+
+Turn 5 of the first Arabic conversation ended "عاصمة تونس هي تونس城" —
+the capital of Tunisia is Tunis, and then one Chinese character, 城
+("city"). A 4-bit 4B Qwen code-switching into Chinese is a known failure
+mode of the family; English never shows it because English has nowhere
+to leak *from*. The mouth would have been handed a Chinese character to
+say in Arabic.
+
+**F-6 — WHAT STOPS A CHINESE CHARACTER REACHING THE MOUTH. Ruled: A (D-099).**
+*A:* one more line in the app's instruction — "use only Arabic script" —
+policy (D-027), ~30 characters of prefill, its effect a field count.
+*B:* a mechanism: when the session language is Arabic, tokens carrying
+CJK scalars are dropped before the phraser sees them — deterministic,
+testable, and the library deciding what a mind may say.
+*C:* both — the line, and the filter as a net.
+
+**Recommendation: A first, measured by the next Arabic session; B only
+if A fails, and then narrowly** — CJK scalars only, only when the
+language is Arabic, because a Latin brand name or a digit is not a leak.
+*Rejected for now: B alone* — a filter that ships before the free lever
+was tried is the library taking a policy decision the app has not made.
+*Rejected: C* — two mechanisms for one unmeasured fault.
+
+## 166b. Recorded in the field: the mouth is robotic (4u, AC-216)
+
+Majed — Apple's compact Arabic voice, the only one installed — was judged
+"robotic" by the person whose language it is. F-4 = A measured the
+baseline; this is the fork it deferred.
+
+**F-7 — THE ARABIC MOUTH AFTER THE BASELINE.**
+*A:* Apple's *enhanced* Majed — a download in Settings, zero code; the
+app already picks the best installed voice by language.
+*B:* a spike, Kokoro-style, on Piper's Arabic voice (`ar_JO-kareem`,
+MIT, ONNX): measured on the phone behind `SpeechSynthesizing` before
+anything is adopted.
+*C:* a spike on Chatterbox Multilingual (MIT, LLM-based, no Swift port).
+
+**Recommendation: A today, before anything is built.** It may be enough
+and it costs a download. B is the spike if A still sounds robotic; C is
+the bigger one if B's quality is not enough. *Not options:* Kokoro and
+Qwen3-TTS (no Arabic); XTTS-v2, Meta MMS, Fish/OpenAudio (non-commercial
+licences). The hard part in every candidate is the same: written Arabic
+carries no diacritics and a voice needs them.
+
+### 166b, continued — Apple's voice rejected; the mouth must run on iOS 18 (2026-09-08)
+
+Ryad: *"skip Apple voice. I need something else that works on iOS 18
+too."* F-7 = A is rejected, and the requirement is now written: the
+Arabic mouth is neural and runs on the D-091 floor. Verified from the
+sources, not from memory:
+
+| candidate | Arabic | weights | toolkit | floor | verdict |
+|---|---|---|---|---|---|
+| Chatterbox Multilingual, via speech-swift `ChatterboxTTS` | ✅ (Resemble's list) | MIT, 0.8B fp16 | Apache-2.0, MLX | iOS 18 | **spike** |
+| OmniVoice, via speech-swift `OmniVoiceTTS` | "600+ languages" — quality unknown | Apache-2.0, 0.8B fp16 / **int8** | Apache-2.0, MLX | iOS 18 | **spike** |
+| Piper `ar_JO-kareem` | ✅ | varies | **GPL-3.0**, eSpeak-ng phonemizer (GPL) | — | blocked |
+| Kokoro · Qwen3-TTS | ❌ | | | | not options — see the note below |
+| XTTS-v2 · Meta MMS · Fish/OpenAudio · F5 · Higgs | ✅ | **non-commercial** | | | blocked |
+
+**The constraint that decides this, in numbers.** A 0.8B mouth at fp16
+is ~1.3–1.6 GB resident. Beside the 2.3 GB mind and Whisper `small`
+(~0.5 GB) that is ~4.2 GB against ~3.7 GB of headroom on Ryad's phone —
+**fp16 does not fit as a resident mouth.** OmniVoice's int8 (~0.8 GB)
+lands near 3.6 GB — borderline, and a measurement. Chatterbox is
+LLM-based and autoregressive (Qwen3-TTS's shape, which measured RTF 1.35
+on this phone); OmniVoice is non-autoregressive diffusion (Kokoro's
+shape, RTF 0.2). Nothing here has an iPhone RTF published; the toolkit's
+only iPhone figures are Kokoro's and Supertonic's.
+
+**The graph, stated before it bites (D-083's lesson).** speech-swift pins
+`mlx-swift-lm` **exactly 3.31.4** — this repo resolves **3.31.4** — and
+depends on WhisperKit by a different package URL than ours, plus
+hummingbird, an MCP SDK and websockets that every product of the package
+drags into the graph. So the spike is a SEPARATE Xcode project at the
+vendor's own pins, exactly as `Spikes/KokoroSpike` was, and the graph
+question is answered at adoption, not before.
+
+**F-7′ — WHICH MOUTH TO SPIKE.**
+*B:* Chatterbox Multilingual (fp16). *C:* OmniVoice (int8). *D:* both, in
+one spike, the same three Arabic sentences, on the phone: RTF, resident
+MB, and Ryad's ear — then adopt whichever survives behind `SpokenVoice`.
+**Recommendation: D.** The two answer different questions — Chatterbox
+is the quality bet that may not fit, OmniVoice is the fit bet whose
+Arabic may be weak — and one spike prices both for the cost of one
+project. The four dependency questions (tiered policy) are answered in
+writing before the first line, with the load-bearing one already
+answerable: removable in a day, behind `SpokenVoice`, as Kokoro was.
+
+**Kokoro, precisely, because it was asked twice.** The Kokoro-82M *model*
+speaks nine languages with 54 voices — American and British English,
+Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, Mandarin
+(VOICES.md, verified 2026-09-08) — and neither Arabic nor German is among
+them. The *Swift port this repo ships* (`kokoro-ios` + `MisakiSwift`)
+phonemizes **English only**: its `Language` enum has three cases (`none`,
+`en-us`, `en-gb`) and its G2P has one source folder, `English`. So "Kokoro
+supports a lot of languages" was true of the model and misleading about
+what runs on the phone; the port would need a G2P per language before
+even Spanish, and Arabic would need a G2P *and* trained voices *and* a
+diacritizer — training work, not integration.

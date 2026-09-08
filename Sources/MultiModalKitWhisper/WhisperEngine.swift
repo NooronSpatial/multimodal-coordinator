@@ -56,7 +56,18 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
         let kit: WhisperKit
     }
 
-    public init(model: String = "base", diagnostics: PipelineDiagnostics? = nil) {
+    /// THE LANGUAGE HINT (4u, AC-212, F-1 = A). `nil` leaves WhisperKit to
+    /// its default; a BCP-47 code such as `"ar"` or `"de"` tells the decoder
+    /// which language it is hearing instead of letting it guess from the
+    /// first seconds — and on the multilingual `base`/`small` models a
+    /// wrong guess is a whole utterance transcribed into the wrong script.
+    /// Policy: the APP chooses (D-027), because only the app knows what
+    /// the person picked.
+    public nonisolated let language: String?
+
+    public init(model: String = "base", language: String? = nil,
+                diagnostics: PipelineDiagnostics? = nil) {
+        self.language = language
         self.model = model
         self.diagnostics = diagnostics
     }
@@ -173,7 +184,12 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
 
     private func decodeBody(_ pipeline: WhisperKit, _ samples: [Float]) async throws -> String {
         do {
-            let results = try await pipeline.transcribe(audioArray: samples)
+            // The hint travels as WhisperKit's own option. `nil` here is
+            // "as before" — the engine's behaviour for every caller that
+            // never asked for a language is unchanged.
+            let options = language.map { DecodingOptions(language: $0) }
+            let results = try await pipeline.transcribe(audioArray: samples,
+                                                        decodeOptions: options)
             let joined = results.map(\.text).joined(separator: " ")
             // Whisper emits non-speech CONTROL tokens like [BLANK_AUDIO] or
             // [MUSIC]; they are markers, not words a person said — stripped
@@ -204,6 +220,16 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
         do {
             return try await held.value {
                 let config = WhisperKitConfig(model: model)
+                // WHERE THINGS LAND IS OURS, NOT A DEFAULT (4u, AC-212).
+                // WhisperKit resolves its tokenizer folder as
+                // `tokenizerFolder ?? downloadBase`, and with neither set
+                // the tokenizer's home depends on the vendor's default.
+                // `base` happened to land where `modelInstalled()` looks;
+                // `small` did not — a loaded pipeline and an "installed"
+                // of false, so the bake-off skipped the model it had just
+                // fetched. Naming the base makes the model AND the
+                // tokenizer land in the two folders this type checks.
+                config.downloadBase = URL.documentsDirectory.appending(path: "huggingface")
             // Errors only. WhisperKit defaults to verbose info logging
             // ("Loading models...", "Decoding Temperature: ..."), gated once
             // at its init by verbose + logLevel. NOT verbose=false: that maps

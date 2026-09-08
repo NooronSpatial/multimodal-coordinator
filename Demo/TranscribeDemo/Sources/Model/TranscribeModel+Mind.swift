@@ -37,11 +37,27 @@ extension TranscribeModel {
         // every turn, paid knowingly. Whether it helps is a field
         // measurement, not a claim; §60 says how to take it.
         + "If you are not sure, say so instead of guessing. "
-        + "If you did not understand, say so."
+        + "If you did not understand, say so. "
+        // F-3 = A (D-097): one English line, whatever the person's
+        // language. ~40 characters of prefill, ~27 ms a turn at §58b's
+        // English rate; measured by AC-215, five Arabic turns, Ryad's
+        // count. The Arabic-text version (B) is deferred until this fails.
+        + "Answer in the language the person spoke."
+
+    /// The instruction FOR a language (4u, D-099 F-6 = A). Arabic gains one
+    /// line — "Write only in Arabic script." — because the 4-bit 4B mind
+    /// leaked a Chinese character into an Arabic sentence (§63), and the
+    /// free, app-owned lever is tried before any filter. English gets the
+    /// base string unchanged: the line would be wrong advice there.
+    static func spokenInstructions(for language: LanguageChoice) -> String {
+        language == .arabic
+            ? spokenInstructions + " Write only in Arabic script."
+            : spokenInstructions
+    }
 
     private var localMind: MLXReplyGenerator {
         MLXReplyGenerator(model: localModel,
-                          instructions: Self.spokenInstructions,
+                          instructions: Self.spokenInstructions(for: language),
                           maxTokens: 160)
     }
 
@@ -120,6 +136,7 @@ extension TranscribeModel {
         var out = "# Conversation log — MultiModalKit demo\n\n"
         out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
         out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
+        out += "Apple ear (SpeechTranscriber) locales on this device: \(appleEarLocales)\n"
         out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
         out += "\(MLXRuntime.isAvailable)\n"

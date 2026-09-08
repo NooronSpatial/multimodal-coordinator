@@ -91,18 +91,33 @@ extension TranscribeModel {
     func runBakeoff() async {
         guard !isListening, bakeoffStatus == nil else { return }
         bakeoffRows = []
-        guard let wav = Bundle.main.url(forResource: "ryad-en", withExtension: "wav"),
-              let refURL = Bundle.main.url(forResource: "bakeoff-reference", withExtension: "txt"),
+        // The fixture follows the language (4u, AC-212 on the phone): the
+        // Arabic one rides in the bundle exactly as the English one does.
+        let fixture = language == .arabic ? "ryad-ar-msa" : "ryad-en"
+        let referenceName = language == .arabic ? "bakeoff-reference-ar-msa" : "bakeoff-reference"
+        guard let wav = Bundle.main.url(forResource: fixture, withExtension: "wav"),
+              let refURL = Bundle.main.url(forResource: referenceName, withExtension: "txt"),
               let reference = try? String(contentsOf: refURL, encoding: .utf8),
               let audio = try? BakeoffHarness.loadAudio(wav) else {
             bakeoffStatus = "fixtures missing from the bundle"
             return
         }
 
+        // The Whisper row says which model and which hint (4u): a table
+        // that said "base" for small would be the lying-instrument class.
+        let hint = language.whisperHint.map { " +\($0)" } ?? ""
+        let whisperName = "Whisper \(language.whisperModel)\(hint)"
+        // Apple's ear has no Arabic locale (§162). It is not run on Arabic
+        // audio — its row would be the wrong-script number — but it is not
+        // silently absent either: the row stays, marked skipped, with the
+        // reason in its name. The loop already renders "not installed".
+        let appleInstalled = language == .arabic ? false : await appleEngine.modelInstalled()
+        let appleName = language == .arabic
+            ? "Apple SpeechAnalyzer — no Arabic locale, skipped"
+            : "Apple SpeechAnalyzer"
         let engines: [Contender] = [
-            .init(name: "Apple SpeechAnalyzer", engine: appleEngine,
-                  installed: await appleEngine.modelInstalled()),
-            .init(name: "Whisper base", engine: whisperEngine,
+            .init(name: appleName, engine: appleEngine, installed: appleInstalled),
+            .init(name: whisperName, engine: whisperEngine,
                   installed: await whisperEngine.modelInstalled())
         ]
         for contender in engines {

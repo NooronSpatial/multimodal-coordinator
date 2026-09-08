@@ -137,6 +137,22 @@ final class TranscribeModel {
     let sweep = SweepState()
 
     /// The mind. Changing it restarts the pipeline, like the mouth.
+    var language: LanguageChoice = TranscribeModel.storedLanguage {
+        didSet {
+            UserDefaults.standard.set(language.rawValue, forKey: Self.languageKey)
+            guard language != oldValue else { return }
+            // A new language is a new ear (model + hint are init
+            // parameters), and possibly a model that is not on disk yet:
+            // `checkModel()` says so through the same `engineState` the
+            // Download button already reads.
+            whisperEngine = WhisperEngine(model: language.whisperModel,
+                                          language: language.whisperHint,
+                                          diagnostics: diagnostics)
+            engineState = .checking
+            Task { await checkModel() }
+        }
+    }
+
     var mind: MindChoice = TranscribeModel.storedMind {
         didSet {
             UserDefaults.standard.set(mind.rawValue, forKey: Self.mindKey)
@@ -284,6 +300,11 @@ final class TranscribeModel {
     /// What the mind was shown of the conversation before this thought
     /// (4r). Empty on the first turn of a session, and after `stop()`.
     var remembering = ""
+    /// WHICH LOCALES APPLE'S EAR HAS, read from the phone itself (4u).
+    /// The Mac's copy of the framework listed thirty and no Arabic; the
+    /// log header prints THIS device's answer so the question is never
+    /// argued from the wrong machine again.
+    var appleEarLocales = "not read yet"
     /// HOW MANY PAST EXCHANGES THE MIND MAY SEE (4r, AC-197).
     ///
     /// A lever rather than a constant because the milestone's central
@@ -401,13 +422,18 @@ final class TranscribeModel {
 
     let diagnostics: PipelineDiagnostics
     let appleEngine: AppleSpeechEngine
-    let whisperEngine: WhisperEngine
+    /// Rebuilt when the language changes: the model and the hint are
+    /// init parameters of the engine, so a new language is a new ear.
+    private(set) var whisperEngine: WhisperEngine
 
     init() {
         let diagnostics = PipelineDiagnostics()
         self.diagnostics = diagnostics
         self.appleEngine = AppleSpeechEngine(diagnostics: diagnostics)
-        self.whisperEngine = WhisperEngine(diagnostics: diagnostics)
+        let language = TranscribeModel.storedLanguage
+        self.whisperEngine = WhisperEngine(model: language.whisperModel,
+                                           language: language.whisperHint,
+                                           diagnostics: diagnostics)
     }
     var microphone: MicrophoneSource?
     var pipeline: Task<Void, Never>?
