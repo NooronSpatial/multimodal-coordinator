@@ -33,8 +33,9 @@ if arguments.count > 1, arguments[1] == "voice-install" { await runVoiceInstall(
 if arguments.count > 1, arguments[1] == "voice-kokoro" { await runVoiceKokoro(arguments) }
 if arguments.count > 1, arguments[1] == "graph-probe" { await runGraphProbe(arguments) }
 
-let wavPath = arguments.count > 1 ? arguments[1] : "Fixtures/ryad-en.wav"
-let referencePath = arguments.count > 2 ? arguments[2] : "Fixtures/bakeoff-reference.txt"
+let positional = arguments.dropFirst().filter { !$0.hasPrefix("--") }
+let wavPath = positional.count > 0 ? positional[positional.startIndex] : "Fixtures/ryad-en.wav"
+let referencePath = positional.count > 1 ? positional[positional.startIndex + 1] : "Fixtures/bakeoff-reference.txt"
 
 guard let reference = try? String(contentsOfFile: referencePath, encoding: .utf8) else {
     print("cannot read reference: \(referencePath)"); exit(1)
@@ -80,7 +81,24 @@ if #available(macOS 26.0, *) {
 }
 
 // — Whisper —
-let whisper = WhisperEngine()
+// 4u (AC-212): `--model=small --language=ar` — the Arabic ear is Whisper
+// `small` with a hint (D-097 F-2), and the gap to `base` without one is
+// measured, not assumed. Defaults are the old behaviour exactly.
+let whisperModel = arguments.first { $0.hasPrefix("--model=") }.map { String($0.dropFirst(8)) } ?? "base"
+let whisperLanguage = arguments.first { $0.hasPrefix("--language=") }.map { String($0.dropFirst(11)) }
+let whisper = WhisperEngine(model: whisperModel, language: whisperLanguage)
+// `--fetch`: put the model on disk first, through the same ModelBacked
+// path the app uses — so a measurement of `small` names the command that
+// produced its weights (R6) instead of a click nobody can repeat.
+if arguments.contains("--fetch"), await !whisper.modelInstalled() {
+    print("whisper: fetching \(whisperModel)…")
+    do {
+        try await whisper.download { fraction in
+            if Int(fraction * 100) % 25 == 0 { print("whisper: \(Int(fraction * 100))%") }
+        }
+        print("whisper: \(whisperModel) installed: \(await whisper.modelInstalled())")
+    } catch { print("whisper: fetch FAILED — \(error)") }
+}
 if await whisper.modelInstalled() {
     print("whisper: warm-up run (excluded — CoreML graph compilation)…")
     _ = try? await run(whisper, label: "warmup")
