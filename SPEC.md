@@ -4334,3 +4334,223 @@ in a decision entry · INSTRUMENTS §58 with method and caveats · a field
 conversation where turn 2 leans on turn 1 · zero warnings ·
 `swiftlint --strict` at zero · 20× stable · adversarially reviewed with
 every fix pushed BEFORE the PR is called ready · teach-back.
+
+---
+
+# Milestone 4t — the front door (Runtime Phase A)
+
+## 156. Why this exists
+
+This library has three organ seams with two real implementations each, and
+**not one composed way to use them.** Two applications exist today and both
+assemble the spine by hand:
+
+    Sources/AudioDemo/Runtime/AudioDemo+Pipeline.swift:67
+    Demo/TranscribeDemo/Sources/Model/TranscribeModel+Pipeline.swift:218
+
+Read in full, those two sites do **not** duplicate decisions. Every value
+that differs between them — reply gate, barge window, thermal policy, VAD
+threshold, latency reporter, memory depth, speaker shield, render host — is
+policy that D-027 and AC-22 deliberately pushed OUT of the library. That
+part is working as designed and must not be undone.
+
+What they duplicate is **sequence**, and sequence is where the accidents
+live:
+
+1. **Listeners are taken before the run loops start.** Written as a comment
+   at `TranscribeModel+Pipeline.swift:353`, enforced by nothing. Get it
+   wrong and the first utterance of a session is lost — intermittently,
+   which is the worst way to lose anything.
+2. **One task group, every run loop a child of it.** Structured concurrency,
+   assembled by hand, twice.
+3. **The teardown order** (`TranscribeModel+Pipeline.swift:266`): the
+   pipeline dies, THEN the render engine stops, THEN the session is
+   released. Step 2 was missing for a whole milestone; the symptom was the
+   person's music never coming back, and `try?` swallowed the error.
+
+**The Mac demo does not implement rule 3 at all.** It does not need to,
+having no `AVAudioSession` — which is precisely how a second caller
+silently fails to inherit a rule that cost a milestone to learn. A third
+caller will fail the same way, and the third caller is the point of the
+whole runtime effort.
+
+So Phase A is not "make the call sites smaller". It is:
+
+> **the assembly and teardown ORDER is owned once; every policy number
+> stays visible and app-owned.**
+
+## 157. Scope
+
+1. **One composed entry point** in core `MultiModalKit` that assembles the
+   spine — source, pump, transcription, coordinator — wires their streams
+   in the order above, runs them in one structured group, and unwinds them
+   in the teardown order.
+2. **Both demos migrate onto it**, and the hand-wiring is deleted rather
+   than moved behind a platform branch.
+3. **A test that proves the order**, because a comment is not a mechanism:
+   the first-utterance rule and the three-step teardown both become facts a
+   suite can fail on.
+4. **A phone measurement** that the felt pause did not move, taken on one
+   build session rather than against a historical number.
+5. **`ARCHITECTURE.md` gains the front door** — and its "shape in numbers"
+   paragraph stops being maintained by hand (it has now been wrong four
+   times, twice inside its own correction).
+
+## 158. Non-goals
+
+- **Capabilities, tools, permissions, vision, model router, device
+  intelligence.** None of them. This milestone adds no new concept.
+- **No new policy value, and no new default.** The runtime must not acquire
+  an opinion about the reply gate, the barge window, the thermal policy,
+  the VAD threshold or the memory bound. If it grows a default for any of
+  them, this milestone has failed regardless of its tests.
+- **Not making the two demos the same.** They are a terminal tool and a
+  phone app; their differences are the product, not the debt.
+- **No change to the spine, the seams, `TranscriptLedger` or
+  `ConversationMemory`.**
+- **The Bakeoff CLI does not migrate.** It is an instrument harness with a
+  different shape and no conversation.
+- **No API-stability promise yet.** This type will be consumed by other
+  applications and will therefore need a versioning story; naming that is
+  its own milestone, not a paragraph here.
+
+## 159. Acceptance criteria
+
+- **AC-201** — one front door assembles the spine. After the migration, no
+  file outside `MultiModalKit` constructs `AudioPump`, `TranscriptionSession`
+  or `TurnCoordinator`. The PR body carries the grep that proves it.
+- **AC-202** — **THE FIRST UTTERANCE IS NEVER LOST.** A test yields an
+  onset and its final at the instant the runtime starts, and the turn still
+  happens. This is the listener-before-loops rule turned from a comment
+  into a failing test.
+- **AC-203** — **THE TEARDOWN ORDER IS PROVEN, NOT COMMENTED.** A scripted
+  host and session record when each of the three steps happened, and the
+  test asserts the order. The fault it pins is the real one: releasing a
+  session while an engine still renders fails with `IsBusy`, and a `try?`
+  hides it.
+- **AC-204** — every policy stays app-owned. The runtime's configuration
+  holds the EXISTING config types and the chosen organs, and introduces no
+  policy field of its own. Proven by construction and asserted by a test
+  that names each existing type.
+- **AC-205** — **the felt pause did not move.** Measured on the phone,
+  before and after, in ONE session on the same build, over the same
+  fixtures. The expected delta is zero because the runtime is not on the
+  turn path at all; a non-zero result means something is on the path that
+  should not be, and that is the finding.
+- **AC-206** — no allocation is added on the audio thread. The runtime
+  touches nothing inside a render or tap callback; stated, and checked with
+  the existing `graph-probe`.
+- **AC-207** — **the Mac demo gains the teardown discipline it never had**,
+  and the PR says so in words. This is the milestone's own evidence that a
+  second caller inherits a rule instead of re-learning it.
+- **AC-208** — the hand-wiring is DELETED, not wrapped. No `if platform`
+  branch inside the runtime reproduces the two call sites. A facade that
+  contains both old bodies is the failure mode, and this criterion is what
+  refuses it.
+- **AC-209** — 478 tests stay green, run 20×, zero warnings,
+  `swiftlint --strict` at zero, and both demos build for their devices.
+- **AC-210** — `ARCHITECTURE.md` shows the front door, and its counts are
+  either generated by the command it prints or removed. A number a human
+  maintains in prose drifts; that paragraph is the proof, four times over.
+
+### Test matrix
+
+| criterion | test |
+|---|---|
+| AC-201 | grep in the PR body + both demos compile |
+| AC-202 | runtime test: onset+final at t=0 → the turn happens |
+| AC-203 | scripted host + session recording step order |
+| AC-204 | configuration test naming each existing config type |
+| AC-205 | phone measurement, one session, before/after (INSTRUMENTS §59) |
+| AC-206 | `bakeoff graph-probe` + review |
+| AC-207 | Mac demo teardown test, which could not exist before |
+| AC-208 | review, and the diff: deleted lines exceed added ones at the call sites |
+| AC-209 | full suite, 20× |
+| AC-210 | the doc, and the command it prints, run |
+
+## 160. The forks
+
+**F-1 — WHAT THE FRONT DOOR OWNS.**
+*A:* assembly only — build the organs' wiring, run the group. Teardown
+stays with the app.
+*B:* assembly AND teardown — the whole lifecycle, with the three-step order
+inside it.
+*C:* assembly, teardown, and the ORGAN CHOICE — the runtime picks the ear,
+mind and mouth from a policy.
+
+**Recommendation: B.** The teardown order is the expensive half: it is the
+rule that cost a milestone, and it is the one the Mac demo does not have.
+A front door that owns assembly and leaves teardown behind hands the caller
+back exactly the part that goes wrong. *Rejected: A* — it keeps the cheap
+half. *Rejected: C* — organ choice is policy (D-027), both demos already
+have UI for it, and a runtime that picks the mind would make AC-204
+impossible on its first day.
+
+**F-2 — HOW POLICY REACHES IT.**
+*A:* one `Configuration` value that CONTAINS the existing config types
+(`AudioPump.Config`, the transcription config, `TurnCoordinator.Config`)
+plus the chosen organs.
+*B:* a wide initializer — ten or so parameters, no new type.
+*C:* a builder taking closures that make each organ.
+
+**Recommendation: A.** One parameter is a simple interface, which is the
+deep-module rule; and because the value only *contains* config types the
+app already owns, it introduces no new policy vocabulary — R2's "earn the
+layer", satisfied by not adding one. *Rejected: B* — a ten-parameter
+initializer is the shallow wrapper that leaks its insides, and every future
+lever widens it. *Rejected: C* — factories are a concept with no second
+caller today (R3).
+
+**F-3 — LISTEN-ONLY IS A REAL MODE.**
+Both demos can run without talking (`--talk`, `talkEnabled`), and then
+there is no coordinator and no mouth.
+*A:* two entry points, one listening and one conversing.
+*B:* one entry point; mind and mouth optional, `nil` meaning transcription
+only.
+*C:* always require a mind and a mouth; a listening app passes no-ops.
+
+**Recommendation: B.** Both demos already model it exactly this way
+(`coordinator == nil ? nil : await pump.listen()`), and transcription-only
+was this library's whole job for two milestones — it is a real mode, not a
+degenerate case. *Rejected: A* — two doors that share 80% of their body.
+*Rejected: C* — passing a fake mouth to avoid speaking is a lie told to
+the type system.
+
+**F-4 — WHO OWNS THE LONG-RUNNING TASK.**
+*A:* `func run(...) async` — the caller awaits it inside its own task, and
+the teardown happens in `run`'s tail as it unwinds.
+*B:* `start()` / `stop()` — the runtime holds an unstructured `Task`
+internally.
+
+**Recommendation: A.** §4.1 forbids leaked unstructured `Task {}` in
+production paths, and both demos already own their task
+(`pipeline = Task {…}` on iOS, `withTaskGroup` on the Mac). B would move a
+leaked task INTO the library, which is the opposite of the direction this
+repo has been travelling. The cost is named: cancellation becomes the only
+way to stop, and the three teardown steps must therefore run on the
+unwinding path, where they are easy to get wrong — which is what AC-203
+exists to catch.
+
+**F-5 — WHAT IT IS CALLED.**
+*A:* `AIRuntime` — the brief's working name.
+*B:* `ConversationRuntime` — narrower, and honest about what it currently
+composes: one conversation, not an AI platform.
+
+**Recommendation: B for now.** This milestone composes a voice
+conversation and nothing else; a type called `AIRuntime` that cannot see,
+cannot call a tool and has no permissions is a name writing a cheque the
+code does not cover. `AIRuntime` becomes right when capabilities exist, and
+renaming then is one commit while the consumer count is two. *Rejected: A*
+— it is the target name, and taking it early is the cheaper mistake to
+make but the harder one to walk back once applications import it.
+
+## 161. Definition of done (4t)
+
+One front door in core, owning assembly and teardown · both demos migrated
+and their hand-wiring DELETED · the first-utterance rule and the
+three-step teardown proven by tests that could not have existed before ·
+no new policy value anywhere in it · the felt pause measured on the phone
+in one session, before and after · `ARCHITECTURE.md` showing the door and
+no longer hand-counting itself · zero warnings · `swiftlint --strict` at
+zero · 20× stable · adversarially reviewed with every fix pushed BEFORE
+the PR is called ready · teach-back.

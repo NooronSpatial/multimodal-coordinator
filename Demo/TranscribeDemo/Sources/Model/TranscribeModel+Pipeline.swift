@@ -120,27 +120,23 @@ extension TranscribeModel {
         // microphone that is not capturing, and it is right to.
 
         let rate = microphone.sampleRate
-        let chunk = Int(rate * 0.02)                       // 20 ms per verdict
-        let pump = makePump(reading: consumer, at: rate, chunkFrames: chunk)
-        let transcription = makeTranscription(at: rate)
-
-        let coordinator = makeCoordinator(hostedOn: microphone)
-        self.coordinator = coordinator
-
+        let captureHost = microphone.playbackHost
+        // THE FRONT DOOR (4t, D-093). The pump, the session, the
+        // coordinator, the listener order, the task group and the
+        // teardown order are the runtime's now. What stays in this file is
+        // every POLICY number this phone earned, passed in and visible.
+        let runtime = AIRuntime(makeConfiguration(reading: consumer, at: rate,
+                                                  hostedOn: microphone))
         isListening = true
         inputPeak = 0
-        let diagnostics = diagnostics
-        // NO HOST IS INSTALLED (D-049). The voice makes its own engine,
-        // which is the configuration that has worked since the hour it
-        // was written. What stays is the margin reporting: the decode
-        // numbers are how anyone will know whether this phone can run
-        // this voice at all, and they do not depend on where it renders.
-        let captureHost = microphone.playbackHost
         pipeline = Task { [weak self] in
             guard let self else { return }
-            await self.runPipeline(pump: pump, transcription: transcription,
-                                   coordinator: coordinator, diagnostics: diagnostics,
-                                   captureHost: captureHost)
+            // The voice is hosted BEFORE any loop runs — the same
+            // guarantee the hand-wired version had by construction, kept
+            // explicit here rather than left to a race the first reply
+            // would usually, but not always, win.
+            await self.hostVoice(captureHost: captureHost)
+            await runtime.run { session in await self.observe(session) }
         }
     }
 
@@ -174,12 +170,16 @@ extension TranscribeModel {
             hostsPlayback: talkEnabled && speakerShield)
     }
 
-    /// The pump that turns the ring into verdicts, at the gate this
-    /// device is currently set to.
-    private func makePump(reading consumer: AudioRingConsumer,
-                          at rate: Double,
-                          chunkFrames chunk: Int) -> AudioPump<ContinuousClock> {
-        AudioPump(
+    /// Every policy value this phone earned, passed through UNTOUCHED
+    /// (AC-204). The runtime adds none of its own; each number below keeps
+    /// the ruling that put it here.
+    private func makeConfiguration(
+        reading consumer: AudioRingConsumer, at rate: Double,
+        hostedOn microphone: MicrophoneSource
+    ) -> AIRuntime<ContinuousClock>.Configuration {
+        let chunk = Int(rate * 0.02)                       // 20 ms per verdict
+        let host = neuralHost
+        return .init(
             consumer: consumer,
             // 0.01 was earned in Phase 2, when this app only LISTENED —
             // no speaker, so no echo to cross it. The first 4d field run
@@ -190,72 +190,63 @@ extension TranscribeModel {
             // than inheriting the Mac's.
             vad: EnergyVAD(config: .init(threshold: vadThreshold,
                                          hangoverFrames: Int(rate * 0.3))),
-            clock: ContinuousClock(),
+            // The ear the person picked.
+            ear: engine,
+            // The conversation, if the app is talking (F-3 = B: mind and
+            // mouth together, or neither). Same coordinator, same ledger,
+            // same phraser, same mouth as the Mac — AC-92's whole point is
+            // that none of them needed an iOS variant.
+            mind: talkEnabled ? currentGenerator : nil,
+            mouth: talkEnabled
+                ? currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil)
+                : nil,
             // 200 ms of pre-roll: a word's quiet onset must survive a VAD
             // that only wakes on its loud middle.
-            config: .init(sampleRate: rate, pollInterval: .milliseconds(10),
-                          chunkFrames: chunk, preRollChunks: 10),
-            diagnostics: diagnostics)
-    }
-
-    /// The decoding side, on the ear the person picked.
-    private func makeTranscription(at rate: Double) -> TranscriptionSession {
-        TranscriptionSession(
-            engine: engine,
-            config: .init(format: AudioStreamFormat(sampleRate: rate, channels: 1)),
+            pump: .init(sampleRate: rate, pollInterval: .milliseconds(10),
+                        chunkFrames: chunk, preRollChunks: 10),
+            transcription: .init(format: AudioStreamFormat(sampleRate: rate, channels: 1)),
+            // THE REPLY GATE, at last switched on (F-2 = B, 500 ms).
+            //
+            // AC-81 built this in 4c and the demo never set it, so the
+            // assistant committed about 300 ms after Ryad stopped making
+            // noise — less than a person's thinking pause. A 38-turn
+            // field session measured the cost: SIX turns opened on a
+            // fragment ("Okay, and uh,") and were killed 76 ms later by
+            // him finishing his own sentence, and twelve carried a
+            // previous turn's words forward.
+            //
+            // POLICY, in the app, on purpose (D-027): the library's
+            // default stays `.zero`. This number costs felt pause 1:1 —
+            // 542 ms measured becomes about 1040 ms — and that is a
+            // trade only the person holding the phone can price.
+            turns: .init(
+                replyGate: .milliseconds(500),
+                // THE APP CHOOSES (D-027). This phone hears itself: with
+                // the shield on, its own cancelled reply still crosses
+                // the gate, and §43 measured the leak dying under 530 ms
+                // while real speech runs past 930. Ryad ruled 600 ms.
+                bargeWindow: BargeWindow.measured,
+                // 4r, AC-197: the lever, read once when the session
+                // starts. The character budget keeps the library's
+                // default (D-092) — this phone's mind has no 4096-token
+                // ceiling, and the depth is the axis that was measured.
+                maxMemoryTurns: memoryDepth),
+            clock: ContinuousClock(),
             diagnostics: diagnostics,
-            // THIS APP's ruling (D-027/D-028): on a hot phone, sacrifice the
-            // late settling decodes, loudly — the row will say so in words.
-            thermalPolicy: ConservativeThermalPolicy())
-    }
-
-    /// The conversation, if the app is talking. Same coordinator, same
-    /// ledger, same phraser, same mouth as the Mac — AC-92's whole
-    /// point is that none of them needed an iOS variant.
-    private func makeCoordinator(
-        hostedOn microphone: MicrophoneSource
-    ) -> TurnCoordinator<ContinuousClock>? {
-        talkEnabled
-            ? TurnCoordinator(
-                replyGenerator: currentGenerator,
-                synthesizer: currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil),
-                // THE REPLY GATE, at last switched on (F-2 = B, 500 ms).
-                //
-                // AC-81 built this in 4c and the demo never set it, so the
-                // assistant committed about 300 ms after Ryad stopped making
-                // noise — less than a person's thinking pause. A 38-turn
-                // field session measured the cost: SIX turns opened on a
-                // fragment ("Okay, and uh,") and were killed 76 ms later by
-                // him finishing his own sentence, and twelve carried a
-                // previous turn's words forward.
-                //
-                // The gate holds the reply, and `handleGateExpired` builds
-                // the prompt when it EXPIRES — so a continued sentence joins
-                // the SAME thought, and a new utterance during the gate stops
-                // the turn firing at all.
-                //
-                // POLICY, in the app, on purpose (D-027): the library's
-                // default stays `.zero`. This number costs felt pause 1:1 —
-                // 542 ms measured becomes about 1040 ms — and that is a
-                // trade only the person holding the phone can price.
-                config: .init(
-                    replyGate: .milliseconds(500),
-                    // THE APP CHOOSES (D-027). This phone hears itself: with
-                    // the shield on, its own cancelled reply still crosses
-                    // the gate, and §43 measured the leak dying under 530 ms
-                    // while real speech runs past 930. Ryad ruled 600 ms.
-                    bargeWindow: BargeWindow.measured,
-                    // 4r, AC-197: the lever, read once when the session
-                    // starts. The character budget keeps the library's
-                    // default — this phone's mind has no 4096-token
-                    // ceiling, and the depth is the axis being measured.
-                    maxMemoryTurns: memoryDepth),
-                clock: ContinuousClock(),
-                latencyReporter: PhoneLatency(model: self),
-                // D-059 = A: dead turns reach the health stream — the road
-                // the mind's tripwire alarm rides.
-                diagnostics: diagnostics)
-            : nil
+            // THIS APP's ruling (D-027/D-028): on a hot phone, sacrifice
+            // the late settling decodes, loudly — the row will say so.
+            thermalPolicy: ConservativeThermalPolicy(),
+            latencyReporter: PhoneLatency(model: self),
+            // THE TEARDOWN'S BODIES; the runtime owns the ORDER (AC-203).
+            // Step 2: the render engine's nodes go, safely, after the
+            // pipeline has drained — step 2 was missing entirely for a
+            // milestone, and the person's music never came back.
+            stopRendering: { host.stopRendering() },
+            // Step 3: the session goes LAST; it cannot be released
+            // before the engine stops (`IsBusy`, swallowed by a `try?`).
+            releaseSource: { [weak self] in
+                await MainActor.run { self?.microphone?.stop() }
+            })
     }
 
     func stop() {
@@ -280,14 +271,16 @@ extension TranscribeModel {
         // detaches nodes, and a reply still calling `play()` on a
         // detached node aborts the process. That is the same abort as
         // blocker 1, reached from the other side.
+        //
+        // Steps 2 and 3 are the RUNTIME's now (4t, AC-203): it stops the
+        // rendering and releases the source in that order, on its own way
+        // out. What is left here is to cancel, wait for it to have done
+        // so, and drop the handle.
         let dying = pipeline
         pipeline = nil
         dying?.cancel()
-        let host = neuralHost
         Task {
-            await dying?.value               // the pipeline has drained
-            host.stopRendering()             // now the nodes are nobody's
-            await MainActor.run { microphone?.stop() }   // and the session goes
+            await dying?.value               // the teardown has run, in order
             await MainActor.run { microphone = nil }
         }
         coordinator = nil
@@ -319,109 +312,65 @@ extension TranscribeModel {
         }
     }
 
-    /// The conversation's own task tree, lifted out of `start()`.
-    ///
-    /// It is ONE structured group on purpose (D-014): every listener is a
-    /// child of this task, so cancelling `pipeline` cancels all of them and
-    /// none can outlive the conversation that made it.
-    private func runPipeline(pump: AudioPump<ContinuousClock>,
-                             transcription: TranscriptionSession,
-                             coordinator: TurnCoordinator<ContinuousClock>?,
-                             diagnostics: PipelineDiagnostics,
-                             captureHost: MicrophonePlaybackHost) async {
-        if mouth == .neural {
-            // WHERE THE REPLY RENDERS (4g): behind the shield it
-            // goes to the CAPTURE engine's host — the whole point,
-            // the canceller can only remove what its own unit
-            // renders (D-043). Unshielded, the 4e arrangement stands.
-            await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
-            await neuralVoice.reportMargins { margin in
-                // The graph's rate is refreshed HERE, with the
-                // margin, because it only becomes real when a reply
-                // has actually rendered: the host records it during
-                // attach rather than by poking a mixer that may not
-                // exist yet. Asking at start-up would have printed
-                // "not rendered yet" forever, which is the same
-                // family of mistake as the instrument that shipped
-                // dead an hour ago.
-                Task { @MainActor in
-                    self.voiceMargin = margin
-                    self.attach(margin)
-                }
+    /// Where the reply renders, decided BEFORE the first loop runs.
+    private func hostVoice(captureHost: MicrophonePlaybackHost) async {
+        guard mouth == .neural else { return }
+        // WHERE THE REPLY RENDERS (4g): behind the shield it goes to the
+        // CAPTURE engine's host — the whole point, the canceller can only
+        // remove what its own unit renders (D-043). Unshielded, the 4e
+        // arrangement stands.
+        await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
+        await neuralVoice.reportMargins { margin in
+            // The graph's rate is refreshed HERE, with the margin, because
+            // it only becomes real when a reply has actually rendered: the
+            // host records it during attach rather than by poking a mixer
+            // that may not exist yet. Asking at start-up would have
+            // printed "not rendered yet" forever, which is the same family
+            // of mistake as the instrument that shipped dead an hour ago.
+            Task { @MainActor in
+                self.voiceMargin = margin
+                self.attach(margin)
             }
         }
-        // Listeners are taken BEFORE the pumps run: no event is missed.
-        let audioForSession = await pump.listen()
-        let audioForUI = await pump.listen()          // the multicast, used for real
-        let transcripts = await transcription.listen()
-        let health = diagnostics.health()
-        let audioForTurns = coordinator == nil ? nil : await pump.listen()
-        let transcriptsForTurns = coordinator == nil ? nil : await transcription.listen()
-        let turnEvents = coordinator == nil ? nil : await coordinator?.listen()
-
-        await runListeners(pump: pump, transcription: transcription,
-                           coordinator: coordinator, diagnostics: diagnostics,
-                           health: health,
-                           audioForSession: audioForSession, audioForUI: audioForUI,
-                           transcripts: transcripts, audioForTurns: audioForTurns,
-                           transcriptsForTurns: transcriptsForTurns, turnEvents: turnEvents)
     }
 
-    // swiftlint:disable function_parameter_count function_body_length
-    /// The task GROUP itself: one child per listener, all of them children
-    /// of the caller's task so a cancel reaches every one (D-014).
-    ///
-    /// The long parameter list is the point rather than a smell: these are
-    /// the ALREADY-OPENED listener handles. Opening them inside this
-    /// function would change WHO subscribes first, and subscription order
-    /// is the one thing the multicast's drop accounting depends on. The
-    /// body is one `addTask` per listener — long, but flat and additive,
-    /// and splitting it would scatter a task tree that must be read whole.
-    private func runListeners(pump: AudioPump<ContinuousClock>,
-                              transcription: TranscriptionSession,
-                              coordinator: TurnCoordinator<ContinuousClock>?,
-                              diagnostics: PipelineDiagnostics,
-                              health: Broadcast<HealthEvent>.Listener,
-                              audioForSession: Broadcast<AudioEvent>.Listener,
-                              audioForUI: Broadcast<AudioEvent>.Listener,
-                              transcripts: Broadcast<TranscriptEvent>.Listener,
-                              audioForTurns: Broadcast<AudioEvent>.Listener?,
-                              transcriptsForTurns: Broadcast<TranscriptEvent>.Listener?,
-                              turnEvents: Broadcast<TurnEvent>.Listener?) async {
+    /// The screen, observing the session (4t). One nested group of UI
+    /// consumers, children of the runtime's group so a cancel reaches
+    /// every one (D-014). The listeners arrive ALREADY OPEN — the runtime
+    /// opened them before it started a single loop, which is the rule this
+    /// file used to state in a comment and enforce with nothing.
+    private func observe(_ session: AIRuntime<ContinuousClock>.Session) async {
+        // The handle the app steers — interrupt, resume, clear memory —
+        // and never stops: stopping is the runtime's, in order.
+        coordinator = session.conversation
         await withTaskGroup(of: Void.self) { group in
-            group.addTask { await pump.run() }
-            group.addTask { await transcription.run(events: audioForSession.events) }
-            if let coordinator, let audioForTurns, let transcriptsForTurns {
-                group.addTask {
-                    await coordinator.run(audio: audioForTurns.events,
-                                          transcripts: transcriptsForTurns.events)
-                }
-            }
-            if let turnEvents {
+            if let turns = session.turns {
                 group.addTask { [weak self] in
-                    for await event in turnEvents.events {
+                    for await event in turns.events {
                         await self?.show(turn: event)
                     }
                 }
             }
-            // The thermal watcher — cancelled with the group, never
-            // stop()ped: diagnostics lives across Listen sessions.
-            group.addTask { await diagnostics.run() }
-            group.addTask { [weak self] in
-                for await event in health.events {
-                    await self?.show(health: event)
+            if let health = session.health {
+                group.addTask { [weak self] in
+                    for await event in health.events {
+                        await self?.show(health: event)
+                    }
                 }
             }
             group.addTask { [weak self] in
-                for await event in audioForUI.events {
+                for await event in session.audio.events {
                     await self?.show(audio: event)
+                }
+            }
+            group.addTask { [weak self] in
+                for await event in session.transcripts.events {
+                    await self?.show(transcript: event)
                 }
             }
             // THE LEVEL METER. A poll, deliberately: the level is a
             // lock-free atomic written by the audio thread, and the
             // screen only needs it as fast as a person can read it.
-            // Nothing downstream depends on this task, and it ends
-            // with the group like everything else here.
             group.addTask { [weak self] in
                 while !Task.isCancelled {
                     guard let self else { return }
@@ -439,18 +388,12 @@ extension TranscribeModel {
                     try? await Task.sleep(for: .milliseconds(100))
                 }
             }
-            group.addTask { [weak self] in
-                for await event in transcripts.events {
-                    await self?.show(transcript: event)
-                }
-            }
-            // The group is the wall: stop() ends the streams, then this
-            // scope drains and returns. Nothing outlives the pipeline.
+            // The wall, one level down: the first stream to END means the
+            // runtime is stopping its actors, so the poller — which ends
+            // only on cancellation — is cancelled here rather than left to
+            // hold this scope open.
             _ = await group.next()
-            await pump.stop()
-            await transcription.stop()
-            await coordinator?.stop()
+            group.cancelAll()
         }
     }
-    // swiftlint:enable function_parameter_count function_body_length
 }

@@ -37,7 +37,13 @@ struct AudioDemo {
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
 
-        let microphone = MicrophoneSource(voiceProcessing: flags.wantsAEC)
+        // `nonisolated(unsafe)`, with the proof the house demands for any
+        // island (§4.1): `MicrophoneSource` is not `Sendable`, and it is
+        // touched from exactly two places — `start(into:)` here, on this
+        // task, before the runtime exists; and `stop()` inside
+        // `releaseSource`, which the runtime calls ONCE, after every loop
+        // has drained (AC-203). The two can never overlap.
+        nonisolated(unsafe) let microphone = MicrophoneSource(voiceProcessing: flags.wantsAEC)
         do {
             try microphone.start(into: producer)
         } catch {
@@ -47,24 +53,9 @@ struct AudioDemo {
         }
 
         let sampleRate = microphone.sampleRate
-        // Field forensics (the 08-13 --talk investigation): the demo was
-        // BLIND to listener overflow — the pump's broadcast drops oldest
-        // silently when a listener stalls (D-012), and the session's merged
-        // loop can stall on inline stage awaits (a recorded 4a known limit).
-        // Health makes the invisible number visible.
-        let diagnostics = PipelineDiagnostics()
-        let pump = makePump(reading: consumer, flags: flags,
-                            sampleRate: sampleRate, diagnostics: diagnostics)
-
-        let transcription: TranscriptionSession? = engineReady
-            ? TranscriptionSession(
-                engine: ear.engine,
-                config: .init(format: .init(sampleRate: sampleRate, channels: 1)),
-                diagnostics: diagnostics)
-            : nil
 
         printBanner(flags, sampleRate: sampleRate,
-                    engine: transcription == nil ? nil : ear.name,
+                    engine: engineReady ? ear.name : nil,
                     voiceProcessingActive: microphone.voiceProcessingActive)
 
         if flags.levels {
@@ -73,7 +64,39 @@ struct AudioDemo {
             return
         }
 
-        await runPipeline(pump: pump, transcription: transcription,
-                          ringDrops: consumer, diagnostics: diagnostics, flags: flags)
+        // THE FRONT DOOR (4t). What used to be assembled here by hand —
+        // pump, session, coordinator, the listener order, the task group —
+        // is the runtime's. What stays here is every POLICY number this
+        // machine earned, passed in and visible (AC-204).
+        //
+        // An ear whose model is not ready is passed in all the same. It
+        // used to mean "voice detection only"; now every utterance reports
+        // its transcription failure on screen instead — failure is an
+        // event (AC-65), which is the library's own rule finally applied
+        // to its own demo.
+        let screen = Screen()
+        let runtime = AIRuntime(configuration(
+            flags: flags,
+            machine: Machine(ear: ear.engine, consumer: consumer, sampleRate: sampleRate),
+            screen: screen,
+            releaseSource: { microphone.stop() }))
+        let pipeline = Task {
+            await runtime.run { session in
+                await observe(session, on: screen, ringDrops: consumer)
+            }
+        }
+
+        // Ctrl-C CANCELS rather than kills (AC-207). Before the runtime,
+        // this demo ended by the process dying, so its microphone was
+        // never released and no teardown order existed for it to get
+        // wrong. Now the same three steps the phone learned the hard way
+        // run here too — which is the whole argument for a front door: a
+        // second caller inherits the rule instead of re-learning it.
+        signal(SIGINT, SIG_IGN)
+        let interrupt = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
+        interrupt.setEventHandler { pipeline.cancel() }
+        interrupt.resume()
+        await pipeline.value
+        print("\n(released the microphone — teardown ran in order)")
     }
 }
