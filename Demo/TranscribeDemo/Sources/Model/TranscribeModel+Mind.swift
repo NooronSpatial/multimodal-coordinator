@@ -37,7 +37,12 @@ extension TranscribeModel {
         // every turn, paid knowingly. Whether it helps is a field
         // measurement, not a claim; §60 says how to take it.
         + "If you are not sure, say so instead of guessing. "
-        + "If you did not understand, say so."
+        + "If you did not understand, say so. "
+        // F-3 = A (D-097): one English line, whatever the person's
+        // language. ~40 characters of prefill, ~27 ms a turn at §58b's
+        // English rate; measured by AC-215, five Arabic turns, Ryad's
+        // count. The Arabic-text version (B) is deferred until this fails.
+        + "Answer in the language the person spoke."
 
     private var localMind: MLXReplyGenerator {
         MLXReplyGenerator(model: localModel,
