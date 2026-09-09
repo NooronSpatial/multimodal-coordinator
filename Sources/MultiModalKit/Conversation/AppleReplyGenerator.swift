@@ -15,25 +15,34 @@ protocol ReplySnapshotStreaming: Sendable {
     /// Why a generation cannot START, or nil. Asked at the door, every
     /// time — a download can complete between two turns. It lives on the
     /// SEAM because it is a property of the source: the real one answers
-    /// with Apple's enum, and a scripted stream has no Apple model to be
+    /// with the vendor's enum mapped onto the contract's verdict (4v,
+    /// SPEC §175/5), and a scripted stream has no vendor model to be
     /// unavailable — a fact the first test run proved by dying at this
     /// door on a Mac whose model was still downloading.
-    var unavailable: (any Error)? { get }
+    var unavailable: MindUnavailable? { get }
     /// Opens one generation and returns its CUMULATIVE snapshots — the
     /// whole reply so far, again and again, which is the shape Apple's
     /// API actually has (SPEC §71, measured in INSTRUMENTS §22).
-    func snapshots(for context: ReplyContext) -> AsyncThrowingStream<String, any Error>
+    ///
+    /// `instructions` are the RESOLVED ones for this call (AC-232: the
+    /// caller's per-call text over the generator's own), passed beside
+    /// the context rather than read from it so a scripted source can
+    /// record exactly what the generator decided; the sampling and the
+    /// budget ride on `context.options` and the real source maps them.
+    func snapshots(for context: ReplyContext,
+                   instructions: String?) -> AsyncThrowingStream<String, any Error>
 }
 
 /// The REAL stream: one `LanguageModelSession` per reply (D-057 F-2 = A),
-/// carrying the app's told-it-is-speaking instructions (F-3 = A).
+/// carrying the instructions the generator resolved (F-3 = A, and since
+/// 4v the caller's per-call ones when given — AC-232).
 @available(macOS 26.0, iOS 26.0, *)
 struct FoundationModelSnapshots: ReplySnapshotStreaming {
-    let instructions: String?
 
-    var unavailable: (any Error)? { AppleReplyGenerator.availability }
+    var unavailable: MindUnavailable? { AppleMind.readiness() }
 
-    func snapshots(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
+    func snapshots(for context: ReplyContext,
+                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
         // The session is born INSIDE the stream's task, not in `openReply`:
         // the coordinator awaits `openReply` inline on its one serial loop,
         // and a model warm-up in that window is 4e's blocker 3 one seam
@@ -43,8 +52,10 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
             let task = Task {
                 let session = Self.session(instructions: instructions,
                                            history: context.history)
+                let options = Self.vendorOptions(for: context.options)
                 do {
-                    for try await snapshot in session.streamResponse(to: context.transcript) {
+                    for try await snapshot in session.streamResponse(to: context.transcript,
+                                                                     options: options) {
                         continuation.yield(snapshot.content)
                         try Task.checkCancellation()
                     }
@@ -56,6 +67,47 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
             continuation.onTermination = { _ in task.cancel() }
         }
     }
+
+    /// The caller's levers, in the vendor's words (AC-233, AC-234). Pure
+    /// and static so a test can read what a given `GenerationOptions`
+    /// becomes without a model in the room.
+    ///
+    /// - the budget is ALWAYS set: `maxTokens ?? 1024` (F-6 = A — the
+    ///   cap is a ceiling, not a target). Before 4v the Apple mind set no
+    ///   cap at all.
+    /// - temperature `0` asks for `.greedy` — the vendor's own name for
+    ///   "no randomness", so the same question twice gives the same bytes
+    ///   (the probe AC-234 measures). Greedy has no randomness to seed,
+    ///   so it wins over a seed given beside it.
+    /// - a seed asks for `.random(top: 50, seed:)` — TOP-K sampling: the
+    ///   model picks among its 50 likeliest next tokens. (The vendor's
+    ///   other mode, `.random(probabilityThreshold:seed:)`, is top-p,
+    ///   also called "nucleus" sampling; this mind does not use it.)
+    ///   Fifty is a conventional width and is NOT what AC-234 needs; the
+    ///   SEED is — it is what makes "seed + 0.6 twice" give identical
+    ///   text. The number is here so the seed has a mode to ride on, not
+    ///   because it was tuned.
+    /// - `temperature` is passed when given, widened `Float → Double`
+    ///   (the vendor's type). `nil` everything else leaves the vendor's
+    ///   defaults untouched: `GenerationOptions()` IS the default value
+    ///   of `streamResponse(options:)`, so a field left `nil` here is the
+    ///   same as not asking.
+    static func vendorOptions(for options: GenerationOptions) -> FoundationModels.GenerationOptions {
+        var sampling: FoundationModels.GenerationOptions.SamplingMode?
+        if options.temperature == 0 {
+            sampling = .greedy
+        } else if let seed = options.seed {
+            sampling = .random(top: Self.seededTopK, seed: seed)
+        }
+        return FoundationModels.GenerationOptions(
+            sampling: sampling,
+            temperature: options.temperature.map(Double.init),
+            maximumResponseTokens: options.maxTokens ?? AppleReplyGenerator.defaultTokenBudget)
+    }
+
+    /// The `top` of `.random(top:seed:)` when a seed is given — see
+    /// `vendorOptions`: a conventional value, not a measured one.
+    static let seededTopK = 50
 
     /// One session, built from a transcript WE assembled (4r, F-1 = B).
     ///
@@ -92,6 +144,69 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     }
 }
 
+// MARK: - the door (SPEC §175/5 — the Apple verdicts, typed)
+
+/// The Apple mind's READINESS, askable on ANY operating system. The
+/// generator itself is `@available(macOS 26, iOS 26)`, so a phone one
+/// release too old cannot even name it — and could never be told WHY.
+/// This enum is not gated: below the floor it answers
+/// `.osBelowFloor(required: "iOS 26")` from the same `Platform` table
+/// the readiness piece uses (`appleMindFloor`); on the floor it maps the
+/// vendor's enum onto the contract's verdict, so a screen switches over
+/// ONE type for every mind (AC-238's wiring).
+public enum AppleMind {
+
+    /// Why the Apple mind cannot run here — or `nil`, meaning it can.
+    /// Read FRESH every time: a download can complete between two turns,
+    /// and caching "unavailable" would turn a temporary state into a
+    /// permanent verdict.
+    public static func readiness() -> MindUnavailable? {
+        guard #available(macOS 26.0, iOS 26.0, *) else {
+            // The number is the floor's, stated by `Platform.appleMindFloor`,
+            // and the OS check itself is `#available`'s — the compiler's
+            // truth, not `ProcessInfo`'s reading of it. The platform is a
+            // compile-time fact too, so it is read as one: a first cut
+            // built a whole `DeviceReport.current(...)` here, which runs a
+            // memory syscall, only to read its `.platform` (the 4v review).
+            return belowFloor(on: platform)
+        }
+        return verdict(for: SystemLanguageModel.default.availability)
+    }
+
+    /// The platform this binary was built for — the same `#if` the
+    /// readiness piece's live reader uses, without the rest of the probe.
+    static var platform: Platform {
+        #if os(macOS)
+        .macOS
+        #else
+        .iOS
+        #endif
+    }
+
+    /// The below-floor verdict for a platform — pure, so a Mac's test can
+    /// read a phone's sentence.
+    static func belowFloor(on platform: Platform) -> MindUnavailable {
+        .osBelowFloor(required: "\(platform.name) \(platform.appleMindFloor)")
+    }
+
+    /// The vendor's enum, in the contract's words. Pure, so a test can
+    /// hand it every case by hand; the `@unknown default` is the only
+    /// honest answer to a NON-frozen `UnavailableReason` (AC-114).
+    @available(macOS 26.0, iOS 26.0, *)
+    static func verdict(for availability: SystemLanguageModel.Availability) -> MindUnavailable? {
+        switch availability {
+        case .available: return nil
+        case .unavailable(let reason):
+            switch reason {
+            case .deviceNotEligible: return .deviceCannotRun(.notEligible)
+            case .appleIntelligenceNotEnabled: return .featureDisabled("Apple Intelligence")
+            case .modelNotReady: return .modelDownloading
+            @unknown default: return .unknown(String(describing: reason))
+            }
+        }
+    }
+}
+
 // MARK: - the generator
 
 /// THE MIND (SPEC §69, AC-112): Apple's on-device language model behind
@@ -111,44 +226,18 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
 @available(macOS 26.0, iOS 26.0, *)
 public struct AppleReplyGenerator: ReplyGenerating {
 
-    /// Why a reply cannot start. The three cases are real states of a
-    /// user's device, each needing different words on screen (AC-110).
-    ///
-    /// `CustomStringConvertible` because this error CAN reach a screen:
-    /// when the model goes unavailable BETWEEN turns, `openReply` throws
-    /// it mid-session and the coordinator's failure text carries whatever
-    /// `String(describing:)` yields — which for a bare enum is
-    /// "modelNotReady", gibberish to the person holding the phone. Found
-    /// by the 4f review; the words below are the same ones the demo's
-    /// caption uses, so the two surfaces cannot drift apart.
-    public enum Unavailable: Error, Sendable, Equatable, CustomStringConvertible {
-        case deviceNotEligible
-        case appleIntelligenceNotEnabled
-        case modelNotReady
-        /// A reason this library does not know yet — `UnavailableReason`
-        /// is non-frozen, and pretending otherwise is a build break under
-        /// warnings-as-errors the day Apple adds a case (AC-114).
-        case unknown(String)
-
-        public var description: String {
-            switch self {
-            case .deviceNotEligible:
-                "this device cannot run the on-device model"
-            case .appleIntelligenceNotEnabled:
-                "Apple Intelligence is switched off in Settings"
-            case .modelNotReady:
-                "the on-device model is still downloading — try later"
-            case .unknown(let reason):
-                "the model is unavailable: \(reason)"
-            }
-        }
-    }
+    /// The budget when the caller sets none (F-6 = A: 1024 for everyone,
+    /// a ceiling, not a target). Before 4v this mind set no cap at all.
+    public static let defaultTokenBudget = 1024
 
     /// The app's told-it-is-speaking instruction (D-057 F-3 = A). The
     /// TEXT lives with the app — mechanism, not policy (D-027) — because
     /// a spoken reply's constraints (brief, no lists, no markdown) are
     /// the app's to phrase. Measured reason it matters: the probe's
     /// count-to-ten reply came back as a numbered markdown list.
+    ///
+    /// Since 4v these are the FALLBACK: a call whose
+    /// `options.instructions` is set uses that text instead (AC-232).
     public let instructions: String?
 
     /// What a refusal SOUNDS like (D-057 F-4 = A): the model declining is
@@ -163,32 +252,23 @@ public struct AppleReplyGenerator: ReplyGenerating {
                 spokenRefusal: String = "I can't answer that.") {
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
-        self.source = FoundationModelSnapshots(instructions: instructions)
+        self.source = FoundationModelSnapshots()
     }
 
     /// The seam a test reaches through (@testable), never a caller.
     init(source: any ReplySnapshotStreaming,
+         instructions: String? = nil,
          spokenRefusal: String = "I can't answer that.") {
-        self.instructions = nil
+        self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.source = source
     }
 
-    /// The enum, read fresh every time — a download can complete between
-    /// two turns, and caching "unavailable" would turn a temporary state
-    /// into a permanent verdict.
-    public static var availability: Unavailable? {
-        switch SystemLanguageModel.default.availability {
-        case .available: return nil
-        case .unavailable(let reason):
-            switch reason {
-            case .deviceNotEligible: return .deviceNotEligible
-            case .appleIntelligenceNotEnabled: return .appleIntelligenceNotEnabled
-            case .modelNotReady: return .modelNotReady
-            @unknown default: return .unknown(String(describing: reason))
-            }
-        }
-    }
+    /// The verdict, read fresh every time — `AppleMind.readiness()` under
+    /// the name the demo's caption already reads. Kept so the screen and
+    /// a mid-session refusal keep speaking the SAME sentence (the 4f
+    /// review's rule); the ungated door is `AppleMind.readiness()`.
+    public static var availability: MindUnavailable? { AppleMind.readiness() }
 
     /// Pays the model's warm-up OUTSIDE the first turn (AC-115). The cost
     /// is process-level — 1839 ms cold against ~280 ms warm on the
@@ -196,16 +276,22 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// of the first felt pause. Safe to call when unavailable: it asks
     /// the enum first and does nothing.
     public func prewarm() {
-        guard Self.availability == nil else { return }
+        guard AppleMind.readiness() == nil else { return }
         let session = instructions.map { LanguageModelSession(instructions: $0) }
             ?? LanguageModelSession()
         session.prewarm()
     }
 
+    /// The door. The verdict is asked HERE, never cached (see
+    /// `ReplySnapshotStreaming.unavailable`), and thrown as the contract's
+    /// `ReplyFailure.unavailable` so a caller catches one type for every
+    /// mind (SPEC §175/5).
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
-        if let unavailable = source.unavailable { throw unavailable }
+        if let verdict = source.unavailable { throw ReplyFailure.unavailable(verdict) }
+        // AC-232: the caller's per-call text over the generator's own.
+        let resolved = context.options.instructions ?? instructions
         return AppleReplyRun(source: source, context: context,
-                             spokenRefusal: spokenRefusal)
+                             instructions: resolved, spokenRefusal: spokenRefusal)
     }
 }
 
@@ -234,7 +320,10 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// `retired` flag is the guarantee (the ticket doctrine, fourth use).
     private let work = Mutex<Task<Void, Never>?>(nil)
 
-    init(source: any ReplySnapshotStreaming, context: ReplyContext, spokenRefusal: String) {
+    init(source: any ReplySnapshotStreaming,
+         context: ReplyContext,
+         instructions: String?,
+         spokenRefusal: String) {
         var handle: AsyncStream<ReplyUpdate>.Continuation!
         self.updates = AsyncStream { handle = $0 }
         self.out = handle
@@ -243,7 +332,7 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await snapshot in source.snapshots(for: context) {
+                for try await snapshot in source.snapshots(for: context, instructions: instructions) {
                     guard let self else { return }
                     // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under
                     // one lock step.
@@ -271,7 +360,8 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                     self.out.yield(.token(token))
                 }
                 // `.unreported`: Apple's stream ends without saying why
-                // (AC-235 — the vendor has no stop reason to read).
+                // (AC-235 — the vendor has no stop reason to read; the
+                // SDK's interface has no `finishReason` anywhere).
                 self?.report(.finished(.unreported))
             } catch let revision as SnapshotRevision {
                 // The tripwire fired: the model rewrote text that may
@@ -288,8 +378,10 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         work.withLock { $0 = task }
     }
 
-    /// AC-114: every case reaches an honest outcome, none is swallowed,
-    /// and the enum being NON-frozen is handled rather than hoped away.
+    /// AC-114, and since 4v AC-236's table (SPEC §175/3): every case
+    /// reaches an honest outcome, none is swallowed, every failure is a
+    /// case a caller can count, and the enum being NON-frozen is handled
+    /// rather than hoped away.
     ///
     /// Two cases complete the turn instead of failing it (D-057 F-4 = A):
     /// `guardrailViolation` and `refusal` are a supervised model DOING
@@ -304,22 +396,34 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     private func settle(generation error: LanguageModelSession.GenerationError) {
         switch error {
         case .guardrailViolation, .refusal:
+            // F-7 pending (SPEC §178): whether a refusal is a spoken
+            // completion, a failure, or a stop reason is Ryad's to rule.
+            // Until then, today's behaviour holds.
             speakRefusalAndFinish()
         case .exceededContextWindowSize:
-            // Already unambiguous, so already typed (4v seam piece); the
-            // rest of the table in SPEC §175/3 lands with AC-236.
             report(.failed(.contextWindowExceeded))
         case .assetsUnavailable:
             // The Simulator lesson (INSTRUMENTS §22): availability can
-            // vouch for assets the model manager then cannot produce.
-            report(.failed(.engine("the model's assets are unavailable — "
-                + "availability said yes and the model said no")))
-        case .rateLimited:
-            report(.failed(.engine("the system rate-limited generation")))
-        case .concurrentRequests:
-            report(.failed(.engine("a second request reached one session — "
-                + "sessions are per-turn (D-057 F-2), so this is a coordination bug")))
-        case .unsupportedGuide, .unsupportedLanguageOrLocale, .decodingFailure:
+            // vouch for assets the model manager then cannot produce. The
+            // table's row is `.unavailable` (SPEC §175/3), and the verdict
+            // inside it is `.unknown` with the vendor's own word: the
+            // vendor said "assets unavailable" and nothing about WHY. It
+            // is not `.modelDownloading` — that sentence promises "try
+            // later", and on the very Simulator that taught this lesson
+            // the assets never arrive (the 4v review's finding).
+            report(.failed(.unavailable(.unknown(Self.assetsUnavailableWords))))
+        case .unsupportedLanguageOrLocale:
+            report(.failed(.unsupportedLanguage))
+        case .rateLimited, .concurrentRequests:
+            // Both are "the engine is serving another request" to a
+            // caller that counts. `concurrentRequests` is ALSO a
+            // coordination bug on our side — sessions are per-turn
+            // (D-057 F-2), so a second request on one session should be
+            // impossible — but the caller's remedy is the same: later.
+            report(.failed(.busy))
+        case .unsupportedGuide, .decodingFailure:
+            // No guide is ever sent (the mind returns text, §176) and a
+            // decoding failure has no caller-side remedy: the honest rest.
             report(.failed(.engine("generation failed: \(error.localizedDescription)")))
         @unknown default:
             report(.failed(.engine("generation failed with a case this library "
@@ -334,8 +438,20 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         let live = state.withLock { !$0.retired }
         guard live else { return }
         out.yield(.token(spokenRefusal))
+        // `.unreported` — TODAY'S value, kept on purpose while F-7 is open
+        // (SPEC §178: "until ruled, the Apple mind keeps today's
+        // behaviour"). A first cut of this piece wrote `.complete` here,
+        // which is F-7 option A's answer; the review caught it as a fork
+        // ruled by the agent. Whether a spoken refusal ends `.complete`
+        // or `.refused` is Ryad's, under a D-entry.
         report(.finished(.unreported))
     }
+
+    /// The pre-4v words for the assets row, kept verbatim so the test
+    /// that pinned them still reads them and a screen says the same
+    /// thing it said before the failures were typed.
+    static let assetsUnavailableWords =
+        "its assets are unavailable — availability said yes and the model said no"
 
     /// EVERY terminal path ends here, and only the first one acts —
     /// the latch 4e's review had to force onto `NeuralVoiceRun` after a

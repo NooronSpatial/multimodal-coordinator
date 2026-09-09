@@ -366,6 +366,16 @@ struct AppleReplyGeneratorTests {
         guard case .failed(let failure)? = updates.last else {
             Issue.record("expected .failed, got \(updates)"); return
         }
+        // Typed since 4v (AC-236): the table's row is `.unavailable`, so a
+        // caller counts it with the door's verdicts. The verdict is
+        // `.unknown` — NOT `.modelDownloading`: the vendor said only
+        // "assets unavailable", never "downloading", and on the Simulator
+        // that motivated this row the assets never arrive, so "try later"
+        // would be a promise this library cannot keep (the 4v review).
+        // The pre-4v words stay, verbatim, inside the verdict.
+        guard case .unavailable(.unknown) = failure else {
+            Issue.record("expected .unavailable(.unknown), got \(failure)"); return
+        }
         #expect(failure.description.contains("availability said yes"))
     }
 
@@ -408,33 +418,31 @@ struct AppleReplyGeneratorTests {
         // machine this suite reports PASS without having proven
         // anything, which is why the CI matrix must include a 26 host.
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        guard AppleReplyGenerator.availability != nil else { return }
-        await #expect(throws: AppleReplyGenerator.Unavailable.self) {
+        guard let verdict = AppleMind.readiness() else { return }
+        // The contract's failure since 4v (SPEC §175/5): one type for
+        // every mind's door, carrying the typed verdict.
+        await #expect(throws: ReplyFailure.unavailable(verdict)) {
             _ = try await AppleReplyGenerator().openReply(to: "anything")
         }
     }
 }
 
 /// AC-110's words, pinned: when the model vanishes BETWEEN turns,
-/// `openReply` throws `Unavailable` mid-session and the coordinator's
-/// failure text carries `String(describing:)` of it — which for a bare
-/// enum was "modelNotReady", gibberish on a screen. Found by the 4f
-/// review. The library owns the sentence so no screen can drift from it.
+/// `openReply` throws mid-session and the coordinator's failure text
+/// carries `String(describing:)` of it — which for a bare enum was
+/// "modelNotReady", gibberish on a screen. Found by the 4f review. The
+/// library owns the sentence so no screen can drift from it. Since 4v
+/// the sentences live on `MindUnavailable` (SPEC §175/5), unchanged.
 @Suite struct UnavailableWordsTests {
     @Test("every unavailability reason describes itself in honest words")
     func reasonsSpeak() {
-        // OS 26 only (4s). swift-testing forbids `@available` on a
-        // `@Test`, so the gate is a runtime one — and on an older
-        // machine this suite reports PASS without having proven
-        // anything, which is why the CI matrix must include a 26 host.
-        guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        #expect(String(describing: AppleReplyGenerator.Unavailable.modelNotReady)
+        #expect(String(describing: MindUnavailable.modelDownloading)
             == "the on-device model is still downloading — try later")
-        #expect(String(describing: AppleReplyGenerator.Unavailable.appleIntelligenceNotEnabled)
+        #expect(String(describing: MindUnavailable.featureDisabled("Apple Intelligence"))
             == "Apple Intelligence is switched off in Settings")
-        #expect(String(describing: AppleReplyGenerator.Unavailable.deviceNotEligible)
+        #expect(String(describing: MindUnavailable.deviceCannotRun(.notEligible))
             == "this device cannot run the on-device model")
-        #expect(String(describing: AppleReplyGenerator.Unavailable.unknown("case 9"))
+        #expect(String(describing: MindUnavailable.unknown("case 9"))
             .contains("case 9"))
     }
 }
