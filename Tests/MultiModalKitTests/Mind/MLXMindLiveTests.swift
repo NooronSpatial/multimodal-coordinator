@@ -64,7 +64,12 @@ struct MLXMindLiveTests {
         guard let weights = Self.weights else { _ = Self.skipping("no MMK_MLX_MODEL"); return }
         let mind = MLXReplyGenerator(
             model: LocalMindModel(weights: weights.appending(path: "not-here")))
-        await #expect(throws: MLXUnavailable.self) {
+        // Typed since 4v (AC-238): the door throws the seam's own failure.
+        // The ORDER is the contract — a Mac with the shader library is told
+        // the weights are missing; one without it is told `.noGPU` first,
+        // because no download would fix that.
+        let expected: MindUnavailable = MLXRuntime.isAvailable ? .weightsAbsent : .deviceCannotRun(.noGPU)
+        await #expect(throws: ReplyFailure.unavailable(expected)) {
             _ = try await mind.openReply(to: "hello?")
         }
     }
@@ -163,9 +168,19 @@ struct MLXMindLiveTests {
             return
         }
         // The reason must be SPECIFIC. "Something went wrong" would pass a
-        // weaker assertion and tell a person nothing.
-        #expect(refusal is MLXUnavailable)
-        #expect(String(describing: refusal).isEmpty == false)
+        // weaker assertion and tell a person nothing. Since 4v it is the
+        // typed verdict (AC-238) — and the 4v review caught the first
+        // replacement asserting nothing at all: `refusal.description ==
+        // verdict.description` is how `.unavailable` IS defined, and
+        // `String(describing:).isEmpty == false` is true for every case of
+        // both enums. WHICH verdict is the contract, and the order is the
+        // contract: a Mac with the shader library is told its weights are
+        // missing; one without it is told `.noGPU` first, because no
+        // download would fix that.
+        let expected: MindUnavailable = MLXRuntime.isAvailable ? .weightsAbsent : .deviceCannotRun(.noGPU)
+        #expect(refusal == .unavailable(expected))
+        #expect(refusal.description.first?.isUppercase == false,
+                "the door's sentence is spoken mid-sentence, not shouted")
     }
 
     @Test("a cancelled REAL reply ends without a terminal")

@@ -191,6 +191,15 @@ let package = Package(
                 // path tightens. The Bakeoff target declares it for the same
                 // reason (above); tests get the same honesty.
                 .product(name: "TTSKit", package: "argmax-oss-swift"),
+                // DECLARED, not borrowed — the same rule, for the same
+                // reason (4v's review). `MLXGenerationSettingsTests` names
+                // `GenerateParameters` and `Chat.Message` to prove that the
+                // resolved settings reach the VENDOR's parameters (AC-233,
+                // AC-234) and that the resolved instruction becomes the
+                // `.system` message (AC-232). Those types are MLXLMCommon's,
+                // and a test that reaches them through
+                // `MultiModalKitMLX`'s own import is borrowing.
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
             ]
         ),
     ]
