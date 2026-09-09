@@ -24,7 +24,9 @@ protocol ReplyTokenStreaming: Sendable {
     /// Why a generation cannot START, or nil. Asked at the door, every
     /// time: weights can finish downloading between two turns, so a
     /// cached refusal would freeze a temporary state into a verdict.
-    var unavailable: (any Error)? { get }
+    /// TYPED since 4v (AC-238): the real source answers with
+    /// `.unavailable(verdict)`, and the door throws exactly what it said.
+    var unavailable: ReplyFailure? { get }
     /// Opens one generation and returns its tokens, in birth order, and
     /// — when the vendor says — why it stopped.
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error>
@@ -55,33 +57,13 @@ public struct MLXReplyGenerator: ReplyGenerating {
     }
 }
 
-/// Why this mind cannot answer right now.
-///
-/// Separate sentences on purpose, the AC-110 lesson: a person whose
-/// device cannot host the runtime needs different words from one whose
-/// weights are simply not on disk yet.
-public enum MLXUnavailable: Error, Sendable, Equatable, CustomStringConvertible {
-    /// The weights are not installed. Recoverable — and note that
-    /// "installed" means OFFLINE-CAPABLE (D-062 F-4 = A, Whisper's rule).
-    case weightsNotInstalled(String)
-    /// The platform cannot host MLX at all. D-061/INSTRUMENTS §24
-    /// STAGE 3: the iOS Simulator asks Metal for a Shared-storage heap
-    /// and the driver requires Private. No flag changes it.
-    case platformCannotRunMLX
-    case unknown(String)
-
-    public var description: String {
-        switch self {
-        case .weightsNotInstalled(let name):
-            "the local model \(name) is not installed yet."
-        case .platformCannotRunMLX:
-            "this platform cannot run MLX — the simulator's Metal driver "
-            + "refuses the shared-memory heap MLX requires."
-        case .unknown(let why):
-            "the local model is unavailable: \(why)"
-        }
-    }
-}
+// `MLXUnavailable` lived here until 4v — three sentences of this mind's
+// own, one of which told a real phone it was the Simulator (D-101's
+// F1). Its cases are `MindUnavailable`'s now, produced by the pure
+// verdict over a `DeviceReport` (AC-238), and the door throws them as
+// `ReplyFailure.unavailable`. The AC-110 lesson it recorded still holds
+// and is kept there: a person whose device cannot host the runtime
+// needs different words from one whose weights are not on disk yet.
 
 // MARK: - one reply
 
@@ -154,9 +136,16 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     self.out.yield(.token(admitted))
                 }
                 self?.report(.finished(stop))
+            } catch let failure as ReplyFailure {
+                // AC-236: a TYPED failure the source threw on purpose —
+                // `.contextWindowExceeded`, refused before generation —
+                // keeps its case. Wrapping it in `.engine(…)` would turn
+                // a countable case back into prose.
+                self?.report(.failed(failure))
             } catch {
-                // The honest catch-all for now; AC-236 refines the
-                // mapping (a too-long prompt is refused BEFORE this).
+                // The honest catch-all: anything the vendor throws is
+                // `.engine(String)` — the words for a screen, the case for
+                // a switch (F-3 = A).
                 self?.report(.failed(.engine("local generation failed: \(error)")))
             }
         }

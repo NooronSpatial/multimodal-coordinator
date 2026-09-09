@@ -49,10 +49,11 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     }
     private let counts = Mutex(Counts())
 
-    /// Settable, because a test drives the door too.
-    private let door = Mutex<(any Error)?>(nil)
-    var unavailable: (any Error)? { door.withLock { $0 } }
-    func makeUnavailable(_ error: any Error) { door.withLock { $0 = error } }
+    /// Settable, because a test drives the door too. Typed since 4v, the
+    /// same `ReplyFailure` the real door throws (AC-238).
+    private let door = Mutex<ReplyFailure?>(nil)
+    var unavailable: ReplyFailure? { door.withLock { $0 } }
+    func makeUnavailable(_ failure: ReplyFailure) { door.withLock { $0 = failure } }
 
     init(_ plan: Plan) { self.plan = plan }
 
@@ -186,7 +187,7 @@ struct MLXReplyGeneratorTests {
     @Test("promise 5 — a failing generation is ONE .failed, terminal")
     func failureIsOneTerminal() async throws {
         let (mind, _) = generator(
-            .tokensThenThrow([], MLXUnavailable.unknown("the model died mid-thought")))
+            .tokensThenThrow([], ReplyFailure.engine("the model died mid-thought")))
         try await ReplyConformanceKit.verifyFailureIsOneTerminal(mind)
     }
 
@@ -196,8 +197,8 @@ struct MLXReplyGeneratorTests {
     func theDoorIsAskedEveryTime() async throws {
         let (mind, source) = generator(.tokens(["hello"]))
         _ = try await mind.openReply(to: "first, while installed")
-        source.makeUnavailable(MLXUnavailable.weightsNotInstalled("Qwen3-0.6B-4bit"))
-        await #expect(throws: MLXUnavailable.self) {
+        source.makeUnavailable(.unavailable(.weightsAbsent))
+        await #expect(throws: ReplyFailure.unavailable(.weightsAbsent)) {
             _ = try await mind.openReply(to: "second, after the weights vanished")
         }
     }
@@ -262,16 +263,54 @@ struct MLXReplyGeneratorTests {
                 "the reason is the first one said; nothing after it is admitted")
     }
 
-    @Test("every unavailability reason describes itself in honest words")
-    func reasonsSpeakPlainly() {
-        for reason: MLXUnavailable in [
-            .weightsNotInstalled("Qwen3-0.6B-4bit"),
-            .platformCannotRunMLX,
-            .unknown("something new")
+    /// The words this mind's door used to own (`MLXUnavailable`) are the
+    /// seam's now (4v): the door throws `ReplyFailure.unavailable` and
+    /// its rendering is the verdict's, still spoken mid-sentence.
+    @Test("the door's refusal describes itself in the verdict's honest words")
+    func theDoorSpeaksTheVerdictsWords() {
+        for verdict: MindUnavailable in [
+            .weightsAbsent,
+            .deviceCannotRun(.noGPU),
+            .installIncomplete(files: ["model.safetensors"])
         ] {
-            #expect(!reason.description.isEmpty)
-            #expect(reason.description.first?.isUppercase == false,
+            let refusal = ReplyFailure.unavailable(verdict)
+            #expect(refusal.description == verdict.description)
+            #expect(refusal.description.first?.isUppercase == false,
                     "these are spoken mid-sentence, not shouted")
         }
+    }
+}
+
+// MARK: - AC-236: a typed failure thrown by the source is the run's failure
+
+/// The source refuses a too-long prompt BEFORE generation by throwing
+/// `ReplyFailure.contextWindowExceeded` (AC-236). The run must hand that
+/// case on untouched — wrapping it in `.engine("local generation failed:
+/// …")` would turn a countable case back into prose, which is the exact
+/// thing F-3 = A was ruled against.
+@Suite("AC-236 · a ReplyFailure thrown by the source keeps its case")
+struct MLXTypedFailureTests {
+
+    @Test("contextWindowExceeded thrown by the source is .failed(.contextWindowExceeded)")
+    func typedFailurePassesThrough() async throws {
+        let source = ScriptedTokenSource(.tokensThenThrow([], ReplyFailure.contextWindowExceeded))
+        let mind = MLXReplyGenerator(source: source)
+        let run = try await mind.openReply(to: "a prompt the window cannot hold")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.failed(.contextWindowExceeded)],
+                "the case must survive the run; prose is not a case")
+    }
+
+    @Test("anything else the vendor throws is still .engine(String)")
+    func untypedFailureIsEngine() async throws {
+        struct VendorError: Error {}
+        let source = ScriptedTokenSource(.tokensThenThrow(["a"], VendorError()))
+        let mind = MLXReplyGenerator(source: source)
+        let run = try await mind.openReply(to: "doomed")
+        let updates = await ReplyConformanceKit.drain(run)
+        guard case .failed(.engine(let words))? = updates.last else {
+            Issue.record("expected .failed(.engine), got \(updates)"); return
+        }
+        #expect(words.hasPrefix("local generation failed: "))
     }
 }

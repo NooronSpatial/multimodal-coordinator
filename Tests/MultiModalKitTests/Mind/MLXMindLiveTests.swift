@@ -64,7 +64,12 @@ struct MLXMindLiveTests {
         guard let weights = Self.weights else { _ = Self.skipping("no MMK_MLX_MODEL"); return }
         let mind = MLXReplyGenerator(
             model: LocalMindModel(weights: weights.appending(path: "not-here")))
-        await #expect(throws: MLXUnavailable.self) {
+        // Typed since 4v (AC-238): the door throws the seam's own failure.
+        // The ORDER is the contract — a Mac with the shader library is told
+        // the weights are missing; one without it is told `.noGPU` first,
+        // because no download would fix that.
+        let expected: MindUnavailable = MLXRuntime.isAvailable ? .weightsAbsent : .deviceCannotRun(.noGPU)
+        await #expect(throws: ReplyFailure.unavailable(expected)) {
             _ = try await mind.openReply(to: "hello?")
         }
     }
@@ -163,8 +168,12 @@ struct MLXMindLiveTests {
             return
         }
         // The reason must be SPECIFIC. "Something went wrong" would pass a
-        // weaker assertion and tell a person nothing.
-        #expect(refusal is MLXUnavailable)
+        // weaker assertion and tell a person nothing. Since 4v it is the
+        // typed verdict (AC-238), and its words are the verdict's own.
+        guard case .unavailable(let verdict) = refusal else {
+            Issue.record("the real door speaks the typed verdict, got \(refusal)"); return
+        }
+        #expect(refusal.description == verdict.description)
         #expect(String(describing: refusal).isEmpty == false)
     }
 

@@ -4,7 +4,7 @@ import MLXHuggingFace
 import MLXLLM
 import MLXLMCommon
 import MultiModalKit
-import Hub
+import Synchronization
 import Tokenizers
 
 // MARK: - the model, loaded once (D-062 F-4 = A: Whisper's shape)
@@ -63,6 +63,16 @@ public actor LocalMindModel: ModelBacked {
     /// only one that can honestly own the work that loads them.
     private var warmTask: Task<Void, Never>?
     private var think: ThinkTokens??      // nil = unread, .some(nil) = none declared
+    private var window: Int??             // nil = unread, .some(nil) = the config does not say
+    /// A SYNCHRONOUS MIRROR of `held.isResident`, for the door (4v).
+    /// `readiness()` is asked on every turn from a synchronous property,
+    /// and the holder's answer is behind an actor hop; the mirror is
+    /// written from this actor after every load and every retire — from
+    /// the holder's own answer, read AFTER the await, so a retire that
+    /// landed during a load wins. It may lag by one actor step, and the
+    /// cost of the lag is bounded: the memory claim is a belt, and the
+    /// door is asked again next turn.
+    let resident = Mutex(false)
 
     /// Weights already on disk. Nothing is ever downloaded.
     public init(weights: URL, cacheLimitBytes: Int = 20 * 1024 * 1024) {
@@ -90,52 +100,17 @@ public actor LocalMindModel: ModelBacked {
     /// wrote down: the weights alone are not enough, because a tokenizer
     /// that is missing its files is a silent network fetch waiting to
     /// happen. So the tokenizer's files are part of the question.
-    public nonisolated func modelInstalled() -> Bool {
-        let files = FileManager.default
-        guard files.fileExists(atPath: weights.appending(path: "config.json").path),
-              files.fileExists(atPath: weights.appending(path: "tokenizer.json").path),
-              files.fileExists(atPath: weights.appending(path: "tokenizer_config.json").path)
-        else { return false }
-        let contents = (try? files.contentsOfDirectory(atPath: weights.path)) ?? []
-        return contents.contains { $0.hasSuffix(".safetensors") }
-    }
-
-    /// Downloads the weights, if this model knows where they come from.
     ///
-    /// EXPLICIT, exactly as Whisper's rule requires: nothing here is ever
-    /// reached by *asking* whether the model is installed. Idempotent —
-    /// the download half is skipped when the files are already there.
-    public func download(
-        progress: @escaping @Sendable (Double) -> Void = { _ in }
-    ) async throws {
-        guard !modelInstalled() else { return }
-        guard let repoID else {
-            throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
+    /// Since 4v this is the Bool view of `installState()` (AC-239): a
+    /// verified tree and a pre-4v tree with no manifest both count; a
+    /// tree with a file missing or SHORT does not, which a name-only
+    /// check could never say. The download itself lives in
+    /// `LocalMindInstall.swift`, beside the manifest it writes.
+    public nonisolated func modelInstalled() -> Bool {
+        switch installState() {
+        case .installed, .installedUnverified: true
+        case .absent, .incomplete: false
         }
-        let hub = HubApi(downloadBase: weights.deletingLastPathComponent())
-        // The hub returns WHERE it put the snapshot. Use that.
-        //
-        // The first version of this searched the download base for any
-        // `config.json` and moved the folder containing it. That was
-        // dangerous rather than merely imprecise: an app's Documents
-        // directory holds other models — this demo keeps Whisper's under
-        // `huggingface/models/openai/…`, and those have a `config.json`
-        // too. Directory enumeration has no defined order, so that code
-        // could have moved somebody else's model. Never go looking for a
-        // file when the API already told you the path.
-        let snapshot = try await hub.snapshot(
-            from: repoID,
-            matching: ["*.safetensors", "*.json", "*.txt"]
-        ) { downloadProgress in progress(downloadProgress.fractionCompleted) }
-
-        guard snapshot != weights else { return }
-        let files = FileManager.default
-        if files.fileExists(atPath: weights.path) {
-            try files.removeItem(at: weights)
-        }
-        try files.createDirectory(at: weights.deletingLastPathComponent(),
-                                  withIntermediateDirectories: true)
-        try files.moveItem(at: snapshot, to: weights)
     }
 
     /// `ModelBacked`'s half of the pair (D-078, fork B1).
@@ -154,10 +129,10 @@ public actor LocalMindModel: ModelBacked {
     /// model is already resident.
     @discardableResult
     public func ensureModelLoaded() async throws -> ModelContainer {
-        guard MLXRuntime.isAvailable else { throw MLXUnavailable.platformCannotRunMLX }
-        guard modelInstalled() else {
-            throw MLXUnavailable.weightsNotInstalled(weights.lastPathComponent)
-        }
+        // The typed verdict (4v, AC-238's wiring) — the same enum the
+        // reply door throws, so a caller counts one kind of refusal, not
+        // two. Without the memory claim: see `loadVerdict()`.
+        if let verdict = loadVerdict() { throw ReplyFailure.unavailable(verdict) }
         // The examples set this low so a buffer cache cannot push a phone
         // into jetsam. Measured note (INSTRUMENTS §25): MLX does not mmap
         // its safetensors, so the weights are RESIDENT — on a phone this
@@ -173,10 +148,15 @@ public actor LocalMindModel: ModelBacked {
         // used to live here are all the holder's now — and it does the
         // re-check for every waiter, not only for the one that won.
         let source = weights
-        return try await held.value {
+        let container = try await held.value {
             try await loadModelContainer(
                 from: source, using: #huggingFaceTokenizerLoader())
         }
+        // The mirror, from the holder's OWN answer after the await — a
+        // retire that landed during the load has already emptied it.
+        let nowResident = await held.isResident
+        resident.withLock { $0 = nowResident }
+        return container
     }
 
     /// Are the weights resident? Asks the holder, which owns the answer.
@@ -224,6 +204,20 @@ public actor LocalMindModel: ModelBacked {
         // flight cannot resurrect what this call just retired — a guarantee
         // the hand-written version never had.
         await held.retire()
+        resident.withLock { $0 = false }
+    }
+
+    /// The model's context window in tokens — `max_position_embeddings`
+    /// from its `config.json` — read once and remembered, `nil` when the
+    /// config does not say (AC-236). Read, never hard-coded: the same
+    /// rule as `thinkTokens()`, for the same reason — a number typed here
+    /// is right for one model and silently wrong for the next.
+    func contextWindow() throws -> Int? {
+        if let window { return window }
+        let read = try ContextWindow.read(
+            fromConfigAt: weights.appending(path: "config.json"))
+        window = .some(read)
+        return read
     }
 
     /// The vocabulary's reasoning markers, read once and remembered.
@@ -254,15 +248,45 @@ struct MLXTokenSource: ReplyTokenStreaming {
     let instructions: String?
     let maxTokens: Int
 
-    var unavailable: (any Error)? {
+    var unavailable: ReplyFailure? {
         // Asked at the door, EVERY time: weights can finish arriving
         // between two turns, so a cached refusal would freeze a
         // temporary state into a verdict.
-        guard MLXRuntime.isAvailable else { return MLXUnavailable.platformCannotRunMLX }
-        guard model.modelInstalled() else {
-            return MLXUnavailable.weightsNotInstalled(model.weights.lastPathComponent)
+        //
+        // TYPED since 4v (AC-238's wiring): the three strings this source
+        // used to speak — one of which told a real phone it was the
+        // Simulator (D-101's F1) — are gone. The verdict is the pure
+        // function over this machine's report, and the door throws it as
+        // the seam's own `ReplyFailure.unavailable`, so a caller counts
+        // one enum and a screen renders the one sentence that is true.
+        model.readiness().map { .unavailable($0) }
+    }
+
+    /// The chat, in the vendor's roles. Synchronous and called INSIDE the
+    /// container's `perform`, because `Chat.Message` is not Sendable.
+    ///
+    /// THE PAST, IN ROLES (4r, F-1 = B). This is the shape the seam was
+    /// widened for: the model is TOLD who said what instead of being
+    /// handed a wall of text to parse.
+    ///
+    /// A barged reply ends in an ellipsis and nothing else (F-2 = C). It
+    /// is punctuation, not English: this library does not own the app's
+    /// words (D-027), and a trailing "…" reads as an unfinished
+    /// utterance in every language the tokenizer knows. What it must NOT
+    /// do is claim the person heard all of it.
+    ///
+    /// `spoken` is the RESOLVED instruction (AC-232): the caller's for
+    /// this call, else this source's own, else no system message at all.
+    private static func messages(spoken: String?, asked: String,
+                                 past: [ConversationTurn]) -> [Chat.Message] {
+        var messages: [Chat.Message] = []
+        if let spoken { messages.append(.system(spoken)) }
+        for turn in past {
+            messages.append(.user(turn.said))
+            messages.append(.assistant(turn.replied + (turn.interrupted ? "…" : "")))
         }
-        return nil
+        messages.append(.user(asked))
+        return messages
     }
 
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
@@ -271,32 +295,18 @@ struct MLXTokenSource: ReplyTokenStreaming {
                 do {
                     let container = try await model.ensureModelLoaded()
                     let gateTokens = try await model.thinkTokens()
+                    let window = try await model.contextWindow()
+                    // THE CALLER'S LEVERS, resolved once (AC-232..234):
+                    // per-call instructions and budget over this source's
+                    // own, sampling over the vendor's.
+                    let settings = MLXGenerationSettings(
+                        options: context.options, instructions: instructions, maxTokens: maxTokens)
                     // Built INSIDE the closure: `Chat.Message` is not
                     // Sendable, so only the strings cross the boundary.
-                    let spoken = instructions
                     let asked = context.transcript
                     let past = context.history
                     try await container.perform { (model: ModelContext) in
-                        var messages: [Chat.Message] = []
-                        if let spoken { messages.append(.system(spoken)) }
-                        // THE PAST, IN ROLES (4r, F-1 = B). This is the
-                        // shape the seam was widened for: the model is
-                        // TOLD who said what instead of being handed a
-                        // wall of text to parse.
-                        //
-                        // A barged reply ends in an ellipsis and nothing
-                        // else (F-2 = C). It is punctuation, not English:
-                        // this library does not own the app's words
-                        // (D-027), and a trailing "…" reads as an
-                        // unfinished utterance in every language the
-                        // tokenizer knows. What it must NOT do is claim
-                        // the person heard all of it.
-                        for turn in past {
-                            messages.append(.user(turn.said))
-                            messages.append(.assistant(
-                                turn.replied + (turn.interrupted ? "…" : "")))
-                        }
-                        messages.append(.user(asked))
+                        let messages = Self.messages(spoken: settings.instructions, asked: asked, past: past)
                         let input = try await model.processor.prepare(
                             input: UserInput(
                                 chat: messages,
@@ -306,31 +316,53 @@ struct MLXTokenSource: ReplyTokenStreaming {
                                 // which is why the gate below still exists.
                                 additionalContext: ["enable_thinking": false]))
 
+                        // AC-236: COUNTED BEFORE GENERATION. The vendor
+                        // does not throw for a prompt past the window — it
+                        // generates noise — so the prepared prompt is
+                        // measured here and refused as the typed case.
+                        if let refusal = PromptFit.refusal(
+                            promptTokens: input.text.tokens.size, window: window) {
+                            throw refusal
+                        }
+
                         var gate = gateTokens.map { ThinkGate($0) }
                         var detokenizer = NaiveStreamingDetokenizer(
                             tokenizer: model.tokenizer)
 
                         for await event in try generateTokens(
                             input: input,
-                            parameters: GenerateParameters(maxTokens: maxTokens),
+                            parameters: GenerateParameters(settings),
                             context: model) {
                             if Task.isCancelled { break }
-                            guard let id = event.token else { continue }
-                            // LAYER 2: the net. One integer comparison,
-                            // and nothing swallowed is ever detokenised.
-                            if gate?.admits(id) == false { continue }
-                            detokenizer.append(token: id)
-                            // nil while a multi-token character is still
-                            // incomplete — exactly what accented text does.
-                            if let piece = detokenizer.next(), !piece.isEmpty {
-                                continuation.yield(.token(piece))
+                            switch event {
+                            case .token(let id):
+                                // LAYER 2: the net. One integer comparison,
+                                // and nothing swallowed is ever detokenised.
+                                if gate?.admits(id) == false { continue }
+                                detokenizer.append(token: id)
+                                // nil while a multi-token character is still
+                                // incomplete — exactly what accented text does.
+                                if let piece = detokenizer.next(), !piece.isEmpty {
+                                    continuation.yield(.token(piece))
+                                }
+                            case .info(let info):
+                                // AC-235: the event this loop used to DROP
+                                // (`guard let id = event.token else { continue }`).
+                                // The vendor says why it stopped; the seam
+                                // says it in its own word. `.cancelled` maps
+                                // to nothing — a cancelled run ends with no
+                                // terminal, by contract.
+                                if let reason = StopReason(vendor: info.stopReason) {
+                                    continuation.yield(.stopped(reason))
+                                }
                             }
                         }
                     }
-                    // `.unreported` for now: the vendor's `.info` event
-                    // carries the real reason and is still dropped by the
-                    // `guard` above — reading it is AC-235's piece.
-                    continuation.yield(.stopped(.unreported))
+                    // No `.stopped` here: the reason came from the `.info`
+                    // event above, or it did not come at all — and a stream
+                    // that ends without one is `.finished(.unreported)` one
+                    // seam up, which is the honest word for a vendor that
+                    // did not say.
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
