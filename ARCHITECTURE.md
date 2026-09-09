@@ -454,7 +454,7 @@ limit, `.notEligible`, that only the Apple mind produces.
 | `.installIncomplete(files:)` | after a download | the same call — it runs whenever the tree is not complete |
 | `.modelDownloading` | later | nothing. The system is still fetching the model |
 | `.featureDisabled(name)` | after the person acts | the named switch, in Settings |
-| `.notEnoughMemory(needed:available:)` | maybe | free memory, or ask a smaller model. Both numbers are bytes. No mind claims memory today, so nothing produces this yet — see the open question at the end |
+| `.notEnoughMemory(needed:available:)` | maybe | free memory, or ask a smaller model. Both numbers are bytes. No mind claims memory today, so nothing produces this yet — ruled, D-105, and explained at the end |
 | `.osBelowFloor(required:)` | never | nothing this app can do on this device |
 | `.deviceCannotRun(.simulator / .noGPU / .notEligible)` | never | the same |
 | `.unknown(String)` | no promise | the vendor stated no cause, so this library states none |
@@ -704,9 +704,9 @@ per machine.** The same seed on another chip is not promised, and
 nothing here claims it. And these are Mac numbers: the phone is not
 measured in §65, and a reply of this length will cost more there.
 
-### One open question, still unruled
+### One question, asked and answered
 
-**SPEC §178 F-8 — does the reply door claim memory?** `MindUnavailable`
+**SPEC §178 F-8 — does the reply door claim memory? Ruled: no (D-105).** `MindUnavailable`
 carries `.notEnoughMemory(needed:available:)` and the verdict computes
 it, but nothing says who supplies the number. A first cut had the MLX
 reply door claim `weights × 1.5`. The review showed that this could lock
@@ -717,8 +717,13 @@ returns `memoryBytes: 0`, and its reply door and its load door ask that
 one same question; the Apple mind maps the platform's own availability
 enum and never reaches the memory branch at all. No caller is refused
 for memory today, and a phone that cannot fit the model finds out when
-the load fails, as it did before 4v. Ryad has not ruled; until he does,
-that is what the code does.
+the load fails, as it did before 4v.
+
+Ryad ruled it that way on 2026-09-09 (D-105): the enum case and the pure
+verdict stay, tested over hand-written reports, and they wait for a
+milestone that MEASURES what a mind needs rather than inferring it from
+a file size. A number that can lock a device out belongs with a
+measurement, not with a guess.
 
 ## The rails — cross-cutting, everything rides on them
 

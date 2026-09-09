@@ -4595,3 +4595,38 @@ which is honest and is why `.unreported` exists.
 by itself (a spoken refusal ends `.complete`) while the fork was open;
 two review lenses caught it and it was reverted. The ruling is Ryad's,
 not the agent's — that is the whole point of the fork ceremony.
+
+## D-105 — F-8 ruled A: no mind claims memory at the reply door (Milestone 4v)
+
+**Date:** 2026-09-09 · **Decided by:** Ryad ("F-8 A") · **Ruling:
+F-8 = A** (SPEC §178, raised by the MLX piece's second review).
+
+`MindUnavailable` carries `.notEnoughMemory(needed:available:)` and
+`MindReadiness.verdict` computes it from a `DeviceReport`. The fork was
+about WHO supplies the number a mind needs.
+
+**Ruled: nobody, for now.** The MLX mind's `needs(for:)` returns
+`memoryBytes: 0`, which the verdict reads as "makes no claim" and never
+refuses for. A phone that cannot fit the model finds out when the LOAD
+fails, exactly as it did before 4v. The enum case and the pure verdict
+stay, tested over hand-written reports, ready for the day a mind claims.
+
+*Rejected — B (claim at the load door only):* honest, but a caller
+learns late, after it has already offered the feature and the person has
+already chosen the mind.
+
+*Rejected — C (claim at the reply door, with a way out):* the most
+protective and the most machinery. A first-load exemption or a
+caller-set need is another lever to explain, and this milestone's
+lesson is that levers nobody asked for are the ones that bite.
+
+**Why A is not a shrug.** The claim was BUILT and then removed, and the
+removal is the finding: the MLX door's first cut claimed `weights × 1.5`
+and had to exempt an already-resident model, because otherwise a mind
+that was loaded and answering could be refused for memory the headroom
+had already paid for. The review showed the exemption was untested and
+that the door could lock a phone out for good — the estimate only drops
+once the weights are resident, and a refused door never gets there. A
+number that dangerous belongs to a milestone that measures it, not to
+one that infers it from a file size. [[audio-graphs-are-measured]] is
+the same instinct: no verdict on a number nobody measured.

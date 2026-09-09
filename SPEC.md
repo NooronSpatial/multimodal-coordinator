@@ -5356,7 +5356,7 @@ is **4x**. Tools are **4w** (§168–173).
 - *B:* 512 for voice, 1024 only when asked — two defaults to explain.
 
 **F-8 — does the MLX reply door claim memory? (raised by the MLX
-piece's second review, 2026-09-09; open.)** `MindUnavailable` carries
+piece's second review, 2026-09-09. RULED A on 2026-09-09 — D-105.)** `MindUnavailable` carries
 `.notEnoughMemory(needed:available:)` and `MindReadiness` computes it,
 but nothing says WHO claims a number. The MLX builder made the reply
 door claim `weights × 1.5` (from the measured phone peaks, §58/§60),
@@ -5375,7 +5375,9 @@ unasked-for, and the fix removed the claim entirely.
 - *C:* claim at the reply door, with a way out — a first load always
   allowed, or the caller setting the need. The most protective and the
   most machinery, and every extra lever is a thing to explain.
-Until ruled, A stands (it is what the code does).
+**Ruled: A** (D-105). No mind claims memory; the enum case and the pure
+verdict stay, tested, for a milestone that measures the number instead
+of inferring it from a file size.
 
 **F-7 — what an Apple refusal IS (raised by the seam's review on
 2026-09-08, after F-1..F-6 were ruled. RULED C on 2026-09-09 — D-104).** Today, under D-057
