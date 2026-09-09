@@ -129,6 +129,10 @@ public enum MindUnavailable: Error, Sendable, Equatable, CustomStringConvertible
         case simulator
         /// No GPU the runtime can use.
         case noGPU
+        /// The platform's own eligibility check said no — the Apple
+        /// mind's `deviceNotEligible`, which the vendor decides and this
+        /// library only relays (SPEC §175/5, the Apple verdicts).
+        case notEligible
     }
 
     /// The operating system is older than the mind's floor.
@@ -142,6 +146,25 @@ public enum MindUnavailable: Error, Sendable, Equatable, CustomStringConvertible
     /// Files are missing or shorter than the manifest says (AC-239).
     case installIncomplete(files: [String])
 
+    // The Apple mind's verdicts (SPEC §175/5). Before 4v they were a
+    // second enum on the generator with the same three sentences; now
+    // one enum speaks for every mind, so a screen has one type to switch
+    // over. The words are the ones the 4f review pinned, unchanged.
+
+    /// A system feature the model needs is switched off. The string
+    /// NAMES the feature, so the sentence tells the person what to
+    /// switch on ("Apple Intelligence" for the Apple mind).
+    case featureDisabled(String)
+    /// The system is still fetching the model. Recoverable — the same
+    /// question later gets a different answer, which is why no door
+    /// caches it.
+    case modelDownloading
+    /// A reason this library does not know yet. The vendor's reason
+    /// enum is NON-frozen, and pretending otherwise is a build break
+    /// under warnings-as-errors the day a case is added (AC-114's
+    /// lesson). The string carries whatever the vendor said.
+    case unknown(String)
+
     public var description: String {
         switch self {
         case .osBelowFloor(let required):
@@ -151,6 +174,14 @@ public enum MindUnavailable: Error, Sendable, Equatable, CustomStringConvertible
             + "the shared-memory heap the model needs"
         case .deviceCannotRun(.noGPU):
             "this device has no GPU the on-device model can use"
+        case .deviceCannotRun(.notEligible):
+            "this device cannot run the on-device model"
+        case .featureDisabled(let feature):
+            "\(feature) is switched off in Settings"
+        case .modelDownloading:
+            "the on-device model is still downloading — try later"
+        case .unknown(let reason):
+            "the model is unavailable: \(reason)"
         case .notEnoughMemory(let needed, let available):
             "not enough memory for the on-device model — it needs \(Self.megabytes(needed)) MB "
             + "and \(Self.megabytes(available)) MB are free"

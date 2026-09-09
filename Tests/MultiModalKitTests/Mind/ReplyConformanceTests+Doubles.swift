@@ -35,7 +35,7 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
         case gatedDefiance(before: String, after: String)
     }
 
-    var unavailable: (any Error)? { nil }
+    var unavailable: MindUnavailable? { nil }
 
     private let plan: Plan
     private struct Counts {
@@ -61,7 +61,8 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
     /// Opens the gate: the defiant `after` snapshots may now flow.
     func release() { counts.withLock { $0.released = true } }
 
-    func snapshots(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
+    func snapshots(for context: ReplyContext,
+                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {
