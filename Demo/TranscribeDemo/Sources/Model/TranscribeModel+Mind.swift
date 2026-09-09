@@ -223,12 +223,16 @@ extension TranscribeModel {
         Task { [localModel] in
             do {
                 self.mindAssets.downloadStatus = "asking Hugging Face for \(LocalMind.repoID)…"
-                try await localModel.download { fraction in
+                // BYTES WHEN THEY ARE KNOWN (4v, AC-240). The Hub's
+                // client counts FILES, not bytes, so the percentage is a
+                // file fraction; `bytesExpected` is filled only when a
+                // manifest from an earlier download is on disk. The
+                // caption says megabytes when it has them and a plain
+                // percentage when it does not — it never invents a number.
+                try await localModel.download { (progress: InstallProgress) in
                     Task { @MainActor in
-                        self.mindAssets.downloadProgress = fraction
-                        self.mindAssets.downloadStatus = String(
-                            format: "downloading the local mind — %.0f%%",
-                            fraction * 100)
+                        self.mindAssets.downloadProgress = progress.fraction
+                        self.mindAssets.downloadStatus = Self.downloadCaption(progress)
                     }
                 }
                 self.mindAssets.downloadProgress = nil
@@ -334,20 +338,33 @@ extension TranscribeModel {
                 mindAssets.unavailable = memoryConflict
                 return                      // load NOTHING
             }
-            // The simulator answer is STRUCTURAL, not a missing file
-            // (D-061): MLX wants a shared-storage Metal heap and the
-            // simulator's driver refuses. Saying so beats a dead button.
-            guard MLXRuntime.isAvailable else {
-                mindAssets.unavailable = String(describing: MLXUnavailable.platformCannotRunMLX)
-                return
-            }
-            guard localModel.modelInstalled() else {
+            // ONE VERDICT, NOT THREE GUARDS (4v, AC-238). The library now
+            // answers "can this device run this mind?" as a single typed
+            // value computed from a device report: the operating system
+            // against the floor, the Simulator (whose Metal driver refuses
+            // the shared-storage heap MLX needs — D-061, a STRUCTURAL
+            // answer, not a missing file), a device with no usable GPU,
+            // weights absent, an install left short. Three hand-written
+            // guards became this switch, and the two that stayed (the
+            // memory conflict above, the download call to action below)
+            // are the app's own — D-027: the library states the fact, the
+            // app says what to tap.
+            switch localModel.readiness() {
+            case nil:
+                mindAssets.unavailable = nil
+                localMind.prewarm()   // the measured 1.7 s load, paid off-turn
+            case .some(.weightsAbsent), .some(.installIncomplete):
+                // The one verdict a person can fix from this screen. A
+                // short install is the same tap: the download replaces
+                // the tree it could not verify.
                 mindAssets.unavailable = "the local mind is not downloaded yet — "
                     + "tap Download (\(LocalMind.sizeOnDisk), once)."
-                return
+            case .some(let verdict):
+                // THE LIBRARY OWNS THE WORDS (the 4f review): the sentence
+                // this caption shows is the same one a mid-session refusal
+                // prints, so the two surfaces cannot drift apart.
+                mindAssets.unavailable = String(describing: verdict)
             }
-            mindAssets.unavailable = nil
-            localMind.prewarm()   // the measured 1.7 s load, paid off-turn
             return
         }
         guard mind == .apple else { mindAssets.unavailable = nil; return }
@@ -362,4 +379,21 @@ extension TranscribeModel {
             mindAssets.unavailable = String(describing: reason)
         }
     }
+
+    /// What the download caption says (4v, AC-240). Megabytes when the
+    /// library knows them — it knows only when an earlier download left a
+    /// manifest to compare against — and a plain percentage when it does
+    /// not. `nonisolated` and `static` so it is a pure function of the
+    /// progress value, testable by reading it.
+    nonisolated static func downloadCaption(_ progress: InstallProgress) -> String {
+        let percent = String(format: "%.0f%%", progress.fraction * 100)
+        guard let received = progress.bytesReceived,
+              let expected = progress.bytesExpected, expected > 0 else {
+            return "downloading the local mind — \(percent)"
+        }
+        let megabyte = 1_048_576.0
+        return String(format: "downloading the local mind — %.0f of %.0f MB (%@)",
+                      Double(received) / megabyte, Double(expected) / megabyte, percent)
+    }
+
 }
