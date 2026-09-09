@@ -169,12 +169,18 @@ struct MLXMindLiveTests {
         }
         // The reason must be SPECIFIC. "Something went wrong" would pass a
         // weaker assertion and tell a person nothing. Since 4v it is the
-        // typed verdict (AC-238), and its words are the verdict's own.
-        guard case .unavailable(let verdict) = refusal else {
-            Issue.record("the real door speaks the typed verdict, got \(refusal)"); return
-        }
-        #expect(refusal.description == verdict.description)
-        #expect(String(describing: refusal).isEmpty == false)
+        // typed verdict (AC-238) — and the 4v review caught the first
+        // replacement asserting nothing at all: `refusal.description ==
+        // verdict.description` is how `.unavailable` IS defined, and
+        // `String(describing:).isEmpty == false` is true for every case of
+        // both enums. WHICH verdict is the contract, and the order is the
+        // contract: a Mac with the shader library is told its weights are
+        // missing; one without it is told `.noGPU` first, because no
+        // download would fix that.
+        let expected: MindUnavailable = MLXRuntime.isAvailable ? .weightsAbsent : .deviceCannotRun(.noGPU)
+        #expect(refusal == .unavailable(expected))
+        #expect(refusal.description.first?.isUppercase == false,
+                "the door's sentence is spoken mid-sentence, not shouted")
     }
 
     @Test("a cancelled REAL reply ends without a terminal")

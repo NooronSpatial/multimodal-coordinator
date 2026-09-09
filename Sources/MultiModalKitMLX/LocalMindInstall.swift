@@ -19,11 +19,28 @@ import Synchronization
 /// How far an install has come, with bytes when they are KNOWN and `nil`
 /// when they are not. The Hub path knows a fraction of files; a manifest
 /// left by an earlier install knows the total; the two together give a
-/// received count. Nothing here is invented to fill a field.
+/// received count.
+///
+/// AND THAT COUNT IS DERIVED, NOT COUNTED — written here plainly because
+/// the 4v review was right that "nothing is invented to fill a field"
+/// read as a promise this one field does not keep. The Hub's client
+/// counts FILES, one unit each (`HubApi.snapshot`), so `bytesReceived` is
+/// a FILE fraction multiplied by a byte total: with one 2 GB weight file
+/// beside four small JSONs, "80% of files" is a few megabytes, not 80% of
+/// the bytes. It is an honest progress BAR and a poor byte counter, and
+/// a caller must not read it as a measurement.
+///
+/// What is never invented is the EXPECTED total: it stays `nil` until a
+/// manifest has actually seen those bytes arrive (§175/7, AC-240).
+/// Whether a derived received-count should be published at all is a
+/// question for Ryad — AC-240 asks the Hub path for "its client's
+/// fraction plus the manifest's expected bytes", and this field is more
+/// than that. Reported, not decided here.
 public struct InstallProgress: Sendable, Equatable {
     /// 0…1, from the client.
     public var fraction: Double
-    /// `fraction × bytesExpected`, or `nil` when the total is unknown.
+    /// `fraction × bytesExpected` — DERIVED from the client's fraction,
+    /// never counted (see above) — or `nil` when the total is unknown.
     public var bytesReceived: Int64?
     /// The manifest's total, or `nil` on a first install.
     public var bytesExpected: Int64?
@@ -37,8 +54,19 @@ public struct InstallProgress: Sendable, Equatable {
     /// The arithmetic, pure: clamps the client's fraction to 0…1 (it has
     /// been seen outside), and derives `received` only when `expected`
     /// is a number.
+    ///
+    /// NaN IS CLAMPED BY HAND, and it must be. `min(max(x, 0), 1)` does
+    /// NOT clamp NaN — every comparison against NaN is false, so both
+    /// calls hand the NaN straight back — and the line below then asks
+    /// `Int64` for it, which TRAPS. The 4v review ran that against this
+    /// public function and killed the test process ("Double value cannot
+    /// be converted to Int64 because it is either infinite or NaN").
+    /// ±infinity was always clamped correctly; only NaN escaped, which is
+    /// exactly the case this comment claimed was handled. A NaN fraction
+    /// is "no progress reported", so it reads as 0 — never a termination
+    /// a caller's client can reach (the rule AC-241 exists for).
     public static func at(fraction: Double, bytesExpected: Int64?) -> InstallProgress {
-        let clamped = min(max(fraction, 0), 1)
+        let clamped = fraction.isNaN ? 0 : min(max(fraction, 0), 1)
         let received = bytesExpected.map { Int64((Double($0) * clamped).rounded(.down)) }
         return InstallProgress(fraction: clamped, bytesReceived: received, bytesExpected: bytesExpected)
     }
@@ -123,16 +151,35 @@ extension LocalMindModel {
     }
 
     /// The rule, pure, over a manifest and a listing (AC-239):
-    /// - a manifest, and every listed file at its size → `.installed`;
     /// - a manifest, and any file missing or short → `.incomplete(files:)`;
+    /// - a manifest with no shortfall, over an OFFLINE-CAPABLE tree
+    ///   → `.installed`;
     /// - no manifest, but the required files → `.installedUnverified` —
     ///   a pre-4v install, the phones in the field; they ran yesterday,
     ///   and a missing manifest is not evidence of a missing file;
     /// - otherwise → `.absent`.
+    ///
+    /// A MANIFEST IS NOT A LICENCE, and the 4v review caught this branch
+    /// treating it as one: it answered `shortfall.isEmpty ? .installed`
+    /// and never asked the offline-capable question, so a tree holding
+    /// nothing but `config.json` — with a manifest written from that tree,
+    /// which of course has no shortfall — was `.installed`,
+    /// `modelInstalled()` was true, the verdict was nil, and
+    /// `download`'s `guard !modelInstalled()` returned early forever. It
+    /// is reachable: the snapshot asks for `*.safetensors, *.json, *.txt`,
+    /// so a repo with `.bin`/`.gguf` weights or a sentencepiece-only
+    /// tokenizer lands exactly that tree.
+    ///
+    /// The shortfall is asked FIRST because it is the more informative
+    /// answer — it NAMES the files — and only a complete manifest reaches
+    /// the capability question. The word for a tree that cannot answer
+    /// offline is `.absent`, the same word the no-manifest path already
+    /// gives for the same tree: one tree, one verdict, manifest or not.
     static func installState(manifest: InstallManifest?, onDisk: [String: Int64]) -> InstallState {
         if let manifest {
             let short = manifest.shortfall(against: onDisk)
-            return short.isEmpty ? .installed : .incomplete(files: short)
+            guard short.isEmpty else { return .incomplete(files: short) }
+            return requiredFilesPresent(in: onDisk) ? .installed : .absent
         }
         return requiredFilesPresent(in: onDisk) ? .installedUnverified : .absent
     }

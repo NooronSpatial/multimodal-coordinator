@@ -266,15 +266,26 @@ struct MLXReplyGeneratorTests {
     /// The words this mind's door used to own (`MLXUnavailable`) are the
     /// seam's now (4v): the door throws `ReplyFailure.unavailable` and
     /// its rendering is the verdict's, still spoken mid-sentence.
-    @Test("the door's refusal describes itself in the verdict's honest words")
+    ///
+    /// THE WORDS ARE WRITTEN OUT, and the 4v review is why. The first
+    /// version of this test asserted `refusal.description ==
+    /// verdict.description` — which is the LINE `.unavailable` is defined
+    /// by (`case .unavailable(let verdict): verdict.description`), so it
+    /// could not fail for any input. What must be pinned is that the seam
+    /// adds NOTHING of its own: no prefix, no "the mind is unavailable:",
+    /// no re-capitalisation. A literal is the only assertion that catches
+    /// that, so a literal is what this row carries.
+    @Test("the door's refusal describes itself in the verdict's honest words, undecorated")
     func theDoorSpeaksTheVerdictsWords() {
-        for verdict: MindUnavailable in [
-            .weightsAbsent,
-            .deviceCannotRun(.noGPU),
-            .installIncomplete(files: ["model.safetensors"])
+        for (verdict, words): (MindUnavailable, String) in [
+            (.weightsAbsent, "the on-device model is not installed yet"),
+            (.deviceCannotRun(.noGPU), "this device has no GPU the on-device model can use"),
+            (.installIncomplete(files: ["model.safetensors"]),
+             "the on-device model's install is incomplete — 1 file(s) missing or short: model.safetensors")
         ] {
             let refusal = ReplyFailure.unavailable(verdict)
-            #expect(refusal.description == verdict.description)
+            #expect(refusal.description == words,
+                    "the seam speaks the verdict's sentence WHOLE, and adds no words of its own")
             #expect(refusal.description.first?.isUppercase == false,
                     "these are spoken mid-sentence, not shouted")
         }

@@ -92,6 +92,40 @@ struct MLXInstallStateTests {
         #expect(LocalMindModel(weights: directory).installState() == .absent)
     }
 
+    /// A MANIFEST IS NOT A LICENCE. The manifest branch used to answer
+    /// `shortfall.isEmpty ? .installed : .incomplete` and never asked the
+    /// offline-capable question at all, so a tree holding nothing but
+    /// `config.json` — plus a manifest written from that tree, which of
+    /// course has no shortfall — reported `.installed`, `modelInstalled()`
+    /// returned true, the readiness verdict was nil, and `download`'s
+    /// `guard !modelInstalled()` then returned early FOREVER. The door
+    /// opened and the failure moved into the vendor's load.
+    ///
+    /// It is reachable: the snapshot asks for `*.safetensors, *.json,
+    /// *.txt`, so a repo shipping `.bin`/`.gguf` weights, or a
+    /// sentencepiece-only tokenizer, lands a tree the manifest then
+    /// declares complete. Before 4v that tree was `false` and the door
+    /// refused — the name-only check required all four files.
+    ///
+    /// The answer is `.absent`, the same word the no-manifest path already
+    /// gives for the same tree (`weightsWithoutTokenizerIsAbsent`): one
+    /// tree, one verdict, manifest or not — and `.absent` is the verdict a
+    /// person can act on, because a download fixes it.
+    @Test("a manifest over a tree that cannot answer offline is .absent, not .installed")
+    func aCompleteManifestOverAnIncapableTreeIsAbsent() throws {
+        let directory = try Self.scratch()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        // Everything the snapshot brought: one JSON, no weights, no
+        // tokenizer — and a manifest written from exactly that.
+        try Data(repeating: 0x2A, count: 32).write(to: directory.appending(path: "config.json"))
+        try InstallManifest(listing: directory).write(in: directory)
+
+        let model = LocalMindModel(weights: directory)
+        #expect(model.installState() == .absent, "a manifest with no shortfall is not an install")
+        #expect(model.modelInstalled() == false, "offline-capable or nothing — Whisper's rule")
+        #expect(model.readiness() != nil, "the door must still refuse this tree")
+    }
+
     @Test("the manifest lists every regular file with its bytes, and never itself")
     func manifestListsEveryFile() throws {
         let directory = try Self.scratch()
@@ -152,6 +186,26 @@ struct MLXInstallProgressTests {
     func fractionIsClamped() {
         #expect(InstallProgress.at(fraction: 1.5, bytesExpected: 4096).fraction == 1)
         #expect(InstallProgress.at(fraction: -0.25, bytesExpected: nil).fraction == 0)
+        #expect(InstallProgress.at(fraction: .infinity, bytesExpected: 4096).fraction == 1)
+        #expect(InstallProgress.at(fraction: -.infinity, bytesExpected: 4096).fraction == 0)
+    }
+
+    /// THE CLAMP THAT DID NOT CLAMP. `min(max(x, 0), 1)` passes NaN
+    /// straight through — both comparisons against NaN are false, so
+    /// each call returns the NaN operand — and the next line asked
+    /// `Int64` for it. The 4v review ran exactly this row against the
+    /// shipped public function and KILLED the test process:
+    /// "Double value cannot be converted to Int64 because it is either
+    /// infinite or NaN", signal 5. ±infinity was always clamped; only
+    /// NaN escaped, and the doc-comment above `at` promised it did not.
+    /// A public function in the milestone whose AC-241 exists to remove
+    /// caller-reachable terminations must not add one.
+    @Test("a NaN fraction is 0, never a trap")
+    func nanIsZeroNeverATrap() {
+        #expect(InstallProgress.at(fraction: .nan, bytesExpected: 4096)
+                == InstallProgress(fraction: 0, bytesReceived: 0, bytesExpected: 4096))
+        #expect(InstallProgress.at(fraction: .nan, bytesExpected: nil)
+                == InstallProgress(fraction: 0, bytesReceived: nil, bytesExpected: nil))
     }
 }
 
@@ -202,6 +256,36 @@ struct MLXDoorTests {
 
         #expect(LocalMindModel(weights: directory).estimatedWorkingSetBytes() == 6144 + 3072,
                 "the tokenizer's bytes are not weights and do not count")
+    }
+
+    /// THE RESIDENCY EXEMPTION, in both directions — the 4v review found
+    /// it asserted in neither. A model whose weights are already loaded
+    /// makes NO memory claim: the headroom the report measures has
+    /// already paid for those bytes, so refusing a model that is loaded
+    /// and answering, for memory it is already holding, would be a lie
+    /// about this machine. `retire()` gives the claim back, because it
+    /// gives the bytes back.
+    ///
+    /// The mirror is written by the actor after every load and every
+    /// retire; a test reaches it through `@testable` and sets it by hand,
+    /// because a real load needs 2 GB of weights and a GPU while the
+    /// BRANCH needs neither. `retire()` here is the real method.
+    @Test("a RESIDENT model claims no memory, and retire() gives the claim back")
+    func aResidentModelClaimsNoMemory() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "mlx-resident-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data(repeating: 0, count: 4096).write(to: directory.appending(path: "model.safetensors"))
+
+        let model = LocalMindModel(weights: directory)
+        #expect(model.estimatedWorkingSetBytes() == 4096 + 2048, "not resident: the estimate is paid")
+        model.resident.withLock { $0 = true }
+        #expect(model.estimatedWorkingSetBytes() == 0,
+                "resident weights are already paid for; claiming them twice would refuse a live model")
+        await model.retire()
+        #expect(model.estimatedWorkingSetBytes() == 4096 + 2048,
+                "retire gave the bytes back, so the claim comes back with them")
     }
 
     @Test("a verdict's words never say Simulator on a machine that is not one")

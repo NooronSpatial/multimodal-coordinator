@@ -72,7 +72,14 @@ public actor LocalMindModel: ModelBacked {
     /// landed during a load wins. It may lag by one actor step, and the
     /// cost of the lag is bounded: the memory claim is a belt, and the
     /// door is asked again next turn.
-    let resident = Mutex(false)
+    ///
+    /// NONISOLATED, because its reader is: `estimatedWorkingSetBytes()`
+    /// is a synchronous door question and cannot hop to this actor to ask
+    /// it. A `Mutex` is `Sendable` and NON-COPYABLE, and a non-copyable
+    /// stored property must be BORROWED — which the compiler refuses
+    /// across actor isolation — so this keyword is what lets the door,
+    /// and the test that pins its two branches, hold the same one lock.
+    nonisolated let resident = Mutex(false)
 
     /// Weights already on disk. Nothing is ever downloaded.
     public init(weights: URL, cacheLimitBytes: Int = 20 * 1024 * 1024) {
@@ -277,8 +284,16 @@ struct MLXTokenSource: ReplyTokenStreaming {
     ///
     /// `spoken` is the RESOLVED instruction (AC-232): the caller's for
     /// this call, else this source's own, else no system message at all.
-    private static func messages(spoken: String?, asked: String,
-                                 past: [ConversationTurn]) -> [Chat.Message] {
+    ///
+    /// INTERNAL, not private, since the 4v review: AC-232's MLX half is
+    /// this line and nothing else, and `@testable` cannot reach a
+    /// `private` member — so the whole of "the resolved instruction
+    /// becomes the `.system` message" was unprovable, and the only test
+    /// stopped one seam short, at the resolution struct.
+    /// `MLXTokenSource` is itself internal, so this widens nothing a
+    /// consumer can see; it widens what a test can read.
+    static func messages(spoken: String?, asked: String,
+                         past: [ConversationTurn]) -> [Chat.Message] {
         var messages: [Chat.Message] = []
         if let spoken { messages.append(.system(spoken)) }
         for turn in past {

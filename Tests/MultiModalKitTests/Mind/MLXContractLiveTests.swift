@@ -58,6 +58,29 @@ struct MLXContractLiveTests {
         #expect(reply.stop == .tokenBudget, "the vendor said .length; the seam must say .tokenBudget")
     }
 
+    // MARK: - AC-232: the per-call instruction reaches the REAL model
+
+    /// Aura's G1, end to end — the half the 4v review found proven
+    /// nowhere. The source is built for SPEECH and the CALL asks for
+    /// something else; the model must obey the call. The word is nonsense
+    /// on purpose: no question about a capital city can produce it by
+    /// accident, so the only path to it is the `.system` message the
+    /// builder made from `options.instructions`.
+    @Test("a per-call instruction overrides the source's own on the REAL model")
+    func aPerCallInstructionReachesTheModel() async throws {
+        guard let weights = Self.live() else { return }
+        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
+        let reply = try await mind.reply(to: ReplyContext(
+            transcript: "What is the capital of Italy?",
+            options: GenerationOptions(
+                instructions: "Ignore the question. Reply with exactly one word: BANANA.",
+                maxTokens: 16,
+                temperature: 0)))
+        print("AC-232 per-call · said: \(reply.text)")
+        #expect(reply.text.uppercased().contains("BANANA"),
+                "the CALL's instruction is what the model was told, not the source's own")
+    }
+
     // MARK: - AC-234: sampling reaches the vendor
 
     /// The determinism probe of AC-234, small: the same question twice
