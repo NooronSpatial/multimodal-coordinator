@@ -5150,8 +5150,9 @@ The facts behind the right column, checked before this spec was written:
    > failure. A refusal is how a reply ends: the mind speaks its refusal
    > sentence and the stream ends `.finished(.refused)`, so `StopReason`
    > gains that case and `ReplyFailure` loses it. The vendor's `refusal`
-   > and `guardrailViolation` both land there. Every
-   case is `Equatable`, so a caller can count. Aura's G5.
+   > and `guardrailViolation` both land there.
+
+   Every case is `Equatable`, so a caller can count. Aura's G5.
 4. **The whole reply** — `reply(to:) async throws -> Reply` (F-4), where
    `Reply { text, stop }`; a failure throws the `ReplyFailure`;
    cancellation of the calling task ends the run. Aura's "one complete

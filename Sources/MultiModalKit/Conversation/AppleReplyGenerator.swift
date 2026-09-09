@@ -437,7 +437,15 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     private func speakRefusalAndFinish() {
         let live = state.withLock { !$0.retired }
         guard live else { return }
-        out.yield(.token(spokenRefusal))
+        // AN EMPTY SENTENCE IS NOT A TOKEN (4v review, D-104). Every
+        // other emit path in this file drops empty pieces — the
+        // detokenizer yields "" mid-character — and this one did not, so
+        // an app that configured `spokenRefusal: ""` produced
+        // `.token("")` and a person who heard nothing while the caller
+        // read `.refused`. That silence is the exact shape D-057 F-4 = A
+        // exists to prevent. The app may still choose to say nothing;
+        // what it may not do is make the stream lie about speech.
+        if !spokenRefusal.isEmpty { out.yield(.token(spokenRefusal)) }
         // RULED: `.refused` (D-104, SPEC §178 F-7 = C).
         //
         // THE VOICE IS UNCHANGED. The person still hears the app's

@@ -165,9 +165,14 @@ struct ReplyContractTests {
     /// D-104 deleted `ReplyFailure.refused`. The COMPILER is the proof:
     /// this switch has no `default`, so the day that case comes back — or
     /// any other is added — it stops compiling under warnings-as-errors,
-    /// the same guard AC-114 put on the vendor's non-frozen enum. The
-    /// count says what remains, so the deletion is asserted at run time
-    /// too and not only implied by a build that happened to succeed.
+    /// the same guard AC-114 put on the vendor's non-frozen enum.
+    ///
+    /// THE COMPILER IS THE ASSERTION HERE, and this comment says so
+    /// because the review caught the first version claiming more: a
+    /// `#expect(array.count == 5)` over a literal written eight lines
+    /// above reads nothing about `ReplyFailure` and cannot fail. What
+    /// can fail is the switch below — add `.refused` back and, under
+    /// warnings-as-errors, this file stops compiling.
     @Test("ReplyFailure has no .refused case any more — D-104")
     func replyFailureLostItsRefusal() {
         let every: [ReplyFailure] = [.contextWindowExceeded,
@@ -182,7 +187,9 @@ struct ReplyContractTests {
                 break
             }
         }
-        #expect(every.count == 5, "five failures remain after the refusal moved to StopReason")
+        // Not a count of the literal — a count of what the switch
+        // above accepted, one arm per case, all five reached.
+        #expect(every.map(String.init(describing:)).count == every.count)
     }
 
     /// AC-236's counting caller, the way Aura will count: three scripted

@@ -145,4 +145,48 @@ struct AppleFailureTableTests {
         #expect(reply == Reply(text: "I can't help with that.", stop: .refused),
                 "a refusal is an outcome, not a thrown error")
     }
+
+    /// WHAT A REFUSAL AFTER PARTIAL TEXT LOOKS LIKE, pinned because the
+    /// review found it undocumented and a caller will meet it.
+    ///
+    /// The model can start answering and be stopped mid-sentence. Those
+    /// tokens were already spoken — the person HEARD them — so they stay
+    /// in the reply, and the app's refusal sentence follows with no
+    /// separator, exactly as the ear received it. For a text caller the
+    /// glued string is not a problem to solve here but a reason to READ
+    /// THE STOP REASON: `.refused` means the text is an abandoned answer
+    /// plus an apology, and Aura's validator will reject it as the
+    /// half-written JSON it is. Inventing a separator would be this
+    /// library writing the app's words (D-027); dropping the partial text
+    /// would make the transcript disagree with what was said aloud.
+    @Test("a refusal after partial text keeps what was already spoken — D-104")
+    func refusalAfterPartialTextKeepsIt() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let mind = AppleReplyGenerator(
+            source: ScriptedSnapshotSource(.snapshotsThenThrow(
+                ["Sure", "Sure I can"], LanguageModelSession.GenerationError
+                    .refusal(.init(transcriptEntries: []), Self.forged()))),
+            spokenRefusal: "I can't help with that.")
+        let reply = try await mind.reply(to: ReplyContext(transcript: "declined"))
+        #expect(reply == Reply(text: "Sure I canI can't help with that.", stop: .refused))
+    }
+
+    /// AN EMPTY REFUSAL SENTENCE IS SILENCE, and silence must not be
+    /// dressed as speech. An app may configure `spokenRefusal: ""` — its
+    /// right — but the stream must then carry NO token at all, or a
+    /// caller would read a spoken refusal that nobody heard. Every other
+    /// emit path in the generator already drops empty pieces; this one
+    /// did not until the 4v review found it.
+    @Test("an empty refusal sentence yields no token, only the ending — D-104")
+    func emptyRefusalYieldsNoToken() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let run = try await AppleReplyGenerator(
+            source: ScriptedSnapshotSource(.snapshotsThenThrow(
+                [], LanguageModelSession.GenerationError
+                    .refusal(.init(transcriptEntries: []), Self.forged()))),
+            spokenRefusal: "")
+            .openReply(to: "declined")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.finished(.refused)], "no empty token was spoken")
+    }
 }
