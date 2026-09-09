@@ -159,10 +159,13 @@ public enum MindUnavailable: Error, Sendable, Equatable, CustomStringConvertible
     /// question later gets a different answer, which is why no door
     /// caches it.
     case modelDownloading
-    /// A reason this library does not know yet. The vendor's reason
-    /// enum is NON-frozen, and pretending otherwise is a build break
-    /// under warnings-as-errors the day a case is added (AC-114's
-    /// lesson). The string carries whatever the vendor said.
+    /// A reason this library cannot name. Two sources: the vendor's
+    /// reason enum is NON-frozen, and pretending otherwise is a build
+    /// break under warnings-as-errors the day a case is added (AC-114's
+    /// lesson); and a generation that fails with "assets unavailable"
+    /// after availability said yes (INSTRUMENTS §22) — the vendor states
+    /// no cause, so this library claims none. The string carries
+    /// whatever the vendor said.
     case unknown(String)
 
     public var description: String {

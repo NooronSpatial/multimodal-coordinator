@@ -79,11 +79,14 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     ///   "no randomness", so the same question twice gives the same bytes
     ///   (the probe AC-234 measures). Greedy has no randomness to seed,
     ///   so it wins over a seed given beside it.
-    /// - a seed asks for `.random(top: 50, seed:)`. Top-50 is a
-    ///   conventional nucleus for top-k sampling and is NOT what AC-234
-    ///   needs; the SEED is — it is what makes "seed + 0.6 twice" give
-    ///   identical text. The number is here so the seed has a mode to
-    ///   ride on, not because it was tuned.
+    /// - a seed asks for `.random(top: 50, seed:)` — TOP-K sampling: the
+    ///   model picks among its 50 likeliest next tokens. (The vendor's
+    ///   other mode, `.random(probabilityThreshold:seed:)`, is top-p,
+    ///   also called "nucleus" sampling; this mind does not use it.)
+    ///   Fifty is a conventional width and is NOT what AC-234 needs; the
+    ///   SEED is — it is what makes "seed + 0.6 twice" give identical
+    ///   text. The number is here so the seed has a mode to ride on, not
+    ///   because it was tuned.
     /// - `temperature` is passed when given, widened `Float → Double`
     ///   (the vendor's type). `nil` everything else leaves the vendor's
     ///   defaults untouched: `GenerationOptions()` IS the default value
@@ -159,14 +162,25 @@ public enum AppleMind {
     /// permanent verdict.
     public static func readiness() -> MindUnavailable? {
         guard #available(macOS 26.0, iOS 26.0, *) else {
-            // The report is read only for its PLATFORM — the number is the
-            // floor's, stated by `Platform.appleMindFloor`, and the OS
-            // check itself is `#available`'s, which is the compiler's
-            // truth, not `ProcessInfo`'s reading of it.
-            let report = DeviceReport.current(gpu: .available, install: .installed)
-            return belowFloor(on: report.platform)
+            // The number is the floor's, stated by `Platform.appleMindFloor`,
+            // and the OS check itself is `#available`'s — the compiler's
+            // truth, not `ProcessInfo`'s reading of it. The platform is a
+            // compile-time fact too, so it is read as one: a first cut
+            // built a whole `DeviceReport.current(...)` here, which runs a
+            // memory syscall, only to read its `.platform` (the 4v review).
+            return belowFloor(on: platform)
         }
         return verdict(for: SystemLanguageModel.default.availability)
+    }
+
+    /// The platform this binary was built for — the same `#if` the
+    /// readiness piece's live reader uses, without the rest of the probe.
+    static var platform: Platform {
+        #if os(macOS)
+        .macOS
+        #else
+        .iOS
+        #endif
     }
 
     /// The below-floor verdict for a platform — pure, so a Mac's test can
@@ -391,9 +405,13 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         case .assetsUnavailable:
             // The Simulator lesson (INSTRUMENTS §22): availability can
             // vouch for assets the model manager then cannot produce. The
-            // contract's word for "the model is not here yet" is the
-            // download's verdict — recoverable, ask again later.
-            report(.failed(.unavailable(.modelDownloading)))
+            // table's row is `.unavailable` (SPEC §175/3), and the verdict
+            // inside it is `.unknown` with the vendor's own word: the
+            // vendor said "assets unavailable" and nothing about WHY. It
+            // is not `.modelDownloading` — that sentence promises "try
+            // later", and on the very Simulator that taught this lesson
+            // the assets never arrive (the 4v review's finding).
+            report(.failed(.unavailable(.unknown(Self.assetsUnavailableWords))))
         case .unsupportedLanguageOrLocale:
             report(.failed(.unsupportedLanguage))
         case .rateLimited, .concurrentRequests:
@@ -420,11 +438,20 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         let live = state.withLock { !$0.retired }
         guard live else { return }
         out.yield(.token(spokenRefusal))
-        // `.complete`, not `.unreported`: a spoken refusal is a turn the
-        // model ENDED, on purpose — the one stop reason the vendor's
-        // silent API lets this mind state truthfully. F-7 pending.
-        report(.finished(.complete))
+        // `.unreported` — TODAY'S value, kept on purpose while F-7 is open
+        // (SPEC §178: "until ruled, the Apple mind keeps today's
+        // behaviour"). A first cut of this piece wrote `.complete` here,
+        // which is F-7 option A's answer; the review caught it as a fork
+        // ruled by the agent. Whether a spoken refusal ends `.complete`
+        // or `.refused` is Ryad's, under a D-entry.
+        report(.finished(.unreported))
     }
+
+    /// The pre-4v words for the assets row, kept verbatim so the test
+    /// that pinned them still reads them and a screen says the same
+    /// thing it said before the failures were typed.
+    static let assetsUnavailableWords =
+        "its assets are unavailable — availability said yes and the model said no"
 
     /// EVERY terminal path ends here, and only the first one acts —
     /// the latch 4e's review had to force onto `NeuralVoiceRun` after a

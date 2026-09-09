@@ -313,9 +313,7 @@ struct AppleReplyGeneratorTests {
             refusal: "I can't help with that.")
             .openReply(to: "something the model declines")
         let updates = await ReplyConformanceKit.drain(run)
-        // `.complete` since 4v: a spoken refusal is a turn the model
-        // ended on purpose (F-7 pending — today's behaviour holds).
-        #expect(updates == [.token("I can't help with that."), .finished(.complete)],
+        #expect(updates == [.token("I can't help with that."), .finished(.unreported)],
                 "a refusal is an ordinary outcome — silence would look like a bug")
     }
 
@@ -331,7 +329,7 @@ struct AppleReplyGeneratorTests {
                 .refusal(.init(transcriptEntries: []), Self.forged())))
             .openReply(to: "declined")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't answer that."), .finished(.complete)])
+        #expect(updates == [.token("I can't answer that."), .finished(.unreported)])
     }
 
     @Test("the context window overflowing is a named failure")
@@ -353,7 +351,7 @@ struct AppleReplyGeneratorTests {
         #expect(failure.description.contains("context window"))
     }
 
-    @Test("assets unavailable is the download's verdict — availability lied (the Simulator lesson)")
+    @Test("assets unavailable names the Simulator lesson — availability lied")
     func assetsUnavailableFails() async throws {
         // OS 26 only (4s). swift-testing forbids `@available` on a
         // `@Test`, so the gate is a runtime one — and on an older
@@ -368,9 +366,17 @@ struct AppleReplyGeneratorTests {
         guard case .failed(let failure)? = updates.last else {
             Issue.record("expected .failed, got \(updates)"); return
         }
-        // Typed since 4v (AC-236): the contract's word for "the model is
-        // not here yet", so a caller can count it and ask again later.
-        #expect(failure == .unavailable(.modelDownloading))
+        // Typed since 4v (AC-236): the table's row is `.unavailable`, so a
+        // caller counts it with the door's verdicts. The verdict is
+        // `.unknown` — NOT `.modelDownloading`: the vendor said only
+        // "assets unavailable", never "downloading", and on the Simulator
+        // that motivated this row the assets never arrive, so "try later"
+        // would be a promise this library cannot keep (the 4v review).
+        // The pre-4v words stay, verbatim, inside the verdict.
+        guard case .unavailable(.unknown) = failure else {
+            Issue.record("expected .unavailable(.unknown), got \(failure)"); return
+        }
+        #expect(failure.description.contains("availability said yes"))
     }
 
     @Test("rate limiting, concurrency, decoding, guides: each one honest .failed")

@@ -45,20 +45,44 @@ struct AppleMindReadinessTests {
             == "this device's operating system is older than the model needs — iOS 26 or later")
     }
 
-    /// The ungated door agrees with the vendor, read at the same moment,
-    /// on every OS-26 machine — available or not. On an older machine it
-    /// must answer the floor instead of crashing on a type it cannot name.
+    /// The ungated door agrees with the vendor on every OS-26 machine —
+    /// available or not. On an older machine it must answer the floor
+    /// instead of crashing on a type it cannot name.
+    ///
+    /// The vendor is read THREE times here (before, inside the door,
+    /// after) and a download can complete between any two of them — on
+    /// the Mac this was written on the model was mid-download. So the
+    /// assertion is gated on an observable fact, not on the reads being
+    /// "close enough": when the outer two reads agree, the world held
+    /// still and the door's answer must be that one; when they differ,
+    /// the world moved and the test says so instead of flaking (the 4v
+    /// review's finding; the house rule — no timing assumptions).
     @Test("readiness() is askable on any OS and agrees with the vendor on this one")
     func readinessAgreesWithTheVendor() {
         guard #available(macOS 26.0, iOS 26.0, *) else {
-            #expect(AppleMind.readiness() == AppleMind.belowFloor(
-                on: DeviceReport.current(gpu: .available, install: .installed).platform))
+            #expect(AppleMind.readiness() == AppleMind.belowFloor(on: AppleMind.platform))
             return
         }
-        let vendor = SystemLanguageModel.default.availability
-        #expect(AppleMind.readiness() == AppleMind.verdict(for: vendor))
-        #expect(AppleReplyGenerator.availability == AppleMind.readiness(),
-                "the demo's reader and the door are one fact")
+        let before = AppleMind.verdict(for: SystemLanguageModel.default.availability)
+        let door = AppleMind.readiness()
+        let demo = AppleReplyGenerator.availability
+        let after = AppleMind.verdict(for: SystemLanguageModel.default.availability)
+        guard before == after else {
+            print("SKIPPED (the vendor's verdict changed mid-test: \(String(describing: before))"
+                + " → \(String(describing: after))) — a still machine makes this test REAL")
+            return
+        }
+        #expect(door == before, "the door is the vendor's verdict, mapped")
+        #expect(demo == before, "the demo's reader and the door are one fact")
+    }
+
+    @Test("the platform the below-floor sentence names is this binary's")
+    func platformIsCompileTime() {
+        #if os(macOS)
+        #expect(AppleMind.platform == .macOS)
+        #else
+        #expect(AppleMind.platform == .iOS)
+        #endif
     }
 
     // MARK: - the door throws the verdict as the contract's failure
