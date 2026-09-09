@@ -5149,6 +5149,16 @@ The facts behind the right column, checked before this spec was written:
    The demo's three refusal strings become renderings of the enum, and
    the word "Simulator" is said only when the report says so. Aura's
    F1–F3.
+   > *Amended 2026-09-09, as built.* The live reader is
+   > `DeviceReport.current(gpu:install:)` — two facts the core cannot
+   > know are handed in by the mind that does (whether its runtime has a
+   > GPU it can use; what its files look like). The report also carries
+   > `platform` so the floor renders as "iOS 18" / "macOS 15" from a
+   > pure function, and `Platform` knows both floors (`libraryFloor`,
+   > `appleMindFloor`). The verdict's order is fixed and written in its
+   > doc comment: OS, simulator, GPU, weights absent, install incomplete,
+   > memory — permanent facts first, the one that changes minute to
+   > minute last; an unknown headroom is never a refusal (D-092).
 6. **Size-checked install** — the download writes a manifest (file →
    bytes, from the Hub's listing); `installState()` verifies existence
    and size of every listed file: `.installed`, `.incomplete(files:)`,
@@ -5163,6 +5173,18 @@ The facts behind the right column, checked before this spec was written:
    pairing at `AIRuntime.swift:148`, the clockless coordinator's gate)
    become thrown, typed `ConfigurationError`s; the internal ones stay —
    they guard invariants no caller can reach. Aura's R8.
+   > *Amended 2026-09-09, during the build.* The adversarial review of
+   > the R8 piece showed with a probe that THREE more preconditions were
+   > reachable through `TurnCoordinator.Config` numbers — the ledger's
+   > `maxContextPieces`, the memory's `maxMemoryTurns` and
+   > `maxMemoryCharacters` (D-092: "the app owns the numbers") — passing
+   > `AIRuntime.init` and trapping inside `run()`. By this item's own
+   > rule they are caller-reachable, so they became thrown, typed
+   > errors too: `Config.validate()` at both coordinator doors, wrapped
+   > as `AIRuntimeConfigurationError.turns(_)` at the runtime's. Five
+   > doors, not two. The two that remain — the ring buffer's capacity
+   > and the test clock's direction — guard values no configuration
+   > carries.
 9. **The contract, written** — one section in `ARCHITECTURE.md` ("the
    mind's text contract") that is the page Aura reads: the types, the
    defaults, the failure table, the readiness table, and what is
