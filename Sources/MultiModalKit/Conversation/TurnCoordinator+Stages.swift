@@ -34,6 +34,9 @@ extension TurnCoordinator {
             }
 
         case .finished:
+            // The stop reason is the TEXT caller's concern (4v); a spoken
+            // reply ends the same way whether the model stopped or the
+            // cap did — the barge-in is the voice path's ceiling.
             if let synthesis = live.synthesisRun {
                 guard !live.tokensFinished else { return }   // defiant double-finish
                 current?.tokensFinished = true
@@ -55,9 +58,10 @@ extension TurnCoordinator {
                 transition(to: .idle, turn: turn)
             }
 
-        case .failed(let reason):
+        case .failed(let failure):
             let dying = current
-            failTurn(turn, with: .generationFailed(reason))
+            // The description goes where the string went (AC-242).
+            failTurn(turn, with: .generationFailed(failure.description))
             await dying?.synthesisRun?.cancel()
         }
     }

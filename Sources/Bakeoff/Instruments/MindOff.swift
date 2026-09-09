@@ -62,7 +62,7 @@ private func mindOffRun(_ label: String, _ mind: any ReplyGenerating,
                     if first == nil { first = start.duration(to: clock.now) }
                     text += piece
                     pieces += 1
-                case .failed(let why): failure = why
+                case .failed(let why): failure = why.description
                 case .finished: break
                 }
             }

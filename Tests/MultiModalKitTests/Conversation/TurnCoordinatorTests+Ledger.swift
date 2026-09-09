@@ -26,8 +26,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("THE MILESTONE: a thought spoken in two sentences reaches the generator whole")
-    func theWholeThoughtReachesTheGenerator() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func theWholeThoughtReachesTheGenerator() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -47,8 +47,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("The refused final contributes content and still triggers nothing (AC-87)")
-    func theRefusedFinalTriggersNothing() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+    func theRefusedFinalTriggersNothing() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -70,8 +70,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A completed reply forgets the thought; the next turn starts clean (AC-89)")
-    func completionForgetsTheThought() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+    func completionForgetsTheThought() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -100,8 +100,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A failed turn keeps its words — nothing answered them (AC-89)")
-    func aFailedTurnKeepsItsWords() async {
-        let bench = Bench(generator: ScriptedReplyGenerator(plans: [.failOnOpen("no model"), .manual()]),
+    func aFailedTurnKeepsItsWords() async throws {
+        let bench = try Bench(generator: ScriptedReplyGenerator(plans: [.failOnOpen("no model"), .manual()]),
                           synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
@@ -137,8 +137,8 @@ extension TurnCoordinatorTests {
     /// ledger let go and that the memory took it. A test that only checked
     /// the first would pass just as well if the words had vanished.
     @Test("A barge moves the thought into the conversation, not into the next question (D-089)")
-    func aBargeCarriesTheThoughtForward() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+    func aBargeCarriesTheThoughtForward() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -170,10 +170,10 @@ extension TurnCoordinatorTests {
     }
 
     @Test("An empty final is NOT rescued into a reply by a full ledger (AC-87)")
-    func anEmptyFinalIsNotRescuedByAFullLedger() async {
+    func anEmptyFinalIsNotRescuedByAFullLedger() async throws {
         // §46a finding 1: an empty decode is the signature of a
         // FRAGMENTED speaker, never of a finished one.
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -192,8 +192,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("stop() mid-accumulation ends clean and publishes nothing after (AC-90)")
-    func stopMidAccumulationEndsClean() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func stopMidAccumulationEndsClean() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -230,11 +230,11 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A ZERO-TOKEN reply also forgets the thought — F-2's second clear site")
-    func aZeroTokenReplyAlsoForgetsTheThought() async {
+    func aZeroTokenReplyAlsoForgetsTheThought() async throws {
         // Review finding: D-040 F-2 names TWO clear sites and only the
         // spoken one was covered. The generator here sees the whole
         // thought and says nothing — which counts as answered.
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -258,11 +258,11 @@ extension TurnCoordinatorTests {
     }
 
     @Test("MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought")
-    func onlyFinalsEnterTheThought() async {
+    func onlyFinalsEnterTheThought() async throws {
         // Review finding: AC-86's membership rule was prose only — no test
         // ever yielded a .partial or .truncated to the coordinator, so
         // recording them would have left the whole suite green.
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -284,11 +284,11 @@ extension TurnCoordinatorTests {
     }
 
     @Test("The app's context bound reaches the ledger and drops the oldest through the loop")
-    func theContextBoundIsWiredThroughTheLoop() async {
+    func theContextBoundIsWiredThroughTheLoop() async throws {
         // Review finding: only the Config literal was pinned, so nothing
         // proved the number ever arrived, nor that F-4's anti-wedge bound
         // works through the coordinator.
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
                           config: .init(maxContextPieces: 2))
         let listener = await bench.coordinator.listen()
 

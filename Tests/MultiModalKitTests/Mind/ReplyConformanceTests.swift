@@ -47,12 +47,16 @@ enum ReplyConformanceKit {
 
     /// Promise 1: tokens as they are born, then EXACTLY one terminal,
     /// then the stream ends — `drain` returning at all is the ending.
+    /// The stop reason defaults to `.unreported` — what a source that
+    /// says nothing about WHY yields (4v); a source that does say passes
+    /// what it said.
     static func verifyTokensThenExactlyOneTerminal(
-        _ generator: any ReplyGenerating, expecting tokens: [String]
+        _ generator: any ReplyGenerating, expecting tokens: [String],
+        endingWith stop: StopReason = .unreported
     ) async throws {
         let run = try await generator.openReply(to: "a final transcript")
         let updates = await drain(run)
-        #expect(updates == tokens.map { .token($0) } + [.finished])
+        #expect(updates == tokens.map { .token($0) } + [.finished(stop)])
     }
 
     /// Promise 2: a cancelled reply ends its stream WITHOUT a terminal.
@@ -272,11 +276,11 @@ struct AppleReplyGeneratorTests {
 
         #expect(updates.first == .token("The answer is yes"),
                 "text that extended truthfully was true when emitted — it flows")
-        guard case .failed(let reason)? = updates.last else {
+        guard case .failed(let failure)? = updates.last else {
             Issue.record("the tripwire must end the run with .failed, got \(updates)")
             return
         }
-        #expect(reason.contains("revised"), "the failure names the crime")
+        #expect(failure.description.contains("revised"), "the failure names the crime")
         #expect(!updates.contains(.token("The answer is no, actually")),
                 "the rewrite must never reach a mouth")
         #expect(ReplyConformanceKit.terminals(in: updates).count == 1)
@@ -296,7 +300,7 @@ struct AppleReplyGeneratorTests {
 
     // MARK: AC-114 — the nine cases, FORGED (Context has a public init)
 
-    @Test("a guardrail violation is SPOKEN, and the turn completes (F-4 = A)")
+    @Test("a guardrail violation is SPOKEN, and the reply ends .refused (F-4 = A, D-104)")
     func guardrailIsSpoken() async throws {
         // OS 26 only (4s). swift-testing forbids `@available` on a
         // `@Test`, so the gate is a runtime one — and on an older
@@ -309,11 +313,11 @@ struct AppleReplyGeneratorTests {
             refusal: "I can't help with that.")
             .openReply(to: "something the model declines")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't help with that."), .finished],
-                "a refusal is an ordinary outcome — silence would look like a bug")
+        #expect(updates == [.token("I can't help with that."), .finished(.refused)],
+                "spoken because silence looks like a bug; .refused because D-104 lets a caller count it")
     }
 
-    @Test("a model refusal is SPOKEN the same way (F-4 = A)")
+    @Test("a model refusal is SPOKEN the same way, and ends .refused (F-4 = A, D-104)")
     func refusalIsSpoken() async throws {
         // OS 26 only (4s). swift-testing forbids `@available` on a
         // `@Test`, so the gate is a runtime one — and on an older
@@ -325,7 +329,7 @@ struct AppleReplyGeneratorTests {
                 .refusal(.init(transcriptEntries: []), Self.forged())))
             .openReply(to: "declined")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't answer that."), .finished])
+        #expect(updates == [.token("I can't answer that."), .finished(.refused)])
     }
 
     @Test("the context window overflowing is a named failure")
@@ -340,10 +344,11 @@ struct AppleReplyGeneratorTests {
                 .exceededContextWindowSize(Self.forged())))
             .openReply(to: "too long a conversation")
         let updates = await ReplyConformanceKit.drain(run)
-        guard case .failed(let reason)? = updates.last else {
+        guard case .failed(let failure)? = updates.last else {
             Issue.record("expected .failed, got \(updates)"); return
         }
-        #expect(reason.contains("context window"))
+        #expect(failure == .contextWindowExceeded, "typed since 4v (AC-236)")
+        #expect(failure.description.contains("context window"))
     }
 
     @Test("assets unavailable names the Simulator lesson — availability lied")
@@ -358,10 +363,20 @@ struct AppleReplyGeneratorTests {
                 .assetsUnavailable(Self.forged())))
             .openReply(to: "anything")
         let updates = await ReplyConformanceKit.drain(run)
-        guard case .failed(let reason)? = updates.last else {
+        guard case .failed(let failure)? = updates.last else {
             Issue.record("expected .failed, got \(updates)"); return
         }
-        #expect(reason.contains("availability said yes"))
+        // Typed since 4v (AC-236): the table's row is `.unavailable`, so a
+        // caller counts it with the door's verdicts. The verdict is
+        // `.unknown` — NOT `.modelDownloading`: the vendor said only
+        // "assets unavailable", never "downloading", and on the Simulator
+        // that motivated this row the assets never arrive, so "try later"
+        // would be a promise this library cannot keep (the 4v review).
+        // The pre-4v words stay, verbatim, inside the verdict.
+        guard case .unavailable(.unknown) = failure else {
+            Issue.record("expected .unavailable(.unknown), got \(failure)"); return
+        }
+        #expect(failure.description.contains("availability said yes"))
     }
 
     @Test("rate limiting, concurrency, decoding, guides: each one honest .failed")
@@ -403,33 +418,31 @@ struct AppleReplyGeneratorTests {
         // machine this suite reports PASS without having proven
         // anything, which is why the CI matrix must include a 26 host.
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        guard AppleReplyGenerator.availability != nil else { return }
-        await #expect(throws: AppleReplyGenerator.Unavailable.self) {
+        guard let verdict = AppleMind.readiness() else { return }
+        // The contract's failure since 4v (SPEC §175/5): one type for
+        // every mind's door, carrying the typed verdict.
+        await #expect(throws: ReplyFailure.unavailable(verdict)) {
             _ = try await AppleReplyGenerator().openReply(to: "anything")
         }
     }
 }
 
 /// AC-110's words, pinned: when the model vanishes BETWEEN turns,
-/// `openReply` throws `Unavailable` mid-session and the coordinator's
-/// failure text carries `String(describing:)` of it — which for a bare
-/// enum was "modelNotReady", gibberish on a screen. Found by the 4f
-/// review. The library owns the sentence so no screen can drift from it.
+/// `openReply` throws mid-session and the coordinator's failure text
+/// carries `String(describing:)` of it — which for a bare enum was
+/// "modelNotReady", gibberish on a screen. Found by the 4f review. The
+/// library owns the sentence so no screen can drift from it. Since 4v
+/// the sentences live on `MindUnavailable` (SPEC §175/5), unchanged.
 @Suite struct UnavailableWordsTests {
     @Test("every unavailability reason describes itself in honest words")
     func reasonsSpeak() {
-        // OS 26 only (4s). swift-testing forbids `@available` on a
-        // `@Test`, so the gate is a runtime one — and on an older
-        // machine this suite reports PASS without having proven
-        // anything, which is why the CI matrix must include a 26 host.
-        guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        #expect(String(describing: AppleReplyGenerator.Unavailable.modelNotReady)
+        #expect(String(describing: MindUnavailable.modelDownloading)
             == "the on-device model is still downloading — try later")
-        #expect(String(describing: AppleReplyGenerator.Unavailable.appleIntelligenceNotEnabled)
+        #expect(String(describing: MindUnavailable.featureDisabled("Apple Intelligence"))
             == "Apple Intelligence is switched off in Settings")
-        #expect(String(describing: AppleReplyGenerator.Unavailable.deviceNotEligible)
+        #expect(String(describing: MindUnavailable.deviceCannotRun(.notEligible))
             == "this device cannot run the on-device model")
-        #expect(String(describing: AppleReplyGenerator.Unavailable.unknown("case 9"))
+        #expect(String(describing: MindUnavailable.unknown("case 9"))
             .contains("case 9"))
     }
 }

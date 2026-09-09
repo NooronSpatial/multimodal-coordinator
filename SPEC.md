@@ -4870,3 +4870,543 @@ supports a lot of languages" was true of the model and misleading about
 what runs on the phone; the port would need a G2P per language before
 even Spanish, and Arabic would need a G2P *and* trained voices *and* a
 diacritizer — training work, not integration.
+
+---
+
+# Milestone 4w — the tool spike (Runtime Phase B; written as 4v, re-sequenced to 4w by D-102)
+
+## 168. Why this exists
+
+The runtime brief's Phase B says the mind must be able to CALL something,
+and the architecture report named the hardest unsolved piece in the
+whole brief: the reply seam carries text tokens and nothing else.
+
+    ReplyUpdate   .token(String) · .finished · .failed(String)
+
+Measured before written, the two real minds are further along than that
+sentence implies — and in two incompatible shapes:
+
+| mind | native tool calling | shape |
+|---|---|---|
+| Apple FoundationModels | **yes, typed** — `protocol Tool { name; description; Arguments; call(arguments:) }`, `LanguageModelSession(tools:)`, transcript entries `.toolCalls` / `.toolOutput` | the framework executes the tool and continues the reply |
+| MLX (`mlx-swift-lm` 3.31.4) | **yes, parsed** — `UserInput(chat:tools:)` renders `ToolSpec`s into the template; `generateTokens` emits a `.toolCall(ToolCall)` event beside `.token` | the caller executes the tool and asks again with a `.tool` message |
+
+Our `MLXTokenSource` already runs that event loop and **drops every
+non-token event** (`guard let id = event.token else { continue }`) —
+which is exactly where a tool call would arrive today and vanish.
+
+So Phase B's contract cannot be designed from an argument. The Kokoro
+precedent (4p) is the order: a spike behind the seam, measured, then the
+contract. This milestone is that spike. It builds ONE throwaway tool that
+rehearses the caller that exists — Aura's *read the current session*,
+answered from a stub the demo owns — because its answer is checkable,
+it needs no permission, and it is the shape of the first real tool.
+
+## 168a. The caller: Aura (Ryad, 2026-09-08)
+
+The runtime's first consumer, in its owner's words, paraphrased: *the
+person wakes up, or checks in at any time, and asks for THE
+recommendation — push, rest, or recover — built from their body data
+(readiness, heart, sleep, injuries), their calendar and the weather; a
+plan is generated from it, and the plan runs on the Watch. What the
+runtime must give Aura is speech-to-speech, on-device: to talk about the
+session, to update it, to change it.*
+
+Read as organs and tools:
+
+| Aura needs | the runtime has | the runtime lacks |
+|---|---|---|
+| voice in, voice out, on device | ear · mind · mouth · `AIRuntime` · memory | — |
+| the mind knows today's facts | the instruction is the app's text (D-027) — Aura can put the day's summary there **today**, at §58b's 0.68 ms/char | a way to *pull* facts on demand instead of pushing them all |
+| the mind can read the session | — | a **read tool** |
+| the mind can change the session | — | a **write tool**, and the confirmation policy the brief's §5 demands for it |
+| the recommendation and the plan | — and deliberately so | nothing: **Aura's own logic decides.** §60 showed this mind inventing a border; in a training app an invented readiness is an injury. The mind explains and negotiates; it is not the coach. |
+| the Watch runs the plan | — | out of scope: Aura ↔ Watch |
+
+So Phase B's first real capability is **Aura's session** — a read and a
+write — and this spike's throwaway tool rehearses the read (F-3 below).
+The write, the confirmation-as-a-spoken-turn, and push-versus-pull of
+the day's facts are Phase B's own forks, named in §172a and not ruled
+here.
+
+## 169. Scope
+
+1. **A tool call crosses the seam.** `ReplyUpdate` learns how a reply
+   asks for a tool and how the answer goes back (F-1 rules the shape).
+2. **Both minds make the same call.** Apple through its `Tool`; MLX
+   through `.toolCall` — one throwaway tool, one seam, two citizens.
+3. **The turn survives it.** A slow tool, a failing tool, and a barge
+   DURING the call — the brief's three, as coordinator tests with the
+   scripted generator, and the ticket doctrine applied to a call in flight.
+4. **The plain path is measured.** With no tool called, the added cost
+   on the felt pause must be under 10 ms on the phone (the brief's
+   criterion 8), and no audio-thread allocation.
+5. **The call's own cost is measured.** Prefill of the tool spec
+   (characters again — §58b's slope), the round trip, and the reply's
+   first word after the answer returns, on the phone.
+6. **INSTRUMENTS §64**, and a fork at the end: the contract's shape, ruled
+   on the numbers.
+
+## 170. Non-goals
+
+- **A capability or tool contract.** Phase B's contract is what this
+  spike informs; designing it here is the guess 4p refused.
+- **A real capability.** The clock is a throwaway. Timer, weather,
+  calendar come with an application's sentence, not before.
+- **Permissions.** Reading the clock needs none; the policy layer waits
+  for a tool that does.
+- **Tool calls from the scripted or echo minds** beyond what the tests
+  need.
+- **Any change to memory, the phraser, the mouths.**
+
+## 171. Acceptance criteria
+
+- **AC-221** — the seam carries a call: a scripted generator can emit a
+  tool request and receive the answer; the coordinator delivers both.
+- **AC-222** — the MLX mind asks the clock and speaks the time. The
+  `.toolCall` event is no longer dropped; the answer returns as a `.tool`
+  message; the reply continues.
+- **AC-223** — the Apple mind asks the clock and speaks the time, through
+  its own `Tool`, with no `ReplyUpdate` changes it did not need.
+- **AC-224** — a SLOW tool does not stall the turn machinery: the
+  coordinator stays responsive (a barge lands) while the call is pending.
+- **AC-225** — a FAILING tool ends as an honest turn, not a crash: the
+  mind is told, the reply says so, the next turn runs clean.
+- **AC-226** — a BARGE during a call: the call's result is discarded by
+  the ticket, never spoken, never remembered.
+- **AC-227** — the plain path (no tool) adds **< 10 ms** to the felt pause
+  on the phone, measured before/after in one sitting; no audio-thread
+  allocation (graph probe).
+- **AC-228** — the tool path is priced on the phone: spec prefill,
+  round trip, first word after the answer.
+- **AC-229** — INSTRUMENTS §64, and the closing fork presented, not
+  decided.
+- **AC-230** — 20× with every failing log kept, zero warnings, lint zero,
+  both demos build.
+
+### Test matrix
+
+| criterion | test |
+|---|---|
+| AC-221 | coordinator test, scripted generator emitting a call |
+| AC-222 | MLX live test (model-gated, skips honestly) |
+| AC-223 | Apple live test (OS-26-gated, skips honestly) |
+| AC-224 · 225 · 226 | coordinator tests, scripted tool, manual clock |
+| AC-227 | phone, one sitting; `graph-probe` |
+| AC-228 | phone; INSTRUMENTS §64 |
+| AC-229 | the doc and a HALT |
+| AC-230 | the usual |
+
+## 172. The forks
+
+**F-1 — HOW A CALL CROSSES THE SEAM.**
+*A:* two new `ReplyUpdate` cases — `.toolRequested(ToolRequest)` and,
+from the caller, `ReplyRun.answer(_:)` — the reply stream pauses on the
+request and resumes on the answer.
+*B:* the run executes tools ITSELF: `openReply(to:tools:)` hands the run
+closures, and the seam stays `.token/.finished/.failed`.
+*C:* a separate seam beside `ReplyRun` for tools.
+
+**Recommendation: B.** Apple's mind ALREADY works this way — the
+framework calls the tool inside the session — so A would force the
+first citizen to fake a pause it does not have, and the seam's promise
+"tokens then one terminal" stays exactly true. The run owns the loop it
+already runs. *Rejected: A* — a two-way stream turns every coordinator
+arm into a state machine about calls; *Rejected: C* — a second seam for
+a thing that is part of ONE reply.
+
+**F-2 — WHO OWNS THE TOOL TABLE.**
+*A:* the app hands tools to the generator at construction.
+*B:* the coordinator holds them and passes them per reply.
+**Recommendation: A.** Tools are policy (which the app grants — the
+brief's §5), and the coordinator must not learn a `switch` (§3's
+registration rule). *Rejected: B.*
+
+**F-3 — THE THROWAWAY TOOL.** *A:* the clock. *B:* a timer (the brief's
+suggestion). *C:* **Aura's session read** — "what is today's session?",
+answered from a stub the demo owns (a fixed session with a readiness
+verdict). **Recommendation: C** — checkable, no permission, no callback,
+and it is the exact shape of Phase B's first real tool, so the spike's
+numbers transfer instead of being re-measured on a different question.
+*Rejected: A* — checkable but it rehearses nobody's caller. *Rejected:
+B* — needs a callback path the spike should not invent.
+
+**F-4 — WHAT THE MLX RUN DOES WITH A CALL IT CANNOT MATCH** (a name no
+tool has). *A:* report `.failed`. *B:* answer the model with an error
+message and let it recover in words. **Recommendation: B, measured** —
+it is what Apple's framework does, and a spoken "I couldn't do that" is
+the honest outcome AC-225 wants.
+
+### 172a. Named for Phase B, not ruled here
+
+Three forks the Aura requirement opens, written down so the contract
+milestone starts from them:
+
+- **Push or pull.** Aura's day has many facts. Pushing them all into the
+  instruction costs §58b's 0.68 ms per character on *every* turn; pulling
+  them through tools costs a round trip only when the mind asks.
+  Likely answer: a one-line summary pushed, the rest pulled — measured.
+- **The write, and its confirmation.** "Make it shorter" changes a
+  training plan. The brief's §5 says default-deny for a model-initiated
+  write; in a voice app the confirmation is a *spoken turn*, which meets
+  the barge window and the ticket doctrine head-on.
+- **Who decides — ruled (D-101).** Aura's logic recommends and plans; the
+  mind explains and negotiates; **the user may write the plan they want,
+  and the responsibility is theirs**, with Aura's validator the only
+  thing that says no. The mind may explain and may offer when asked; it
+  may not act on its own initiative.
+
+### 172b. Raised by the caller's own document (D-101)
+
+Aura's requirements scope its first slice as text-in, text-out, no
+voice, one complete reply — blocked by seven generation requirements
+(G1–G8) this library does not yet meet. Whether this spike runs first, or
+the slice-1 contract does and the spike follows as 4w, is D-101's fork,
+for Ryad. The spec above stays signed either way.
+
+## 173. Definition of done (4v)
+
+One throwaway tool called by both real minds through one seam · the
+three survival tests green under the ticket doctrine · the plain path
+priced at under 10 ms on the phone · the call priced · INSTRUMENTS §64 ·
+the contract's fork presented on the numbers · 20× with evidence · zero
+warnings · lint zero · reviewed with every fix pushed before the PR is
+called ready · teach-back.
+
+# Milestone 4v — the mind's text contract (Aura's slice 1)
+
+> Written after §168–173. D-102 re-sequenced the two: section numbers
+> follow the order of writing, milestone letters the order of building.
+> The tool spike (§168–173) is 4w and its text is unchanged.
+
+## §174 — the caller, and the shape of the gap
+
+Aura's first slice is text in, text out, one complete reply: Aura's logic
+recommends, the mind proposes a session as JSON, Aura's validator
+disposes, and the person writes the plan they want (D-101). That slice
+is blocked by the left column below. Nothing on the voice path changes:
+the coordinator keeps calling `openReply(to:)` with defaults, and every
+existing test keeps its meaning.
+
+```
+today                                        Aura's slice 1 needs
+─────                                        ────────────────────
+init(model:, instructions:, maxTokens: 512)  instructions and budget PER CALL, ≥ 1024
+openReply(to: ReplyContext)                  the stream — or ONE WHOLE REPLY
+  ReplyContext { transcript, history }         + options
+  .token(String)                               .token(String)
+  .finished                                    .finished(StopReason)   ← why it ended
+  .failed(String)                              .failed(ReplyFailure)   ← countable
+temperature: the vendor's 0.6, hidden        temperature / seed chosen by the caller
+"installed" = a file exists                  installed = every file, every byte
+progress: Double                             bytes received / bytes expected
+unavailable: three strings, one of them      a typed verdict, computed from a
+  says "Simulator" on a real phone             device report a test can write by hand
+precondition on the mind/mouth pairing       a thrown, typed configuration error
+```
+
+The facts behind the right column, checked before this spec was written:
+
+- the MLX vendor already knows why a generation ended —
+  `GenerateCompletionInfo.stopReason` is `.stop` / `.length` /
+  `.cancelled` — and `MLXTokenSource` drops that event today
+  (`guard let id = event.token else { continue }`);
+- the vendor's sampler takes `temperature`, `topP`, `topK`,
+  `repetitionPenalty`; a seed is process-global (`MLXRandom.seed`);
+  > *Corrected 2026-09-09, as built.* The vendor resolved into this
+  > build also takes `GenerateParameters.seed` and builds its own
+  > `RandomState` from it **per generation**, so a seeded reply needs
+  > nothing global written — that is what the MLX mind does. Temperature
+  > 0 selects the vendor's argmax sampler, so "greedy" needs no second
+  > lever.
+- Apple's `GenerationOptions` takes `sampling` (`.greedy` or
+  `.random(top:seed:)`), `temperature`, `maximumResponseTokens`; its
+  `GenerationError` has eight typed cases (`exceededContextWindowSize`,
+  `assetsUnavailable`, `guardrailViolation`, `unsupportedLanguageOrLocale`,
+  `decodingFailure`, `rateLimited`, `concurrentRequests`, `refusal`);
+  > *Corrected 2026-09-09, as built.* Nine, not eight: `unsupportedGuide`
+  > is the ninth. It maps to `.engine(_)` — this library never sends a
+  > guide (§176: the mind returns text).
+- the caller's document (`AI_RUNTIME_REQUIREMENTS.md`) was **not** at its
+  path in Aura's `docs/` when this spec was drafted; the IDs below are
+  quoted from D-101's checked table, which was verified against it on
+  2026-09-08.
+
+## §175 — scope
+
+1. **Per-call options** — `GenerationOptions` on `ReplyContext` (F-1):
+   `instructions: String?`, `maxTokens: Int?`, `temperature: Float?`,
+   `seed: UInt64?`. `nil` means "the generator's own"; `.init()` is
+   today's behaviour. The initializer's default budget rises 512 → 1024
+   (F-6). Aura's G1, G2, G4.
+2. **A typed stop reason** — `.finished(StopReason)` (F-2): `.complete`
+   (the model ended its turn), `.tokenBudget` (the cap cut it),
+   `.unreported` (an engine that does not say), and — by D-104 —
+   `.refused` (the model declined, and said so aloud). Aura's G3.
+3. **Typed failures** — `.failed(ReplyFailure)` (F-3): `.contextWindowExceeded`,
+   `.unavailable(MindUnavailable)`, `.refused` (a guardrail or refusal),
+   `.unsupportedLanguage`, `.busy`, `.engine(String)` for the rest.
+   > *Amended 2026-09-09 by D-104 (F-7 = C).* `.refused` is NOT a
+   > failure. A refusal is how a reply ends: the mind speaks its refusal
+   > sentence and the stream ends `.finished(.refused)`, so `StopReason`
+   > gains that case and `ReplyFailure` loses it. The vendor's `refusal`
+   > and `guardrailViolation` both land there.
+
+   Every case is `Equatable`, so a caller can count. Aura's G5.
+4. **The whole reply** — `reply(to:) async throws -> Reply` (F-4), where
+   `Reply { text, stop }`; a failure throws the `ReplyFailure`;
+   cancellation of the calling task ends the run. Aura's "one complete
+   reply".
+5. **Readiness, typed and injectable** — `MindUnavailable` (F-5):
+   `.osBelowFloor(required:)`, `.deviceCannotRun(.simulator | .noGPU)`,
+   `.notEnoughMemory(needed:, available:)`, `.weightsAbsent`,
+   `.installIncomplete(files:)`;
+   > *Amended 2026-09-09, as built.* Four more, all facts the Apple mind
+   > already knew and could not say in this vocabulary:
+   > `.deviceCannotRun(.notEligible)`, `.featureDisabled(String)` (the
+   > string names the feature a person switches on in Settings),
+   > `.modelDownloading`, and `.unknown(String)` for a non-frozen
+   > vendor enum's future cases (AC-114's lesson). The "Simulator"
+   > wording rule covers them all: none may say that word. a pure function of a `DeviceReport`
+   value the library fills on a live device and a test writes by hand.
+   The demo's three refusal strings become renderings of the enum, and
+   the word "Simulator" is said only when the report says so. Aura's
+   F1–F3.
+   > *Amended 2026-09-09, as built.* The live reader is
+   > `DeviceReport.current(gpu:install:)` — two facts the core cannot
+   > know are handed in by the mind that does (whether its runtime has a
+   > GPU it can use; what its files look like). The report also carries
+   > `platform` so the floor renders as "iOS 18" / "macOS 15" from a
+   > pure function, and `Platform` knows both floors (`libraryFloor`,
+   > `appleMindFloor`). The verdict's order is fixed and written in its
+   > doc comment: OS, simulator, GPU, weights absent, install incomplete,
+   > memory — permanent facts first, the one that changes minute to
+   > minute last; an unknown headroom is never a refusal (D-092).
+6. **Size-checked install** — the download writes a manifest (file →
+   bytes, from the Hub's listing); `installState()` verifies existence
+   and size of every listed file: `.installed`, `.incomplete(files:)`,
+   `.absent`, and `.installedUnverified` for a pre-4v install with no
+   manifest (the phones in the field). `modelInstalled()` stays as the
+   Bool view. Aura's L1.
+   > *Amended 2026-09-09, as built.* Only a COMPLETE download writes the
+   > manifest, so a tree already on a phone before 4v stays
+   > `.installedUnverified` until it is fetched again — the library does
+   > not invent byte counts for files it did not download. The listing
+   > resolves symbolic links, because a model cache is a tree of them
+   > and the first live run refused a perfectly good install by
+   > measuring the link instead of the file.
+7. **Byte progress** — `InstallProgress { fraction, bytesReceived?,
+   bytesExpected? }`; the Hub path fills what its client gives, the
+   manifest fills `expected`, the fake fills all. Aura's L4.
+8. **No caller-reachable termination** — the two `precondition`s D-101
+   found reachable by a caller's configuration (the runtime's mind/mouth
+   pairing at `AIRuntime.swift:148`, the clockless coordinator's gate)
+   become thrown, typed `ConfigurationError`s; the internal ones stay —
+   they guard invariants no caller can reach. Aura's R8.
+   > *Amended 2026-09-09, during the build.* The adversarial review of
+   > the R8 piece showed with a probe that THREE more preconditions were
+   > reachable through `TurnCoordinator.Config` numbers — the ledger's
+   > `maxContextPieces`, the memory's `maxMemoryTurns` and
+   > `maxMemoryCharacters` (D-092: "the app owns the numbers") — passing
+   > `AIRuntime.init` and trapping inside `run()`. By this item's own
+   > rule they are caller-reachable, so they became thrown, typed
+   > errors too: `Config.validate()` at both coordinator doors, wrapped
+   > as `AIRuntimeConfigurationError.turns(_)` at the runtime's. Five
+   > doors, not two. The two that remain — the ring buffer's capacity
+   > and the test clock's direction — guard values no configuration
+   > carries.
+9. **The contract, written** — one section in `ARCHITECTURE.md` ("the
+   mind's text contract") that is the page Aura reads: the types, the
+   defaults, the failure table, the readiness table, and what is
+   measured.
+
+**Named, not built (honest list):** R5 — `retire()` is already the
+foreground-release hook; 4v documents it in the contract and builds
+nothing new. Everything else in Aura's lifecycle/admission/privacy lists
+(L2, L3, L5–L7, R1–R4, R6, R7, S1–S6 — S4's privacy manifest included)
+is **4x**. Tools are **4w** (§168–173).
+
+## §176 — non-goals
+
+- No voice change: the coordinator, the phraser, barge-in, memory — untouched.
+- No JSON schema, no guided decoding, no validation in the library: Aura's
+  validator disposes (D-101); the mind returns text.
+- No prompt authoring for Aura: the instructions are the caller's.
+- No second seam: `ReplyGenerating` stays the one protocol; the whole
+  reply is written over it, not beside it.
+- No new dependency (the tiered policy holds; the core stays at zero).
+- No retry, no queueing, no admission policy — 4x.
+
+## §177 — acceptance criteria
+
+- **AC-231** `ReplyContext` gains `options: GenerationOptions` with a
+  default of `.init()`; every existing call site compiles unchanged; the
+  coordinator passes the default. A scripted mind records the context it
+  was given and the test reads the options back.
+- **AC-232** Per-call instructions reach the model: the MLX source builds
+  its `.system` message from `options.instructions ?? self.instructions`
+  (test: a scripted token source records the messages it received); the
+  Apple mind builds its session by the same rule (compile-gated on
+  macOS 26, runtime-gated test).
+- **AC-233** Per-call budget: `options.maxTokens ?? default` is what
+  reaches `GenerateParameters.maxTokens` / `maximumResponseTokens`; the
+  default is 1024 (F-6); a test with a scripted source asserts the
+  parameter it was handed.
+- **AC-234** Sampling reaches the vendor: MLX `temperature` and, when a
+  seed is given, `GenerateParameters.seed` (corrected 2026-09-09: the
+  vendor builds a private `RandomState` from it for that generation, so
+  nothing process-global is written); Apple `.greedy` for
+  temperature 0, `.random(top:seed:)` when a seed is given. Unit-tested
+  with a scripted source that records its parameters; **measured** on
+  the Mac (INSTRUMENTS §65): temperature 0 twice → byte-identical text;
+  seed + 0.6 twice → byte-identical; free → different.
+- **AC-235** `.finished(StopReason)`: the MLX source reads the `.info`
+  event it drops today and maps `.stop → .complete`, `.length →
+  .tokenBudget`; Apple reports `.unreported`; a scripted source that
+  emits `.info(length)` yields `.finished(.tokenBudget)`.
+- **AC-236** `.failed(ReplyFailure)`: Apple's eight cases map to the
+  table in §175/3; MLX refuses a prompt longer than the model's context
+  window as `.contextWindowExceeded` **before** generation (the vendor
+  does not throw for it); anything the vendor throws is `.engine(String)`.
+  > *Sharpened 2026-09-09, as built.* The refusal is at `>=` the window,
+  > not `>`: a prompt that fills every position leaves no position for a
+  > reply, and the vendor would still call it a generation.
+  Every case round-trips `Equatable`; a test counts two `.busy` in a
+  scripted run.
+- **AC-237** `reply(to:)` drains the stream into `Reply { text, stop }`;
+  a `.failed` throws its `ReplyFailure`; cancelling the calling task ends
+  the run and throws `CancellationError` — the test cancels a scripted
+  run that would never finish on its own, and the wait is an event (the
+  house rule), never a poll.
+- **AC-238** Readiness is a pure function: table test over hand-written
+  `DeviceReport`s — OS below floor → `.osBelowFloor`; simulator →
+  `.deviceCannotRun(.simulator)`; no GPU on a device → `.deviceCannotRun(.noGPU)`;
+  headroom below need → `.notEnoughMemory(needed:available:)` with the
+  numbers; no weights → `.weightsAbsent`; a short file →
+  `.installIncomplete(files:)`. The rendering of a device's verdict never
+  contains the word "Simulator".
+- **AC-239** The install manifest: after `ensureModel`, `manifest.json`
+  lists every file with its byte count; `installState()` returns
+  `.installed` for a matching tree, `.incomplete(files:)` after one file
+  is truncated in the test's temporary directory, `.absent` for none, and
+  `.installedUnverified` for files with no manifest.
+- **AC-240** Progress carries bytes when they are known: the fake reports
+  `bytesReceived/bytesExpected`; the Hub path reports its client's
+  fraction plus the manifest's expected bytes; the demo shows MB when
+  known and a fraction when not.
+- **AC-241** `AIRuntime.init` throws `ConfigurationError.mindWithoutMouth`
+  / `.mouthWithoutMind` instead of trapping; the clockless coordinator's
+  gate throws likewise; a test asserts each throw. The remaining
+  `precondition`s are listed in the contract with the invariant each
+  guards.
+- **AC-242** The voice path is untouched: every pre-4v test passes with
+  no edit except the mechanical pattern change (`.finished` →
+  `.finished(_)`, `.failed(String)` → `.failed(.engine(_))`) in fakes;
+  the demo builds; one phone run's log shows the same turn behaviour as
+  §61's.
+- **AC-243** The contract is written in `ARCHITECTURE.md` and one
+  paragraph in `README.md`; the generated counts in `ARCHITECTURE.md`
+  are regenerated, not typed.
+- **AC-244** Measured (INSTRUMENTS §65): the determinism probe of AC-234
+  and the price of one whole reply on the phone — a ~600-character JSON
+  proposal at the 1024 budget: first token, total, MLX peak — the numbers
+  Aura's morning check-in will pay.
+
+## §178 — the forks (Ryad rules)
+
+**F-1 — where per-call options live.**
+- *A:* `ReplyContext.options: GenerationOptions` — one seam, one struct,
+  the coordinator passes the default. **Recommended.**
+- *B:* a second method `openReply(to:options:)` — two ways to do one
+  thing; every fake grows a second entry.
+- *C:* a second protocol for text callers — the "second seam" §176 rejects.
+
+**F-2 — the stop reason.**
+- *A:* `.finished(StopReason)` with `.unreported` for engines that do not
+  say. One terminal, one meaning; the cost is a mechanical pattern change
+  in six conformers and their tests. **Recommended.**
+- *B:* keep `.finished` and add a separate `.stopped(reason)` event —
+  two terminals, and every consumer must know which one is last.
+- *C:* the reason only on the whole-reply path — the stream stays blind,
+  and the voice path can never learn it was cut by the cap.
+
+**F-3 — typed failures.**
+- *A:* one `ReplyFailure` enum with `.engine(String)` as the honest
+  catch-all. **Recommended.**
+- *B:* keep `.failed(String)` and add a `code` — a string a caller still
+  cannot switch over.
+
+**F-4 — the whole reply.**
+- *A:* `reply(to:)` as a protocol extension over `openReply` — written
+  once, true for every mind and every fake. **Recommended.**
+- *B:* a `Proposing` protocol each mind implements — a second seam, and
+  two behaviours that can drift.
+
+**F-5 — readiness.**
+- *A:* a pure function over a `DeviceReport` value; the library ships
+  `DeviceReport.current()`. A value is written by hand in a test in three
+  lines. **Recommended.**
+- *B:* a `DeviceProbing` protocol the mind calls — injectable too, but a
+  protocol to fake where a value would do.
+
+**F-6 — the default budget.**
+- *A:* 1024 for everyone — the cap is a ceiling, not a target; voice
+  replies are short by instruction, and the barge-in ends a runaway.
+  **Recommended.**
+- *B:* 512 for voice, 1024 only when asked — two defaults to explain.
+
+**F-8 — does the MLX reply door claim memory? (raised by the MLX
+piece's second review, 2026-09-09. RULED A on 2026-09-09 — D-105.)** `MindUnavailable` carries
+`.notEnoughMemory(needed:available:)` and `MindReadiness` computes it,
+but nothing says WHO claims a number. The MLX builder made the reply
+door claim `weights × 1.5` (from the measured phone peaks, §58/§60),
+then had to exempt an already-resident model, because otherwise a mind
+that was loaded and answering could be refused for memory the headroom
+had already paid for. The review called the exemption untested and
+unasked-for, and the fix removed the claim entirely.
+- *A:* **no claim at the reply door** — what ships today, and what
+  AC-238 asks for: the enum and the pure verdict exist and are tested
+  over hand-written reports, but the MLX mind passes `memoryBytes: 0`,
+  so it is never refused for memory. A phone that cannot fit the model
+  finds out when the load fails, as it does today. **Recommended.**
+- *B:* claim at the LOAD door only — the load is what the memory
+  instruments measure, and a refusal there is honest; the cost is that
+  a caller learns late, after choosing the mind.
+- *C:* claim at the reply door, with a way out — a first load always
+  allowed, or the caller setting the need. The most protective and the
+  most machinery, and every extra lever is a thing to explain.
+**Ruled: A** (D-105). No mind claims memory; the enum case and the pure
+verdict stay, tested, for a milestone that measures the number instead
+of inferring it from a file size.
+
+**F-7 — what an Apple refusal IS (raised by the seam's review on
+2026-09-08, after F-1..F-6 were ruled. RULED C on 2026-09-09 — D-104).** Today, under D-057
+F-4 = A, the Apple mind SPEAKS a short refusal sentence and completes
+the turn — because silence makes a refusal look like a bug. §175/3
+lists `.refused` as a `ReplyFailure`, which is a turn that ends with
+nothing said. Both cannot be true at once.
+- *A:* keep D-057 — speak the refusal, end `.finished(.complete)`, and
+  delete `.refused` from `ReplyFailure`. A text caller cannot count
+  refusals.
+- *B:* `.failed(.refused)` — the list as written; reverses D-057 F-4 A
+  for voice: the person hears nothing.
+- *C:* a refusal is a way a reply ENDS — `StopReason.refused`. The mind
+  speaks its refusal sentence (voice keeps D-057), a text caller reads
+  `stop == .refused` and counts it, and `ReplyFailure.refused` goes.
+  Cost: one case moves from one enum to the other; the MLX mind never
+  reports it (Qwen has no refusal signal). **Recommended.**
+**Ruled: C** (D-104). The Apple mind speaks its refusal and the reply
+ends `.finished(.refused)`; `ReplyFailure.refused` is deleted; the MLX
+mind never reports it.
+
+## §179 — definition of done
+
+The six forks ruled and logged · red → green per AC with scripted minds
+and hand-written device reports · the MLX `.info` event read, not
+dropped · the Apple mind's options and errors mapped under the
+runtime gate · the manifest written on a real download and verified on
+a truncated tree · the two preconditions turned into throws · INSTRUMENTS
+§65 with the determinism probe and the whole-reply price on the phone ·
+one phone log for AC-242 · the contract page in `ARCHITECTURE.md` · 20×
+with every failing log kept · zero warnings · lint zero · every review
+fix pushed before the PR is called ready · teach-back.

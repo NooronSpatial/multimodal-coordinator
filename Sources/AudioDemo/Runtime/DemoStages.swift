@@ -63,7 +63,7 @@ private final class EchoRun: ReplyRun, @unchecked Sendable {
                 guard !Task.isCancelled else { out.finish(); return }   // conformant:
                 out.yield(.token(word))                                 // no terminal
             }
-            out.yield(.finished)
+            out.yield(.finished(.complete))   // the echo said all it had
             out.finish()
         } }
     }

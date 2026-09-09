@@ -24,9 +24,21 @@ protocol ReplyTokenStreaming: Sendable {
     /// Why a generation cannot START, or nil. Asked at the door, every
     /// time: weights can finish downloading between two turns, so a
     /// cached refusal would freeze a temporary state into a verdict.
-    var unavailable: (any Error)? { get }
-    /// Opens one generation and returns its tokens, in birth order.
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error>
+    /// TYPED since 4v (AC-238): the real source answers with
+    /// `.unavailable(verdict)`, and the door throws exactly what it said.
+    var unavailable: ReplyFailure? { get }
+    /// Opens one generation and returns its tokens, in birth order, and
+    /// — when the vendor says — why it stopped.
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error>
+}
+
+/// What the token seam carries (4v, D-103 F-2 = A). The vendor already
+/// knows why a generation ended (`GenerateCompletionInfo.stopReason`) and
+/// the source used to DROP that event; this enum is the room for it. A
+/// stream that ends without `.stopped` means the source could not say.
+enum TokenEvent: Sendable, Equatable {
+    case token(String)
+    case stopped(StopReason)
 }
 
 // MARK: - the generator
@@ -45,33 +57,13 @@ public struct MLXReplyGenerator: ReplyGenerating {
     }
 }
 
-/// Why this mind cannot answer right now.
-///
-/// Separate sentences on purpose, the AC-110 lesson: a person whose
-/// device cannot host the runtime needs different words from one whose
-/// weights are simply not on disk yet.
-public enum MLXUnavailable: Error, Sendable, Equatable, CustomStringConvertible {
-    /// The weights are not installed. Recoverable — and note that
-    /// "installed" means OFFLINE-CAPABLE (D-062 F-4 = A, Whisper's rule).
-    case weightsNotInstalled(String)
-    /// The platform cannot host MLX at all. D-061/INSTRUMENTS §24
-    /// STAGE 3: the iOS Simulator asks Metal for a Shared-storage heap
-    /// and the driver requires Private. No flag changes it.
-    case platformCannotRunMLX
-    case unknown(String)
-
-    public var description: String {
-        switch self {
-        case .weightsNotInstalled(let name):
-            "the local model \(name) is not installed yet."
-        case .platformCannotRunMLX:
-            "this platform cannot run MLX — the simulator's Metal driver "
-            + "refuses the shared-memory heap MLX requires."
-        case .unknown(let why):
-            "the local model is unavailable: \(why)"
-        }
-    }
-}
+// `MLXUnavailable` lived here until 4v — three sentences of this mind's
+// own, one of which told a real phone it was the Simulator (D-101's
+// F1). Its cases are `MindUnavailable`'s now, produced by the pure
+// verdict over a `DeviceReport` (AC-238), and the door throws them as
+// `ReplyFailure.unavailable`. The AC-110 lesson it recorded still holds
+// and is kept there: a person whose device cannot host the runtime
+// needs different words from one whose weights are not on disk yet.
 
 // MARK: - one reply
 
@@ -104,8 +96,26 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await token in source.tokens(for: context) {
+                // `.unreported` until the source says otherwise — a stream
+                // that ends without `.stopped` is an engine that could
+                // not say (AC-235).
+                var stop = StopReason.unreported
+                for try await event in source.tokens(for: context) {
                     guard let self else { return }
+                    guard case .token(let token) = event else {
+                        // `.stopped` is a TERMINAL on this seam too, the
+                        // same word it is one seam up: the FIRST reason is
+                        // the reason, and a token after it is the source
+                        // breaking its contract. The loop ends HERE, so
+                        // nothing later is admitted — the 4v review found
+                        // this loop still listening after the stop (a late
+                        // token was spoken; a second reason overwrote the
+                        // first). The only real source yields one
+                        // `.stopped` last; this pins the contract before a
+                        // second source can drift from it (AC-235).
+                        if case .stopped(let reason) = event { stop = reason }
+                        break
+                    }
                     // Two guards keep a dead run silent, the same pair
                     // `AppleReplyRun` documents: this flag re-read, AND
                     // the stream having been finished by `cancel()` — a
@@ -125,9 +135,18 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     }
                     self.out.yield(.token(admitted))
                 }
-                self?.report(.finished)
+                self?.report(.finished(stop))
+            } catch let failure as ReplyFailure {
+                // AC-236: a TYPED failure the source threw on purpose —
+                // `.contextWindowExceeded`, refused before generation —
+                // keeps its case. Wrapping it in `.engine(…)` would turn
+                // a countable case back into prose.
+                self?.report(.failed(failure))
             } catch {
-                self?.report(.failed("local generation failed: \(error)"))
+                // The honest catch-all: anything the vendor throws is
+                // `.engine(String)` — the words for a screen, the case for
+                // a switch (F-3 = A).
+                self?.report(.failed(.engine("local generation failed: \(error)")))
             }
         }
         work.withLock { $0 = task }

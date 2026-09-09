@@ -24,27 +24,48 @@ func runFetch(_ arguments: [String]) async {
     let model = LocalMindModel(repoID: repo, in: into)
     print("repo:      \(repo)")
     print("target:    \(model.weights.path)")
-    print("installed before: \(model.modelInstalled())")
+    print("installed before: \(model.modelInstalled())  state: \(model.installState())")
 
     let clock = ContinuousClock()
     let start = clock.now
     let ticks = Mutex(0)
     do {
-        try await model.download { fraction in
+        // BYTES, not just a fraction (4v, AC-240): this is the entry point
+        // the library's own callers should use, and the one SPEC §179 asks
+        // for evidence of — "the manifest written on a real download". The
+        // pre-4v `download(progress:)` is still there for the demo, and
+        // printing the byte fields here is what makes a real run say
+        // whether the wiring carried them.
+        try await model.download(reporting: { progress in
             let count = ticks.withLock { $0 += 1; return $0 }
             if count <= 5 || count % 25 == 0 {
-                print(String(format: "  progress callback #%d: %.1f%%", count, fraction * 100))
+                let bytes = progress.bytesExpected.map {
+                    " (\(progress.bytesReceived ?? 0) of \($0) bytes expected)"
+                } ?? " (no expected total: a first install)"
+                print(String(format: "  progress callback #%d: %.1f%%",
+                             count, progress.fraction * 100) + bytes)
             }
-        }
+        })
     } catch {
         print("FAILED after \(clock.now - start): \(error)")
         exit(1)
     }
     print("callbacks:  \(ticks.withLock { $0 })")
     print("took:       \(start.duration(to: clock.now))")
-    print("installed after: \(model.modelInstalled())")
+    print("installed after: \(model.modelInstalled())  state: \(model.installState())")
     if let listed = try? FileManager.default.contentsOfDirectory(atPath: model.weights.path) {
         print("files:      \(listed.sorted().joined(separator: ", "))")
+    }
+    // AC-239's central promise, printed: a COMPLETE download writes
+    // `manifest.json`, every file and every byte. Read from disk by name
+    // — the type that writes it is internal to the library, and an
+    // instrument should read what a person would read.
+    let manifest = model.weights.appending(path: "manifest.json")
+    if let text = try? String(contentsOf: manifest, encoding: .utf8) {
+        print("manifest:   \(manifest.path)")
+        print(text)
+    } else {
+        print("manifest:   NONE WRITTEN")
     }
     exit(0)
 }

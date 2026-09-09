@@ -143,6 +143,11 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// The measuring coordinator (R2): instants captured at the semantic
     /// boundaries, durations to the injected reporter. Deterministic under
     /// a ManualClock; a wall-clock demo reuses the identical code path.
+    ///
+    /// Throws `TurnCoordinatorConfigurationError` for a `Config` number
+    /// that cannot be honoured (AC-241, `Config.validate()`): the bounds
+    /// used to trap inside the ledger's and the memory's initializers,
+    /// and an app reads those numbers from its settings.
     public init(
         replyGenerator: any ReplyGenerating,
         synthesizer: any SpeechSynthesizing,
@@ -150,34 +155,51 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         clock: C,
         latencyReporter: any LatencyReporter,
         diagnostics: PipelineDiagnostics? = nil
+    ) throws(TurnCoordinatorConfigurationError) {
+        try config.validate()
+        self.init(checked: config, replyGenerator: replyGenerator, synthesizer: synthesizer,
+                  clock: clock, latencyReporter: latencyReporter, diagnostics: diagnostics)
+    }
+
+    /// The everyday coordinator: fully clockless — no reporter, no clock,
+    /// not even a clock READ. Measurement is opt-in, never ambient.
+    ///
+    /// Throws `TurnCoordinatorConfigurationError.replyGateNeedsAClock` for
+    /// a non-zero gate (AC-241): a reply gate needs time — use the clocked
+    /// initializer. This was a `precondition` until 4v; the words are the
+    /// same, the caller now gets to read them. The bounds are checked
+    /// after the gate, by the same `Config.validate()` as the clocked door.
+    public init(
+        replyGenerator: any ReplyGenerating,
+        synthesizer: any SpeechSynthesizing,
+        config: Config = Config(),
+        diagnostics: PipelineDiagnostics? = nil
+    ) throws(TurnCoordinatorConfigurationError) where C == ContinuousClock {
+        guard config.replyGate == .zero else { throw .replyGateNeedsAClock }
+        try config.validate()
+        self.init(checked: config, replyGenerator: replyGenerator, synthesizer: synthesizer,
+                  clock: nil, latencyReporter: nil, diagnostics: diagnostics)
+    }
+
+    /// The one body both public doors share, reached only through a
+    /// `Config` that `validate()` has passed. `AIRuntime.run()` comes in
+    /// here too: its `init` validated the same value, and a `let` struct
+    /// cannot change between the two, so there is no error left to throw
+    /// and no trap to hide. Internal on purpose — a door with no check is
+    /// not a door for callers.
+    init(
+        checked config: Config,
+        replyGenerator: any ReplyGenerating,
+        synthesizer: any SpeechSynthesizing,
+        clock: C? = nil,
+        latencyReporter: (any LatencyReporter)? = nil,
+        diagnostics: PipelineDiagnostics? = nil
     ) {
         self.replyGenerator = replyGenerator
         self.synthesizer = synthesizer
         self.config = config
         self.clock = clock
         self.latencyReporter = latencyReporter
-        self.diagnostics = diagnostics
-        self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
-        self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)
-        self.memory = ConversationMemory(maxTurns: config.maxMemoryTurns,
-                                         maxCharacters: config.maxMemoryCharacters)
-    }
-
-    /// The everyday coordinator: fully clockless — no reporter, no clock,
-    /// not even a clock READ. Measurement is opt-in, never ambient.
-    public init(
-        replyGenerator: any ReplyGenerating,
-        synthesizer: any SpeechSynthesizing,
-        config: Config = Config(),
-        diagnostics: PipelineDiagnostics? = nil
-    ) where C == ContinuousClock {
-        precondition(config.replyGate == .zero,
-                     "a reply gate needs time — use the clocked initializer")
-        self.replyGenerator = replyGenerator
-        self.synthesizer = synthesizer
-        self.config = config
-        self.clock = nil
-        self.latencyReporter = nil
         self.diagnostics = diagnostics
         self.broadcast = Broadcast(bufferCapacity: config.listenerBufferCapacity)
         self.ledger = TranscriptLedger(maxPieces: config.maxContextPieces)

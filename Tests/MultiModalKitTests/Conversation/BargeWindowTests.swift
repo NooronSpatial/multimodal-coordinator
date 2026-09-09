@@ -43,8 +43,8 @@ struct BargeWindowTests {
         endedAt: Int?,
         trailingSegments: [Int] = [],
         window: Duration
-    ) async -> Bool {
-        let bench = TurnCoordinatorTests.Bench<ContinuousClock>(
+    ) async throws -> Bool {
+        let bench = try TurnCoordinatorTests.Bench<ContinuousClock>(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true),
                                                       .manual()]),
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true),
@@ -100,10 +100,10 @@ struct BargeWindowTests {
     // MARK: the two field shapes, from §43's own numbers
 
     @Test("a 480 ms burst — the echo's exact fingerprint — does NOT barge")
-    func theEchoDoesNotBarge() async {
+    func theEchoDoesNotBarge() async throws {
         // Config 4 of the ear test logged this twice, to the millisecond:
         // peak 0.043 · 480 ms, then peak 0.043 · 480 ms.
-        let barged = await bargedAway(onsetFrames: Self.ms(1000),
+        let barged = try await bargedAway(onsetFrames: Self.ms(1000),
                                       thenSegments: [Self.ms(1200), Self.ms(1400)],
                                       endedAt: Self.ms(1480),
                                       window: .milliseconds(600))
@@ -111,8 +111,8 @@ struct BargeWindowTests {
     }
 
     @Test("a 1160 ms utterance — the shortest real one ever logged — DOES barge")
-    func realSpeechStillBarges() async {
-        let barged = await bargedAway(
+    func realSpeechStillBarges() async throws {
+        let barged = try await bargedAway(
             onsetFrames: Self.ms(1000),
             thenSegments: [Self.ms(1200), Self.ms(1400), Self.ms(1700), Self.ms(2100)],
             endedAt: nil,
@@ -129,8 +129,8 @@ struct BargeWindowTests {
     /// which may belong to a completely different moment — sails past the
     /// stale deadline and barges instantly, with no window at all.
     @Test("a leak that ended cannot barge later on somebody else's audio")
-    func endedCandidateDoesNotLingering() async {
-        let barged = await bargedAway(
+    func endedCandidateDoesNotLingering() async throws {
+        let barged = try await bargedAway(
             onsetFrames: Self.ms(1000),
             thenSegments: [Self.ms(1200)],
             endedAt: Self.ms(1480),
@@ -142,8 +142,8 @@ struct BargeWindowTests {
     // MARK: the edges of the ruled number
 
     @Test("just under the window does not barge")
-    func justUnderDoesNotBarge() async {
-        let barged = await bargedAway(onsetFrames: 0,
+    func justUnderDoesNotBarge() async throws {
+        let barged = try await bargedAway(onsetFrames: 0,
                                       thenSegments: [Self.ms(599)],
                                       endedAt: Self.ms(599),
                                       window: .milliseconds(600))
@@ -151,8 +151,8 @@ struct BargeWindowTests {
     }
 
     @Test("just over the window barges — it opens, it does not merely delay")
-    func justOverBarges() async {
-        let barged = await bargedAway(onsetFrames: 0,
+    func justOverBarges() async throws {
+        let barged = try await bargedAway(onsetFrames: 0,
                                       thenSegments: [Self.ms(601)],
                                       endedAt: nil,
                                       window: .milliseconds(600))
@@ -160,8 +160,8 @@ struct BargeWindowTests {
     }
 
     @Test("zero window is the old behaviour — the first onset kills the reply")
-    func zeroWindowBargesImmediately() async {
-        let barged = await bargedAway(onsetFrames: 0,
+    func zeroWindowBargesImmediately() async throws {
+        let barged = try await bargedAway(onsetFrames: 0,
                                       thenSegments: [],
                                       endedAt: nil,
                                       window: .zero)

@@ -82,21 +82,32 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         continuation?.yield(.token(token))
     }
 
-    public func finish(reply index: Int) {
+    /// Ends the reply well. A script that just says "finished" means the
+    /// model ended its turn (`.complete`); a text test can script the
+    /// other reasons (4v, AC-237).
+    public func finish(reply index: Int, stop: StopReason = .complete) {
         let continuation = state.withLock { state in
             (index < state.records.count && !state.records[index].cancelled)
                 ? state.continuations.removeValue(forKey: index) : nil
         }
-        continuation?.yield(.finished)
+        continuation?.yield(.finished(stop))
         continuation?.finish()
     }
 
+    /// The pre-4v hand, kept: a string reason is the engine's own words,
+    /// and the coordinator carries them verbatim (AC-242).
     public func fail(reply index: Int, reason: String) {
+        fail(reply: index, with: .engine(reason))
+    }
+
+    /// The typed hand (4v, AC-236/AC-237): script exactly the failure a
+    /// counting caller should see.
+    public func fail(reply index: Int, with failure: ReplyFailure) {
         let continuation = state.withLock { state in
             (index < state.records.count && !state.records[index].cancelled)
                 ? state.continuations.removeValue(forKey: index) : nil
         }
-        continuation?.yield(.failed(reason))
+        continuation?.yield(.failed(failure))
         continuation?.finish()
     }
 
@@ -109,7 +120,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     }
 
     public func forceFinished(reply index: Int) {
-        state.withLock { $0.continuations[index] }?.yield(.finished)
+        state.withLock { $0.continuations[index] }?.yield(.finished(.complete))
     }
 
     // MARK: - ReplyGenerating

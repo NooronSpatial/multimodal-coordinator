@@ -35,8 +35,8 @@ extension TurnCoordinatorTests {
     /// whose words have been glued onto `transcript`, fails here and
     /// passes every other test in this file.
     @Test("THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)")
-    func theSecondTurnSeesTheFirst() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+    func theSecondTurnSeesTheFirst() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -62,12 +62,35 @@ extension TurnCoordinatorTests {
         #expect(second?.history.first?.interrupted == false)
     }
 
+    /// AC-231 (4v). The coordinator asks nothing special of the mind: the
+    /// options it passes are the defaults, so the voice path IS the pre-4v
+    /// path — `GenerationOptions()` means "the generator's own" on every
+    /// lever (D-103 F-1 = A). A coordinator that started tuning the mind
+    /// would show up here first.
+    @Test("the coordinator passes the default options (AC-231)")
+    func theCoordinatorPassesTheDefaultOptions() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let listener = await bench.coordinator.listen()
+
+        await withTaskGroup(of: Void.self) { group in
+            bench.start(in: &group, listener: listener)
+            await completeOneTurn(bench, utterance: 0,
+                                  saying: "hello there", answering: "Hello.", at: 0)
+            bench.finishInputs()
+            await bench.coordinator.stop()
+        }
+
+        let record = bench.generator.record(ofReply: 0)
+        #expect(record?.context.options == GenerationOptions(),
+                "every lever nil — the generator's own instructions, budget and sampling")
+    }
+
     /// AC-195. One event, both effects: the arm that forgets is the arm
     /// that remembers. A handover split across two places is a handover
     /// with a window in it where the words are in neither.
     @Test("completion forgets and remembers in the same step (AC-195)")
-    func completionForgetsAndRemembersTogether() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func completionForgetsAndRemembersTogether() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -95,8 +118,8 @@ extension TurnCoordinatorTests {
     /// once as history and once inside the new transcript, and answer it
     /// twice.
     @Test("a failed turn is never remembered, and keeps its words (AC-194)")
-    func aFailedTurnIsNotRemembered() async {
-        let bench = Bench(
+    func aFailedTurnIsNotRemembered() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.failOnOpen("no model"), .manual()]),
             synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
@@ -132,8 +155,8 @@ extension TurnCoordinatorTests {
     /// "the ledger forgets exactly what the memory took", and this is the
     /// case that tells the two apart.
     @Test("a barge before the first token loses nothing (F-5 = A)")
-    func aBargeBeforeTheFirstTokenLosesNothing() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+    func aBargeBeforeTheFirstTokenLosesNothing() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -165,8 +188,8 @@ extension TurnCoordinatorTests {
     /// the thought WAS answered (D-040 F-2's own reading of this arm), and
     /// the memory simply has nothing to hold.
     @Test("a reply of no tokens is answered, and not remembered")
-    func aSilentReplyIsNotRemembered() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func aSilentReplyIsNotRemembered() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -190,8 +213,8 @@ extension TurnCoordinatorTests {
     /// F-4 = A. One `start()`…`stop()` is one conversation. The boundary a
     /// person can SEE is the only kind they can trust.
     @Test("stop() ends the conversation's memory (F-4 = A)")
-    func stopEndsTheMemory() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func stopEndsTheMemory() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -222,8 +245,8 @@ extension TurnCoordinatorTests {
     /// report instead: backgrounding while LISTENING calls `stop()`, and
     /// F-4 = A ends the conversation with the session.
     @Test("an interruption keeps the conversation and drops the thought (AC-196)")
-    func anInterruptionKeepsTheConversation() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+    func anInterruptionKeepsTheConversation() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -256,8 +279,8 @@ extension TurnCoordinatorTests {
     /// The app's earlier boundary, and the line it must not cross: forget
     /// the conversation, never the sentence the person is still saying.
     @Test("clearMemory() forgets the past and leaves the thought alone")
-    func clearingMemoryLeavesTheThoughtAlone() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+    func clearingMemoryLeavesTheThoughtAlone() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in

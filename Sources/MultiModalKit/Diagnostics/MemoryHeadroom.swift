@@ -54,6 +54,19 @@ public enum MemoryHeadroom: Sendable, Equatable {
         }
     }
 
+    /// Bytes remaining, or nil when there is no number to give — the same
+    /// rule as `megabytes`, unrounded, for a caller that computes rather
+    /// than prints (the readiness verdict, AC-238, compares it to a
+    /// mind's need in bytes; rounding to MB first would refuse a device
+    /// that fits by a few hundred kilobytes).
+    public var bytes: Int? {
+        switch self {
+        case .bytes(let bytes): bytes
+        case .exhausted: 0
+        case .unavailable: nil
+        }
+    }
+
     /// True only when the instrument is switched ON — the D-054 rule.
     public var isMeasuring: Bool {
         if case .unavailable = self { return false }

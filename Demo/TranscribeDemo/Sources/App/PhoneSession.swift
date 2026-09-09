@@ -165,7 +165,7 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
                 case .token(let token):
                     if first == nil { first = start.duration(to: clock.now) }
                     text += token
-                case .failed(let why): failure = why; sawTerminal = true
+                case .failed(let why): failure = why.description; sawTerminal = true
                 case .finished: sawTerminal = true
                 }
                 out.yield(update)
@@ -241,7 +241,7 @@ private final class PhoneEchoRun: ReplyRun, @unchecked Sendable {
                 guard !Task.isCancelled else { out.finish(); return }   // conformant:
                 out.yield(.token(word))                                 // no terminal
             }
-            out.yield(.finished)
+            out.yield(.finished(.complete))   // the echo said all it had
             out.finish()
         } }
     }

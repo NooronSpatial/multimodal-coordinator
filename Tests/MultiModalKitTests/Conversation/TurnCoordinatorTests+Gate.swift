@@ -23,10 +23,10 @@ extension TurnCoordinatorTests {
     // No test here waits for "enough time" or "enough yields".
 
     @Test("The gate holds the generator shut, then expiry opens thinking at the exact instant")
-    func gateExpiryOpensThinkingAtTheExactInstant() async {
+    func gateExpiryOpensThinkingAtTheExactInstant() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter,
                           config: .init(replyGate: .milliseconds(500)))
         let listener = await bench.coordinator.listen()
@@ -68,10 +68,10 @@ extension TurnCoordinatorTests {
     }
 
     @Test("An onset during the gate kills the pending reply silently; the next final gates again")
-    func onsetDuringGateKillsThePendingReplySilently() async {
+    func onsetDuringGateKillsThePendingReplySilently() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter,
                           config: .init(replyGate: .milliseconds(500)))
         let listener = await bench.coordinator.listen()
@@ -121,10 +121,10 @@ extension TurnCoordinatorTests {
     }
 
     @Test("An onset one tick before expiry wins the race")
-    func onsetOneTickBeforeExpiryWins() async {
+    func onsetOneTickBeforeExpiryWins() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter,
                           config: .init(replyGate: .milliseconds(500)))
         let listener = await bench.coordinator.listen()
@@ -159,10 +159,10 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A stale final during the gate is dropped at the door; the armed reply survives it")
-    func staleFinalDuringGateIsDroppedAndTheArmedReplySurvives() async {
+    func staleFinalDuringGateIsDroppedAndTheArmedReplySurvives() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter,
                           config: .init(replyGate: .milliseconds(500)))
         let listener = await bench.coordinator.listen()
@@ -217,10 +217,10 @@ extension TurnCoordinatorTests {
     }
 
     @Test("stop() during the gate: clean end, no generator, no sleeping child left behind")
-    func stopDuringTheGateEndsClean() async {
+    func stopDuringTheGateEndsClean() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter,
                           config: .init(replyGate: .milliseconds(500)))
         let listener = await bench.coordinator.listen()

@@ -1,4 +1,13 @@
 import TTSKit
+// SCOPED, since 4v: `MultiModalKit.GenerationOptions` — the mind's
+// per-call levers (D-103 F-1) — shares this name, and a type imported in
+// any file of this module is visible in every file of it. A scoped import
+// shadows the other module's type here; module-qualifying would not do,
+// because `TTSKit` is also the vendor's TYPE, so `TTSKit.GenerationOptions`
+// names a member it does not have. The linter reads a scoped import as
+// a duplicate of the module import; it is the opposite — a narrowing.
+// swiftlint:disable:next duplicate_imports
+import struct TTSKit.GenerationOptions
 
 /// THE REAL DECODER — and the only place TTSKit's decode API is named
 /// (AC-109, D-053 F-6).
@@ -31,7 +40,7 @@ struct TTSKitDecoder: TTSDecoding {
     func decode(_ text: String,
                 temperature: Float?,
                 onStep: @escaping @Sendable ([Float]) -> Bool) async throws {
-        var options = GenerationOptions()
+        var options = GenerationOptions()   // the vendor's — see the import
         // NOT A TUNING KNOB - A CORRECTNESS PIN, and TTSKit proves it
         // by doing the same thing in its own `play()`.
         //

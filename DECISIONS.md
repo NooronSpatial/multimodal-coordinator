@@ -4448,3 +4448,185 @@ Nothing merged is undone. The language setting, the Whisper hint, the
 normaliser, the phraser's marks, the picker and the probe all stay on
 `main`, working. The debts listed above are debts with names, not
 features quietly dropped.
+
+## D-101 — 4v signed, the user disposes, and a fork raised by the caller's own document (Milestone 4v)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("signed off, I agree with
+your recommendation, but I want to give the user the ability to write the
+plan he wants — he takes his responsibility at the end") · **Rulings:
+F-1 = B, F-2 = A, F-3 = C, F-4 = B**, and one of his own:
+
+### The user disposes
+
+Aura's logic recommends and generates the plan; the runtime's mind
+explains and negotiates; **the person may write the plan they want, and
+the responsibility is theirs.** §172a's "who decides" is no longer a
+fork: the answer is the user, with Aura's validator as the only thing
+that says no. *Rejected by this:* a mind that may propose a change on its
+own initiative — it may explain, it may offer when asked, it may not act.
+
+### The fork the caller's document raises, not ruled here
+
+`Aura/docs/AI_RUNTIME_REQUIREMENTS.md` (Ryad, 2026-09-08) scopes Aura's
+first slice as **text-in, text-out, no voice, one complete reply** — the
+mind proposes a session as JSON, Aura's Swift validator disposes — and
+names seven generation requirements that *block* that slice. Checked
+against the library, one grep per claim, they hold:
+
+| Aura's | claim | library today |
+|---|---|---|
+| G1 | instructions fixed at init | `let instructions` on both minds — true |
+| G2 | token budget 512, fixed at init | `maxTokens: Int = 512` in the initializer — true |
+| G3 | no typed stop reason | `.finished` carries nothing — true |
+| G4 | sampling not passed through | `GenerateParameters(maxTokens:)` only; the vendor takes `temperature`, `topP` — true |
+| G5 | failures are a string | `.failed(String)` — true |
+| F1 | three unavailability cases, one naming the Simulator | true |
+| L1 | "installed" is existence, not size | the mind checks `fileExists` and one `.safetensors` — true (the Kokoro mouth counts bytes; the mind does not) |
+| L4 | progress is a bare fraction | `(Double) -> Void` — true |
+| R8 | entry points can terminate | seven `precondition`s, no `fatalError`; two are reachable by a caller's configuration (the clockless coordinator's gate, the runtime's mind/mouth pairing) — half true |
+| S4 | no privacy manifest | zero — true |
+| R5 | no foreground hook in the library | the demo has one, the library none — true |
+
+**The tool spike signed today (4v) serves Aura's voice slice, which has
+no date. The slice that has one is blocked by G1–G8.** So the fork:
+
+*A:* build 4v as signed — the tool spike first.
+*B:* re-target the next milestone to **Aura's slice-1 contract** — per-call
+instructions and token budget, a typed stop reason, deterministic
+sampling, typed failures, a whole-reply entry point, the typed and
+injectable unavailability verdicts (F1–F3), size-checked installs (L1),
+byte progress (L4), and the cheap resource hooks (R5, R8) — and let the
+tool spike follow as 4w.
+
+**Recommendation: B.** The brief's R3 is "name the caller"; the caller
+has named itself and what blocks it. A spike for a slice with no date,
+built before the contract for the slice with one, is the ordering the
+brief itself warns against. Ryad rules; the 4v spec stays signed either
+way, and nothing in it is wasted — it moves, it is not thrown away.
+
+## D-102 — the fork of D-101 ruled B by delegation: the contract before the spike (Milestone 4v / 4w)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad, by delegation ("Okay. I
+understand. And it's fine. Do whatever you think is correct and has to
+be done first") after the recommendation was explained in plain words:
+*text first because Aura ships text first — not instead of voice.*
+
+**Ruling:** **B.** The next milestone is **4v — the mind's text contract
+(Aura's slice 1)**, SPEC §174–179. The tool spike signed in D-101 keeps
+every word of its spec (§168–173) and becomes **4w**; nothing is thrown
+away, it moves. The branch `milestone/4v-tool-spike` is renamed
+`milestone/4v-mind-contract` — the same two commits, no history
+rewritten.
+
+**Rejected — A, the spike first:** it serves the voice slice, which has
+no date, while the slice with a date is blocked by G1–G5; building it
+first would be the ordering the runtime brief itself warns against
+(R3: name the caller — the caller has named itself).
+
+**What delegation means here, so it is not misread later:** the fork was
+presented with two options and one recommendation, as the method
+requires; Ryad chose to adopt the recommendation rather than to
+overrule it. That is a ruling, and it is his — the teach-back for 4v
+will ask him to defend B without notes.
+
+**What 4v is not:** not a second seam, not a JSON validator, not Aura's
+prompt, not the lifecycle/admission/privacy lists (those are 4x), not
+tools (4w). The section-number / milestone-letter mismatch (§168–173 =
+4w, §174–179 = 4v) is deliberate and explained at the head of §174.
+
+## D-103 — 4v signed: the contract's six forks, all ruled as recommended (Milestone 4v)
+
+**Date:** 2026-09-08 · **Decided by:** Ryad ("signed off and accept
+recommendations") · **Rulings:** F-1 = A, F-2 = A, F-3 = A, F-4 = A,
+F-5 = A, F-6 = A (SPEC §178).
+
+- **F-1 A** — `ReplyContext.options: GenerationOptions`. *Rejected:* a
+  second `openReply(to:options:)` (two ways to do one thing) and a second
+  protocol for text callers (the second seam §176 forbids).
+- **F-2 A** — `.finished(StopReason)` with `.unreported` for an engine
+  that cannot say. *Rejected:* a separate `.stopped` event (two terminals)
+  and a reason only on the whole-reply path (the stream stays blind).
+- **F-3 A** — one `ReplyFailure` enum with `.engine(String)` as the
+  honest catch-all. *Rejected:* keeping the string and adding a code.
+- **F-4 A** — `reply(to:)` as a protocol extension over `openReply`,
+  written once for every mind and every fake. *Rejected:* a `Proposing`
+  protocol per mind (two behaviours that can drift).
+- **F-5 A** — readiness as a pure function over a `DeviceReport` value.
+  *Rejected:* a `DeviceProbing` protocol (a protocol to fake where a
+  value would do).
+- **F-6 A** — the default budget is 1024 for everyone. *Rejected:* 512
+  for voice / 1024 for text (two defaults to explain).
+
+Build order (the spec's own): the seam first (types, terminal events,
+`reply(to:)`, the mechanical conformer changes), then the organs that
+hang on it (MLX, Apple, readiness, the two throws), then the measurements
+and the contract page. Teach-back on the six forks afterwards.
+
+## D-104 — F-7 ruled C: a refusal is how a reply ENDS, not a failure (Milestone 4v)
+
+**Date:** 2026-09-09 · **Decided by:** Ryad ("F-7 C") · **Ruling:
+F-7 = C** (SPEC §178, raised by the seam's adversarial review).
+
+The fork existed because two signed things could not both be true.
+D-057 F-4 = A says the Apple mind SPEAKS a short refusal and completes
+the turn, because silence makes a refusal look like a bug. §175/3 listed
+`.refused` as a `ReplyFailure`, which is a turn that ends with nothing
+said. C dissolves it:
+
+**A refusal is a `StopReason`.** The mind speaks its refusal sentence —
+voice keeps D-057 exactly — and the reply ends `.finished(.refused)`.
+A text caller reads the stop reason and can count refusals; `ReplyFailure`
+loses its `.refused` case.
+
+*Rejected — A (keep D-057 and delete `.refused` entirely):* a text
+caller could then never tell a refusal from an ordinary answer, and
+Aura's slice 1 is exactly a text caller.
+
+*Rejected — B (`.failed(.refused)`, the list as written):* it reverses
+D-057 F-4 A for voice — the person hears nothing at all, which is the
+bug that ruling exists to prevent.
+
+**What it costs:** one case moves from one enum to the other. The Apple
+mind reports it for the vendor's `refusal` and `guardrailViolation`
+cases. The MLX mind never reports it — Qwen gives no refusal signal —
+which is honest and is why `.unreported` exists.
+
+**Note for the teach-back:** the seam's first builder made this change
+by itself (a spoken refusal ends `.complete`) while the fork was open;
+two review lenses caught it and it was reverted. The ruling is Ryad's,
+not the agent's — that is the whole point of the fork ceremony.
+
+## D-105 — F-8 ruled A: no mind claims memory at the reply door (Milestone 4v)
+
+**Date:** 2026-09-09 · **Decided by:** Ryad ("F-8 A") · **Ruling:
+F-8 = A** (SPEC §178, raised by the MLX piece's second review).
+
+`MindUnavailable` carries `.notEnoughMemory(needed:available:)` and
+`MindReadiness.verdict` computes it from a `DeviceReport`. The fork was
+about WHO supplies the number a mind needs.
+
+**Ruled: nobody, for now.** The MLX mind's `needs(for:)` returns
+`memoryBytes: 0`, which the verdict reads as "makes no claim" and never
+refuses for. A phone that cannot fit the model finds out when the LOAD
+fails, exactly as it did before 4v. The enum case and the pure verdict
+stay, tested over hand-written reports, ready for the day a mind claims.
+
+*Rejected — B (claim at the load door only):* honest, but a caller
+learns late, after it has already offered the feature and the person has
+already chosen the mind.
+
+*Rejected — C (claim at the reply door, with a way out):* the most
+protective and the most machinery. A first-load exemption or a
+caller-set need is another lever to explain, and this milestone's
+lesson is that levers nobody asked for are the ones that bite.
+
+**Why A is not a shrug.** The claim was BUILT and then removed, and the
+removal is the finding: the MLX door's first cut claimed `weights × 1.5`
+and had to exempt an already-resident model, because otherwise a mind
+that was loaded and answering could be refused for memory the headroom
+had already paid for. The review showed the exemption was untested and
+that the door could lock a phone out for good — the estimate only drops
+once the weights are resident, and a refused door never gets there. A
+number that dangerous belongs to a milestone that measures it, not to
+one that infers it from a file size. [[audio-graphs-are-measured]] is
+the same instinct: no verdict on a number nobody measured.

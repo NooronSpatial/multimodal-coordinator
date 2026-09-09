@@ -97,10 +97,10 @@ struct AIRuntimeTests {
     /// This is the first-utterance rule, probed with the one event whose
     /// timing is exact rather than clock-driven.
     @Test("the app's listeners are open before any loop publishes (AC-202)")
-    func listenersAreOpenBeforeLoopsRun() async {
+    func listenersAreOpenBeforeLoopsRun() async throws {
         let recorder = Recorder()
         let signals = Signals()
-        let runtime = AIRuntime(Self.configuration(
+        let runtime = try AIRuntime(Self.configuration(
             recorder: recorder, diagnostics: PipelineDiagnostics()))
 
         let task = Task {
@@ -124,10 +124,10 @@ struct AIRuntimeTests {
     /// broadcast) — that is step 1. Step 2 and step 3 are the app's own
     /// closures, recorded as they are called. The order is the milestone.
     @Test("teardown runs actors → stopRendering → releaseSource (AC-203)")
-    func teardownRunsInOrder() async {
+    func teardownRunsInOrder() async throws {
         let recorder = Recorder()
         let signals = Signals()
-        let runtime = AIRuntime(Self.configuration(
+        let runtime = try AIRuntime(Self.configuration(
             recorder: recorder,
             mind: ScriptedReplyGenerator.manual(replies: 1),
             mouth: ScriptedSynthesizer.manual(utterances: 1)))
@@ -159,12 +159,12 @@ struct AIRuntimeTests {
     /// Listen-only (F-3 = B): no mind, no mouth, no turns listener — and
     /// the teardown still runs, still in order, with step 2 absent.
     @Test("listen-only tears down source-last with no rendering step")
-    func listenOnlyTearsDown() async {
+    func listenOnlyTearsDown() async throws {
         let recorder = Recorder()
         let signals = Signals()
         var config = Self.configuration(recorder: recorder)
         config.stopRendering = nil
-        let runtime = AIRuntime(config)
+        let runtime = try AIRuntime(config)
 
         let task = Task {
             await runtime.run { session in
@@ -192,7 +192,7 @@ struct AIRuntimeTests {
     /// `pump`, `transcription` and `turns` have no default there, and a
     /// test that had to supply them is the proof.
     @Test("every policy value goes through untouched (AC-204)")
-    func policyPassesThroughUntouched() {
+    func policyPassesThroughUntouched() throws {
         let (_, consumer) = AudioRing.create(minimumCapacity: 1_024)
         let config = AIRuntime<ManualClock>.Configuration(
             consumer: consumer,
@@ -206,7 +206,7 @@ struct AIRuntimeTests {
                          maxMemoryTurns: 3, maxMemoryCharacters: 321),
             clock: ManualClock(),
             releaseSource: {})
-        let runtime = AIRuntime(config)
+        let runtime = try AIRuntime(config)
 
         #expect(runtime.configuration.pump.sampleRate == 22_050)
         #expect(runtime.configuration.pump.preRollChunks == 9)

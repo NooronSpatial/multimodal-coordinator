@@ -173,6 +173,7 @@ Each answers one question and writes its numbers into
 | `bakeoff mind-off` | both brains on the same three questions | `--model=` |
 | `bakeoff memory-fit` | do the two models fit together | `--model=` — **required, see below** |
 | `bakeoff fetch` | download weights with honest progress | `--repo=`, `--into=` |
+| `bakeoff determinism` | the same question twice under three sampling settings — do the same bytes come back (4v, AC-234/AC-244) | `--model=`, `--runs=`, `--prompt=`, `--system=`, `--budget=` |
 
 Every bakeoff flag uses the `--name=value` shape. There are no two-word flags
 here — that inconsistency is `audio-demo`'s alone.

@@ -219,7 +219,7 @@ final class MemoryProbe {
                     await run.cancel()
                     return Outcome(milliseconds: Self.ms(elapsed))
                 case .failed(let why):
-                    return Outcome(failure: why)
+                    return Outcome(failure: why.description)
                 case .finished:
                     // A reply with no token at all. Rare, and it must not
                     // be recorded as a fast one.

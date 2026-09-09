@@ -13,6 +13,10 @@ import Testing
 final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     enum Plan: Sendable {
         case tokens([String])
+        /// The seam's events VERBATIM, `.stopped` included — so a test can
+        /// say what a source must never do (a token after its stop, two
+        /// stops) and read what the run makes of it (4v, AC-235).
+        case events([TokenEvent])
         /// Yields, then throws — the failure a real model cannot be asked
         /// to perform on demand.
         case tokensThenThrow([String], any Error)
@@ -45,10 +49,11 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     }
     private let counts = Mutex(Counts())
 
-    /// Settable, because a test drives the door too.
-    private let door = Mutex<(any Error)?>(nil)
-    var unavailable: (any Error)? { door.withLock { $0 } }
-    func makeUnavailable(_ error: any Error) { door.withLock { $0 = error } }
+    /// Settable, because a test drives the door too. Typed since 4v, the
+    /// same `ReplyFailure` the real door throws (AC-238).
+    private let door = Mutex<ReplyFailure?>(nil)
+    var unavailable: ReplyFailure? { door.withLock { $0 } }
+    func makeUnavailable(_ failure: ReplyFailure) { door.withLock { $0 = failure } }
 
     init(_ plan: Plan) { self.plan = plan }
 
@@ -58,12 +63,16 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     var sawCancellation: Bool { counts.withLock { $0.sawCancellation } }
     func release() { counts.withLock { $0.released = true } }
 
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<String, any Error> {
+    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {
                 case .tokens(let all):
                     yieldAll(all, into: continuation)
+                    continuation.finish()
+                case .events(let all):
+                    for event in all { continuation.yield(event) }
+                    counts.withLock { $0.yielded += all.count }
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
                     yieldAll(all, into: continuation)
@@ -77,7 +86,7 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
                 case .gatedDefiance(let before, let after):
                     await yieldThenHoldAtTheGate(before, into: continuation)
                     // THE DEFIANT YIELD, after the test's cancel returned.
-                    continuation.yield(after)
+                    continuation.yield(.token(after))
                     counts.withLock { $0.yielded += 1 }
                     continuation.finish()
                 }
@@ -89,10 +98,10 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     /// Yields every token in birth order, counting each one.
     private func yieldAll(
         _ all: [String],
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) {
         for token in all {
-            continuation.yield(token)
+            continuation.yield(.token(token))
             counts.withLock { $0.yielded += 1 }
         }
     }
@@ -115,9 +124,9 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     /// hanging it. Shared by both gated plans.
     private func yieldThenHoldAtTheGate(
         _ before: String,
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) async {
-        continuation.yield(before)
+        continuation.yield(.token(before))
         counts.withLock { $0.yielded += 1 }
         var opened = false
         for _ in 0..<200_000 {
@@ -178,7 +187,7 @@ struct MLXReplyGeneratorTests {
     @Test("promise 5 — a failing generation is ONE .failed, terminal")
     func failureIsOneTerminal() async throws {
         let (mind, _) = generator(
-            .tokensThenThrow([], MLXUnavailable.unknown("the model died mid-thought")))
+            .tokensThenThrow([], ReplyFailure.engine("the model died mid-thought")))
         try await ReplyConformanceKit.verifyFailureIsOneTerminal(mind)
     }
 
@@ -188,8 +197,8 @@ struct MLXReplyGeneratorTests {
     func theDoorIsAskedEveryTime() async throws {
         let (mind, source) = generator(.tokens(["hello"]))
         _ = try await mind.openReply(to: "first, while installed")
-        source.makeUnavailable(MLXUnavailable.weightsNotInstalled("Qwen3-0.6B-4bit"))
-        await #expect(throws: MLXUnavailable.self) {
+        source.makeUnavailable(.unavailable(.weightsAbsent))
+        await #expect(throws: ReplyFailure.unavailable(.weightsAbsent)) {
             _ = try await mind.openReply(to: "second, after the weights vanished")
         }
     }
@@ -238,16 +247,81 @@ struct MLXReplyGeneratorTests {
                 "a cancelled reply never claims completion, even when its source ends politely a moment later")
     }
 
-    @Test("every unavailability reason describes itself in honest words")
-    func reasonsSpeakPlainly() {
-        for reason: MLXUnavailable in [
-            .weightsNotInstalled("Qwen3-0.6B-4bit"),
-            .platformCannotRunMLX,
-            .unknown("something new")
+    /// The internal seam's `.stopped` is a TERMINAL, the same word it is
+    /// on the public one: the FIRST reason is the reason, and a token that
+    /// arrives after it is a source breaking its contract — dropped, never
+    /// spoken. The only real source today yields one `.stopped` last, so
+    /// this pins the contract before a second source can drift from it.
+    @Test("the FIRST .stopped is terminal — a later token or reason is not heard")
+    func stoppedIsTerminalOnTheTokenSeam() async throws {
+        let (mind, _) = generator(.events([
+            .token("a"), .stopped(.complete), .token("LATE"), .stopped(.tokenBudget)
+        ]))
+        let run = try await mind.openReply(to: "a thought")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.token("a"), .finished(.complete)],
+                "the reason is the first one said; nothing after it is admitted")
+    }
+
+    /// The words this mind's door used to own (`MLXUnavailable`) are the
+    /// seam's now (4v): the door throws `ReplyFailure.unavailable` and
+    /// its rendering is the verdict's, still spoken mid-sentence.
+    ///
+    /// THE WORDS ARE WRITTEN OUT, and the 4v review is why. The first
+    /// version of this test asserted `refusal.description ==
+    /// verdict.description` — which is the LINE `.unavailable` is defined
+    /// by (`case .unavailable(let verdict): verdict.description`), so it
+    /// could not fail for any input. What must be pinned is that the seam
+    /// adds NOTHING of its own: no prefix, no "the mind is unavailable:",
+    /// no re-capitalisation. A literal is the only assertion that catches
+    /// that, so a literal is what this row carries.
+    @Test("the door's refusal describes itself in the verdict's honest words, undecorated")
+    func theDoorSpeaksTheVerdictsWords() {
+        for (verdict, words): (MindUnavailable, String) in [
+            (.weightsAbsent, "the on-device model is not installed yet"),
+            (.deviceCannotRun(.noGPU), "this device has no GPU the on-device model can use"),
+            (.installIncomplete(files: ["model.safetensors"]),
+             "the on-device model's install is incomplete — 1 file(s) missing or short: model.safetensors")
         ] {
-            #expect(!reason.description.isEmpty)
-            #expect(reason.description.first?.isUppercase == false,
+            let refusal = ReplyFailure.unavailable(verdict)
+            #expect(refusal.description == words,
+                    "the seam speaks the verdict's sentence WHOLE, and adds no words of its own")
+            #expect(refusal.description.first?.isUppercase == false,
                     "these are spoken mid-sentence, not shouted")
         }
+    }
+}
+
+// MARK: - AC-236: a typed failure thrown by the source is the run's failure
+
+/// The source refuses a too-long prompt BEFORE generation by throwing
+/// `ReplyFailure.contextWindowExceeded` (AC-236). The run must hand that
+/// case on untouched — wrapping it in `.engine("local generation failed:
+/// …")` would turn a countable case back into prose, which is the exact
+/// thing F-3 = A was ruled against.
+@Suite("AC-236 · a ReplyFailure thrown by the source keeps its case")
+struct MLXTypedFailureTests {
+
+    @Test("contextWindowExceeded thrown by the source is .failed(.contextWindowExceeded)")
+    func typedFailurePassesThrough() async throws {
+        let source = ScriptedTokenSource(.tokensThenThrow([], ReplyFailure.contextWindowExceeded))
+        let mind = MLXReplyGenerator(source: source)
+        let run = try await mind.openReply(to: "a prompt the window cannot hold")
+        let updates = await ReplyConformanceKit.drain(run)
+        #expect(updates == [.failed(.contextWindowExceeded)],
+                "the case must survive the run; prose is not a case")
+    }
+
+    @Test("anything else the vendor throws is still .engine(String)")
+    func untypedFailureIsEngine() async throws {
+        struct VendorError: Error {}
+        let source = ScriptedTokenSource(.tokensThenThrow(["a"], VendorError()))
+        let mind = MLXReplyGenerator(source: source)
+        let run = try await mind.openReply(to: "doomed")
+        let updates = await ReplyConformanceKit.drain(run)
+        guard case .failed(.engine(let words))? = updates.last else {
+            Issue.record("expected .failed(.engine), got \(updates)"); return
+        }
+        #expect(words.hasPrefix("local generation failed: "))
     }
 }
