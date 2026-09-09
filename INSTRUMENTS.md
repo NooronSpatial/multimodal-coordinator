@@ -5117,3 +5117,102 @@ Arabic; XTTS, Meta's MMS and Fish are non-commercial.
 AC-212 on the phone (the Bench's bake-off row for the Arabic fixture);
 the Arabic probe sweep for AC-218's clean slope; F-6 on the Chinese
 leak; and F-7 on the mouth.
+
+## 65. Determinism, measured — the same question twice, before and after the mind read its options (4v, AC-234, AC-244)
+
+**What was asked.** AC-234 says the caller's sampling levers must reach
+the vendor, and that the proof is not a unit test but a measurement:
+temperature 0 twice must give byte-identical text, a seed at 0.6 twice
+must too, and a free run must not. The instrument is
+`bakeoff determinism` — the same prompt, three settings, N runs each,
+on this Mac, offline.
+
+**Machine and model.** Ryad's Mac; `mlx-community/Qwen3-4B-4bit` (the
+phone's model, so the numbers mean something for the phone);
+`--runs=2`; the prompt "Name three capitals in Europe and one fact about
+each."; the mind told to answer in two or three short sentences of plain
+prose.
+
+### BEFORE — the seam existed, the mind ignored it (2026-09-08)
+
+The options travelled on `ReplyContext` and no mind read them yet. The
+table is what "carried but not honoured" looks like from outside:
+
+| setting | run 1 → run 2 | stop reason |
+|---|---|---|
+| greedy — temperature 0 | **NO** — different bytes | unreported |
+| seeded — seed 7, temperature 0.6 | **NO** | unreported |
+| free — the vendor's defaults | **NO** | unreported |
+
+Every row is the vendor's default sampling at 0.6, three times over, and
+every reply ends with an engine that will not say why. Timings, for the
+record: first token 289–625 ms, total 3 986–7 099 ms.
+
+### AFTER — the MLX mind reads the options and the vendor's stop event (2026-09-09)
+
+Same instrument, same model, same prompt, one commit later:
+
+| setting | run 1 → run 2 | stop reason | first token | total |
+|---|---|---|---|---|
+| greedy — temperature 0 | **yes** — 210 chars, byte-identical | complete | 264 / 251 ms | 1 115 / 1 062 ms |
+| seeded — seed 7, temperature 0.6 | **yes** — 266 chars, byte-identical | complete | 252 / 250 ms | 1 243 / 1 257 ms |
+| free — the vendor's defaults | NO — 218 then 258 chars | complete | 251 ms | 1 082 / 1 310 ms |
+
+Three things are proven by that table and nothing else could prove them:
+
+1. **The levers reach the vendor.** Two identical greedy runs, and two
+   identical seeded runs at a temperature that is *not* zero. A seed
+   that did not arrive would leave 0.6 sampling free, and free is the
+   third row — visibly different.
+2. **The seed is per generation, not process-global.** The spec had
+   written `MLXRandom.seed`; the vendor takes `GenerateParameters.seed`
+   and builds a private `RandomState` for that generation. The seeded
+   rows repeat while the free rows that follow them still differ, which
+   is only possible if nothing global was written. SPEC §174 and AC-234
+   were corrected to the fact.
+3. **The stop reason is read, not invented.** Every row says `complete`
+   where the before-table said `unreported`: the vendor's `.info` event,
+   which the token source used to drop on the floor, now travels.
+
+**The free row is the control.** If it had repeated too, the table would
+be measuring caching, not determinism.
+
+### THE PRICE OF ONE WHOLE REPLY, IN AURA'S OWN SHAPE (AC-244)
+
+The rows above price a spoken sentence. Aura's slice 1 asks for
+something else: a session proposal as ONE JSON object, at the 1024-token
+budget, from a real morning's numbers. Same instrument, two new flags
+(`--system=`, `--budget=`), same Mac and model.
+
+Told: *"You plan one training session. Reply with ONE JSON object and
+nothing else"* — with the object's shape spelled out.
+Asked: *"Readiness 62 of 100, slept 6h10, resting heart rate up 4 beats,
+right knee sore since Tuesday, 40 minutes free, cold and raining
+outside. Propose the session."*
+
+| setting | run 1 → run 2 | stop | chars | first token | total |
+|---|---|---|---|---|---|
+| greedy — temperature 0 | **yes** — byte-identical | complete | 800 | 484 / 464 ms | 3 710 / 3 694 ms |
+| seeded — seed 7, temperature 0.6 | **yes** | complete | 757 | 466 / 461 ms | 3 507 / 3 429 ms |
+| free | NO — 702 then 789 chars | complete | 702 | 462 ms | 3 706 / 3 878 ms |
+
+**What this Mac costs Aura, then: about half a second to the first
+token and three and a half seconds to the whole proposal**, for ~800
+characters of JSON — and under greedy or a seed, the same proposal every
+time from the same morning. The reply came back as one JSON object with
+no fence and no prose around it, and it proposed recovery work with a
+knee-sparing warm-up, which is the shape Aura's validator has to accept
+or reject.
+
+Three honest caveats. The library did not check that JSON — §176 says
+the mind returns text and Aura's validator disposes; the model was told
+the shape and obeyed, which is a property of this prompt and this model,
+not a guarantee. Determinism is per model and per machine: the same seed
+on another chip is not promised. And 800 characters is longer than the
+600 the spec guessed, which is why the budget rose to 1024.
+
+**Not measured here.** The phone. These are Mac numbers; the phone's
+prices live in §58–§61 and the milestone's phone gate is Ryad's own run.
+On the measured phone a reply of this length will cost more than this
+Mac's 3.7 s — §58's prefill and decode rates are the place to start —
+and that number is a gate, not a guess to be written here.
