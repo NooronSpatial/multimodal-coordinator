@@ -5252,7 +5252,9 @@ is **4x**. Tools are **4w** (§168–173).
   default is 1024 (F-6); a test with a scripted source asserts the
   parameter it was handed.
 - **AC-234** Sampling reaches the vendor: MLX `temperature` and, when a
-  seed is given, `MLXRandom.seed` before generation; Apple `.greedy` for
+  seed is given, `GenerateParameters.seed` (corrected 2026-09-09: the
+  vendor builds a private `RandomState` from it for that generation, so
+  nothing process-global is written); Apple `.greedy` for
   temperature 0, `.random(top:seed:)` when a seed is given. Unit-tested
   with a scripted source that records its parameters; **measured** on
   the Mac (INSTRUMENTS §65): temperature 0 twice → byte-identical text;
@@ -5351,6 +5353,28 @@ is **4x**. Tools are **4w** (§168–173).
   replies are short by instruction, and the barge-in ends a runaway.
   **Recommended.**
 - *B:* 512 for voice, 1024 only when asked — two defaults to explain.
+
+**F-8 — does the MLX reply door claim memory? (raised by the MLX
+piece's second review, 2026-09-09; open.)** `MindUnavailable` carries
+`.notEnoughMemory(needed:available:)` and `MindReadiness` computes it,
+but nothing says WHO claims a number. The MLX builder made the reply
+door claim `weights × 1.5` (from the measured phone peaks, §58/§60),
+then had to exempt an already-resident model, because otherwise a mind
+that was loaded and answering could be refused for memory the headroom
+had already paid for. The review called the exemption untested and
+unasked-for, and the fix removed the claim entirely.
+- *A:* **no claim at the reply door** — what ships today, and what
+  AC-238 asks for: the enum and the pure verdict exist and are tested
+  over hand-written reports, but the MLX mind passes `memoryBytes: 0`,
+  so it is never refused for memory. A phone that cannot fit the model
+  finds out when the load fails, as it does today. **Recommended.**
+- *B:* claim at the LOAD door only — the load is what the memory
+  instruments measure, and a refusal there is honest; the cost is that
+  a caller learns late, after choosing the mind.
+- *C:* claim at the reply door, with a way out — a first load always
+  allowed, or the caller setting the need. The most protective and the
+  most machinery, and every extra lever is a thing to explain.
+Until ruled, A stands (it is what the code does).
 
 **F-7 — what an Apple refusal IS (raised by the seam's review on
 2026-09-08, after F-1..F-6 were ruled. RULED C on 2026-09-09 — D-104).** Today, under D-057
