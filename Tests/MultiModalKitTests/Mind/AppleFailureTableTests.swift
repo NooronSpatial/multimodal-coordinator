@@ -100,17 +100,20 @@ struct AppleFailureTableTests {
         #expect(words.contains("reply generation failed"))
     }
 
-    // MARK: - F-7 pending: a refusal is SPOKEN and the turn ends as today
+    // MARK: - D-104 (F-7 = C): a refusal is SPOKEN, and it is how the reply ENDS
 
-    /// Until Ryad rules F-7 (SPEC §178), today's behaviour holds
-    /// UNCHANGED: the refusal sentence is spoken (D-057 F-4 = A) and the
-    /// turn ends `.finished(.unreported)` — exactly what the seam left
-    /// at the base. Whether the stop should read `.complete` (F-7 A) or
-    /// `.refused` (F-7 C) is the fork's question, so this test pins
-    /// today's value and nothing more; the ruling rewrites this line
-    /// under its D-entry.
-    @Test("a refusal is spoken and ends .finished(.unreported) — F-7 pending, today's value")
-    func refusalIsSpokenAndCompletes() async throws {
+    /// THE RULING (D-104, SPEC §178 F-7 = C). Two signed things could not
+    /// both be true: D-057 F-4 = A says a refusal is SPOKEN and the turn
+    /// completes, because silence makes a refusal look like a bug; §175/3
+    /// listed `.refused` as a `ReplyFailure`, which is a turn that ends
+    /// with nothing said. C dissolves it — the sentence is still spoken
+    /// (voice is untouched) and the stream ends `.finished(.refused)`, so
+    /// a TEXT caller learns why the reply ended and can count it.
+    ///
+    /// This test pins both halves at once, for both vendor cases: the
+    /// person hears the sentence AND the stop reason names the reason.
+    @Test("a refusal is spoken and ends .finished(.refused) — D-104")
+    func refusalIsSpokenAndEndsRefused() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         for error in [LanguageModelSession.GenerationError
                           .guardrailViolation(Self.forged()),
@@ -121,8 +124,25 @@ struct AppleFailureTableTests {
                 spokenRefusal: "I can't help with that.")
                 .openReply(to: "declined")
             let updates = await ReplyConformanceKit.drain(run)
-            #expect(updates == [.token("I can't help with that."), .finished(.unreported)],
-                    "spoken, then today's stop — for \(error)")
+            #expect(updates == [.token("I can't help with that."), .finished(.refused)],
+                    "spoken, then .refused — for \(error)")
         }
+    }
+
+    /// The WHOLE POINT of C for the text caller (Aura's slice 1): a
+    /// refusal is an outcome it can count, not an error it must catch.
+    /// `reply(to:)` returns — it does not throw — and the `Reply` carries
+    /// both the sentence the person heard and the reason it ended.
+    @Test("reply(to:) RETURNS a refusal as Reply(text:, stop: .refused) — D-104")
+    func wholeReplyCarriesTheRefusal() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let mind = AppleReplyGenerator(
+            source: ScriptedSnapshotSource(.snapshotsThenThrow(
+                [], LanguageModelSession.GenerationError
+                    .refusal(.init(transcriptEntries: []), Self.forged()))),
+            spokenRefusal: "I can't help with that.")
+        let reply = try await mind.reply(to: ReplyContext(transcript: "declined"))
+        #expect(reply == Reply(text: "I can't help with that.", stop: .refused),
+                "a refusal is an outcome, not a thrown error")
     }
 }

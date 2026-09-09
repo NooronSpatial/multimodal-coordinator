@@ -300,7 +300,7 @@ struct AppleReplyGeneratorTests {
 
     // MARK: AC-114 — the nine cases, FORGED (Context has a public init)
 
-    @Test("a guardrail violation is SPOKEN, and the turn completes (F-4 = A)")
+    @Test("a guardrail violation is SPOKEN, and the reply ends .refused (F-4 = A, D-104)")
     func guardrailIsSpoken() async throws {
         // OS 26 only (4s). swift-testing forbids `@available` on a
         // `@Test`, so the gate is a runtime one — and on an older
@@ -313,11 +313,11 @@ struct AppleReplyGeneratorTests {
             refusal: "I can't help with that.")
             .openReply(to: "something the model declines")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't help with that."), .finished(.unreported)],
-                "a refusal is an ordinary outcome — silence would look like a bug")
+        #expect(updates == [.token("I can't help with that."), .finished(.refused)],
+                "spoken because silence looks like a bug; .refused because D-104 lets a caller count it")
     }
 
-    @Test("a model refusal is SPOKEN the same way (F-4 = A)")
+    @Test("a model refusal is SPOKEN the same way, and ends .refused (F-4 = A, D-104)")
     func refusalIsSpoken() async throws {
         // OS 26 only (4s). swift-testing forbids `@available` on a
         // `@Test`, so the gate is a runtime one — and on an older
@@ -329,7 +329,7 @@ struct AppleReplyGeneratorTests {
                 .refusal(.init(transcriptEntries: []), Self.forged())))
             .openReply(to: "declined")
         let updates = await ReplyConformanceKit.drain(run)
-        #expect(updates == [.token("I can't answer that."), .finished(.unreported)])
+        #expect(updates == [.token("I can't answer that."), .finished(.refused)])
     }
 
     @Test("the context window overflowing is a named failure")
