@@ -137,7 +137,8 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
     public let configuration: Configuration
 
     /// Throws `ConfigurationError` for a mind without a mouth or the
-    /// reverse — at construction, before any loop exists (AC-241).
+    /// reverse, and for a `turns` number the coordinator could not
+    /// honour — at construction, before any loop exists (AC-241).
     public init(_ configuration: Configuration) throws(ConfigurationError) {
         // A mind without a mouth, or the reverse, is not a mode — it is a
         // bug in the caller (F-3 = B: together, or neither). Until 4v this
@@ -150,6 +151,14 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
         case (true, false): throw .mouthWithoutMind
         default: break
         }
+        // The coordinator's numbers are the app's too (D-092), and until
+        // the 4v review they trapped INSIDE `run()` — after the microphone
+        // was capturing, which is the hazard AC-241 exists to remove. The
+        // whole configuration is checked, a mind given or not: a wrong
+        // number is wrong before the organ that reads it is switched on,
+        // and "the door refuses an invalid configuration" is one rule to
+        // explain, not two.
+        do { try configuration.turns.validate() } catch { throw .turns(error) }
         self.configuration = configuration
     }
 
@@ -163,6 +172,9 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
         // The mind/mouth pairing was checked by `init` (AC-241): a
         // `Configuration` that reached this line has both organs or
         // neither, so the `if let mind, let mouth` below is exhaustive.
+        // `config.turns` passed `validate()` there too, which is why the
+        // coordinator is built through its checked body below and this
+        // function stays non-throwing.
         let config = configuration
 
         // 1. THE ACTORS — built, and NOT yet running. Nothing publishes
@@ -175,7 +187,7 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
         let coordinator: TurnCoordinator<C>?
         if let mind = config.mind, let mouth = config.mouth {
             coordinator = TurnCoordinator(
-                replyGenerator: mind, synthesizer: mouth, config: config.turns,
+                checked: config.turns, replyGenerator: mind, synthesizer: mouth,
                 clock: config.clock,
                 latencyReporter: config.latencyReporter ?? SilentLatency(),
                 diagnostics: config.diagnostics)
@@ -257,6 +269,8 @@ private struct SilentLatency: LatencyReporter {
 /// configuration a caller assembles at runtime. Aura reads its organs
 /// from its own settings; a wrong pair must come back as a value it can
 /// switch over and show, not as a crash it reads in a log afterwards.
+/// The coordinator's numbers travel through the same door (`.turns`):
+/// the 4v review found them trapping inside `run()`, after capture.
 ///
 /// Not nested in `AIRuntime` on purpose: the runtime is generic over its
 /// clock and the error must not be — a `catch` should not have to name a
@@ -267,6 +281,9 @@ public enum AIRuntimeConfigurationError: Error, Sendable, Equatable, CustomStrin
     case mindWithoutMouth
     /// `mouth` was given and `mind` was `nil`.
     case mouthWithoutMind
+    /// `turns` carries a number the coordinator cannot honour; the
+    /// coordinator's own error says which (`Config.validate()`).
+    case turns(TurnCoordinatorConfigurationError)
 
     public var description: String {
         switch self {
@@ -274,6 +291,8 @@ public enum AIRuntimeConfigurationError: Error, Sendable, Equatable, CustomStrin
             return "a mind needs a mouth: pass a mouth with the mind, or neither (listen-only)"
         case .mouthWithoutMind:
             return "a mouth needs a mind: pass a mind with the mouth, or neither (listen-only)"
+        case .turns(let error):
+            return "the turns configuration was refused: \(error)"
         }
     }
 }

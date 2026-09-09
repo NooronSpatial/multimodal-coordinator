@@ -33,6 +33,17 @@ extension TranscribeModel {
         }
     }
 
+    /// The observer leaves in one place, whichever way a session ends:
+    /// `stop()` after a conversation, or the front door refusing to open
+    /// one (AC-241) — the observer was armed BEFORE that door, so the
+    /// refusal must disarm it or it outlives a session that never began.
+    func removeInterruptionObserver() {
+        if let interruptionObserver {
+            NotificationCenter.default.removeObserver(interruptionObserver)
+            self.interruptionObserver = nil
+        }
+    }
+
     private func handle(interruption type: AVAudioSession.InterruptionType) async {
         switch type {
         case .began:

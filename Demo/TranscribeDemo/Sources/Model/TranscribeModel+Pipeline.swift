@@ -138,13 +138,18 @@ extension TranscribeModel {
             runtime = try AIRuntime(makeConfiguration(reading: consumer, at: rate,
                                                       hostedOn: microphone))
         } catch {
-            // The door refused the organs (AC-241): a mind without a mouth
-            // or the reverse. `makeConfiguration` pairs them from one
-            // switch, so this is a safety net — but the microphone is
-            // already capturing, and a net that leaks a source is not one.
+            // The door refused the configuration (AC-241): a mind without
+            // a mouth or the reverse, or a turns number it cannot honour.
+            // `makeConfiguration` pairs the organs from one switch and the
+            // memory depth is a picker's, so this is a safety net — but
+            // the microphone is already capturing and the interruption
+            // observer is already armed, and a net that leaks either is
+            // not one. The foreground observers stay: they are armed at
+            // launch and outlive any single conversation (see `stop()`).
             engineState = .failed("Runtime: \(error)")
             microphone.stop()
             self.microphone = nil
+            removeInterruptionObserver()
             return
         }
         isListening = true
@@ -312,10 +317,7 @@ extension TranscribeModel {
         // are armed at launch and must outlive any single conversation:
         // the MLX mind runs on the GPU during the launch prewarm, with no
         // pipeline at all, which is the window the review found unguarded.
-        if let interruptionObserver {
-            NotificationCenter.default.removeObserver(interruptionObserver)
-            self.interruptionObserver = nil
-        }
+        removeInterruptionObserver()
     }
 
     /// A toggle flipped mid-run rebuilds the pipeline. `stop()` only

@@ -74,19 +74,45 @@ extension TurnCoordinator {
             self.maxMemoryTurns = maxMemoryTurns
             self.maxMemoryCharacters = maxMemoryCharacters
         }
+
+        /// The numbers this config carries are the app's (D-027, D-092),
+        /// and an app reads them from its settings — so a wrong one must
+        /// come back as an error the app can show, never as a trap after
+        /// the microphone is already open (AC-241). Every door that turns
+        /// a `Config` into a coordinator calls this first: both
+        /// `TurnCoordinator` initializers, and `AIRuntime.init` on
+        /// `configuration.turns`. Public so an app can check its settings
+        /// BEFORE it opens a source, which is the whole point.
+        ///
+        /// The rules are the ledger's and the memory's own (their
+        /// `precondition`s stay, now behind this door): a ledger that can
+        /// hold nothing loses the sentence being spoken; a memory needs
+        /// room for at least one character; a memory depth of ZERO is
+        /// legal — a conversation with no past (AC-197's baseline).
+        public func validate() throws(TurnCoordinatorConfigurationError) {
+            guard maxContextPieces > 0 else { throw .contextBoundMustBePositive }
+            guard maxMemoryTurns >= 0 else { throw .memoryTurnsMustBeNonNegative }
+            guard maxMemoryCharacters > 0 else { throw .memoryCharactersMustBePositive }
+        }
     }
 }
 
-/// WHAT THE CLOCKLESS INITIALIZER REFUSES, AS AN ERROR (4v, AC-241; D-101's
+/// WHAT THE COORDINATOR'S DOORS REFUSE, AS AN ERROR (4v, AC-241; D-101's
 /// R8 row).
 ///
-/// Until 4v this was a `precondition`, and D-101 judged it one of the two
-/// a caller can reach by CONFIGURATION rather than by a literal: an app
-/// that reads a gate from its settings and picks the everyday initializer
-/// would crash, not fail. A crash is a fact a person reads in a log; an
-/// error is a fact a caller can switch over and show. The five
-/// preconditions that stay guard literals (a capacity, a bound) and are
-/// listed in the contract page.
+/// Until 4v every case here was a `precondition`. D-101 judged ONE of
+/// them reachable by a caller's CONFIGURATION rather than by a literal —
+/// the clockless initializer's reply gate: an app that reads a gate from
+/// its settings and picks the everyday initializer would crash, not
+/// fail. The 4v review then found three more behind `Config`'s own
+/// numbers — the ledger bound and the memory's two — which D-092 says
+/// the app owns and therefore reads from settings too, and which trapped
+/// inside `AIRuntime.run()` AFTER the microphone was capturing. A crash
+/// is a fact a person reads in a log; an error is a fact a caller can
+/// switch over and show. The preconditions that stay guard literals (a
+/// ring's capacity, a phraser's room) or sit behind `Config.validate()`;
+/// ARCHITECTURE.md ("what the doors refuse") lists each with the
+/// invariant it guards.
 ///
 /// Not nested in `TurnCoordinator` on purpose: the actor is generic over
 /// its clock, and the error must not be — a caller spells it without
@@ -96,12 +122,30 @@ public enum TurnCoordinatorConfigurationError: Error, Sendable, Equatable, Custo
     /// no clock to wait on — the gate is a duration, and a duration needs
     /// time.
     case replyGateNeedsAClock
+    /// `Config.maxContextPieces` is zero or negative: a ledger that can
+    /// hold nothing loses the sentence being spoken right now.
+    case contextBoundMustBePositive
+    /// `Config.maxMemoryTurns` is negative. Zero is legal — a
+    /// conversation with no past — a negative depth is a bug.
+    case memoryTurnsMustBeNonNegative
+    /// `Config.maxMemoryCharacters` is zero or negative: a memory with
+    /// no room cannot hold half a word.
+    case memoryCharactersMustBePositive
 
     public var description: String {
         switch self {
         case .replyGateNeedsAClock:
             return "a reply gate needs time: pass a clock and a latency reporter "
                 + "(the clocked initializer), or leave replyGate at .zero"
+        case .contextBoundMustBePositive:
+            return "maxContextPieces must be at least 1: a ledger that can hold nothing "
+                + "loses the sentence being spoken"
+        case .memoryTurnsMustBeNonNegative:
+            return "maxMemoryTurns must be 0 or more: 0 turns the memory off, "
+                + "a negative depth is not a bound"
+        case .memoryCharactersMustBePositive:
+            return "maxMemoryCharacters must be at least 1: a memory with no room "
+                + "cannot hold half a word"
         }
     }
 }

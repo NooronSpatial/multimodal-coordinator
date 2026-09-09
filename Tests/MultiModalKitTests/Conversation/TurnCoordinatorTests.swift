@@ -114,14 +114,14 @@ struct TurnCoordinatorTests {
         /// `config` carries the reply gate for the AC-81 tests.
         init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
              clock: C, reporter: any LatencyReporter,
-             config: TurnCoordinator<C>.Config = .init()) {
+             config: TurnCoordinator<C>.Config = .init()) throws {
             var audioHandle: AsyncStream<AudioEvent>.Continuation!
             let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
             var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
             let transcriptStream = AsyncStream<TranscriptEvent> { transcriptHandle = $0 }
             self.init(
                 generator: generator, synthesizer: synthesizer,
-                coordinator: TurnCoordinator(
+                coordinator: try TurnCoordinator(
                     replyGenerator: generator, synthesizer: synthesizer, config: config,
                     clock: clock, latencyReporter: reporter),
                 audioStream: audioStream, audio: audioHandle,
