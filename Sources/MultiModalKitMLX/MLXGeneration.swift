@@ -85,6 +85,11 @@ extension StopReason {
     /// seam's cancel contract — so there is no reason to report, and
     /// yielding one would be a terminal after a cancel, the exact thing
     /// promise 3 forbids.
+    ///
+    /// `.refused` is NEVER produced here (D-104): Qwen gives no refusal
+    /// signal, so this mind cannot know one happened, and inventing the
+    /// value would be a guess. That is honest, not a gap — a mind whose
+    /// API says nothing gets `.unreported`, which is what it is for.
     init?(vendor: GenerateStopReason) {
         switch vendor {
         case .stop: self = .complete

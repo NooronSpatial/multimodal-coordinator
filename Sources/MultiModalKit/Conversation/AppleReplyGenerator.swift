@@ -383,11 +383,12 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// case a caller can count, and the enum being NON-frozen is handled
     /// rather than hoped away.
     ///
-    /// Two cases complete the turn instead of failing it (D-057 F-4 = A):
-    /// `guardrailViolation` and `refusal` are a supervised model DOING
-    /// ITS JOB, and silence would make that look like a bug. The person
-    /// hears one short sentence; the turn ends normally; the words stay
-    /// out of the transcript's failure path.
+    /// Two cases END the turn instead of failing it (D-057 F-4 = A, and
+    /// since D-104 with a name): `guardrailViolation` and `refusal` are a
+    /// supervised model DOING ITS JOB, and silence would make that look
+    /// like a bug. The person hears one short sentence; the turn ends
+    /// normally as `.finished(.refused)`; the words stay out of the
+    /// transcript's failure path.
     ///
     /// No mapping reads `Context.debugDescription` into a test-visible
     /// promise: it is an unlocalised string Apple may change (the spec's
@@ -396,9 +397,8 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     private func settle(generation error: LanguageModelSession.GenerationError) {
         switch error {
         case .guardrailViolation, .refusal:
-            // F-7 pending (SPEC §178): whether a refusal is a spoken
-            // completion, a failure, or a stop reason is Ryad's to rule.
-            // Until then, today's behaviour holds.
+            // RULED (D-104, SPEC §178 F-7 = C): a refusal is how a reply
+            // ENDS. Both vendor cases land on the same one row.
             speakRefusalAndFinish()
         case .exceededContextWindowSize:
             report(.failed(.contextWindowExceeded))
@@ -438,13 +438,22 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         let live = state.withLock { !$0.retired }
         guard live else { return }
         out.yield(.token(spokenRefusal))
-        // `.unreported` — TODAY'S value, kept on purpose while F-7 is open
-        // (SPEC §178: "until ruled, the Apple mind keeps today's
-        // behaviour"). A first cut of this piece wrote `.complete` here,
-        // which is F-7 option A's answer; the review caught it as a fork
-        // ruled by the agent. Whether a spoken refusal ends `.complete`
-        // or `.refused` is Ryad's, under a D-entry.
-        report(.finished(.unreported))
+        // RULED: `.refused` (D-104, SPEC §178 F-7 = C).
+        //
+        // THE VOICE IS UNCHANGED. The person still hears the app's
+        // sentence, spoken by the yield above — D-057 F-4 = A is kept
+        // exactly, because silence makes a refusal look like a bug. What
+        // changed is that the ENDING now says why: a text caller reads
+        // `stop == .refused` and can COUNT refusals, where before it saw
+        // `.unreported` and could not tell a refusal from an ordinary
+        // answer. `reply(to:)` still RETURNS here; it does not throw,
+        // because a refusal is an outcome and not an error.
+        //
+        // The history this line carries: a first cut of this piece wrote
+        // `.complete` — F-7 option A's answer — and the review caught it
+        // as a fork ruled by the agent. It was reverted to `.unreported`
+        // and left for Ryad. This value is his ruling, not an agent's.
+        report(.finished(.refused))
     }
 
     /// The pre-4v words for the assets row, kept verbatim so the test

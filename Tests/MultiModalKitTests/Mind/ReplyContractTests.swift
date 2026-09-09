@@ -153,7 +153,36 @@ struct ReplyContractTests {
         #expect(ReplyFailure.engine("a") != .engine("b"))
         #expect(ReplyFailure.unavailable(.weightsAbsent) == .unavailable(.weightsAbsent))
         #expect(ReplyFailure.unavailable(.weightsAbsent) != .unavailable(.deviceCannotRun(.noGPU)))
-        #expect(ReplyFailure.contextWindowExceeded != .refused)
+        #expect(ReplyFailure.contextWindowExceeded != .unsupportedLanguage)
+        // D-104 (F-7 = C): a refusal is how a reply ENDS, so it is a
+        // `StopReason` now and no longer a `ReplyFailure`. It has to be a
+        // value like the rest — a caller that counts refusals compares it.
+        #expect(StopReason.refused == .refused)
+        #expect(StopReason.refused != .complete, "a refusal is not an ordinary ending")
+        #expect(StopReason.refused != .unreported, "'declined' is not 'the engine does not say'")
+    }
+
+    /// D-104 deleted `ReplyFailure.refused`. The COMPILER is the proof:
+    /// this switch has no `default`, so the day that case comes back — or
+    /// any other is added — it stops compiling under warnings-as-errors,
+    /// the same guard AC-114 put on the vendor's non-frozen enum. The
+    /// count says what remains, so the deletion is asserted at run time
+    /// too and not only implied by a build that happened to succeed.
+    @Test("ReplyFailure has no .refused case any more — D-104")
+    func replyFailureLostItsRefusal() {
+        let every: [ReplyFailure] = [.contextWindowExceeded,
+                                     .unavailable(.weightsAbsent),
+                                     .unsupportedLanguage,
+                                     .busy,
+                                     .engine("the rest")]
+        for failure in every {
+            switch failure {
+            case .contextWindowExceeded, .unavailable, .unsupportedLanguage,
+                 .busy, .engine:
+                break
+            }
+        }
+        #expect(every.count == 5, "five failures remain after the refusal moved to StopReason")
     }
 
     /// AC-236's counting caller, the way Aura will count: three scripted
@@ -163,7 +192,7 @@ struct ReplyContractTests {
     func twoBusyRunsCountAsTwo() async throws {
         let inner = ScriptedReplyGenerator.manual(replies: 3)
         var caught: [ReplyFailure] = []
-        for (index, scripted) in [ReplyFailure.busy, .refused, .busy].enumerated() {
+        for (index, scripted) in [ReplyFailure.busy, .unsupportedLanguage, .busy].enumerated() {
             let (mind, signals) = Self.announcing(inner)
             let task = Task { try await mind.reply(to: ReplyContext(transcript: "again")) }
             #expect(await signals.heard("opened"))
@@ -174,8 +203,32 @@ struct ReplyContractTests {
                 caught.append(failure)
             }
         }
-        #expect(caught == [.busy, .refused, .busy])
+        #expect(caught == [.busy, .unsupportedLanguage, .busy])
         #expect(caught.filter { $0 == .busy }.count == 2)
+    }
+
+    /// AC-236's counting caller again, now on the STOP-REASON side, which
+    /// is where D-104 (F-7 = C) put a refusal. Three scripted runs each
+    /// speak and then finish; two of them finish `.refused`. Aura's slice
+    /// 1 counts refusals exactly like this — by reading `reply.stop`, with
+    /// no `catch` anywhere, because a refusal is not an error.
+    @Test("a counting caller sees two refusals across three scripted runs (AC-236, D-104)")
+    func twoRefusalsCountAsTwo() async throws {
+        let inner = ScriptedReplyGenerator.manual(replies: 3)
+        var replies: [Reply] = []
+        for (index, scripted) in [StopReason.refused, .complete, .refused].enumerated() {
+            let (mind, signals) = Self.announcing(inner)
+            let task = Task { try await mind.reply(to: ReplyContext(transcript: "again")) }
+            #expect(await signals.heard("opened"))
+            inner.emit(reply: index, token: "I can't answer that.")
+            inner.finish(reply: index, stop: scripted)
+            replies.append(try await Self.settled(task))
+        }
+        #expect(replies.map(\.stop) == [.refused, .complete, .refused])
+        #expect(replies.filter { $0.stop == .refused }.count == 2,
+                "the count C exists for — a refusal is an outcome, not a thrown error")
+        #expect(replies.allSatisfy { $0.text == "I can't answer that." },
+                "the sentence is spoken on every one — D-057 F-4 = A is untouched")
     }
 
     @Test("an engine failure describes itself with the engine's own words")

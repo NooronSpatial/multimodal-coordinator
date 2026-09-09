@@ -65,6 +65,24 @@ public enum StopReason: Sendable, Equatable {
     /// The engine cannot say — the honest value for a mind whose API
     /// reports no reason, never a guess.
     case unreported
+    /// The model DECLINED, and said so aloud (D-104, F-7 = C).
+    ///
+    /// Two signed things could not both be true. D-057 F-4 = A says the
+    /// Apple mind SPEAKS a short refusal and completes the turn, because
+    /// silence makes a refusal look like a bug; SPEC §175/3 listed
+    /// `.refused` as a `ReplyFailure`, which is a turn ending with
+    /// nothing said. The ruling dissolves it: a refusal is how a reply
+    /// ENDS. The person still hears the sentence — voice is untouched —
+    /// and a text caller reads the stop reason and can COUNT refusals
+    /// without catching an error for something that is not one.
+    ///
+    /// The sentence a person hears is the APP's (`spokenRefusal`); this
+    /// library ships no words of its own (D-027, D-057 F-3) and this
+    /// case only reports WHY the reply ended. Not every mind can say it:
+    /// the Apple mind reports it for the vendor's `guardrailViolation`
+    /// and `refusal`, and the MLX mind never does, because Qwen gives no
+    /// refusal signal — which is what `.unreported` is for.
+    case refused
 }
 
 // MARK: - why a reply ended badly (F-3 = A)
@@ -78,8 +96,12 @@ public enum ReplyFailure: Error, Sendable, Equatable, CustomStringConvertible {
     case contextWindowExceeded
     /// The mind cannot run here at all — see the verdict.
     case unavailable(MindUnavailable)
-    /// A guardrail or the model itself declined.
-    case refused
+    // NO `.refused` here (D-104, F-7 = C). A guardrail or the model
+    // declining is not a FAILURE: the mind speaks its refusal sentence
+    // and the reply ENDS, so the case lives on `StopReason` instead.
+    // Putting it here made a turn that ends with nothing said, which
+    // reverses D-057 F-4 = A — the ruling that exists because silence
+    // makes a refusal look like a bug.
     /// The model does not speak the language it was asked in.
     case unsupportedLanguage
     /// The engine is serving another request — rate limit or concurrency.
@@ -93,8 +115,6 @@ public enum ReplyFailure: Error, Sendable, Equatable, CustomStringConvertible {
             "the conversation exceeded the model's context window"
         case .unavailable(let verdict):
             verdict.description
-        case .refused:
-            "the model declined to answer"
         case .unsupportedLanguage:
             "the model does not support this language"
         case .busy:
