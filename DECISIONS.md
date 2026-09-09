@@ -4561,3 +4561,37 @@ Build order (the spec's own): the seam first (types, terminal events,
 `reply(to:)`, the mechanical conformer changes), then the organs that
 hang on it (MLX, Apple, readiness, the two throws), then the measurements
 and the contract page. Teach-back on the six forks afterwards.
+
+## D-104 — F-7 ruled C: a refusal is how a reply ENDS, not a failure (Milestone 4v)
+
+**Date:** 2026-09-09 · **Decided by:** Ryad ("F-7 C") · **Ruling:
+F-7 = C** (SPEC §178, raised by the seam's adversarial review).
+
+The fork existed because two signed things could not both be true.
+D-057 F-4 = A says the Apple mind SPEAKS a short refusal and completes
+the turn, because silence makes a refusal look like a bug. §175/3 listed
+`.refused` as a `ReplyFailure`, which is a turn that ends with nothing
+said. C dissolves it:
+
+**A refusal is a `StopReason`.** The mind speaks its refusal sentence —
+voice keeps D-057 exactly — and the reply ends `.finished(.refused)`.
+A text caller reads the stop reason and can count refusals; `ReplyFailure`
+loses its `.refused` case.
+
+*Rejected — A (keep D-057 and delete `.refused` entirely):* a text
+caller could then never tell a refusal from an ordinary answer, and
+Aura's slice 1 is exactly a text caller.
+
+*Rejected — B (`.failed(.refused)`, the list as written):* it reverses
+D-057 F-4 A for voice — the person hears nothing at all, which is the
+bug that ruling exists to prevent.
+
+**What it costs:** one case moves from one enum to the other. The Apple
+mind reports it for the vendor's `refusal` and `guardrailViolation`
+cases. The MLX mind never reports it — Qwen gives no refusal signal —
+which is honest and is why `.unreported` exists.
+
+**Note for the teach-back:** the seam's first builder made this change
+by itself (a spoken refusal ends `.complete`) while the fork was open;
+two review lenses caught it and it was reverted. The ruling is Ryad's,
+not the agent's — that is the whole point of the fork ceremony.
