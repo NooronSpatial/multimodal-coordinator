@@ -65,9 +65,25 @@ public struct InstallProgress: Sendable, Equatable {
     /// exactly the case this comment claimed was handled. A NaN fraction
     /// is "no progress reported", so it reads as 0 — never a termination
     /// a caller's client can reach (the rule AC-241 exists for).
+    ///
+    /// AND THE TOTAL IS AN INPUT TOO — the second review found the same
+    /// line trapping from the other side. `Double(Int64.max)` rounds UP to
+    /// exactly 2^63, so `Double(total) * 1.0` is one step past what `Int64`
+    /// can hold and the conversion died: "Double value cannot be converted
+    /// to Int64 because the result would be greater than Int64.max",
+    /// signal 5. That total is read from a `manifest.json` on disk
+    /// (`expectedBytes()`), and the weights directory defaults to the app's
+    /// Documents — a place `LocalMind` itself says a person "can also drop
+    /// the folder by hand over USB" — so it is not a number this library
+    /// controls. `Int64(exactly:)` ASKS instead of assuming, and received
+    /// is capped at expected, which is the only honest answer anyway.
     public static func at(fraction: Double, bytesExpected: Int64?) -> InstallProgress {
         let clamped = fraction.isNaN ? 0 : min(max(fraction, 0), 1)
-        let received = bytesExpected.map { Int64((Double($0) * clamped).rounded(.down)) }
+        let received = bytesExpected.map { total -> Int64 in
+            let scaled = (Double(total) * clamped).rounded(.down)
+            guard let exact = Int64(exactly: scaled) else { return total }
+            return min(exact, total)
+        }
         return InstallProgress(fraction: clamped, bytesReceived: received, bytesExpected: bytesExpected)
     }
 }
@@ -113,7 +129,21 @@ struct InstallManifest: Codable, Equatable, Sendable {
         return sizes
     }
 
-    var totalBytes: Int64 { files.values.reduce(0, +) }
+    /// The sum, SATURATING. `reduce(0, +)` traps on overflow, and these
+    /// numbers are decoded off disk, not counted here: the second 4v
+    /// review wrote two `Int64.max` entries into a `manifest.json`, read
+    /// it back (the decode printed both numbers) and the process died on
+    /// the sum, "exited with unexpected signal code 5". A total larger
+    /// than `Int64` can hold is "more than can be counted" — a number, not
+    /// a termination (AC-241's rule) — and it is only ever shown to a
+    /// person as a progress bar's total.
+    var totalBytes: Int64 {
+        files.values.reduce(Int64(0)) { total, bytes in
+            let (sum, overflowed) = total.addingReportingOverflow(bytes)
+            guard !overflowed else { return bytes > 0 ? .max : .min }
+            return sum
+        }
+    }
 
     /// The names that are missing or SHORTER than listed, sorted so a
     /// verdict reads the same way twice. Longer is not reported: a file
@@ -200,6 +230,23 @@ extension LocalMindModel {
     /// and `0` once they are RESIDENT: the headroom the report measures
     /// has already paid for them, and a model that is loaded and
     /// answering must not be refused for the memory it already holds.
+    ///
+    /// A QUESTION A CALLER MAY ASK, AND NOT A GATE. The first 4v version
+    /// fed this number into the reply door's `MindNeeds` and left the
+    /// load door without it, an asymmetry no AC asked for and no fork
+    /// ruled — and the second review showed where it leads: the estimate
+    /// drops to 0 only once the weights are resident, residency happens
+    /// inside `ensureModelLoaded()`, and a refused reply door never gets
+    /// there, so a phone whose headroom is below weights × 1.5 was locked
+    /// out for good unless the caller happened to call the OPTIONAL
+    /// `prewarm()`. 2.3 GB × 1.5 is 3.45 GB and iOS kills this app near
+    /// 3351 MB (INSTRUMENTS §27), so that phone is the phone this library
+    /// is for. Worse, no test on a Mac could see it: headroom is
+    /// `.unavailable(.noMemoryLimitOnThisPlatform)` here, so the verdict's
+    /// memory branch never ran. The ×1.5 is a policy number, not a
+    /// measurement (§58/§60 measured a PEAK, not a gate), and whether a
+    /// reply door should claim one at all is a fork for Ryad — reported,
+    /// not ruled here. Until it is ruled the doors ask what AC-238 asks.
     public nonisolated func estimatedWorkingSetBytes() -> Int {
         guard !resident.withLock({ $0 }) else { return 0 }
         let onDisk = (try? InstallManifest.listing(of: weights)) ?? [:]
@@ -223,26 +270,30 @@ extension LocalMindModel {
     /// (For that Mac the fix is `Scripts/metallib.sh` — a developer's
     /// note, which is why it is here and not in the sentence a person
     /// reads.)
+    ///
+    /// ONE DOOR, ONE QUESTION — the reply door and the load door ask the
+    /// same thing. The first 4v version had the reply door claim
+    /// `estimatedWorkingSetBytes()` while the load door claimed nothing;
+    /// the review found that asymmetry decided by the code, asserted by no
+    /// test, and able to close the reply door permanently on a phone (the
+    /// note on `estimatedWorkingSetBytes()` has the arithmetic). What the
+    /// mind asks of a device is now `needs(for:)` — a pure function of the
+    /// report that a test writes by hand.
     public nonisolated func readiness() -> MindUnavailable? {
-        verdict(claimingMemory: true)
-    }
-
-    /// The LOAD's door: the same verdict WITHOUT the memory claim. The
-    /// load is what the memory instruments measure (the demo's pressure
-    /// probe, `bakeoff memory-fit`); refusing it on an estimate would
-    /// block the very run that produces the real number. The reply door
-    /// claims; the load door does not.
-    nonisolated func loadVerdict() -> MindUnavailable? {
-        verdict(claimingMemory: false)
-    }
-
-    private nonisolated func verdict(claimingMemory: Bool) -> MindUnavailable? {
         let report = DeviceReport.current(
             gpu: MLXRuntime.isAvailable ? .available : .absent,
             install: installState())
-        let needs = MindNeeds(floor: report.platform.libraryFloor,
-                              memoryBytes: claimingMemory ? estimatedWorkingSetBytes() : 0)
-        return MindReadiness.verdict(for: report, needs: needs)
+        return MindReadiness.verdict(for: report, needs: Self.needs(for: report))
+    }
+
+    /// What this mind requires of the device the report describes: the
+    /// LIBRARY's floor for that platform (iOS 18 / macOS 15, D-091), and
+    /// no memory claim. AC-238 puts `.notEnoughMemory` in the enum and
+    /// proves it over hand-written reports in `MindReadinessTests`;
+    /// nothing in §175/5 or AC-238 asks THIS door to compute an estimate,
+    /// and a mind that makes no claim is never refused for memory.
+    static func needs(for report: DeviceReport) -> MindNeeds {
+        MindNeeds(floor: report.platform.libraryFloor, memoryBytes: 0)
     }
 
     // MARK: the download (AC-239, AC-240)
@@ -260,35 +311,80 @@ extension LocalMindModel {
     public func download(
         reporting progress: @escaping @Sendable (InstallProgress) -> Void
     ) async throws {
+        try await download(reporting: progress, fetching: Self.hubFetch)
+    }
+
+    /// WHERE THE BYTES COME FROM, AS A VALUE: a repo id and a download
+    /// base in, the directory the fetch actually filled out, fractions
+    /// reported along the way.
+    ///
+    /// This exists because the second 4v review was right that AC-239's
+    /// central promise — a COMPLETE download writes `manifest.json` — was
+    /// asserted by no test at all, and could not be: everything that
+    /// matters here is on the far side of a network call. The only row
+    /// that called `download` proved the EARLY RETURN and pinned that no
+    /// manifest was written. So the fetch became an argument with the
+    /// Hub's as its default (`hubFetch`), and the guard, the move, the
+    /// wiring and the write are now proven by `MLXDownloadTests` with a
+    /// fake fetch that writes a small tree. Nothing public changed.
+    typealias Fetching = @Sendable (
+        _ repoID: String,
+        _ into: URL,
+        _ reporting: @escaping @Sendable (Double) -> Void
+    ) async throws -> URL
+
+    /// The real one. The hub returns WHERE it put the snapshot. Use that.
+    ///
+    /// The first version of this searched the download base for any
+    /// `config.json` and moved the folder containing it. That was
+    /// dangerous rather than merely imprecise: an app's Documents
+    /// directory holds other models — this demo keeps Whisper's under
+    /// `huggingface/models/openai/…`, and those have a `config.json`
+    /// too. Directory enumeration has no defined order, so that code
+    /// could have moved somebody else's model. Never go looking for a
+    /// file when the API already told you the path.
+    static let hubFetch: Fetching = { repoID, into, report in
+        let hub = HubApi(downloadBase: into)
+        return try await hub.snapshot(
+            from: repoID,
+            matching: ["*.safetensors", "*.json", "*.txt"]
+        ) { downloadProgress in
+            report(downloadProgress.fractionCompleted)
+        }
+    }
+
+    /// The download, with the fetch handed in — the shape every test uses.
+    func download(
+        reporting progress: @escaping @Sendable (InstallProgress) -> Void,
+        fetching fetch: Fetching
+    ) async throws {
         guard !modelInstalled() else { return }
         guard let repoID else { throw ReplyFailure.unavailable(.weightsAbsent) }
         // AC-240: the expected total is a manifest's, when an earlier
         // install left one (a re-install after `.incomplete`); on a first
         // install there is no number, and none is invented.
-        let expected = InstallManifest.read(in: weights)?.totalBytes
-        let hub = HubApi(downloadBase: weights.deletingLastPathComponent())
-        // The hub returns WHERE it put the snapshot. Use that.
-        //
-        // The first version of this searched the download base for any
-        // `config.json` and moved the folder containing it. That was
-        // dangerous rather than merely imprecise: an app's Documents
-        // directory holds other models — this demo keeps Whisper's under
-        // `huggingface/models/openai/…`, and those have a `config.json`
-        // too. Directory enumeration has no defined order, so that code
-        // could have moved somebody else's model. Never go looking for a
-        // file when the API already told you the path.
-        let snapshot = try await hub.snapshot(
-            from: repoID,
-            matching: ["*.safetensors", "*.json", "*.txt"]
-        ) { downloadProgress in
-            progress(InstallProgress.at(fraction: downloadProgress.fractionCompleted,
-                                        bytesExpected: expected))
+        let expected = expectedBytes()
+        let snapshot = try await fetch(repoID, weights.deletingLastPathComponent()) { fraction in
+            progress(InstallProgress.at(fraction: fraction, bytesExpected: expected))
         }
-        // THE HUB RETURNS EARLY ON CANCELLATION with a PARTIAL tree and no
-        // error. A manifest written from that tree would list the short
-        // files at their short sizes and call the install complete — the
-        // exact lie AC-239 exists to end. So the cancel is checked here,
-        // before anything is moved or written.
+        try completeInstall(movingFrom: snapshot)
+    }
+
+    /// The manifest's total from an earlier install, or `nil` on a first
+    /// one (AC-240). Its own function so the Hub path's one source of a
+    /// byte number can be read by a test.
+    nonisolated func expectedBytes() -> Int64? {
+        InstallManifest.read(in: weights)?.totalBytes
+    }
+
+    /// Everything after the bytes land: the cancel, the move, the write.
+    ///
+    /// THE HUB RETURNS EARLY ON CANCELLATION with a PARTIAL tree and no
+    /// error. A manifest written from that tree would list the short
+    /// files at their short sizes and call the install complete — the
+    /// exact lie AC-239 exists to end. So the cancel is checked here,
+    /// before anything is moved or written.
+    nonisolated func completeInstall(movingFrom snapshot: URL) throws {
         try Task.checkCancellation()
 
         if snapshot != weights {

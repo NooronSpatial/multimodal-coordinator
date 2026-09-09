@@ -64,17 +64,20 @@ public actor LocalMindModel: ModelBacked {
     private var warmTask: Task<Void, Never>?
     private var think: ThinkTokens??      // nil = unread, .some(nil) = none declared
     private var window: Int??             // nil = unread, .some(nil) = the config does not say
-    /// A SYNCHRONOUS MIRROR of `held.isResident`, for the door (4v).
-    /// `readiness()` is asked on every turn from a synchronous property,
-    /// and the holder's answer is behind an actor hop; the mirror is
+    /// A SYNCHRONOUS MIRROR of `held.isResident`, for
+    /// `estimatedWorkingSetBytes()` (4v) — which the door itself no longer
+    /// asks, since the second review; the estimate is a question a caller
+    /// may put, not a gate (the note on that method). It is still a
+    /// synchronous question, and the holder's answer is behind an actor
+    /// hop; the mirror is
     /// written from this actor after every load and every retire — from
     /// the holder's own answer, read AFTER the await, so a retire that
     /// landed during a load wins. It may lag by one actor step, and the
-    /// cost of the lag is bounded: the memory claim is a belt, and the
-    /// door is asked again next turn.
+    /// cost of the lag is bounded: the estimate is an ANSWER, and the
+    /// question can be put again next turn.
     ///
     /// NONISOLATED, because its reader is: `estimatedWorkingSetBytes()`
-    /// is a synchronous door question and cannot hop to this actor to ask
+    /// is a synchronous question and cannot hop to this actor to ask
     /// it. A `Mutex` is `Sendable` and NON-COPYABLE, and a non-copyable
     /// stored property must be BORROWED — which the compiler refuses
     /// across actor isolation — so this keyword is what lets the door,
@@ -136,10 +139,13 @@ public actor LocalMindModel: ModelBacked {
     /// model is already resident.
     @discardableResult
     public func ensureModelLoaded() async throws -> ModelContainer {
-        // The typed verdict (4v, AC-238's wiring) — the same enum the
-        // reply door throws, so a caller counts one kind of refusal, not
-        // two. Without the memory claim: see `loadVerdict()`.
-        if let verdict = loadVerdict() { throw ReplyFailure.unavailable(verdict) }
+        // The typed verdict (4v, AC-238's wiring) — the same enum AND the
+        // same question as the reply door, so a caller counts one kind of
+        // refusal, not two. It was briefly two: the reply door added a
+        // memory claim this one did not, which the second 4v review
+        // showed could lock a phone out for good (the note on
+        // `estimatedWorkingSetBytes()`).
+        if let verdict = readiness() { throw ReplyFailure.unavailable(verdict) }
         // The examples set this low so a buffer cache cannot push a phone
         // into jetsam. Measured note (INSTRUMENTS §25): MLX does not mmap
         // its safetensors, so the weights are RESIDENT — on a phone this
