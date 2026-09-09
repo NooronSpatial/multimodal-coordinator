@@ -14,6 +14,17 @@ or a model whose weights sit in your own filesystem, running through MLX.
 Measured on an iPhone: **291–315 ms to the first spoken word**, 38 turns, no
 network at any point after the weights are on disk.
 
+**And the mind can be driven as text, not only as a voice.** A caller that
+wants one whole reply calls `reply(to:)` — text in, text out — and sets its
+own instructions, token budget, temperature and seed on that ONE call instead
+of at `init`. What comes back is typed rather than a string: a reply carrying
+the text and why it stopped (`.complete`, `.tokenBudget`, `.unreported`,
+`.refused`), and a failure that is a case a caller can count. Under greedy or
+a seed, the same question twice gives the same bytes on one machine — measured
+in [INSTRUMENTS.md](INSTRUMENTS.md) §65. The whole contract, including the
+typed "can this device run it?" verdict and what it deliberately does NOT do,
+is one section of [ARCHITECTURE.md](ARCHITECTURE.md).
+
 | Phase | What it added |
 |---|---|
 | **1** | real microphone → lock-free ring → voice activity → clean speech events, many listeners |
