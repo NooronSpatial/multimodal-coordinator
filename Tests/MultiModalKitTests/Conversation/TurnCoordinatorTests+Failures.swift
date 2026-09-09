@@ -9,8 +9,8 @@ extension TurnCoordinatorTests {
     // MARK: - empty finals and failures (AC-64, AC-65)
 
     @Test("A whitespace-only final produces no reply: back to idle, generator untouched")
-    func whitespaceFinalMakesNoTurn() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func whitespaceFinalMakesNoTurn() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -32,8 +32,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A generator failure ends the turn, not the coordinator; the next turn runs clean")
-    func generatorFailureEndsOnlyTheTurn() async {
-        let bench = Bench(
+    func generatorFailureEndsOnlyTheTurn() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.failOnOpen("no model"), .manual()]),
             synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
@@ -74,8 +74,8 @@ extension TurnCoordinatorTests {
     /// does, and a mouth left running still holds a decode task that
     /// retains it, unreachable for ever with `current` already nil.
     @Test("A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled")
-    func synthesizerFailureEndsTheTurn() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func synthesizerFailureEndsTheTurn() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -106,8 +106,8 @@ extension TurnCoordinatorTests {
     // MARK: - the zero-token reply
 
     @Test("A reply that finishes with zero tokens completes the turn; speaking never happens")
-    func zeroTokenReplyCompletesWithoutSpeaking() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func zeroTokenReplyCompletesWithoutSpeaking() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -129,8 +129,8 @@ extension TurnCoordinatorTests {
     // MARK: - the funnel audit (AC-61)
 
     @Test("Every adjacent state pair across a multi-turn run is in the legal table")
-    func funnelAuditOverMultiTurnRun() async {
-        let bench = Bench(
+    func funnelAuditOverMultiTurnRun() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.manual(), .failOnOpen("x"), .manual()]),
             synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()

@@ -97,14 +97,14 @@ struct TurnCoordinatorTests {
 
         init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
              config: TurnCoordinator<ContinuousClock>.Config = .init())
-        where C == ContinuousClock {
+        throws where C == ContinuousClock {
             var audioHandle: AsyncStream<AudioEvent>.Continuation!
             let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
             var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
             let transcriptStream = AsyncStream<TranscriptEvent> { transcriptHandle = $0 }
             self.init(
                 generator: generator, synthesizer: synthesizer,
-                coordinator: TurnCoordinator(replyGenerator: generator, synthesizer: synthesizer,
+                coordinator: try TurnCoordinator(replyGenerator: generator, synthesizer: synthesizer,
                                              config: config),
                 audioStream: audioStream, audio: audioHandle,
                 transcriptStream: transcriptStream, transcripts: transcriptHandle)
@@ -114,14 +114,14 @@ struct TurnCoordinatorTests {
         /// `config` carries the reply gate for the AC-81 tests.
         init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
              clock: C, reporter: any LatencyReporter,
-             config: TurnCoordinator<C>.Config = .init()) {
+             config: TurnCoordinator<C>.Config = .init()) throws {
             var audioHandle: AsyncStream<AudioEvent>.Continuation!
             let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
             var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
             let transcriptStream = AsyncStream<TranscriptEvent> { transcriptHandle = $0 }
             self.init(
                 generator: generator, synthesizer: synthesizer,
-                coordinator: TurnCoordinator(
+                coordinator: try TurnCoordinator(
                     replyGenerator: generator, synthesizer: synthesizer, config: config,
                     clock: clock, latencyReporter: reporter),
                 audioStream: audioStream, audio: audioHandle,
@@ -205,11 +205,11 @@ struct TurnHealthTests {
     }
 
     @Test("a failed turn reaches the HEALTH stream, typed, with its turn number")
-    func failedTurnReachesHealth() async {
+    func failedTurnReachesHealth() async throws {
         let diagnostics = PipelineDiagnostics()
         let generator = ScriptedReplyGenerator(plans: [.failOnOpen("no brain today")])
         let synthesizer = ScriptedSynthesizer(plans: [])
-        let coordinator = TurnCoordinator(
+        let coordinator = try TurnCoordinator(
             replyGenerator: generator, synthesizer: synthesizer,
             diagnostics: diagnostics)
         let turnListener = await coordinator.listen()

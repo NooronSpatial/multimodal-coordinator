@@ -9,8 +9,8 @@ extension TurnCoordinatorTests {
     // MARK: - interruptions (SPEC AC-94, D-042 F-3 and F-5)
 
     @Test("An interruption ends the live turn like a failure — not a barge")
-    func interruptionEndsTheTurnLikeAFailure() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func interruptionEndsTheTurnLikeAFailure() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -52,8 +52,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A dead turn cannot speak after an interruption — defiant stages included")
-    func nothingSurvivesAnInterruption() async {
-        let bench = Bench(generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true)]),
+    func nothingSurvivesAnInterruption() async throws {
+        let bench = try Bench(generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true)]),
                           synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
@@ -82,8 +82,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)")
-    func anInterruptionKeepsTheWords() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+    func anInterruptionKeepsTheWords() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -108,8 +108,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("resume() forgets the thought — a call is a break in the conversation (F-5)")
-    func resumingForgetsTheThought() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
+    func resumingForgetsTheThought() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -136,8 +136,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("Interrupting while idle publishes nothing at all")
-    func interruptingWhileIdleIsSilent() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func interruptingWhileIdleIsSilent() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -157,14 +157,14 @@ extension TurnCoordinatorTests {
     // MARK: - the 4d review's criticals (adversarial pass, 2026-08-15)
 
     @Test("CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice")
-    func aGeneratorThrowingAfterAnInterruptionFailsNothing() async {
+    func aGeneratorThrowingAfterAnInterruptionFailsNothing() async throws {
         // The window: the coordinator is suspended inside
         // `await replyGenerator.openReply(...)` when the platform takes the
         // audio away. interrupt() retires the ticket AND drives the state
         // to .idle — it is the first path in the repo to do both from
         // outside the merge loop. The catch arms then called failTurn
         // regardless, which is .idle → .idle: not in the legal table.
-        let bench = Bench(generator: ScriptedReplyGenerator(plans: [.blockThenFailOnOpen("late")]),
+        let bench = try Bench(generator: ScriptedReplyGenerator(plans: [.blockThenFailOnOpen("late")]),
                           synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
@@ -197,11 +197,11 @@ extension TurnCoordinatorTests {
     }
 
     @Test("CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice")
-    func aSynthesizerThrowingAfterAnInterruptionFailsNothing() async {
+    func aSynthesizerThrowingAfterAnInterruptionFailsNothing() async throws {
         // The same window on the speech side, and the likelier one in the
         // field: the mouth is being opened at the exact moment iOS takes
         // the audio away.
-        let bench = Bench(generator: .manual(replies: 1),
+        let bench = try Bench(generator: .manual(replies: 1),
                           synthesizer: ScriptedSynthesizer(plans: [.blockThenFailOnOpen("late")]))
         let listener = await bench.coordinator.listen()
 
@@ -231,13 +231,13 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A pre-interruption final arriving AFTER resume must not rejoin the thought")
-    func aLateFinalCannotRejoinAfterResume() async {
+    func aLateFinalCannotRejoinAfterResume() async throws {
         // Resuming forgets the thought (F-5). But forgetting is not
         // fencing: the recogniser can flush a final for speech from BEFORE
         // the call, and it arrives into a ledger that was just cleared —
         // so the pre-call fragment joins the post-call sentence anyway,
         // which is the exact nonsense F-5 was ruled to prevent.
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -269,11 +269,11 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A final STASHED before an interruption is not replayed after resume")
-    func aStashedFinalIsNotReplayedAfterResume() async {
+    func aStashedFinalIsNotReplayedAfterResume() async throws {
         // The second hole: a final that overtook its onset waits in the
         // reorder buffer. interrupt() and resume() never touch it, so the
         // next onset replays it into the fresh thought.
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -302,13 +302,13 @@ extension TurnCoordinatorTests {
     }
 
     @Test("run() returns after an interruption even when the inputs ended first")
-    func runReturnsAfterAnInterruptionOnDrainedInputs() async {
+    func runReturnsAfterAnInterruptionOnDrainedInputs() async throws {
         // The graceful-end check sits at the BOTTOM of the merge loop, so
         // it is only re-read when a new item arrives. Every other path
         // that retires the ticket runs INSIDE the loop; interrupt() is the
         // first that does it from outside — so with both streams already
         // ended, nothing wakes the loop and run() never returns.
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
         let returned = Collected()
 

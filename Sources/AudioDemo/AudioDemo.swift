@@ -75,11 +75,22 @@ struct AudioDemo {
         // event (AC-65), which is the library's own rule finally applied
         // to its own demo.
         let screen = Screen()
-        let runtime = AIRuntime(configuration(
-            flags: flags,
-            machine: Machine(ear: ear.engine, consumer: consumer, sampleRate: sampleRate),
-            screen: screen,
-            releaseSource: { microphone.stop() }))
+        let runtime: AIRuntime<ContinuousClock>
+        do {
+            runtime = try AIRuntime(configuration(
+                flags: flags,
+                machine: Machine(ear: ear.engine, consumer: consumer, sampleRate: sampleRate),
+                screen: screen,
+                releaseSource: { microphone.stop() }))
+        } catch {
+            // The door refused the organs (AC-241): a mind without a mouth
+            // or the reverse. This demo pairs them from one flag, so the
+            // path is a safety net — but the microphone is already
+            // capturing, and a net that leaks a source is not a net.
+            print("Could not assemble the runtime: \(error)")
+            microphone.stop()
+            return
+        }
         let pipeline = Task {
             await runtime.run { session in
                 await observe(session, on: screen, ringDrops: consumer)

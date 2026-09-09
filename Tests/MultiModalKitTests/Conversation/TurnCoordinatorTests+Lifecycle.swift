@@ -9,11 +9,11 @@ extension TurnCoordinatorTests {
     // MARK: - stop() (AC-66)
 
     @Test("stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after")
-    func stopMidSpeaking() async {
+    func stopMidSpeaking() async throws {
         // The synthesizer is DEFIANT so the post-stop report really enters
         // the machinery instead of dying inside a polite mock — the same
         // vacuity the house was burned by twice (review finding).
-        let bench = Bench(
+        let bench = try Bench(
             generator: .manual(replies: 1),
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true)]))
         let listener = await bench.coordinator.listen()
@@ -44,8 +44,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean")
-    func replyFailsMidStreamCancelsTheMouth() async {
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
+    func replyFailsMidStreamCancelsTheMouth() async throws {
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 2))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -87,8 +87,8 @@ extension TurnCoordinatorTests {
     The synthesizer refuses to open: turnFailed with the reason, \
     the reply run is cancelled, the next turn runs clean
     """)
-    func synthesizerRefusesToOpen() async {
-        let bench = Bench(
+    func synthesizerRefusesToOpen() async throws {
+        let bench = try Bench(
             generator: .manual(replies: 2),
             synthesizer: ScriptedSynthesizer(plans: [.failOnOpen("no voice"), .manual()]))
         let listener = await bench.coordinator.listen()
@@ -123,8 +123,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on")
-    func transcriptionFailureEndsTheTurn() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func transcriptionFailureEndsTheTurn() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -162,8 +162,8 @@ extension TurnCoordinatorTests {
     A final arriving BEFORE its own speechStarted waits, then drives the turn; \
     a duplicate final is dropped at the door
     """)
-    func earlyFinalWaitsForItsOnset() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func earlyFinalWaitsForItsOnset() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -204,8 +204,8 @@ extension TurnCoordinatorTests {
     }
 
     @Test("A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth")
-    func postFinishTokenIsDropped() async {
-        let bench = Bench(
+    func postFinishTokenIsDropped() async throws {
+        let bench = try Bench(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true)]),
             synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
@@ -243,8 +243,8 @@ extension TurnCoordinatorTests {
     // MARK: - lifecycle (review findings: the negative space)
 
     @Test("Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed")
-    func gracefulEndOnInputExhaustion() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func gracefulEndOnInputExhaustion() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in
@@ -273,8 +273,8 @@ extension TurnCoordinatorTests {
     Lifecycle negative space: a second run() returns at once; \
     stop() is idempotent; after stop the state is idle and listeners finish immediately
     """)
-    func lifecycleNegativeSpace() async {
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
+    func lifecycleNegativeSpace() async throws {
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1))
         let listener = await bench.coordinator.listen()
 
         await withTaskGroup(of: Void.self) { group in

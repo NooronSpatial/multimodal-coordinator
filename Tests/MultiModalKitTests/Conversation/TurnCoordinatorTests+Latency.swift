@@ -8,10 +8,10 @@ extension TurnCoordinatorTests {
     // MARK: - latency (R2: clock + injected reporter, exact under ManualClock)
 
     @Test("Turn latency = final accepted → the started evidence: exact on a manual clock")
-    func turnLatencyExact() async {
+    func turnLatencyExact() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 1), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter)
         let listener = await bench.coordinator.listen()
 
@@ -43,10 +43,10 @@ extension TurnCoordinatorTests {
     }
 
     @Test("Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing")
-    func cancelLatencyZeroInMockTime() async {
+    func cancelLatencyZeroInMockTime() async throws {
         let clock = ManualClock()
         let reporter = RecordingLatencyReporter()
-        let bench = Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1),
+        let bench = try Bench(generator: .manual(replies: 2), synthesizer: .manual(utterances: 1),
                           clock: clock, reporter: reporter)
         let listener = await bench.coordinator.listen()
 
