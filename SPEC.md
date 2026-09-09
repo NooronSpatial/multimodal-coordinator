@@ -5141,10 +5141,16 @@ The facts behind the right column, checked before this spec was written:
    (F-6). Aura's G1, G2, G4.
 2. **A typed stop reason** — `.finished(StopReason)` (F-2): `.complete`
    (the model ended its turn), `.tokenBudget` (the cap cut it),
-   `.unreported` (an engine that does not say). Aura's G3.
+   `.unreported` (an engine that does not say), and — by D-104 —
+   `.refused` (the model declined, and said so aloud). Aura's G3.
 3. **Typed failures** — `.failed(ReplyFailure)` (F-3): `.contextWindowExceeded`,
    `.unavailable(MindUnavailable)`, `.refused` (a guardrail or refusal),
-   `.unsupportedLanguage`, `.busy`, `.engine(String)` for the rest. Every
+   `.unsupportedLanguage`, `.busy`, `.engine(String)` for the rest.
+   > *Amended 2026-09-09 by D-104 (F-7 = C).* `.refused` is NOT a
+   > failure. A refusal is how a reply ends: the mind speaks its refusal
+   > sentence and the stream ends `.finished(.refused)`, so `StopReason`
+   > gains that case and `ReplyFailure` loses it. The vendor's `refusal`
+   > and `guardrailViolation` both land there. Every
    case is `Equatable`, so a caller can count. Aura's G5.
 4. **The whole reply** — `reply(to:) async throws -> Reply` (F-4), where
    `Reply { text, stop }`; a failure throws the `ReplyFailure`;
