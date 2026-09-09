@@ -26,14 +26,21 @@ func runDeterminism(_ arguments: [String]) async {
         exit(2)
     }
     let model = LocalMindModel(weights: weights)
-    let mind = MLXReplyGenerator(model: model, instructions: determinismInstructions, maxTokens: 160)
+    // `--system=` and `--budget=` so this instrument can price the reply a
+    // REAL caller asks for (4v, AC-244): Aura's slice 1 wants a session
+    // proposal as JSON at the 1024-token budget, which is a different
+    // price from a spoken sentence.
+    let instructions = determinismArgument("--system=", in: arguments) ?? determinismInstructions
+    let budget = determinismArgument("--budget=", in: arguments).flatMap(Int.init) ?? 160
+    let mind = MLXReplyGenerator(model: model, instructions: instructions, maxTokens: budget)
     let clock = ContinuousClock()
     await askLoadAndWarm(model: model, mind: mind, weights: weights, clock: clock)
 
     let prompt = determinismArgument("--prompt=", in: arguments)
         ?? "Name three capitals in Europe and one fact about each."
     let runs = determinismArgument("--runs=", in: arguments).flatMap(Int.init) ?? 2
-    print("prompt: \(prompt)\n")
+    print("prompt: \(prompt)")
+    print("budget: \(budget) tokens · instructions: \(instructions.prefix(60))…\n")
     print("| setting | run | first token | total | stop | chars | same bytes as run 1 |")
     print("|---|---|---|---|---|---|---|")
     for (name, options) in determinismSettings {
