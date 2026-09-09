@@ -5113,11 +5113,20 @@ The facts behind the right column, checked before this spec was written:
   (`guard let id = event.token else { continue }`);
 - the vendor's sampler takes `temperature`, `topP`, `topK`,
   `repetitionPenalty`; a seed is process-global (`MLXRandom.seed`);
+  > *Corrected 2026-09-09, as built.* The vendor resolved into this
+  > build also takes `GenerateParameters.seed` and builds its own
+  > `RandomState` from it **per generation**, so a seeded reply needs
+  > nothing global written — that is what the MLX mind does. Temperature
+  > 0 selects the vendor's argmax sampler, so "greedy" needs no second
+  > lever.
 - Apple's `GenerationOptions` takes `sampling` (`.greedy` or
   `.random(top:seed:)`), `temperature`, `maximumResponseTokens`; its
   `GenerationError` has eight typed cases (`exceededContextWindowSize`,
   `assetsUnavailable`, `guardrailViolation`, `unsupportedLanguageOrLocale`,
   `decodingFailure`, `rateLimited`, `concurrentRequests`, `refusal`);
+  > *Corrected 2026-09-09, as built.* Nine, not eight: `unsupportedGuide`
+  > is the ninth. It maps to `.engine(_)` — this library never sends a
+  > guide (§176: the mind returns text).
 - the caller's document (`AI_RUNTIME_REQUIREMENTS.md`) was **not** at its
   path in Aura's `docs/` when this spec was drafted; the IDs below are
   quoted from D-101's checked table, which was verified against it on
@@ -5144,7 +5153,14 @@ The facts behind the right column, checked before this spec was written:
 5. **Readiness, typed and injectable** — `MindUnavailable` (F-5):
    `.osBelowFloor(required:)`, `.deviceCannotRun(.simulator | .noGPU)`,
    `.notEnoughMemory(needed:, available:)`, `.weightsAbsent`,
-   `.installIncomplete(files:)`; a pure function of a `DeviceReport`
+   `.installIncomplete(files:)`;
+   > *Amended 2026-09-09, as built.* Four more, all facts the Apple mind
+   > already knew and could not say in this vocabulary:
+   > `.deviceCannotRun(.notEligible)`, `.featureDisabled(String)` (the
+   > string names the feature a person switches on in Settings),
+   > `.modelDownloading`, and `.unknown(String)` for a non-frozen
+   > vendor enum's future cases (AC-114's lesson). The "Simulator"
+   > wording rule covers them all: none may say that word. a pure function of a `DeviceReport`
    value the library fills on a live device and a test writes by hand.
    The demo's three refusal strings become renderings of the enum, and
    the word "Simulator" is said only when the report says so. Aura's
@@ -5165,6 +5181,13 @@ The facts behind the right column, checked before this spec was written:
    `.absent`, and `.installedUnverified` for a pre-4v install with no
    manifest (the phones in the field). `modelInstalled()` stays as the
    Bool view. Aura's L1.
+   > *Amended 2026-09-09, as built.* Only a COMPLETE download writes the
+   > manifest, so a tree already on a phone before 4v stays
+   > `.installedUnverified` until it is fetched again — the library does
+   > not invent byte counts for files it did not download. The listing
+   > resolves symbolic links, because a model cache is a tree of them
+   > and the first live run refused a perfectly good install by
+   > measuring the link instead of the file.
 7. **Byte progress** — `InstallProgress { fraction, bytesReceived?,
    bytesExpected? }`; the Hub path fills what its client gives, the
    manifest fills `expected`, the fake fills all. Aura's L4.
@@ -5236,6 +5259,9 @@ is **4x**. Tools are **4w** (§168–173).
   table in §175/3; MLX refuses a prompt longer than the model's context
   window as `.contextWindowExceeded` **before** generation (the vendor
   does not throw for it); anything the vendor throws is `.engine(String)`.
+  > *Sharpened 2026-09-09, as built.* The refusal is at `>=` the window,
+  > not `>`: a prompt that fills every position leaves no position for a
+  > reply, and the vendor would still call it a generation.
   Every case round-trips `Equatable`; a test counts two `.busy` in a
   scripted run.
 - **AC-237** `reply(to:)` drains the stream into `Reply { text, stop }`;
