@@ -172,4 +172,22 @@ struct MindReadinessTests {
             #expect(saysSimulator == isSimulator, "\(verdict)")
         }
     }
+
+    /// Two floors, per platform: the library's own (the MLX mind) and the
+    /// Apple mind's. A phone on iOS 18 is ready for the first and one
+    /// release short for the second — the verdict names the floor it missed.
+    @Test("the platform knows both floors: the library's and the Apple mind's")
+    func platformFloors() {
+        #expect(Platform.iOS.libraryFloor == OSVersion(major: 18))
+        #expect(Platform.macOS.libraryFloor == OSVersion(major: 15))
+        #expect(Platform.iOS.appleMindFloor == OSVersion(major: 26))
+        let phone = DeviceReport(platform: .iOS, os: OSVersion(major: 18, minor: 6), isSimulator: false,
+                                 gpu: .available, memoryHeadroomBytes: nil, install: .installed)
+        #expect(MindReadiness.verdict(for: phone, needs: MindNeeds(floor: phone.platform.libraryFloor,
+                                                                    memoryBytes: 0)) == nil)
+        #expect(MindReadiness.verdict(for: phone, needs: MindNeeds(floor: phone.platform.appleMindFloor,
+                                                                    memoryBytes: 0))
+                == .osBelowFloor(required: "iOS 26"))
+    }
+
 }

@@ -63,6 +63,22 @@ public enum Platform: Sendable, Equatable {
     case iOS
     case macOS
 
+    /// The library's own floor (D-091 / F-6 of 4r: iOS 18, macOS 15) — what
+    /// the MLX mind needs, because it needs only the library.
+    public var libraryFloor: OSVersion {
+        switch self {
+        case .iOS: OSVersion(major: 18)
+        case .macOS: OSVersion(major: 15)
+        }
+    }
+
+    /// The Apple mind's floor: FoundationModels ships with iOS 26 and
+    /// macOS 26 (`@available` on `AppleReplyGenerator`). A `MindNeeds`
+    /// built for that mind takes this, so a phone one release too old
+    /// gets `.osBelowFloor(required: "iOS 26")` instead of a type it
+    /// cannot even name.
+    public var appleMindFloor: OSVersion { OSVersion(major: 26) }
+
     /// The word that goes before the version number in a sentence.
     var name: String {
         switch self {
