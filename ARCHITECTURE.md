@@ -725,6 +725,841 @@ milestone that MEASURES what a mind needs rather than inferring it from
 a file size. A number that can lock a device out belongs with a
 measurement, not with a guess.
 
+## Getting the weights (4x)
+
+The section above is how the mind ANSWERS. This one is how it ARRIVES.
+It is written for the caller that has to ask a person for 2.3 GB of
+their data allowance, and be honest about what that costs and what
+leaves the device.
+
+**The short codes, for a reader who landed here from a link.** `AC-nnn`
+is a numbered acceptance criterion in `SPEC.md`; `§nnn` is a spec
+section; `D-nnn` is a ruling in `DECISIONS.md`; `L7` is one of Aura's
+lessons — the one that says a cache a person can re-download must be
+kept out of their iCloud backup. `F-n = A` names a design fork and the option Ryad chose on it —
+here always a fork of milestone **4x**, ruled in **D-106**, not 4v's.
+The three that carry this section: **F-2 = A** (a stopped download
+deletes its partial tree), **F-3 = A** (the suspend limit is stated, not
+engineered), **F-4 = A** (a privacy manifest per linkable module).
+
+### The life of an install
+
+```
+ ASKING DOWNLOADS NOTHING — but it IS a network call, and a slow one
+ ┌──────────────────────────────────────────────────────────────────────┐
+ │  expectedInstall()                                                   │
+ │  9 files · 2 278 969 756 bytes · ~3.4 s (INSTRUMENTS §66, 2026-09-10)│
+ │  no WEIGHT bytes fetched · no directory made · installState() same   │
+ │  it still makes 10 listings and 9 HEADs — never on onAppear          │
+ └──────────────────────────────────────────────────────────────────────┘
+
+ .absent                       download(reporting:)
+ or .incomplete(files:) ─────────────────┐
+                                         ▼
+                         ┌──────────────────────────────────────┐
+                         │ DOWNLOADING                          │
+                         │ the fetcher writes its OWN tree,     │
+                         │ under the PARENT of <weights>        │
+                         │ progress is a FRACTION, not bytes    │
+                         └───┬───────────────────────┬──────────┘
+                it returns   │                       │  it throws
+                  a path     │                       │
+                             ▼                       │
+        ┌─────────────────────────────────────────┐  │
+        │ completeInstall(movingFrom:)            │  │
+        │  1 CANCELLED? stop here, move nothing   │  │
+        │  2 MOVE the tree to <weights>.incoming  │  │  ← STAGED
+        │    (a stale .incoming from a dead       │  │
+        │     process is removed first)           │  │
+        │  3 WRITE manifest.json THERE            │  │
+        │  4 SWAP it into <weights>               │  │  ← 4 and 5 touch
+        │  5 mark it excluded from backup         │  │    the LIVE tree.
+        └───┬─────────────────────────────────┬───┘  │    1…3 never do
+            │ 1…5 all done                    │ 1 saw a cancel,
+            │                                 │ or 2…4 threw   │
+            ▼                                 ▼                ▼
+        ┌────────────────┐   ┌──────────────────────────────────────────┐
+        │ .installed     │   │ cancelled     → CancellationError        │
+        └────────────────┘   │ the fetch threw → .fetchFailed(String)   │
+                             │ step 2…4 threw  → .couldNotComplete(_)   │
+                             │        both InstallFailure cases         │
+                             └──────────────────┬───────────────────────┘
+                                                ▼
+                          the new tree is DELETED · a tree that was
+                          already there is UNTOUCHED · the state is
+                          .absent, or the .incomplete it already was —
+                          never .installed, never .installedUnverified
+
+                          TWO EXCEPTIONS, both a fetcher's own doing:
+                          · it hands back <base> itself → <base> and every
+                            model beside it survive; mayDelete needs a
+                            STRICT descendant, so the "new tree" is never
+                            deleted — aFetcherThatReturnsTheBaseKeepsIt
+                          · it writes STRAIGHT INTO <weights> → nothing to
+                            stage, manifest written in place, and over a
+                            tree that was ALREADY there a failed write can
+                            leave it .installedUnverified. WeightsFetching
+                            tells a conformer not to do this.
+```
+
+Two things in that picture are the whole safety argument, and they are
+worth reading twice. **The manifest is written at the staging path**,
+so a tree in `<weights>` either carries a manifest or was never
+completed here. And **the swap is the last step**, so every failure
+before it leaves the LIVE WEIGHTS TREE exactly as this download found
+it. Both are `completeInstall(movingFrom:)` in
+`MultiModalKitMLX/LocalMindInstall.swift`.
+
+**Say "the live tree", not "the disk", because the disk does change.**
+Before the move, that same function creates the parent directory if it
+is missing, and removes any stale `<weights>.incoming` a dead process
+left behind. What no failure touches is `<weights>` itself. Steps 4 and
+5 are the only ones that do — and the in-place exception at the bottom
+of the diagram is the one path that writes a manifest straight into the
+live tree, which is why `WeightsFetching` tells a conformer not to take
+it.
+
+One path skips the staging box. A fetcher may write STRAIGHT INTO the
+weights directory and hand that same path back. Then there is no second
+copy to stage, so the manifest is written in place. `WeightsFetching`
+tells a conformer not to do this, for the reason the diagram gives.
+
+**How that path is recognised matters.** The code compares the resolved
+PATH, not the `URL`. A `URL` is text: `…/Fake-Model` and `…/Fake-Model/`
+are two spellings of one directory. An earlier version compared with
+`!=`, so the second spelling looked like a different place — and the
+code then moved the live tree away to stage a copy of it. If the
+manifest write failed after that, the caller's bytes were gone.
+`samePlace(_:_:)` in `LocalMindInstall.swift` is the fix, and
+`aDifferentSpellingOfTheWeightsTreeIsStillTheWeightsTree` is the row.
+
+### The shortest install that works
+
+```swift
+import MultiModalKitMLX
+
+// 1 — a model that KNOWS where its weights come from. The other
+//     initializer, LocalMindModel(weights:), never downloads anything.
+//     `in:` defaults to URL.documentsDirectory, so the weights land at
+//     Documents/Qwen3-4B-4bit — the LAST path component of the repo id.
+let model = LocalMindModel(repoID: "mlx-community/Qwen3-4B-4bit")
+print(model.weights)   // public, nonisolated, never changes: THE folder
+
+// 2 — the price, BEFORE a byte of the model moves. This reaches the
+//     network. Ask it once, and keep the answer.
+let size = try await model.expectedInstall()
+print(size.downloadBytes, size.onDiskBytes)      // bytes, and bytes
+for file in size.files { print(file.name, file.bytes) }
+
+// 3 — the download. Cancel the surrounding task to stop it.
+try await model.download(reporting: { progress in
+    print(progress.fraction)                     // 0…1, always a number
+    print(progress.bytesExpected ?? -1)          // nil on a FIRST install
+})
+
+// 4 — what is on disk now. No await: it is nonisolated, and cheap.
+switch model.installState() {
+case .installed, .installedUnverified: print("ready")
+case .incomplete(let files): print("repair", files)   // the names to show
+case .absent: print("offer the download")
+}
+
+// …and the same download, driven by a fetcher of your own — this is the
+// seam, and it is shipping API, not test-only. Step 3 above calls it
+// with HubWeightsFetcher() as the default.
+try await model.download(reporting: { _ in }, using: MyFakeFetcher())
+```
+
+Everything below is commentary on that block.
+
+**Where the folder is, in one line**, because "delete the weights" and
+"show storage used" are both questions about a path. `model.weights` is
+a public, *nonisolated* `let URL` that never changes. **Nonisolated**
+means it is not behind the actor's door: any thread may read it, with no
+`await`. So a settings screen can show it without waiting for anything.
+For a model built with `LocalMindModel(repoID:in:)` it is `directory`
+plus the last component of the repo id, and `directory` defaults to
+`URL.documentsDirectory`.
+
+**An install can have bytes in THREE places, not one**, and a settings
+screen has to know all three. For the model in the block above:
+
+| path | who writes it | when it is there |
+|---|---|---|
+| `Documents/Qwen3-4B-4bit` | this library, on the last steps | the LIVE tree — what `installState()` reads, and what a Delete Model button removes |
+| `Documents/Qwen3-4B-4bit.incoming` | this library, while it stages | only DURING `completeInstall` |
+| `Documents/models/mlx-community/Qwen3-4B-4bit` | the shipped fetcher's client | only DURING the download |
+
+The middle row is the staging sibling the diagram names.
+`completeInstall(movingFrom:)` moves the whole new tree — up to 2.3 GB —
+to `<weights>.incoming`, writes `manifest.json` there, and only then
+swaps it in. The tests treat a leftover sibling as a real hazard: it
+would be a second copy of the model in a person's Documents, invisible
+to `installState()`. `MLXInstallLateFailureTests.stagingLeftovers`
+asserts it is gone on the success path and on all three failure paths.
+
+The third row is the fetcher's own tree. `HubWeightsFetcher` hands its
+client `model.weights.deletingLastPathComponent()` as a base, and the
+client materialises the repo at `base/models/<owner>/<name>`.
+
+**Every in-process path clears rows two and three. A process that is
+KILLED clears neither.** So a storage row must measure all three paths,
+and a Delete Model button must remove all three — not just
+`model.weights`. The suspend section below has the lines to run and what
+they save.
+
+### The size — and it is a network call
+
+`expectedInstall()` returns an `InstallSize`: `downloadBytes`,
+`onDiskBytes`, and `files`, every file with its name and its byte count,
+sorted by name. The totals are DERIVED from `files` by the only
+initializer there is, so the breakdown and the total cannot disagree.
+
+**It reaches the network, and its name does not say so.** The doc
+comment does, loudly, and a spec fork is open about the name itself
+(SPEC §184 F-6, raised by the build, **not ruled**). Until it is ruled,
+the rule for a caller is simple: this is not a call to put on a screen's
+`onAppear`. Ask it once, when a person is about to be shown a number,
+and keep the answer.
+
+**What one ask really costs.** The repository listing gives names, not
+sizes, so the size comes from one metadata request per file — and the
+client makes its own listing before each one. A metadata request is an
+HTTP `HEAD`: it asks for a file's headers, its size among them, and
+brings back none of the file itself. For a nine-file model that is **ten
+listings and nine HEADs**, all small. The doc on `hubSizes` carries that
+count because an earlier version of it said "nine and nine" and a review
+counted the calls in the client instead of trusting the sentence.
+
+**Measured once, on the real repository** (INSTRUMENTS §66,
+`mlx-community/Qwen3-4B-4bit`, Ryad's Mac on a home connection,
+**2026-09-10**):
+
+| what | measured |
+|---|---|
+| files | 9 |
+| to download | **2 278 969 756 bytes** |
+| on disk afterwards | the same 2 278 969 756 bytes |
+| the whole question | **3 388 ms** |
+| bytes fetched by asking | **0** — the target directory held 0 files, `installState()` still `.absent` |
+
+**Say the units out loud, because two conventions disagree here and a
+person will compare your screen to Settings.** 2 278 969 756 bytes is
+**2.28 GB decimal** (÷ 10⁹) or **2.12 GiB binary** (÷ 2³⁰). INSTRUMENTS
+§66 prints an "MB" column of 2 173.4 — that is really **MiB** (÷ 2²⁰).
+Apple's own byte formatting is decimal, so a screen that prints
+"2 173 MB" will be read beside a Settings entry saying 2.28 GB and look
+like a lie.
+
+**And this repo's own pages round it two different ways, so know which
+you are reading.** This page, `SPEC.md`, `DECISIONS.md` and
+`docs/HOSTS.md` say **2.3 GB**. INSTRUMENTS §66 rounds the same
+2 278 969 756 bytes DOWN to **2.2 GB**, twice — once as "the number a
+caller may show". Neither page is wrong. **2.28 GB decimal is the exact
+figure**, and the two round it in opposite directions. The small files
+split the same way: this page's "~16 MB" and §66's "another 15" are one
+number, 15 947 227 bytes, in decimal MB and in MiB.
+
+The lesson for a caller is not to pick a favourite page. Format
+`downloadBytes` with `ByteCountFormatStyle` and let it choose. Never
+copy a rounded figure out of a document into a screen, and never
+hand-divide.
+
+`downloadBytes` and `onDiskBytes` are equal here, and that is a fact
+about this install path rather than a rounding: the snapshot is MOVED
+into place exactly as it arrived. Nothing is unpacked, and nothing is
+re-quantised — *quantising* is squeezing a model's numbers into fewer
+bits, which this repo's model has had done to it already, in the
+repository, before any download. Only `manifest.json` is added. They stay
+two fields because the day a model repacks on arrival, a caller that
+assumed one number would be wrong in the direction that fills a phone.
+
+**The trap: the weights file alone under-promises by ~16 MB.**
+`model.safetensors` is 2 263 022 529 of the 2 278 969 756 bytes. The
+tokenizer and the vocabularies are the other ~16 MB. A caller that showed
+the weights file and then counted the whole download would overrun its
+own progress bar. Show `downloadBytes`.
+
+**The number will drift** the day the repository publishes the model
+squeezed to a different number of bits, or repacks a tokenizer. That is
+why it is written down with its date, and why this library reads it from
+the repository every time and caches nothing. `bakeoff install-size` is
+how to take it again.
+
+**What comes out when it fails, and it is three things, not two.** Two
+are typed by this library and name what went wrong:
+`ReplyFailure.unavailable(.weightsAbsent)` when this model has no
+repository to ask (the same error `download` throws for the same reason,
+so a caller has one case and not two), and
+`InstallFailure.sizeUnknown(file:)` when a file's size cannot be learned
+— because a total that quietly leaves the 2 GB file out is worse than no
+total at all. **The third is everything the hub client throws, untyped
+and unwrapped.** `hubSizes` in `LocalMindInstallSize.swift` awaits
+`getFilenames` and `getFileMetadata` with no `catch`, so a `URLError`, a
+`Hub.HubClientError` or an environment error reaches the caller as
+itself. On a bad connection that is the COMMON case, not the rare one.
+So a price screen needs a `default` arm, and it should say "we could not
+reach the repository — try again", not "unknown error". (The source's own
+`- Throws:` list has the same gap; noted here rather than fixed, because
+this page does not edit Swift.)
+
+**And it is slow enough to design around.** 3 388 ms on a Mac, on a home
+connection. On a phone on mobile data it will be worse, and this library
+sets no timeout of its own — whatever the hub client's session does is
+what happens. So do not block a whole screen on it with a bare spinner:
+draw the screen first, ask once, keep the answer, and have a "could not
+get the price" state ready beside the number.
+
+**And there is no seam for the price — say it plainly, because the
+download half has one.** `download` takes a fetcher of your own.
+`expectedInstall()` takes nothing. The shape the tests use,
+`expectedInstall(asking:)`, is internal, and so is the `Sizing`
+typealias it takes. So an offline UI test of the number, the spinner and
+the "could not get the price" state has no injection point in this
+library. A caller that wants one must put `expectedInstall()` behind a
+protocol of its own. That is a gap in this milestone, written here
+rather than left to be found.
+
+### The four install states
+
+`installState()` is public, nonisolated and cheap — a directory listing
+and one small JSON. Never a load, never a network call, so a door can
+ask it every turn. **The folder it lists is `model.weights`** — public,
+nonisolated, fixed at init. That is the URL a Delete Model button
+removes, and the URL a storage row measures.
+
+| state | what it means | ready? |
+|---|---|---|
+| `.installed` | a manifest, no file missing or short, and the tree can answer offline | **yes** |
+| `.installedUnverified` | the required files are there, and there is no manifest | **yes** |
+| `.incomplete(files:)` | a manifest, and those named files are missing or shorter than it says | no |
+| `.absent` | no usable tree, manifest or not | no |
+
+"Ready" is not a word the code uses; `modelInstalled()` is, and it is
+`true` for exactly the two rows marked yes. The readiness verdict agrees:
+`.absent` becomes `.weightsAbsent` and `.incomplete` becomes
+`.installIncomplete(files:)`, while both installed rows pass (the table
+in "Can this mind run here at all?" above).
+
+**Why `.installedUnverified` exists.** Only a download writes a
+manifest, because only a download has seen the bytes arrive. So a tree
+that arrived before this work — a phone already in the field, or a
+folder a person dropped in by hand over USB, which `LocalMindModel`
+explicitly invites — has no manifest to be checked against. It is
+treated as installed, because it ran yesterday and a missing manifest is
+not evidence of a missing file. What this library will not do is invent
+byte counts for files it did not fetch.
+
+**What a caller should do about it: nothing, and know why.** Calling
+`download(reporting:)` on such a tree does NOT upgrade it. The download
+returns at its own `guard !modelInstalled()` before asking any fetcher
+for anything, and writes no manifest — `downloadOnACompleteTreeIsANoOp`
+in `MLXInstallTests.swift` pins exactly that. The tree keeps working and
+keeps its state. A caller that wants a verified install must remove
+`model.weights` — `FileManager.removeItem(at: model.weights)`, the same
+URL `installState()` reads — and download afresh, which costs the full
+2.3 GB. So it is a choice to offer a person rather than one to make for
+them.
+
+### Progress, honestly
+
+`InstallProgress` has three fields, and only one of them is always a
+number:
+
+| field | what it is |
+|---|---|
+| `fraction` | 0…1, from the fetcher. Clamped here; a NaN reads as 0 |
+| `bytesExpected` | an EARLIER manifest's total, or `nil` on a first install. Never invented |
+| `bytesReceived` | `fraction × bytesExpected` — DERIVED, never counted — or `nil` when the total is |
+
+**Nothing counts bytes for a first download**, so `bytesExpected` is
+`nil` and stays `nil` — `aFirstInstallInventsNoTotal` proves it, and the
+AC-249 row asserts every progress it saw carried `nil` there. On a
+re-install — a repair of an `.incomplete` tree — the OLD manifest
+supplies the total, and `theHubPathCarriesTheManifestsExpectedTotal`
+proves the number comes from there and nowhere else.
+
+**What a caller should draw when `bytesExpected` is `nil`:** the bar at
+`fraction`, and beside it the total `expectedInstall()` already gave,
+labelled as what the download WILL cost — not as bytes received. What it
+must not draw is `bytesReceived` as a measurement. The reason is in the
+source rather than in an instrument: the shipped client's progress unit
+is believed to be one FILE, not one byte, and nothing in this repo has
+watched it to be sure. If that belief holds, then with one 2 GB weight
+file beside four small JSONs, "80% of files" is a few megabytes and not
+80% of the bytes. So it is an honest progress bar and a poor byte
+counter, and the field carries that warning in its own doc comment.
+
+`fraction` is safe to hand straight to a view. It is clamped to 0…1
+because a client has been seen reporting outside it. A NaN reads as 0,
+and that line is there because of a real crash, not a worry:
+`min(max(x, 0), 1)` does not clamp NaN, and the conversion below it
+killed a test process.
+
+**How the closure ARRIVES, which a bar cannot be drawn without.** Four
+facts, all read from `LocalMindInstall.swift` at this commit:
+
+- **It can be called from any thread.** The parameter is
+  `@escaping @Sendable`, and `download` passes it on to the fetcher,
+  which calls it from wherever its transfer reports. There is no hop to
+  the main actor anywhere in that path — `download` is on the actor, but
+  the closure is not. **So hop to the main actor yourself before you
+  touch a view.** The worked example below writes
+  `seen.withLock { … }` for exactly this reason.
+- **Roughly one call per FILE, not per byte** — the same belief the
+  paragraph above rests on. For this model that is about nine calls for
+  a 2.3 GB download.
+- **Nothing promises the number only rises.** `InstallProgress.at`
+  clamps to 0…1 and turns NaN into 0. It does not remember the last
+  value. A bar that must never go backwards has to keep its own maximum.
+- **A final `1.0` is NOT guaranteed.** After the fetch returns,
+  `download` never calls the closure again — the one call site is inside
+  the fetch. So fill the bar when `download` RETURNS, not when a 1.0
+  arrives.
+
+### What a cancelled or failed download leaves (F-2 = A)
+
+Ryad ruled **F-2 = A** (D-106): a stopped download DELETES its partial
+tree. Simple, provable, and `installState()` cannot lie. The cost is that
+a person who cancels at 90% pays again; keep-and-resume was rejected
+because "resume" is a promise that has to be tested on a bad network, and
+this Mac cannot do that honestly.
+
+| what stopped it | what the caller gets | what is on disk |
+|---|---|---|
+| the caller cancelled | `CancellationError`, unwrapped | the partial tree is gone |
+| the fetch threw | `InstallFailure.fetchFailed(String)` | the same |
+| putting it in place threw | `InstallFailure.couldNotComplete(String)` | the same |
+
+Cancellation is not an `InstallFailure` case, deliberately: it is
+something the CALLER asked for, not a failure of the install.
+
+**Who does the deleting is split, and the split is a rule rather than a
+courtesy.**
+
+When a fetch RETURNS, it has named its directory, and this library
+removes that directory. The removal is bounded: the path must be a
+strict descendant of the base the library handed out, and must never be
+an ancestor of the weights tree. That bound is not decoration. An
+unbounded version of the same line, in a review probe, deleted a
+person's whole Documents folder — `aFetcherThatReturnsTheBaseKeepsIt` is
+the row that now holds it shut.
+
+When a fetch THROWS, it has named nothing at all. This library does not
+go looking for a directory to delete. So cleaning up after a throw is
+the conformer's job. `WeightsFetching` states it as a requirement, and
+`HubWeightsFetcher` keeps it.
+
+**What that last sentence is worth, exactly.** The shipped cleanup and
+the shipped location are both proven —
+`theShippedFetchersCleanupIsBounded` removes the client's own tree and
+leaves a sibling model beside it untouched. What no test executes is the
+one line joining them, `HubWeightsFetcher.fetch`'s own `catch`: reaching
+it needs a real network failure, and no test in this house touches the
+network. The test that names this says so itself.
+
+**The promise that matters most: an install that was already there is
+never destroyed by a download that fails — and it has two limits, which
+belong here and not in a footnote.** The new bytes are completed at the
+staging sibling, manifest and all, and only a tree that survived every
+step is swapped in. That is a mechanism, and the table below is what the
+mechanism has actually been measured doing.
+
+The two limits, both spelled out further down this section: a fetcher
+that writes STRAIGHT INTO the weights directory has already replaced
+whatever was there, before this library is asked anything; and no test
+crosses "a caller's tree" with a CANCEL, so that one corner is argued
+from the source rather than measured.
+
+The rows are all in
+`Tests/MultiModalKitTests/Mind/MLXInstallSeamTests.swift`, and each row
+says what it covers — because two of them were being credited with more
+than they run:
+
+| the promise | the test | over what |
+|---|---|---|
+| a cancel leaves `.absent`, partial tree deleted | `aCancelDeletesThePartialTree` | an EMPTY base |
+| a thrown fetch leaves `.absent`, error typed | `aThrownFetchLeavesNothing` | an EMPTY base |
+| a failure AFTER the move leaves nothing pretending | `aFailureAfterTheMoveLeavesNothingPretending` | an EMPTY base |
+| a caller's `.incomplete` tree survives a fetch that throws | `aFailedRedownloadKeepsWhatWasAlreadyThere` | a caller's tree |
+| **a failure after the move over a caller's tree keeps that tree** | `aLateFailureOverACallersTreeKeepsIt` | a caller's tree |
+| a move that fails never touches the tree it would replace | `aMoveThatFailsNeverTouchesTheCallersTree` | a caller's tree |
+| a complete install survives a later re-download, untouched | `aCompleteInstallSurvivesAReDownload` | a finished install |
+| a losing racer whose FETCH throws deletes nothing | `aLateFailureNeverDeletesAFinishedInstall` | a finished install |
+| **a losing racer whose fetch SUCCEEDS and whose swap fails deletes nothing** | `aLateRacingFailureNeverDeletesAFinishedInstall` | a finished install |
+
+**The last two rows look alike. They are not.** Each proves one half of
+the promise, and neither half stands in for the other.
+`aLateFailureNeverDeletesAFinishedInstall` parks its
+slow download in a fetch that THROWS, so that download never reaches
+`completeInstall` at all; what it exercises is
+`discardPartialInstall`'s re-read of the disk.
+`aLateRacingFailureNeverDeletesAFinishedInstall` parks the slow download
+and then lets it RETURN a real snapshot whose manifest write fails — so
+the failure lands INSIDE `completeInstall`, which is where the old code
+destroyed things. It asserts `.installed` afterwards, and that the bytes
+on disk are the winner's 4 096 and not the loser's 1 024. That is the
+row that proves the swap. The test file writes the same distinction down
+above both rows.
+
+**The fifth row is the one to name if only one can be named**, because
+it crosses the two conditions the earlier rows each covered only half
+of: a tree that was ALREADY there, and a failure that lands AFTER the
+fetch succeeded. A review probe ran that crossing and printed
+`.installedUnverified` — the word AC-247 forbids — and then every later
+download returned early at `guard !modelInstalled()`, so no manifest
+could ever be written by anyone. The cause was an order, not a missing
+guard: the old code deleted the live tree first and wrote the manifest
+last. The staging swap is what closed it.
+
+**Two things the table does NOT prove, said here rather than left to be
+assumed.**
+
+- **A cancel over a tree that was already there.** Both cancel rows
+  start from an empty base and assert `.absent`. No row crosses "a
+  caller's `.incomplete` tree" with a cancel. The code reads as safe —
+  `completeInstall` runs `try Task.checkCancellation()` as its first
+  line, before anything is moved, and `discardPartialInstall` returns at
+  its `wasAlreadyThere` guard before the `removeItem(at: weights)` — but
+  that is reasoning from the source, not a measured row. Treat it as
+  argued, and if it matters to a screen, add the row.
+- **A real full disk.** `aLateFailureOverACallersTreeKeepsIt` and
+  `aLateRacingFailureNeverDeletesAFinishedInstall` both make the
+  manifest write fail *in the shape* a full disk makes it fail — the
+  manifest's slot is a directory, so the write throws at the same point.
+  That is the failure SHAPE, proven. No test fills a volume.
+
+**One boundary, stated rather than buried.** A fetcher that writes
+straight into the weights directory and hands that same path back has
+already replaced whatever was there. That happens before this library is
+asked anything. `WeightsFetching` tells a conformer not to do it. Past
+that line, this library protects nothing.
+
+### The suspend truth (F-3 = A)
+
+**What IS verified, and what is reasoning from it — the two are not the
+same size here.**
+
+| the claim | how it stands |
+|---|---|
+| there is no background session | **verified in the source.** `HubWeightsFetcher.fetch` builds `HubApi(downloadBase: base)`, and the vendored `HubApi.init` leaves `useBackgroundSession` at its default of `false`. A test in `MLXInstallSuspendTests.swift` fails if either that flag or `URLSessionConfiguration.background` ever appears in `Sources/MultiModalKitMLX` |
+| an ordinary session's transfer stops when iOS suspends the process | reasoning from the platform, not from a run here |
+| what the awaiting call sees afterwards | **not measured.** INSTRUMENTS §66's own closing block says the same: the download's duration, its behaviour on a bad connection, and what a suspend does to it were not measured |
+
+So the honest headline is: **on iOS, a download is expected to die when
+the app leaves the foreground, and this library has nothing to stop it.**
+On macOS an app that is not frontmost is not suspended, so the same
+sentence does not apply there — and the live tests in this repo run on
+this Mac, which is part of why nobody here has watched a real suspend.
+
+`try await model.download(reporting:)` can only end three ways —
+returning, throwing `CancellationError`, or throwing an `InstallFailure`.
+A transfer killed by the system would arrive as `.fetchFailed(String)`,
+because that is what wraps anything the fetcher throws. It is equally
+possible the call simply stays suspended with the process and reports no
+progress again. Nobody here has watched it.
+
+**So what should a download screen do? Not a short stall timer.** If the
+progress unit really is one file, a first install of this model reports
+about NINE times — and one of those gaps, `model.safetensors`, is
+2 263 022 529 of the 2 278 969 756 bytes. That is more than 99% of the
+wait spent in a single silence, which on a phone is many minutes. **No
+safe threshold has been measured, so this page will not invent one.**
+Keep the restart button on the screen at all times instead of arming it
+from a timer. If you do add a timer, measure it in tens of minutes, and
+have it say "still working" rather than "stalled".
+
+**What a caller must do about it, corrected.** Disabling the idle timer
+only stops the screen going to sleep on its own. It does NOT stop a
+person locking the phone or switching app, which is the case the
+headline above names. So a keep-awake is worth having, and it is not
+enough on its own. The download screen needs a restart button that is
+always there, not only a progress bar.
+
+**"Starting again begins at zero" — with a boundary.** That is true when
+the fetch RETURNED or THREW. The cleanup runs on those two paths:
+`HubWeightsFetcher.fetch` removes the client's tree from its own
+`catch`, and `download` removes what it can name after the fetch
+returns.
+
+A process the system suspends and then TERMINATES runs neither. What it
+leaves is this. The client's tree stays where it was being written.
+`HubWeightsFetcher`'s doc names that place: `base/models/<owner>/<name>`.
+Here `base` is `model.weights.deletingLastPathComponent()`. The client's
+own per-file bookkeeping lives inside that same tree. And if the kill
+landed inside `completeInstall`, a `<weights>.incoming` sibling stays
+too.
+
+**Three things follow, and the third is the one nobody expects.**
+
+1. **The bytes are not gone, and `installState()` cannot see them.** Up
+   to the whole 2.3 GB can be sitting at
+   `Documents/models/<owner>/<name>` while `installState()` answers
+   `.absent`.
+2. **They are not excluded from backup.** The exclusion flag is set by
+   `excludeWeightsFromBackup()`, on `model.weights`, on the last line of
+   a SUCCESSFUL install. A tree that a kill left behind was never
+   flagged, and it is not `model.weights`, so nothing flags it. That is
+   the L7 bill — 2.3 GB of cache inside a person's iCloud backup — being
+   paid by exactly the failure the backup section below does not cover.
+   Read the two sections together: the flag protects a finished install,
+   not a dead one.
+3. **A Delete Model button on `model.weights` removes none of it.**
+
+So a caller that wants D-106's ruling honoured after a kill has to
+delete the leftovers itself, at launch, before offering the download
+again. Neither path is public API, so both are built by hand:
+
+```swift
+let files = FileManager.default
+let parent = model.weights.deletingLastPathComponent()   // Documents
+
+// 1 — the fetcher client's tree. NOT `parent`, which is the person's
+//     whole Documents folder, and NOT `parent/models`, where other
+//     models live beside this one.
+try? files.removeItem(at: parent.appending(path: "models/mlx-community/Qwen3-4B-4bit"))
+
+// 2 — a staging sibling a kill left mid-install.
+try? files.removeItem(
+    at: parent.appending(path: model.weights.lastPathComponent + ".incoming"))
+```
+
+**Read that first path twice.** An unbounded version of the same line,
+in a review probe, deleted a person's whole Documents folder — the same
+mistake `aFetcherThatReturnsTheBaseKeepsIt` now holds shut inside the
+library.
+
+**What happens if you leave the leftovers instead: less certain than
+this page said before.** The client keeps per-file bookkeeping in that
+tree, and `WeightsFetching`'s own note says its next run "reuses a file
+whose commit hash still matches" — so finished files are not fetched
+again. Whether the file it was in the MIDDLE of resumes by byte range or
+restarts is not something this repo has read out of the client or
+watched. Either way it is some form of option B, the one D-106 rejected,
+arriving by accident rather than by design. And either way one file is
+2 263 022 529 of the 2 278 969 756 bytes, so the saving is small next to
+the risk of a cache nobody counts.
+
+**Can a caller keep this off mobile data? Not through this library.**
+No file in `Sources/` sets `allowsCellularAccess`,
+`allowsExpensiveNetworkAccess` or `allowsConstrainedNetworkAccess`, and
+`Sources/MultiModalKitMLX` builds no `URLSession` at all — the hub
+client makes its own, at its defaults. So a download started on mobile
+data runs on mobile data, and 2.3 GB can go that way, including by
+accident if a screen offers the button with no check. The only lever
+this library gives is the seam: a caller that must be Wi-Fi-only
+conforms its own `WeightsFetching` with a session it configures, and
+passes it to `download(reporting:using:)`. Guarding the tap with `NWPathMonitor` on
+the caller's side is the cheaper half of the same answer.
+
+**This is a stated limit, not an engineered solution**, and Ryad ruled it
+that way (D-106, F-3 = A). A background `URLSession` is what a 2.3 GB
+cellular download really needs, and it is a different downloader, a
+delegate and a re-entry path — a milestone of its own, not a bullet in
+this one.
+
+A statement can drift away from the code, so two rows in
+`MLXInstallSuspendTests.swift` read this module's own source: one fails
+if the doc comment loses the sentence, the other fails if
+`URLSessionConfiguration.background` or the client's
+`useBackgroundSession` flag ever appears anywhere in
+`Sources/MultiModalKitMLX`. That is AC-251's second half.
+
+One thing about that scan is worth knowing. AC-251 asked it to look for
+`URLSessionConfiguration.background`. That string could never appear
+here, because this module builds no `URLSession` at all — so on its own
+the scan would pass forever and prove nothing. The string that CAN
+appear is the hub client's own `useBackgroundSession` flag, which is why
+the test looks for both.
+
+### The backup flag (L7, AC-250)
+
+The weights are a re-downloadable cache. **2.3 GB of cache inside a
+person's iCloud backup is a bill they never agreed to**, and they pay it
+in storage they must buy or in a backup that stops finishing.
+
+So the weights directory is marked excluded from backup on the **last
+line of every install** — not once, at creation. That distinction is the
+whole criterion: `completeInstall` swaps a fresh tree into place, and a
+new directory carries no flag, so a mark set when the weights first
+appeared would silently be gone after the repair that replaced them.
+`theBackupFlagSurvivesAReDownload` clears the flag by hand, truncates a
+file so the download's own guard lets a second one through, downloads
+again, and asserts the flag is back.
+
+The failure is swallowed on purpose: a filesystem that will not take the
+flag is not a reason to throw away a complete, working install.
+
+**What the flag does NOT cover, said here so the two sections meet.** It
+is set on `model.weights`, and only when an install finishes. It is never
+set on the fetcher's own tree at `Documents/models/<owner>/<name>`, and
+never on a `<weights>.incoming` sibling. A download that a killed process
+left behind is therefore up to 2.3 GB inside a person's Documents with no
+exclusion flag on it — the exact bill this section says the design
+avoids, arriving through the one path it does not reach. The suspend
+section above has the two lines that clear it.
+
+### Faking the install (AC-249)
+
+`WeightsFetching` is public. One method, deliberately — every extra
+requirement is a thing a caller's fake has to get right before it can be
+used at all:
+
+```swift
+public protocol WeightsFetching: Sendable {
+    func fetch(repoID: String,
+               into base: URL,
+               reporting progress: @escaping @Sendable (Double) -> Void) async throws -> URL
+}
+```
+
+**Where you plug it in**, which is the one line that makes this section
+usable. `LocalMindModel` has THREE public `download` methods. Two of them
+matter here, and both are shipping API — the second is not test-only:
+
+```swift
+// the default: uses HubWeightsFetcher(), reaches the network
+public func download(reporting: @escaping @Sendable (InstallProgress) -> Void) async throws
+
+// the seam: your fetcher, no network, everything else identical
+public func download(reporting: @escaping @Sendable (InstallProgress) -> Void,
+                     using fetcher: some WeightsFetching) async throws
+```
+
+The first is a one-line wrapper over the second
+(`try await download(reporting: progress, using: HubWeightsFetcher())`),
+so there is no second code path to test. The fetcher is passed per call,
+not stored on the model — there is no `LocalMindModel(repoID:fetcher:)`.
+A caller wires it the way the tests do — this is the wiring line from
+`aCallersFakeDrivesACompleteInstall`, with its own fetcher double:
+
+```swift
+try await model.download(
+    reporting: { progress in seen.withLock { $0.append(progress) } },
+    using: FakeWeightsFetcher { _, _, report in
+        // writes four small files into a directory of its own,
+        // report(0.25) … report(1.0), and returns that directory
+        return snapshot
+    })
+```
+
+`FakeWeightsFetcher` is that test file's own double, not shipped API — a
+caller writes the equivalent for its screen. The line that matters is
+`using:`.
+
+**The third method, so autocomplete does not surprise you.**
+`download(progress: @escaping @Sendable (Double) -> Void = { _ in })` is
+the pre-4v shape. It survives as a thin wrapper over the `reporting:`
+one, so the demo and the `fetch` instrument keep compiling. It hands you
+`$0.fraction` and throws `bytesExpected` and `bytesReceived` away. It is
+public, a caller will find it, and new code should take the `reporting:`
+shape instead.
+
+Nothing else about the install changes: the guards, the staging, the
+manifest and the backup flag are this library's, whoever brought the
+bytes.
+
+**Its doc carries requirements, not suggestions.** Three of them, quoted:
+
+- "**A CONFORMER THAT THROWS CLEANS UP AFTER ITSELF** (F-2 = A). The
+  throw carries no path, so nothing outside can find what was written;
+  whatever bytes have landed must be removed before the error leaves this
+  method, or the next attempt does not begin at zero."
+- On the returned directory: "Make it a directory of the conformer's
+  OWN, not the weights directory itself" — everything the install
+  promises about a failure rests on the new bytes being completed
+  somewhere else first.
+- On `base`: "`base` itself is not its own to hand back" — the returned
+  directory is moved into place, and a directory cannot be moved inside
+  itself. A conformer that returns `base` fails the install and loses
+  nothing, which is proven rather than promised
+  (`aFetcherThatReturnsTheBaseKeepsIt`).
+
+The progress argument is forgiving on purpose: values outside 0…1 are
+clamped by the caller, so a conformer that reports a rough number cannot
+break a progress bar.
+
+**The row to copy** is `aCallersFakeDrivesACompleteInstall` in
+`MLXInstallSeamTests.swift`: a fake writes four small files into a
+temporary directory, reports quarters, and a real `download` produces
+reported progress, a written manifest and `.installed` — with none of
+this library's Hub code in the path.
+
+### What leaves the device
+
+The full answer is its own page: **[docs/HOSTS.md](docs/HOSTS.md)**. Its
+headline, in its own words, is that this library contacts exactly one
+host family — `huggingface.co` — and only while it is downloading model
+weights; once the weights are on disk, listening, thinking and speaking
+issue no requests at all. That sentence was untrue when the page was
+first written, and this milestone's own recorder is what caught it, so
+the page keeps the story rather than tidying it away.
+
+Three things a caller should read there before quoting the headline:
+
+- **The credential caveat is not closed.** This library sets no request
+  header at all, and reads no device or person identifier — that half is
+  scanned by a test. But three of the four weight fetches, the mind's
+  among them, go through hub clients this repo did not write — each one
+  ships inside a dependency, which is what `docs/HOSTS.md` means by
+  "vendored". Those clients resolve a token from the ENVIRONMENT when
+  none is given, and would then send
+  `Authorization: Bearer …`. An app sandbox on a phone has nothing for
+  them to find; a developer's Mac that has signed in with the hub's
+  command-line tool does. This library cannot currently switch it off.
+  Reported on that page, not decided.
+- **The silence proof's real reach.** A *silence proof* is a test that
+  puts a recorder in front of the process's networking, runs a whole
+  cycle, and then asserts the recorder saw no request. The recorder is
+  installed with `URLProtocol.registerClass` — `URLProtocol` is the
+  Foundation hook that lets code sit in front of URL requests. That hook
+  reaches `URLSession.shared` and nothing else: not a session a package
+  builds for itself, even on a default configuration. Of the weight path
+  that means the `httpGet` metadata calls ARE watched, while the `HEAD`
+  metadata calls and the 2.3 GB snapshot itself are **not**. A green run
+  means "no request left through `URLSession.shared`", never "no byte
+  left this device".
+- **The privacy manifests.** F-4 = A: six `PrivacyInfo.xcprivacy` files
+  ship, one per linkable module, each declared in `Package.swift` as
+  `.copy("PrivacyInfo.xcprivacy")` — a manifest that is not declared as a
+  resource never reaches a consumer's app.
+
+### What this does NOT do
+
+SPEC §182's non-goals, plainly, plus the two things this milestone owes:
+
+- **No download UI.** The library reports; the app draws.
+- **No background download and no resume.** F-3 = A and F-2 = A, both
+  above. Keep-and-resume is named as a later milestone for someone who
+  can measure it on a real, bad, moving network.
+- **No admission, thermal or memory-pressure work.** This library refuses
+  no device for memory today (D-105), before a download or after one. A
+  caller that wants to refuse a phone that cannot hold the model **in
+  MEMORY** can do that arithmetic itself, from `expectedInstall()` and
+  the headroom `DeviceReport` carries. Headroom there is memory, not
+  disk — the readiness table above spells the case
+  `.notEnoughMemory(needed:available:)`. F-1 = A named that as the next
+  milestone's question rather than this one's.
+- **No free-DISK check at all, and that is a different question.**
+  Nothing in this library asks the volume how much room is left, and no
+  test fills one, so the disk-full path is argued from the code and never
+  measured. A caller must ask for itself before it offers the button —
+  `URL.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])`
+  is the key Apple wants for a large optional download. Ask for more than
+  `onDiskBytes`: a REPAIR of an `.incomplete` tree downloads a fresh copy
+  while the old tree is still on disk, so at the peak the volume holds
+  both.
+- **No new dependency and no second fetcher.** The hub client stays,
+  behind the new protocol.
+- **No change to the text contract (4v), and no tools (4w).**
+- **AC-254 is not complete, and must not be ticked.** No test reads a
+  request header. What ships is a source-level scan plus the honest
+  finding above, and the header-level assertion the criterion asks for is
+  owed.
+- **The size call's name is an open fork** (§184 F-6). `expectedInstall()`
+  reaches the network and does not say so in its name; the doc does. The
+  builder did not rename a public symbol on its own.
+
 ## The rails — cross-cutting, everything rides on them
 
 ```
@@ -835,6 +1670,9 @@ variable, and every fault of that afternoon was findable in one command
 | The mind's TEXT contract — options, stop reasons, failures (4v) | `Conversation/ReplyContract.swift` |
 | Can this mind run here? — the pure verdict over a device report | `Conversation/MindReadiness.swift` |
 | The install, size-checked; the manifest and byte progress | `MultiModalKitMLX/LocalMindInstall.swift` |
+| What an install will COST, asked before a byte moves (4x) | `MultiModalKitMLX/LocalMindInstallSize.swift` |
+| The install seam a caller can fake, and the typed install failure (4x) | `MultiModalKitMLX/WeightsFetching.swift` |
+| Which hosts this library can contact, and what a request carries (4x) | `docs/HOSTS.md` |
 | What the doors refuse, as an error rather than a trap (AC-241) | `Runtime/AIRuntime.swift`, `Conversation/TurnCoordinator+Config.swift` |
 | The pipeline wired for real — through the door | `Demo/TranscribeDemo/Sources/Model/TranscribeModel+Pipeline.swift`, `Sources/AudioDemo/AudioDemo.swift` |
 
