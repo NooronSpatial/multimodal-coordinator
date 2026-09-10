@@ -15,15 +15,18 @@
   are values in memory and in the caller's own storage. The only bytes
   that cross the network move downward: model weights.
 
-  WHY THERE IS NO REQUIRED-REASON CATEGORY HERE. Apple's four common
+  WHY THERE IS NO REQUIRED-REASON CATEGORY HERE. Apple's five common
   categories were searched for in Sources/ symbol by symbol — file
-  timestamps, disk space, user defaults, system boot time — and none of
-  them is used. A manifest claiming a reason the code does not use is as
+  timestamps, disk space, user defaults, system boot time and active
+  keyboards — and none of them is used. A manifest claiming a reason the code does not use is as
   wrong as a missing one: it is an untrue statement filed with a store.
   That search is not a one-off. NetworkSilenceTests holds the same symbol
-  list and checks it in BOTH directions on every run: a category may not
-  be declared without a matching call, and a call may not appear without
-  the category.
+  list and checks it in BOTH directions on every run, PER MODULE: this
+  target may not declare a category none of its own source calls, and its
+  source may not call one without this file declaring it. (4x's review
+  found the first version failing the second direction backwards — it
+  demanded the API never be used at all, so declaring the category
+  correctly still went red.)
 
   The whole argument, with the host list beside it: docs/HOSTS.md.
 -->
