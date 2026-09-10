@@ -65,7 +65,12 @@ public protocol WeightsFetching: Sendable {
     ///     rough number cannot break a progress bar.
     /// - Returns: the directory holding the fetched files. It is MOVED
     ///   into place afterwards, so it must not be somewhere the conformer
-    ///   still needs.
+    ///   still needs. Make it a directory of the conformer's OWN, not the
+    ///   weights directory itself: everything the install promises about a
+    ///   failure — that a caller's existing tree survives it untouched —
+    ///   rests on the new bytes being completed somewhere else first, and
+    ///   a conformer that writes over the live tree has spent that
+    ///   protection before this library is asked anything.
     func fetch(repoID: String,
                into base: URL,
                reporting progress: @escaping @Sendable (Double) -> Void) async throws -> URL

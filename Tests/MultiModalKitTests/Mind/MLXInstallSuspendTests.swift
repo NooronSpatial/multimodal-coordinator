@@ -94,13 +94,35 @@ enum MLXModuleSource {
         return there && isDirectory.boolValue
     }
 
-    /// File name → contents, for every Swift file in the module.
+    /// Every Swift file in the module, keyed by its path BELOW the module
+    /// directory — so a top-level file is still just its name.
+    ///
+    /// THE WALK IS RECURSIVE, and the 4x review was right to ask. This
+    /// used one non-recursive `contentsOfDirectory`, while the row above
+    /// it claims "anywhere in the MLX module". The claim held only because
+    /// `Sources/MultiModalKitMLX` happens to be flat today: the day
+    /// somebody adds a subdirectory, a `URLSessionConfiguration.background`
+    /// inside it would pass unseen, the suite would stay green, and the
+    /// doc comment F-3 = A rests on would quietly become a lie. A test
+    /// whose name is wider than its reach is worse than no test.
     static func files() throws -> [String: String] {
+        let root = directory.standardizedFileURL
+        guard let walk = FileManager.default.enumerator(at: root, includingPropertiesForKeys: nil) else {
+            throw UnreadableModule.cannotEnumerate(root.path)
+        }
         var found: [String: String] = [:]
-        for name in try FileManager.default.contentsOfDirectory(atPath: directory.path)
-        where name.hasSuffix(".swift") {
-            found[name] = try String(contentsOf: directory.appending(path: name), encoding: .utf8)
+        for case let url as URL in walk where url.pathExtension == "swift" {
+            let path = url.standardizedFileURL.path
+            let key = path.hasPrefix(root.path + "/")
+                ? String(path.dropFirst(root.path.count + 1))
+                : url.lastPathComponent
+            found[key] = try String(contentsOf: url, encoding: .utf8)
         }
         return found
     }
+
+    /// A directory the suite's own `.enabled(if:)` said was readable and
+    /// that then would not open. Its own error so the failure names the
+    /// path instead of arriving as an empty scan that proves nothing.
+    enum UnreadableModule: Error { case cannotEnumerate(String) }
 }

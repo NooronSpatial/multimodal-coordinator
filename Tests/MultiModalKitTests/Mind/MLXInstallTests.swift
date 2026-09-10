@@ -297,6 +297,26 @@ struct MLXDoorTests {
                 "the tokenizer's bytes are not weights and do not count")
     }
 
+    /// THE SAME LESSON AS `totalBytes`, ONE FUNCTION LATER. The 4x review
+    /// noticed that the manifest's sum saturates — after a review killed
+    /// the test process on `reduce(0, +)`, signal 5 — while the estimate
+    /// beside it summed the same kind of numbers plainly and then added
+    /// half again on top. Nobody has reached that trap: sizes come off a
+    /// disk, and one sparse file caps at 2^53 on this Mac while the sum
+    /// would need about 6.1e18. This row makes it unreachable by
+    /// construction rather than by the size of a volume, over the pure
+    /// function the public one now calls.
+    @Test("the working-set estimate saturates instead of trapping, like the manifest's own sum")
+    func theWorkingSetEstimateSaturates() {
+        #expect(LocalMindModel.workingSet(overWeights: [4096, 2048]) == 6144 + 3072,
+                "ordinary sizes are exact — ×1.5 as integer arithmetic")
+        #expect(LocalMindModel.workingSet(overWeights: [.max, .max]) == Int(Int64.max),
+                "a sum past Int64 is 'more than can be counted', not a termination")
+        #expect(LocalMindModel.workingSet(overWeights: [Int64.max]) == Int(Int64.max),
+                "and neither is the half added on top of a total already at the edge")
+        #expect(LocalMindModel.workingSet(overWeights: []) == 0, "no weights, no claim")
+    }
+
     /// THE RESIDENCY EXEMPTION, in both directions — the 4v review found
     /// it asserted in neither. A model whose weights are already loaded
     /// makes NO memory claim: the headroom the report measures has

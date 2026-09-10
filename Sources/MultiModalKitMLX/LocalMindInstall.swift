@@ -249,9 +249,35 @@ extension LocalMindModel {
     public nonisolated func estimatedWorkingSetBytes() -> Int {
         guard !resident.withLock({ $0 }) else { return 0 }
         let onDisk = (try? InstallManifest.listing(of: weights)) ?? [:]
-        let weightBytes = onDisk.filter { $0.key.hasSuffix(".safetensors") }.values.reduce(0, +)
-        let bytes = Int(weightBytes)
-        return bytes + bytes / 2
+        return Self.workingSet(overWeights: onDisk.filter { $0.key.hasSuffix(".safetensors") }.values)
+    }
+
+    /// The arithmetic above, pure and SATURATING — the same shape
+    /// `InstallManifest.totalBytes` uses, for the same reason.
+    ///
+    /// The 4x review found the asymmetry: `totalBytes` saturates because a
+    /// review once killed the test process on a plain `reduce(0, +)` over
+    /// numbers read off a disk ("exited with unexpected signal code 5"),
+    /// and this function summed the SAME kind of numbers — sizes of files
+    /// in a directory this library does not control — with the plain one,
+    /// then added half again on top. The reviewer could not build a tree
+    /// large enough to trap it on this Mac (one sparse file caps at 2^53
+    /// here, and the sum would need about 6.1e18), so this is not a bug
+    /// anybody has reached; it is the two lines that make it unreachable
+    /// by construction instead of by luck. "More than can be counted" is a
+    /// number a caller can handle, and a trap is not (AC-241's rule).
+    static func workingSet(overWeights sizes: some Sequence<Int64>) -> Int {
+        let total = sizes.reduce(Int64(0)) { running, bytes in
+            let (sum, overflowed) = running.addingReportingOverflow(bytes)
+            guard !overflowed else { return bytes > 0 ? .max : .min }
+            return sum
+        }
+        let (scaled, overflowed) = total.addingReportingOverflow(total / 2)
+        let bytes = overflowed ? (total > 0 ? Int64.max : .min) : scaled
+        // On every platform this library ships to, `Int` is 64 bits and
+        // this conversion always succeeds; the ask-instead-of-assume is
+        // the same one `InstallProgress.at` learned to make.
+        return Int(exactly: bytes) ?? .max
     }
 
     // MARK: the verdict (AC-238's wiring)
@@ -366,6 +392,15 @@ extension LocalMindModel {
     /// promise that must be tested on a bad network and this Mac cannot
     /// do that honestly.
     ///
+    /// THAT SECOND HALF IS A MECHANISM, NOT A HOPE, and the 4x review had
+    /// to take it apart before it was. A caller's tree is never destroyed
+    /// to make room for one that has not arrived yet: `completeInstall`
+    /// finishes the new tree — moved, listed, manifest written — at a
+    /// staging path beside the weights and swaps it in as one step, so
+    /// every failure up to that step leaves the disk exactly as this
+    /// download found it. The note on `completeInstall` has the three
+    /// shapes that used to get through.
+    ///
     /// THE DELETING IS SPLIT IN TWO, and a review had to find out why.
     /// This function can only remove what it can NAME: the weights tree,
     /// and the directory a fetch RETURNED. A fetch that THROWS returns no
@@ -457,9 +492,21 @@ extension LocalMindModel {
         // !modelInstalled()`, both see an empty directory, and if the
         // slower one then fails it would delete the tree the faster one
         // had just finished writing. So the disk is asked again NOW — a
-        // COMPLETE install is never deleted, whoever finished it. There
-        // is no gap to exploit, because `completeInstall` is synchronous:
-        // the move and the manifest happen inside one actor step.
+        // COMPLETE install is never deleted here, whoever finished it.
+        //
+        // AND THIS LINE IS THE SECOND LOCK, NOT THE ONLY ONE. It used to
+        // say there was "no gap to exploit, because `completeInstall` is
+        // synchronous", and the 4x review showed the sentence was about
+        // the wrong gap: the danger was never between actor steps, it was
+        // INSIDE `completeInstall`, which deleted the live tree first and
+        // wrote the manifest last. A racing download that failed in that
+        // window destroyed a finished install before this re-read was ever
+        // asked anything — the reviewer's probe printed `.absent` where
+        // the row above promises `.installed`. `completeInstall` now
+        // completes the new tree at a staging path and swaps it in as one
+        // step, so no failure can reach the live tree at all; this guard
+        // stays because a cheap re-read of the disk is worth keeping in
+        // front of the one destructive line in this file.
         //
         // AND "COMPLETE" MEANS VERIFIED, which this line first got wrong.
         // It asked `modelInstalled()`, which is TRUE for a manifest-less
@@ -471,8 +518,30 @@ extension LocalMindModel {
         // every later attempt — so no download could ever write the
         // manifest again. A fresh 4x install could reach the pre-4v state
         // AC-239 exists to end. Only `.installed` is protected now.
+        //
+        // The half-finished tree that started all this can no longer be
+        // MADE from here — `completeInstall` writes the manifest before
+        // the swap, so a failure leaves either the old tree or nothing —
+        // with one exception worth naming: a conformer that writes
+        // straight into the weights directory and hands that same path
+        // back has already replaced whatever was there, and this
+        // library's part of the promise ends where the fetcher's begins.
         guard installState() != .installed else { return }
         try? files.removeItem(at: weights)
+    }
+
+    /// Whether two URLs name the SAME directory on disk.
+    ///
+    /// A `URL` is text and a directory is not: `…/Fake-Model` and
+    /// `…/Fake-Model/` are unequal values for one place, and the
+    /// temporary directories these tests run in are reached through a
+    /// symlink, so two more spellings arrive for free. Every decision in
+    /// this file that can DELETE something asks this question instead of
+    /// `==`, because being wrong about it in either direction loses
+    /// somebody's bytes.
+    nonisolated func samePlace(_ one: URL, _ other: URL) -> Bool {
+        one.standardizedFileURL.resolvingSymlinksInPath().pathComponents
+            == other.standardizedFileURL.resolvingSymlinksInPath().pathComponents
     }
 
     /// Whether a directory a fetcher handed back is one THIS download
@@ -508,28 +577,100 @@ extension LocalMindModel {
         InstallManifest.read(in: weights)?.totalBytes
     }
 
-    /// Everything after the bytes land: the cancel, the move, the write.
+    /// Everything after the bytes land: the cancel, the staging, the
+    /// write, the swap.
     ///
     /// THE HUB RETURNS EARLY ON CANCELLATION with a PARTIAL tree and no
     /// error. A manifest written from that tree would list the short
     /// files at their short sizes and call the install complete — the
     /// exact lie AC-239 exists to end. So the cancel is checked here,
     /// before anything is moved or written.
+    ///
+    /// NOTHING IS DESTROYED UNTIL THERE IS SOMETHING COMPLETE TO PUT IN
+    /// ITS PLACE, and the 4x review had to prove why. This function used
+    /// to remove the live weights tree as its FIRST act and write the
+    /// manifest last, which made a window nothing could guard:
+    ///
+    /// - a caller's `.incomplete` tree, a fetch that SUCCEEDED, and a full
+    ///   disk at the manifest write — the tree was already gone, the
+    ///   half-finished one this download moved in was kept by the
+    ///   `wasAlreadyThere` exemption below, `installState()` called it
+    ///   `.installedUnverified` (AC-247 forbids exactly that word) and
+    ///   `download`'s `guard !modelInstalled()` then refused to ask a
+    ///   fetcher ever again: the pre-4v lockout, over a person's own bytes;
+    /// - a move that threw — the caller's tree deleted, nothing to replace
+    ///   it, `.absent`, while the doc above promised "the `.incomplete` it
+    ///   already was";
+    /// - a second download failing here while a first had just FINISHED —
+    ///   a complete, verified install deleted by the loser of a race. A
+    ///   person tapping Retry on a download screen is that race.
+    ///
+    /// So the new tree is completed at a staging path — moved there,
+    /// listed there, its `manifest.json` written there — and only a tree
+    /// that survived all of that goes into place: `replaceItemAt` when
+    /// something is already there, a plain move when nothing is. Every
+    /// failure before that last call leaves the live tree exactly as it
+    /// was, and after it there is nothing left that can fail: the flag
+    /// below swallows its own error by design. The staging path is a
+    /// sibling of the weights, so it shares their volume; a stale one
+    /// left by a process that died mid-install is removed before the
+    /// next attempt uses it.
+    ///
+    /// WHAT THAT LAST CALL DOES AND DOES NOT PROMISE, said plainly so
+    /// nobody reads more into it. It is ONE call, over two directories on
+    /// one volume, and Foundation documents it as preserving the original
+    /// when it cannot finish — which is as close to a swap as this
+    /// library can get without owning the filesystem. It is not a claim
+    /// that no machine can ever be interrupted between two inodes. The
+    /// difference this function is actually here to make is the one the
+    /// review measured: the destructive step is now LAST and it happens
+    /// only over a complete, manifest-carrying tree, instead of FIRST and
+    /// on nothing but hope.
     nonisolated func completeInstall(movingFrom snapshot: URL) throws {
         try Task.checkCancellation()
 
-        if snapshot != weights {
-            let files = FileManager.default
-            if files.fileExists(atPath: weights.path) {
-                try files.removeItem(at: weights)
-            }
-            try files.createDirectory(at: weights.deletingLastPathComponent(),
-                                      withIntermediateDirectories: true)
-            try files.moveItem(at: snapshot, to: weights)
+        let files = FileManager.default
+        // A fetcher that wrote STRAIGHT INTO the weights tree has nothing
+        // to stage — there is no second copy to complete elsewhere, and
+        // moving the live tree away to make one would be the very risk
+        // this function exists to stop taking.
+        //
+        // THE QUESTION IS ASKED OF THE PATH, NOT OF THE URL. `URL`
+        // compares as text, so `…/Fake-Model` and `…/Fake-Model/` are two
+        // different values naming one directory — and a `!=` here would
+        // have sent the second one down the staging road, which begins by
+        // moving the live tree away. On a manifest write that then failed,
+        // the caller's bytes would be gone: the same defect this function
+        // was rewritten to remove, reached through a trailing slash. The
+        // resolved path is what the disk actually means, and it is the
+        // same comparison `mayDelete` makes, for the same reason.
+        guard !samePlace(snapshot, weights) else {
+            try InstallManifest(listing: weights).write(in: weights)
+            excludeWeightsFromBackup()
+            return
         }
-        // AC-239: the manifest, from the bytes ON DISK right after the
-        // snapshot returned — the client counts files, not bytes.
-        try InstallManifest(listing: weights).write(in: weights)
+
+        let staging = weights.deletingLastPathComponent()
+            .appending(path: weights.lastPathComponent + ".incoming")
+        try files.createDirectory(at: weights.deletingLastPathComponent(),
+                                  withIntermediateDirectories: true)
+        if files.fileExists(atPath: staging.path) { try files.removeItem(at: staging) }
+        do {
+            try files.moveItem(at: snapshot, to: staging)
+            // AC-239: the manifest, from the bytes ON DISK right after the
+            // snapshot returned — the client counts files, not bytes.
+            try InstallManifest(listing: staging).write(in: staging)
+            if files.fileExists(atPath: weights.path) {
+                _ = try files.replaceItemAt(weights, withItemAt: staging)
+            } else {
+                try files.moveItem(at: staging, to: weights)
+            }
+        } catch {
+            // The half-finished tree is this download's own and nobody
+            // else's, so it goes — and the live tree, never touched, stays.
+            try? files.removeItem(at: staging)
+            throw error
+        }
         excludeWeightsFromBackup()
     }
 

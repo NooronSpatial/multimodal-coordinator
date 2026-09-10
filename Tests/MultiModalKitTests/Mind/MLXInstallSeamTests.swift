@@ -125,6 +125,16 @@ struct MLXInstallSeamTests {
     /// carries no path. So the fake here does what `HubWeightsFetcher`
     /// does — it runs the shipped cleanup on the shipped location — and
     /// this row proves that code, not a fake's good manners.
+    ///
+    /// AND HERE IS WHAT THIS ROW DOES NOT PROVE, named so that a later
+    /// reader does not mistake it for more. The fake calls the shipped
+    /// cleanup BY HAND. Nothing here executes `HubWeightsFetcher.fetch`'s
+    /// own `catch` (WeightsFetching.swift), so deleting that `catch`
+    /// would leave this suite green. Reaching it needs a real
+    /// `hub.snapshot` failure, which needs the network, and no test in
+    /// this house touches the network. What is proven is the cleanup and
+    /// the location — the two pieces the `catch` is made of — and the gap
+    /// is the one line joining them.
     @Test("a fetch that throws leaves .absent, and the error is typed and switchable")
     func aThrownFetchLeavesNothing() async throws {
         let base = try InstallScratch.directory("throw")
@@ -403,5 +413,245 @@ struct MLXInstallSeamTests {
         #expect(model.installState() == .installed)
         #expect(InstallScratch.excludedFromBackup(model.weights),
                 "AC-250: re-applied after EVERY download, not only at creation")
+    }
+}
+
+/// AC-247 AGAIN, FROM THE SIDE THAT CAN LOSE SOMEBODY'S BYTES — the three
+/// shapes the 4x review found still getting through, in their own suite
+/// because the rows above ran the struct past what the linter allows.
+///
+/// Everything here crosses two conditions at once: a tree that was
+/// ALREADY THERE (a caller's earlier attempt, or another download that
+/// just finished) and a failure that lands AFTER the fetch succeeded. The
+/// rows above each hold one of those conditions and never both, which is
+/// exactly why a green suite could sit on top of a download that deleted
+/// a finished install and locked the model out for good.
+@Suite("AC-247 · a failure after the fetch, over a tree that was already there", .serialized)
+struct MLXInstallLateFailureTests {
+    /// STAGING IS NOT A PLACE TO LEAVE 2.3 GB. The new tree is completed
+    /// at a sibling of the weights before it is swapped in, and a
+    /// sibling left behind is a second copy of the model in a person's
+    /// Documents — invisible to `installState()`, counted by nobody, and
+    /// inherited by the next attempt. Every row here asserts it is gone,
+    /// on the success path and on all three failure paths.
+    static func stagingLeftovers(beside model: LocalMindModel) -> Bool {
+        FileManager.default.fileExists(
+            atPath: model.weights.deletingLastPathComponent()
+                .appending(path: model.weights.lastPathComponent + ".incoming").path)
+    }
+
+    /// THE TWO CONDITIONS CROSSED, which is the hole the rows above left
+    /// open and the 4x review walked through.
+    ///
+    /// `aFailedRedownloadKeepsWhatWasAlreadyThere` starts from a caller's
+    /// tree but throws in the FETCH; `aFailureAfterTheMoveLeavesNothing‐
+    /// Pretending` fails after the move but starts from an EMPTY base.
+    /// Neither is the real case: a caller's `.incomplete` tree, a fetch
+    /// that SUCCEEDS, and a disk that fills while `manifest.json` is
+    /// written. The reviewer's probe ran exactly that and printed
+    /// `installedUnverified` — the state SPEC §181/2 and AC-247 forbid —
+    /// and then the next download returned at `guard !modelInstalled()`
+    /// without asking the fetcher anything, so the manifest could never be
+    /// written by anyone. The lockout this milestone says it closed, closed
+    /// over a person's own bytes.
+    ///
+    /// The cause was an order, not a guard: `completeInstall` DELETED the
+    /// live tree and moved the snapshot in BEFORE writing the manifest, so
+    /// by the time the failure path asked "whose tree is this?", the tree
+    /// it was protecting was already gone. The new tree is now completed
+    /// and verified at a staging path and swapped in as one step, so this
+    /// row's caller keeps every byte it started with.
+    @Test("a failure after the move over a caller's tree keeps that tree, and never locks the model out")
+    func aLateFailureOverACallersTreeKeepsIt() async throws {
+        let base = try InstallScratch.directory("late-keep")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let model = LocalMindModel(repoID: "nobody/Fake-Model", in: base)
+        // The same earlier install that died: a manifest promising 8192
+        // bytes over a file holding 1024 of them.
+        try InstallScratch.tree(at: model.weights, weightBytes: 8192)
+        try InstallManifest(listing: model.weights).write(in: model.weights)
+        try Data(repeating: 0x2A, count: 1024)
+            .write(to: model.weights.appending(path: "model.safetensors"))
+        #expect(model.installState() == .incomplete(files: ["model.safetensors"]))
+
+        let snapshot = base.appending(path: "snapshot")
+        await #expect(throws: InstallFailure.self) {
+            try await model.download(reporting: { _ in }, using: FakeWeightsFetcher { _, _, _ in
+                try InstallScratch.tree(at: snapshot, weightBytes: 2048)
+                // The manifest's slot is a DIRECTORY, so the write fails
+                // the way a full disk makes it fail.
+                try FileManager.default.createDirectory(
+                    at: snapshot.appending(path: InstallManifest.fileName),
+                    withIntermediateDirectories: true)
+                return snapshot
+            })
+        }
+        #expect(model.installState() == .incomplete(files: ["model.safetensors"]),
+                "AC-247: never .installedUnverified — the caller's tree is still the caller's")
+        #expect(model.modelInstalled() == false,
+                "so download's own guard cannot short-circuit the repair")
+        #expect(try InstallManifest.listing(of: model.weights)["model.safetensors"] == 1024,
+                "and the bytes are the ones the caller had, not the half-finished download's")
+        #expect(Self.stagingLeftovers(beside: model) == false,
+                "and the failed download's staging tree went with it")
+
+        // The lockout, disproven where it would bite: the NEXT download
+        // really does reach the fetcher.
+        let after = RecordingInstallSource(placing: base.appending(path: "second"))
+        try await model.download(reporting: { _ in }, using: after)
+        #expect(after.calls == [.fetch("nobody/Fake-Model")], "the fetcher was asked, not skipped")
+        #expect(model.installState() == .installed, "and the repair completes")
+        #expect(Self.stagingLeftovers(beside: model) == false,
+                "a SUCCESSFUL swap consumes the staging tree too — no second copy is left")
+    }
+
+    /// The same promise one step EARLIER: a fetch that succeeds and hands
+    /// back a path that cannot be moved.
+    ///
+    /// `download(reporting:using:)`'s doc says a stopped download leaves
+    /// "the `.incomplete` it already was". The reviewer's first probe
+    /// showed it leaving `.absent` instead, with the directory gone: the
+    /// old `completeInstall` removed the live tree as its FIRST act, and
+    /// the move that was supposed to replace it then threw. Nothing is
+    /// removed now until there is a complete, manifest-carrying tree to
+    /// put in its place.
+    @Test("a move that fails never touches the tree it was going to replace")
+    func aMoveThatFailsNeverTouchesTheCallersTree() async throws {
+        let base = try InstallScratch.directory("move-fail")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let model = LocalMindModel(repoID: "nobody/Fake-Model", in: base)
+        try InstallScratch.tree(at: model.weights, weightBytes: 8192)
+        try InstallManifest(listing: model.weights).write(in: model.weights)
+        try Data(repeating: 0x2A, count: 1024)
+            .write(to: model.weights.appending(path: "model.safetensors"))
+        #expect(model.installState() == .incomplete(files: ["model.safetensors"]))
+
+        await #expect(throws: InstallFailure.self) {
+            try await model.download(reporting: { _ in }, using: FakeWeightsFetcher { _, handedBase, report in
+                report(1)
+                // A path the fetch names and never wrote: the move is the
+                // step that fails, before any manifest exists.
+                return handedBase.appending(path: "never-written")
+            })
+        }
+        #expect(model.installState() == .incomplete(files: ["model.safetensors"]),
+                "the caller's tree is untouched — a failed move loses nobody's bytes")
+        #expect(try InstallManifest.listing(of: model.weights)["model.safetensors"] == 1024)
+        #expect(Self.stagingLeftovers(beside: model) == false)
+    }
+
+    /// THE SAME HOLE, REACHED THROUGH A TRAILING SLASH — found while
+    /// fixing the three above, and cheap enough to close on the spot.
+    ///
+    /// `completeInstall` asks "did the fetcher write straight into the
+    /// weights tree?" and skips the staging road when it did, because
+    /// there is no second copy to complete and moving the live tree away
+    /// to make one is the risk the whole rewrite exists to stop taking.
+    /// That question used to be `snapshot != weights` — a `URL`
+    /// comparison, which is text. A conformer that hands back
+    /// `…/Fake-Model/` instead of `…/Fake-Model` names the same directory
+    /// and compares unequal, so the live tree was moved to staging, and a
+    /// manifest write that then failed took the caller's bytes with it:
+    /// the blocking defect again, through a spelling. The question is now
+    /// asked of the resolved PATH.
+    ///
+    /// This row is the caller's `.incomplete` tree again, with a fetcher
+    /// that works IN PLACE and hands the slashed spelling back, and a
+    /// manifest write that fails. What is asserted is the promise that
+    /// matters and the only one this library can still keep here: the
+    /// caller's bytes are all still on the disk, and no staging copy of
+    /// them was ever made. Against the `!=` version the tree was moved to
+    /// staging, the write failed, the staging tree was cleaned up, and
+    /// the directory was simply gone.
+    ///
+    /// The install STATE is deliberately not asserted. A fetcher that
+    /// writes into the live weights tree has already spent the protection
+    /// this file is built on — `discardPartialInstall`'s note names that
+    /// boundary, and `WeightsFetching`'s contract now tells a conformer
+    /// not to do it. Bytes are what a person loses; that is what is
+    /// pinned.
+    @Test("a fetcher that names the weights tree by another spelling never sends it to staging")
+    func aDifferentSpellingOfTheWeightsTreeIsStillTheWeightsTree() async throws {
+        let base = try InstallScratch.directory("same-place")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let model = LocalMindModel(repoID: "nobody/Fake-Model", in: base)
+        try InstallScratch.tree(at: model.weights, weightBytes: 8192)
+        try InstallManifest(listing: model.weights).write(in: model.weights)
+        try Data(repeating: 0x2A, count: 1024)
+            .write(to: model.weights.appending(path: "model.safetensors"))
+        #expect(model.installState() == .incomplete(files: ["model.safetensors"]))
+
+        await #expect(throws: InstallFailure.self) {
+            try await model.download(reporting: { _ in }, using: FakeWeightsFetcher { _, _, _ in
+                // The fetcher works in place and leaves the write broken
+                // the way a full disk would — the manifest's slot is a
+                // directory.
+                let slot = model.weights.appending(path: InstallManifest.fileName)
+                try FileManager.default.removeItem(at: slot)
+                try FileManager.default.createDirectory(at: slot, withIntermediateDirectories: true)
+                // The same directory, spelled with a trailing slash.
+                return URL(filePath: model.weights.path + "/")
+            })
+        }
+        #expect(FileManager.default.fileExists(atPath: model.weights.path),
+                "the caller's tree is not moved away to stage a copy of itself")
+        #expect(try InstallManifest.listing(of: model.weights)["model.safetensors"] == 1024,
+                "and every byte the caller had is still where it was")
+        #expect(Self.stagingLeftovers(beside: model) == false,
+                "no staging copy was ever made of it")
+    }
+
+    /// THE RACE IN THE SHAPE THAT CAN REACH THE DELETE — the row above it
+    /// cannot, and the review proved it.
+    ///
+    /// `aLateFailureNeverDeletesAFinishedInstall` parks its slow download
+    /// in a fetch that THROWS, so it never reaches `completeInstall` at
+    /// all; the sentence it carries is about a code path it does not run.
+    /// This row parks the slow download and then lets it RETURN a real
+    /// snapshot whose manifest write fails — a person tapping Retry while
+    /// the first download is in flight, and a disk that fills at the end
+    /// of the second. The reviewer's probe printed `.absent`: the fast
+    /// download's finished, verified 2.3 GB had been deleted by the slow
+    /// one's failure, because the delete happened inside `completeInstall`
+    /// before the re-read in `discardPartialInstall` could ever be asked.
+    ///
+    /// Now the swap is the last step and it only happens over a complete
+    /// tree, so a late failure has nothing to swap and deletes nothing.
+    @Test("a racing download that fails AFTER its fetch never deletes the finished install")
+    func aLateRacingFailureNeverDeletesAFinishedInstall() async throws {
+        let base = try InstallScratch.directory("race-late")
+        defer { try? FileManager.default.removeItem(at: base) }
+        let model = LocalMindModel(repoID: "nobody/Fake-Model", in: base)
+        let slowStarted = InstallSignals()
+        let fastFinished = InstallSignals()
+        let slowSnapshot = base.appending(path: "slow")
+
+        let slow = Task {
+            try await model.download(reporting: { _ in }, using: FakeWeightsFetcher { _, _, _ in
+                slowStarted.send("waiting")
+                _ = await fastFinished.heard("installed")
+                // A REAL snapshot this time, so the failure lands in
+                // `completeInstall` and not in the fetch.
+                try InstallScratch.tree(at: slowSnapshot, weightBytes: 1024)
+                try FileManager.default.createDirectory(
+                    at: slowSnapshot.appending(path: InstallManifest.fileName),
+                    withIntermediateDirectories: true)
+                return slowSnapshot
+            })
+        }
+        #expect(await slowStarted.heard("waiting"), "the slow download must be parked in its fetch")
+
+        try await model.download(reporting: { _ in },
+                                 using: RecordingInstallSource(placing: base.appending(path: "fast")))
+        #expect(model.installState() == .installed)
+        fastFinished.send("installed")
+
+        await #expect(throws: InstallFailure.self) { try await slow.value }
+        #expect(model.installState() == .installed,
+                "a finished install is never deleted by another download's late failure")
+        #expect(try InstallManifest.listing(of: model.weights)["model.safetensors"] == 4096,
+                "and the bytes are the fast download's 4096, not the slow one's 1024")
+        #expect(Self.stagingLeftovers(beside: model) == false,
+                "the loser of the race takes its own staging tree with it")
     }
 }
