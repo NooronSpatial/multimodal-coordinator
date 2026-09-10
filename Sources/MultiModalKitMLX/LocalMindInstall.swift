@@ -1,5 +1,4 @@
 import Foundation
-import Hub
 import MultiModalKit
 import Synchronization
 
@@ -308,55 +307,62 @@ extension LocalMindModel {
     /// download writes the manifest, because only a download has seen
     /// the bytes arrive. Such a tree stays `.installedUnverified` until
     /// it is fetched again.
+    ///
+    /// **THE SUSPEND TRUTH (AC-251, D-106's F-3 = A).** This download
+    /// dies when the app leaves the foreground. It runs on an ordinary
+    /// foreground `URLSession`, so the moment a person locks the phone or
+    /// switches app, the system suspends this process and the transfer
+    /// stops. There is no background session and no resume.
+    ///
+    /// What a caller must do about it: keep the screen alive while the
+    /// weights come down — an idle timer disabled, and a person told why
+    /// — or start the download again. Starting again is always safe and
+    /// always begins at zero, because the partial tree is deleted.
+    ///
+    /// That is D-106's F-3 = A, ruled and not merely settled for: a
+    /// background `URLSession` is what a 2.3 GB cellular download really
+    /// needs, and it is a different downloader, a delegate and a re-entry
+    /// path — a milestone of its own, not a bullet in this one.
+    /// `MLXInstallSuspendTests` reads this module's source and fails if a
+    /// background session ever appears underneath this paragraph.
+    ///
+    /// - Throws: `ReplyFailure.unavailable(.weightsAbsent)` when this
+    ///   model has no repository to fetch from; `CancellationError` when
+    ///   the caller cancels; `InstallFailure` otherwise (AC-248).
     public func download(
         reporting progress: @escaping @Sendable (InstallProgress) -> Void
     ) async throws {
-        try await download(reporting: progress, fetching: Self.hubFetch)
+        try await download(reporting: progress, using: HubWeightsFetcher())
     }
 
-    /// WHERE THE BYTES COME FROM, AS A VALUE: a repo id and a download
-    /// base in, the directory the fetch actually filled out, fractions
-    /// reported along the way.
+    /// The download, with the fetcher handed in — Aura's seam (AC-249),
+    /// and the shape every test uses.
     ///
-    /// This exists because the second 4v review was right that AC-239's
-    /// central promise — a COMPLETE download writes `manifest.json` — was
-    /// asserted by no test at all, and could not be: everything that
-    /// matters here is on the far side of a network call. The only row
-    /// that called `download` proved the EARLY RETURN and pinned that no
-    /// manifest was written. So the fetch became an argument with the
-    /// Hub's as its default (`hubFetch`), and the guard, the move, the
-    /// wiring and the write are now proven by `MLXDownloadTests` with a
-    /// fake fetch that writes a small tree. Nothing public changed.
-    typealias Fetching = @Sendable (
-        _ repoID: String,
-        _ into: URL,
-        _ reporting: @escaping @Sendable (Double) -> Void
-    ) async throws -> URL
-
-    /// The real one. The hub returns WHERE it put the snapshot. Use that.
+    /// The fetch became a value in 4v because the second review was right
+    /// that AC-239's central promise — a COMPLETE download writes
+    /// `manifest.json` — was asserted by no test at all, and could not be:
+    /// everything that matters here is on the far side of a network call.
+    /// The only row that called `download` proved the EARLY RETURN and
+    /// pinned that no manifest was written. So the fetch became an
+    /// argument with the Hub's as its default, and the guard, the move,
+    /// the wiring and the write are proven by `MLXDownloadTests` with a
+    /// fake fetch that writes a small tree.
     ///
-    /// The first version of this searched the download base for any
-    /// `config.json` and moved the folder containing it. That was
-    /// dangerous rather than merely imprecise: an app's Documents
-    /// directory holds other models — this demo keeps Whisper's under
-    /// `huggingface/models/openai/…`, and those have a `config.json`
-    /// too. Directory enumeration has no defined order, so that code
-    /// could have moved somebody else's model. Never go looking for a
-    /// file when the API already told you the path.
-    static let hubFetch: Fetching = { repoID, into, report in
-        let hub = HubApi(downloadBase: into)
-        return try await hub.snapshot(
-            from: repoID,
-            matching: ["*.safetensors", "*.json", "*.txt"]
-        ) { downloadProgress in
-            report(downloadProgress.fractionCompleted)
-        }
-    }
-
-    /// The download, with the fetch handed in — the shape every test uses.
-    func download(
+    /// 4x made that value a public protocol (`WeightsFetching`), because
+    /// Aura's download screen needs the same standing ground from outside
+    /// the package.
+    ///
+    /// WHAT A STOPPED DOWNLOAD LEAVES BEHIND is the other half (AC-247,
+    /// AC-248, F-2 = A): nothing that pretends. On a cancel or a throw the
+    /// partial tree goes, so `installState()` answers `.absent` — or, when
+    /// a caller's own earlier tree was already there, the `.incomplete`
+    /// it already was. The cost is that a person who cancels at 90% pays
+    /// again; B, keep-and-resume, was rejected because "resume" is a
+    /// promise that must be tested on a bad network and this Mac cannot
+    /// do that honestly.
+    public func download(
         reporting progress: @escaping @Sendable (InstallProgress) -> Void,
-        fetching fetch: Fetching
+        using fetcher: some WeightsFetching
     ) async throws {
         guard !modelInstalled() else { return }
         guard let repoID else { throw ReplyFailure.unavailable(.weightsAbsent) }
@@ -364,10 +370,79 @@ extension LocalMindModel {
         // install left one (a re-install after `.incomplete`); on a first
         // install there is no number, and none is invented.
         let expected = expectedBytes()
-        let snapshot = try await fetch(repoID, weights.deletingLastPathComponent()) { fraction in
-            progress(InstallProgress.at(fraction: fraction, bytesExpected: expected))
+        // WHOSE TREE IS IT — read BEFORE the fetch, because after it the
+        // answer is about a directory this download may have made. It is
+        // the whole of the deletion guard: a tree that was already there
+        // belongs to the caller and is never removed by a failure here.
+        let treeWasAlreadyThere = FileManager.default.fileExists(atPath: weights.path)
+
+        let snapshot: URL
+        do {
+            snapshot = try await fetcher.fetch(
+                repoID: repoID,
+                into: weights.deletingLastPathComponent()
+            ) { fraction in
+                progress(InstallProgress.at(fraction: fraction, bytesExpected: expected))
+            }
+        } catch {
+            // No snapshot path to name: a fetcher that threw never said
+            // where it was working, and guessing at a directory to delete
+            // is exactly the mistake `HubWeightsFetcher`'s note records —
+            // that code once moved a folder because it found a
+            // `config.json` in it.
+            discardPartialInstall(snapshot: nil, keeping: treeWasAlreadyThere)
+            throw error is CancellationError ? error : InstallFailure.fetchFailed(words(for: error))
         }
-        try completeInstall(movingFrom: snapshot)
+        do {
+            try completeInstall(movingFrom: snapshot)
+        } catch {
+            discardPartialInstall(snapshot: snapshot, keeping: treeWasAlreadyThere)
+            throw error is CancellationError ? error
+                : InstallFailure.couldNotComplete(words(for: error))
+        }
+    }
+
+    /// The error's own words. `String(describing:)` and not
+    /// `localizedDescription`, because an `Error` that is not a
+    /// `LocalizedError` renders as "The operation couldn't be completed",
+    /// which tells a person nothing — the same reasoning D-103's F-3 = A
+    /// used for `ReplyFailure.engine(String)`.
+    private nonisolated func words(for error: any Error) -> String {
+        String(describing: error)
+    }
+
+    /// F-2 = A, and the one destructive line in this file.
+    ///
+    /// DELETING A TREE CAN LOSE SOMEBODY'S 2.3 GB, so the rule is as
+    /// narrow as it can be written: this removes the scratch the FETCH
+    /// handed back, and the weights tree only when THIS download created
+    /// it. A tree that existed before the download started is the
+    /// caller's — from an earlier attempt, or dropped in by hand over USB,
+    /// which `LocalMindModel` explicitly invites — and a failure here is
+    /// no reason to take it away. `MLXInstallSeamTests` proves both
+    /// directions.
+    ///
+    /// Failures are swallowed: this runs while another error is already
+    /// on its way to the caller, and a `removeItem` that could not is not
+    /// the news. What it leaves is still honest, because `installState()`
+    /// judges the tree by its files either way.
+    private nonisolated func discardPartialInstall(snapshot: URL?, keeping wasAlreadyThere: Bool) {
+        let files = FileManager.default
+        if let snapshot, snapshot.standardizedFileURL != weights.standardizedFileURL {
+            try? files.removeItem(at: snapshot)
+        }
+        guard !wasAlreadyThere else { return }
+        // THE REENTRANCY LAW, and it is load-bearing here. `wasAlreadyThere`
+        // was read BEFORE the fetch, and an actor interleaves at every
+        // await: two downloads on the same model both pass the `guard
+        // !modelInstalled()`, both see an empty directory, and if the
+        // slower one then fails it would delete the tree the faster one
+        // had just finished writing. So the disk is asked again NOW — a
+        // COMPLETE install is never deleted, whoever finished it. There
+        // is no gap to exploit, because `completeInstall` is synchronous:
+        // the move and the manifest happen inside one actor step.
+        guard !modelInstalled() else { return }
+        try? files.removeItem(at: weights)
     }
 
     /// The manifest's total from an earlier install, or `nil` on a first
@@ -399,6 +474,30 @@ extension LocalMindModel {
         // AC-239: the manifest, from the bytes ON DISK right after the
         // snapshot returned — the client counts files, not bytes.
         try InstallManifest(listing: weights).write(in: weights)
+        excludeWeightsFromBackup()
+    }
+
+    /// AC-250 (Aura's L7): the weights are a re-downloadable cache, and a
+    /// 2.3 GB cache inside a person's iCloud backup is a bill they never
+    /// agreed to.
+    ///
+    /// AFTER EVERY DOWNLOAD, NOT ONLY AT CREATION — which is the whole
+    /// point of the acceptance criterion. `completeInstall` MOVES a fresh
+    /// snapshot into place, and the directory that arrives is a different
+    /// directory from the one that was flagged: a mark set once, when the
+    /// weights first appeared, would silently be gone after the repair
+    /// that replaced them. So it is set here, on the last line of every
+    /// install, and the test clears it by hand and downloads again.
+    ///
+    /// The failure is swallowed on purpose. A filesystem that will not
+    /// take the flag is not a reason to throw away a complete, working
+    /// install — and if the flag ever stops being applied where it
+    /// matters, `MLXInstallSeamTests` fails, loudly, on this Mac.
+    nonisolated func excludeWeightsFromBackup() {
+        var directory = weights
+        var values = URLResourceValues()
+        values.isExcludedFromBackup = true
+        try? directory.setResourceValues(values)
     }
 
     /// The pre-4v shape, kept as a thin convenience over the byte-aware
