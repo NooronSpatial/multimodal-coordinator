@@ -125,9 +125,11 @@ extension LocalMindModel {
     /// created, and `installState()` is the same afterwards as before.
     ///
     /// The number will drift the day the model is re-quantised — it is
-    /// read from the repository every time, never cached in this library,
-    /// and the figure written into INSTRUMENTS carries the date it was
-    /// measured.
+    /// read from the repository every time, never cached in this library.
+    /// Measured against the real repository on 2026-09-10 and written into
+    /// INSTRUMENTS §66 with that date: nine files, 2 173 MB, asked in
+    /// 3 388 ms, and zero bytes fetched by the asking. `bakeoff
+    /// install-size` is how to take the number again.
     ///
     /// - Throws: `ReplyFailure.unavailable(.weightsAbsent)` when this
     ///   model has no repository to ask — the same error the download
