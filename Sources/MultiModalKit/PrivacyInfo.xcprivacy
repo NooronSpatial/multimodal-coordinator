@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  MultiModalKit — the privacy manifest (4x, AC-255, D-106 F-4 = A).
+
+  WHY THIS FILE EXISTS. A consumer shipping this module to the App Store
+  is asked what it collects and which required-reason APIs it uses. F-4
+  was the fork: ship a manifest per module, or write a statement telling
+  every caller what to declare. Ryad ruled A — "less work here, more work
+  for every caller, forever" is what B costs.
+
+  WHY IT DECLARES NOTHING. Not because declaring nothing is easy, but
+  because it is what the source says. This library has no analytics, no
+  crash reporter and no server of its own; audio, transcripts and replies
+  are values in memory and in the caller's own storage. The only bytes
+  that cross the network move downward: model weights.
+
+  WHY THERE IS NO REQUIRED-REASON CATEGORY HERE. Apple's five common
+  categories were searched for in Sources/ symbol by symbol — file
+  timestamps, disk space, user defaults, system boot time and active
+  keyboards — and none of them is used. A manifest claiming a reason the code does not use is as
+  wrong as a missing one: it is an untrue statement filed with a store.
+  That search is not a one-off. The symbol list lives in
+  Tests/MultiModalKitTests/Diagnostics/PrivacyRules.swift, and
+  PrivacyContractTests.swift checks it in BOTH directions on every run,
+  PER MODULE: this target may not declare a category none of its own
+  source calls, and its source may not call one without this file
+  declaring it. (The pointer used to name NetworkSilenceTests.swift,
+  which holds the network-silence proofs and nothing else — a wrong
+  pointer that shipped inside every consumer's app bundle until 4x's
+  review caught it.) (4x's review
+  found the first version failing the second direction backwards — it
+  demanded the API never be used at all, so declaring the category
+  correctly still went red.)
+
+  The whole argument, with the host list beside it: docs/HOSTS.md.
+-->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

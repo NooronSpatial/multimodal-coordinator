@@ -5410,3 +5410,223 @@ a truncated tree · the two preconditions turned into throws · INSTRUMENTS
 one phone log for AC-242 · the contract page in `ARCHITECTURE.md` · 20×
 with every failing log kept · zero warnings · lint zero · every review
 fix pushed before the PR is called ready · teach-back.
+
+# Milestone 4x — the install, honestly (Aura's next blocker)
+
+## §180 — the caller, and the gap
+
+Aura merged slice 1 on 2026-09-10. Its mind is wired, counted, and falls
+back honestly. It cannot be PROVEN, because the one criterion that needs
+a real device — a coached session generated with the network off — needs
+the weights on the phone, and nothing puts them there. Aura wrapped the
+library's `download(reporting:)` and stopped, because a 2.3 GB download
+a person pays for cannot be offered on what the library says today.
+
+```
+what a person must be told                what the library can say now
+──────────────────────────                ────────────────────────────
+"this needs 2.3 GB"                       nothing — the size is unknown
+                                          until the bytes have arrived
+"420 MB of 2.3 GB"                        a FILE fraction; bytesExpected
+                                          is nil on a first download
+"cancel"                                  the task can be cancelled; what
+                                          it leaves behind is untested
+"it stopped when you locked the phone"    unstated
+"it will not eat your iCloud backup"      unstated
+"nothing about you was sent"              unstated, unproven
+```
+
+Five of Aura's lifecycle requirements are unmet (`L2`, `L3`, `L5`, `L6`,
+`L7`) and four of its privacy ones (`S1`–`S4`, `S6`). This milestone is
+those, and nothing else.
+
+**One fact checked before this was written.** The size IS knowable in
+advance: the Hub's repo listing gives file NAMES only, but its per-file
+metadata carries `size`, one HEAD request per file. A nine-file model
+costs nine HEADs — cheap enough to ask before a person commits their
+data allowance, and the only honest way to say "2.3 GB".
+
+## §181 — scope
+
+1. **The size, before anything is fetched** (L2) — `func expectedInstall()
+   async throws -> InstallSize`, carrying `downloadBytes`, `onDiskBytes`
+   and the per-file breakdown. It makes network calls and says so in its
+   name and its doc.
+   > *Contradiction found while building, 2026-09-10, raised as F-6 below
+   > and NOT resolved by the builder.* This bullet asks the call to say
+   > it reaches the network "in its name", and then writes the name
+   > `expectedInstall()`, which does not. The doc says it loudly. Renaming
+   > a signed public API is a decision, so the code follows the signature
+   > this spec wrote and the wording waits for a ruling. Aura shows the number before the first byte moves.
+2. **A cancellable download that leaves nothing pretending** (L3) — a
+   cancelled or failed download leaves `installState()` returning
+   `.absent` or `.incomplete(files:)`, never `.installed` or
+   `.installedUnverified`; and the partial tree is either resumable or
+   removed, whichever F-2 rules.
+3. **An install seam a caller can fake** (L5) — the `Fetching` closure is
+   already the seam internally; it becomes public as a small protocol
+   (`WeightsFetching`) with the Hub implementation as the default, so
+   Aura's download screen is testable against a fake that "downloads"
+   four small files in a temporary directory.
+4. **The suspend truth** (L6) — either a background `URLSession`, or the
+   library states plainly, in the contract page and in the doc comment,
+   that a download dies when the app leaves the foreground and what a
+   caller must do about it. F-3 rules which.
+5. **The backup flag that survives** (L7) — the weights directory is
+   marked excluded from backup, and the mark is re-applied after every
+   download, not only at creation. Tested by deleting the flag and
+   re-downloading.
+6. **The network, named and proven** (S1, S2, S3) — one documented list
+   of every host the library can contact and when; a test proving a
+   load-and-generate cycle with weights on disk issues ZERO requests; and
+   a statement, backed by reading the fetch path, that the weight fetch
+   carries no user identifier and no credential.
+7. **The privacy manifest** (S4) — `PrivacyInfo.xcprivacy` for every
+   module Aura links, declaring what is collected (nothing) and which
+   required-reason APIs are used, or a written statement naming the file
+   the consumer must ship instead.
+8. **The contract page grows a section** — "getting the weights", with
+   the size, the states, the cancellation rule, the suspend truth and the
+   host list.
+
+## §182 — non-goals
+
+- No admission, thermal or memory-pressure work (Aura's `R1`, `R2`,
+  `R3`, `R7`). That is the next milestone, and F-1 asks whether it should
+  have been this one.
+- No download UI. The library reports; the app draws.
+- No new dependency, and no second fetcher — the Hub client stays, behind
+  the new protocol.
+- No change to the text contract (4v) and no tools (4w).
+- No resumable-download machinery beyond what the Hub already does,
+  unless F-2 rules otherwise.
+
+## §183 — acceptance criteria
+
+- **AC-245** `expectedInstall()` returns the summed byte size of exactly
+  the files the download would fetch, and the per-file breakdown. Tested
+  against a fake metadata source; measured once against the real repo and
+  the number written into INSTRUMENTS with the date, because it will
+  drift when the model is re-quantised.
+- **AC-246** A caller can ask for the size WITHOUT triggering a download:
+  a test asserts the fetch closure was never called.
+- **AC-247** Cancelling a download mid-flight leaves `installState()` at
+  `.absent` or `.incomplete(files:)` — never `.installed`, never
+  `.installedUnverified`. Tested with a fake fetcher that yields control
+  after the second file.
+- **AC-248** A failed download (the fetcher throws) leaves the same, and
+  the error reaches the caller typed, not as a bare string.
+- **AC-249** `WeightsFetching` is public, and a caller's fake conforming
+  to it drives a complete install of four small files in a temporary
+  directory, with progress reported and a manifest written. This is the
+  test Aura will copy for its download screen.
+- **AC-250** After a download, the weights directory has
+  `isExcludedFromBackup` set; deleting the flag and downloading again
+  restores it. Tested on a temporary directory.
+- **AC-251** The suspend behaviour is stated in one place and matches
+  what the code does. If F-3 rules a background session, a test proves a
+  download survives a simulated suspend; if it rules the statement, the
+  contract page and the doc comment carry it and a test asserts the doc's
+  claim is not contradicted by a `URLSessionConfiguration.background`
+  anywhere in the module.
+- **AC-252** A load-and-generate cycle with weights already on disk makes
+  ZERO network requests, proven by a `URLProtocol` that fails the test if
+  it sees one.
+  > *Bounded as built, 2026-09-10.* A `URLProtocol` sees `URLSession.shared`
+  > and nothing else — not a session built from its own configuration, and
+  > not a raw socket. The test says so in its own words rather than
+  > implying a proof it cannot give. It also gained a third live subject
+  > the criterion did not name: a real neural-voice load with the model on
+  > disk, which is the guard on the host page's headline claim — that load
+  > was pinging the hub until this milestone caught it.
+- **AC-253** One documented list names every host the library can
+  contact, in which module, for what. A test asserts the list matches the
+  hosts actually referenced in source.
+  > *Gained a second direction as built, 2026-09-10.* The test also runs
+  > the other way: a host DECLARED in the list that no source file names
+  > must be declared again as never-called, so the page cannot quietly
+  > pre-authorise a host nothing contacts.
+- **AC-254** The weight fetch carries no user identifier and no
+  credential: the request headers are asserted in a test against the fake
+  fetcher's recorded requests.
+  > *NOT COMPLETE as built, 2026-09-10 — do not tick it.* No test reads a
+  > request header. What ships is a source-level scan asserting the module
+  > attaches no credential symbol, plus the honest finding that three of
+  > the four fetches inherit a vendored client that WILL set an
+  > `Authorization` header when a token is present in the environment. The
+  > header-level assertion the criterion asks for is owed, and the
+  > question of whether to force those clients to send none is a fork
+  > nobody has ruled.
+- **AC-255** `PrivacyInfo.xcprivacy` exists for each linked module, or a
+  written statement names what the consumer must ship. Whichever F-4
+  rules, the file (or statement) is checked into the repo and named in
+  the contract page.
+- **AC-256** The contract page's new "getting the weights" section is
+  true of the code, verified claim by claim as 4v's was.
+- **AC-257** Everything 4v proved still passes: the full suite green, 20
+  runs, zero warnings, lint zero, and the phone demo builds.
+
+## §184 — the forks (Ryad rules)
+
+**F-1 — this milestone, or the admission one first?**
+- *A:* the install first, as written here. Aura's AC3 is blocked TODAY on
+  weights reaching the phone, and admission questions only matter once a
+  model is there to admit. **Recommended.**
+- *B:* admission first (R1–R3, R7) — the memory and heat questions F-8
+  parked. Defensible if you fear a device that downloads 2.3 GB and then
+  cannot hold it; but that device can be refused before the download with
+  `expectedInstall()` plus the headroom this library already reads.
+
+**F-2 — what a cancelled download leaves behind.**
+- *A:* delete the partial tree. Simple, provable, and `installState()`
+  cannot lie. The cost is that a person who cancels at 90% pays again.
+- *B:* keep it and resume. Kinder on a phone; the Hub client already
+  writes `.incomplete` files, so the machinery half-exists. The cost is
+  that "resume" is a promise to test on a bad network, which this Mac
+  cannot do honestly. **Recommended: A**, with the partial tree deleted
+  and B named as a later milestone once someone can test it on a train.
+
+**F-3 — the suspend question.**
+- *A:* state it plainly — a download dies when the app leaves the
+  foreground; the caller keeps the screen alive or restarts. Honest,
+  costs nothing, and matches what the Hub client does today.
+  **Recommended.**
+- *B:* build a background `URLSession`. It is what a 2.3 GB download on
+  cellular really needs, but it is a different downloader, a delegate,
+  and a re-entry path — a milestone of its own, not a bullet in this one.
+
+**F-4 — the privacy manifest.**
+- *A:* ship `PrivacyInfo.xcprivacy` in each module that needs one. The
+  consumer inherits it and the App Store question answers itself.
+  **Recommended.**
+- *B:* write a statement telling the consumer what to declare. Less work
+  here, more work for every caller, forever.
+
+**F-6 — the size call's NAME (raised by the build, 2026-09-10; open).**
+§181/1 asks the call to say it reaches the network "in its name and its
+doc", then writes the name `expectedInstall()`, which does not. The doc
+says it plainly. The builder followed the signature the signed spec wrote
+rather than renaming a public API on its own.
+- *A:* keep `expectedInstall()` and amend §181/1 to "says so in its doc".
+  The name reads well at a call site, the doc carries the warning, and
+  nothing that already shipped moves. **Recommended.**
+- *B:* rename it — `fetchExpectedInstall()` or similar — so the call site
+  itself warns. Truer to the original wording; it changes a public symbol
+  the milestone has already frozen and every caller's line.
+
+**F-5 — where `expectedInstall()` lives.**
+- *A:* on `LocalMindModel`, beside `installState()` and `download`. One
+  object owns the weights. **Recommended.**
+- *B:* on the new `WeightsFetching` protocol — tidier in theory, but then
+  a caller needs the fetcher to ask a question about the model.
+
+## §185 — definition of done
+
+The five forks ruled and logged · red → green per AC with a fake fetcher
+and temporary directories · the real repo's size measured once and
+written into INSTRUMENTS with its date · the network proof running in CI
+· the host list checked against source by a test · the backup flag proven
+by deleting and re-downloading · the contract page's new section
+fact-checked claim by claim · 20× with every failing log kept · zero
+warnings · lint zero · the phone demo builds · every review fix pushed
+before the PR is called ready · teach-back.

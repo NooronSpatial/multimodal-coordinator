@@ -5216,3 +5216,80 @@ prices live in §58–§61 and the milestone's phone gate is Ryad's own run.
 On the measured phone a reply of this length will cost more than this
 Mac's 3.7 s — §58's prefill and decode rates are the place to start —
 and that number is a gate, not a guess to be written here.
+
+## 66. What the weights cost, asked before a byte moves (4x, AC-245, AC-246)
+
+**What was asked.** A person must be told "this needs 2.28 GB" *before*
+they spend their data allowance. AC-245 says the library must be able to
+answer that, and AC-246 says asking must not start the download. The
+answer comes from the repo's per-file metadata, so it is a network
+question — and a number nobody measured is a number nobody should print.
+
+**Machine and command.** Ryad's Mac, 2026-09-10, on a home connection:
+
+```bash
+swift run bakeoff install-size --repo=mlx-community/Qwen3-4B-4bit
+```
+
+### The phone's model, measured
+
+| file | bytes | MB (10⁶) | MiB (2²⁰) |
+|---|---:|---:|---:|
+| added_tokens.json | 707 | 0.0 | 0.0 |
+| config.json | 937 | 0.0 | 0.0 |
+| merges.txt | 1 671 853 | 1.7 | 1.6 |
+| model.safetensors | 2 263 022 529 | 2 263.0 | 2 158.2 |
+| model.safetensors.index.json | 63 924 | 0.1 | 0.1 |
+| special_tokens_map.json | 613 | 0.0 | 0.0 |
+| tokenizer.json | 11 422 654 | 11.4 | 10.9 |
+| tokenizer_config.json | 9 706 | 0.0 | 0.0 |
+| vocab.json | 2 776 833 | 2.8 | 2.6 |
+| **to download** | **2 278 969 756** | **2 279.0** | **2 173.4** |
+| **on disk** | **2 278 969 756** | **2 279.0** | **2 173.4** |
+
+Nine files, **2 278 969 756 bytes**, answered in **3 388 ms**.
+
+**Which number to show a person: 2.28 GB.** The first version of this
+section printed only the binary column and labelled it "MB", which is
+how this milestone's own documents ended up disagreeing with each other
+about the size of one model. They are the same bytes:
+
+| convention | figure | who uses it |
+|---|---|---|
+| decimal, ÷10⁹ | **2.28 GB** | iOS Settings, the App Store, a phone's storage screen — what a person will compare your number to |
+| binary, ÷2³⁰ | 2.12 GiB | developer tooling, often mislabelled "GB" |
+
+A caller that shows 2.12 and the phone that shows 2.28 are not in
+disagreement, but the person holding them is. Show the decimal figure,
+and the instrument now prints both columns with both labels so the
+mistake cannot be made silently again.
+
+**Three things this table settles.**
+
+1. **The number a caller may show is 2.28 GB, and it is not the weights
+   file alone.** `model.safetensors` is 2 263 MB of the 2 279; the
+   tokenizer and the vocabularies add 15 947 227 bytes on top. A caller
+   that showed only the weights file would under-promise by ~16 MB and
+   then overrun its own progress bar.
+2. **Download and on-disk are the same here**, because nothing is
+   repacked on arrival. The library reports them as two fields anyway,
+   because a future model that unpacks would make them differ, and a
+   caller that assumed one number would then be wrong in the direction
+   that fills a phone.
+3. **Asking cost zero bytes.** The instrument checks its own target
+   directory afterwards: 0 files, `installState()` still `.absent`. That
+   is AC-246 proven against the real repo, not only against a fake.
+
+**The cost of asking.** 3.4 seconds for nine files. The listing is
+fetched once per file the client asks about — a detail worth knowing
+before anyone calls this on a slow connection while a person watches a
+spinner. It is a network call, and its name and doc say so.
+
+**This number will drift** and the date above is why it is written down.
+It moves the day the model is re-quantised or a tokenizer is repacked;
+`bakeoff install-size` is how to take it again.
+
+**Not measured here.** The download itself — its duration, its behaviour
+on a bad connection, and what a suspend does to it. F-3 was ruled A
+(the suspend truth is stated, not engineered), so that last one is a
+statement in the contract page, not a number.

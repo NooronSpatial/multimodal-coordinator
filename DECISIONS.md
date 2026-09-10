@@ -4630,3 +4630,38 @@ once the weights are resident, and a refused door never gets there. A
 number that dangerous belongs to a milestone that measures it, not to
 one that infers it from a file size. [[audio-graphs-are-measured]] is
 the same instinct: no verdict on a number nobody measured.
+
+## D-106 — 4x signed: the install before admission, and four rulings that keep it small (Milestone 4x)
+
+**Date:** 2026-09-10 · **Decided by:** Ryad ("signed off, accept
+recommendations") · **Rulings: F-1 = A, F-2 = A, F-3 = A, F-4 = A,
+F-5 = A** (SPEC §184).
+
+- **F-1 A — the install first, admission next.** Aura's on-device
+  criterion is blocked TODAY on weights reaching a phone; admission
+  questions only matter once a model is there to admit. *Rejected:* the
+  memory and heat work first — the device that cannot hold the model can
+  be refused BEFORE the download, with `expectedInstall()` and the
+  headroom this library already reads.
+- **F-2 A — a cancelled download deletes its partial tree.** Simple,
+  provable, and `installState()` cannot lie. *Rejected:* keep and
+  resume — kinder on a phone, but "resume" is a promise that must be
+  tested on a bad network, and this Mac cannot do that honestly. Named
+  as a later milestone for someone who can test it on a train.
+- **F-3 A — the suspend truth is STATED, not engineered.** A download
+  dies when the app leaves the foreground; the library says so in the
+  contract page and the doc comment, and the caller decides what to do.
+  *Rejected:* a background `URLSession` — what a 2.3 GB cellular
+  download really needs, but a different downloader, a delegate and a
+  re-entry path: a milestone of its own, not a bullet in this one.
+- **F-4 A — ship `PrivacyInfo.xcprivacy` per module.** The consumer
+  inherits it and the App Store question answers itself. *Rejected:* a
+  statement telling every caller what to declare — less work here, more
+  work for every caller, forever.
+- **F-5 A — `expectedInstall()` lives on `LocalMindModel`.** One object
+  owns the weights. *Rejected:* putting it on the fetcher protocol —
+  then a caller needs a fetcher to ask a question about a model.
+
+**What this milestone is not:** admission, thermal and memory-pressure
+work (Aura's R1–R3, R7) stay parked, and F-8's memory question (D-105)
+stays ruled A until a milestone measures the number.
