@@ -307,16 +307,47 @@ public actor NeuralVoice: SpokenVoice {
         // Both `openUtterance()` and `ensureModel()` come through here, so
         // one guard closes both doors.
         guard !isRetired else { throw NeuralVoiceRetired() }
+        // OFFLINE-FIRST, AND THE MOUTH WAS THE HALF STILL MISSING IT
+        // (4x, AC-252). The ear's load was pinned to its local folder
+        // after a field experiment in airplane mode; this one was not,
+        // and 4x's review measured what that cost: with the weights
+        // already on disk, opening an utterance issued six requests to
+        // `huggingface.co/api/models/Qwen/Qwen3-0.6B/revision/main` — a
+        // revision check on the SPEAKING path. `docs/HOSTS.md` said
+        // "once the weights are on disk … speaking issues no requests at
+        // all", so the page was untrue of the code.
+        //
+        // Both halves are named, because both reach the network: the
+        // MODEL folder (six CoreML components) and the TOKENIZER folder,
+        // which is a different repo entirely and is what those six
+        // requests were for — TTSKit resolves its tokenizer source as
+        // `tokenizerFolder?.path ?? model.tokenizerRepo`, and a repo id
+        // means the hub.
+        //
+        // ONLY WHEN THE DISK REALLY HAS IT. `modelInstalled()` checks all
+        // six compiled components AND the two tokenizer files, so a
+        // machine with nothing (or with a truncated download) still gets
+        // the normal fetch. Pinning unconditionally would turn a missing
+        // model into `modelNotFound` instead of a download.
+        let installed = await modelInstalled()
+        // THE REENTRANCY LAW. The await above released the actor, so a
+        // `retire()` could have landed while the disk was being read.
+        // Re-check before anything is built.
+        guard !isRetired else { throw NeuralVoiceRetired() }
         // Read the configuration HERE, on the actor, so the build closure
         // captures values rather than isolated state.
         let model = variant
         let speech = speechDecoderMode
         let multi = multiCodeDecoderMode
         let requestedSeed = seed
+        let pinnedModels = installed ? localModelRoot : nil
+        let pinnedTokenizer = installed ? localTokenizerFolder : nil
         loadAttempts += 1
         let kit = try await held.value {
             try await TTSKit(TTSKitConfig(
                 model: model,
+                modelFolder: pinnedModels,
+                tokenizerFolder: pinnedTokenizer,
                 speechDecoderMode: speech,
                 multiCodeDecoderMode: multi,
                 download: true, load: true, seed: requestedSeed))

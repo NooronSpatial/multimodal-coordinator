@@ -18,9 +18,22 @@ extension NeuralVoice {
     /// `modelFolder` was handed over — an offline failure, a privacy
     /// footnote, and a 4× cost on every test load, all from a default.
     nonisolated var localModelFolder: URL {
+        localModelRoot.appending(path: "qwen3_tts")
+    }
+
+    /// The folder TTSKit itself calls `modelFolder` — the one ABOVE
+    /// `qwen3_tts`, because the kit appends the family directory itself
+    /// (`modelFolder/qwen3_tts/<component>/<versionDir>/<variant>`).
+    ///
+    /// Two names for two readers, and the difference is not cosmetic: the
+    /// disk check below walks the family folder, while the pin handed to
+    /// `TTSKitConfig` must be its parent. Handing the kit the family
+    /// folder would make it look for `qwen3_tts/qwen3_tts/…`, find
+    /// nothing, and throw `modelNotFound` on a machine that has the
+    /// weights.
+    nonisolated var localModelRoot: URL {
         URL.documentsDirectory
             .appending(path: "huggingface/models/argmaxinc/ttskit-coreml")
-            .appending(path: "qwen3_tts")
     }
 
     /// The component directory each variant's weights live in
