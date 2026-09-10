@@ -1,19 +1,19 @@
 repo: mlx-community/Qwen3-4B-4bit
 
-| file | bytes | MB |
-|---|---:|---:|
-| added_tokens.json | 707 | 0.0 |
-| config.json | 937 | 0.0 |
-| merges.txt | 1671853 | 1.6 |
-| model.safetensors | 2263022529 | 2158.2 |
-| model.safetensors.index.json | 63924 | 0.1 |
-| special_tokens_map.json | 613 | 0.0 |
-| tokenizer.json | 11422654 | 10.9 |
-| tokenizer_config.json | 9706 | 0.0 |
-| vocab.json | 2776833 | 2.6 |
-| **total to download** | **2278969756** | **2173.4** |
-| **total on disk** | **2278969756** | **2173.4** |
+| file | bytes | MB (10^6) | MiB (2^20) |
+|---|---:|---:|---:|
+| added_tokens.json | 707 | 0.0 | 0.0 |
+| config.json | 937 | 0.0 | 0.0 |
+| merges.txt | 1671853 | 1.7 | 1.6 |
+| model.safetensors | 2263022529 | 2263.0 | 2158.2 |
+| model.safetensors.index.json | 63924 | 0.1 | 0.1 |
+| special_tokens_map.json | 613 | 0.0 | 0.0 |
+| tokenizer.json | 11422654 | 11.4 | 10.9 |
+| tokenizer_config.json | 9706 | 0.0 | 0.0 |
+| vocab.json | 2776833 | 2.8 | 2.6 |
+| **total to download** | **2278969756** | **2279.0** | **2173.4** |
+| **total on disk** | **2278969756** | **2279.0** | **2173.4** |
 
-files: 9 · asked in 3388 ms
+files: 9 · asked in 3443 ms
 bytes fetched by asking: 0 file(s) — must be 0
 install state: absent

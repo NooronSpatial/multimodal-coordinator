@@ -30,13 +30,21 @@ func runInstallSize(_ arguments: [String]) async {
         let size = try await model.expectedInstall()
         let asked = start.duration(to: clock.now)
         print("")
-        print("| file | bytes | MB |")
-        print("|---|---:|---:|")
+        // TWO UNITS, BOTH LABELLED (the 4x page review). Dividing bytes by
+    // 1 048 576 and printing "MB" is what made this milestone's own
+    // documents disagree about the model's size: iOS Settings shows a
+    // person DECIMAL gigabytes, so a caller quoting a MiB figure with a
+    // GB label under-states what the phone will say. Print both, name
+    // both, and let the reader pick the one their screen uses.
+    print("| file | bytes | MB (10^6) | MiB (2^20) |")
+        print("|---|---:|---:|---:|")
         for file in size.files {
-            print("| \(file.name) | \(file.bytes) | \(installSizeMB(file.bytes)) |")
+            print("| \(file.name) | \(file.bytes) | \(installSizeMB(file.bytes)) | \(installSizeMiB(file.bytes)) |")
         }
-        print("| **total to download** | **\(size.downloadBytes)** | **\(installSizeMB(size.downloadBytes))** |")
-        print("| **total on disk** | **\(size.onDiskBytes)** | **\(installSizeMB(size.onDiskBytes))** |")
+        print("| **total to download** | **\(size.downloadBytes)** | **\(installSizeMB(size.downloadBytes))** "
+              + "| **\(installSizeMiB(size.downloadBytes))** |")
+        print("| **total on disk** | **\(size.onDiskBytes)** | **\(installSizeMB(size.onDiskBytes))** "
+              + "| **\(installSizeMiB(size.onDiskBytes))** |")
         print("")
         print("files: \(size.files.count) · asked in \(installSizeMs(asked)) ms")
         // AC-246, checked HERE too and not only in a unit test: asking must
@@ -52,7 +60,15 @@ func runInstallSize(_ arguments: [String]) async {
     exit(0)
 }
 
+/// DECIMAL megabytes — what iOS Settings shows a person, and therefore the
+/// number a caller's screen must match.
 private func installSizeMB(_ bytes: Int64) -> String {
+    String(format: "%.1f", Double(bytes) / 1_000_000)
+}
+
+/// BINARY mebibytes — what a developer's tooling usually prints. Kept
+/// beside the decimal one so the two can never be confused again.
+private func installSizeMiB(_ bytes: Int64) -> String {
     String(format: "%.1f", Double(bytes) / 1_048_576)
 }
 
