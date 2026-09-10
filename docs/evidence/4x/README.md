@@ -22,6 +22,25 @@ and zero files landed in the target directory — AC-246 proven against the
 real repository rather than a fake. The number drifts when the model is
 re-quantised; the date in the filename is why it is written down.
 
+**The privacy manifests, proven where it counts.** AC-255 asks each linked
+module to ship a `PrivacyInfo.xcprivacy`. A file in the repository proves
+nothing about a submission, so the check that matters is whether the
+manifest survives into a built product. Building the phone demo for a real
+device (`xcodebuild -destination 'generic/platform=iOS'`, 2026-09-10) and
+listing the result:
+
+```
+Debug-iphoneos/multimodal-coordinator_MultiModalKit.bundle/PrivacyInfo.xcprivacy
+Debug-iphoneos/multimodal-coordinator_MultiModalKitMLX.bundle/PrivacyInfo.xcprivacy
+Debug-iphoneos/multimodal-coordinator_MultiModalKitTTS.bundle/PrivacyInfo.xcprivacy
+Debug-iphoneos/multimodal-coordinator_MultiModalKitWhisper.bundle/PrivacyInfo.xcprivacy
+Debug-iphoneos/multimodal-coordinator_MultiModalKitTesting.bundle/PrivacyInfo.xcprivacy
+Debug-iphoneos/multimodal-coordinator_MultiModalKitBench.bundle/PrivacyInfo.xcprivacy
+```
+
+Six manifests, one per module a consumer can link, inside the app that
+links them. `** BUILD SUCCEEDED **`, zero errors.
+
 **What is NOT here, and is owed.** The phone gate — one run of the demo on
 a real device — is Ryad's, and so is the on-device morning that Aura's own
 milestone needs. This Mac cannot answer either.
