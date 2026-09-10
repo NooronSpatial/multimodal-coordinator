@@ -101,20 +101,40 @@ let package = Package(
         .package(url: "https://github.com/NooronSpatial/kokoro-ios", from: "1.1.2"),
     ],
     targets: [
-        .target(name: "MultiModalKit"),
+        // THE PRIVACY MANIFEST, ON EVERY LIBRARY TARGET (4x, AC-255,
+        // D-106 F-4 = A). Ryad ruled: ship `PrivacyInfo.xcprivacy` per
+        // module so the consumer inherits it, rather than writing a
+        // statement that every caller must re-implement forever.
+        //
+        // `.copy`, never `.process`. A privacy manifest must reach the
+        // resource bundle byte for byte under its exact name; `.process`
+        // is free to transform or rename what it is given, and a manifest
+        // Apple's tooling cannot find is the same as no manifest at all.
+        //
+        // DECLARED HERE, or it does not exist. A `PrivacyInfo.xcprivacy`
+        // sitting in a source folder with no line in this file is a file
+        // in a folder: it never enters the bundle and the App Store never
+        // sees it. `NetworkSilenceTests` counts these lines against the
+        // list of linked modules for exactly that reason.
+        .target(
+            name: "MultiModalKit",
+            resources: [.copy("PrivacyInfo.xcprivacy")]
+        ),
         .target(
             name: "MultiModalKitBench",
             // The core only, for `SpeechSynthesizing` — the stopwatch times
             // a mouth, and there is no way to time one without naming it.
             // Still nothing about decoders, CoreML or SwiftUI.
-            dependencies: ["MultiModalKit"]
+            dependencies: ["MultiModalKit"],
+            resources: [.copy("PrivacyInfo.xcprivacy")]
         ),
         .target(
             name: "MultiModalKitWhisper",
             dependencies: [
                 "MultiModalKit",
                 .product(name: "WhisperKit", package: "argmax-oss-swift"),
-            ]
+            ],
+            resources: [.copy("PrivacyInfo.xcprivacy")]
         ),
         .target(
             name: "MultiModalKitTTS",
@@ -122,7 +142,8 @@ let package = Package(
                 "MultiModalKit",
                 .product(name: "TTSKit", package: "argmax-oss-swift"),
                 .product(name: "KokoroSwift", package: "kokoro-ios"),
-            ]
+            ],
+            resources: [.copy("PrivacyInfo.xcprivacy")]
         ),
         .target(
             name: "MultiModalKitMLX",
@@ -143,9 +164,14 @@ let package = Package(
                 // through. Same package as Transformers, and imported
                 // directly, so it is listed directly.
                 .product(name: "Hub", package: "swift-transformers"),
-            ]
+            ],
+            resources: [.copy("PrivacyInfo.xcprivacy")]
         ),
-        .target(name: "MultiModalKitTesting", dependencies: ["MultiModalKit"]),
+        .target(
+            name: "MultiModalKitTesting",
+            dependencies: ["MultiModalKit"],
+            resources: [.copy("PrivacyInfo.xcprivacy")]
+        ),
         .executableTarget(
             name: "AudioDemo",
             // Every organ, so the Mac can mix ear/mind/mouth from a
