@@ -728,7 +728,7 @@ measurement, not with a guess.
 ## Getting the weights (4x)
 
 The section above is how the mind ANSWERS. This one is how it ARRIVES.
-It is written for the caller that has to ask a person for 2.3 GB of
+It is written for the caller that has to ask a person for 2.28 GB of
 their data allowance, and be honest about what that costs and what
 leaves the device.
 
@@ -891,7 +891,7 @@ screen has to know all three. For the model in the block above:
 | `Documents/models/mlx-community/Qwen3-4B-4bit` | the shipped fetcher's client | only DURING the download |
 
 The middle row is the staging sibling the diagram names.
-`completeInstall(movingFrom:)` moves the whole new tree — up to 2.3 GB —
+`completeInstall(movingFrom:)` moves the whole new tree — 2.28 GB —
 to `<weights>.incoming`, writes `manifest.json` there, and only then
 swaps it in. The tests treat a leftover sibling as a real hazard: it
 would be a second copy of the model in a person's Documents, invisible
@@ -945,20 +945,19 @@ counted the calls in the client instead of trusting the sentence.
 
 **Say the units out loud, because two conventions disagree here and a
 person will compare your screen to Settings.** 2 278 969 756 bytes is
-**2.28 GB decimal** (÷ 10⁹) or **2.12 GiB binary** (÷ 2³⁰). INSTRUMENTS
-§66 prints an "MB" column of 2 173.4 — that is really **MiB** (÷ 2²⁰).
-Apple's own byte formatting is decimal, so a screen that prints
-"2 173 MB" will be read beside a Settings entry saying 2.28 GB and look
-like a lie.
+**2.28 GB decimal** (÷ 10⁹) or **2.12 GiB binary** (÷ 2³⁰). Apple's own
+byte formatting is decimal, so that is the number a phone's storage
+screen shows and the number your download screen must match. A screen
+printing "2 173 MB" — the same bytes in MiB — sits beside a Settings
+entry saying 2.28 GB and looks like a lie.
 
-**And this repo's own pages round it two different ways, so know which
-you are reading.** This page, `SPEC.md`, `DECISIONS.md` and
-`docs/HOSTS.md` say **2.3 GB**. INSTRUMENTS §66 rounds the same
-2 278 969 756 bytes DOWN to **2.2 GB**, twice — once as "the number a
-caller may show". Neither page is wrong. **2.28 GB decimal is the exact
-figure**, and the two round it in opposite directions. The small files
-split the same way: this page's "~16 MB" and §66's "another 15" are one
-number, 15 947 227 bytes, in decimal MB and in MiB.
+**This is not hypothetical: it happened here, in this milestone.** The
+`install-size` instrument divided by 2²⁰ and printed the column header
+"MB", so INSTRUMENTS §66 recorded 2 173 MB while every prose page said
+2.3 GB — one model, one measurement, and documents that disagreed with
+each other. The review that fact-checked this page is what caught it.
+The instrument now prints both columns with both labels, and §66 states
+which one to show a person. **2.28 GB decimal is the figure.**
 
 The lesson for a caller is not to pick a favourite page. Format
 `downloadBytes` with `ByteCountFormatStyle` and let it choose. Never
