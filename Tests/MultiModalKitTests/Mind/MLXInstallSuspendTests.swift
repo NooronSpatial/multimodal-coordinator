@@ -26,21 +26,40 @@ import Testing
                 "the MultiModalKitMLX sources are not readable from this run"))
 struct MLXInstallSuspendTests {
 
-    /// F-3 = A, enforced. `URLSessionConfiguration.background` is the one
-    /// spelling that turns a foreground download into a background one,
-    /// so its absence is what makes the doc comment true.
-    @Test("no background URLSession is built anywhere in the MLX module")
+    /// F-3 = A, enforced — with the needle AC-251 asks for AND the one
+    /// that can actually catch this module.
+    ///
+    /// AC-251 names `URLSessionConfiguration.background`, and that spelling
+    /// is kept because the criterion asks for it. On its own it is a guard
+    /// that cannot fire: this module never builds a `URLSession` at all.
+    /// The transfer belongs to the Hub client, and the switch there is a
+    /// PARAMETER with a safe default — `HubWeightsFetcher` gets the
+    /// foreground session by writing `HubApi(downloadBase: base)` and
+    /// naming nothing else. Turning it on is one argument, in this
+    /// module's own source, and the original needle would not have seen
+    /// it: the doc comment would have become a lie with the suite green.
+    ///
+    /// So the client's switch is the second needle. It is spelled here
+    /// and NOWHERE in `Sources/MultiModalKitMLX` — the doc comment says
+    /// "the client's background-session switch" in words for exactly that
+    /// reason, because this row reads that file too.
+    @Test("no background session is built or asked for anywhere in the MLX module")
     func noBackgroundSessionInThisModule() throws {
         let sources = try MLXModuleSource.files()
         #expect(sources.count >= 5, "the scan must actually have read the module")
         #expect(sources.keys.contains("LocalMindInstall.swift"),
                 "the file the claim is about must be among the ones scanned")
+        #expect(sources.keys.contains("WeightsFetching.swift"),
+                "and so must the file that builds the client")
         for (name, text) in sources.sorted(by: { $0.key < $1.key }) {
             // The words are built first because a `Comment` takes one
-            // literal, and this sentence is longer than a line.
-            let broken = "\(name) builds a background session — F-3 = A says this library STATES "
+            // literal, and these sentences are longer than a line.
+            let built = "\(name) builds a background session — F-3 = A says this library STATES "
                 + "the suspend truth instead, so the doc comment above it would now be a lie"
-            #expect(!text.contains("URLSessionConfiguration.background"), Comment(rawValue: broken))
+            #expect(!text.contains("URLSessionConfiguration.background"), Comment(rawValue: built))
+            let asked = "\(name) turns the hub client's background-session flag on — the same lie, "
+                + "reached the way this module could really reach it: one argument, not a URLSession"
+            #expect(!text.contains("useBackgroundSession"), Comment(rawValue: asked))
         }
     }
 

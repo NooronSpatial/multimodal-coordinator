@@ -163,8 +163,19 @@ extension LocalMindModel {
     /// to a name is to ask for one file at a time, by name. Pairing a
     /// bulk listing with a bulk metadata call by position would depend on
     /// two unordered sets landing in the same order, which is not a thing
-    /// to bet a person's data allowance on. A nine-file model costs nine
-    /// listings and nine HEADs, all small, and this is asked once.
+    /// to bet a person's data allowance on.
+    ///
+    /// THE COUNT, CORRECTED. This comment said "nine listings and nine
+    /// HEADs" for a nine-file model, and a review counted the calls in
+    /// the client instead of trusting the sentence: the loop below makes
+    /// ONE listing, and then `getFileMetadata(from:matching:)` makes its
+    /// OWN listing before every HEAD. So nine files cost TEN listings and
+    /// nine HEADs. All are small, and this is asked once — but the number
+    /// a doc comment gives is a number somebody will plan around, so it
+    /// says what the code does. (SPEC §180's "a nine-file model costs
+    /// nine HEADs" reads on the HEADs alone and is still true of them; it
+    /// is silent about the listings, which is a note for the spec, not a
+    /// change to make here.)
     ///
     /// NONISOLATED BY CONSTRUCTION: this is a plain `@Sendable` closure,
     /// so the client's non-`Sendable` metadata values never cross an

@@ -310,14 +310,19 @@ extension LocalMindModel {
     ///
     /// **THE SUSPEND TRUTH (AC-251, D-106's F-3 = A).** This download
     /// dies when the app leaves the foreground. It runs on an ordinary
-    /// foreground `URLSession`, so the moment a person locks the phone or
-    /// switches app, the system suspends this process and the transfer
-    /// stops. There is no background session and no resume.
+    /// foreground `URLSession` — the client's background-session switch
+    /// is left off, at its default — so the moment a person locks the
+    /// phone or switches app, the system suspends this process and the
+    /// transfer stops. There is no background session and no resume.
     ///
     /// What a caller must do about it: keep the screen alive while the
     /// weights come down — an idle timer disabled, and a person told why
-    /// — or start the download again. Starting again is always safe and
-    /// always begins at zero, because the partial tree is deleted.
+    /// — or start the download again. Starting again is always safe, and
+    /// with the fetcher this library ships it begins at zero:
+    /// the partial tree is deleted, and the client's resume bookkeeping
+    /// lives inside that tree and goes with it (`HubWeightsFetcher`). A
+    /// caller that brings its OWN fetcher decides that for itself; the
+    /// protocol asks it to clear what it wrote.
     ///
     /// That is D-106's F-3 = A, ruled and not merely settled for: a
     /// background `URLSession` is what a 2.3 GB cellular download really
@@ -360,6 +365,15 @@ extension LocalMindModel {
     /// again; B, keep-and-resume, was rejected because "resume" is a
     /// promise that must be tested on a bad network and this Mac cannot
     /// do that honestly.
+    ///
+    /// THE DELETING IS SPLIT IN TWO, and a review had to find out why.
+    /// This function can only remove what it can NAME: the weights tree,
+    /// and the directory a fetch RETURNED. A fetch that THROWS returns no
+    /// path at all — and going looking for one is the mistake
+    /// `HubWeightsFetcher`'s own note records, where code moved a folder
+    /// because it found a `config.json` in it. So the throw path is the
+    /// conformer's own to clean, `WeightsFetching` says so as a
+    /// requirement, and the fetcher this library ships keeps it.
     public func download(
         reporting progress: @escaping @Sendable (InstallProgress) -> Void,
         using fetcher: some WeightsFetching
@@ -389,7 +403,11 @@ extension LocalMindModel {
             // where it was working, and guessing at a directory to delete
             // is exactly the mistake `HubWeightsFetcher`'s note records —
             // that code once moved a folder because it found a
-            // `config.json` in it.
+            // `config.json` in it. So F-2 = A's other half is the
+            // FETCHER's: `WeightsFetching` requires a conformer that
+            // throws to remove what it wrote, and the shipped one does.
+            // Everything this side can still name — a weights tree this
+            // download created — is removed below.
             discardPartialInstall(snapshot: nil, keeping: treeWasAlreadyThere)
             throw error is CancellationError ? error : InstallFailure.fetchFailed(words(for: error))
         }
@@ -415,12 +433,13 @@ extension LocalMindModel {
     ///
     /// DELETING A TREE CAN LOSE SOMEBODY'S 2.3 GB, so the rule is as
     /// narrow as it can be written: this removes the scratch the FETCH
-    /// handed back, and the weights tree only when THIS download created
-    /// it. A tree that existed before the download started is the
-    /// caller's — from an earlier attempt, or dropped in by hand over USB,
-    /// which `LocalMindModel` explicitly invites — and a failure here is
-    /// no reason to take it away. `MLXInstallSeamTests` proves both
-    /// directions.
+    /// handed back — and only when that scratch is somewhere this
+    /// download could have made it — and the weights tree only when THIS
+    /// download created it and did not finish it. A tree that existed
+    /// before the download started is the caller's — from an earlier
+    /// attempt, or dropped in by hand over USB, which `LocalMindModel`
+    /// explicitly invites — and a failure here is no reason to take it
+    /// away. `MLXInstallSeamTests` proves every direction.
     ///
     /// Failures are swallowed: this runs while another error is already
     /// on its way to the caller, and a `removeItem` that could not is not
@@ -428,7 +447,7 @@ extension LocalMindModel {
     /// judges the tree by its files either way.
     private nonisolated func discardPartialInstall(snapshot: URL?, keeping wasAlreadyThere: Bool) {
         let files = FileManager.default
-        if let snapshot, snapshot.standardizedFileURL != weights.standardizedFileURL {
+        if let snapshot, mayDelete(snapshot) {
             try? files.removeItem(at: snapshot)
         }
         guard !wasAlreadyThere else { return }
@@ -441,8 +460,45 @@ extension LocalMindModel {
         // COMPLETE install is never deleted, whoever finished it. There
         // is no gap to exploit, because `completeInstall` is synchronous:
         // the move and the manifest happen inside one actor step.
-        guard !modelInstalled() else { return }
+        //
+        // AND "COMPLETE" MEANS VERIFIED, which this line first got wrong.
+        // It asked `modelInstalled()`, which is TRUE for a manifest-less
+        // tree as well — and a failure AFTER the move makes exactly that
+        // tree: 2.3 GB has landed, the disk is full, `manifest.json`
+        // cannot be written. The half-finished tree was then kept,
+        // `installState()` called it `.installedUnverified`, and
+        // `download`'s own `guard !modelInstalled()` returned early on
+        // every later attempt — so no download could ever write the
+        // manifest again. A fresh 4x install could reach the pre-4v state
+        // AC-239 exists to end. Only `.installed` is protected now.
+        guard installState() != .installed else { return }
         try? files.removeItem(at: weights)
+    }
+
+    /// Whether a directory a fetcher handed back is one THIS download
+    /// could have created — the bound on the line above.
+    ///
+    /// `WeightsFetching` is public since AC-249, and its promise reads
+    /// "put the files under `base` and hand back where you put them". A
+    /// conformer that writes straight into `base` and returns `base` is
+    /// reading that plainly. The default `base` is the app's Documents,
+    /// so the unbounded version of this deleted a person's Documents —
+    /// with another model's weights inside it — the moment the move into
+    /// place failed. A review probe did it in four lines.
+    ///
+    /// The bound: strictly BELOW the base this download handed to the
+    /// fetcher, and never an ancestor of (nor equal to) the weights tree.
+    /// Symlinks are resolved on both sides first, because the temporary
+    /// directories these run in are reached through them and two spellings
+    /// of one path must not read as two paths. Anything failing the test
+    /// is simply left alone: the same choice the `wasAlreadyThere` guard
+    /// makes, for the same reason.
+    private nonisolated func mayDelete(_ snapshot: URL) -> Bool {
+        let parts = { (url: URL) in url.standardizedFileURL.resolvingSymlinksInPath().pathComponents }
+        let base = parts(weights.deletingLastPathComponent())
+        let candidate = parts(snapshot)
+        guard candidate.count > base.count, Array(candidate.prefix(base.count)) == base else { return false }
+        return !parts(weights).starts(with: candidate)
     }
 
     /// The manifest's total from an earlier install, or `nil` on a first

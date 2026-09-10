@@ -32,14 +32,34 @@ import MultiModalKit
 /// completed only after the cancellation is checked — but a conformer
 /// that throws `CancellationError` is cleaner, and both leave the same
 /// nothing behind (F-2 = A).
+///
+/// WHO DELETES WHAT, and it is split for a reason a review had to find.
+/// F-2 = A says a stopped download leaves no partial tree. When `fetch`
+/// RETURNS, it has named its directory and this library removes it. When
+/// `fetch` THROWS, it has named nothing at all — and this library will
+/// not go looking for a directory to delete, because the first version of
+/// `HubWeightsFetcher` did exactly that and could have moved somebody
+/// else's model. So the throw path is the conformer's own, and the rule
+/// below is a requirement of the protocol, not a courtesy.
 public protocol WeightsFetching: Sendable {
     /// Fetches `repoID`'s files under `base` and returns the directory
     /// they actually landed in.
     ///
+    /// **A CONFORMER THAT THROWS CLEANS UP AFTER ITSELF** (F-2 = A). The
+    /// throw carries no path, so nothing outside can find what was
+    /// written; whatever bytes have landed must be removed before the
+    /// error leaves this method, or the next attempt does not begin at
+    /// zero. `HubWeightsFetcher` shows the shape.
+    ///
     /// - Parameters:
     ///   - repoID: the model repository, `"owner/name"`.
     ///   - base: the directory to work under. A conformer may make
-    ///     whatever tree it likes below this.
+    ///     whatever tree it likes below this — but `base` itself is not
+    ///     its own to hand back: the returned directory is MOVED into
+    ///     place, and a directory cannot be moved inside itself. The
+    ///     install refuses to delete anything that is not strictly below
+    ///     `base`, so a conformer that returns `base` fails the install
+    ///     and loses nothing.
     ///   - progress: 0…1, called as often as it likes. Values outside
     ///     0…1 are clamped by the caller, so a conformer that reports a
     ///     rough number cannot break a progress bar.
@@ -66,16 +86,60 @@ public struct HubWeightsFetcher: WeightsFetching {
     public init() {}
 
     /// The hub returns WHERE it put the snapshot. Use that.
+    ///
+    /// AND ON A THROW IT RETURNS NOTHING, which is why the cleanup is
+    /// here (F-2 = A). A dropped connection, a 429, a full disk or a
+    /// cancel raised inside a file transfer all leave this method by the
+    /// error path, and the bytes already written stay where the client
+    /// put them: `base/models/<owner>/<name>`, nowhere near the weights
+    /// directory the install would later move them to. Nothing above
+    /// could see that path, so nothing above could remove it — a review
+    /// found a 2.3 GB download that died at 90% sitting in a person's
+    /// Documents forever, with `installState()` answering `.absent` and
+    /// no code in this library able to clear it.
+    ///
+    /// It is worse than a leak, because the leftovers RESUME: the client
+    /// writes its per-file bookkeeping inside that same tree, and its
+    /// next run reuses a file whose commit hash still matches. That is
+    /// option B — keep and resume — which D-106 rejected precisely
+    /// because "resume" is a promise nobody here can test on a bad
+    /// network. Deleting the tree deletes the bookkeeping with it, so the
+    /// next attempt really does begin at zero.
     public func fetch(repoID: String,
                       into base: URL,
                       reporting progress: @escaping @Sendable (Double) -> Void) async throws -> URL {
         let hub = HubApi(downloadBase: base)
-        return try await hub.snapshot(
-            from: repoID,
-            matching: LocalMindModel.weightGlobs
-        ) { downloadProgress in
-            progress(downloadProgress.fractionCompleted)
+        do {
+            return try await hub.snapshot(
+                from: repoID,
+                matching: LocalMindModel.weightGlobs
+            ) { downloadProgress in
+                progress(downloadProgress.fractionCompleted)
+            }
+        } catch {
+            Self.discardPartialTree(repoID: repoID, under: base)
+            throw error
         }
+    }
+
+    /// Where the client materialises `repoID` under `base` — ASKED of the
+    /// client, never guessed. `localRepoLocation(_:)` is the same function
+    /// `snapshot(from:matching:)` uses to decide where to write, so the
+    /// two answers cannot drift apart; the note above this type is about
+    /// what happens when code goes looking for a directory instead.
+    static func snapshotLocation(repoID: String, under base: URL) -> URL {
+        HubApi(downloadBase: base).localRepoLocation(Hub.Repo(id: repoID))
+    }
+
+    /// F-2 = A, the fetcher's half: remove the tree this fetcher's client
+    /// was writing into, and nothing else in `base` — other models live
+    /// there, this demo's Whisper weights among them.
+    ///
+    /// The failure is swallowed: this runs while another error is already
+    /// on its way to the caller, and a `removeItem` that could not is not
+    /// the news.
+    static func discardPartialTree(repoID: String, under base: URL) {
+        try? FileManager.default.removeItem(at: snapshotLocation(repoID: repoID, under: base))
     }
 }
 
