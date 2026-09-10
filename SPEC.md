@@ -5451,7 +5451,13 @@ data allowance, and the only honest way to say "2.3 GB".
 1. **The size, before anything is fetched** (L2) — `func expectedInstall()
    async throws -> InstallSize`, carrying `downloadBytes`, `onDiskBytes`
    and the per-file breakdown. It makes network calls and says so in its
-   name and its doc. Aura shows the number before the first byte moves.
+   name and its doc.
+   > *Contradiction found while building, 2026-09-10, raised as F-6 below
+   > and NOT resolved by the builder.* This bullet asks the call to say
+   > it reaches the network "in its name", and then writes the name
+   > `expectedInstall()`, which does not. The doc says it loudly. Renaming
+   > a signed public API is a decision, so the code follows the signature
+   > this spec wrote and the wording waits for a ruling. Aura shows the number before the first byte moves.
 2. **A cancellable download that leaves nothing pretending** (L3) — a
    cancelled or failed download leaves `installState()` returning
    `.absent` or `.incomplete(files:)`, never `.installed` or
@@ -5526,12 +5532,31 @@ data allowance, and the only honest way to say "2.3 GB".
 - **AC-252** A load-and-generate cycle with weights already on disk makes
   ZERO network requests, proven by a `URLProtocol` that fails the test if
   it sees one.
+  > *Bounded as built, 2026-09-10.* A `URLProtocol` sees `URLSession.shared`
+  > and nothing else — not a session built from its own configuration, and
+  > not a raw socket. The test says so in its own words rather than
+  > implying a proof it cannot give. It also gained a third live subject
+  > the criterion did not name: a real neural-voice load with the model on
+  > disk, which is the guard on the host page's headline claim — that load
+  > was pinging the hub until this milestone caught it.
 - **AC-253** One documented list names every host the library can
   contact, in which module, for what. A test asserts the list matches the
   hosts actually referenced in source.
+  > *Gained a second direction as built, 2026-09-10.* The test also runs
+  > the other way: a host DECLARED in the list that no source file names
+  > must be declared again as never-called, so the page cannot quietly
+  > pre-authorise a host nothing contacts.
 - **AC-254** The weight fetch carries no user identifier and no
   credential: the request headers are asserted in a test against the fake
   fetcher's recorded requests.
+  > *NOT COMPLETE as built, 2026-09-10 — do not tick it.* No test reads a
+  > request header. What ships is a source-level scan asserting the module
+  > attaches no credential symbol, plus the honest finding that three of
+  > the four fetches inherit a vendored client that WILL set an
+  > `Authorization` header when a token is present in the environment. The
+  > header-level assertion the criterion asks for is owed, and the
+  > question of whether to force those clients to send none is a fork
+  > nobody has ruled.
 - **AC-255** `PrivacyInfo.xcprivacy` exists for each linked module, or a
   written statement names what the consumer must ship. Whichever F-4
   rules, the file (or statement) is checked into the repo and named in
@@ -5576,6 +5601,18 @@ data allowance, and the only honest way to say "2.3 GB".
   **Recommended.**
 - *B:* write a statement telling the consumer what to declare. Less work
   here, more work for every caller, forever.
+
+**F-6 — the size call's NAME (raised by the build, 2026-09-10; open).**
+§181/1 asks the call to say it reaches the network "in its name and its
+doc", then writes the name `expectedInstall()`, which does not. The doc
+says it plainly. The builder followed the signature the signed spec wrote
+rather than renaming a public API on its own.
+- *A:* keep `expectedInstall()` and amend §181/1 to "says so in its doc".
+  The name reads well at a call site, the doc carries the warning, and
+  nothing that already shipped moves. **Recommended.**
+- *B:* rename it — `fetchExpectedInstall()` or similar — so the call site
+  itself warns. Truer to the original wording; it changes a public symbol
+  the milestone has already frozen and every caller's line.
 
 **F-5 — where `expectedInstall()` lives.**
 - *A:* on `LocalMindModel`, beside `installState()` and `download`. One
