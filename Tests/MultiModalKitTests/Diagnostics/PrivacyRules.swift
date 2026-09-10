@@ -87,15 +87,95 @@ enum SourceHostScanner {
 /// Prose is for the reader; the block beside it is what the test reads,
 /// and the two disagreeing is itself a failure worth having.
 enum FencedList {
-    static func named(_ tag: String, in document: String) -> [String] {
-        let lowered = document.lowercased()
-        guard let open = lowered.range(of: "```" + tag + "\n") else { return [] }
-        let rest = lowered[open.upperBound...]
+
+    /// The lines of a fenced block, EXACTLY as the page wrote them.
+    ///
+    /// Case matters for one caller and not for the others: the `proofs`
+    /// block names Swift functions and file names, and
+    /// `thereCorderIsReallyIntercepting` is not a function. So the
+    /// case-folding lives in `named` below rather than in the reader:
+    /// lowercasing the whole document first would turn
+    /// `theRecorderIsReallyIntercepting` into a name no file defines.
+    static func lines(_ tag: String, in document: String) -> [String] {
+        guard let open = document.range(of: "```" + tag + "\n") else { return [] }
+        let rest = document[open.upperBound...]
         guard let close = rest.range(of: "```") else { return [] }
         return rest[..<close.lowerBound]
             .split(separator: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
+    }
+
+    /// The same lines, lowercased — what a host name or a phrase
+    /// comparison wants.
+    static func named(_ tag: String, in document: String) -> [String] {
+        lines(tag, in: document).map { $0.lowercased() }
+    }
+}
+
+// MARK: - the credential scan (AC-254)
+
+/// Reads text and answers "does this attach a credential, or read
+/// something that identifies the device or the person?".
+///
+/// PURE, and here rather than inlined in the suite, for the reason
+/// `SourceHostScanner` is: round 2 of 4x's review ran the old inlined
+/// list over source that really does attach a credential and it matched
+/// NOTHING. The list was
+///
+///     "setValue(\"Bearer", "addValue(\"Bearer", …
+///
+/// so it only saw a bearer token when the word `Bearer` was a string
+/// LITERAL inside the call. The ordinary form —
+///
+///     let auth = "Bearer " + secret
+///     request.setValue(auth, forHTTPHeaderField: "Authorization")
+///
+/// walked straight past it, and that is the form the two vendored hub
+/// clients themselves use. A rule with no bite test, run only against a
+/// tree that has never had a credential in it, passes forever.
+///
+/// SO THE FIELD, NOT THE VALUE. This library sets no request header at
+/// all, which makes the strict rule affordable: naming the header
+/// `"Authorization"` (or `"Proxy-Authorization"`, or `"Cookie"`) anywhere
+/// in `Sources/` is the failure, whatever the value beside it is built
+/// from.
+///
+/// WHAT IT STILL CANNOT SEE, so no comment above it may claim "the only
+/// ways": a header name assembled at run time (`"Author" + "ization"`, an
+/// interpolation, a constant from a dependency) is invisible, exactly as
+/// an assembled host is invisible to `SourceHostScanner`. This is a guard
+/// against a change made in the open, not a proof against a change made
+/// in hiding.
+enum CredentialScan {
+
+    /// The symbols that mean a credential is being attached, or an
+    /// identifier read. Two families, and both are named in the failure
+    /// message so a reader knows which rule they hit.
+    static let forbidden: [String] = [
+        // The header FIELD, which is what a credential actually travels
+        // in. This library sets no header, so naming one is the alarm.
+        "\"Authorization\"",
+        "\"Proxy-Authorization\"",
+        "\"Cookie\"",
+        "httpAdditionalHeaders",         // a credential hidden on a session
+        // The literal forms, kept because a failure that quotes them
+        // reads better than one quoting a header name.
+        "setValue(\"Bearer",
+        "addValue(\"Bearer",
+        // The hub clients' own credential arguments.
+        "hfToken",
+        "HF_TOKEN",
+        // Anything that identifies the device or the person.
+        "identifierForVendor",
+        "advertisingIdentifier",
+        "SecItemCopyMatching"            // the keychain
+    ]
+
+    /// Every forbidden symbol the text names, in the order they are
+    /// listed above. Empty is the only acceptable answer for `Sources/`.
+    static func hits(in text: String) -> [String] {
+        forbidden.filter { text.contains($0) }
     }
 }
 
@@ -224,7 +304,7 @@ enum PackageOnDisk {
     /// same about its own gates).
     static let packageRoot: URL? = {
         var url = URL(filePath: #filePath)
-        // …/Tests/MultiModalKitTests/Diagnostics/NetworkSilenceTests.swift
+        // …/Tests/MultiModalKitTests/Diagnostics/PrivacyRules.swift
         for _ in 0..<4 { url = url.deletingLastPathComponent() }
         let manifest = url.appending(path: "Package.swift")
         return FileManager.default.fileExists(atPath: manifest.path) ? url : nil
@@ -271,12 +351,16 @@ enum PackageOnDisk {
     /// reason: Swift Testing has no skip here, so the least dishonest
     /// thing available is to print what was not proven.
     ///
-    /// FOR AN ENVIRONMENT GATE ONLY. A missing `MMK_MLX_MODEL` is a fact
-    /// about the machine; an unreadable `Sources/` is a broken
-    /// instrument, and 4x's review found three privacy proofs using this
-    /// verb for the second case — they turned GREEN when they had read
-    /// nothing. Those now call `Issue.record`, like the sibling that
-    /// already did it for a missing `docs/HOSTS.md`.
+    /// FOR AN ENVIRONMENT GATE ONLY. A missing `MMK_MLX_MODEL`, or a
+    /// neural-voice model that is not on this machine, is a fact about
+    /// the machine; an unreadable `Sources/` is a BROKEN INSTRUMENT, and
+    /// 4x's review found four privacy proofs using this verb for the
+    /// second case — they turned GREEN when they had read nothing. Round
+    /// 1 converted three; round 2 caught the fourth, in
+    /// `theListNamesTheHubNoLiteralNames`, where a renamed
+    /// `LocalMindInstall.swift` turned AC-253's hub proof fully green
+    /// while proving nothing. All four now call `Issue.record`, like the
+    /// sibling that already did it for a missing `docs/HOSTS.md`.
     static func skipping(_ what: String) -> Bool {
         print("SKIPPED (\(what)) — this test proved NOTHING on this run")
         return true
@@ -297,17 +381,37 @@ enum PackageOnDisk {
     /// package's languages that trigger them. Not a complete copy of
     /// Apple's list — a complete list of what code here could plausibly
     /// call.
+    ///
+    /// NARROWER THAN THE BARE TYPE NAMES, on purpose: `UserDefaults(` and
+    /// `UserDefaults.standard` rather than `UserDefaults`, so a doc
+    /// comment that MENTIONS the API is not read as a call to it. The
+    /// wide form was tried in review and turned `MultiModalKitBench` red
+    /// over the sentence "every lever in the demo writes to
+    /// `UserDefaults`". `docs/HOSTS.md` quotes this list verbatim so a
+    /// reader auditing the guard is told what really runs.
+    ///
+    /// And bare `stat(` is deliberately ABSENT from the file-timestamp
+    /// row: it is a substring of `statfs(` and `statvfs(`, which are
+    /// DISK-SPACE APIs, so it would demand the wrong category for a
+    /// correct call — the "punishes the correct state" defect this file
+    /// already had once. `fstat(`, `fstatat(` and `lstat(` carry the
+    /// timestamp family without the collision.
     static let triggers: [String: [String]] = [
         "NSPrivacyAccessedAPICategoryFileTimestamp": [
             "creationDateKey", "contentModificationDateKey", "attributeModificationDateKey",
             ".creationDate", ".modificationDate", "NSFileCreationDate", "NSFileModificationDate",
-            "getattrlist", "fstatat(", "lstat("
+            "getattrlist", "fstatat(", "lstat(", "fstat("
         ],
         "NSPrivacyAccessedAPICategoryDiskSpace": [
             "volumeAvailableCapacity", "volumeTotalCapacity", "NSFileSystemFreeSize",
             "NSFileSystemSize", "systemFreeSize", "statfs(", "statvfs("
         ],
-        "NSPrivacyAccessedAPICategoryUserDefaults": ["UserDefaults(", "UserDefaults.standard", "NSUserDefaults"],
+        // `AppStorage` covers SwiftUI's `@AppStorage`, which is the
+        // commonest route into `UserDefaults` and was missing until round
+        // 2 of 4x's review asked for it.
+        "NSPrivacyAccessedAPICategoryUserDefaults": [
+            "UserDefaults(", "UserDefaults.standard", "NSUserDefaults", "AppStorage"
+        ],
         "NSPrivacyAccessedAPICategorySystemBootTime": ["systemUptime", "mach_absolute_time"],
         "NSPrivacyAccessedAPICategoryActiveKeyboards": ["activeInputModes", "UITextInputMode"]
     ]

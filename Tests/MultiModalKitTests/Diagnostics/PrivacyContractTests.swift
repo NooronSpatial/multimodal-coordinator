@@ -87,18 +87,117 @@ struct PrivacyContractTests {
     /// is named by no literal in this package at all. It comes from the
     /// vendored hub client's default. A list built by grepping `Sources/`
     /// would have missed the single most important host in this library.
+    ///
+    /// TWO INDEPENDENT HALVES, ORDERED ON PURPOSE (round 2 of 4x's
+    /// review). The page-names-the-hub half runs FIRST and needs no
+    /// source file at all, so a rename of `LocalMindInstall.swift` can no
+    /// longer take it down with it. The second half then reads that file
+    /// — and a file it cannot read is a BROKEN INSTRUMENT, not a fact
+    /// about the machine, so it records an issue instead of announcing a
+    /// skip. The first cut used `PackageOnDisk.skipping()` here, which is
+    /// the exact defect that verb's own doc comment says was removed
+    /// everywhere: pointed at a renamed path, this test printed "proved
+    /// NOTHING" and passed, taking the check that the page names the
+    /// single most important host in this library with it.
     @Test("the list names the hub the MLX weight fetch reaches, which no literal in Sources/ names")
     func theListNamesTheHubNoLiteralNames() throws {
         guard let document = PackageOnDisk.read("docs/HOSTS.md") else {
             Issue.record("docs/HOSTS.md is missing — AC-253 has no list to check against")
             return
         }
+        #expect(document.lowercased().contains("huggingface.co"),
+                "the page does not name the host every weight download reaches")
         guard let mlx = PackageOnDisk.read("Sources/MultiModalKitMLX/LocalMindInstall.swift") else {
-            _ = PackageOnDisk.skipping("LocalMindInstall.swift not readable"); return
+            Issue.record("""
+            Sources/MultiModalKitMLX/LocalMindInstall.swift is not readable — \
+            AC-253's hub proof read NOTHING
+            """)
+            return
         }
-        #expect(document.lowercased().contains("huggingface.co"))
         #expect(SourceHostScanner.hosts(in: mlx).isEmpty,
                 "this file reaches the hub and names no host — which is exactly why the list is hand-written")
+    }
+
+    /// THE OTHER DIRECTION OF AC-253, and 4x's review is why it exists:
+    /// an allowlist that only ever grows is not an allowlist. Four of the
+    /// five hosts the page declares are named by nothing the scanner
+    /// reads — they come from the tables of code that is LINKED but never
+    /// called, and `localhost` most of all, which is the classic
+    /// exfiltrate-to-a-local-proxy address sitting permanently
+    /// pre-authorised.
+    ///
+    /// The rule is not "delete them" — the page argues, correctly, that a
+    /// reader should be able to look up a host they can see in the
+    /// binary. The rule is that each of them must be declared TWICE: once
+    /// as allowed, once as never called. Deleting the call site that
+    /// justified an entry, or adding an entry with nothing behind it, now
+    /// has to be written down in two places.
+    @Test("a declared host is either named in Sources/ or declared as never called")
+    func theDeclaredHostsAgreeWithTheSource() throws {
+        guard let document = PackageOnDisk.read("docs/HOSTS.md") else {
+            Issue.record("docs/HOSTS.md is missing — AC-253 has no list to check against")
+            return
+        }
+        guard let source = PackageOnDisk.sourceText() else {
+            Issue.record("Sources/ is not readable — this privacy proof read NOTHING")
+            return
+        }
+        let declared = Set(FencedList.named("hosts", in: document))
+        let neverCalled = Set(FencedList.named("hosts-never-called", in: document))
+        let named = SourceHostScanner.hosts(in: source)
+        #expect(!declared.isEmpty, "the page declares no hosts at all — the block was renamed or lost")
+
+        let strays = declared.subtracting(named).subtracting(neverCalled).sorted()
+        #expect(strays.isEmpty,
+                """
+                declared, named by nothing in Sources/, and not listed under \
+                `hosts-never-called`: \(strays.joined(separator: ", "))
+                """)
+        let unknown = neverCalled.subtracting(declared).sorted()
+        #expect(unknown.isEmpty,
+                "listed as never called but not declared at all: \(unknown.joined(separator: ", "))")
+        let contradicted = neverCalled.intersection(named).sorted()
+        #expect(contradicted.isEmpty,
+                """
+                the page says these are never called, and Sources/ names them: \
+                \(contradicted.joined(separator: ", "))
+                """)
+    }
+
+    /// THE POINTER CHECK, and the reason it is a test rather than a
+    /// promise. This milestone split one test file into three and left
+    /// every cross-reference on the page — and inside all six shipped
+    /// `PrivacyInfo.xcprivacy` files — naming the old one. A reader
+    /// following the page to audit AC-254 opened `NetworkSilenceTests`
+    /// and found no credential check in it. For a milestone whose whole
+    /// claim is "fact-checked claim by claim", a false pointer to where
+    /// the evidence lives is the one defect it must not ship.
+    ///
+    /// So the page carries a `proofs` block, and this reads it: every
+    /// test it names must be DEFINED in the file it names beside it. The
+    /// next split cannot drift silently.
+    @Test("the proofs block names the file each check lives in")
+    func theProofsBlockNamesTheFileEachCheckLivesIn() throws {
+        guard let document = PackageOnDisk.read("docs/HOSTS.md") else {
+            Issue.record("docs/HOSTS.md is missing — the proofs block has nowhere to live")
+            return
+        }
+        let rows = FencedList.lines("proofs", in: document)
+        #expect(rows.count >= 15, "the page names \(rows.count) proofs; 4x shipped nineteen")
+        for row in rows {
+            let parts = row.split(separator: " ").map(String.init)
+            guard parts.count == 2 else {
+                Issue.record("a proofs row must be `<test function> <file>`, and this is: \(row)")
+                continue
+            }
+            let (name, file) = (parts[0], parts[1])
+            guard let body = PackageOnDisk.read("Tests/MultiModalKitTests/Diagnostics/\(file)") else {
+                Issue.record("the page names \(file), and there is no such file in Diagnostics/")
+                continue
+            }
+            #expect(body.contains("func \(name)("),
+                    "the page says `\(name)` lives in \(file), and \(file) does not define it")
+        }
     }
 
     /// THE TWO WAYS THE FIRST SCANNER COULD BE WALKED PAST.
@@ -162,37 +261,78 @@ struct PrivacyContractTests {
     /// SOURCE-READ, NOT HEADER-READ, and the reason is in this file's
     /// opening note: asserting on a REAL request's headers means making a
     /// real request, and the day interception breaks that is a 2.3 GB
-    /// download inside `swift test`. What is checked here cannot drift
-    /// silently — the symbols below are the only ways to attach one.
+    /// download inside `swift test`.
+    ///
+    /// WHAT THE RULE ACTUALLY CHECKS, corrected by round 2 of 4x's
+    /// review. The first cut said "the symbols below are the only ways to
+    /// attach one", and that was false: its list matched only a `Bearer`
+    /// written as a string LITERAL inside `setValue`/`addValue`, so the
+    /// ordinary two-line form (hoist the value into a variable, then set
+    /// it) shipped a credential with AC-254 green. The rule now lives in
+    /// `CredentialScan` and names the header FIELD instead of the value,
+    /// which this library can afford because it sets no header at all.
+    /// It still cannot see a header name assembled at run time — see that
+    /// type's own comment — and `anAttachedCredentialIsReported` is where
+    /// the rule is shown to bite over text a test writes itself.
     ///
     /// STILL OWED, and named here rather than left to be discovered:
     /// AC-254 (SPEC §183) asks for "the request headers … asserted in a
     /// test against the FAKE FETCHER's recorded requests". That fake is
     /// `WeightsFetching` (§181 item 3), which this half of 4x does not
     /// own and which has not landed. Nothing in this file reads a header
-    /// — `RecordingURLProtocol.seen` is only ever asked "was it empty?".
-    /// When the seam lands, the header assertion belongs beside its fake,
-    /// and AC-254 is not complete until it exists.
+    /// — `RecordingURLProtocol`'s capture is only ever asked "was it
+    /// empty?". When the seam lands, the header assertion belongs beside
+    /// its fake, and AC-254 is not complete until it exists.
     @Test("no module supplies a credential or reads an identifier")
     func theLibrarySuppliesNoCredentialAndReadsNoIdentifier() throws {
         guard let source = PackageOnDisk.sourceText() else {
             Issue.record("Sources/ is not readable — this privacy proof read NOTHING")
             return
         }
-        let forbidden = [
-            "setValue(\"Bearer",             // a bearer token on a request
-            "addValue(\"Bearer",
-            "httpAdditionalHeaders",         // a credential hidden in a session
-            "identifierForVendor",           // the device id
-            "advertisingIdentifier",
-            "SecItemCopyMatching",           // the keychain
-            "hfToken",                       // the hub's own credential argument
-            "HF_TOKEN"
-        ]
-        for symbol in forbidden {
-            #expect(!source.contains(symbol),
-                    "Sources/ names `\(symbol)` — AC-254 says the fetch carries no credential, no identifier")
-        }
+        let hits = CredentialScan.hits(in: source)
+        #expect(hits.isEmpty,
+                """
+                Sources/ names \(hits.joined(separator: ", ")) — AC-254 says the fetch carries \
+                no credential, no identifier
+                """)
+    }
+
+    /// THE BITE TEST the first cut of this rule never had, and the reason
+    /// it never bit. Every sample below is a credential or an identifier
+    /// attached the way real code attaches one; the last is the exact
+    /// form that walked past the old list.
+    ///
+    /// The clean sample matters as much: a rule that reported the ordinary
+    /// fetch path would be deleted within a week.
+    @Test("the credential scan reports a credential attached the ordinary way")
+    func anAttachedCredentialIsReported() {
+        let hoisted = """
+        let auth = "Bearer " + secret
+        request.setValue(auth, forHTTPHeaderField: "Authorization")
+        """
+        #expect(CredentialScan.hits(in: hoisted) == ["\"Authorization\""],
+                "the header FIELD is the rule — the value it carries is built at run time")
+
+        let onTheSession = #"session.configuration.httpAdditionalHeaders = ["Authorization": token]"#
+        #expect(CredentialScan.hits(in: onTheSession)
+                == ["\"Authorization\"", "httpAdditionalHeaders"])
+
+        let cookie = #"request.setValue(jar, forHTTPHeaderField: "Cookie")"#
+        #expect(CredentialScan.hits(in: cookie) == ["\"Cookie\""])
+
+        let device = "let id = UIDevice.current.identifierForVendor?.uuidString"
+        #expect(CredentialScan.hits(in: device) == ["identifierForVendor"])
+
+        let literal = #"request.setValue("Bearer " + secret, forHTTPHeaderField: "Auth")"#
+        #expect(CredentialScan.hits(in: literal) == ["setValue(\"Bearer"],
+                "the literal form the old list DID catch must keep being caught")
+
+        let clean = """
+        let url = URL(string: "https://huggingface.co/repo/resolve/main/x.safetensors")!
+        let (data, _) = try await URLSession.shared.data(from: url)
+        """
+        #expect(CredentialScan.hits(in: clean).isEmpty,
+                "the ordinary fetch path must not be reported — a guard that cries wolf gets deleted")
     }
 
     /// The ARGUED half, pinned so it cannot be quietly dropped: the
@@ -234,8 +374,15 @@ struct PrivacyContractTests {
                 "three of the four fetches can carry a developer token; the page lists \(bearing)")
         #expect(free == ["kokoro"], "Kokoro's plain download is the only header-free fetch; the page lists \(free)")
     }
+}
 
-    // MARK: - AC-255 · the privacy manifests (F-4 = A)
+// MARK: - AC-255 · the privacy manifests (F-4 = A)
+
+/// The manifest half of the same suite, in an extension so that neither
+/// half is a 300-line type. Swift Testing reads `@Test` from an extension
+/// exactly as it does from the declaration, so these still run inside
+/// `4x · the privacy contract, checked against the source`.
+extension PrivacyContractTests {
 
     /// Every module a consumer links ships a `PrivacyInfo.xcprivacy`, and
     /// every one of them is DECLARED in `Package.swift`. A manifest that

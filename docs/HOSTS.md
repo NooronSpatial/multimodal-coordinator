@@ -18,6 +18,21 @@ this library contacts **exactly one host family — `huggingface.co` — and
 only while it is downloading model weights.** Once the weights are on
 disk, listening, thinking and speaking issue no requests at all.
 
+**That sentence was UNTRUE when this page was first written, and 4x's own
+recorder is what caught it.** With the neural voice's model already
+installed, opening an utterance fired six requests to
+`huggingface.co/api/models/Qwen/Qwen3-0.6B/revision/main` — a revision
+check, on the speaking path, with the weights on disk. It is the ear's
+old bug (the field note below) living on in the second mouth, and it was
+fixed the same way: `NeuralVoice.loadedPipeline()` now names its local
+model folder **and** its local tokenizer folder, so a load with the
+weights present reads the disk and stops. The sentence above is true of
+the code as it stands, and
+`a REAL neural-voice load with the model on disk issues ZERO requests`
+is the test that keeps it true. The story is kept here rather than tidied
+away because a page a caller quotes to a person is worth exactly as much
+as its worst sentence.
+
 ---
 
 ## The hosts
@@ -40,7 +55,7 @@ disk, listening, thinking and speaking issue no requests at all.
 |---|---|---|---|---|
 | `huggingface.co` | `MultiModalKitMLX` | the mind's weights, tokenizer and config (~2.3 GB for the shipped model) | `LocalMindModel.download(reporting:)` — and **only** on a model built with `init(repoID:in:)`. | **Yes.** `LocalMindModel(weights:)` has no repo id at all: it never downloads, and `download` throws `.weightsAbsent` rather than guessing where to look. |
 | `huggingface.co` | `MultiModalKitTTS` | Kokoro's weights (`kokoro-v1_0.safetensors`, 327,115,152 bytes) and one voice (`af_heart.safetensors`, 522,339 bytes) | `KokoroWeights.ensure(progress:)`. These are the only two URL literals in `Sources/`. | **Yes.** Place both files in the directory by hand; `isInstalled()` checks name *and* exact byte count, and `ensure()` then downloads nothing. |
-| `huggingface.co` | `MultiModalKitTTS` | the other mouth's CoreML components and its tokenizer (a separate repo, ~1.1 GB + 11 MB) | `NeuralVoice.ensureModel()`, through the vendored speech kit's own hub client. | **Yes.** Pre-install into the two folders `modelInstalled()` checks; asking never fetches (D-078). |
+| `huggingface.co` | `MultiModalKitTTS` | the other mouth's CoreML components and its tokenizer (a separate repo, ~1.1 GB + 11 MB) | `NeuralVoice.ensureModel()`, through the vendored speech kit's own hub client. | **Yes.** Pre-install into the two folders `modelInstalled()` checks; asking never fetches (D-078), and since 4x **loading** never fetches either — see the second field note below. |
 | `huggingface.co` | `MultiModalKitWhisper` | the ear's CoreML model and its tokenizer (~142 MB for `base`) | `WhisperEngine.ensureModel()`, through the vendored recogniser's own hub client. | **Yes.** Pre-install. And see the field note below: once installed, the pipeline load is pinned to the local folder so it does **not** ping for a revision. |
 | Apple's OS asset service | `MultiModalKit` | the built-in speech recogniser's model for a locale | `AssetInventory.assetInstallationRequest` inside `AppleSpeechEngine`, when the locale's model is absent. | **Partly.** The download is the OS's, not this process's — no URL exists in this repo to point elsewhere. A caller that never constructs the Apple ear never reaches it. |
 
@@ -53,6 +68,23 @@ that now sits on `WhisperEngine.loadedPipeline()`: naming
 `config.modelFolder` makes the load local and silent. **The on-device
 promise applies to STARTUP, not only to transcription.** That bug is the
 reason AC-252 exists as a test rather than a paragraph.
+
+### The same bug, found again in the second mouth (4x)
+
+The fix above was applied to the ear and not to the mouth. 4x's review
+armed this milestone's recorder around a neural-voice load with the model
+already installed and got six requests to
+`huggingface.co/api/models/Qwen/Qwen3-0.6B/revision/main`. The mouth's
+weights were pinned by nobody, and its **tokenizer** — a different repo
+entirely — was named by repo id, which TTSKit resolves as
+`tokenizerFolder?.path ?? model.tokenizerRepo`. A repo id means the hub.
+
+`NeuralVoice.loadedPipeline()` now hands the kit both folders, and only
+when `modelInstalled()` says all six compiled components and both
+tokenizer files are really there, so a machine with nothing still gets
+its download. Two lessons worth keeping: **a fix applied to one engine is
+not applied to the other**, and **a model folder is not the whole
+install** — the tokenizer beside it is its own trip to the network.
 
 ### Named in the binary, never called by this library
 
@@ -87,16 +119,34 @@ same reason.
 credential. The answer has a proven half and an argued half, and mixing
 them would be exactly the dishonesty this repo exists to avoid.
 
-**Proven, by test** (`NetworkSilenceTests`):
+**Proven, by test** (`PrivacyContractTests.swift`, with the rule itself in
+`PrivacyRules.swift`):
 
 - No module in `Sources/` names `identifierForVendor`,
   `advertisingIdentifier`, or the keychain. Nothing about the device or
   the person is read, so nothing about them can be sent.
-- No module builds a request with a bearer token on it, and none sets
-  `httpAdditionalHeaders` on a session.
+- No `.swift` file under `Sources/` names the header field
+  `"Authorization"`, `"Proxy-Authorization"` or `"Cookie"`, sets
+  `httpAdditionalHeaders`, or names the hub clients' own token arguments
+  (`hfToken`, `HF_TOKEN`). This library sets **no request header at all**,
+  which is what makes so strict a rule affordable.
 - The two weight URLs this library holds carry no query string, no user
   info, no password and no fragment. They are `https`, and they name a
   file — nothing else.
+
+**What that scan can and cannot see**, because the first version of this
+page claimed more than it delivered. It matched only a `Bearer` written as
+a string *literal* inside `setValue`/`addValue`, so the ordinary two-line
+form — hoist the value into a variable, then set it — attached a
+credential with the test green. Naming the header **field** instead of the
+value fixes that case. It still cannot see a header name assembled at run
+time (`"Author" + "ization"`, an interpolation, a constant from a
+dependency), exactly as the host scanner cannot see an assembled host.
+This is a guard against a change made in the open, not a proof against a
+change made in hiding — and `the credential scan reports a credential
+attached the ordinary way` is where the rule is shown to bite over
+hand-written text rather than only over a tree that has never had a
+credential in it.
 
 **Argued, by reading the fetch path — the one caveat.**
 
@@ -169,8 +219,18 @@ other way round:
 
 - `every host in Sources/ is named in docs/HOSTS.md` — scans every
   `.swift` file under `Sources/`, comments included, and fails naming any
-  host this page does not **declare**. **Add a host without writing it
-  down and the suite goes red.** That is the whole of AC-253.
+  host this page does not **declare**. **Write a host as a full
+  `http(s)://…` literal in a `.swift` file under `Sources/` without
+  declaring it below, and the suite goes red.**
+- **What the scanner cannot see**, stated because the sentence above used
+  to be an unqualified absolute. Only a full URL literal is found. A host
+  assembled by interpolation (`"https://\(region).telemetry.test/v1"`),
+  by concatenation (`"https://" + host`), by `URLComponents` (`c.host =
+  "telemetry.test"`) or written scheme-relative (`//telemetry.test/v1`)
+  is invisible to it. That is not a bug to be fixed by a cleverer parser:
+  it is the same reason this list is written by hand and reviewed rather
+  than generated. The scanner is a guard against a host added in the
+  open, and the review is the guard against the rest.
 - A host that only ever appears in a comment still belongs here, under
   "named in the binary, never called": a host a reader believes the
   library can reach is a host the reader should be able to look up.
@@ -182,6 +242,22 @@ the list the scanner matches against — **whole names, one per line**:
 
 ```hosts
 huggingface.co
+router.huggingface.co
+hf-mirror.com
+localhost
+www.apple.com
+```
+
+**And the other direction**, added in 4x's review because an allowlist
+that only ever grows is not an allowlist. Four of the five entries above
+are named by nothing the scanner reads — they come from the tables of
+code that is *linked but never called*. So each of those is declared here
+too, and the test requires the two blocks to agree: a declared host that
+`Sources/` does not name must appear below, and a host listed below must
+be declared above. Deleting the call site that justifies an entry, or
+adding an entry with no justification, now shows up.
+
+```hosts-never-called
 router.huggingface.co
 hf-mirror.com
 localhost
@@ -240,16 +316,37 @@ categories were checked against the source, symbol by symbol, rather than
 guessed — because *a manifest claiming a reason the code does not use is
 as wrong as a missing one*. It is an untrue statement filed with a store.
 
-| category | what was searched for | found |
+The strings below are quoted **verbatim** from `PackageOnDisk.triggers`
+in `Tests/MultiModalKitTests/Diagnostics/PrivacyRules.swift`. That matters
+after 4x's review: the table used to print the bare type name
+`UserDefaults` while the code searched `UserDefaults(` and
+`UserDefaults.standard`, so a reader auditing this guard was told a
+stricter search ran than really runs.
+
+| category | what was searched for (verbatim) | found |
 |---|---|---|
-| file timestamp | `creationDateKey`, `contentModificationDateKey`, `.creationDate`, `.modificationDate`, `getattrlist`, `lstat` | none. The install code reads `attributesOfItem` for **size and type only** |
-| disk space | `volumeAvailableCapacity`, `NSFileSystemFreeSize`, `statfs`, `statvfs` | none |
-| user defaults | `UserDefaults`, `NSUserDefaults` | none in any library target |
+| file timestamp | `creationDateKey`, `contentModificationDateKey`, `attributeModificationDateKey`, `.creationDate`, `.modificationDate`, `NSFileCreationDate`, `NSFileModificationDate`, `getattrlist`, `fstatat(`, `lstat(`, `fstat(` | none. The install code reads `attributesOfItem` for **size and type only** |
+| disk space | `volumeAvailableCapacity`, `volumeTotalCapacity`, `NSFileSystemFreeSize`, `NSFileSystemSize`, `systemFreeSize`, `statfs(`, `statvfs(` | none |
+| user defaults | `UserDefaults(`, `UserDefaults.standard`, `NSUserDefaults`, `AppStorage` | none in any library target |
 | system boot time | `systemUptime`, `mach_absolute_time` | none. The memory reader uses `task_info` and `os_proc_available_memory`, neither of which is a required-reason API |
 | active keyboards | `activeInputModes`, `UITextInputMode` | none. This library has no UI and reads no keyboard |
 
+**Why the strings are narrower than the type names.** `UserDefaults(` and
+`UserDefaults.standard`, not `UserDefaults`, so a doc comment that
+*mentions* the API is not read as a call to it — the wide form was tried
+in review and turned `MultiModalKitBench` red over the sentence "every
+lever in the demo writes to `UserDefaults`" in
+`Sources/MultiModalKitBench/BenchStage.swift`. `AppStorage` is on the list
+because `@AppStorage` is the commonest SwiftUI route into user defaults
+and a target adding it would otherwise ship an untrue manifest. And bare
+`stat(` is deliberately **absent**: it is a substring of `statfs(` and
+`statvfs(`, which belong to the disk-space row, so it would demand the
+wrong category for a correct call. `fstat(`, `fstatat(` and `lstat(`
+carry that family without the collision.
+
 That table is not prose: the same symbol list lives in
-`NetworkSilenceTests`, and it is checked **in both directions**, **per
+`Tests/MultiModalKitTests/Diagnostics/PrivacyRules.swift`, and
+`PrivacyContractTests.swift` checks it **in both directions**, **per
 module**, on every run. A module may not declare a category its own
 source never calls, and its source may not start calling one without
 that module's manifest being updated and this page being rewritten.
@@ -266,13 +363,19 @@ worse than no guard, because it teaches people to delete it.
 
 Being honest about the edge of what this repo can answer:
 
-- **The vendored dependencies ship no privacy manifest of their own.**
-  The recogniser/mouth kit, the tensor library, the language-model
-  library, the hub client and the Kokoro fork carry none. Their library
-  targets were searched for the same four categories and only their
-  *example apps* matched — but "we grepped it" is weaker than "the vendor
-  declared it", and a consumer whose app is rejected for a third-party
-  reason should know where to look.
+- **The five packages this library depends on directly ship no privacy
+  manifest of their own.** The recogniser/mouth kit, the tensor library,
+  the language-model library, the hub client and the Kokoro fork carry
+  none. Two packages linked *transitively* do carry one — swift-crypto
+  (seven files) and ZIPFoundation (one) — so the sentence is about the
+  five named, not about the whole dependency tree. Their library targets
+  were searched for the same **five** categories, and the only match
+  outside an example app is `.contentModificationDateKey` in `mlx-swift`'s
+  `Source/Encuda` (`encuda-compile.swift` and `encuda-link.swift`), which
+  is an `executableTarget` behind a build-tool plugin: it runs on a
+  developer's machine and is never linked into an app. But "we grepped
+  it" is weaker than "the vendor declared it", and a consumer whose app
+  is rejected for a third-party reason should know where to look.
 - **These manifests describe this library, not the app.** An app that
   adds analytics, an account, or its own network calls declares those
   itself. Nothing here can speak for that.
@@ -281,20 +384,67 @@ Being honest about the edge of what this repo can answer:
 
 ## The proofs
 
-Every claim on this page is checked by
-`Tests/MultiModalKitTests/Diagnostics/NetworkSilenceTests.swift`.
+Every claim on this page is checked by three files, all in
+`Tests/MultiModalKitTests/Diagnostics/`:
 
-| what is proven | how |
-|---|---|
-| the recorder is really intercepting | one deliberate request to `localhost` port 1 — the control. Without it, every silence proof below would pass by seeing nothing rather than by nothing happening |
-| the recorder is blind to a package's own session | the second control: the same request on a session built the way the vendored hub client builds one, which the recorder must **not** see. This is what bounds AC-252 below |
-| an offline install cycle issues zero requests (AC-252) | `installState`, `modelInstalled`, `expectedBytes`, `estimatedWorkingSetBytes`, `readiness` and constructing the generator, over a temporary weights tree |
-| a real load-and-generate cycle issues zero requests (AC-252) | gated on `MMK_MLX_MODEL` and the Metal shader library, exactly as this repo's other live tests are |
-| every host in `Sources/` is documented (AC-253) | the scanner, over every `.swift` file under `Sources/` |
-| the guard actually bites (AC-253) | the scanner is run over hand-written text containing an undocumented host, and must report it |
-| no credential, no identifier (AC-254) | the forbidden-symbol list above, and the two weight URLs |
-| the credential caveat is not quietly dropped (AC-254) | the test requires this page to name `HF_TOKEN` and the `Authorization` header |
-| the manifests exist, are declared, and claim nothing false (AC-255) | each file is parsed as a property list and checked against the source |
+- `NetworkSilenceTests.swift` — AC-252 only: the recorder, its three
+  controls and the silence proofs.
+- `PrivacyContractTests.swift` — AC-253, AC-254 and AC-255: the host
+  list, the credential scan and the six privacy manifests.
+- `PrivacyRules.swift` — the rules themselves, as pure types
+  (`SourceHostScanner`, `CredentialScan`, `RequiredReasonCheck`,
+  `ManifestDeclarations`) plus `PackageOnDisk`, the one reader for this
+  repository's own files.
+
+**This page used to name only the first file**, for every row below,
+because the tests were split into three and every cross-reference was
+left behind — on this page, and inside all six shipped
+`PrivacyInfo.xcprivacy` files, which are copied into a consumer's app
+bundle, so the wrong pointer shipped. A reader following the page to audit AC-254 opened
+`NetworkSilenceTests.swift` and found no credential check in it. So the
+mapping is no longer prose: the block below is machine-checked by
+`the proofs block names the file each check lives in`, which fails if a
+named test is not defined in the file named beside it. A split cannot
+drift silently again.
+
+```proofs
+theRecorderIsReallyIntercepting NetworkSilenceTests.swift
+anUnmarkedRequestIsWatchedButNeverFailed NetworkSilenceTests.swift
+theRecorderIsBlindToACustomDefaultSession NetworkSilenceTests.swift
+askingAboutAnInstallIssuesNoRequest NetworkSilenceTests.swift
+aRealVoiceLoadIssuesNoRequest NetworkSilenceTests.swift
+aRealReplyIssuesNoRequest NetworkSilenceTests.swift
+theListStatesWhatTheRecorderCannotSee NetworkSilenceTests.swift
+everyHostInSourceIsDocumented PrivacyContractTests.swift
+anUndocumentedHostIsReported PrivacyContractTests.swift
+theListNamesTheHubNoLiteralNames PrivacyContractTests.swift
+theDeclaredHostsAgreeWithTheSource PrivacyContractTests.swift
+theWeightURLsSayNothingAboutTheCaller PrivacyContractTests.swift
+theLibrarySuppliesNoCredentialAndReadsNoIdentifier PrivacyContractTests.swift
+anAttachedCredentialIsReported PrivacyContractTests.swift
+theListStatesTheCredentialCaveat PrivacyContractTests.swift
+everyLinkedModuleShipsAManifest PrivacyContractTests.swift
+noManifestClaimsAReasonTheCodeDoesNotUse PrivacyContractTests.swift
+aDeclaredCategoryInUseIsNotAComplaint PrivacyContractTests.swift
+aNewLibraryProductWithoutAManifestIsNamed PrivacyContractTests.swift
+```
+
+| what is proven | how | where |
+|---|---|---|
+| the recorder is really intercepting | one deliberate MARKED request to `localhost` port 1 — the control. Without it, every silence proof below would pass by seeing nothing rather than by nothing happening. The error is checked too: the recorder must have *claimed* the request, not merely logged it | `NetworkSilenceTests.swift` |
+| the recorder never breaks another test | an UNMARKED request to `localhost` port 1 must be watched and waved through. This is the poisoning proof — see "what AC-252 does not prove" below | `NetworkSilenceTests.swift` |
+| the recorder is blind to a package's own session | the same request on a session built the way the vendored hub client builds one, which the recorder must **not** see. This is what bounds AC-252 | `NetworkSilenceTests.swift` |
+| an offline install cycle issues zero requests (AC-252) | `installState`, `modelInstalled`, `expectedBytes`, `estimatedWorkingSetBytes`, `readiness` and constructing the generator, over a temporary weights tree | `NetworkSilenceTests.swift` |
+| a real neural-voice load issues zero requests (AC-252) | gated on the model being on this machine's disk; this is the guard on the headline sentence at the top of this page | `NetworkSilenceTests.swift` |
+| a real load-and-generate cycle issues zero requests (AC-252) | gated on `MMK_MLX_MODEL` and the Metal shader library, exactly as this repo's other live tests are | `NetworkSilenceTests.swift` |
+| every host in `Sources/` is documented (AC-253) | the scanner, over every `.swift` file under `Sources/` | `PrivacyContractTests.swift` |
+| the guard actually bites (AC-253) | the scanner is run over hand-written text containing an undocumented host, and must report it | `PrivacyContractTests.swift` |
+| the declared list does not grow silently (AC-253) | every declared host that `Sources/` does not name must be declared again under `hosts-never-called`, and vice versa | `PrivacyContractTests.swift` |
+| no credential, no identifier (AC-254) | `CredentialScan` over `Sources/`, and the two weight URLs | `PrivacyContractTests.swift` |
+| that credential rule actually bites (AC-254) | the scan is run over hand-written source that attaches a credential the ordinary way — the form the first version missed | `PrivacyContractTests.swift` |
+| the credential caveat is not quietly dropped (AC-254) | the test requires this page to name `HF_TOKEN`, `HUGGING_FACE_HUB_TOKEN` and the `Authorization` header, and to declare which fetches can carry one | `PrivacyContractTests.swift` |
+| the manifests exist, are declared, and claim nothing false (AC-255) | each file is parsed as a property list and checked against the source, per module | `PrivacyContractTests.swift` |
+| this table points at the file each check really lives in | the `proofs` block above, read by a test | `PrivacyContractTests.swift` |
 
 ### What AC-252 does NOT prove
 
@@ -334,6 +484,46 @@ not through a session a package builds for itself, and never *"no byte
 left this device"*. A caller who needs the stronger claim should watch
 the device with a network monitor, which is a measurement, not a unit
 test — and measurements in this project belong in `INSTRUMENTS.md`.
+
+### The one thing the recorder must never do, and the one it still can
+
+`URLProtocol.registerClass` is **process-global**. The first version of
+the silence suite therefore claimed and failed *every* request in the
+process while it was armed, and 4x's review caught that doing real
+damage on a clean tree: a neural-voice load running in another suite died
+with this suite's own refusal error, and in the same run the silence
+proof went red on six requests it had never issued. A test that breaks
+other tests is worse than no test.
+
+- **Fixed, by construction.** The recorder now fails a request only when
+  the request carries the marker header that this suite puts on its own
+  probes. Everything else is watched and waved through, exactly as it
+  would be with no recorder in the process. `an unmarked request is
+  watched but NEVER failed by the recorder` breaks that rule on purpose
+  to show it holds.
+- **The price, paid openly.** The old recorder *killed* a leaking
+  request; this one only watches it. So on the day a silence proof goes
+  red for a real regression, the request it names really did leave
+  through `URLSession.shared` — the run reports it, it does not prevent
+  it. That is the cost of not being allowed to kill anybody else's
+  request, and it is the right way round: this suite's job is to tell the
+  truth about what left the device, not to lie to its neighbours while
+  doing it.
+- **Not fixed, and named rather than discovered.** The recorder is still
+  *offered* every request in the process, and the silence proofs read
+  what it overheard — they must, because a leak from the code under test
+  arrives unmarked exactly as a neighbour's request does. So a suite
+  running in parallel that really issues a request makes the silence
+  proof go **red**. That direction is the safe one: a loud false alarm
+  that names the URLs it saw, never a quiet false pass. Removing even
+  that means running the whole package's tests serially
+  (`swift test --no-parallel`), which is a CI decision, or moving AC-252
+  onto a session the library is handed, which is `WeightsFetching`
+  (§181 item 3) and has not landed.
+
+The one source of overheard traffic this repo actually had is gone: the
+neural voice's load is pinned to its local folders, as the ear's already
+was.
 
 **What would make AC-252 whole**, named rather than left implicit: a
 recorder installed as `configuration.protocolClasses` on a session the

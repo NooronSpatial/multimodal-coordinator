@@ -20,10 +20,15 @@
   timestamps, disk space, user defaults, system boot time and active
   keyboards — and none of them is used. A manifest claiming a reason the code does not use is as
   wrong as a missing one: it is an untrue statement filed with a store.
-  That search is not a one-off. NetworkSilenceTests holds the same symbol
-  list and checks it in BOTH directions on every run, PER MODULE: this
-  target may not declare a category none of its own source calls, and its
-  source may not call one without this file declaring it. (4x's review
+  That search is not a one-off. The symbol list lives in
+  Tests/MultiModalKitTests/Diagnostics/PrivacyRules.swift, and
+  PrivacyContractTests.swift checks it in BOTH directions on every run,
+  PER MODULE: this target may not declare a category none of its own
+  source calls, and its source may not call one without this file
+  declaring it. (The pointer used to name NetworkSilenceTests.swift,
+  which holds the network-silence proofs and nothing else — a wrong
+  pointer that shipped inside every consumer's app bundle until 4x's
+  review caught it.) (4x's review
   found the first version failing the second direction backwards — it
   demanded the API never be used at all, so declaring the category
   correctly still went red.)

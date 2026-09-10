@@ -114,8 +114,20 @@ let package = Package(
         // DECLARED HERE, or it does not exist. A `PrivacyInfo.xcprivacy`
         // sitting in a source folder with no line in this file is a file
         // in a folder: it never enters the bundle and the App Store never
-        // sees it. `NetworkSilenceTests` counts these lines against the
-        // list of linked modules for exactly that reason.
+        // sees it.
+        //
+        // WHAT CHECKS IT, named correctly after 4x's review found this
+        // comment describing the wrong file AND a mechanism that had
+        // already been deleted. `ManifestDeclarations` (in
+        // Tests/MultiModalKitTests/Diagnostics/PrivacyRules.swift) reads
+        // the `.library` products out of THIS file, resolves them to
+        // their targets, and then checks each target's OWN block for the
+        // `.copy` line; `PrivacyContractTests.swift` is where that runs.
+        // It used to COUNT `.copy` lines and compare the number to a
+        // hand-written list of six, which could not fail for the
+        // regression it exists to catch — a seventh library product with
+        // no manifest left the count at six — and could not see WHICH
+        // target a `.copy` sat on.
         .target(
             name: "MultiModalKit",
             resources: [.copy("PrivacyInfo.xcprivacy")]
