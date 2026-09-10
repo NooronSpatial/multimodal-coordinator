@@ -297,6 +297,26 @@ struct MLXDoorTests {
                 "the tokenizer's bytes are not weights and do not count")
     }
 
+    /// THE SAME LESSON AS `totalBytes`, ONE FUNCTION LATER. The 4x review
+    /// noticed that the manifest's sum saturates — after a review killed
+    /// the test process on `reduce(0, +)`, signal 5 — while the estimate
+    /// beside it summed the same kind of numbers plainly and then added
+    /// half again on top. Nobody has reached that trap: sizes come off a
+    /// disk, and one sparse file caps at 2^53 on this Mac while the sum
+    /// would need about 6.1e18. This row makes it unreachable by
+    /// construction rather than by the size of a volume, over the pure
+    /// function the public one now calls.
+    @Test("the working-set estimate saturates instead of trapping, like the manifest's own sum")
+    func theWorkingSetEstimateSaturates() {
+        #expect(LocalMindModel.workingSet(overWeights: [4096, 2048]) == 6144 + 3072,
+                "ordinary sizes are exact — ×1.5 as integer arithmetic")
+        #expect(LocalMindModel.workingSet(overWeights: [.max, .max]) == Int(Int64.max),
+                "a sum past Int64 is 'more than can be counted', not a termination")
+        #expect(LocalMindModel.workingSet(overWeights: [Int64.max]) == Int(Int64.max),
+                "and neither is the half added on top of a total already at the edge")
+        #expect(LocalMindModel.workingSet(overWeights: []) == 0, "no weights, no claim")
+    }
+
     /// THE RESIDENCY EXEMPTION, in both directions — the 4v review found
     /// it asserted in neither. A model whose weights are already loaded
     /// makes NO memory claim: the headroom the report measures has
@@ -400,10 +420,15 @@ struct MLXDoorTests {
 /// carried by inspection alone — and SPEC §179 names "the manifest
 /// written on a real download" in the definition of done.
 ///
-/// The fetch is now a value (`Fetching`) with the Hub's as its default,
-/// so this suite runs the REAL `download` — its guards, its wiring, its
-/// write — with a fake fetch that writes a small tree instead of a
-/// network call. Nothing public changed to make this possible.
+/// The fetch is now a value with the Hub's as its default, so this suite
+/// runs the REAL `download` — its guards, its wiring, its write — with a
+/// fake fetch that writes a small tree instead of a network call.
+/// Nothing public changed to make this possible.
+///
+/// 4x TURNED THAT VALUE INTO A PROTOCOL (AC-249, SPEC §181/3), because
+/// Aura needs the same seam from outside the package. These rows kept
+/// their shape: `FakeWeightsFetcher` wraps the closure they were written
+/// with, so what they prove is unchanged.
 @Suite("AC-239/AC-240 · what a download does after the bytes land", .serialized)
 struct MLXDownloadTests {
 
@@ -427,8 +452,8 @@ struct MLXDownloadTests {
     /// that path, reporting the fractions it is given.
     private static func fakeFetch(
         placing snapshot: URL, weightBytes: Int = 4096, reporting fractions: [Double] = [0.5, 1]
-    ) -> LocalMindModel.Fetching {
-        { _, _, report in
+    ) -> FakeWeightsFetcher {
+        FakeWeightsFetcher { _, _, report in
             try Self.tree(at: snapshot, weightBytes: weightBytes)
             for fraction in fractions { report(fraction) }
             return snapshot
@@ -443,7 +468,7 @@ struct MLXDownloadTests {
         let snapshot = base.appending(path: "snapshot")
 
         #expect(model.installState() == .absent, "nothing is there before the download")
-        try await model.download(reporting: { _ in }, fetching: Self.fakeFetch(placing: snapshot))
+        try await model.download(reporting: { _ in }, using: Self.fakeFetch(placing: snapshot))
 
         let manifest = try #require(InstallManifest.read(in: model.weights))
         #expect(manifest.files == ["config.json": 32, "tokenizer.json": 64,
@@ -478,7 +503,7 @@ struct MLXDownloadTests {
         let snapshot = base.appending(path: "snapshot")
         try await model.download(
             reporting: { progress in seen.withLock { $0.append(progress) } },
-            fetching: Self.fakeFetch(placing: snapshot, weightBytes: 8192))
+            using: Self.fakeFetch(placing: snapshot, weightBytes: 8192))
 
         #expect(seen.withLock { $0 } == [
             InstallProgress(fraction: 0.5, bytesReceived: expected / 2, bytesExpected: expected),
@@ -496,7 +521,7 @@ struct MLXDownloadTests {
         let seen = Mutex<[InstallProgress]>([])
         try await model.download(
             reporting: { progress in seen.withLock { $0.append(progress) } },
-            fetching: Self.fakeFetch(placing: base.appending(path: "snapshot"),
+            using: Self.fakeFetch(placing: base.appending(path: "snapshot"),
                                      reporting: [0.25]))
         #expect(seen.withLock { $0 } == [InstallProgress(fraction: 0.25, bytesReceived: nil,
                                                          bytesExpected: nil)])
@@ -523,7 +548,7 @@ struct MLXDownloadTests {
         let mayReturn = InstallSignals()
 
         let task = Task {
-            try await model.download(reporting: { _ in }, fetching: { _, _, _ in
+            try await model.download(reporting: { _ in }, using: FakeWeightsFetcher { _, _, _ in
                 try Self.tree(at: snapshot, weightBytes: 1024)   // the PARTIAL tree
                 started.send("fetching")
                 _ = await mayReturn.heard("cancelled")
@@ -543,30 +568,5 @@ struct MLXDownloadTests {
     }
 }
 
-/// The house wait: an event racing a `Task.sleep` cap, never a poll and
-/// never a bare sleep — the same shape `ReplyContractTests` uses.
-private final class InstallSignals: Sendable {
-    private let stream: AsyncStream<String>
-    private let emit: AsyncStream<String>.Continuation
-    init() {
-        (stream, emit) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .unbounded)
-    }
-    func send(_ name: String) { emit.yield(name) }
-    /// True when `name` arrives before the deadline. The loser of the race
-    /// is cancelled, never abandoned.
-    func heard(_ name: String, within deadline: Duration = .seconds(10)) async -> Bool {
-        await withTaskGroup(of: Bool.self) { group in
-            group.addTask { [stream] in
-                for await event in stream where event == name { return true }
-                return false
-            }
-            group.addTask {
-                try? await Task.sleep(for: deadline)
-                return false
-            }
-            let first = await group.next() ?? false
-            group.cancelAll()
-            return first
-        }
-    }
-}
+// The house wait `InstallSignals` moved to `MLXInstallDoubles.swift` when
+// 4x gave three suites the same need for it. Same class, same comment.
