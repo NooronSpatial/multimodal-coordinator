@@ -38,6 +38,14 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         /// the run's loop ends of its own accord AFTER a cancel, and must
         /// still report nothing.
         case finishesAfterRelease(before: String)
+        /// ONE SCRIPT PER ROUND (4w, AC-222): the events of round N are
+        /// `rounds[N]`, and the LAST script repeats for every round past
+        /// the end — so a single round that calls a tool is a model that
+        /// calls it forever (the cap's test). What each round was asked
+        /// AFTER — the exchanges the run fed back — is recorded in
+        /// `askedAfter`, which is how a test reads what the model was
+        /// told (F-4 = B's words included).
+        case rounds([[TokenEvent]])
     }
 
     private let plan: Plan
@@ -46,6 +54,8 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         var capExhausted = false
         var released = false
         var sawCancellation = false
+        var rounds = 0
+        var askedAfter: [[ToolExchange]] = []
     }
     private let counts = Mutex(Counts())
 
@@ -55,16 +65,32 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     var unavailable: ReplyFailure? { door.withLock { $0 } }
     func makeUnavailable(_ failure: ReplyFailure) { door.withLock { $0 = failure } }
 
-    init(_ plan: Plan) { self.plan = plan }
+    /// The tools the test hands this source (F-2 = A's seam, one level
+    /// down): the run reads them to execute what the script calls.
+    let tools: ToolTable
+
+    init(_ plan: Plan, tools: ToolTable = .empty) {
+        self.plan = plan
+        self.tools = tools
+    }
 
     var capExhausted: Bool { counts.withLock { $0.capExhausted } }
     /// True once cancellation actually REACHED this source's task — the
     /// deterministic fact that replaced an assertion measured to be inert.
     var sawCancellation: Bool { counts.withLock { $0.sawCancellation } }
     func release() { counts.withLock { $0.released = true } }
+    /// The exchanges each round was opened with, in round order — what
+    /// the run fed back to the model (4w).
+    var askedAfter: [[ToolExchange]] { counts.withLock { $0.askedAfter } }
 
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
-        AsyncThrowingStream { continuation in
+    func tokens(for context: ReplyContext,
+                after exchanges: [ToolExchange]) -> AsyncThrowingStream<TokenEvent, any Error> {
+        let round = counts.withLock { counts -> Int in
+            counts.askedAfter.append(exchanges)
+            defer { counts.rounds += 1 }
+            return counts.rounds
+        }
+        return AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {
                 case .tokens(let all):
@@ -73,6 +99,11 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
                 case .events(let all):
                     for event in all { continuation.yield(event) }
                     counts.withLock { $0.yielded += all.count }
+                    continuation.finish()
+                case .rounds(let scripts):
+                    let script = scripts[min(round, scripts.count - 1)]
+                    for event in script { continuation.yield(event) }
+                    counts.withLock { $0.yielded += script.count }
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
                     yieldAll(all, into: continuation)
