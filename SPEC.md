@@ -4970,9 +4970,12 @@ here.
   > model: the tool called once, the reply byte-identical five runs of
   > five. But the model IGNORES a system instruction that says "always
   > call the session tool" and calls it only when the QUESTION names it
-  > ("Use the session tool to find out…"). That is §172a's push-or-pull
-  > fork answered by a measurement before it was asked: on a small model,
-  > pull works only when the person pulls. §67 carries the probe.
+  > ("Use the session tool to find out…"). That looked like §172a's
+  > push-or-pull fork answered by a measurement — and it is true of the
+  > 0.6B ONLY. The harness (§67 §3) ran the same unnamed question on the
+  > phone's 4B: called 5 of 5, with or without an instruction. The
+  > finding is a small-model finding; the phone's model does what the
+  > contract will want.
 - **AC-223** — the Apple mind asks the clock and speaks the time, through
   its own `Tool`, with no `ReplyUpdate` changes it did not need.
   > *As built, 2026-09-11 — NOT ticked.* The adapter, the session
@@ -5050,6 +5053,18 @@ tool has). *A:* report `.failed`. *B:* answer the model with an error
 message and let it recover in words. **Recommendation: B, measured** —
 it is what Apple's framework does, and a spoken "I couldn't do that" is
 the honest outcome AC-225 wants.
+
+**F-6 — THE DEMO'S PROMPT SHAPE WHILE TOOLS IS ON** (raised by the demo
+piece's review, 2026-09-11; open). The demo builds the MLX mind with the
+app's spoken-reply instruction BESIDE the tool — the shape the 0.6B
+calls under 0 of 3 times — and its caption says so honestly.
+- *A:* drop the instruction while Tools is ON — the only shape the 0.6B
+  measured calling (3 of 3), at the cost of the spoken-reply rules,
+  lever A (D-095) and the Arabic-script line (D-099) for those turns.
+- *B:* keep it, as built, and let the phone's 4B run be the test — §67
+  §3 shows the 4B calling the tool WITH an instruction, 5 of 5, so on
+  the phone this fork may not matter. **Recommended**, because it is
+  what the code does and the phone decides it.
 
 **F-5 — WHAT A THROWN TOOL'S ENDING IS ON THE APPLE MIND** (raised by
 the Apple piece's review, 2026-09-11; open). F-4 ruled what the MLX run
