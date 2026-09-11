@@ -1,0 +1,72 @@
+loading 4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25…
+MLX memory: active 2199 MB · peak 2367 MB (RESIDENT — MLX does not mmap)
+ready in 1.0 s · everything below runs on this Mac, offline
+
+model: models--mlx-community--Qwen3-4B-4bit / 4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25
+runs: 2 per row · greedy (temperature 0) · budget 160 tokens
+instruction: "Your reply will be spoken aloud by a synthetic voice and never shown as text. Answer in ONE short sentence. Do not add extra facts, background or explanation unless the person asks for them. Never use lists, bullet points, numbered items, markdown, code, or headings."
+the stub says: "Today is a 40 minute easy run, readiness 71."
+AC-227's < 10 ms and AC-228's prices are PHONE numbers (§172c). This Mac shows the shape, not the claim.
+
+## 1. The plain path — no tool needed, with and without a table (AC-227's Mac half)
+
+question: Name three capitals in Europe and one fact about each.
+
+| table | run | first token | total | stop | chars | pieces | decode ms/piece | tool called |
+|---|---|---|---|---|---|---|---|---|
+| .empty | 1 | 354 ms | 1000 ms | complete | 189 | 43 | 15.37 | no |
+| one tool, never called | 1 | 663 ms | 1013 ms | complete | 121 | 23 | 15.89 | no |
+| .empty | 2 | 358 ms | 1006 ms | complete | 189 | 43 | 15.41 | no |
+| one tool, never called | 2 | 663 ms | 1011 ms | complete | 121 | 23 | 15.85 | no |
+
+median first token: .empty 358 ms · one tool 663 ms · **the table costs +305 ms on the felt pause** (this Mac; the phone decides AC-227)
+median decode: .empty 15.41 ms/piece · one tool 15.89 ms/piece · the sieve costs +0.48 ms/piece
+median total: .empty 1006 ms · one tool 1013 ms (not comparable: the replies differ, see below)
+the tool was called 0 times across the one-tool runs (must be 0)
+same bytes with and without the table: NO — the spec is in the prompt, so greedy decoding takes another path
+
+  .empty said: Paris is the capital of France and is known for the Eiffel Tower; Berlin is the capital of Germany and is home to the Berlin Wall; Madrid is the capital of Spain and hosts the Prado Museum.
+  one tool said: I cannot provide the requested information as I don't have access to the necessary data. Please ask a different question.
+
+## 2. The tool path — the tool named (AC-228's Mac half)
+
+question: Use the session tool to find out what today's session is.
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | yes | 988 ms | 0 µs | 886 ms | 1874 ms | 2181 ms | complete | 69 | 20 | 16.15 |
+| .empty (control) | 1 | no | — | — | — | 356 ms | 779 ms | complete | 138 | 28 | 15.68 |
+| one tool | 2 | yes | 987 ms | 0 µs | 885 ms | 1872 ms | 2178 ms | complete | 69 | 20 | 16.14 |
+| .empty (control) | 2 | no | — | — | — | 356 ms | 778 ms | complete | 138 | 28 | 15.63 |
+
+called in 2 of 2 runs; carries the stub's numbers (40, 71) in 2 of 2
+median question→call 988 ms · call→first word after the answer 886 ms · total 2181 ms
+the control (no tool) median total 779 ms; carries the numbers in 0 of 2 (must be 0 — it has no tool)
+
+  one tool said: Today's session is a 40-minute easy run with a readiness level of 71.
+  .empty said: I don't have access to a session tool or real-time data to determine today's session. Please provide more context or clarify your request.
+
+## 3. The finding — the tool NOT named, one-tool mind (AC-222's as-built note)
+
+question: What is today's session?
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | yes | 888 ms | 1 µs | 886 ms | 1774 ms | 2077 ms | complete | 69 | 20 | 15.98 |
+| one tool | 2 | yes | 891 ms | 1 µs | 883 ms | 1774 ms | 2079 ms | complete | 69 | 20 | 16.04 |
+
+called in 2 of 2 runs — these weights DO call an unnamed tool; the 0.6B's finding does not transfer to them.
+
+  said: Today's session is a 40-minute easy run with a readiness level of 71.
+
+## 4. What the spec costs to prefill — tokens and characters, with and without
+
+| question | without the spec | with the spec | the spec adds |
+|---|---|---|---|
+| Name three capitals in Europe and one fact about each. | 83 tokens / 420 chars | 192 tokens / 951 chars | **+109 tokens / +531 chars** |
+| Use the session tool to find out what today's session is. | 85 tokens / 423 chars | 194 tokens / 954 chars | **+109 tokens / +531 chars** |
+| What is today's session? | 78 tokens / 390 chars | 187 tokens / 921 chars | **+109 tokens / +531 chars** |
+
+not measured here: the phone's prefill time for those tokens (AC-228), the felt pause on the
+phone (AC-227), and the audio-thread allocation probe (graph-probe is its own instrument).
+Those are the phone sitting's (§172c).

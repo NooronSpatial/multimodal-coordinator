@@ -1,0 +1,95 @@
+loading 73e3e38d981303bc594367cd910ea6eb48349da8…
+MLX memory: active 349 MB · peak 362 MB (RESIDENT — MLX does not mmap)
+ready in 1.6 s · everything below runs on this Mac, offline
+
+model: models--mlx-community--Qwen3-0.6B-4bit / 73e3e38d981303bc594367cd910ea6eb48349da8
+runs: 5 per row · greedy (temperature 0) · budget 160 tokens
+instruction: NONE — the only shape the 0.6B calls under (AC-222's note)
+the stub says: "Today is a 40 minute easy run, readiness 71."
+AC-227's < 10 ms and AC-228's prices are PHONE numbers (§172c). This Mac shows the shape, not the claim.
+
+## 1. The plain path — no tool needed, with and without a table (AC-227's Mac half)
+
+question: Name three capitals in Europe and one fact about each.
+
+| table | run | first token | total | stop | chars | pieces | decode ms/piece | tool called |
+|---|---|---|---|---|---|---|---|---|
+| .empty | 1 | 31 ms | 504 ms | complete | 573 | 136 | 3.50 | no |
+| one tool, never called | 1 | 93 ms | 381 ms | complete | 346 | 81 | 3.60 | no |
+| .empty | 2 | 30 ms | 503 ms | complete | 573 | 136 | 3.50 | no |
+| one tool, never called | 2 | 93 ms | 380 ms | complete | 346 | 81 | 3.60 | no |
+| .empty | 3 | 31 ms | 505 ms | complete | 573 | 136 | 3.51 | no |
+| one tool, never called | 3 | 93 ms | 381 ms | complete | 346 | 81 | 3.59 | no |
+| .empty | 4 | 31 ms | 504 ms | complete | 573 | 136 | 3.51 | no |
+| one tool, never called | 4 | 93 ms | 380 ms | complete | 346 | 81 | 3.59 | no |
+| .empty | 5 | 31 ms | 503 ms | complete | 573 | 136 | 3.50 | no |
+| one tool, never called | 5 | 93 ms | 380 ms | complete | 346 | 81 | 3.58 | no |
+
+median first token: .empty 31 ms · one tool 93 ms · **the table costs +62 ms on the felt pause** (this Mac; the phone decides AC-227)
+median decode: .empty 3.50 ms/piece · one tool 3.59 ms/piece · the sieve costs +0.09 ms/piece
+median total: .empty 504 ms · one tool 380 ms (not comparable: the replies differ, see below)
+the tool was called 0 times across the one-tool runs (must be 0)
+same bytes with and without the table: NO — the spec is in the prompt, so greedy decoding takes another path
+
+  .empty said: 1. **Paris** – One of the most important cities in Europe, it is the capital of France.  
+**Fact**: Paris is home to the Eiffel Tower, a symbol of France and a major tourist attraction.
+
+2. **Berlin**
+  one tool said: - **Berlin** (Capital of Germany)
+- **Paris** (Capital of France)
+- **Rome** (Capital of Italy)
+
+**Fact about Berlin**: It is the capital of Germany and a major international city.  
+**Fact about Pari
+
+## 2. The tool path — the tool named (AC-228's Mac half)
+
+question: Use the session tool to find out what today's session is.
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | yes | 142 ms | 0 µs | 111 ms | 253 ms | 320 ms | complete | 63 | 19 | 3.72 |
+| .empty (control) | 1 | no | — | — | — | 31 ms | 155 ms | complete | 170 | 36 | 3.54 |
+| one tool | 2 | yes | 143 ms | 0 µs | 110 ms | 253 ms | 320 ms | complete | 63 | 19 | 3.73 |
+| .empty (control) | 2 | no | — | — | — | 31 ms | 155 ms | complete | 170 | 36 | 3.54 |
+| one tool | 3 | yes | 142 ms | 0 µs | 111 ms | 253 ms | 320 ms | complete | 63 | 19 | 3.73 |
+| .empty (control) | 3 | no | — | — | — | 31 ms | 176 ms | complete | 170 | 36 | 4.14 |
+| one tool | 4 | yes | 147 ms | 0 µs | 110 ms | 257 ms | 324 ms | complete | 63 | 19 | 3.71 |
+| .empty (control) | 4 | no | — | — | — | 31 ms | 155 ms | complete | 170 | 36 | 3.53 |
+| one tool | 5 | yes | 143 ms | 1 µs | 110 ms | 253 ms | 320 ms | complete | 63 | 19 | 3.71 |
+| .empty (control) | 5 | no | — | — | — | 31 ms | 154 ms | complete | 170 | 36 | 3.51 |
+
+called in 5 of 5 runs; carries the stub's numbers (40, 71) in 5 of 5
+median question→call 143 ms · call→first word after the answer 110 ms · total 320 ms
+the control (no tool) median total 155 ms; carries the numbers in 0 of 5 (must be 0 — it has no tool)
+
+  one tool said: Today's session is a 40-minute easy run with a readiness of 71.
+  .empty said: I don't have access to live session data or the ability to check live session details. If you have a specific question or need help with something else, feel free to ask!
+
+## 3. The finding — the tool NOT named, one-tool mind (AC-222's as-built note)
+
+question: What is today's session?
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | no | — | — | — | 92 ms | 183 ms | complete | 139 | 26 | 3.64 |
+| one tool | 2 | no | — | — | — | 93 ms | 184 ms | complete | 139 | 26 | 3.65 |
+| one tool | 3 | no | — | — | — | 93 ms | 184 ms | complete | 139 | 26 | 3.64 |
+| one tool | 4 | no | — | — | — | 93 ms | 183 ms | complete | 139 | 26 | 3.64 |
+| one tool | 5 | no | — | — | — | 93 ms | 184 ms | complete | 139 | 26 | 3.64 |
+
+called in 0 of 5 runs — the spike's finding holds on these weights: the tool is called only when the person names it.
+
+  said: I don't have access to today's training session details. Could you please provide more information or clarify the context of your question?
+
+## 4. What the spec costs to prefill — tokens and characters, with and without
+
+| question | without the spec | with the spec | the spec adds |
+|---|---|---|---|
+| Name three capitals in Europe and one fact about each. | 23 tokens / 123 chars | 137 tokens / 682 chars | **+114 tokens / +559 chars** |
+| Use the session tool to find out what today's session is. | 25 tokens / 126 chars | 139 tokens / 685 chars | **+114 tokens / +559 chars** |
+| What is today's session? | 18 tokens / 93 chars | 132 tokens / 652 chars | **+114 tokens / +559 chars** |
+
+not measured here: the phone's prefill time for those tokens (AC-228), the felt pause on the
+phone (AC-227), and the audio-thread allocation probe (graph-probe is its own instrument).
+Those are the phone sitting's (§172c).
