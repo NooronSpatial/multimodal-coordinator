@@ -5293,3 +5293,190 @@ It moves the day the model is re-quantised or a tokenizer is repacked;
 on a bad connection, and what a suspend does to it. F-3 was ruled A
 (the suspend truth is stated, not engineered), so that last one is a
 statement in the contract page, not a number.
+
+## 67. The tool spike, measured — what a tool costs a reply that does not use it, and what the call itself costs (4w, AC-227, AC-228)
+
+**What was asked.** The runtime brief's Phase B says the mind must be
+able to CALL something. Before a contract is designed, the Kokoro
+precedent (4p) says: a spike behind the seam, measured, then the
+contract. So one throwaway tool — *read today's session*, answered from
+a fixed stub — was given to both real minds through one seam, and this
+section is what the numbers say. SPEC §168–§173, D-101 (F-1 = B: the run
+executes the tool itself; the seam does not change).
+
+**Machine and command.** Ryad's Mac, 2026-09-11, release build, greedy
+(temperature 0), five runs per row, both the 0.6B and the phone's 4B:
+
+```bash
+swift run -c release bakeoff tool-spike --runs=5 --model=<path>
+```
+
+Raw runs in `docs/evidence/4w/`. Every table below is a median of five;
+the runs are byte-identical under greedy, so the medians are the runs.
+
+**These are Mac numbers.** AC-227's "under 10 ms on the felt pause" and
+AC-228's prices are PHONE criteria (§172c). This Mac shows the shape of
+the cost, not the verdict.
+
+### 1. What an IDLE tool costs — the plain path with a table it never uses (AC-227's Mac half)
+
+The same question ("Name three capitals in Europe and one fact about
+each." — no tool needed) against a mind built with `.empty` and a mind
+built with one tool that is never called:
+
+| model | table | first token | decode ms/piece | tool called |
+|---|---|---|---|---|
+| 0.6B | `.empty` | 31 ms | 3.50 | — |
+| 0.6B | one tool, idle | **93 ms** | 3.59 | 0 of 5 |
+| 4B (the phone's) | `.empty` | 146 ms | 15.16 | — |
+| 4B (the phone's) | one tool, idle | **565 ms** | 15.35 | 0 of 5 |
+
+**The finding that shapes the contract: an idle tool is PREFILL, and
+prefill is the felt pause.** One tool spec adds **+114 tokens / +559
+characters** to every prompt, whatever the question. On the 4B that
+moved the first token from 146 to 565 ms — **+419 ms** — for a reply that
+never used the tool. The decode-side cost (the sieve that watches for a
+call on every token) is +0.09 to +0.20 ms per piece: real, and
+negligible beside the prefill.
+
+So AC-227's "under 10 ms" **cannot be met by a table that sits in every
+prompt.** It can only be met by a table that is in the prompt only when
+a tool might be used — or by a prompt cache that makes the spec free
+after the first turn, which this library does not have. That is the
+closing fork (§4 below).
+
+The replies also DIFFER with and without the table, even under greedy:
+the spec is in the prompt, so decoding takes another path. "Same bytes"
+was never possible here and the instrument says so.
+
+### 2. What the CALL costs (AC-228's Mac half)
+
+The question that names the tool ("Use the session tool to find out what
+today's session is."), one-tool mind, with a control that has no tool:
+
+| model | called | question → call | the stub | call → first word after | total |
+|---|---|---|---|---|---|
+| 0.6B | 5 of 5 | 143 ms | ~1 µs | 110 ms | 320 ms |
+| 4B (the phone's) | 5 of 5 | **776 ms** | ~1 µs | **677 ms** | **1 771 ms** |
+| 4B, control (no tool) | — | — | — | — | 1 424 ms of apology |
+
+Both models called the tool five times out of five and spoke the stub's
+numbers (40, 71) five times out of five. The control is what a mind with
+no tool says to that question: the 4B wrote 363 characters asking what
+"session tool" means.
+
+**The number the contract should look at is the second one.** 677 ms
+from the answer arriving to the first word spoken — on a stub that took
+a microsecond. That is not the tool; it is the SECOND PREFILL: the run
+re-prefills the whole prompt (spec + question + the model's call + the
+tool's answer) from scratch, because there is no prompt cache across
+rounds. On the phone, at §58b's 0.68 ms per character, that second
+prefill is the cost a person will feel twice per tool call.
+
+### 3. The push-or-pull finding — and its correction
+
+Piece 2's live test on the 0.6B found that the model IGNORES a system
+instruction saying "always call the session tool" and calls the tool
+only when the QUESTION names it. §172a's push-or-pull fork looked
+answered: pull works only when the person pulls.
+
+**That is true of the 0.6B only.** The harness reproduced it — "What is
+today's session?" with the tool not named, 0.6B: **0 of 5** calls — and
+then ran the same unnamed question on the phone's 4B: **5 of 5** calls,
+with or without an app instruction. AC-222's as-built note is corrected
+in the spec: the finding is a small-model finding. The phone's model
+does what the contract will want.
+
+The demo's Tools switch was built while only the 0.6B number existed,
+so its caption still tells the person to name the tool. It also builds
+the MLX mind with the app's spoken instruction BESIDE the tool — the
+shape the 0.6B calls under 0 of 3 times. Whether to drop that
+instruction while Tools is ON is a fork for Ryad; on the 4B it may not
+matter, and the phone run is the test of exactly that.
+
+### 4. An unwelcome finding — an idle tool changed an unrelated answer
+
+Under the demo's spoken-reply instruction ("answer in one short
+sentence…"), the 4B with an IDLE one-tool table answered the plain
+capitals question like this, two runs out of two, greedy:
+
+> *I cannot provide the requested information as I don't have access to
+> the necessary data. Please ask a different question.*
+
+The same model with `.empty` answered it normally. Nothing in that
+question mentions a session, a tool, or data. **The mere presence of a
+tool made the model refuse an unrelated question.** It is deterministic
+on this prompt and this model; it is not measured beyond that. It is
+the strongest argument in this section for a table that is not in
+every prompt.
+
+### 5. What is NOT measured here
+
+The phone — first token, the round trip and the second prefill on the
+4B on iOS, which are AC-227's and AC-228's actual criteria. The Apple
+mind's call at all: its on-device model reports `modelNotReady` on this
+Mac today, so AC-223's live half is armed and skipped. Any prompt cache:
+this library has none, and the second-prefill number is what that
+absence costs.
+
+### 6. The phone — the first tool call on a device (2026-09-11, Ryad's iPhone)
+
+Ryad's own run, Tools ON, the 4B, Whisper ear, Kokoro mouth, thermal
+`serious` throughout. The raw log is `docs/evidence/4w/phone-2026-09-11-tools-on.md`.
+
+| turn | heard | tool | first word | total |
+|---|---|---|---|---|
+| 1–7 | greetings, "what's your name" — no tool wanted | not called | 534–672 ms | 1 045–1 612 ms |
+| 8 | *"Use the **decision** tool…"* (Whisper misheard) | not called — correctly: no such tool | 520 ms | 1 761 ms |
+| 10 | *"…Use the session tool to start out what theization is."* | **CALLED**, the stub's words spoken back | **2 063 ms** | 5 574 ms |
+
+**Three things this settles.**
+
+1. **AC-222's phone half.** The 4B on the phone calls the tool and
+   speaks its answer. The first tool call on a device.
+2. **F-6 is answered by the phone, not by a ruling.** The demo builds
+   the mind with the app's spoken instruction BESIDE the tool — the
+   shape the 0.6B refused 0 of 3 times (§3). The 4B called it anyway,
+   through seven words of Whisper garble. Keep the instruction.
+3. **AC-228's phone half, first number.** First word after a tool call:
+   ~2.1 s, against ~0.6 s on the same session's plain turns. That is the
+   second prefill of §2, on the phone: about 1.4 s of felt pause bought
+   by one tool call. The whole reply took 5.6 s, most of it the mouth
+   reading a long stub aloud (12.8 s of audio at RTF 0.31).
+
+**What it does not settle.** AC-227 — the cost of an IDLE tool — needs
+the same phone, the same sitting, Tools OFF, for the plain-turn
+baseline. Turns 1–7 here had the tool present and unused at ~600 ms;
+§1's Mac number predicts the baseline is several hundred ms lower.
+One more run, one setting flipped, and the criterion is read.
+
+**And one that was not in the plan.** Turn 8 is the ear mishearing
+"session" as "decision". The mind was offered no tool by that name and
+did not pretend to have one — it asked what was meant. That is F-4 = B's
+honest ending arriving from a direction nobody scripted: the failure
+came from the ear, and the mind's answer was still the right one.
+
+### The closing fork (AC-229) — the contract's shape, on the numbers
+
+Not ruled here. Presented for Phase B's contract milestone:
+
+- *A:* **tools per call, not per generator.** `GenerationOptions` gains
+  `tools`, the way it gained `instructions` in 4v; the app puts the table
+  in the prompt only on turns where a tool might be used. This is the
+  only shape that can meet AC-227 without a prompt cache, and it is the
+  same per-call discipline 4v chose for everything else. It reverses
+  F-2 = A for the CONTRACT (the spike keeps A; a spike is allowed to be
+  wrong — that is what it is for).
+- *B:* **tools per generator, and a prompt cache.** Keep F-2 = A and pay
+  the +114 tokens once by caching the prefix across turns. The vendor
+  has a KV cache; whether it survives across our per-turn stateless
+  sessions (D-057 F-2) is unmeasured, and D-057 would have to be
+  revisited.
+- *C:* **tools per generator, always in the prompt, and accept the
+  cost.** +419 ms on every first token on the phone's model, and §4's
+  refusals. Rejected by the numbers.
+
+**Recommendation: A.** It is what the measurement says, it is the shape
+4v already chose for instructions and budget, and it needs no new
+machinery. B is worth measuring later if the second-prefill cost in §2
+turns out to matter more than the idle cost in §1.

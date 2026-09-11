@@ -175,6 +175,7 @@ Each answers one question and writes its numbers into
 | `bakeoff fetch` | download weights with honest progress | `--repo=`, `--into=` |
 | `bakeoff install-size` | what a model costs to download, asked BEFORE a byte moves (4x, AC-245/AC-246) | `--repo=` |
 | `bakeoff determinism` | the same question twice under three sampling settings — do the same bytes come back (4v, AC-234/AC-244) | `--model=`, `--runs=`, `--prompt=`, `--system=`, `--budget=` |
+| `bakeoff tool-spike` | what a tool table costs a reply that never uses it, what a call costs one that does, and whether the model calls a tool the person did not name — the Mac half of AC-227/AC-228 (4w); the phone decides | `--model=` (defaults to the 0.6B like `ask`; pass the 4B for the phone's model), `--runs=` (5), `--system=` (none by default — the shape the 0.6B calls under) |
 
 Every bakeoff flag uses the `--name=value` shape. There are no two-word flags
 here — that inconsistency is `audio-demo`'s alone.

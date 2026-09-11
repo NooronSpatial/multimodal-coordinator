@@ -214,6 +214,12 @@ let package = Package(
                 // is comparing (AC-106). A TOOL target, tier 2 of D-016 —
                 // the core still knows nothing about any of this.
                 .product(name: "TTSKit", package: "argmax-oss-swift"),
+                // DECLARED, not borrowed — the test target's rule (below),
+                // for the same reason. `tool-spike` (4w, AC-228's Mac half)
+                // asks the vendor's own `prepare` how many tokens the tool
+                // spec adds to the prompt, and that names `ModelContext`,
+                // `UserInput` and `Chat.Message`, which are MLXLMCommon's.
+                .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
             ]
         ),
         .testTarget(

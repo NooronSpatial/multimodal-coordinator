@@ -4966,8 +4966,25 @@ here.
 - **AC-222** — the MLX mind asks the clock and speaks the time. The
   `.toolCall` event is no longer dropped; the answer returns as a `.tool`
   message; the reply continues.
+  > *As built, 2026-09-11 — ticked, with a finding.* Live on the 0.6B
+  > model: the tool called once, the reply byte-identical five runs of
+  > five. But the model IGNORES a system instruction that says "always
+  > call the session tool" and calls it only when the QUESTION names it
+  > ("Use the session tool to find out…"). That looked like §172a's
+  > push-or-pull fork answered by a measurement — and it is true of the
+  > 0.6B ONLY. The harness (§67 §3) ran the same unnamed question on the
+  > phone's 4B: called 5 of 5, with or without an instruction. The
+  > finding is a small-model finding; the phone's model does what the
+  > contract will want.
 - **AC-223** — the Apple mind asks the clock and speaks the time, through
   its own `Tool`, with no `ReplyUpdate` changes it did not need.
+  > *As built, 2026-09-11 — NOT ticked.* The adapter, the session
+  > construction and the byte-identical empty-table transcript are proven
+  > without the model. The LIVE half could not run: Apple's on-device
+  > model reports `modelNotReady` on this Mac today (it was ready during
+  > 4v). The three live tests are armed and skip with a sentence that
+  > says so; they run the day the model is ready, and until then this
+  > criterion is carried, not claimed.
 - **AC-224** — a SLOW tool does not stall the turn machinery: the
   coordinator stays responsive (a barge lands) while the call is pending.
 - **AC-225** — a FAILING tool ends as an honest turn, not a crash: the
@@ -5037,6 +5054,36 @@ message and let it recover in words. **Recommendation: B, measured** —
 it is what Apple's framework does, and a spoken "I couldn't do that" is
 the honest outcome AC-225 wants.
 
+**F-6 — THE DEMO'S PROMPT SHAPE WHILE TOOLS IS ON** (raised by the demo
+piece's review, 2026-09-11; open). The demo builds the MLX mind with the
+app's spoken-reply instruction BESIDE the tool — the shape the 0.6B
+calls under 0 of 3 times — and its caption says so honestly.
+- *A:* drop the instruction while Tools is ON — the only shape the 0.6B
+  measured calling (3 of 3), at the cost of the spoken-reply rules,
+  lever A (D-095) and the Arabic-script line (D-099) for those turns.
+- *B:* keep it, as built, and let the phone's 4B run be the test — §67
+  §3 shows the 4B calling the tool WITH an instruction, 5 of 5, so on
+  the phone this fork may not matter. **Recommended**, because it is
+  what the code does and the phone decides it.
+
+**F-5 — WHAT A THROWN TOOL'S ENDING IS ON THE APPLE MIND** (raised by
+the Apple piece's review, 2026-09-11; open). F-4 ruled what the MLX run
+does with a name no tool has: tell the model in words, let it recover.
+The Apple framework runs the tool itself, and when the tool THROWS the
+vendor ends the stream with its own error — so the two minds end the
+same event differently today.
+- *A:* propagate — the run ends `.failed(.engine("tool 'x' failed: …"))`,
+  countable at the seam, the person hears nothing, and the two minds
+  disagree. **This is what the code does today**, kept as the safe
+  default because the builder that first chose it was ruling a fork.
+- *B:* catch in the adapter and answer the model in words — the same
+  words F-4 = B gives the MLX model, so both minds end the same way and
+  the person hears "I couldn't do that". The failure stays countable at
+  the tool table (`ToolCallFailure`), not at the reply seam.
+  **Recommended**, for F-4's own reason and D-057's: silence makes a
+  failure look like a bug, and two minds ending one event two ways is
+  what the seam exists to prevent.
+
 ### 172a. Named for Phase B, not ruled here
 
 Three forks the Aura requirement opens, written down so the contract
@@ -5063,6 +5110,29 @@ voice, one complete reply — blocked by seven generation requirements
 (G1–G8) this library does not yet meet. Whether this spike runs first, or
 the slice-1 contract does and the spike follows as 4w, is D-101's fork,
 for Ryad. The spec above stays signed either way.
+
+### 172c. Amended at the start of the build (2026-09-11)
+
+Three things moved under this spec between its signing (D-101) and its
+build, none of them a design change:
+
+- **The instrument section is §67, not §64.** §65 (determinism) and §66
+  (the weights' size) were written by 4v and 4x in between. Every "§64"
+  above reads as §67.
+- **The seam already changed shape.** 4v made it
+  `.token / .finished(StopReason) / .failed(ReplyFailure)` and added
+  `GenerationOptions` per call. F-1 = B means this milestone changes
+  NONE of that: the run executes tools itself, and the seam's promise
+  "tokens, then one terminal" stays exactly true.
+- **AC-221 reads under F-1 = B.** "The seam carries a call" was written
+  before the fork was ruled. Under B the coordinator never sees a call —
+  that is the point of B — so AC-221's proof is: a scripted generator
+  holding a scripted tool executes it inside the run, the reply's tokens
+  reflect the answer, and the coordinator's stream is unchanged. The
+  survival tests (AC-224..226) are where the coordinator is exercised.
+- **The phone rows are Ryad's gate.** AC-227 and AC-228 name the phone.
+  The Mac harness runs first (the house rule); the phone numbers are a
+  HALT, not a claim this Mac can make.
 
 ## 173. Definition of done (4v)
 

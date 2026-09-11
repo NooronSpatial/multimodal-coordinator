@@ -24,6 +24,7 @@ if arguments.count > 1, arguments[1] == "fetch" { await runFetch(arguments) }
 if arguments.count > 1, arguments[1] == "ask" { await runAsk(arguments) }
 if arguments.count > 1, arguments[1] == "mind-off" { await runMindOff(arguments) }
 if arguments.count > 1, arguments[1] == "determinism" { await runDeterminism(arguments) }
+if arguments.count > 1, arguments[1] == "tool-spike" { await runToolSpike(arguments) }
 if arguments.count > 1, arguments[1] == "install-size" { await runInstallSize(arguments) }
 if arguments.count > 1, arguments[1] == "voice-spike" { await runVoiceSpike(arguments) }
 if arguments.count > 1, arguments[1] == "voice-onmic" { try await runVoiceOnMic(arguments) }

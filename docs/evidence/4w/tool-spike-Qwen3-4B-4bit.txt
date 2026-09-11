@@ -1,0 +1,91 @@
+loading 4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25…
+MLX memory: active 2199 MB · peak 2229 MB (RESIDENT — MLX does not mmap)
+ready in 1.3 s · everything below runs on this Mac, offline
+
+model: models--mlx-community--Qwen3-4B-4bit / 4dcb3d101c2a062e5c1d4bb173588c54ea6c4d25
+runs: 5 per row · greedy (temperature 0) · budget 160 tokens
+instruction: NONE — the only shape the 0.6B calls under (AC-222's note)
+the stub says: "Today is a 40 minute easy run, readiness 71."
+AC-227's < 10 ms and AC-228's prices are PHONE numbers (§172c). This Mac shows the shape, not the claim.
+
+## 1. The plain path — no tool needed, with and without a table (AC-227's Mac half)
+
+question: Name three capitals in Europe and one fact about each.
+
+| table | run | first token | total | stop | chars | pieces | decode ms/piece | tool called |
+|---|---|---|---|---|---|---|---|---|
+| .empty | 1 | 145 ms | 2102 ms | complete | 533 | 130 | 15.17 | no |
+| one tool, never called | 1 | 567 ms | 1582 ms | complete | 318 | 67 | 15.37 | no |
+| .empty | 2 | 147 ms | 2098 ms | complete | 533 | 130 | 15.13 | no |
+| one tool, never called | 2 | 565 ms | 1578 ms | complete | 318 | 67 | 15.35 | no |
+| .empty | 3 | 146 ms | 2100 ms | complete | 533 | 130 | 15.15 | no |
+| one tool, never called | 3 | 564 ms | 1575 ms | complete | 318 | 67 | 15.32 | no |
+| .empty | 4 | 146 ms | 2102 ms | complete | 533 | 130 | 15.16 | no |
+| one tool, never called | 4 | 565 ms | 1578 ms | complete | 318 | 67 | 15.35 | no |
+| .empty | 5 | 146 ms | 2107 ms | complete | 533 | 130 | 15.20 | no |
+| one tool, never called | 5 | 566 ms | 1581 ms | complete | 318 | 67 | 15.38 | no |
+
+median first token: .empty 146 ms · one tool 565 ms · **the table costs +419 ms on the felt pause** (this Mac; the phone decides AC-227)
+median decode: .empty 15.16 ms/piece · one tool 15.35 ms/piece · the sieve costs +0.20 ms/piece
+median total: .empty 2102 ms · one tool 1578 ms (not comparable: the replies differ, see below)
+the tool was called 0 times across the one-tool runs (must be 0)
+same bytes with and without the table: NO — the spec is in the prompt, so greedy decoding takes another path
+
+  .empty said: 1. **Paris, France**  
+   - **Fact:** Paris is the capital of France and is often referred to as the "City of Light" due to its role in the Enlightenment and the French Revolution.
+
+2. **Berlin, Germa
+  one tool said: Paris is the capital of France and is known for its famous landmarks such as the Eiffel Tower and the Louvre Museum.  
+Berlin is the capital of Germany and is known for its historical significance and
+
+## 2. The tool path — the tool named (AC-228's Mac half)
+
+question: Use the session tool to find out what today's session is.
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | yes | 776 ms | 1 µs | 676 ms | 1452 ms | 1770 ms | complete | 78 | 21 | 15.88 |
+| .empty (control) | 1 | no | — | — | — | 147 ms | 1425 ms | complete | 363 | 85 | 15.22 |
+| one tool | 2 | yes | 776 ms | 1 µs | 678 ms | 1454 ms | 1771 ms | complete | 78 | 21 | 15.83 |
+| .empty (control) | 2 | no | — | — | — | 148 ms | 1424 ms | complete | 363 | 85 | 15.19 |
+| one tool | 3 | yes | 775 ms | 1 µs | 677 ms | 1452 ms | 1771 ms | complete | 78 | 21 | 15.92 |
+| .empty (control) | 3 | no | — | — | — | 147 ms | 1433 ms | complete | 363 | 85 | 15.32 |
+| one tool | 4 | yes | 774 ms | 1 µs | 679 ms | 1454 ms | 1771 ms | complete | 78 | 21 | 15.87 |
+| .empty (control) | 4 | no | — | — | — | 148 ms | 1423 ms | complete | 363 | 85 | 15.18 |
+| one tool | 5 | yes | 776 ms | 1 µs | 677 ms | 1453 ms | 1771 ms | complete | 78 | 21 | 15.93 |
+| .empty (control) | 5 | no | — | — | — | 146 ms | 1421 ms | complete | 363 | 85 | 15.17 |
+
+called in 5 of 5 runs; carries the stub's numbers (40, 71) in 5 of 5
+median question→call 776 ms · call→first word after the answer 677 ms · total 1771 ms
+the control (no tool) median total 1424 ms; carries the numbers in 0 of 5 (must be 0 — it has no tool)
+
+  one tool said: Today's training session is a 40-minute easy run with a readiness level of 71.
+  .empty said: I don't have access to a "session tool" or real-time data to determine what today's session is. Could you clarify what you mean by "session"? Are you referring to a specific type of session (e.g., a meeting, a learning session, a software session), or is there a specific tool or system you're using 
+
+## 3. The finding — the tool NOT named, one-tool mind (AC-222's as-built note)
+
+question: What is today's session?
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | yes | 773 ms | 0 µs | 678 ms | 1452 ms | 1754 ms | complete | 69 | 20 | 15.89 |
+| one tool | 2 | yes | 776 ms | 1 µs | 674 ms | 1450 ms | 1752 ms | complete | 69 | 20 | 15.89 |
+| one tool | 3 | yes | 776 ms | 1 µs | 677 ms | 1453 ms | 1756 ms | complete | 69 | 20 | 15.94 |
+| one tool | 4 | yes | 775 ms | 0 µs | 675 ms | 1450 ms | 1753 ms | complete | 69 | 20 | 15.90 |
+| one tool | 5 | yes | 776 ms | 0 µs | 678 ms | 1454 ms | 1755 ms | complete | 69 | 20 | 15.84 |
+
+called in 5 of 5 runs — these weights DO call an unnamed tool; the 0.6B's finding does not transfer to them.
+
+  said: Today's session is a 40-minute easy run with a readiness level of 71.
+
+## 4. What the spec costs to prefill — tokens and characters, with and without
+
+| question | without the spec | with the spec | the spec adds |
+|---|---|---|---|
+| Name three capitals in Europe and one fact about each. | 23 tokens / 123 chars | 137 tokens / 682 chars | **+114 tokens / +559 chars** |
+| Use the session tool to find out what today's session is. | 25 tokens / 126 chars | 139 tokens / 685 chars | **+114 tokens / +559 chars** |
+| What is today's session? | 18 tokens / 93 chars | 132 tokens / 652 chars | **+114 tokens / +559 chars** |
+
+not measured here: the phone's prefill time for those tokens (AC-228), the felt pause on the
+phone (AC-227), and the audio-thread allocation probe (graph-probe is its own instrument).
+Those are the phone sitting's (§172c).

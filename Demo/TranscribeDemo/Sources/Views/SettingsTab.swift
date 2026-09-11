@@ -63,22 +63,14 @@ struct SettingsTab: View {
 
             if model.talkEnabled {
                 VStack(spacing: 8) {
-                    // THE MIND (4f, AC-117): what ANSWERS, above what
-                    // SPEAKS — the same swap-an-organ claim the mouth
-                    // picker makes, one seam up.
-                    HStack {
-                        Text("Mind").font(.subheadline)
-                        Spacer()
-                        Picker("Mind", selection: Bindable(model).mind) {
-                            ForEach(TranscribeModel.MindChoice.allCases) { choice in
-                                Text(choice.rawValue).tag(choice)
-                            }
-                        }
-                        .labelsHidden()
-                        .pickerStyle(.menu)
-                        .disabled(model.isListening)
-                    }
+                    // THE MIND (4f, AC-117), what it remembers (4r) and
+                    // what it may call (4w) — three rows, three
+                    // extension files, because this body sits at the
+                    // house's 250-line limit and a split is the honest
+                    // fix where a squeezed line would be the quiet one.
+                    mindSection
                     memorySection
+                    toolsSection
                     if model.mind == .local {
                         // The model picker is gone (D-064): 4B is the local
                         // mind, full stop. A picker with one option is a

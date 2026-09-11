@@ -1,0 +1,71 @@
+loading 73e3e38d981303bc594367cd910ea6eb48349da8…
+MLX memory: active 349 MB · peak 442 MB (RESIDENT — MLX does not mmap)
+ready in 0.7 s · everything below runs on this Mac, offline
+
+model: models--mlx-community--Qwen3-0.6B-4bit / 73e3e38d981303bc594367cd910ea6eb48349da8
+runs: 2 per row · greedy (temperature 0) · budget 160 tokens
+instruction: "Your reply will be spoken aloud by a synthetic voice and never shown as text. Answer in ONE short sentence. Do not add extra facts, background or explanation unless the person asks for them. Never use lists, bullet points, numbered items, markdown, code, or headings."
+the stub says: "Today is a 40 minute easy run, readiness 71."
+AC-227's < 10 ms and AC-228's prices are PHONE numbers (§172c). This Mac shows the shape, not the claim.
+
+## 1. The plain path — no tool needed, with and without a table (AC-227's Mac half)
+
+question: Name three capitals in Europe and one fact about each.
+
+| table | run | first token | total | stop | chars | pieces | decode ms/piece | tool called |
+|---|---|---|---|---|---|---|---|---|
+| .empty | 1 | 66 ms | 156 ms | complete | 128 | 26 | 3.59 | no |
+| one tool, never called | 1 | 108 ms | 274 ms | complete | 220 | 47 | 3.61 | no |
+| .empty | 2 | 59 ms | 149 ms | complete | 128 | 26 | 3.58 | no |
+| one tool, never called | 2 | 107 ms | 274 ms | complete | 220 | 47 | 3.63 | no |
+
+median first token: .empty 66 ms · one tool 108 ms · **the table costs +42 ms on the felt pause** (this Mac; the phone decides AC-227)
+median decode: .empty 3.59 ms/piece · one tool 3.63 ms/piece · the sieve costs +0.04 ms/piece
+median total: .empty 156 ms · one tool 274 ms (not comparable: the replies differ, see below)
+the tool was called 0 times across the one-tool runs (must be 0)
+same bytes with and without the table: NO — the spec is in the prompt, so greedy decoding takes another path
+
+  .empty said: Three capitals in Europe are Paris, Rome, and Berlin. One fact about each is that they are major political and economic centers.
+  one tool said: France, Germany, and Italy. Europe's capitals are Paris, Berlin, and Rome. One fact about each is that France is known for its French Revolution, Germany is known for its military, and Italy is known 
+
+## 2. The tool path — the tool named (AC-228's Mac half)
+
+question: Use the session tool to find out what today's session is.
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | no | — | — | — | 126 ms | 147 ms | complete | 30 | 6 | 4.09 |
+| .empty (control) | 1 | no | — | — | — | 61 ms | 81 ms | complete | 24 | 6 | 4.08 |
+| one tool | 2 | no | — | — | — | 128 ms | 150 ms | complete | 30 | 6 | 4.28 |
+| .empty (control) | 2 | no | — | — | — | 61 ms | 81 ms | complete | 24 | 6 | 4.09 |
+
+called in 0 of 2 runs; carries the stub's numbers (40, 71) in 0 of 2
+the control (no tool) median total 81 ms; carries the numbers in 0 of 2 (must be 0 — it has no tool)
+
+  one tool said: Read today's training session.
+  .empty said: Today's session is open.
+
+## 3. The finding — the tool NOT named, one-tool mind (AC-222's as-built note)
+
+question: What is today's session?
+
+| mind | run | called | question→call | the stub itself | call→first word after | first token | total | stop | chars | pieces | decode ms/piece |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| one tool | 1 | no | — | — | — | 112 ms | 147 ms | complete | 52 | 10 | 3.89 |
+| one tool | 2 | no | — | — | — | 111 ms | 146 ms | complete | 52 | 10 | 3.85 |
+
+called in 0 of 2 runs — the spike's finding holds on these weights: the tool is called only when the person names it.
+
+  said: Today's session is a training session for readiness.
+
+## 4. What the spec costs to prefill — tokens and characters, with and without
+
+| question | without the spec | with the spec | the spec adds |
+|---|---|---|---|
+| Name three capitals in Europe and one fact about each. | 83 tokens / 420 chars | 192 tokens / 951 chars | **+109 tokens / +531 chars** |
+| Use the session tool to find out what today's session is. | 85 tokens / 423 chars | 194 tokens / 954 chars | **+109 tokens / +531 chars** |
+| What is today's session? | 78 tokens / 390 chars | 187 tokens / 921 chars | **+109 tokens / +531 chars** |
+
+not measured here: the phone's prefill time for those tokens (AC-228), the felt pause on the
+phone (AC-227), and the audio-thread allocation probe (graph-probe is its own instrument).
+Those are the phone sitting's (§172c).
