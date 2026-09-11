@@ -5064,6 +5064,29 @@ voice, one complete reply — blocked by seven generation requirements
 the slice-1 contract does and the spike follows as 4w, is D-101's fork,
 for Ryad. The spec above stays signed either way.
 
+### 172c. Amended at the start of the build (2026-09-11)
+
+Three things moved under this spec between its signing (D-101) and its
+build, none of them a design change:
+
+- **The instrument section is §67, not §64.** §65 (determinism) and §66
+  (the weights' size) were written by 4v and 4x in between. Every "§64"
+  above reads as §67.
+- **The seam already changed shape.** 4v made it
+  `.token / .finished(StopReason) / .failed(ReplyFailure)` and added
+  `GenerationOptions` per call. F-1 = B means this milestone changes
+  NONE of that: the run executes tools itself, and the seam's promise
+  "tokens, then one terminal" stays exactly true.
+- **AC-221 reads under F-1 = B.** "The seam carries a call" was written
+  before the fork was ruled. Under B the coordinator never sees a call —
+  that is the point of B — so AC-221's proof is: a scripted generator
+  holding a scripted tool executes it inside the run, the reply's tokens
+  reflect the answer, and the coordinator's stream is unchanged. The
+  survival tests (AC-224..226) are where the coordinator is exercised.
+- **The phone rows are Ryad's gate.** AC-227 and AC-228 name the phone.
+  The Mac harness runs first (the house rule); the phone numbers are a
+  HALT, not a claim this Mac can make.
+
 ## 173. Definition of done (4v)
 
 One throwaway tool called by both real minds through one seam · the
