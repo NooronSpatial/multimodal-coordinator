@@ -39,6 +39,15 @@ protocol ReplySnapshotStreaming: Sendable {
 @available(macOS 26.0, iOS 26.0, *)
 struct FoundationModelSnapshots: ReplySnapshotStreaming {
 
+    /// The tools this mind was GIVEN (4w, F-2 = A): handed down from the
+    /// generator at construction, never per reply, so the session each
+    /// reply is born with carries them and the coordinator never does.
+    let tools: ToolTable
+
+    init(tools: ToolTable = .empty) {
+        self.tools = tools
+    }
+
     var unavailable: MindUnavailable? { AppleMind.readiness() }
 
     func snapshots(for context: ReplyContext,
@@ -50,7 +59,7 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         // measured: 1839 ms cold vs ~280 ms warm).
         AsyncThrowingStream { continuation in
             let task = Task {
-                let session = Self.session(instructions: instructions,
+                let session = self.session(instructions: instructions,
                                            history: context.history)
                 let options = Self.vendorOptions(for: context.options)
                 do {
@@ -124,8 +133,27 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     /// The current thought is deliberately NOT an entry here —
     /// `streamResponse(to:)` supplies it — or the model would be shown the
     /// question twice.
-    private static func session(instructions: String?,
-                                history: [ConversationTurn]) -> LanguageModelSession {
+    ///
+    /// **The tools ride on the session (4w, AC-223).** The vendor has ONE
+    /// `transcript:` initialiser, `init(model:tools:transcript:)`, with
+    /// `tools` defaulting to `[]`; it executes them itself mid-reply
+    /// (F-1 = B). A mind with NO tools hands it `[]` — the vendor's own
+    /// default, so the call before 4w (`init(transcript:)`) and this one
+    /// build the SAME session: measured on 2026-09-11, the two sessions'
+    /// transcripts are byte-identical. That is AC-227's Mac half, "no
+    /// difference by construction"; the phone number is Ryad's gate
+    /// (§172c).
+    ///
+    /// `toolDefinitions: []` on the instructions entry, ALWAYS: the
+    /// vendor fills that list itself from the tools it was handed
+    /// (measured the same day: `tools: [session]` with `[]` written here
+    /// yields an instructions entry whose `toolDefinitions` is
+    /// `["session"]`), so a definition written here would only repeat
+    /// what it already knows. Also measured: writing one anyway does NOT
+    /// double it — the vendor keeps one — so the reason to leave it empty
+    /// is "the vendor owns that list", not a fear of a doubled prompt.
+    private func session(instructions: String?,
+                         history: [ConversationTurn]) -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
         if let instructions {
             entries.append(.instructions(Transcript.Instructions(
@@ -140,7 +168,10 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
                 segments: [.text(Transcript.TextSegment(
                     content: turn.replied + (turn.interrupted ? "…" : "")))])))
         }
-        return LanguageModelSession(transcript: Transcript(entries: entries))
+        // One call for both shapes: `.empty` maps to `[]`, which is the
+        // vendor's default and the pre-4w session (see above).
+        return LanguageModelSession(tools: AppleToolAdapter.adapters(for: tools),
+                                    transcript: Transcript(entries: entries))
     }
 }
 
@@ -246,21 +277,36 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// app's to replace; the default exists so the mechanism works.
     public let spokenRefusal: String
 
+    /// The tools the APP granted this mind (4w, F-2 = A, D-101): handed
+    /// in here, at construction, and nowhere else — the coordinator
+    /// neither holds them nor passes them, so it can never learn a
+    /// `switch` over them (§3's registration rule). `.empty` is every
+    /// generator before 4w, and every existing call site compiles
+    /// unchanged because of the default.
+    public let tools: ToolTable
+
     let source: any ReplySnapshotStreaming
 
     public init(instructions: String? = nil,
-                spokenRefusal: String = "I can't answer that.") {
+                spokenRefusal: String = "I can't answer that.",
+                tools: ToolTable = .empty) {
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
-        self.source = FoundationModelSnapshots()
+        self.tools = tools
+        self.source = FoundationModelSnapshots(tools: tools)
     }
 
-    /// The seam a test reaches through (@testable), never a caller.
+    /// The seam a test reaches through (@testable), never a caller. The
+    /// scripted sources behind it cannot execute a vendor tool, so the
+    /// table is recorded here for a test to read back and reaches no
+    /// session — the adapter is proved on its own (`AppleToolTests`).
     init(source: any ReplySnapshotStreaming,
          instructions: String? = nil,
-         spokenRefusal: String = "I can't answer that.") {
+         spokenRefusal: String = "I can't answer that.",
+         tools: ToolTable = .empty) {
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
+        self.tools = tools
         self.source = source
     }
 
@@ -371,6 +417,18 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                     + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\"")))
             } catch let error as LanguageModelSession.GenerationError {
                 self?.settle(generation: error)
+            } catch let error as LanguageModelSession.ToolCallError {
+                // A tool the model called THREW (4w, AC-225). The adapter
+                // let the throw through, the vendor ended the stream with
+                // this error, and the run ends the way the scripted mind's
+                // `.failsReply` does: one `.failed(.engine(_))` carrying
+                // the SAME `ToolCallFailure` sentence every mind writes.
+                // This ending is the INTERIM one — whether the adapter
+                // should catch instead and let the model speak (the MLX
+                // run's ending) is an open fork, Ryad's, written up at
+                // `AppleReplyRun.toolFailure`. This arm stays under either
+                // ruling: the vendor can raise the error on its own.
+                self?.report(.failed(.engine(Self.toolFailure(from: error).description)))
             } catch {
                 self?.report(.failed(.engine("reply generation failed: \(error)")))
             }
