@@ -10,7 +10,11 @@ import MultiModalKitTesting
 ///
 /// Gated exactly the way `AppleMindLiveTests` is: on OS 26, then on the
 /// model being READY, with a skip that says so. On the Mac this was
-/// written on the model is available, so these RUN.
+/// written on (2026-09-11, macOS 26.6.1) the model was NOT ready — the
+/// vendor answered `modelNotReady` and every test here SKIPPED, saying
+/// so (a first draft of this sentence said they ran; it was wrong, and
+/// the per-test notes below were right). The first machine with the
+/// model ready is the measurement.
 ///
 /// The numbers printed here are the Mac half of AC-228 for this mind —
 /// the round-trip wall time of a reply that calls a tool, and the
@@ -105,16 +109,18 @@ struct AppleToolLiveTests {
                 "the vendor reports no stop reason (AC-235): \(String(describing: reply.terminal))")
     }
 
-    /// AC-225 through the real session: a tool that THROWS. By the
-    /// vendor's interface the stream ends with its `ToolCallError` — it
-    /// does not tell the model and let it recover in words — and the run
-    /// ends `.failed(.engine(_))` with the sentence every mind writes.
-    /// This test is what MEASURES that claim; it has not yet run against
-    /// a ready model (see `realMindCallsTheTool`). If it fails on the
-    /// first ready machine because the model spoke instead, that is the
-    /// finding: the Apple run's ending would then be the scripted mind's
-    /// `.speaks`, and the mapping in `AppleReplyRun.toolFailure` stays
-    /// for the error the vendor CAN still throw.
+    /// AC-225 through the real session: a tool that THROWS. Today the
+    /// adapter lets the throw through, the vendor ends the stream with
+    /// its `ToolCallError`, and the run ends `.failed(.engine(_))` with
+    /// the sentence every mind writes. That is the INTERIM ending — the
+    /// vendor's interface allows the other one too (the adapter catches
+    /// and answers the model with the sentence, and the model speaks),
+    /// which is how the MLX run ends the same case. Which ending the
+    /// Apple mind keeps is an open fork, Ryad's, written up at
+    /// `AppleReplyRun.toolFailure`; this test pins the interim ending
+    /// until the ruling changes it, so that a change is a visible red,
+    /// never a silent drift. It has not yet run against a ready model
+    /// (see `realMindCallsTheTool`).
     @Test("a throwing tool ends the real reply as the agreed failure (AC-225)")
     func throwingToolFailsTheReply() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }

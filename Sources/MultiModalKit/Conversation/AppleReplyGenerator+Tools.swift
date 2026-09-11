@@ -14,9 +14,13 @@
 // never sees a call, the seam stays "tokens, then one terminal", and
 // this file's whole job is to make ONE `ReplyTool` look like ONE vendor
 // `Tool`. There is no loop of ours here and no second lookup (F-4 = B):
-// the framework matches names against the tools it was handed and, for
-// a name no tool has, tells the model so and lets it recover in words —
-// the same policy `ToolTable.call` writes for the other minds.
+// the framework matches names against the tools it was handed. What it
+// does for a name no tool has is the vendor's and NOT MEASURED HERE —
+// SPEC §172's F-4 reads it as "tells the model and lets it recover in
+// words", which is the policy `ToolTable.call` writes for the other
+// minds; no test on this Mac can reach that path (the model was not
+// ready — see `AppleToolLiveTests`), so this file adds no lookup of its
+// own and makes no promise about the vendor's.
 
 import FoundationModels
 
@@ -67,6 +71,13 @@ struct AppleToolAdapter: Tool {
     /// The vendor calls this from inside the session while the reply is
     /// being generated; the answer goes back to the MODEL, not to us.
     ///
+    /// A THROW IS LET THROUGH ON PURPOSE, FOR NOW: the vendor wraps it in
+    /// its `ToolCallError` and ends the response, and the run reports
+    /// `.failed`. Catching it here and returning the failure sentence as
+    /// the `Output` — so the model is told and recovers in words — is the
+    /// other half of an open fork (see `AppleReplyRun.toolFailure`), and
+    /// it is Ryad's to rule, not this file's.
+    ///
     /// THE REENTRANCY LAW (§4.1), applied at the one `await` this file
     /// owns: a barge may have retired the run while the tool was busy.
     /// The run's `retired` latch is the PRIMARY guard — once `cancel()`
@@ -87,9 +98,10 @@ struct AppleToolAdapter: Tool {
 @available(macOS 26.0, iOS 26.0, *)
 extension AppleToolAdapter {
     /// The table, as the vendor's list — one adapter per `ReplyTool`, in
-    /// the table's order, and `[]` for `.empty`. The caller uses the
-    /// emptiness to build EXACTLY the session it built before 4w
-    /// (AC-227: a mind with no tools pays nothing for this file).
+    /// the table's order, and `[]` for `.empty`. `[]` is the vendor's
+    /// own default for `tools:`, so the session built from it is EXACTLY
+    /// the one built before 4w (AC-227: a mind with no tools pays nothing
+    /// for this file — measured, see `AppleReplyGenerator.session`).
     static func adapters(for table: ToolTable) -> [any Tool] {
         table.tools.map { AppleToolAdapter($0) }
     }
@@ -112,16 +124,33 @@ extension AppleReplyRun {
     /// `ToolTable.call` writes for the other minds — the same error
     /// gives the same sentence.
     ///
-    /// READ FROM THE INTERFACE, NOT YET MEASURED: the vendor's shape says
-    /// a thrown tool ENDS the response with this error rather than
-    /// telling the model and letting it recover in words — there is no
-    /// path in the interface by which a tool's throw becomes a
-    /// `.toolOutput` entry. So the run's ending is `.failed(.engine(_))`,
-    /// the scripted mind's `.failsReply` shape, not its `.speaks`. The
-    /// live test (`AppleToolLiveTests`, AC-225) pins that claim against
-    /// the real session; on the Mac this was written on the model
-    /// answered `modelNotReady`, so the test is armed and the claim is
-    /// the interface's until the day it runs.
+    /// AN OPEN FORK, NOT RULED HERE (the 4w review's blocking finding on
+    /// this piece). When a tool's `call` throws, the vendor ends the
+    /// response with this error — it does not tell the model on its own.
+    /// But the ADAPTER could: `Tool.Output` is any `PromptRepresentable`,
+    /// `String` is one, so `AppleToolAdapter.call` could `catch` and
+    /// return `ToolCallFailure(…).description` as the tool's output, and
+    /// the model would read the sentence and recover in words. The
+    /// interface allows both endings; a first draft of this comment
+    /// claimed it forbade the second, which was wrong. So the fork:
+    ///
+    ///   A — propagate the throw (TODAY'S CODE, kept until ruled): the
+    ///       run ends `.failed(.engine("tool 'x' failed: …"))`, the
+    ///       scripted mind's `.failsReply` shape — a hard failure a
+    ///       caller can count, and the person hears nothing.
+    ///   B — catch in the adapter and answer the model with the sentence:
+    ///       the run ends `.finished` with a spoken "I couldn't read
+    ///       that", the scripted mind's `.speaks` shape — which is what
+    ///       the MLX run does for BOTH failure ways, and the words of
+    ///       AC-225 ("the mind is told, the reply says so").
+    ///
+    /// Until Ryad rules it the two real minds END AC-225 DIFFERENTLY for
+    /// the same throwing tool, and a caller counting outcomes must know
+    /// that. D-101's F-4 = B does not settle it: F-4 names the MLX run's
+    /// unknown-name case only. This function stays under either ruling —
+    /// it is the fold for the error the vendor can raise regardless of
+    /// what the adapter does — and the live test (`AppleToolLiveTests`,
+    /// AC-225) pins the interim ending A until the ruling changes it.
     static func toolFailure(from error: LanguageModelSession.ToolCallError) -> ToolCallFailure {
         ToolCallFailure(tool: error.tool.name,
                         reason: .threw(String(describing: error.underlyingError)))

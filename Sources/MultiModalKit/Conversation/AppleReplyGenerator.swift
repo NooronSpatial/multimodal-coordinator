@@ -134,17 +134,24 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     /// `streamResponse(to:)` supplies it — or the model would be shown the
     /// question twice.
     ///
-    /// **The tools ride on the session (4w, AC-223).** The vendor's
-    /// `init(tools:transcript:)` takes them beside the transcript and
-    /// executes them itself mid-reply (F-1 = B). A mind with NO tools
-    /// takes the other branch and builds exactly the session it built
-    /// before 4w — same initialiser, same entries — so the plain path
-    /// pays nothing for the tool path (AC-227's Mac half is "no
-    /// difference by construction"; the phone number is Ryad's gate,
-    /// §172c). The `toolDefinitions: []` on the instructions entry stays
-    /// empty on BOTH branches: the vendor renders the schema of the
-    /// tools it was handed on its own, and a definition written there
-    /// as well would show the model every tool twice.
+    /// **The tools ride on the session (4w, AC-223).** The vendor has ONE
+    /// `transcript:` initialiser, `init(model:tools:transcript:)`, with
+    /// `tools` defaulting to `[]`; it executes them itself mid-reply
+    /// (F-1 = B). A mind with NO tools hands it `[]` — the vendor's own
+    /// default, so the call before 4w (`init(transcript:)`) and this one
+    /// build the SAME session: measured on 2026-09-11, the two sessions'
+    /// transcripts are byte-identical. That is AC-227's Mac half, "no
+    /// difference by construction"; the phone number is Ryad's gate
+    /// (§172c).
+    ///
+    /// `toolDefinitions: []` on the instructions entry, ALWAYS: the
+    /// vendor fills that list itself from the tools it was handed
+    /// (measured the same day: `tools: [session]` with `[]` written here
+    /// yields an instructions entry whose `toolDefinitions` is
+    /// `["session"]`), so a definition written here would only repeat
+    /// what it already knows. Also measured: writing one anyway does NOT
+    /// double it — the vendor keeps one — so the reason to leave it empty
+    /// is "the vendor owns that list", not a fear of a doubled prompt.
     private func session(instructions: String?,
                          history: [ConversationTurn]) -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
@@ -161,12 +168,10 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
                 segments: [.text(Transcript.TextSegment(
                     content: turn.replied + (turn.interrupted ? "…" : "")))])))
         }
-        let transcript = Transcript(entries: entries)
-        if tools.isEmpty {
-            return LanguageModelSession(transcript: transcript)
-        }
+        // One call for both shapes: `.empty` maps to `[]`, which is the
+        // vendor's default and the pre-4w session (see above).
         return LanguageModelSession(tools: AppleToolAdapter.adapters(for: tools),
-                                    transcript: transcript)
+                                    transcript: Transcript(entries: entries))
     }
 }
 
@@ -413,11 +418,16 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
             } catch let error as LanguageModelSession.GenerationError {
                 self?.settle(generation: error)
             } catch let error as LanguageModelSession.ToolCallError {
-                // A tool the model called THREW (4w, AC-225). The vendor
-                // ends the stream with this error rather than telling the
-                // model, so the run ends the way the scripted mind's
+                // A tool the model called THREW (4w, AC-225). The adapter
+                // let the throw through, the vendor ended the stream with
+                // this error, and the run ends the way the scripted mind's
                 // `.failsReply` does: one `.failed(.engine(_))` carrying
                 // the SAME `ToolCallFailure` sentence every mind writes.
+                // This ending is the INTERIM one — whether the adapter
+                // should catch instead and let the model speak (the MLX
+                // run's ending) is an open fork, Ryad's, written up at
+                // `AppleReplyRun.toolFailure`. This arm stays under either
+                // ruling: the vendor can raise the error on its own.
                 self?.report(.failed(.engine(Self.toolFailure(from: error).description)))
             } catch {
                 self?.report(.failed(.engine("reply generation failed: \(error)")))

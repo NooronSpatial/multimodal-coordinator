@@ -138,6 +138,44 @@ struct AppleToolTests {
         #expect(source?.tools.tools.map(\.name) == ["session", "weather"])
     }
 
+    // MARK: the vendor facts the session builder's comment cites (AC-227)
+
+    /// `AppleReplyGenerator.session` says two measured things about the
+    /// vendor; these two tests are the machine guarding them (§2/3), so
+    /// a vendor update that changes either turns a comment's "measured"
+    /// into a red instead of a stale sentence. Neither needs the model
+    /// READY — a session is built, never asked.
+    @Test("an empty table builds the SAME session as the pre-4w init(transcript:) (AC-227's Mac half)")
+    func emptyTableBuildsThePre4wSession() {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let transcript = Transcript(entries: [.instructions(Transcript.Instructions(
+            segments: [.text(Transcript.TextSegment(content: "speak briefly"))],
+            toolDefinitions: []))])
+        let before4w = LanguageModelSession(transcript: transcript)
+        let after4w = LanguageModelSession(tools: AppleToolAdapter.adapters(for: .empty),
+                                           transcript: transcript)
+        #expect(String(describing: before4w.transcript) == String(describing: after4w.transcript),
+                "the vendor's default `tools: []` and an explicit `[]` must build one session")
+    }
+
+    @Test("the vendor fills the instructions entry's toolDefinitions from the tools it was handed")
+    func vendorOwnsTheToolDefinitions() throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let table = ToolTable([ReplyTool(name: "session", description: "reads today's session") { _ in "" }])
+        // Written EMPTY here, exactly as `AppleReplyGenerator.session` writes it.
+        let transcript = Transcript(entries: [.instructions(Transcript.Instructions(
+            segments: [.text(Transcript.TextSegment(content: "speak briefly"))],
+            toolDefinitions: []))])
+        let session = LanguageModelSession(tools: AppleToolAdapter.adapters(for: table),
+                                           transcript: transcript)
+        let instructions = session.transcript.compactMap { entry -> Transcript.Instructions? in
+            if case .instructions(let found) = entry { return found }
+            return nil
+        }
+        let names = try #require(instructions.first).toolDefinitions.map(\.name)
+        #expect(names == ["session"], "the vendor renders the handed tools itself: \(names)")
+    }
+
     // MARK: the reentrancy law (§4.1, AC-226's belt)
 
     @Test("an answer that arrives after the call's task was cancelled goes nowhere")
