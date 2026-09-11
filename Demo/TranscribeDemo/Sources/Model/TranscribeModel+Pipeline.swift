@@ -174,6 +174,11 @@ extension TranscribeModel {
         remembering = ""
         feltPauseMilliseconds = nil
         wasInterrupted = false
+        // 4w: a call that outlived the last session (a barge, then Stop)
+        // must not be drained into this session's first row — see
+        // `SessionToolRecorder`. Cleared here, where the rest of the last
+        // session's evidence is, because `start()` is the ONE way in.
+        toolRecorder.forget()
     }
 
     /// The capture side, configured from what the person chose.

@@ -103,6 +103,34 @@ extension ChatTab {
                         .foregroundStyle(.tertiary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
+
+                // THE TOOL SPIKE, on the phone (4w). Two lines while Tools
+                // is on, and not buried: the SENTENCE TO SAY, because the
+                // small model calls the tool only when the question names
+                // it and never on a system instruction alone (AC-222's
+                // finding — and its third shape, named in
+                // `SessionStub.sentenceToSay`, is that beside the app's
+                // instruction the 0.6B did not call even when named, so
+                // this line is the person's part and not a promise) —
+                // and the last turn's verdict, the same words the log
+                // prints, so a run can be read off the screen before it
+                // is shared.
+                if model.toolsEnabled {
+                    Label("Tools ON — say: \u{201C}\(SessionStub.sentenceToSay)\u{201D}",
+                          systemImage: "wrench.and.screwdriver")
+                        .font(.caption)
+                        .foregroundStyle(.blue)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    if let last = model.turns.last {
+                        Text(TranscribeModel.toolLine(for: last.toolAnswers)
+                             + " · \(model.toolRecorder.totalCalls) since launch")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(last.toolAnswers?.isEmpty == false
+                                             ? AnyShapeStyle(Color.green)
+                                             : AnyShapeStyle(.secondary))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
             }
 
             // The gate, on screen and adjustable — a level means nothing
