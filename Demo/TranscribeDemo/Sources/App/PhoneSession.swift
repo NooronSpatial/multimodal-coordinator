@@ -136,6 +136,16 @@ struct TurnReport: Sendable, Identifiable {
     var voiceRTF: Double?
     var cushionMs: Int?
     var voiceCompleted: Bool?
+    /// WHAT THE SESSION TOOL ANSWERED this turn (4w, AC-222/AC-223's
+    /// phone halves). `nil` when Tools was off — the plain path, AC-227's
+    /// baseline; `[]` when it was on and the model never asked; one
+    /// string per call otherwise. Stamped by `record(_:)` on the model,
+    /// like every other fact the witness cannot know: the witness sees
+    /// tokens and a terminal, and under F-1 = B a tool call is neither —
+    /// the run executes it inside the reply and the seam never shows it.
+    /// So the evidence comes from the tool itself, through
+    /// `SessionToolRecorder`, not from this stream.
+    var toolAnswers: [String]?
 }
 
 /// Forwards a reply untouched while writing down what crossed.

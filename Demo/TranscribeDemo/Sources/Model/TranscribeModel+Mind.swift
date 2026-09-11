@@ -58,7 +58,15 @@ extension TranscribeModel {
     private var localMind: MLXReplyGenerator {
         MLXReplyGenerator(model: localModel,
                           instructions: Self.spokenInstructions(for: language),
-                          maxTokens: 160)
+                          maxTokens: 160,
+                          // 4w: the session stub, or `.empty` — see
+                          // `grantedTools`. The instructions above are
+                          // NOT changed by the toggle: the spike found
+                          // the 0.6B model ignores "always call the
+                          // tool" in a system instruction (AC-222's
+                          // finding), so the demo asks the PERSON to
+                          // name it instead (`SessionStub.sentenceToSay`).
+                          tools: grantedTools)
     }
 
     private func record(_ turn: TurnReport) {
@@ -81,7 +89,13 @@ extension TranscribeModel {
                     .components.seconds)
             } ?? 0,
             thermal: thermalName,
-            freeMB: freeMegabytesNow()))
+            freeMB: freeMegabytesNow(),
+            // 4w: what the session tool answered THIS turn, or nil when
+            // Tools was off. Drained here because this is the one place
+            // that writes a row, and the tool's own await (see
+            // `SessionStub.tool`) guarantees its call landed before the
+            // row is written.
+            toolAnswers: toolsEnabled ? toolRecorder.drain() : nil))
         // A margin that fired before this row existed was parked; it can
         // only belong to the reply this row describes. Cleared ALWAYS —
         // one row is the farthest a parked margin may travel, and a
@@ -130,12 +144,30 @@ extension TranscribeModel {
 
     func clearLog() { turns.removeAll() }
 
+    /// The per-turn tool line, ONE function for the log and the Chat tab
+    /// so the two surfaces cannot drift apart. `nil` is "Tools was off
+    /// for this turn"; an empty list is "on, and the model did not ask".
+    nonisolated static func toolLine(for answers: [String]?) -> String {
+        guard let answers else { return "session tool: off" }
+        guard !answers.isEmpty else { return "session tool: NOT called (tools on)" }
+        let count = answers.count == 1 ? "" : " ×\(answers.count)"
+        return "session tool: CALLED\(count) · answered: \"\(answers.joined(separator: "\" · \""))\""
+    }
+
     /// The log as markdown, so it leaves the phone as DATA rather than as
     /// a photograph of a screen.
     var conversationLog: String {
         var out = "# Conversation log — MultiModalKit demo\n\n"
         out += "picker says: mind=\(mind.rawValue) · ear=\(choice.rawValue) "
-        out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield)\n"
+        out += "· mouth=\(mouth.rawValue) · speaker shield=\(speakerShield) "
+        out += "· tools=\(toolsEnabled ? "on" : "off")\n"
+        // 4w: the tool path, stated where AC-227's before/after is read.
+        // ON prints the sentence to say and the stub's words, so a turn
+        // below can be checked against both without opening the code.
+        out += toolsEnabled
+            ? "session tool: ON · say: \"\(SessionStub.sentenceToSay)\" "
+                + "· the stub answers: \"\(SessionStub.answer)\"\n"
+            : "session tool: off · the plain path, AC-227's baseline\n"
         out += "Apple ear (SpeechTranscriber) locales on this device: \(appleEarLocales)\n"
         out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
@@ -184,6 +216,11 @@ extension TranscribeModel {
             if turn.bargedIn { out += " · BARGED IN (no terminal — expected on interrupt)" }
             if let failure = turn.failure { out += " · FAILED: \(failure)" }
             out += "\n\n"
+            // 4w: the line a phone run proves AC-222/AC-223 with. Three
+            // states, never blank: off, on-and-not-called, called with
+            // the answer — because "no line" cannot be told from "did
+            // not log".
+            out += Self.toolLine(for: turn.toolAnswers) + "\n\n"
             if let audio = turn.voiceAudioMs, let rtf = turn.voiceRTF {
                 out += String(format: "voice: %d ms audio · RTF %.3f", audio, rtf)
                 if let cushion = turn.cushionMs { out += " · cushion \(cushion) ms" }

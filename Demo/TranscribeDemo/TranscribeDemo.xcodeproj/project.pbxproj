@@ -22,6 +22,9 @@
 		575F4E41B849E6017220BA5E /* TranscribeModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5CAFCFE69080BA65B1269D0B /* TranscribeModel.swift */; };
 		58105E5B9F5F9E5BD5278433 /* MindAssetsState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D418CD5D552D1D351367B65 /* MindAssetsState.swift */; };
 		5B1D292BE79C5F15F887B9B8 /* SettingsTab+Memory.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD79D3B0BB8773C2F098857E /* SettingsTab+Memory.swift */; };
+		38DA6D008D060C5E40D51A4E /* SettingsTab+Tools.swift in Sources */ = {isa = PBXBuildFile; fileRef = D39B7266D7615009F675EF4B /* SettingsTab+Tools.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* SettingsTab+Mind.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2C3D4E5F60718293A4B5C6D /* SettingsTab+Mind.swift */; };
+		8E65A6A81D7C87BD504C46DC /* SessionStub.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FC6FC4C7CBC6795FA3E92FB /* SessionStub.swift */; };
 		5E7F9BE14687B531F010C974 /* BenchTab+Levers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 69080D9C13E4A61DC0B000E8 /* BenchTab+Levers.swift */; };
 		5FFF1441BD1768EC42E8DE60 /* TranscribeModel+Choices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99FAA79C5BB83567D044FE7A /* TranscribeModel+Choices.swift */; };
 		63EFEEC2E74AC7A3F270E5F8 /* ryad-en.wav in Resources */ = {isa = PBXBuildFile; fileRef = 40D158610A62F1FCD2DBDE41 /* ryad-en.wav */; };
@@ -82,6 +85,9 @@
 		F65F3C8AC16A5263D6F942F4 /* PhoneSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhoneSession.swift; sourceTree = "<group>"; };
 		F84A473562F01BC5A69F1AE1 /* TranscribeModel+Assets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "TranscribeModel+Assets.swift"; sourceTree = "<group>"; };
 		FD79D3B0BB8773C2F098857E /* SettingsTab+Memory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsTab+Memory.swift"; sourceTree = "<group>"; };
+		D39B7266D7615009F675EF4B /* SettingsTab+Tools.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsTab+Tools.swift"; sourceTree = "<group>"; };
+		B2C3D4E5F60718293A4B5C6D /* SettingsTab+Mind.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SettingsTab+Mind.swift"; sourceTree = "<group>"; };
+		1FC6FC4C7CBC6795FA3E92FB /* SessionStub.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionStub.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -119,6 +125,8 @@
 				ED702F8110D649D4844745E7 /* SettingsTab.swift */,
 				B243216593C6E211AD5CB4E9 /* SettingsTab+Language.swift */,
 				FD79D3B0BB8773C2F098857E /* SettingsTab+Memory.swift */,
+				B2C3D4E5F60718293A4B5C6D /* SettingsTab+Mind.swift */,
+				D39B7266D7615009F675EF4B /* SettingsTab+Tools.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -187,6 +195,7 @@
 			children = (
 				1D418CD5D552D1D351367B65 /* MindAssetsState.swift */,
 				B667C0071520DDFEFFAB82A6 /* ProbeState.swift */,
+				1FC6FC4C7CBC6795FA3E92FB /* SessionStub.swift */,
 				D8CC791B46555C703C28715F /* SweepState.swift */,
 				5CAFCFE69080BA65B1269D0B /* TranscribeModel.swift */,
 				F84A473562F01BC5A69F1AE1 /* TranscribeModel+Assets.swift */,
@@ -333,6 +342,9 @@
 				483B5E456D525BC2CE1D4CEC /* RootView.swift in Sources */,
 				9C84E44BB68F4AB87365FF5F /* SettingsTab+Language.swift in Sources */,
 				5B1D292BE79C5F15F887B9B8 /* SettingsTab+Memory.swift in Sources */,
+				38DA6D008D060C5E40D51A4E /* SettingsTab+Tools.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* SettingsTab+Mind.swift in Sources */,
+				8E65A6A81D7C87BD504C46DC /* SessionStub.swift in Sources */,
 				B9A9ED57147F2D5D5E4D2BE4 /* SettingsTab.swift in Sources */,
 				E84AB073DAD101C57D1777F1 /* SweepState.swift in Sources */,
 				BCC7BA87FB4C5EF3D584BB0A /* TranscribeDemoApp.swift in Sources */,

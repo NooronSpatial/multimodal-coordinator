@@ -202,9 +202,44 @@ final class TranscribeModel {
     /// `spokenInstructions`, and the day lever A (D-095) was added to the
     /// other copy the two diverged — the app's own voice, saying different
     /// things to different minds without anyone deciding it should.
-    let appleMind = AppleReplyGenerator(
-        instructions: TranscribeModel.spokenInstructions,
-        spokenRefusal: "I can't help with that one.")
+    ///
+    /// COMPUTED since 4w, where it was a `let`. The tools a mind holds
+    /// are fixed at its construction (F-2 = A), so a Tools toggle means
+    /// a NEW generator — and that is free here for the same reason
+    /// `localMind` has always been computed: the generator is a struct,
+    /// and `prewarm()` warms the system model, not this value. The
+    /// coordinator reads it once, when Listen starts.
+    var appleMind: AppleReplyGenerator {
+        AppleReplyGenerator(
+            instructions: TranscribeModel.spokenInstructions,
+            spokenRefusal: "I can't help with that one.",
+            tools: grantedTools)
+    }
+
+    /// THE TOOLS TOGGLE (4w, F-3 = C). Off by default: the plain path
+    /// is what ships, and AC-227 measures the tool path against it ON
+    /// THE SAME PHONE IN ONE SITTING — which is why this is a switch and
+    /// not a build flag. Read when Listen starts (the generator is built
+    /// then), so it is disabled while listening, and it restarts a live
+    /// session the way the mind picker does, in case it ever is not.
+    var toolsEnabled = TranscribeModel.storedFlag(
+        TranscribeModel.toolsKey, default: false) {
+        didSet {
+            UserDefaults.standard.set(toolsEnabled, forKey: Self.toolsKey)
+            guard toolsEnabled != oldValue else { return }
+            if isListening { restart() }
+        }
+    }
+    /// What the session tool answered, per turn — drained into each
+    /// `TurnReport` by `record(_:)`. The demo's evidence that a call
+    /// happened, which the reply's words alone cannot be (§60).
+    let toolRecorder = SessionToolRecorder()
+    /// The table both minds are built with: the one stub when Tools is
+    /// on, `.empty` when it is off — and `.empty` leaves the prompt and
+    /// the loop byte-identical to 4v (AC-227's baseline).
+    var grantedTools: ToolTable {
+        toolsEnabled ? ToolTable([SessionStub.tool(recording: toolRecorder)]) : .empty
+    }
 
     /// THE SECOND MIND's weights (4h, D-062 F-1 = A). `repoID` means the
     /// app may FETCH them — Whisper's shape, ruled by F-4 = A — but only
