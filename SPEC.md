@@ -4966,8 +4966,22 @@ here.
 - **AC-222** — the MLX mind asks the clock and speaks the time. The
   `.toolCall` event is no longer dropped; the answer returns as a `.tool`
   message; the reply continues.
+  > *As built, 2026-09-11 — ticked, with a finding.* Live on the 0.6B
+  > model: the tool called once, the reply byte-identical five runs of
+  > five. But the model IGNORES a system instruction that says "always
+  > call the session tool" and calls it only when the QUESTION names it
+  > ("Use the session tool to find out…"). That is §172a's push-or-pull
+  > fork answered by a measurement before it was asked: on a small model,
+  > pull works only when the person pulls. §67 carries the probe.
 - **AC-223** — the Apple mind asks the clock and speaks the time, through
   its own `Tool`, with no `ReplyUpdate` changes it did not need.
+  > *As built, 2026-09-11 — NOT ticked.* The adapter, the session
+  > construction and the byte-identical empty-table transcript are proven
+  > without the model. The LIVE half could not run: Apple's on-device
+  > model reports `modelNotReady` on this Mac today (it was ready during
+  > 4v). The three live tests are armed and skip with a sentence that
+  > says so; they run the day the model is ready, and until then this
+  > criterion is carried, not claimed.
 - **AC-224** — a SLOW tool does not stall the turn machinery: the
   coordinator stays responsive (a barge lands) while the call is pending.
 - **AC-225** — a FAILING tool ends as an honest turn, not a crash: the
@@ -5036,6 +5050,24 @@ tool has). *A:* report `.failed`. *B:* answer the model with an error
 message and let it recover in words. **Recommendation: B, measured** —
 it is what Apple's framework does, and a spoken "I couldn't do that" is
 the honest outcome AC-225 wants.
+
+**F-5 — WHAT A THROWN TOOL'S ENDING IS ON THE APPLE MIND** (raised by
+the Apple piece's review, 2026-09-11; open). F-4 ruled what the MLX run
+does with a name no tool has: tell the model in words, let it recover.
+The Apple framework runs the tool itself, and when the tool THROWS the
+vendor ends the stream with its own error — so the two minds end the
+same event differently today.
+- *A:* propagate — the run ends `.failed(.engine("tool 'x' failed: …"))`,
+  countable at the seam, the person hears nothing, and the two minds
+  disagree. **This is what the code does today**, kept as the safe
+  default because the builder that first chose it was ruling a fork.
+- *B:* catch in the adapter and answer the model in words — the same
+  words F-4 = B gives the MLX model, so both minds end the same way and
+  the person hears "I couldn't do that". The failure stays countable at
+  the tool table (`ToolCallFailure`), not at the reply seam.
+  **Recommended**, for F-4's own reason and D-057's: silence makes a
+  failure look like a bug, and two minds ending one event two ways is
+  what the seam exists to prevent.
 
 ### 172a. Named for Phase B, not ruled here
 
