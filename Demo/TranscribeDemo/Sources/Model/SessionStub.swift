@@ -21,7 +21,8 @@ enum SessionStub {
     /// The name the model asks for. Exact-match on both minds
     /// (`ToolTable`), and the word the person says aloud — the sentence
     /// in `sentenceToSay` names it, because that is the only shape the
-    /// spike measured working (AC-222's finding, INSTRUMENTS §67).
+    /// spike measured working (AC-222's finding; see `sentenceToSay` for
+    /// the whole of it and where it is written down).
     static let name = "session"
 
     /// What the model is told the tool does. Short, because the spec is
@@ -44,12 +45,41 @@ enum SessionStub {
 
     /// THE SENTENCE TO SAY, verbatim — on the Chat tab, in the Settings
     /// caption and at the top of the conversation log, so Ryad reads it
-    /// off the phone rather than remembering it. Measured on the 0.6B
-    /// weights (AC-222, §67): the model IGNORES a system instruction
-    /// that says "always call the session tool" and calls it only when
-    /// the QUESTION names the tool. So the demo asks the person to name
-    /// it, and writes no instruction that pretends otherwise.
+    /// off the phone rather than remembering it.
+    ///
+    /// THE WHOLE FINDING, not half of it (the 4w demo review). The spike
+    /// measured the 0.6B weights on the Mac in three shapes — the record
+    /// is the suite note of `MLXToolLiveTests.swift`; SPEC §172c names
+    /// INSTRUMENTS §67 as its home, and §67 is not written yet:
+    ///
+    ///   1. the QUESTION names the tool, NO app instruction — CALLED,
+    ///      3/3 greedy, 2/2 at the vendor's temperature;
+    ///   2. a system instruction says "always call the session tool",
+    ///      the question does not name it — NOT called, 0/4;
+    ///   3. the question names the tool AND any app instruction sits
+    ///      beside it, even "answer in one sentence" — NOT called, 0/3;
+    ///      the model parrots the question back.
+    ///
+    /// So this sentence is necessary (shape 2 rules the instruction out)
+    /// but on the 0.6B it was not SUFFICIENT beside `spokenInstructions`
+    /// (shape 3). The demo hands both minds this sentence AND the app's
+    /// instruction — shape 3 — which is the shape the Mac measured as
+    /// not calling. That is stated wherever the sentence is shown, and
+    /// the phone's 4B weights are a different, unmeasured size: the log
+    /// line per turn is what says which way they went. Whether the demo
+    /// should drop the instruction while Tools is on (shape 1, the only
+    /// measured working shape, at the cost of the spoken-reply rules) is
+    /// a fork for Ryad, not ruled here.
     static let sentenceToSay = "Use the session tool to find out what today's session is."
+
+    /// THE EXPECTATION, in the words the caption and the log print, so a
+    /// reader of either knows what the Mac measured BEFORE reading what
+    /// the phone did — the claim must be no bigger than the evidence.
+    static let measuredNote = "local mind, measured on the Mac's 0.6B weights: this shape "
+        + "— the sentence beside the app's spoken instruction — NOT called (0/3); "
+        + "it called only with no instruction at all (3/3). "
+        + "This phone's 4B is unmeasured, and the Apple mind's live half never ran "
+        + "(AC-223 carried): the per-turn tool line is the answer, not this note."
 
     /// The tool both minds are handed when Tools is on (F-2 = A: at
     /// construction, never through the coordinator).
@@ -83,6 +113,15 @@ enum SessionStub {
 /// belongs to. A call that lands after its turn was barged (AC-226) is
 /// drained by the NEXT row — the row's `BARGED IN` mark beside a
 /// tool-less line, and the next row's call, are how to read that.
+///
+/// And one wall, so the limit stays inside ONE session (the 4w demo
+/// review): a call that lands after its barged row and then outlives
+/// Listen — the person stops, flips Tools, starts again — must not be
+/// drained into the first row of a LATER session, stamping CALLED on a
+/// turn whose model never asked. `forget()` is called where the last
+/// session's screen state is cleared (`clearLastSession`), so a session
+/// starts with nothing pending. `totalCalls` is not cleared: it counts
+/// since launch, and says so on the screen.
 @MainActor
 @Observable
 final class SessionToolRecorder {
@@ -102,5 +141,11 @@ final class SessionToolRecorder {
     func drain() -> [String] {
         defer { pending.removeAll() }
         return pending
+    }
+
+    /// Drops whatever is pending WITHOUT handing it over: a new session
+    /// owes the old one no evidence. The count since launch stays.
+    func forget() {
+        pending.removeAll()
     }
 }

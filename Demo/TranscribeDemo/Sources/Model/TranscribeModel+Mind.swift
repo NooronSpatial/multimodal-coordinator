@@ -61,11 +61,28 @@ extension TranscribeModel {
                           maxTokens: 160,
                           // 4w: the session stub, or `.empty` — see
                           // `grantedTools`. The instructions above are
-                          // NOT changed by the toggle: the spike found
-                          // the 0.6B model ignores "always call the
-                          // tool" in a system instruction (AC-222's
-                          // finding), so the demo asks the PERSON to
-                          // name it instead (`SessionStub.sentenceToSay`).
+                          // NOT changed by the toggle, and that is the
+                          // shape to be honest about (the 4w demo
+                          // review): the spike measured THREE shapes on
+                          // the 0.6B weights, not one (the suite note of
+                          // `MLXToolLiveTests.swift`; INSTRUMENTS §67
+                          // when written). The naming question alone —
+                          // CALLED 3/3. A system instruction saying
+                          // "always call" — NOT called 0/4, which is
+                          // why no such line is written here. And the
+                          // naming question BESIDE any app instruction,
+                          // even "answer in one sentence" — NOT called
+                          // 0/3. This call is that third shape. So on
+                          // the Mac's record, Tools ON here is expected
+                          // to print "NOT called" on the 0.6B; the
+                          // phone's 4B is unmeasured and the per-turn
+                          // log line is the finding. Kept as built, as
+                          // the safe default and NOT as a ruling:
+                          // whether to drop `instructions` while Tools
+                          // is on (shape 1, the only measured working
+                          // shape, at the cost of the spoken-reply
+                          // rules and lever A) is a fork for Ryad,
+                          // presented with this piece.
                           tools: grantedTools)
     }
 
@@ -163,10 +180,15 @@ extension TranscribeModel {
         out += "· tools=\(toolsEnabled ? "on" : "off")\n"
         // 4w: the tool path, stated where AC-227's before/after is read.
         // ON prints the sentence to say and the stub's words, so a turn
-        // below can be checked against both without opening the code.
+        // below can be checked against both without opening the code —
+        // and the Mac's MEASURED expectation for this prompt shape
+        // (`SessionStub.measuredNote`), so the reader knows what was
+        // known before the phone answered, and the rows below are read
+        // as a result and not as a claim.
         out += toolsEnabled
             ? "session tool: ON · say: \"\(SessionStub.sentenceToSay)\" "
                 + "· the stub answers: \"\(SessionStub.answer)\"\n"
+                + "expected: \(SessionStub.measuredNote)\n"
             : "session tool: off · the plain path, AC-227's baseline\n"
         out += "Apple ear (SpeechTranscriber) locales on this device: \(appleEarLocales)\n"
         out += "local model: \(LocalMind.repoID) · installed: "

@@ -24,13 +24,18 @@ extension SettingsTab {
         // OFF is the plain path AC-227 measures against; ON hands both
         // real minds the session stub. The caption carries THE SENTENCE
         // because the spike measured the small model calling the tool
-        // only when the question names it (AC-222's finding, §67) — a
-        // person who asks "what is today's session?" will get a guess,
-        // and the log will say NOT called.
+        // only when the question names it, and NEVER on a system
+        // instruction alone — and it carries the OTHER half of the same
+        // finding (the 4w demo review): beside this app's spoken
+        // instruction the 0.6B did NOT call even when named (0/3). The
+        // whole record is the suite note of `MLXToolLiveTests.swift`
+        // (INSTRUMENTS §67 once written, per SPEC §172c). So the caption
+        // promises no call; it says what was measured and points at the
+        // log, where the phone's own answer is written per turn.
         Text(model.toolsEnabled
              ? "on · both minds get the session tool · say: "
                + "\u{201C}\(SessionStub.sentenceToSay)\u{201D} "
-               + "· the log records each call"
+               + "· the log records each call · \(SessionStub.measuredNote)"
              : "off · the plain path, AC-227's baseline · no tool spec in the prompt")
             .font(.caption2)
             .foregroundStyle(.secondary)
