@@ -5419,6 +5419,43 @@ Mac today, so AC-223's live half is armed and skipped. Any prompt cache:
 this library has none, and the second-prefill number is what that
 absence costs.
 
+### 6. The phone — the first tool call on a device (2026-09-11, Ryad's iPhone)
+
+Ryad's own run, Tools ON, the 4B, Whisper ear, Kokoro mouth, thermal
+`serious` throughout. The raw log is `docs/evidence/4w/phone-2026-09-11-tools-on.md`.
+
+| turn | heard | tool | first word | total |
+|---|---|---|---|---|
+| 1–7 | greetings, "what's your name" — no tool wanted | not called | 534–672 ms | 1 045–1 612 ms |
+| 8 | *"Use the **decision** tool…"* (Whisper misheard) | not called — correctly: no such tool | 520 ms | 1 761 ms |
+| 10 | *"…Use the session tool to start out what theization is."* | **CALLED**, the stub's words spoken back | **2 063 ms** | 5 574 ms |
+
+**Three things this settles.**
+
+1. **AC-222's phone half.** The 4B on the phone calls the tool and
+   speaks its answer. The first tool call on a device.
+2. **F-6 is answered by the phone, not by a ruling.** The demo builds
+   the mind with the app's spoken instruction BESIDE the tool — the
+   shape the 0.6B refused 0 of 3 times (§3). The 4B called it anyway,
+   through seven words of Whisper garble. Keep the instruction.
+3. **AC-228's phone half, first number.** First word after a tool call:
+   ~2.1 s, against ~0.6 s on the same session's plain turns. That is the
+   second prefill of §2, on the phone: about 1.4 s of felt pause bought
+   by one tool call. The whole reply took 5.6 s, most of it the mouth
+   reading a long stub aloud (12.8 s of audio at RTF 0.31).
+
+**What it does not settle.** AC-227 — the cost of an IDLE tool — needs
+the same phone, the same sitting, Tools OFF, for the plain-turn
+baseline. Turns 1–7 here had the tool present and unused at ~600 ms;
+§1's Mac number predicts the baseline is several hundred ms lower.
+One more run, one setting flipped, and the criterion is read.
+
+**And one that was not in the plan.** Turn 8 is the ear mishearing
+"session" as "decision". The mind was offered no tool by that name and
+did not pretend to have one — it asked what was meant. That is F-4 = B's
+honest ending arriving from a direction nobody scripted: the failure
+came from the ear, and the mind's answer was still the right one.
+
 ### The closing fork (AC-229) — the contract's shape, on the numbers
 
 Not ruled here. Presented for Phase B's contract milestone:
