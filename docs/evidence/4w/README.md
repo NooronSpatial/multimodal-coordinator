@@ -11,6 +11,7 @@ Mac; the phone numbers are Ryad's gate (§172c) and are not here.
 | `tool-spike-Qwen3-4B-4bit.txt` | the 4B (the phone's model), no instruction, 5 runs per row |
 | `tool-spike-Qwen3-0.6B-4bit-with-instruction.txt` | the 0.6B under the demo's spoken-reply instruction, 2 runs per row |
 | `tool-spike-Qwen3-4B-4bit-with-instruction.txt` | the 4B under the same instruction, 2 runs per row |
+| `stability-2026-09-11.txt` | the 20× stability loop on the merged milestone, one line per run |
 
 How to repeat:
 
@@ -24,3 +25,14 @@ swift build -c release --product bakeoff
 and AC-228's prices are phone criteria; this Mac shows the shape of the
 cost, not the claim. The audio-thread allocation half of AC-227 is
 `graph-probe`'s, not this instrument's.
+
+**The stability loop.** 20 runs, 20 passes, the identical `701 tests in
+98 suites` every time, so there is no failing log beside this file. The
+loop writes each failing run's FULL output before moving on — a loop
+that records only PASS/FAIL cannot find the race it exists to find, and
+this project already paid for that lesson once (4t, run 13, log gone).
+
+**The phone demo.** Built for a real device against the merged branch
+(`xcodebuild -destination 'generic/platform=iOS'`, unsigned):
+`** BUILD SUCCEEDED **`, zero Swift warnings. The demo carries the
+Tools switch and the session stub; the phone run itself is Ryad's.
