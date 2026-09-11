@@ -5700,3 +5700,159 @@ by deleting and re-downloading · the contract page's new section
 fact-checked claim by claim · 20× with every failing log kept · zero
 warnings · lint zero · the phone demo builds · every review fix pushed
 before the PR is called ready · teach-back.
+
+# Milestone 4y — admission and heat (what stops a 2.3 GB model killing the app)
+
+## §186 — the caller, and the gap
+
+Aura's on-device mind is wired, counted, downloadable and provably
+installed. What it is not is SAFE TO RUN on a phone that is hot or short
+of memory, and Aura's own requirements say so in four rows this library
+has not answered: R1 (one admission call, no window), R2 (thermal before
+a generation), R3 (memory pressure abandons the generation), R7 (a
+wall-clock deadline). Aura's morning check-in runs inside a spinner on
+a phone that may have just come off a charger or a run.
+
+```
+what a phone does                 what the library does today
+─────────────────                 ───────────────────────────
+runs out of memory mid-load       readiness() then load: a WINDOW between
+                                  the check and the allocation — jetsam
+                                  kills the app inside it
+gets hot                          ThermalPolicy governs TRANSCRIPTION only
+                                  (D-028); nothing reads heat before the
+                                  mind generates
+receives a memory warning         MemoryPressureMonitor exists and REPORTS;
+                                  nothing acts on it — the generation runs
+                                  on inside the warning
+a generation runs long            a token cap only; no deadline — a spinner
+                                  with no end
+```
+
+**Two rulings this milestone must respect, not revisit.** D-105 (F-8 = A):
+no mind CLAIMS memory at the reply door, because a claim inferred from a
+file size locked a phone out for good. Admission here is therefore built
+on what the phone SAYS — its headroom and its pressure — not on what the
+library guesses. And D-028: the thermal seam is one question at one
+moment. This milestone asks it at a second moment.
+
+**Facts measured before this was written.** On the phone, thermal went
+`nominal` at 73 s to `serious` by 128 s and never recovered in session
+(INSTRUMENTS §26). The 4B mind sits at 2.2–2.9 GB resident with ~3.5 GB
+of headroom (§58, §60 — headroom is bytes REMAINING, never subtract from
+it). The library reads headroom (`MemoryHeadroomReader`), reports
+pressure (`MemoryPressureMonitor`, three levels), and `retire()` already
+raises the holder's generation ticket so a load in flight cannot
+resurrect retired weights.
+
+## §187 — scope
+
+1. **One admission call** (R1) — `admit()` on the mind: reads headroom and
+   pressure, and either BEGINS the load inside the same actor step or
+   refuses with a typed `MindUnavailable` — no window between the check
+   and the allocation that a second caller could fall into. F-1 rules
+   whether the memory check is a threshold Aura sets or none at all.
+2. **Heat before a generation** (R2) — the thermal seam asked at
+   `openReply`, with a policy the app injects (the shape `ThermalPolicy`
+   already has); the default refuses at `.critical` only, and the refusal
+   is typed and countable. F-2 rules the default.
+3. **Pressure abandons the generation** (R3) — on `.warning` the in-flight
+   generation is cancelled through the ticket and the prefill cache
+   released; on `.critical` the weights are retired too. The handler
+   does NO new work: it raises the ticket and returns; the actor does
+   the rest on its own step. Tested with a scripted pressure source.
+4. **A wall-clock deadline** (R7) — `GenerationOptions.deadline: Duration?`
+   beside the token cap; a reply that exceeds it ends
+   `.finished(.deadline)` with what was said so far, and the cancel frees
+   the prefill. Measured, not assumed: INSTRUMENTS §68 shows the memory
+   before and after a cancelled generation on the Mac.
+5. **The contract page grows a section** — "running it safely": the
+   admission call, the two refusals, what pressure does, the deadline.
+
+## §188 — non-goals
+
+- No memory CLAIM inferred from file size — D-105 stands. Admission
+  reads the phone's own numbers.
+- No thermal policy for the mouth (4e's open item) — the mouth is not in
+  this milestone.
+- No background execution, no scene-phase hook beyond `retire()` (R5 is
+  documented already).
+- No change to the text contract's shape beyond one optional field.
+- No Aura-side code.
+
+## §189 — acceptance criteria
+
+- **AC-258** `admit()` is one actor step: a test with two concurrent
+  callers on a scripted headroom proves the second sees the first's
+  allocation, not a stale check — no window.
+- **AC-259** `admit()` refuses with `.notEnoughMemory(needed:available:)`
+  when the app-set threshold (F-1) is not met, and NEVER when the phone
+  reports no number (D-092: never refuse on a number you do not have).
+- **AC-260** `openReply` asks the injected thermal policy before
+  generating; the default refuses at `.critical` with a new typed
+  `ReplyFailure.tooHot`, countable; a test scripts each thermal state.
+- **AC-261** On `.warning` pressure mid-generation, the generation ends
+  with no terminal (cancelled through the ticket) and the prefill memory
+  is released — proven by MLX's own `activeMemory` before and after on
+  the Mac, and by a scripted source in CI.
+- **AC-262** On `.critical`, the weights are retired as well, and the
+  next `openReply` reloads them (non-terminal, R4).
+- **AC-263** The pressure handler does no work: a test asserts it returns
+  within one actor hop and performs no allocation (a counting allocator
+  is out of reach; assert no await and no MLX call inside it by
+  structure — a source-scan test the way 4x's suspend test works).
+- **AC-264** `GenerationOptions.deadline` ends a slow scripted reply with
+  `.finished(.deadline)` carrying the partial text; a live MLX test on
+  the Mac ends a real reply at 200 ms and shows the memory freed.
+- **AC-265** The voice path is untouched: every pre-4y test passes; the
+  coordinator passes no deadline and no policy by default.
+- **AC-266** INSTRUMENTS §68: the memory freed by a cancelled generation
+  (before/after, Mac), and the phone's thermal curve with the mind
+  generating every turn — the second is Ryad's gate.
+- **AC-267** The contract page's "running it safely" section, verified
+  claim by claim; 20× with every failing log kept; zero warnings; lint
+  zero; the phone demo builds.
+
+## §190 — the forks (Ryad rules)
+
+**F-1 — the memory threshold at admission.**
+- *A:* **the app sets it.** `admit(needing bytes: Int)` — Aura passes the
+  number it measured in its own AC6, and the library compares it to the
+  phone's headroom. No inference, no file-size guess; D-105's lesson kept
+  exactly. **Recommended.**
+- *B:* the library infers it from the weights on disk × 1.5 — the thing
+  D-105 removed. Rejected by D-105.
+- *C:* no memory check at admission at all; pressure handling alone
+  protects the phone. Simplest, but it admits a load that will be killed
+  seconds later, which is the jetsam Aura's R1 names.
+
+**F-2 — the thermal default.**
+- *A:* refuse at `.critical` only; `.serious` generates. The phone
+  reached `.serious` in every measured session and stayed there, so
+  refusing at `.serious` would refuse every second turn. **Recommended.**
+- *B:* refuse at `.serious`. Safer for the battery, unusable on the
+  measured phone.
+- *C:* never refuse; only report. What the library does today.
+
+**F-3 — what pressure `.warning` does to the generation.**
+- *A:* **cancel it through the ticket and free the prefill; the turn ends
+  with no terminal**, the way a barge does. The person hears silence for
+  that turn and the next turn runs clean. **Recommended** — it is the
+  machinery that already exists and is proven.
+- *B:* let it finish, then release. Kinder to the turn, but the warning
+  is a warning: the finish may be the kill.
+
+**F-4 — the deadline's ending.**
+- *A:* `.finished(.deadline)` with the partial text — a stop reason, like
+  `.tokenBudget`. A caller reads it and shows what it has. **Recommended.**
+- *B:* `.failed(.deadline)` — a failure. Throws away words the person may
+  already have heard.
+
+## §191 — definition of done
+
+The four forks ruled and logged · red → green per AC with scripted
+headroom, pressure and thermal sources · the memory-freed number
+measured on the Mac (§68) · the phone thermal curve as Ryad's gate · the
+contract page's new section fact-checked · 20× with every failing log
+kept · zero warnings · lint zero · the phone demo builds · every review
+fix pushed before the PR is called ready · teach-back.
