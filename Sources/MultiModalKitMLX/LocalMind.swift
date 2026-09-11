@@ -260,6 +260,20 @@ struct MLXTokenSource: ReplyTokenStreaming {
     /// first mind.
     let instructions: String?
     let maxTokens: Int
+    /// The tools the app granted this mind (4w, F-2 = A) — rendered into
+    /// the prompt as specs, and read by the run to execute a call. Empty
+    /// by default, and an empty table changes NOTHING in the prompt or
+    /// the loop (AC-227): the spec is only passed when there is one, and
+    /// the call parser is only built when there is one.
+    let tools: ToolTable
+
+    init(model: LocalMindModel, instructions: String?, maxTokens: Int,
+         tools: ToolTable = .empty) {
+        self.model = model
+        self.instructions = instructions
+        self.maxTokens = maxTokens
+        self.tools = tools
+    }
 
     var unavailable: ReplyFailure? {
         // Asked at the door, EVERY time: weights can finish arriving
@@ -300,17 +314,11 @@ struct MLXTokenSource: ReplyTokenStreaming {
     /// consumer can see; it widens what a test can read.
     static func messages(spoken: String?, asked: String,
                          past: [ConversationTurn]) -> [Chat.Message] {
-        var messages: [Chat.Message] = []
-        if let spoken { messages.append(.system(spoken)) }
-        for turn in past {
-            messages.append(.user(turn.said))
-            messages.append(.assistant(turn.replied + (turn.interrupted ? "…" : "")))
-        }
-        messages.append(.user(asked))
-        return messages
+        messages(spoken: spoken, asked: asked, past: past, exchanges: [])
     }
 
-    func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
+    func tokens(for context: ReplyContext,
+                after exchanges: [ToolExchange]) -> AsyncThrowingStream<TokenEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 do {
@@ -326,11 +334,18 @@ struct MLXTokenSource: ReplyTokenStreaming {
                     // Sendable, so only the strings cross the boundary.
                     let asked = context.transcript
                     let past = context.history
+                    // `nil` when no tool was given (AC-227): the template
+                    // branches on it, and a generator with no tools must
+                    // render exactly the prompt it rendered before 4w.
+                    let specs = tools.toolSpecs
+                    let tooled = !tools.isEmpty
                     try await container.perform { (model: ModelContext) in
-                        let messages = Self.messages(spoken: settings.instructions, asked: asked, past: past)
+                        let messages = Self.messages(
+                            spoken: settings.instructions, asked: asked, past: past, exchanges: exchanges)
                         let input = try await model.processor.prepare(
                             input: UserInput(
                                 chat: messages,
+                                tools: specs,
                                 // LAYER 1 (§86): ask the model not to think
                                 // at all. The template pre-fills a closed
                                 // block. A convention, not a constraint —
@@ -346,38 +361,22 @@ struct MLXTokenSource: ReplyTokenStreaming {
                             throw refusal
                         }
 
-                        var gate = gateTokens.map { ThinkGate($0) }
-                        var detokenizer = NaiveStreamingDetokenizer(
-                            tokenizer: model.tokenizer)
-
-                        for await event in try generateTokens(
-                            input: input,
-                            parameters: GenerateParameters(settings),
-                            context: model) {
-                            if Task.isCancelled { break }
-                            switch event {
-                            case .token(let id):
-                                // LAYER 2: the net. One integer comparison,
-                                // and nothing swallowed is ever detokenised.
-                                if gate?.admits(id) == false { continue }
-                                detokenizer.append(token: id)
-                                // nil while a multi-token character is still
-                                // incomplete — exactly what accented text does.
-                                if let piece = detokenizer.next(), !piece.isEmpty {
-                                    continuation.yield(.token(piece))
-                                }
-                            case .info(let info):
-                                // AC-235: the event this loop used to DROP
-                                // (`guard let id = event.token else { continue }`).
-                                // The vendor says why it stopped; the seam
-                                // says it in its own word. `.cancelled` maps
-                                // to nothing — a cancelled run ends with no
-                                // terminal, by contract.
-                                if let reason = StopReason(vendor: info.stopReason) {
-                                    continuation.yield(.stopped(reason))
-                                }
-                            }
-                        }
+                        // THE CALL PARSER (4w, AC-222), built ONLY when a
+                        // tool was given — so the plain path runs the loop
+                        // it ran before (AC-227). `generateTokens` has no
+                        // `.toolCall` event (the note in `MLXTools.swift`);
+                        // this sieve is the vendor's own parser over our
+                        // gated pieces, in the format the vendor inferred
+                        // for these weights.
+                        let sieve = tooled ? ToolCallSieve(
+                            format: model.configuration.toolCallFormat ?? .json, specs: specs) : nil
+                        try await Self.stream(
+                            input: input, settings: settings, model: model,
+                            filters: TokenFilters(
+                                gate: gateTokens.map { ThinkGate($0) },
+                                detokenizer: NaiveStreamingDetokenizer(tokenizer: model.tokenizer),
+                                sieve: sieve),
+                            into: continuation)
                     }
                     // No `.stopped` here: the reason came from the `.info`
                     // event above, or it did not come at all — and a stream
@@ -391,6 +390,73 @@ struct MLXTokenSource: ReplyTokenStreaming {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    /// The vendor's loop, gated at the token — the body `tokens(for:)`
+    /// ran inline until 4w gave it a second path. Runs INSIDE the
+    /// container's `perform`, because `ModelContext` is not Sendable.
+    private static func stream(
+        input: LMInput, settings: MLXGenerationSettings, model: ModelContext,
+        filters initialFilters: TokenFilters,
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
+    ) async throws {
+        var filters = initialFilters
+        for await event in try generateTokens(
+            input: input,
+            parameters: GenerateParameters(settings),
+            context: model) {
+            if Task.isCancelled { break }
+            switch event {
+            case .token(let id):
+                for event in filters.admit(id) { continuation.yield(event) }
+            case .info(let info):
+                // A call the model finished with its turn
+                // (the tags closed on the last token) is
+                // flushed HERE, before the stop — the order
+                // the vendor's own text loop keeps.
+                for event in filters.finish() { continuation.yield(event) }
+                // AC-235: the event this loop used to DROP
+                // (`guard let id = event.token else { continue }`).
+                // The vendor says why it stopped; the seam
+                // says it in its own word. `.cancelled` maps
+                // to nothing — a cancelled run ends with no
+                // terminal, by contract.
+                if let reason = StopReason(vendor: info.stopReason) {
+                    continuation.yield(.stopped(reason))
+                }
+            }
+        }
+    }
+}
+
+/// What stands between a vendor token ID and the seam, in the order it
+/// runs: the think gate (§86 layer 2), the detokenizer, and — only when
+/// a tool was given (4w) — the call sieve. One value, so the loop above
+/// reads as one line per event and the order cannot drift.
+struct TokenFilters {
+    var gate: ThinkGate?
+    var detokenizer: NaiveStreamingDetokenizer
+    let sieve: ToolCallSieve?
+
+    /// One token ID in; the seam's events out — usually none or one.
+    mutating func admit(_ id: Int) -> [TokenEvent] {
+        // LAYER 2: the net. One integer comparison,
+        // and nothing swallowed is ever detokenised.
+        if gate?.admits(id) == false { return [] }
+        detokenizer.append(token: id)
+        // nil while a multi-token character is still
+        // incomplete — exactly what accented text does.
+        guard let piece = detokenizer.next(), !piece.isEmpty else { return [] }
+        guard let sieve else { return [.token(piece)] }
+        // With a tool: the piece is text to speak,
+        // or part of a call being collected, or a
+        // whole call — the sieve says which.
+        return sieve.admit(piece)
+    }
+
+    /// End of sequence: nothing without a tool; the sieve's residue with.
+    func finish() -> [TokenEvent] {
+        sieve?.finish() ?? []
     }
 }
 
@@ -434,11 +500,22 @@ extension MLXReplyGenerator {
     ///     ceiling, not a target — voice replies are short by instruction
     ///     and the barge-in ends a runaway, while a text caller's whole
     ///     document needs the room.
+    ///   - tools: what this mind may CALL while it answers (4w, F-2 = A,
+    ///     D-101): handed here, at construction, because tools are policy
+    ///     the app grants — never to the coordinator, which must not
+    ///     learn a `switch` over them. Empty by default, and an empty
+    ///     table leaves the prompt and the loop exactly as they were
+    ///     (AC-227). The run executes a call itself and asks again with
+    ///     the answer (F-1 = B); a name no tool has is answered to the
+    ///     model in words (F-4 = B); at most `ToolRounds.cap` rounds per
+    ///     reply.
     public init(model: LocalMindModel,
                 instructions: String? = nil,
-                maxTokens: Int = 1024) {
+                maxTokens: Int = 1024,
+                tools: ToolTable = .empty) {
         self.init(source: MLXTokenSource(model: model,
                                          instructions: instructions,
-                                         maxTokens: maxTokens))
+                                         maxTokens: maxTokens,
+                                         tools: tools))
     }
 }
