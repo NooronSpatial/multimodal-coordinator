@@ -11,12 +11,22 @@ import Synchronization
 ///   recorded but the stream stays open, so `forceToken`/`forceFinished`
 ///   can push a real ghost into a dead turn. Proof duty for the ticket.
 /// - `.failOnOpen` — `openReply` itself throws.
+/// - `.callsTool` — the reply CALLS a tool, inside the run (4w, F-1 = B):
+///   the script says which name, which arguments, what is said before
+///   and after, and what happens when the call fails. The tools come
+///   from the table handed to `init` (F-2 = A); the coordinator's
+///   stream still sees only tokens and one terminal.
 ///
 /// Everything is recorded; tests assert against the record, not hope.
 public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     public enum Plan: Sendable {
         case manual(ignoresCancel: Bool = false)
         case failOnOpen(String)
+        /// A reply that asks for a tool — the SPIKE's scripted mind (4w,
+        /// AC-221). Unlike `.manual` the run drives itself once opened,
+        /// because that is what a real mind does with a call: the test
+        /// controls the TOOL (`ScriptedTool`), not the reply's hands.
+        case callsTool(ToolScript)
         /// SUSPENDS inside `openReply` until `releaseOpen()`, then throws.
         /// It exists for one job: holding the coordinator INSIDE its
         /// `await replyGenerator.openReply(...)` so a test can land
@@ -35,6 +45,9 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         /// test could not tell a flattened seam from a working one.
         public var context: ReplyContext
         public var cancelled = false
+        /// Every tool call this reply made, in order (4w). Empty for a
+        /// reply whose plan never calls one.
+        public var toolCalls: [ToolCallRecord] = []
 
         /// The thought being answered — the shape tests have read since 4a.
         public var transcript: String { context.transcript }
@@ -50,13 +63,21 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         /// True when `releaseOpen()` was called BEFORE anyone waited — the
         /// release must not be lost to a race with the arriving caller.
         var openReleasedEarly = false
+        /// The self-driving `.callsTool` runs, by reply index — held so a
+        /// conformant `cancel()` can stop the wasted work (the
+        /// optimization; the cancelled flag is the guarantee).
+        var toolRuns: [Int: Task<Void, Never>] = [:]
     }
 
     private let plans: [Plan]
+    /// The tools this mind was GIVEN (4w, F-2 = A): at construction, by
+    /// the test that plays the app — never by the coordinator.
+    public let tools: ToolTable
     private let state = Mutex(State())
 
-    public init(plans: [Plan]) {
+    public init(plans: [Plan], tools: ToolTable = .empty) {
         self.plans = plans
+        self.tools = tools
     }
 
     /// `count` conformant manual replies — the everyday generator.
@@ -161,7 +182,97 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
             }
             throw TurnFailure.generationFailed(reason)
         }
+        if case .callsTool(let script) = plan {
+            // THE RUN DRIVES ITSELF (F-1 = B): the call happens in here,
+            // in a task the run owns, exactly where a real mind's decode
+            // loop would make it. Unstructured on purpose — this is test
+            // support, and the coordinator must be able to barge while
+            // the task is parked inside a tool that never returns
+            // (AC-224); a structured child of `openReply` could not
+            // outlive the call that opened it. Stored under the lock so
+            // `cancel()` can find it.
+            let run = Task { await self.runToolScript(script, reply: index) }
+            state.withLock { $0.toolRuns[index] = run }
+        }
         return ScriptedReply(generator: self, index: index, plan: plan, updates: stream)
+    }
+
+    // MARK: - the self-driving tool reply (4w, F-1 = B)
+
+    /// Says `before`, makes the call, says the answer, says `after`,
+    /// finishes — or ends the way `onFailure` scripts. Every push goes
+    /// through the same `!cancelled` guard the test's hands use, unless
+    /// the script is defiant, in which case NOTHING is guarded: the
+    /// ghost is the point.
+    private func runToolScript(_ script: ToolScript, reply index: Int) async {
+        defer { script.whenDone() }
+        let force = script.ignoresCancel
+        for token in script.before {
+            push(.token(token), reply: index, force: force)
+        }
+
+        let call = state.withLock { state -> Int in
+            state.records[index].toolCalls.append(
+                ToolCallRecord(name: script.name, arguments: script.arguments))
+            return state.records[index].toolCalls.count - 1
+        }
+        let outcome = await tools.call(script.name, arguments: script.arguments)
+
+        // THE REENTRANCY LAW (§4.1): the tool took as long as it took, and
+        // a barge may have cancelled this reply in the meantime. A
+        // conformant run re-checks and drops the answer HERE — its stream
+        // is already finished, so a push would go nowhere anyway, but the
+        // record says the drop was a decision, not an accident. A defiant
+        // run pushes regardless: that is what proves the coordinator's
+        // ticket (AC-226).
+        let dropped = state.withLock { state -> Bool in
+            state.records[index].toolCalls[call].outcome = switch outcome {
+            case .success(let answer): .answered(answer)
+            case .failure(let failure): .failed(failure)
+            }
+            let dropped = state.records[index].cancelled && !force
+            state.records[index].toolCalls[call].answerDropped = dropped
+            return dropped
+        }
+        if dropped { return }
+
+        switch outcome {
+        case .success(let answer):
+            push(.token(answer), reply: index, force: force)
+            for token in script.after {
+                push(.token(token), reply: index, force: force)
+            }
+            end(with: .finished(.complete), reply: index, force: force)
+        case .failure(let failure):
+            switch script.onFailure {
+            case .failsReply:
+                end(with: .failed(.engine(failure.description)), reply: index, force: force)
+            case .speaks(let words):
+                for token in words {
+                    push(.token(token), reply: index, force: force)
+                }
+                end(with: .finished(.complete), reply: index, force: force)
+            }
+        }
+    }
+
+    /// One non-terminal update, guarded like `emit` — or forced.
+    private func push(_ update: ReplyUpdate, reply index: Int, force: Bool) {
+        let continuation = state.withLock { state in
+            (force || !state.records[index].cancelled) ? state.continuations[index] : nil
+        }
+        continuation?.yield(update)
+    }
+
+    /// The terminal, guarded like `finish` — or forced. Either way the
+    /// stream ends after it: one terminal, then nothing (the seam's promise).
+    private func end(with update: ReplyUpdate, reply index: Int, force: Bool) {
+        let continuation = state.withLock { state in
+            (force || !state.records[index].cancelled)
+                ? state.continuations.removeValue(forKey: index) : nil
+        }
+        continuation?.yield(update)
+        continuation?.finish()
     }
 
     /// Lets a `blockThenFailOnOpen` reply out of `openReply`, so it throws.
@@ -178,12 +289,17 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     }
 
     fileprivate func cancel(reply index: Int, ignoresCancel: Bool) {
-        let continuation = state.withLock { state -> AsyncStream<ReplyUpdate>.Continuation? in
+        let (continuation, toolRun) = state.withLock { state
+            -> (AsyncStream<ReplyUpdate>.Continuation?, Task<Void, Never>?) in
             state.records[index].cancelled = true
-            if ignoresCancel { return nil }   // defiance: the stream stays open
-            return state.continuations.removeValue(forKey: index)
+            if ignoresCancel { return (nil, nil) }   // defiance: the stream stays open
+            return (state.continuations.removeValue(forKey: index), state.toolRuns[index])
         }
         continuation?.finish()   // conformant: ends without a terminal update
+        // The optimization, after the guarantee: a conformant tool run is
+        // asked to stop wasting work. The flag above is what keeps its
+        // answer out of the stream; this is only a courtesy to the tool.
+        toolRun?.cancel()
     }
 }
 
@@ -194,7 +310,11 @@ private struct ScriptedReply: ReplyRun {
     let updates: AsyncStream<ReplyUpdate>
 
     func cancel() async {
-        let ignores = if case .manual(let flag) = plan { flag } else { false }
+        let ignores = switch plan {
+        case .manual(let flag): flag
+        case .callsTool(let script): script.ignoresCancel
+        case .failOnOpen, .blockThenFailOnOpen: false
+        }
         generator.cancel(reply: index, ignoresCancel: ignores)
     }
 }
