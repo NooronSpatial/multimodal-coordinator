@@ -45,9 +45,18 @@ protocol ReplyTokenStreaming: Sendable {
     /// sees a non-empty list.
     func tokens(for context: ReplyContext,
                 after exchanges: [ToolExchange]) -> AsyncThrowingStream<TokenEvent, any Error>
+    /// Where a run born of this source registers itself (4y, AC-261), so
+    /// a memory warning on the weights behind the source can end it the
+    /// way a barge would — through the run's own latch, no terminal.
+    /// `nil` for a source nothing can pressure; the default below.
+    var liveRuns: LiveRunRegistry? { get }
 }
 
 extension ReplyTokenStreaming {
+    /// A source with no weights to warn about — the scripted ones, unless
+    /// a test hands them a registry to prove the warning's reach.
+    var liveRuns: LiveRunRegistry? { nil }
+
     /// The first round, which every reply has and which is the whole of
     /// a reply that calls nothing.
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
@@ -79,11 +88,39 @@ enum TokenEvent: Sendable, Equatable {
 /// Apple mind implements, and the same five conformance promises.
 public struct MLXReplyGenerator: ReplyGenerating {
     let source: any ReplyTokenStreaming
+    /// The thermometer and the policy asked at the door (4y, AC-260,
+    /// D-107 F-2 = A) — the app's, injected at construction the way tools
+    /// are; the shipped default refuses at `.critical` only.
+    let thermal: any ThermalStateProviding
+    let thermalPolicy: any GenerationThermalPolicy
+    /// The clock a deadline is measured on (4y, AC-264). An existential,
+    /// the scripted mind's shape: `ContinuousClock` in the app, a
+    /// `ManualClock` in the tests that prove the ending.
+    let clock: any Clock<Duration>
+
+    init(source: any ReplyTokenStreaming,
+         thermal: any ThermalStateProviding = SystemThermalProvider(),
+         thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
+         clock: any Clock<Duration> = ContinuousClock()) {
+        self.source = source
+        self.thermal = thermal
+        self.thermalPolicy = thermalPolicy
+        self.clock = clock
+    }
 
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        // HEAT FIRST (AC-260, Aura's R2): the policy is asked with the
+        // thermometer's state at this moment, BEFORE the readiness
+        // verdict — a phone too hot to generate is told so whatever is
+        // installed, and no run exists to have said anything. Typed and
+        // countable; the same question on a cooler phone opens.
+        let heat = thermal.current
+        guard thermalPolicy.allowGeneration(thermal: heat) else {
+            throw ReplyFailure.tooHot(heat)
+        }
         // At the door, every time — never cached.
         if let unavailable = source.unavailable { throw unavailable }
-        return MLXReplyRun(source: source, context: context)
+        return MLXReplyRun(source: source, context: context, clock: clock)
     }
 }
 
@@ -117,61 +154,103 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// the guarantee — the ticket doctrine, and the reason a defiant
     /// source cannot be heard after a cancel.
     private let work = Mutex<Task<Void, Never>?>(nil)
+    /// Where this run is registered while it lives (4y, AC-261), so a
+    /// memory warning can find it. `nil` for a source with no weights.
+    private let registry: LiveRunRegistry?
 
-    init(source: any ReplyTokenStreaming, context: ReplyContext) {
+    init(source: any ReplyTokenStreaming, context: ReplyContext,
+         clock: any Clock<Duration> = ContinuousClock()) {
         var handle: AsyncStream<ReplyUpdate>.Continuation!
         self.updates = AsyncStream { handle = $0 }
         self.out = handle
         self.state = Mutex(Guarded())
+        self.registry = source.liveRuns
+        // REGISTERED BEFORE THE WORKER EXISTS, synchronously: a warning
+        // that lands between this line and the first token finds the run
+        // and ends it; a run born after the warning is the next turn, and
+        // runs clean (F-3 = A's second half).
+        registry?.add(self)
 
         let task = Task { [weak self] in
-            do {
-                // THE ROUNDS (4w, F-1 = B). A reply that calls nothing is
-                // one round, exactly as before 4w. A reply that calls a
-                // tool is a round that ENDS with the call, the call
-                // executed here, and another round asked for with the
-                // answer in the prompt — until a round ends without a
-                // call, or the cap says enough (`ToolRounds`).
-                var exchanges: [ToolExchange] = []
-                var rounds = 0
-                while true {
-                    // Re-acquired every round, never held across one: a
+            // THE RACE (4y, AC-264, D-107 F-4 = A): the rounds against the
+            // clock, as a task group so the loser is CANCELLED by
+            // structure — a sleeper the reply outran is never left on a
+            // `ManualClock`, and a generation the deadline outran is cut
+            // by the same cancellation a barge uses, which is what frees
+            // its prefill (`MLXTokenSource.stream`). No deadline, no
+            // second child: the voice path's setting (AC-265) adds
+            // nothing to what ran before 4y.
+            await withTaskGroup(of: Bool.self) { group in
+                group.addTask { [weak self] in
+                    // Re-acquired at the start, never held by the group: a
                     // run its owner dropped ends here, as it always has.
-                    guard let self else { return }
-                    guard let round = try await self.consume(
-                        source.tokens(for: context, after: exchanges)) else { return }
-                    // No call: the round was the reply. This is the ONLY
-                    // `.finished` path, so a tool round's own `.stopped` —
-                    // the model ending its turn to ask — is never spoken
-                    // as the reply's end.
-                    guard !round.calls.isEmpty else {
-                        self.report(.finished(round.stop))
-                        return
-                    }
-                    // THE CAP: a model that asks again after `cap` answered
-                    // rounds is refused, typed, rather than spun.
-                    guard rounds < ToolRounds.cap else {
-                        self.report(.failed(ToolRounds.exceeded))
-                        return
-                    }
-                    rounds += 1
-                    guard let answered = await self.execute(round.calls, with: source.tools) else { return }
-                    exchanges += answered
+                    await self?.rounds(source: source, context: context)
+                    return false
                 }
-            } catch let failure as ReplyFailure {
-                // AC-236: a TYPED failure the source threw on purpose —
-                // `.contextWindowExceeded`, refused before generation —
-                // keeps its case. Wrapping it in `.engine(…)` would turn
-                // a countable case back into prose.
-                self?.report(.failed(failure))
-            } catch {
-                // The honest catch-all: anything the vendor throws is
-                // `.engine(String)` — the words for a screen, the case for
-                // a switch (F-3 = A).
-                self?.report(.failed(.engine("local generation failed: \(error)")))
+                if let deadline = context.options.deadline {
+                    group.addTask {
+                        do { try await clock.sleep(for: deadline) } catch { return false }
+                        return true
+                    }
+                }
+                let deadlineFirst = await group.next() ?? false
+                // ORDER MATTERS: the ending is reported BEFORE the rounds
+                // are cancelled, so the rounds' own `.finished(.unreported)`
+                // — a cancelled vendor says nothing — arrives second and
+                // the latch drops it. The reverse order would speak the
+                // wrong reason. A reply that ended on its own in the gap
+                // wins instead, and that is also true.
+                if deadlineFirst { self?.report(.finished(.deadline)) }
+                group.cancelAll()
             }
         }
         work.withLock { $0 = task }
+    }
+
+    /// THE ROUNDS (4w, F-1 = B). A reply that calls nothing is one round,
+    /// exactly as before 4w. A reply that calls a tool is a round that
+    /// ENDS with the call, the call executed here, and another round
+    /// asked for with the answer in the prompt — until a round ends
+    /// without a call, or the cap says enough (`ToolRounds`). Every
+    /// terminal it speaks goes through `report`, so the deadline's ending
+    /// (the race above) and this one can never both be heard.
+    private func rounds(source: any ReplyTokenStreaming, context: ReplyContext) async {
+        do {
+            var exchanges: [ToolExchange] = []
+            var rounds = 0
+            while true {
+                guard let round = try await consume(
+                    source.tokens(for: context, after: exchanges)) else { return }
+                // No call: the round was the reply. This is the ONLY
+                // `.finished` path, so a tool round's own `.stopped` —
+                // the model ending its turn to ask — is never spoken
+                // as the reply's end.
+                guard !round.calls.isEmpty else {
+                    report(.finished(round.stop))
+                    return
+                }
+                // THE CAP: a model that asks again after `cap` answered
+                // rounds is refused, typed, rather than spun.
+                guard rounds < ToolRounds.cap else {
+                    report(.failed(ToolRounds.exceeded))
+                    return
+                }
+                rounds += 1
+                guard let answered = await execute(round.calls, with: source.tools) else { return }
+                exchanges += answered
+            }
+        } catch let failure as ReplyFailure {
+            // AC-236: a TYPED failure the source threw on purpose —
+            // `.contextWindowExceeded`, refused before generation —
+            // keeps its case. Wrapping it in `.engine(…)` would turn
+            // a countable case back into prose.
+            report(.failed(failure))
+        } catch {
+            // The honest catch-all: anything the vendor throws is
+            // `.engine(String)` — the words for a screen, the case for
+            // a switch (F-3 = A).
+            report(.failed(.engine("local generation failed: \(error)")))
+        }
     }
 
     /// What one round of the source said: why it stopped, and the calls
@@ -294,6 +373,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
             return !was
         }
         guard first else { return }
+        registry?.remove(self)
         out.yield(terminal)
         out.finish()
     }
@@ -310,6 +390,16 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// The flag is raised in the SAME locked step that decides "was I
     /// first", so a token in flight sees it before its next yield.
     func cancel() async {
+        abandon()
+    }
+
+    /// `cancel()`'s body, SYNCHRONOUS — the hand a memory warning pulls
+    /// (4y, AC-261, F-3 = A). The model's pressure step calls this on
+    /// every live run without suspending, so the whole of "every
+    /// generation is dead" is one actor step and not a sequence of hops a
+    /// new token could slip between. Nothing in here ever awaited; the
+    /// async spelling above is the protocol's, kept for its callers.
+    func abandon() {
         let first = state.withLock { guarded -> Bool in
             let was = guarded.retired
             guarded.retired = true
@@ -317,6 +407,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
         }
         work.withLock { $0 }?.cancel()
         guard first else { return }
+        registry?.remove(self)
         out.finish()
     }
 }

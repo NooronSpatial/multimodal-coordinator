@@ -84,11 +84,65 @@ public actor LocalMindModel: ModelBacked {
     /// and the test that pins its two branches, hold the same one lock.
     nonisolated let resident = Mutex(false)
 
+    // MARK: 4y — admission and pressure (SPEC §187/1, §187/3; D-107)
+
+    /// The gate `admit(needing:)` goes through (AC-258, AC-259): one
+    /// admission at a time, the check and the load's beginning in one
+    /// step. It holds the injected headroom reading; the model hands it
+    /// the real load. See `LocalMind+Admission.swift`.
+    let admission: MindAdmission
+    /// The runs alive on these weights, so a memory warning can end them
+    /// all through their own latches (AC-261). Nonisolated: a run
+    /// registers itself synchronously at birth, from the generator's
+    /// door, and asking an actor for permission to be born would put a
+    /// hop in front of every reply.
+    nonisolated let liveRuns = LiveRunRegistry()
+    /// The pressure subscription, alive as long as this model is. Boxed
+    /// and nonisolated because it is made INSIDE `init` with a handler
+    /// that captures `self` weakly — after which an actor's init may no
+    /// longer touch its isolated state — and released in `deinit`.
+    ///
+    /// FOR THE MODEL'S WHOLE LIFE, not from load to retire, and the reason
+    /// is R4: a retire is not the end of this model — the next `openReply`
+    /// reloads (AC-262) — so a subscription tied to residency would have
+    /// to be re-made on every reload and would miss a `.critical` that
+    /// arrives between. A level that finds nothing resident and no run
+    /// live costs one actor hop and does nothing.
+    private nonisolated let pressureWatch = Mutex<MemoryPressureSubscription?>(nil)
+    /// Generations in flight on these weights, and who is waiting for
+    /// zero — the fact a live memory test gates on (`waitForIdle()`).
+    var generationsInFlight = 0
+    var idleWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Every level the ACTOR has finished acting on, in order — the event
+    /// a test waits for instead of polling `isResident` (AC-262). The
+    /// stream is unbounded so a level is never dropped for want of a
+    /// listener, and it is nonisolated because the handler is.
+    nonisolated let pressureHandled: AsyncStream<MemoryPressureMonitor.Level>.Continuation
+    nonisolated let pressureLevels: AsyncStream<MemoryPressureMonitor.Level>
+    /// How many times `retire()` ran — a test's question (AC-262): on a
+    /// machine with nothing loaded `isResident` is false before AND after
+    /// a `.critical`, and only the count says the weights were let go.
+    var retirements = 0
+
     /// Weights already on disk. Nothing is ever downloaded.
-    public init(weights: URL, cacheLimitBytes: Int = 20 * 1024 * 1024) {
+    ///
+    /// - Parameters:
+    ///   - headroom: how the mind reads the phone's headroom at admission
+    ///     (4y, AC-258/259). The default is the one live reader —
+    ///     bytes REMAINING, `nil` on a Mac (D-092). A test scripts it.
+    ///   - pressure: where memory-pressure levels come from (4y,
+    ///     AC-261..263). The default is the kernel's dispatch source. A
+    ///     test pushes levels by hand.
+    public init(weights: URL, cacheLimitBytes: Int = 20 * 1024 * 1024,
+                headroom: @escaping HeadroomReading = MemoryHeadroomReader.read,
+                pressure: any MemoryPressureSourcing = SystemMemoryPressureSource()) {
         self.weights = weights
         self.repoID = nil
         self.cacheLimitBytes = cacheLimitBytes
+        self.admission = MindAdmission(headroom: headroom)
+        (pressureLevels, pressureHandled) = AsyncStream.makeStream(
+            of: MemoryPressureMonitor.Level.self, bufferingPolicy: .unbounded)
+        watchPressure(pressure)
     }
 
     /// Weights this model may fetch if they are missing — Whisper's
@@ -97,11 +151,46 @@ public actor LocalMindModel: ModelBacked {
     /// The default directory is the app's Documents, which is where a
     /// person can also drop the folder by hand over USB.
     public init(repoID: String, in directory: URL = URL.documentsDirectory,
-                cacheLimitBytes: Int = 20 * 1024 * 1024) {
+                cacheLimitBytes: Int = 20 * 1024 * 1024,
+                headroom: @escaping HeadroomReading = MemoryHeadroomReader.read,
+                pressure: any MemoryPressureSourcing = SystemMemoryPressureSource()) {
         self.repoID = repoID
         self.cacheLimitBytes = cacheLimitBytes
         self.weights = directory.appending(
             path: repoID.split(separator: "/").last.map(String.init) ?? repoID)
+        self.admission = MindAdmission(headroom: headroom)
+        (pressureLevels, pressureHandled) = AsyncStream.makeStream(
+            of: MemoryPressureMonitor.Level.self, bufferingPolicy: .unbounded)
+        watchPressure(pressure)
+    }
+
+    /// Subscribes to pressure for this model's life, with THE HANDLER THAT
+    /// DOES NO WORK (AC-263, Aura's R3). Called from `init` once every
+    /// stored property is set, so `self` may be captured — weakly, so the
+    /// source's own retention of the handler cannot keep a model alive.
+    ///
+    /// THE ONE UNSTRUCTURED TASK THIS MILESTONE ALLOWS, and why: the
+    /// source calls the handler on a dispatch queue, synchronously, while
+    /// the kernel is already short of memory. The handler's whole job is
+    /// to get OFF that queue and onto the actor, where the work is one
+    /// step of `pressure(_:)`. There is no structured parent to attach to
+    /// — the handler is a callback, not a task — so the hop is a `Task`,
+    /// and it is the only thing in the closure: no await of its own, no
+    /// MLX call, no allocation beyond the hop itself. `MLXPressureTests`
+    /// reads this function's source and fails if anything else appears
+    /// between the two markers.
+    private nonisolated func watchPressure(_ source: any MemoryPressureSourcing) {
+        // pressure-handler: begin
+        let subscription = source.subscribe { [weak self] level in
+            Task { await self?.pressure(level) }
+        }
+        // pressure-handler: end
+        pressureWatch.withLock { $0 = subscription }
+    }
+
+    deinit {
+        pressureWatch.withLock { $0 }?.cancel()
+        pressureHandled.finish()
     }
 
     /// Honest disk check — no load is ever triggered by asking.
@@ -211,6 +300,7 @@ public actor LocalMindModel: ModelBacked {
     /// retired 2.2 GB is released rather than living beside its
     /// replacement — which on a phone is the whole point (INSTRUMENTS §27).
     public func retire() async {
+        retirements += 1
         warmTask?.cancel()
         warmTask = nil
         // The holder raises its generation ticket, so a load already in
@@ -289,6 +379,10 @@ struct MLXTokenSource: ReplyTokenStreaming {
         model.readiness().map { .unavailable($0) }
     }
 
+    /// The model's registry (4y, AC-261): a run born of this source is
+    /// one a memory warning on these weights must be able to end.
+    var liveRuns: LiveRunRegistry? { model.liveRuns }
+
     /// The chat, in the vendor's roles. Synchronous and called INSIDE the
     /// container's `perform`, because `Chat.Message` is not Sendable.
     ///
@@ -321,74 +415,92 @@ struct MLXTokenSource: ReplyTokenStreaming {
                 after exchanges: [ToolExchange]) -> AsyncThrowingStream<TokenEvent, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
-                do {
-                    let container = try await model.ensureModelLoaded()
-                    let gateTokens = try await model.thinkTokens()
-                    let window = try await model.contextWindow()
-                    // THE CALLER'S LEVERS, resolved once (AC-232..234):
-                    // per-call instructions and budget over this source's
-                    // own, sampling over the vendor's.
-                    let settings = MLXGenerationSettings(
-                        options: context.options, instructions: instructions, maxTokens: maxTokens)
-                    // Built INSIDE the closure: `Chat.Message` is not
-                    // Sendable, so only the strings cross the boundary.
-                    let asked = context.transcript
-                    let past = context.history
-                    // `nil` when no tool was given (AC-227): the template
-                    // branches on it, and a generator with no tools must
-                    // render exactly the prompt it rendered before 4w.
-                    let specs = tools.toolSpecs
-                    let tooled = !tools.isEmpty
-                    try await container.perform { (model: ModelContext) in
-                        let messages = Self.messages(
-                            spoken: settings.instructions, asked: asked, past: past, exchanges: exchanges)
-                        let input = try await model.processor.prepare(
-                            input: UserInput(
-                                chat: messages,
-                                tools: specs,
-                                // LAYER 1 (§86): ask the model not to think
-                                // at all. The template pre-fills a closed
-                                // block. A convention, not a constraint —
-                                // which is why the gate below still exists.
-                                additionalContext: ["enable_thinking": false]))
-
-                        // AC-236: COUNTED BEFORE GENERATION. The vendor
-                        // does not throw for a prompt past the window — it
-                        // generates noise — so the prepared prompt is
-                        // measured here and refused as the typed case.
-                        if let refusal = PromptFit.refusal(
-                            promptTokens: input.text.tokens.size, window: window) {
-                            throw refusal
-                        }
-
-                        // THE CALL PARSER (4w, AC-222), built ONLY when a
-                        // tool was given — so the plain path runs the loop
-                        // it ran before (AC-227). `generateTokens` has no
-                        // `.toolCall` event (the note in `MLXTools.swift`);
-                        // this sieve is the vendor's own parser over our
-                        // gated pieces, in the format the vendor inferred
-                        // for these weights.
-                        let sieve = tooled ? ToolCallSieve(
-                            format: model.configuration.toolCallFormat ?? .json, specs: specs) : nil
-                        try await Self.stream(
-                            input: input, settings: settings, model: model,
-                            filters: TokenFilters(
-                                gate: gateTokens.map { ThinkGate($0) },
-                                detokenizer: NaiveStreamingDetokenizer(tokenizer: model.tokenizer),
-                                sieve: sieve),
-                            into: continuation)
-                    }
-                    // No `.stopped` here: the reason came from the `.info`
-                    // event above, or it did not come at all — and a stream
-                    // that ends without one is `.finished(.unreported)` one
-                    // seam up, which is the honest word for a vendor that
-                    // did not say.
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
-                }
+                // COUNTED, first to last (4y): the model knows a generation
+                // is in flight from before the load door until after the
+                // vendor's iterator is gone, so `waitForIdle()` is the
+                // honest "after" of a memory measurement. Structured: the
+                // count is lowered by THIS task, after the round, never by
+                // a task spawned to do it.
+                await model.generationBegan()
+                await generate(for: context, after: exchanges, into: continuation)
+                await model.generationEnded()
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// One round, start to finish: the load door, the prompt, the vendor's
+    /// loop, and the stream's end — the body `tokens(for:after:)`'s task
+    /// ran inline until 4y counted it.
+    private func generate(
+        for context: ReplyContext, after exchanges: [ToolExchange],
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
+    ) async {
+        do {
+            let container = try await model.ensureModelLoaded()
+            let gateTokens = try await model.thinkTokens()
+            let window = try await model.contextWindow()
+            // THE CALLER'S LEVERS, resolved once (AC-232..234):
+            // per-call instructions and budget over this source's
+            // own, sampling over the vendor's.
+            let settings = MLXGenerationSettings(
+                options: context.options, instructions: instructions, maxTokens: maxTokens)
+            // Built INSIDE the closure: `Chat.Message` is not
+            // Sendable, so only the strings cross the boundary.
+            let asked = context.transcript
+            let past = context.history
+            // `nil` when no tool was given (AC-227): the template
+            // branches on it, and a generator with no tools must
+            // render exactly the prompt it rendered before 4w.
+            let specs = tools.toolSpecs
+            let tooled = !tools.isEmpty
+            try await container.perform { (model: ModelContext) in
+                let messages = Self.messages(
+                    spoken: settings.instructions, asked: asked, past: past, exchanges: exchanges)
+                let input = try await model.processor.prepare(
+                    input: UserInput(
+                        chat: messages,
+                        tools: specs,
+                        // LAYER 1 (§86): ask the model not to think
+                        // at all. The template pre-fills a closed
+                        // block. A convention, not a constraint —
+                        // which is why the gate below still exists.
+                        additionalContext: ["enable_thinking": false]))
+
+                // AC-236: COUNTED BEFORE GENERATION. The vendor
+                // does not throw for a prompt past the window — it
+                // generates noise — so the prepared prompt is
+                // measured here and refused as the typed case.
+                if let refusal = PromptFit.refusal(
+                    promptTokens: input.text.tokens.size, window: window) {
+                    throw refusal
+                }
+
+                // THE CALL PARSER (4w, AC-222), built ONLY when a
+                // tool was given — so the plain path runs the loop
+                // it ran before (AC-227). `generateTokens` has no
+                // `.toolCall` event (the note in `MLXTools.swift`);
+                // this sieve is the vendor's own parser over our
+                // gated pieces, in the format the vendor inferred
+                // for these weights.
+                let sieve = tooled ? ToolCallSieve(
+                    format: model.configuration.toolCallFormat ?? .json, specs: specs) : nil
+                try await Self.stream(
+                    input: input, settings: settings, model: model,
+                    filters: TokenFilters(
+                        gate: gateTokens.map { ThinkGate($0) },
+                        detokenizer: NaiveStreamingDetokenizer(tokenizer: model.tokenizer),
+                        sieve: sieve),
+                    into: continuation)
+            }
+            // No `.stopped` here: the reason came from the `.info`
+            // event above, or it did not come at all — and a stream
+            // that ends without one is `.finished(.unreported)` one
+            // seam up, which is the honest word for a vendor that
+            // did not say.
+            continuation.finish()
+        } catch {
+            continuation.finish(throwing: error)
         }
     }
 
@@ -401,11 +513,21 @@ struct MLXTokenSource: ReplyTokenStreaming {
         into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) async throws {
         var filters = initialFilters
-        for await event in try generateTokens(
+        // THE TASK VARIANT (4y, AC-261, AC-264), and the reason: the
+        // vendor's loop runs in its own task, and "if the stream is
+        // terminated early ... computation will continue ... for some
+        // time" (its doc). The `TokenIterator` that owns the KV cache —
+        // the prefill's product — lives in that task. Before 4y this
+        // source used `generateTokens`, which DROPS the task, so a cut
+        // generation's memory was freed at a moment nobody could name.
+        // Now the task is awaited below, and the free is a fact.
+        let (events, vendor) = try generateTokensTask(
             input: input,
             parameters: GenerateParameters(settings),
-            context: model) {
-            if Task.isCancelled { break }
+            context: model)
+        var cut = false
+        for await event in events {
+            if Task.isCancelled { cut = true; break }
             switch event {
             case .token(let id):
                 for event in filters.admit(id) { continuation.yield(event) }
@@ -426,6 +548,17 @@ struct MLXTokenSource: ReplyTokenStreaming {
                 }
             }
         }
+        // WHAT FREES THE PREFILL (AC-261, AC-264). Leaving the loop above
+        // ends the stream, and the stream's termination cancels the
+        // vendor's task; its loop breaks at its next token. Awaiting it
+        // here is what makes "the KV cache is gone" true when this
+        // function returns — the iterator that owns it is a local of that
+        // task. A generation that was CUT (a barge, a warning, the
+        // deadline) then empties the vendor's buffer pool as well
+        // (`freePrefill`'s note has the allocator's rule); one that ended
+        // on its own keeps the pool, because the next reply reuses it.
+        await vendor.value
+        if cut || Task.isCancelled { MLX.Memory.clearCache() }
     }
 }
 
@@ -509,13 +642,28 @@ extension MLXReplyGenerator {
     ///     the answer (F-1 = B); a name no tool has is answered to the
     ///     model in words (F-4 = B); at most `ToolRounds.cap` rounds per
     ///     reply.
+    ///   - thermal: the thermometer (4y, AC-260). The system's by default;
+    ///     a test scripts one.
+    ///   - thermalPolicy: whether a reply may be generated at that heat
+    ///     (D-107 F-2 = A): the shipped default refuses at `.critical`
+    ///     only, because the measured phone lived at `.serious`. The
+    ///     app's policy replaces it here — the coordinator never sees it
+    ///     (AC-265).
+    ///   - clock: what a `GenerationOptions.deadline` is measured on
+    ///     (AC-264). Wall time by default; a `ManualClock` in the tests.
     public init(model: LocalMindModel,
                 instructions: String? = nil,
                 maxTokens: Int = 1024,
-                tools: ToolTable = .empty) {
+                tools: ToolTable = .empty,
+                thermal: any ThermalStateProviding = SystemThermalProvider(),
+                thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
+                clock: any Clock<Duration> = ContinuousClock()) {
         self.init(source: MLXTokenSource(model: model,
                                          instructions: instructions,
                                          maxTokens: maxTokens,
-                                         tools: tools))
+                                         tools: tools),
+                  thermal: thermal,
+                  thermalPolicy: thermalPolicy,
+                  clock: clock)
     }
 }
