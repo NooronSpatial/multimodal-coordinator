@@ -148,6 +148,15 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
 
     private struct Guarded {
         var retired = false
+        /// The clock fired first (4y, AC-264, D-107 F-4 = A). Raised by
+        /// the race's sleeper under this lock; READ by the rounds task,
+        /// which is the stream's ONE WRITER: it admits no token after the
+        /// flag, and speaks `.finished(.deadline)` as its own terminal.
+        /// The first cut reported the deadline from the race's parent
+        /// task, concurrently with the token loop — and a token whose
+        /// latch check had already passed landed AFTER the terminal (the
+        /// review's hammer, now `MLXDeadlineTests`' four-hundred row).
+        var deadline = false
     }
     private let state: Mutex<Guarded>
     /// The owned worker. Cancelling it is the OPTIMISATION; `retired` is
@@ -180,31 +189,55 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
             // its prefill (`MLXTokenSource.stream`). No deadline, no
             // second child: the voice path's setting (AC-265) adds
             // nothing to what ran before 4y.
-            await withTaskGroup(of: Bool.self) { group in
+            await withTaskGroup(of: Void.self) { group in
                 group.addTask { [weak self] in
                     // Re-acquired at the start, never held by the group: a
                     // run its owner dropped ends here, as it always has.
                     await self?.rounds(source: source, context: context)
-                    return false
                 }
                 if let deadline = context.options.deadline {
-                    group.addTask {
-                        do { try await clock.sleep(for: deadline) } catch { return false }
-                        return true
+                    group.addTask { [weak self] in
+                        guard (try? await clock.sleep(for: deadline)) != nil else { return }
+                        // The clock's word is RAISED here, under the lock,
+                        // and SPOKEN by the rounds task — never by this
+                        // one. ONE WRITER: the terminal is yielded by the
+                        // same task that yields the tokens, after its own
+                        // loop has ended, so nothing can land after it.
+                        // ORDER MATTERS still: the ending is decided
+                        // BEFORE the rounds are cancelled, so the rounds'
+                        // own `.finished(.unreported)` — a cancelled
+                        // vendor says nothing — is spoken as the deadline.
+                        // A reply that ended on its own in the gap has
+                        // already latched, and that is also true.
+                        self?.deadlineFired()
                     }
                 }
-                let deadlineFirst = await group.next() ?? false
-                // ORDER MATTERS: the ending is reported BEFORE the rounds
-                // are cancelled, so the rounds' own `.finished(.unreported)`
-                // — a cancelled vendor says nothing — arrives second and
-                // the latch drops it. The reverse order would speak the
-                // wrong reason. A reply that ended on its own in the gap
-                // wins instead, and that is also true.
-                if deadlineFirst { self?.report(.finished(.deadline)) }
+                await group.next()
                 group.cancelAll()
             }
         }
         work.withLock { $0 = task }
+        // THE REENTRANCY LAW's synchronous cousin (the review of this
+        // piece): a warning that landed between the registration above
+        // and this store raised `retired` and found NO worker to cancel.
+        // The latch is re-read after the store so that cancel is not
+        // lost — without it the generation would begin (load, prefill)
+        // and be cut only when its first token met the latch, on the
+        // phone that is already short of memory.
+        if state.withLock({ $0.retired }) { task.cancel() }
+    }
+
+    /// The race's sleeper won (AC-264): raise the flag the rounds task
+    /// reads. Nothing is yielded here — see `Guarded.deadline`.
+    private func deadlineFired() {
+        state.withLock { $0.deadline = true }
+    }
+
+    /// The run is DEAD TO NEW WORK: retired by a cancel or a memory
+    /// warning, or past its deadline. A round drains and admits nothing
+    /// more; an arm starts no tool and feeds nothing back.
+    private var dead: Bool {
+        state.withLock { $0.retired || $0.deadline }
     }
 
     /// THE ROUNDS (4w, F-1 = B). A reply that calls nothing is one round,
@@ -214,7 +247,16 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// without a call, or the cap says enough (`ToolRounds`). Every
     /// terminal it speaks goes through `report`, so the deadline's ending
     /// (the race above) and this one can never both be heard.
+    ///
+    /// ONE WRITER (4y, the review): this task, and only this task, yields
+    /// to `out` — tokens and terminal both. The deadline's ending is a
+    /// flag the race raises, and it is spoken HERE: by `report`, which
+    /// substitutes `.finished(.deadline)` for whatever a cancelled round
+    /// would have said, and on the mid-round exits below, which are
+    /// silent for a barge and speak the clock's word when it was the
+    /// clock that ended them.
     private func rounds(source: any ReplyTokenStreaming, context: ReplyContext) async {
+        defer { endedByTheClock() }
         do {
             var exchanges: [ToolExchange] = []
             var rounds = 0
@@ -288,7 +330,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                 // ends its turn to ask, and the vendor's `.info`
                 // still follows. A dead run remembers nothing.
                 if case .toolCall(let request) = event {
-                    if state.withLock({ $0.retired }) { return nil }
+                    if dead { return nil }
                     round.calls.append(request)
                     continue
                 }
@@ -304,11 +346,13 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                 // An empty token is not silence to report — the
                 // detokenizer yields "" while a multi-token
                 // character is still incomplete.
-                guard !guarded.retired, !token.isEmpty else { return nil }
+                // Past the deadline nothing more is admitted either
+                // (AC-264): "what was said so far" is literal.
+                guard !guarded.retired, !guarded.deadline, !token.isEmpty else { return nil }
                 return token
             }
             guard let admitted else {
-                if state.withLock({ $0.retired }) { return nil }
+                if dead { return nil }
                 continue
             }
             out.yield(.token(admitted))
@@ -339,9 +383,10 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
         for request in calls {
             // Before AND after: a run retired between the round's last
             // event and this arm must not start a tool it can never use.
-            guard !state.withLock({ $0.retired }) else { return nil }
+            // A run past its deadline neither (4y): the clock ended it.
+            guard !dead else { return nil }
             let outcome = await tools.call(request.name, arguments: request.arguments)
-            guard !state.withLock({ $0.retired }) else { return nil }
+            guard !dead else { return nil }
             let answer = switch outcome {
             case .success(let words): words
             case .failure(let failure): failure.description
@@ -366,16 +411,32 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// exactly this latch forced onto it by 4e's review after a failed
     /// decode kept running and aborted the process — the structure that
     /// masks it here is not guaranteed to survive the next change.
+    ///
+    /// THE CLOCK'S WORD WINS (4y, AC-264, F-4 = A): when the deadline
+    /// flag is up, whatever the round wanted to say is spoken as
+    /// `.finished(.deadline)` — a cancelled vendor's `.unreported`, or the
+    /// error its cut throws, is the cancellation's artefact, not the
+    /// reply's ending. Decided and latched in ONE locked step, so the
+    /// race's sleeper and this task cannot both speak.
     private func report(_ terminal: ReplyUpdate) {
-        let first = state.withLock { guarded -> Bool in
-            let was = guarded.retired
+        let spoken: ReplyUpdate? = state.withLock { guarded in
+            guard !guarded.retired else { return nil }
             guarded.retired = true
-            return !was
+            return guarded.deadline ? .finished(.deadline) : terminal
         }
-        guard first else { return }
+        guard let spoken else { return }
         registry?.remove(self)
-        out.yield(terminal)
+        out.yield(spoken)
         out.finish()
+    }
+
+    /// The rounds' last word, on EVERY exit: nothing unless the clock
+    /// fired — a barge's silence stays silence (`report` is a no-op once
+    /// retired) — and `.finished(.deadline)` when it did, including on
+    /// the mid-round exits (a round drained dead, an arm refused), which
+    /// speak no terminal of their own.
+    private func endedByTheClock() {
+        if state.withLock({ $0.deadline }) { report(.finished(.deadline)) }
     }
 
     /// Waits for the worker to END — the fact a test needs before it can

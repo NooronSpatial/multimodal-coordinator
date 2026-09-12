@@ -16,6 +16,18 @@ import Testing
 /// cannot be asked for, and a test that waited for a real one would wait
 /// for the Mac to run out of memory. What is real is everything the
 /// level then reaches — the vendor's task, its KV cache, the allocator.
+///
+/// THE NUMBERS ARE PROCESS-GLOBAL. `activeMemory` counts every model
+/// this process holds, and the other live suites load and retire their
+/// own beside this one when the whole suite runs with `MMK_MLX_MODEL`
+/// set: measured once in twenty full runs, another suite's 0.6B landed
+/// between a row's `before` and `after` (639.7 → 959.6 MB — one model,
+/// to the megabyte) and the release claim went red for a reason that
+/// was not a leak. Alone (`--filter MLXAdmissionLiveTests`, the way
+/// INSTRUMENTS §68 was measured) the rows read `after == before` to
+/// 0.1 MB, twenty of twenty. CI never sets the variable. Whether the
+/// live suites should be serialised against each other is an open
+/// question, not one this file answers.
 @Suite("4y · admission, pressure and the deadline against the real model, when this machine has it",
        .timeLimit(.minutes(5)), .serialized)
 struct MLXAdmissionLiveTests {
@@ -44,6 +56,17 @@ struct MLXAdmissionLiveTests {
     private static func megabytes(_ bytes: Int) -> String {
         String(format: "%.1f MB", Double(bytes) / 1_048_576)
     }
+
+    /// THE CLAIM IS ABOUT `before` (the review of this piece): "the
+    /// prefill's memory is released" means the active memory after the
+    /// cut is back where it was before the generation — the weights and
+    /// nothing else. `after < peak` cannot fail when the release is
+    /// removed: the review's mutation left the KV cache resident and the
+    /// row still passed (after 347.9 MB, before 342.9 MB, peak 416.9 MB),
+    /// because the temporaries free regardless. Green runs measure
+    /// `after == before` to 0.1 MB; one megabyte is the slack for the
+    /// allocator's own small buffers, not for a cache.
+    private static let releaseSlack = 1_048_576
 
     /// LOADING IS NOT WARMING (INSTRUMENTS §25): the first generation pays
     /// ~1.9 s of Metal pipeline warm-up. A 200 ms deadline against a cold
@@ -120,7 +143,9 @@ struct MLXAdmissionLiveTests {
               + " · active after \(Self.megabytes(after)) · cache after \(Self.megabytes(cache))")
         #expect(updates.last == ReplyUpdate.finished(.deadline), "\(updates.suffix(2))")
         #expect(!text.isEmpty, "a warm 0.6B says something inside 200 ms")
-        #expect(after < peak, "the KV cache the prefill built is gone once the vendor's task is")
+        #expect(after <= before + Self.releaseSlack,
+                "the KV cache is gone once the vendor's task is: \(Self.megabytes(after)) vs \(Self.megabytes(before))")
+        #expect(after < peak, "the sanity read: the generation did reach above its floor")
         // Not `== 0`: the first run of this row measured 232 BYTES in the
         // pool after the clear — one small buffer the vendor's final
         // `synchronize()` released after our `clearCache()` ran. The
@@ -163,7 +188,9 @@ struct MLXAdmissionLiveTests {
               + " · after \(Self.megabytes(after)) · cache after \(Self.megabytes(MLXRuntime.cacheMemoryBytes))")
         #expect(ReplyConformanceKit.terminals(in: updates).isEmpty, "no terminal — like a barge: \(updates.suffix(1))")
         #expect(updates.count >= 3, "the tokens already spoken are kept")
-        #expect(after < peak, "the prefill's memory is released")
+        #expect(after <= before + Self.releaseSlack,
+                "the prefill's memory is released: \(Self.megabytes(after)) vs \(Self.megabytes(before)) before")
+        #expect(after < peak, "the sanity read: the generation did reach above its floor")
         #expect(await model.isResident, "a warning keeps the weights")
         #expect(await model.retirements == 0)
         await model.retire()

@@ -169,16 +169,27 @@ public actor LocalMindModel: ModelBacked {
     /// stored property is set, so `self` may be captured — weakly, so the
     /// source's own retention of the handler cannot keep a model alive.
     ///
-    /// THE ONE UNSTRUCTURED TASK THIS MILESTONE ALLOWS, and why: the
-    /// source calls the handler on a dispatch queue, synchronously, while
-    /// the kernel is already short of memory. The handler's whole job is
-    /// to get OFF that queue and onto the actor, where the work is one
-    /// step of `pressure(_:)`. There is no structured parent to attach to
-    /// — the handler is a callback, not a task — so the hop is a `Task`,
-    /// and it is the only thing in the closure: no await of its own, no
-    /// MLX call, no allocation beyond the hop itself. `MLXPressureTests`
-    /// reads this function's source and fails if anything else appears
-    /// between the two markers.
+    /// AN UNSTRUCTURED HOP, the shape `prewarm()` already has, and why:
+    /// the source calls the handler on a dispatch queue, synchronously,
+    /// while the kernel is already short of memory. The handler's whole
+    /// job is to get OFF that queue and onto the actor, where the work is
+    /// one step of `pressure(_:)`. There is no structured parent to
+    /// attach to — the handler is a callback, not a task — so the hop is
+    /// a `Task`, and it is the only thing in the closure: no await of its
+    /// own, no MLX call, no allocation beyond the hop itself.
+    /// `MLXPressureTests` reads this function's source and fails if
+    /// anything else appears between the two markers.
+    ///
+    /// WHAT THIS MEANS, stated rather than dressed up: the runs' tickets
+    /// are raised one scheduler hop later, on the actor's step — not in
+    /// the handler itself. Between the kernel's callback and that step
+    /// the vendor may produce a token and a listener may hear it. The
+    /// alternative — raising every run's latch synchronously in the
+    /// handler, which `LiveRunRegistry.abandonAll()` could do without
+    /// suspending — would finish streams, and run their termination
+    /// handlers, on the kernel's queue while it is short of memory. AC-263
+    /// as written ("returns within one actor hop") is the shipped shape;
+    /// the other is a fork, not a fix.
     private nonisolated func watchPressure(_ source: any MemoryPressureSourcing) {
         // pressure-handler: begin
         let subscription = source.subscribe { [weak self] level in
@@ -525,9 +536,14 @@ struct MLXTokenSource: ReplyTokenStreaming {
             input: input,
             parameters: GenerateParameters(settings),
             context: model)
-        var cut = false
-        for await event in events {
-            if Task.isCancelled { cut = true; break }
+        // THE DRAIN is `VendorLoop.drain`'s (the review of this piece):
+        // the loop, the cut, the vendor's cancel and the await that makes
+        // "the KV cache is gone" a fact live there, where a scripted
+        // producer can prove them. The first cut relied on the stream's
+        // termination to cancel the vendor — true when the cancel lands
+        // in `next()`, FALSE when it lands in the body and the loop leaves
+        // by `break`: the vendor then ran to `maxTokens`.
+        let cut = await VendorLoop.drain(events, vendor: vendor) { event in
             switch event {
             case .token(let id):
                 for event in filters.admit(id) { continuation.yield(event) }
@@ -548,17 +564,14 @@ struct MLXTokenSource: ReplyTokenStreaming {
                 }
             }
         }
-        // WHAT FREES THE PREFILL (AC-261, AC-264). Leaving the loop above
-        // ends the stream, and the stream's termination cancels the
-        // vendor's task; its loop breaks at its next token. Awaiting it
-        // here is what makes "the KV cache is gone" true when this
-        // function returns — the iterator that owns it is a local of that
-        // task. A generation that was CUT (a barge, a warning, the
-        // deadline) then empties the vendor's buffer pool as well
-        // (`freePrefill`'s note has the allocator's rule); one that ended
-        // on its own keeps the pool, because the next reply reuses it.
-        await vendor.value
-        if cut || Task.isCancelled { MLX.Memory.clearCache() }
+        // WHAT FREES THE PREFILL (AC-261, AC-264). The drain above ends
+        // only once the vendor's task has — the iterator that owns the
+        // KV cache is a local of that task. A generation that was CUT (a
+        // barge, a warning, the deadline) then empties the vendor's
+        // buffer pool as well (`freePrefill`'s note has the allocator's
+        // rule); one that ended on its own keeps the pool, because the
+        // next reply reuses it.
+        if cut { MLX.Memory.clearCache() }
     }
 }
 

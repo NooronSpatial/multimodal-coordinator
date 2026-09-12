@@ -19,6 +19,11 @@ import Testing
 struct MLXDeadlineTests {
 
     private static let twoTokens = ["two", " tokens"]
+    /// A FIREHOSE: twenty thousand numbered tokens into the stream's
+    /// buffer in one tight loop, then the hold — so the run's token loop
+    /// is BUSY draining when the deadline fires, and the reply never ends
+    /// on its own.
+    private static let firehose = (0..<20_000).map { "t\($0)" }
 
     private func mind(_ plan: ScriptedTokenSource.Plan, clock: ManualClock)
     -> (MLXReplyGenerator, ScriptedTokenSource) {
@@ -41,10 +46,14 @@ struct MLXDeadlineTests {
 
         #expect(await facts.heard("token 2"), "both tokens are spoken before the clock moves")
         #expect(await Wait4y.parked(clock), "the deadline is asleep on THIS clock, not on wall time")
-        // 199 ms is not the deadline: nothing ends.
+        // 199 ms is not the deadline: nothing ends. The FACT is the
+        // clock's — its sleeper is still parked, so the race has no
+        // winner — read after `advance` has settled, not waited for
+        // (the review: a negative wait on wall time proves only that a
+        // slow runner did nothing for 100 ms).
         await clock.advance(by: .milliseconds(199))
-        #expect(!(await facts.heard("ended", within: .milliseconds(100))),
-                "one millisecond short of the deadline the reply is still running")
+        #expect(clock.sleeperCount == 1, "one millisecond short, the deadline is still asleep")
+        #expect(!facts.log.contains("ended"), "and the reply is still running: \(facts.log)")
         await clock.advance(by: .milliseconds(1))
 
         let updates = try await Wait4y.settled(story)
@@ -140,6 +149,38 @@ struct MLXDeadlineTests {
         let updates = try await Wait4y.settled(story)
         #expect(updates == [.token("before"), .finished(.deadline)],
                 "the defiant token is dropped by the retired latch")
+    }
+
+    /// THE HAMMER (the review of this piece): a firehose source keeps the
+    /// run's token loop BUSY while a 1 ms deadline fires, four hundred
+    /// times. Promise 1 — tokens, then exactly ONE terminal, LAST — must
+    /// hold on every run. The first cut of the deadline broke it: the
+    /// clock's terminal was reported from the race's parent task while
+    /// the rounds task was between its latch check and its yield, and a
+    /// token landed AFTER `.finished(.deadline)` (2 of 400 in the
+    /// review's own hammer). The stream has ONE writer now — the rounds
+    /// task — and this row is what keeps that true.
+    @Test("four hundred deadlines against a firehose: a token is never spoken after .finished(.deadline)")
+    func aTokenIsNeverSpokenAfterTheDeadlineTerminal() async throws {
+        var violations: [String] = []
+        for iteration in 0..<400 {
+            let clock = ManualClock()
+            let (mind, _) = mind(.tokensThenHold(Self.firehose), clock: clock)
+            let facts = Facts()
+            let run = try await mind.openReply(to: ReplyContext(
+                transcript: "a long question",
+                options: GenerationOptions(deadline: .milliseconds(1))))
+            let story = ReplyStory.collect(run, facts: facts)
+            #expect(await facts.heard("token 1"), "run \(iteration): the firehose is flowing")
+            #expect(await Wait4y.parked(clock), "run \(iteration): the deadline is asleep on this clock")
+            await clock.advance(by: .milliseconds(1))
+            let updates = try await Wait4y.settled(story)
+            let terminals = ReplyConformanceKit.terminals(in: updates)
+            if terminals != [.finished(.deadline)] || updates.last != .finished(.deadline) {
+                violations.append("run \(iteration): tail \(updates.suffix(2)), terminals \(terminals)")
+            }
+        }
+        #expect(violations.isEmpty, "tokens, then exactly one terminal, last:\n\(violations.joined(separator: "\n"))")
     }
 
     /// The deadline is a STOP REASON on the public seam too: `reply(to:)`

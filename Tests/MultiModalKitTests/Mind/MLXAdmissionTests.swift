@@ -26,6 +26,16 @@ struct MLXAdmissionTests {
         init(_ initial: MemoryHeadroom) { value = Mutex(initial) }
         func set(_ new: MemoryHeadroom) { value.withLock { $0 = new } }
         var reading: HeadroomReading { { self.value.withLock { $0 } } }
+        /// The same hand, and each read is a named FACT — so a test can
+        /// say in which ORDER the two callers' checks ran.
+        func reading(telling facts: Facts) -> HeadroomReading {
+            {
+                let read = self.value.withLock { $0 }
+                facts.send("headroom read: \(read.bytes.map { "\($0 / Self.gigabyte) GB" } ?? "none")")
+                return read
+            }
+        }
+        private static let gigabyte = 1_073_741_824
     }
 
     private static let gigabyte = 1_073_741_824
@@ -129,8 +139,8 @@ struct MLXAdmissionTests {
     @Test("two concurrent callers: the second is refused on the post-allocation headroom, not the stale one")
     func theSecondCallerSeesTheFirstsAllocation() async throws {
         let headroom = Headroom(.bytes(3 * Self.gigabyte))
-        let gate = MindAdmission(headroom: headroom.reading)
         let facts = Facts()
+        let gate = MindAdmission(headroom: headroom.reading(telling: facts))
         let door = TestGate()
         let loads = Mutex(0)
 
@@ -154,10 +164,11 @@ struct MLXAdmissionTests {
             try await gate.admit(needing: 2 * Self.gigabyte, resident: { false }, load: secondLoad)
         }
         // The second caller is parked BEHIND the first's load, not
-        // admitted beside it: no second load can have begun.
-        #expect(!(await facts.heard("second load began", within: .milliseconds(200))),
-                "a second admission during the first's load is a window — AC-258 forbids it")
-
+        // admitted beside it. The proof is the ORDER of the facts, read
+        // once both callers have settled — the second's headroom read
+        // comes AFTER "first load ended", on the 1 GB the allocation
+        // left — not a negative wait on wall time (the review: "nothing
+        // for 200 ms" is what a slow runner also says).
         door.open()
         try await Wait4y.settled(first)
         await #expect(throws: ReplyFailure.unavailable(
@@ -165,7 +176,8 @@ struct MLXAdmissionTests {
             try await Wait4y.settled(second)
         }
         #expect(loads.withLock { $0 } == 1, "exactly one load: the second was refused on the number the first left")
-        #expect(facts.log == ["first load began", "first load ended"], "\(facts.log)")
+        #expect(facts.log == ["headroom read: 3 GB", "first load began", "first load ended", "headroom read: 1 GB"],
+                "a second admission during the first's load is a window — AC-258 forbids it: \(facts.log)")
     }
 
     /// The other side of the same coin: enough left after the first, and

@@ -13,12 +13,25 @@ import MultiModalKit
 
 // MARK: - the gate (AC-258, AC-259)
 
-/// ONE ADMISSION AT A TIME, and the check and the beginning of the load
-/// are one step of this actor: no `await` stands between them, and the
-/// `admitting` flag holds until the load has ENDED — so a second caller's
-/// check runs against the number the first caller's allocation left
-/// behind, never a stale one. That is AC-258's "no window", made a
-/// property of this type rather than a hope about scheduling.
+/// ONE ADMISSION AT A TIME, and THAT is the mechanism — not a single
+/// actor step. The `admitting` flag is raised before the check and held
+/// until the load has ENDED (a lock across the whole load, released on
+/// every exit), so a second caller's check runs against the number the
+/// first caller's allocation left behind, never a stale one. That is
+/// AC-258's "no window", made a property of this type rather than a
+/// hope about scheduling. (The first cut's comment claimed the check and
+/// the allocation were one step with no await between them; the review
+/// read `load()` and found its first suspension is the hop INTO the
+/// model, long before a byte is allocated. The flag is what the AC-258
+/// test proves — remove the wait on it and that row goes red.)
+///
+/// PRESSURE IS NOT READ HERE. SPEC §187/1 says `admit()` reads "headroom
+/// and pressure"; what shipped reads headroom, because no acceptance
+/// criterion (AC-258, AC-259) names a pressure verdict at admission,
+/// `MindUnavailable` has no case for one, and a level that arrives is
+/// acted on by `pressure(_:)` whenever it lands — before, during or
+/// after a load. What a `.warning` at the door should mean is an open
+/// question, not a ruling this file may make.
 ///
 /// Its own actor, not a field of the model, for one reason: it can be
 /// PROVED without weights or a GPU. `LocalMindModel.admit(needing:)`
@@ -79,11 +92,12 @@ actor MindAdmission {
             waiters = []
             for waiter in waking { waiter.resume() }
         }
-        // THE STEP. From here to `load()`'s first suspension there is no
-        // await on this actor: the headroom is read and the load is
-        // begun before any other admission can run its own check.
-        // (`resident()` suspends, so it is read first, and the gate above
-        // keeps every other admission out while it is.)
+        // THE GATE IS UP: from here until the defer above runs, no other
+        // admission reads the headroom — `resident()` and `load()` both
+        // suspend (each hops to another actor), and the flag is what
+        // holds the door across those suspensions, not the absence of an
+        // await. The load door's own dedupe (`Retirable.value`) is the
+        // second guard beneath it.
         let alreadyResident = await resident()
         if bytes > 0, !alreadyResident,
            let available = headroom().bytes, available < bytes {

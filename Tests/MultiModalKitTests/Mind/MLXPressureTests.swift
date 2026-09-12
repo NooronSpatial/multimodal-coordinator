@@ -101,9 +101,14 @@ struct MLXPressureTests {
         let story = ReplyStory.collect(run, facts: facts)
         #expect(await facts.heard("token 2"))
         rig.pressure.push(.normal)
+        // `handled` is the EVENT: the actor's step for `.normal` has run
+        // to its end, so whatever it was going to do is done. What follows
+        // is read, not waited for (the review: a negative wait proves
+        // nothing a slow runner would not also "prove").
         #expect(await Wait4y.handled(.normal, on: rig.model))
-        #expect(!(await facts.heard("ended", within: .milliseconds(100))), "still running")
-        #expect(rig.model.liveRuns.count == 1)
+        #expect(rig.model.liveRuns.count == 1, "the run is still registered — nothing abandoned it")
+        #expect(!rig.source.sawCancellation, "the generation was not cancelled")
+        #expect(!facts.log.contains("ended"), "still running: \(facts.log)")
         await run.cancel()
         _ = try await Wait4y.settled(story)
     }
