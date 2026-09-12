@@ -238,6 +238,18 @@ public enum AppleMind {
     }
 }
 
+// MARK: - the test seam's thermometer
+
+/// A thermometer that never moves — the `@testable` initialiser's
+/// default (see it for why the room's is the wrong default there).
+/// Internal on purpose: an app injects the real provider or its own; a
+/// scripted one for tests already lives in `MultiModalKitTesting`, which
+/// this module cannot import.
+struct StillThermometer: ThermalStateProviding {
+    var current: ThermalState { .nominal }
+    func transitions() -> AsyncStream<ThermalState> { AsyncStream { $0.finish() } }
+}
+
 // MARK: - the generator
 
 /// THE MIND (SPEC §69, AC-112): Apple's on-device language model behind
@@ -285,14 +297,43 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// unchanged because of the default.
     public let tools: ToolTable
 
+    /// The thermometer and the policy this mind asks AT THE DOOR (4y,
+    /// AC-260, D-107 F-2 = A), injected the way the tools are: at
+    /// construction, by the app, never by the coordinator (AC-265). The
+    /// defaults are the shipped ones — the real thermometer, and the
+    /// policy that refuses at `.critical` only, because the measured
+    /// phone sat at `.serious` for whole sessions (INSTRUMENTS §26).
+    ///
+    /// WHAT THIS MIND DOES NOT BUILD, and why: admission
+    /// (`admit(needing:)`, AC-258/259) and memory pressure (AC-261..263)
+    /// are the MLX mind's. That mind allocates 2.3 GB of weights itself
+    /// and owns a prefill cache it can release; the vendor's framework
+    /// behind `LanguageModelSession` manages its own memory, and this
+    /// library holds no allocation to admit and no cache to free. Heat
+    /// and the deadline are the two rows that apply here.
+    public let thermal: any ThermalStateProviding
+    public let thermalPolicy: any GenerationThermalPolicy
+
+    /// The clock a deadline is measured on (4y, AC-264, D-107 F-4 = A).
+    /// An existential, like the scripted mind's, so the type stays the
+    /// plain `AppleReplyGenerator` every caller names; the tests hand in
+    /// a `ManualClock` and the deadline becomes a fact of the script.
+    public let clock: any Clock<Duration>
+
     let source: any ReplySnapshotStreaming
 
     public init(instructions: String? = nil,
                 spokenRefusal: String = "I can't answer that.",
-                tools: ToolTable = .empty) {
+                tools: ToolTable = .empty,
+                thermal: any ThermalStateProviding = SystemThermalProvider(),
+                thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
+                clock: any Clock<Duration> = ContinuousClock()) {
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
+        self.thermal = thermal
+        self.thermalPolicy = thermalPolicy
+        self.clock = clock
         self.source = FoundationModelSnapshots(tools: tools)
     }
 
@@ -300,13 +341,27 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// scripted sources behind it cannot execute a vendor tool, so the
     /// table is recorded here for a test to read back and reaches no
     /// session — the adapter is proved on its own (`AppleToolTests`).
+    ///
+    /// The thermometer here defaults to a STILL one reading `.nominal`,
+    /// not the room's: the 4y review caught the scripted mind defaulting
+    /// to the real provider, which made every pre-4y test read this
+    /// Mac's heat at every door and throw `.tooHot` on a hot one
+    /// (Thermal.swift's doctrine — no test depends on a room's
+    /// temperature). The policy default is the shipped one, so a test
+    /// that says nothing about heat runs as it always did.
     init(source: any ReplySnapshotStreaming,
          instructions: String? = nil,
          spokenRefusal: String = "I can't answer that.",
-         tools: ToolTable = .empty) {
+         tools: ToolTable = .empty,
+         thermal: any ThermalStateProviding = StillThermometer(),
+         thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
+         clock: any Clock<Duration> = ContinuousClock()) {
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
+        self.thermal = thermal
+        self.thermalPolicy = thermalPolicy
+        self.clock = clock
         self.source = source
     }
 
@@ -332,12 +387,25 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// `ReplySnapshotStreaming.unavailable`), and thrown as the contract's
     /// `ReplyFailure.unavailable` so a caller catches one type for every
     /// mind (SPEC §175/5).
+    ///
+    /// HEAT FIRST (4y, AC-260, D-107 F-2 = A). The thermometer is read
+    /// ONCE — one read, one decision, the reentrancy law's shape at a
+    /// door with no await in it — and the injected policy is asked with
+    /// that reading BEFORE the vendor's verdict: the heat question is the
+    /// app's and costs a process-info read, the verdict wakes the vendor,
+    /// and a phone too hot to generate should not wake it. A refusal is
+    /// `ReplyFailure.tooHot(state)`, thrown here so no run exists and no
+    /// session was born; the state rides on the case so a counting
+    /// caller sees WHERE an app's stricter policy refused.
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        let heat = thermal.current
+        guard thermalPolicy.allowGeneration(thermal: heat) else { throw ReplyFailure.tooHot(heat) }
         if let verdict = source.unavailable { throw ReplyFailure.unavailable(verdict) }
         // AC-232: the caller's per-call text over the generator's own.
         let resolved = context.options.instructions ?? instructions
         return AppleReplyRun(source: source, context: context,
-                             instructions: resolved, spokenRefusal: spokenRefusal)
+                             instructions: resolved, spokenRefusal: spokenRefusal,
+                             clock: clock)
     }
 }
 
@@ -351,6 +419,13 @@ public struct AppleReplyGenerator: ReplyGenerating {
 /// latch — the `retire()` doctrine, adopted here on day one instead of
 /// being retrofitted by a review (D-051's blocker 1 was exactly this
 /// latch missing one caller).
+///
+/// Since 4y a THIRD way to end (AC-264, D-107 F-4 = A): the clock's. A
+/// context that carries `options.deadline` arms a sleeper on the injected
+/// clock, racing the stream; the clock winning ends the run
+/// `.finished(.deadline)` with the text so far, through the same latch —
+/// so the stream's finish and the clock's fire, however close, report
+/// exactly one terminal between them.
 @available(macOS 26.0, iOS 26.0, *)
 final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     let updates: AsyncStream<ReplyUpdate>
@@ -359,6 +434,12 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     private struct Guarded {
         var differ = SnapshotDiffer()
         var retired = false
+        /// The deadline's sleeper (4y, AC-264), or nil when the context
+        /// carried no deadline. Lives under the SAME lock as `retired` so
+        /// the step that takes the latch also hands the sleeper out to be
+        /// stopped — one decision, and the cancel happens outside the
+        /// lock (§4.1's second lock rule).
+        var sleeper: Task<Void, Never>?
     }
     private let state: Mutex<Guarded>
     /// The owned worker — stored so `cancel()` can stop it, ended by the
@@ -369,7 +450,8 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     init(source: any ReplySnapshotStreaming,
          context: ReplyContext,
          instructions: String?,
-         spokenRefusal: String) {
+         spokenRefusal: String,
+         clock: any Clock<Duration>) {
         var handle: AsyncStream<ReplyUpdate>.Continuation!
         self.updates = AsyncStream { handle = $0 }
         self.out = handle
@@ -434,6 +516,71 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
             }
         }
         work.withLock { $0 = task }
+        // The clock is armed AFTER the worker is stored, so a deadline
+        // that fires always finds a worker to cancel.
+        if let deadline = context.options.deadline {
+            arm(deadline, on: clock)
+        }
+    }
+
+    /// A run nobody holds sleeps for nobody: the sleeper captures `self`
+    /// weakly (like the worker), so a dropped run is freed at once — and
+    /// its clock is stopped here rather than left parked on a
+    /// `ManualClock` until a deadline nobody will read.
+    deinit {
+        state.withLock { $0.sleeper }?.cancel()
+    }
+
+    // MARK: the clock's ending (4y, AC-264, D-107 F-4 = A)
+
+    /// Sleeps `deadline` on the injected clock, racing the stream. When
+    /// the clock wins, `expire()` ends the run; when the stream wins, the
+    /// terminal path stops this sleeper (`retire()`), so the clock is
+    /// never left holding a dead reply — a sleep that is CANCELLED ends
+    /// nothing, because the clock was stopped, not reached. Unstructured
+    /// for the worker's reason: it must outlive `init`, and this class
+    /// owns and stops it.
+    ///
+    /// THE REENTRANCY LAW at the arming: the worker may have ended the
+    /// reply BEFORE this task was stored (a source that finishes at once
+    /// does), and `retire()` found no sleeper to stop. So the store and
+    /// the re-check are one lock step, and a sleeper stored into an
+    /// already-retired run is cancelled on the spot.
+    private func arm(_ deadline: Duration, on clock: any Clock<Duration>) {
+        let sleeper = Task { [weak self] in
+            do {
+                try await clock.sleep(for: deadline)
+            } catch {
+                return   // stopped, not reached
+            }
+            self?.expire()
+        }
+        let alreadyEnded = state.withLock { guarded -> Bool in
+            guarded.sleeper = sleeper
+            return guarded.retired
+        }
+        if alreadyEnded { sleeper.cancel() }
+    }
+
+    /// The deadline was reached: the run ends `.finished(.deadline)`
+    /// with what was said so far — an ENDING, like `.tokenBudget`, never
+    /// a failure (F-4 = A; D-104 already ruled an ending is not one).
+    /// Through the same latch as every other terminal, so a stream that
+    /// finished in the same instant reports nothing.
+    ///
+    /// WHAT THIS MIND CAN DO about the vendor's compute: cancel the
+    /// stream task. The vendor's session has no "free the prefill" call
+    /// this library owns — its memory is the framework's, managed behind
+    /// `LanguageModelSession` — so the cancel, which reaches the
+    /// session's `streamResponse` through the stream's `onTermination`,
+    /// is the whole of the release. The MLX mind, which owns its cache,
+    /// frees it explicitly; this one cannot and does not pretend to.
+    private func expire() {
+        let (first, _) = retire()
+        work.withLock { $0 }?.cancel()
+        guard first else { return }
+        out.yield(.finished(.deadline))
+        out.finish()
     }
 
     /// AC-114, and since 4v AC-236's table (SPEC §175/3): every case
@@ -532,26 +679,40 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// the latch 4e's review had to force onto `NeuralVoiceRun` after a
     /// failed decode kept running and aborted the process.
     private func report(_ terminal: ReplyUpdate) {
-        let first = state.withLock { guarded -> Bool in
-            let was = guarded.retired
-            guarded.retired = true
-            return !was
-        }
+        let (first, sleeper) = retire()
+        // The stream ended: the deadline's sleeper is released BEFORE the
+        // terminal goes out, so a test that reads the clock at "ended"
+        // finds it empty — and a `ManualClock` never holds a dead reply.
+        sleeper?.cancel()
         guard first else { return }
         out.yield(terminal)
         out.finish()
     }
 
+    /// THE LATCH, one lock step (4y widened it from a flag to a pair):
+    /// raises `retired`, answers "was I first", and hands out the
+    /// deadline's sleeper so the caller can stop it OUTSIDE the lock.
+    /// Every ending — the stream's, the clock's, a cancel — passes here,
+    /// which is why exactly one terminal is ever reported: two endings
+    /// that happen "at once" take the lock in some order, and only the
+    /// first sees `!was`.
+    private func retire() -> (first: Bool, sleeper: Task<Void, Never>?) {
+        state.withLock { guarded in
+            let was = guarded.retired
+            guarded.retired = true
+            return (!was, guarded.sleeper)
+        }
+    }
+
     /// Ends the stream with NO terminal — the seam's cancel contract.
     /// The flag is raised in the same locked step that decides "was I
     /// first", so a snapshot mid-flight sees it before its next yield.
+    /// The deadline's sleeper is stopped too (4y): a cancelled reply must
+    /// not leave its clock behind.
     func cancel() async {
-        let first = state.withLock { guarded -> Bool in
-            let was = guarded.retired
-            guarded.retired = true
-            return !was
-        }
+        let (first, sleeper) = retire()
         work.withLock { $0 }?.cancel()
+        sleeper?.cancel()
         guard first else { return }
         out.finish()
     }
