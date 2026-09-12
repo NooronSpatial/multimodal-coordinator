@@ -179,16 +179,20 @@ struct ReplyContractTests {
                                      .unavailable(.weightsAbsent),
                                      .unsupportedLanguage,
                                      .busy,
+                                     // 4y (AC-260, D-107 F-2 = A): a
+                                     // refused DOOR is a failure — no run
+                                     // exists — unlike a refused ANSWER.
+                                     .tooHot(.critical),
                                      .engine("the rest")]
         for failure in every {
             switch failure {
             case .contextWindowExceeded, .unavailable, .unsupportedLanguage,
-                 .busy, .engine:
+                 .busy, .tooHot, .engine:
                 break
             }
         }
         // Not a count of the literal — a count of what the switch
-        // above accepted, one arm per case, all five reached.
+        // above accepted, one arm per case, all six reached.
         #expect(every.map(String.init(describing:)).count == every.count)
     }
 

@@ -17,6 +17,29 @@ import Synchronization
 ///   from the table handed to `init` (F-2 = A); the coordinator's
 ///   stream still sees only tokens and one terminal.
 ///
+/// Heat (4y, AC-260, D-107 F-2 = A): the mind is built with a thermometer
+/// and a `GenerationThermalPolicy`, the way it is built with tools, and
+/// `openReply` asks the policy BEFORE it records or opens anything —
+/// the same door the readiness verdict uses in the real minds. A refused
+/// door throws `ReplyFailure.tooHot(state)`, consumes no plan, and is
+/// counted in `heatRefusals`. The default thermometer is a SCRIPTED one
+/// reading `.nominal`, never the device's: Thermal.swift's own doctrine
+/// is that no test depends on a room's temperature, and the 4y review
+/// caught this double defaulting to the real provider — every pre-4y
+/// test would then have read this Mac's heat at every door and thrown
+/// `.tooHot` on a hot one. The policy default is the shipped one, so a
+/// test that says nothing about heat runs as it always did.
+///
+/// A deadline (4y, AC-264, D-107 F-4 = A) is an ENDING the CLOCK makes:
+/// when the context carries `options.deadline`, the run sleeps that long
+/// on the injected clock and then ends itself `.finished(.deadline)`
+/// with the tokens emitted so far. Time is injected (§3.3): tests hand in
+/// a `ManualClock` and advance it, so the ending is a fact of the script
+/// and never of wall time. A test may still script the ending by hand
+/// (`finish(reply:stop: .deadline)`) to prove the coordinator's side of
+/// the shape without a clock — the coordinator passes no deadline
+/// (AC-265), so that is the only way a driven reply can end this way.
+///
 /// Everything is recorded; tests assert against the record, not hope.
 public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     public enum Plan: Sendable {
@@ -67,17 +90,45 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         /// conformant `cancel()` can stop the wasted work (the
         /// optimization; the cancelled flag is the guarantee).
         var toolRuns: [Int: Task<Void, Never>] = [:]
+        /// Every door the policy shut, with the state it was shut at (4y,
+        /// AC-260). A refused door has no record — no reply was opened —
+        /// so the count lives here, beside the records, not in them.
+        var heatRefusals: [ThermalState] = []
+        /// The clocks running against open replies, by reply index (4y,
+        /// AC-264): one sleeping task per reply that was opened with a
+        /// deadline. Held so a hand-scripted ending or a `cancel()` can
+        /// stop the sleep — a `ManualClock` must not be left holding a
+        /// sleeper for a reply that already ended.
+        var deadlines: [Int: Task<Void, Never>] = [:]
     }
 
     private let plans: [Plan]
     /// The tools this mind was GIVEN (4w, F-2 = A): at construction, by
     /// the test that plays the app — never by the coordinator.
     public let tools: ToolTable
+    /// The thermometer and the policy this mind was GIVEN (4y, AC-260),
+    /// handed in the same way as the tools. The thermometer defaults to a
+    /// scripted one at `.nominal` (see the type's doc: the real provider
+    /// would make every test read the room); the policy to the shipped
+    /// one, so a test that says nothing about heat runs as it always did.
+    public let thermal: any ThermalStateProviding
+    public let thermalPolicy: any GenerationThermalPolicy
+    /// The clock a deadline is measured on (4y, AC-264). An existential,
+    /// not a generic parameter, so the type stays the plain
+    /// `ScriptedReplyGenerator` every bench in the suite names; tests
+    /// that prove the deadline hand in a `ManualClock`.
+    public let clock: any Clock<Duration>
     private let state = Mutex(State())
 
-    public init(plans: [Plan], tools: ToolTable = .empty) {
+    public init(plans: [Plan], tools: ToolTable = .empty,
+                thermal: any ThermalStateProviding = ScriptedThermalProvider(initial: .nominal),
+                thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
+                clock: any Clock<Duration> = ContinuousClock()) {
         self.plans = plans
         self.tools = tools
+        self.thermal = thermal
+        self.thermalPolicy = thermalPolicy
+        self.clock = clock
     }
 
     /// `count` conformant manual replies — the everyday generator.
@@ -88,6 +139,10 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     // MARK: - the record
 
     public var repliesOpened: Int { state.withLock { $0.records.count } }
+
+    /// The doors the policy shut, in order, each with the state it read
+    /// (4y, AC-260). Empty on a cool mind.
+    public var heatRefusals: [ThermalState] { state.withLock { $0.heatRefusals } }
 
     public func record(ofReply index: Int) -> ReplyRecord? {
         state.withLock { index < $0.records.count ? $0.records[index] : nil }
@@ -105,7 +160,9 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
 
     /// Ends the reply well. A script that just says "finished" means the
     /// model ended its turn (`.complete`); a text test can script the
-    /// other reasons (4v, AC-237).
+    /// other reasons (4v, AC-237) — including `.deadline` (4y, AC-264):
+    /// emit the tokens "said so far", then finish with it, and the reply
+    /// ends the way a real mind's clock would end it.
     public func finish(reply index: Int, stop: StopReason = .complete) {
         let continuation = state.withLock { state in
             (index < state.records.count && !state.records[index].cancelled)
@@ -113,6 +170,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         }
         continuation?.yield(.finished(stop))
         continuation?.finish()
+        stopClock(reply: index)
     }
 
     /// The pre-4v hand, kept: a string reason is the engine's own words,
@@ -130,6 +188,16 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         }
         continuation?.yield(.failed(failure))
         continuation?.finish()
+        stopClock(reply: index)
+    }
+
+    /// Ends a reply's deadline sleep, if one is running: a reply that
+    /// already ended — by hand, by its script, or by a cancel — must not
+    /// leave its clock's sleeper behind. Taken under the lock, cancelled
+    /// outside it (§4.1's lock rules).
+    private func stopClock(reply index: Int) {
+        let timer = state.withLock { $0.deadlines.removeValue(forKey: index) }
+        timer?.cancel()
     }
 
     // MARK: - the defiant hands (no guards — ghosts on demand)
@@ -147,6 +215,18 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     // MARK: - ReplyGenerating
 
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        // THE DOOR (4y, AC-260, D-107 F-2 = A): the policy is asked FIRST,
+        // with the thermometer's state right now, before a plan is
+        // consumed or a record made — the line the real minds' readiness
+        // verdict sits on (`if let verdict = readiness() { throw ... }`).
+        // No run exists after a refusal, so nothing can be said, cancelled
+        // or remembered; the refusal is typed, and counted here so a test
+        // can prove the door was asked, not merely that a plan was missing.
+        let heat = thermal.current
+        if !thermalPolicy.allowGeneration(thermal: heat) {
+            state.withLock { $0.heatRefusals.append(heat) }
+            throw ReplyFailure.tooHot(heat)
+        }
         // Record and continuation land in ONE lock: any observer that can
         // see the record can reach the stream. (The split version lost a
         // race — a test emitting between the two locks yielded into nothing
@@ -194,7 +274,32 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
             let run = Task { await self.runToolScript(script, reply: index) }
             state.withLock { $0.toolRuns[index] = run }
         }
+        if let deadline = context.options.deadline {
+            armDeadline(deadline, reply: index)
+        }
         return ScriptedReply(generator: self, index: index, plan: plan, updates: stream)
+    }
+
+    // MARK: - the clock's ending (4y, AC-264, D-107 F-4 = A)
+
+    /// Sleeps `deadline` on the injected clock, then ends the reply
+    /// `.finished(.deadline)` — through the same guarded `end` the tool
+    /// script uses, so a cancelled reply gets no terminal and a reply
+    /// already ended by hand is left alone (the terminal was taken with
+    /// its continuation; one terminal, then nothing). Unstructured for the
+    /// tool run's reason above: the sleep must outlive `openReply`, and
+    /// this is test support. A sleep that is CANCELLED (the reply ended
+    /// first) ends nothing: the clock was stopped, not reached.
+    private func armDeadline(_ deadline: Duration, reply index: Int) {
+        let timer = Task {
+            do {
+                try await self.clock.sleep(for: deadline)
+            } catch {
+                return
+            }
+            self.end(with: .finished(.deadline), reply: index, force: false)
+        }
+        state.withLock { $0.deadlines[index] = timer }
     }
 
     // MARK: - the self-driving tool reply (4w, F-1 = B)
@@ -273,6 +378,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         }
         continuation?.yield(update)
         continuation?.finish()
+        stopClock(reply: index)
     }
 
     /// Lets a `blockThenFailOnOpen` reply out of `openReply`, so it throws.
@@ -300,6 +406,10 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         // asked to stop wasting work. The flag above is what keeps its
         // answer out of the stream; this is only a courtesy to the tool.
         toolRun?.cancel()
+        // The clock too, defiant or not: a deadline reached after a cancel
+        // would end nothing (`end` is guarded by the flag), so the sleep
+        // is only a sleeper a ManualClock would be left holding.
+        stopClock(reply: index)
     }
 }
 
