@@ -113,12 +113,24 @@ public actor LocalMindModel: ModelBacked {
     /// zero — the fact a live memory test gates on (`waitForIdle()`).
     var generationsInFlight = 0
     var idleWaiters: [CheckedContinuation<Void, Never>] = []
+    /// Generations that have BEGUN on these weights, ever, as a count a
+    /// test can wait on (the review of this piece): a generation begins
+    /// on its own task, one hop after `openReply` has returned, so "none
+    /// in flight" is also true of a reply whose generation has not
+    /// started yet. A test that wants the "after" of a generation reads
+    /// this before the reply, waits for one more, then waits for idle.
+    /// Nonisolated because the watch is its own lock (`ThresholdWatch`).
+    nonisolated let generationsBegun = ThresholdWatch()
     /// Every level the ACTOR has finished acting on, in order — the event
-    /// a test waits for instead of polling `isResident` (AC-262). The
-    /// stream is unbounded so a level is never dropped for want of a
-    /// listener, and it is nonisolated because the handler is.
+    /// a test waits for instead of polling `isResident` (AC-262). It is
+    /// nonisolated because the handler is. BOUNDED (the review of this
+    /// piece): in the app nobody reads it, so an unbounded buffer would
+    /// keep every transition of the model's life for no reader; a test
+    /// pushes a level or two and listens at once. Sixteen levels is
+    /// more than any row pushes and bytes in the app.
     nonisolated let pressureHandled: AsyncStream<MemoryPressureMonitor.Level>.Continuation
     nonisolated let pressureLevels: AsyncStream<MemoryPressureMonitor.Level>
+    static let pressureLevelsKept = 16
     /// How many times `retire()` ran — a test's question (AC-262): on a
     /// machine with nothing loaded `isResident` is false before AND after
     /// a `.critical`, and only the count says the weights were let go.
@@ -141,7 +153,8 @@ public actor LocalMindModel: ModelBacked {
         self.cacheLimitBytes = cacheLimitBytes
         self.admission = MindAdmission(headroom: headroom)
         (pressureLevels, pressureHandled) = AsyncStream.makeStream(
-            of: MemoryPressureMonitor.Level.self, bufferingPolicy: .unbounded)
+            of: MemoryPressureMonitor.Level.self,
+            bufferingPolicy: .bufferingNewest(Self.pressureLevelsKept))
         watchPressure(pressure)
     }
 
@@ -160,7 +173,8 @@ public actor LocalMindModel: ModelBacked {
             path: repoID.split(separator: "/").last.map(String.init) ?? repoID)
         self.admission = MindAdmission(headroom: headroom)
         (pressureLevels, pressureHandled) = AsyncStream.makeStream(
-            of: MemoryPressureMonitor.Level.self, bufferingPolicy: .unbounded)
+            of: MemoryPressureMonitor.Level.self,
+            bufferingPolicy: .bufferingNewest(Self.pressureLevelsKept))
         watchPressure(pressure)
     }
 
@@ -465,6 +479,21 @@ struct MLXTokenSource: ReplyTokenStreaming {
             // render exactly the prompt it rendered before 4w.
             let specs = tools.toolSpecs
             let tooled = !tools.isEmpty
+            // A RUN ALREADY DEAD STOPS HERE (the review of this piece,
+            // AC-261, Aura's R3). A `.warning` during the load, an early
+            // barge, an early deadline: the run's latch is up and this
+            // task is cancelled — and until this line nothing between
+            // the load door and the vendor's loop looked. Measured: a
+            // run cancelled at birth still paid the FULL prompt prefill
+            // (866 MB over a 320 MB floor on a long prompt), because the
+            // vendor's `TokenIterator.init` prefills synchronously and
+            // the first check on the path was the drain's, one token
+            // later. Worse, it held the container's serial lock the
+            // whole way, so the NEXT reply queued behind a dead one.
+            // Checked BEFORE the lock is asked for, so a dead run never
+            // takes it; the `CancellationError` lands in a stream the
+            // cancel has already finished, and is dropped there.
+            try Task.checkCancellation()
             try await container.perform { (model: ModelContext) in
                 let messages = Self.messages(
                     spoken: settings.instructions, asked: asked, past: past, exchanges: exchanges)
@@ -532,6 +561,14 @@ struct MLXTokenSource: ReplyTokenStreaming {
         // source used `generateTokens`, which DROPS the task, so a cut
         // generation's memory was freed at a moment nobody could name.
         // Now the task is awaited below, and the free is a fact.
+        //
+        // THE LAST LOOK BEFORE THE PREFILL (the review of this piece):
+        // the vendor's lock ignores cancellation — a cancelled task waits
+        // its turn and enters — so a run cut while it was parked on the
+        // lock arrives here alive, and this line is what keeps its
+        // prefill from happening. The check before `perform` is the
+        // cheap one; this is the load-bearing one.
+        try Task.checkCancellation()
         let (events, vendor) = try generateTokensTask(
             input: input,
             parameters: GenerateParameters(settings),

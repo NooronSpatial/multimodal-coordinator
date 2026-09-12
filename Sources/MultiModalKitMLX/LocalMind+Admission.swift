@@ -49,6 +49,16 @@ actor MindAdmission {
     private let headroom: HeadroomReading
     private var admitting = false
     private var waiters: [CheckedContinuation<Void, Never>] = []
+    /// How many callers are PARKED at this gate, as a count a test can
+    /// wait on (the review of this piece). AC-258's two-caller row must
+    /// know the second caller is at the gate before it lets the first's
+    /// load end; without that fact the row is green either way, and the
+    /// proof that the wait is load-bearing (remove it, the row goes red)
+    /// held only when the scheduler ran the second caller first — nine
+    /// runs in ten, measured. Set on every park and every wake, from
+    /// this actor's own step; waited on through `ThresholdWatch`, which
+    /// a test's cap can cancel.
+    nonisolated let parked = ThresholdWatch()
 
     init(headroom: @escaping HeadroomReading) {
         self.headroom = headroom
@@ -83,13 +93,21 @@ actor MindAdmission {
                resident: @Sendable () async -> Bool,
                load: @Sendable () async throws -> Void) async throws {
         while admitting {
-            await withCheckedContinuation { waiters.append($0) }
+            await withCheckedContinuation { continuation in
+                waiters.append(continuation)
+                // The park is a FACT the moment the continuation is
+                // stored — still inside this actor step, before the
+                // suspension — so a test woken by this count never
+                // sees a park that has not happened yet.
+                parked.set(waiters.count)
+            }
         }
         admitting = true
         defer {
             admitting = false
             let waking = waiters
             waiters = []
+            parked.set(0)
             for waiter in waking { waiter.resume() }
         }
         // THE GATE IS UP: from here until the defer above runs, no other
@@ -116,6 +134,19 @@ extension LocalMindModel {
     /// refuse, typed, before a byte is read. The mechanics and the rules
     /// are `MindAdmission`'s (above); this is the model handing it the
     /// real weights.
+    ///
+    /// WHAT IT THROWS, all of it (the review of this piece): the two
+    /// typed refusals above are `ReplyFailure.unavailable(_)` — the
+    /// readiness verdict, or `.notEnoughMemory(needed:available:)`. One
+    /// more error can come out of the door and it is NOT typed on the
+    /// reply seam: a `.critical` that lands DURING this call's own load
+    /// retires the weights (AC-262), and the load door then throws
+    /// `Retirable.Failure.retiredDuringLoad` — the same word
+    /// `ensureModel()` has spoken for that case since 4r. The retire is
+    /// right (the loaded weights are discarded, `isResident` is false);
+    /// whether the door should speak it as a `MindUnavailable` case, as
+    /// `.engine(_)`, or as it does now is Ryad's to rule, and nothing
+    /// here decides it.
     ///
     /// The load it begins is `ensureModelLoaded()`, whose own door
     /// (`readiness()`) runs inside it too — but it is asked HERE first,
@@ -187,9 +218,12 @@ extension LocalMindModel {
 
     // MARK: the generations in flight (the fact a memory test waits for)
 
-    /// A generation has begun on these weights.
+    /// A generation has begun on these weights. Counted twice: in flight
+    /// (lowered by `generationEnded`) and ever (`generationsBegun`, never
+    /// lowered — the count a test waits on).
     func generationBegan() {
         generationsInFlight += 1
+        generationsBegun.increment()
     }
 
     /// A generation has ENDED — the vendor's task awaited, the prefill
@@ -206,6 +240,18 @@ extension LocalMindModel {
     /// test gates on (AC-261, AC-264): the "after" number is only honest
     /// once the vendor's iterator — and the KV cache it owns — is gone,
     /// and this is the fact that says so. Internal, for `@testable`.
+    ///
+    /// THE PRECONDITION, stated (the review of this piece): "idle" is
+    /// "none IN FLIGHT", and a generation is in flight from
+    /// `generationBegan()` — which runs on the generation's own task, a
+    /// hop after `openReply` returned. A caller that has not yet seen a
+    /// token, or the begun count rise, can read zero here BEFORE the
+    /// generation it means has started, take its "after", and have the
+    /// generation run afterwards. Gate on a token, or on
+    /// `generationsBegun.wait(atLeast:)`, first — the fact that makes
+    /// this honest for a generation that will never yield a token (one
+    /// cancelled at birth): read the count before the reply is opened,
+    /// wait for one more.
     func waitForIdle() async {
         while generationsInFlight > 0 {
             await withCheckedContinuation { idleWaiters.append($0) }

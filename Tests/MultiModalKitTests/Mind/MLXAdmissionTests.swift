@@ -136,6 +136,14 @@ struct MLXAdmissionTests {
     /// removes the wait does exactly that, and this row goes red). The
     /// one here makes the second wait until the first's load has ENDED
     /// and the headroom shows 1 GB, and refuses it on that number.
+    ///
+    /// THE RED IS A FACT, NOT A COIN (the review of this piece): the row
+    /// gates on the second caller being PARKED at the gate before it
+    /// lets the first's load end. Without that gate the mutant passed
+    /// one run in ten — whenever the scheduler ran the second admission
+    /// only after the first load had landed, the stale-read window was
+    /// simply never entered. With it, a gate that does not park never
+    /// sends the fact, and the row dies on its cap.
     @Test("two concurrent callers: the second is refused on the post-allocation headroom, not the stale one")
     func theSecondCallerSeesTheFirstsAllocation() async throws {
         let headroom = Headroom(.bytes(3 * Self.gigabyte))
@@ -164,11 +172,15 @@ struct MLXAdmissionTests {
             try await gate.admit(needing: 2 * Self.gigabyte, resident: { false }, load: secondLoad)
         }
         // The second caller is parked BEHIND the first's load, not
-        // admitted beside it. The proof is the ORDER of the facts, read
-        // once both callers have settled — the second's headroom read
-        // comes AFTER "first load ended", on the 1 GB the allocation
+        // admitted beside it — and PARKED is the event waited for here,
+        // before the door opens, so the mutant that never parks is
+        // caught on every run. The proof is then the ORDER of the facts,
+        // read once both callers have settled — the second's headroom
+        // read comes AFTER "first load ended", on the 1 GB the allocation
         // left — not a negative wait on wall time (the review: "nothing
         // for 200 ms" is what a slow runner also says).
+        #expect(await Wait4y.fact { await gate.parked.wait(atLeast: 1) },
+                "the second caller must be parked at the gate while the first's load is in flight")
         door.open()
         try await Wait4y.settled(first)
         await #expect(throws: ReplyFailure.unavailable(

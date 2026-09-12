@@ -221,9 +221,16 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
         // piece): a warning that landed between the registration above
         // and this store raised `retired` and found NO worker to cancel.
         // The latch is re-read after the store so that cancel is not
-        // lost — without it the generation would begin (load, prefill)
-        // and be cut only when its first token met the latch, on the
-        // phone that is already short of memory.
+        // lost. WHAT THE CANCEL BUYS is decided one seam down, and was
+        // measured before it was claimed (the second review): without
+        // this line the latch alone would have let the generation load,
+        // prefill and produce ONE token before the run's loop saw it
+        // dead and dropped the stream; with it, the generation's task is
+        // cancelled before it reaches the vendor, and
+        // `MLXTokenSource.generate` checks that cancellation before the
+        // container's lock and again before the prefill — so a run dead
+        // at birth allocates nothing. Before those two checks existed
+        // this line saved exactly one token, and the prefill still ran.
         if state.withLock({ $0.retired }) { task.cancel() }
     }
 

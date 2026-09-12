@@ -100,6 +100,35 @@ struct MLXAdmissionLiveTests {
         await model.retire()
     }
 
+    // MARK: - AC-259 through the mind's OWN door, on a device that can load
+
+    /// THE WIRING, not the gate (the review of this piece): the gate was
+    /// proved alone, and the one line that carries the app's number to
+    /// it — `admission.admit(needing: bytes …)` — was not. The mutation
+    /// `needing: 0` left every row green: the unit rows refuse at
+    /// `readiness()` before the gate (no weights on CI), and the Mac row
+    /// admits on a nil headroom (D-092). This Mac is the one machine
+    /// where `readiness()` is nil, so it is the one place the door can
+    /// be asked with a KNOWN short headroom and watched refuse.
+    @Test("with a KNOWN short headroom the mind's own door refuses on the app's number, and loads when it is gone")
+    func theMindsOwnDoorRefusesOnAKnownShortfall() async throws {
+        guard let weights = Self.live() else { return }
+        let headroom = Mutex(MemoryHeadroom.bytes(1))
+        let model = LocalMindModel(weights: weights,
+                                   headroom: { headroom.withLock { $0 } },
+                                   pressure: ScriptedPressureSource())
+        await #expect(throws: ReplyFailure.unavailable(.notEnoughMemory(needed: 2, available: 1))) {
+            try await model.admit(needing: 2)
+        }
+        #expect(await model.isResident == false, "a refused admission never began the load")
+        // The phone stops giving a number (D-092): the same door, the
+        // same need, admitted — and the load it begins lands.
+        headroom.withLock { $0 = .unavailable(.noMemoryLimitOnThisPlatform) }
+        try await model.admit(needing: 2)
+        #expect(await model.isResident, "admitted on no number, and resident after")
+        await model.retire()
+    }
+
     // MARK: - AC-264: a REAL reply cut at 200 ms, and the memory freed
 
     @Test("a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed")
@@ -193,6 +222,75 @@ struct MLXAdmissionLiveTests {
         #expect(after < peak, "the sanity read: the generation did reach above its floor")
         #expect(await model.isResident, "a warning keeps the weights")
         #expect(await model.retirements == 0)
+        await model.retire()
+    }
+
+    // MARK: - AC-261's dead-at-birth half: a run cancelled before its first token does NOT prefill
+
+    /// MEASURED, then fixed (the review of this piece): a run that was
+    /// already dead before its generation reached the vendor — a
+    /// `.warning` during the load, an early barge — still paid the FULL
+    /// prompt prefill, 866 MB over a 320 MB floor on a long prompt,
+    /// because nothing between the load door and the vendor's loop
+    /// checked cancellation and the vendor's `TokenIterator.init`
+    /// prefills synchronously. On the phone that just sent `.warning`
+    /// that is the transient allocation R3 exists to prevent, and it held
+    /// the container's serial lock the whole time, so the NEXT reply
+    /// queued behind a dead one.
+    ///
+    /// DETERMINISTIC BY CONSTRUCTION, not by racing the cancel against
+    /// six actor hops: this row HOLDS the container's own lock (the
+    /// vendor's `perform` is serial) before the reply is opened, so the
+    /// generation cannot reach the vendor until the row lets it — after
+    /// the cancel has landed. Wherever the cancel finds the generation,
+    /// before the lock or parked on it, no prefill may follow.
+    @Test("a run cancelled at birth never prefills: the active memory never rises above the floor")
+    func aRunCancelledAtBirthNeverPrefills() async throws {
+        guard let weights = Self.live() else { return }
+        let model = LocalMindModel(weights: weights, pressure: ScriptedPressureSource())
+        let mind = MLXReplyGenerator(model: model, instructions: Self.spoken)
+        try await Self.warm(mind)
+        await model.waitForIdle()
+        let container = try await model.ensureModelLoaded()
+
+        // THE HOLD: the vendor's lock, taken by this row and released
+        // only when the door opens.
+        let door = TestGate()
+        let facts = Facts()
+        let hold = Task<Void, any Error> {
+            await container.perform { _ in
+                facts.send("lock held")
+                await door.wait()
+            }
+        }
+        #expect(await facts.heard("lock held"))
+        let before = MLXRuntime.activeMemoryBytes
+        MLXRuntime.resetPeakMemory()
+        let begun = model.generationsBegun.count
+
+        let run = try await mind.openReply(to: ReplyContext(
+            transcript: Self.longQuestion,
+            options: GenerationOptions(maxTokens: 4096, temperature: 0)))
+        await run.cancel()
+        let story = ReplyStory.collect(run, facts: facts)
+        // The generation has BEGUN — its task is alive, dead or not —
+        // before the lock is released; only then is idle the honest
+        // "after" (the note on `waitForIdle()`).
+        #expect(await Wait4y.fact { await model.generationsBegun.wait(atLeast: begun + 1) },
+                "the cancelled reply's generation task still runs, and ends")
+        door.open()
+        try await Wait4y.settled(hold)
+        let updates = try await Wait4y.settled(story, within: .seconds(30))
+        await model.waitForIdle()
+        let after = MLXRuntime.activeMemoryBytes
+        let peak = MLXRuntime.peakMemoryBytes
+
+        print("AC-261 dead-at-birth · active before \(Self.megabytes(before)) · peak during \(Self.megabytes(peak))"
+              + " · after \(Self.megabytes(after))")
+        #expect(updates.isEmpty, "dead from birth: no token, no terminal — \(updates)")
+        #expect(peak <= before + Self.releaseSlack,
+                "a dead run must not prefill: peak \(Self.megabytes(peak)) vs floor \(Self.megabytes(before))")
+        #expect(after <= before + Self.releaseSlack)
         await model.retire()
     }
 

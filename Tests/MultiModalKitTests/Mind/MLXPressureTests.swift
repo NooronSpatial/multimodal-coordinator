@@ -200,6 +200,12 @@ struct MLXPressureTests {
 struct MLXPressureHandlerScanTests {
 
     static let hop = "Task { await self?.pressure(level) }"
+    /// What is allowed AROUND the hop, and nothing else (the review of
+    /// this piece): the blacklist below says what work must not appear,
+    /// but a line of work spelled without those words — a call on
+    /// `self?`, a read of a property — would have passed it. The
+    /// remainder, whitespace collapsed, must BE the subscribe wrapper.
+    static let wrapper = "let subscription = source.subscribe { [weak self] level in }"
 
     @Test("between its markers the handler is the one hop: no await of its own, no MLX call, no work")
     func theHandlerIsOneHop() throws {
@@ -213,6 +219,9 @@ struct MLXPressureHandlerScanTests {
         #expect(handler.components(separatedBy: Self.hop).count == 2,
                 "the hop appears exactly once, spelled exactly so: \(handler)")
         let rest = handler.replacingOccurrences(of: Self.hop, with: "")
+        let collapsed = rest.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        #expect(collapsed == Self.wrapper,
+                "around the hop there is the subscribe wrapper and NOTHING else — \(collapsed)")
         for forbidden in ["await", "MLX.", "clearCache", "retire", "abandon", "freePrefill",
                           "Memory", "withLock", "DispatchQueue", "sleep"] {
             #expect(!rest.contains(forbidden),
