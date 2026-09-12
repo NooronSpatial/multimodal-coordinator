@@ -204,6 +204,16 @@ struct AppleDeadlineTests {
 
     /// The same ending through `reply(to:)`, with nothing said yet: the
     /// text is empty and the stop is `.deadline` — returned, not thrown.
+    ///
+    /// The call is RACED against a sleeping cap, never awaited bare: a
+    /// first cut awaited `task.value` directly, and the mutation "never
+    /// arm the deadline" turned it into a reply that never ends — the
+    /// whole run hung past ten minutes on a source nobody finishes,
+    /// through the suite's time limit (`Task.value` does not honour
+    /// cancellation). A red test must die in seconds (§3.3), so the cap
+    /// cancels the reply task, and `reply(to:)`'s own drain turns that
+    /// into `run.cancel()` — the seam's contract, exercised on the way
+    /// out.
     @Test("reply(to:) returns Reply(\"\", .deadline) when the clock ends a silent reply (AC-264)")
     func replyReturnsTheDeadlineEnding() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
@@ -218,9 +228,29 @@ struct AppleDeadlineTests {
         #expect(await source.signals.heard("opened"))
         #expect(await Self.parked(clock))
         await clock.advance(by: .milliseconds(200))
-        let reply = try await task.value
+        let reply = try await Self.settled(task)
         #expect(reply == Reply(text: "", stop: .deadline), "an ending, not a failure — nothing was said")
         #expect(clock.sleeperCount == 0)
+    }
+
+    /// `task.value`, raced against a sleeping cap. The cap CANCELS the
+    /// reply task and throws, so a reply that never ends fails the test
+    /// in seconds instead of parking the run (see the test above).
+    private static func settled(_ task: Task<Reply, any Error>,
+                                within cap: Duration = .seconds(10)) async throws -> Reply {
+        try await withThrowingTaskGroup(of: Reply.self) { group in
+            group.addTask { try await task.value }
+            group.addTask {
+                try await Task.sleep(for: cap)
+                task.cancel()
+                throw ReplyFailure.engine("the reply did not end within \(cap)")
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else {
+                throw ReplyFailure.engine("no reply and no cap: the group was empty")
+            }
+            return first
+        }
     }
 
     // MARK: the stream wins

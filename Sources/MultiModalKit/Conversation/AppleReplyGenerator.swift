@@ -426,6 +426,20 @@ public struct AppleReplyGenerator: ReplyGenerating {
 /// `.finished(.deadline)` with the text so far, through the same latch —
 /// so the stream's finish and the clock's fire, however close, report
 /// exactly one terminal between them.
+///
+/// **Who says the terminal: the WORKER, always.** The clock's firing does
+/// no work of its own — it raises a flag under the lock and cancels the
+/// worker (the shape AC-263 demands of the pressure handler: raise a
+/// ticket, return), and the worker reports the ending on its own step
+/// once its await ends, re-checking the flag (§4.1's reentrancy law).
+/// The first cut let the sleeper yield the terminal itself, and the
+/// race test caught what that opens: the worker computes a token under
+/// the lock but yields it OUTSIDE it, so a token computed one instant
+/// before the latch could land between the sleeper's terminal and its
+/// finish — a token AFTER the terminal, seen once in twenty rounds with
+/// the cancel removed. Cancellation is a request, not a kill (§4.1), so
+/// the cancel cannot close that window; only one emitter can. With every
+/// terminal in the worker's own program order, nothing can follow it.
 @available(macOS 26.0, iOS 26.0, *)
 final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     let updates: AsyncStream<ReplyUpdate>
@@ -434,6 +448,13 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     private struct Guarded {
         var differ = SnapshotDiffer()
         var retired = false
+        /// The clock's flag (4y, AC-264): raised by the sleeper when the
+        /// deadline is reached, read by the worker in the SAME lock step
+        /// as the latch when it concludes, and in the same step as the
+        /// token diff — a token computed after the deadline is dropped,
+        /// so "the text so far" means the text BEFORE the clock fired,
+        /// not whatever the vendor managed before the cancel landed.
+        var deadlineReached = false
         /// The deadline's sleeper (4y, AC-264), or nil when the context
         /// carried no deadline. Lives under the SAME lock as `retired` so
         /// the step that takes the latch also hands the sleeper out to be
@@ -476,8 +497,15 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                     // because the finish lives in someone else's method,
                     // and the 4b precedent is to record redundancy, not
                     // pretend each line is load-bearing alone.
+                    //
+                    // THE CLOCK'S FLAG is the third guard (4y, AC-264): a
+                    // snapshot that arrives after the deadline was reached
+                    // is not spoken. The loop goes on — not `return` — so
+                    // the cancelled stream hands back its nil and the
+                    // worker concludes below; `return` is the cancel()
+                    // path's, where NO terminal is owed.
                     let token: String? = try self.state.withLock { guarded in
-                        guard !guarded.retired else { return nil }
+                        guard !guarded.retired, !guarded.deadlineReached else { return nil }
                         let suffix = try guarded.differ.advance(to: snapshot)
                         return suffix.isEmpty ? nil : suffix
                     }
@@ -487,10 +515,15 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                     }
                     self.out.yield(.token(token))
                 }
-                // `.unreported`: Apple's stream ends without saying why
-                // (AC-235 — the vendor has no stop reason to read; the
-                // SDK's interface has no `finishReason` anywhere).
-                self?.report(.finished(.unreported))
+                // The stream ran out — the vendor's own end, or the end
+                // the deadline's cancel gave it. `concludeStream` reads
+                // which in the same lock step as the latch.
+                self?.concludeStream()
+            } catch is CancellationError {
+                // The worker was cancelled while parked on the stream —
+                // the deadline's doing (`expire`) or a `cancel()`; the
+                // latch tells them apart and the second owes no terminal.
+                self?.concludeStream()
             } catch let revision as SnapshotRevision {
                 // The tripwire fired: the model rewrote text that may
                 // already be in the room. One honest failure, showing
@@ -534,7 +567,8 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     // MARK: the clock's ending (4y, AC-264, D-107 F-4 = A)
 
     /// Sleeps `deadline` on the injected clock, racing the stream. When
-    /// the clock wins, `expire()` ends the run; when the stream wins, the
+    /// the clock wins, `expire()` flags the run and stops its worker, and
+    /// the worker ends the run; when the stream wins, the
     /// terminal path stops this sleeper (`retire()`), so the clock is
     /// never left holding a dead reply — a sleep that is CANCELLED ends
     /// nothing, because the clock was stopped, not reached. Unstructured
@@ -562,11 +596,18 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         if alreadyEnded { sleeper.cancel() }
     }
 
-    /// The deadline was reached: the run ends `.finished(.deadline)`
+    /// The deadline was reached: the run will end `.finished(.deadline)`
     /// with what was said so far — an ENDING, like `.tokenBudget`, never
     /// a failure (F-4 = A; D-104 already ruled an ending is not one).
-    /// Through the same latch as every other terminal, so a stream that
-    /// finished in the same instant reports nothing.
+    ///
+    /// THIS DOES NO WORK — it raises the flag and cancels the worker,
+    /// the way AC-263 wants the pressure handler shaped: the WORKER says
+    /// the terminal, on its own step, when the cancelled stream hands it
+    /// nil (`concludeStream`). See the class comment for the token-
+    /// after-terminal race a sleeper that spoke for itself opened. The
+    /// flag is raised only on a run that is still alive: a run already
+    /// retired (a `cancel()`, a failure) owes the clock nothing, and its
+    /// worker is already stopped.
     ///
     /// WHAT THIS MIND CAN DO about the vendor's compute: cancel the
     /// stream task. The vendor's session has no "free the prefill" call
@@ -576,10 +617,26 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// is the whole of the release. The MLX mind, which owns its cache,
     /// frees it explicitly; this one cannot and does not pretend to.
     private func expire() {
-        let (first, _) = retire()
+        let alive = state.withLock { guarded -> Bool in
+            guard !guarded.retired else { return false }
+            guarded.deadlineReached = true
+            return true
+        }
+        guard alive else { return }
         work.withLock { $0 }?.cancel()
+    }
+
+    /// The stream is over, one way or the other, and the worker asks the
+    /// latch WHY in the same lock step it takes it: the clock's flag up
+    /// means `.deadline`; down means the vendor's own silent end —
+    /// `.unreported` (AC-235: the vendor has no stop reason to read; the
+    /// SDK's interface has no `finishReason` anywhere). Not first means a
+    /// `cancel()` got here before, and no terminal is owed.
+    private func concludeStream() {
+        let (first, sleeper, clockWon) = retire()
+        sleeper?.cancel()
         guard first else { return }
-        out.yield(.finished(.deadline))
+        out.yield(.finished(clockWon ? .deadline : .unreported))
         out.finish()
     }
 
@@ -679,7 +736,7 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// the latch 4e's review had to force onto `NeuralVoiceRun` after a
     /// failed decode kept running and aborted the process.
     private func report(_ terminal: ReplyUpdate) {
-        let (first, sleeper) = retire()
+        let (first, sleeper, _) = retire()
         // The stream ended: the deadline's sleeper is released BEFORE the
         // terminal goes out, so a test that reads the clock at "ended"
         // finds it empty — and a `ManualClock` never holds a dead reply.
@@ -689,18 +746,21 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         out.finish()
     }
 
-    /// THE LATCH, one lock step (4y widened it from a flag to a pair):
-    /// raises `retired`, answers "was I first", and hands out the
-    /// deadline's sleeper so the caller can stop it OUTSIDE the lock.
-    /// Every ending — the stream's, the clock's, a cancel — passes here,
-    /// which is why exactly one terminal is ever reported: two endings
-    /// that happen "at once" take the lock in some order, and only the
-    /// first sees `!was`.
-    private func retire() -> (first: Bool, sleeper: Task<Void, Never>?) {
+    /// THE LATCH, one lock step (4y widened it from a flag to a triple):
+    /// raises `retired`, answers "was I first", hands out the deadline's
+    /// sleeper so the caller can stop it OUTSIDE the lock, and reads the
+    /// clock's flag so `concludeStream` names the ending in the SAME step
+    /// it takes the terminal — a flag raised one instant after the latch
+    /// is a clock that lost, and reads as such. Every ending — the
+    /// stream's, the clock's (through the worker), a cancel — passes
+    /// here, which is why exactly one terminal is ever reported: two
+    /// endings that happen "at once" take the lock in some order, and
+    /// only the first sees `!was`.
+    private func retire() -> (first: Bool, sleeper: Task<Void, Never>?, deadlineReached: Bool) {
         state.withLock { guarded in
             let was = guarded.retired
             guarded.retired = true
-            return (!was, guarded.sleeper)
+            return (!was, guarded.sleeper, guarded.deadlineReached)
         }
     }
 
@@ -710,7 +770,7 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// The deadline's sleeper is stopped too (4y): a cancelled reply must
     /// not leave its clock behind.
     func cancel() async {
-        let (first, sleeper) = retire()
+        let (first, sleeper, _) = retire()
         work.withLock { $0 }?.cancel()
         sleeper?.cancel()
         guard first else { return }
