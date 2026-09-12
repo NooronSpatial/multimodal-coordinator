@@ -4665,3 +4665,35 @@ F-5 = A** (SPEC §184).
 **What this milestone is not:** admission, thermal and memory-pressure
 work (Aura's R1–R3, R7) stay parked, and F-8's memory question (D-105)
 stays ruled A until a milestone measures the number.
+
+## D-107 — 4y signed: admission built on what the phone says, and four rulings (Milestone 4y)
+
+**Date:** 2026-09-12 · **Decided by:** Ryad ("signed off plus F-1 to F-4
+recommended") · **Rulings: F-1 = A, F-2 = A, F-3 = A, F-4 = A** (SPEC
+§190).
+
+- **F-1 A — the app sets the memory threshold.** `admit(needing:)` takes
+  the number the app measured for itself (Aura's own AC6) and compares
+  it to the phone's headroom. *Rejected:* the library inferring it from
+  the weights × 1.5 — the exact claim D-105 removed because it locked a
+  phone out for good; and no check at all — which admits a load that
+  jetsam kills seconds later, the race Aura's R1 names.
+- **F-2 A — refuse at `.critical` only.** The measured phone reached
+  `.serious` in every session and never recovered (INSTRUMENTS §26), so
+  refusing at `.serious` would refuse every second turn. *Rejected:*
+  refuse at `.serious` — safer for the battery, unusable on the phone;
+  and never refuse — what the library does today.
+- **F-3 A — a memory warning cancels the generation through the
+  ticket.** The turn ends with no terminal, the way a barge does, and
+  the prefill is freed; the next turn runs clean. *Rejected:* let it
+  finish, then release — a warning is a warning, and the finish may be
+  the kill.
+- **F-4 A — a deadline is a stop reason.** `.finished(.deadline)` with
+  the partial text, beside `.tokenBudget`. *Rejected:* a failure — it
+  throws away words the person may already have heard, and D-104
+  already ruled that how a reply ENDS is not a failure.
+
+**What this milestone must not touch:** D-105 (no memory claim from a
+file size) and D-028 (the thermal seam is one question at one moment —
+this milestone asks it at a second moment, it does not change the
+seam). The mouth's thermal policy (4e's open item) stays open.
