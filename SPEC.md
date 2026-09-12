@@ -5848,6 +5848,34 @@ resurrect retired weights.
 - *B:* `.failed(.deadline)` — a failure. Throws away words the person may
   already have heard.
 
+### §190a. Raised by the build, not ruled (2026-09-12)
+
+**F-5 — does admission read PRESSURE as well as headroom?** §187/1 says
+`admit()` "reads headroom and pressure". What shipped reads headroom
+only: no acceptance criterion names a pressure verdict at the door, and
+`MindUnavailable` has no case for it. So a phone already at `.warning`
+is admitted, loads 2.3 GB, and is then cut by the same warning a moment
+later — correct under F-3, but a load that was never going to survive.
+- *A:* refuse at the door when the CURRENT pressure is `.warning` or
+  `.critical`, with a new `MindUnavailable.underMemoryPressure(level)`.
+  Cheap, typed, and it stops a load that F-3 would cut anyway.
+  **Recommended.**
+- *B:* leave it — pressure is a signal about the FUTURE and the door
+  reads the present; F-3 handles what comes. Simpler, and what ships.
+
+**F-6 — the one untyped throw left.** `admit(needing:)` can throw the
+holder's own `retiredDuringLoad` when a `.critical` lands during its
+own load — correct behaviour, untyped surface. Typing it needs either a
+new `MindUnavailable` case (`.retiredDuringLoad`) or a mapping to
+`.engine(_)`. *A:* the new case — one more line a caller can switch
+on. **Recommended.** *B:* map to `.engine(_)` — countable as a bucket,
+not as a cause.
+
+**And one honest note on AC-258.** "No window" is proven by a test in
+which the second caller waits on the first's allocation EVENT; the
+first draft of that test passed 9 of 10 times by luck before it was
+gated on the fact. The house rule about events, again.
+
 ## §191 — definition of done
 
 The four forks ruled and logged · red → green per AC with scripted
