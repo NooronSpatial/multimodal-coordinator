@@ -17,6 +17,19 @@ import Synchronization
 ///   from the table handed to `init` (F-2 = A); the coordinator's
 ///   stream still sees only tokens and one terminal.
 ///
+/// Heat (4y, AC-260, D-107 F-2 = A): the mind is built with a thermometer
+/// and a `GenerationThermalPolicy`, the way it is built with tools, and
+/// `openReply` asks the policy BEFORE it records or opens anything —
+/// the same door the readiness verdict uses in the real minds. A refused
+/// door throws `ReplyFailure.tooHot(state)`, consumes no plan, and is
+/// counted in `heatRefusals`. The defaults are the real provider and the
+/// shipped policy, so every pre-4y call site is unchanged.
+///
+/// A deadline (4y, AC-264, D-107 F-4 = A) is an ENDING the test scripts by
+/// hand: `finish(reply:stop: .deadline)` after the tokens "said so far".
+/// The real minds own the clock; this mind only proves the shape the
+/// coordinator and a text caller see.
+///
 /// Everything is recorded; tests assert against the record, not hope.
 public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     public enum Plan: Sendable {
@@ -67,17 +80,30 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         /// conformant `cancel()` can stop the wasted work (the
         /// optimization; the cancelled flag is the guarantee).
         var toolRuns: [Int: Task<Void, Never>] = [:]
+        /// Every door the policy shut, with the state it was shut at (4y,
+        /// AC-260). A refused door has no record — no reply was opened —
+        /// so the count lives here, beside the records, not in them.
+        var heatRefusals: [ThermalState] = []
     }
 
     private let plans: [Plan]
     /// The tools this mind was GIVEN (4w, F-2 = A): at construction, by
     /// the test that plays the app — never by the coordinator.
     public let tools: ToolTable
+    /// The thermometer and the policy this mind was GIVEN (4y, AC-260),
+    /// handed in the same way as the tools. The defaults are the real
+    /// ones, so a test that says nothing about heat runs as it always did.
+    public let thermal: any ThermalStateProviding
+    public let thermalPolicy: any GenerationThermalPolicy
     private let state = Mutex(State())
 
-    public init(plans: [Plan], tools: ToolTable = .empty) {
+    public init(plans: [Plan], tools: ToolTable = .empty,
+                thermal: any ThermalStateProviding = SystemThermalProvider(),
+                thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy()) {
         self.plans = plans
         self.tools = tools
+        self.thermal = thermal
+        self.thermalPolicy = thermalPolicy
     }
 
     /// `count` conformant manual replies — the everyday generator.
@@ -88,6 +114,10 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     // MARK: - the record
 
     public var repliesOpened: Int { state.withLock { $0.records.count } }
+
+    /// The doors the policy shut, in order, each with the state it read
+    /// (4y, AC-260). Empty on a cool mind.
+    public var heatRefusals: [ThermalState] { state.withLock { $0.heatRefusals } }
 
     public func record(ofReply index: Int) -> ReplyRecord? {
         state.withLock { index < $0.records.count ? $0.records[index] : nil }
@@ -105,7 +135,9 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
 
     /// Ends the reply well. A script that just says "finished" means the
     /// model ended its turn (`.complete`); a text test can script the
-    /// other reasons (4v, AC-237).
+    /// other reasons (4v, AC-237) — including `.deadline` (4y, AC-264):
+    /// emit the tokens "said so far", then finish with it, and the reply
+    /// ends the way a real mind's clock would end it.
     public func finish(reply index: Int, stop: StopReason = .complete) {
         let continuation = state.withLock { state in
             (index < state.records.count && !state.records[index].cancelled)
@@ -147,6 +179,18 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     // MARK: - ReplyGenerating
 
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        // THE DOOR (4y, AC-260, D-107 F-2 = A): the policy is asked FIRST,
+        // with the thermometer's state right now, before a plan is
+        // consumed or a record made — the line the real minds' readiness
+        // verdict sits on (`if let verdict = readiness() { throw ... }`).
+        // No run exists after a refusal, so nothing can be said, cancelled
+        // or remembered; the refusal is typed, and counted here so a test
+        // can prove the door was asked, not merely that a plan was missing.
+        let heat = thermal.current
+        if !thermalPolicy.allowGeneration(thermal: heat) {
+            state.withLock { $0.heatRefusals.append(heat) }
+            throw ReplyFailure.tooHot(heat)
+        }
         // Record and continuation land in ONE lock: any observer that can
         // see the record can reach the stream. (The split version lost a
         // race — a test emitting between the two locks yielded into nothing

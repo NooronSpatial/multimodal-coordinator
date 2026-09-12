@@ -39,15 +39,25 @@ public struct GenerationOptions: Sendable, Equatable {
     public var temperature: Float?
     /// A sampling seed; `nil` leaves the vendor's randomness alone.
     public var seed: UInt64?
+    /// A wall-clock budget for this call, beside the token budget (4y,
+    /// AC-264, D-107 F-4 = A). `nil` is NO deadline — the voice path's
+    /// setting, which the coordinator never changes (AC-265): a spoken
+    /// reply's ceiling is the barge-in, not a clock. A reply that runs
+    /// past it ENDS `.finished(.deadline)` with what was said so far; it
+    /// does not fail. The minds implement the clock; the seam only
+    /// carries the number.
+    public var deadline: Duration?
 
     public init(instructions: String? = nil,
                 maxTokens: Int? = nil,
                 temperature: Float? = nil,
-                seed: UInt64? = nil) {
+                seed: UInt64? = nil,
+                deadline: Duration? = nil) {
         self.instructions = instructions
         self.maxTokens = maxTokens
         self.temperature = temperature
         self.seed = seed
+        self.deadline = deadline
     }
 }
 
@@ -62,6 +72,14 @@ public enum StopReason: Sendable, Equatable {
     /// The token budget cut the reply short. A caller that asked for a
     /// whole document should know it did not get one.
     case tokenBudget
+    /// The clock cut it; what follows is what was said so far (4y,
+    /// AC-264, D-107 F-4 = A). `.tokenBudget`'s sibling: one budget is
+    /// counted in tokens, this one in `GenerationOptions.deadline`'s
+    /// time, and both are ENDINGS. It is not a failure because D-104
+    /// already ruled that how a reply ends is not one, and because a
+    /// failure would throw away words the person may already have heard.
+    /// A caller reads it and shows what it has.
+    case deadline
     /// The engine cannot say — the honest value for a mind whose API
     /// reports no reason, never a guess.
     case unreported
@@ -106,6 +124,15 @@ public enum ReplyFailure: Error, Sendable, Equatable, CustomStringConvertible {
     case unsupportedLanguage
     /// The engine is serving another request — rate limit or concurrency.
     case busy
+    /// The device is too hot to generate (4y, AC-260, D-107 F-2 = A).
+    /// Thrown AT THE DOOR — `openReply` asks the injected
+    /// `GenerationThermalPolicy` with the thermometer's state before it
+    /// opens a run, the way the readiness verdict is asked — so no run
+    /// exists and nothing was said. The state rides on the case because
+    /// an app's own policy may refuse earlier than the default's
+    /// `.critical`, and a counting caller should see WHERE. Recoverable:
+    /// the same question later, on a cooler phone, opens.
+    case tooHot(ThermalState)
     /// Everything the engine says that this library cannot type yet.
     case engine(String)
 
@@ -119,6 +146,8 @@ public enum ReplyFailure: Error, Sendable, Equatable, CustomStringConvertible {
             "the model does not support this language"
         case .busy:
             "the model is busy with another request"
+        case .tooHot(let state):
+            "the device is too hot to generate — thermal state \(state)"
         case .engine(let words):
             // VERBATIM, no prefix: the coordinator puts this description
             // where the bare string went (AC-242), so a fake's "brain
