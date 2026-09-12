@@ -1,4 +1,5 @@
 import Foundation
+import MultiModalKitTesting
 import Synchronization
 import Testing
 @testable import MultiModalKit
@@ -29,8 +30,11 @@ final class ScriptedPressureSource: MemoryPressureSourcing, Sendable {
             $0.handler = onChange
             $0.subscriptions += 1
         }
-        return MemoryPressureSubscription { [state] in
-            state.withLock {
+        // `self`, not `[state]`: a `Mutex` is non-copyable and cannot be
+        // captured by value, and a source outlives every subscription it
+        // hands out in these tests.
+        return MemoryPressureSubscription {
+            self.state.withLock {
                 $0.handler = nil
                 $0.cancellations += 1
             }
@@ -143,7 +147,7 @@ enum Wait4y {
             group.addTask {
                 try await Task.sleep(for: deadline)
                 task.cancel()
-                throw WaitTimedOut(after: deadline)
+                throw Wait4yTimedOut(after: deadline)
             }
             let first = try await group.next()!
             group.cancelAll()
@@ -196,7 +200,9 @@ enum Wait4y {
     }
 }
 
-struct WaitTimedOut: Error, CustomStringConvertible {
+/// Named for its file: `AdmissionTests` and `ReplyContractTests` each keep
+/// a private twin, and two internal ones in one module collide.
+struct Wait4yTimedOut: Error, CustomStringConvertible {
     let after: Duration
     var description: String { "the task did not settle within \(after)" }
 }

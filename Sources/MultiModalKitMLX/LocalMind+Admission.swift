@@ -104,10 +104,17 @@ extension LocalMindModel {
     /// real weights.
     ///
     /// The load it begins is `ensureModelLoaded()`, whose own door
-    /// (`readiness()`) still runs first inside it: a Simulator, an absent
-    /// install or a missing GPU is refused with that verdict, and the
-    /// memory question is only ever asked of a device that could load.
+    /// (`readiness()`) runs inside it too — but it is asked HERE first,
+    /// before the gate: a Simulator, an absent install or a missing GPU
+    /// is refused with THAT verdict, and the memory question is only
+    /// ever put to a device that could load. The first cut asked memory
+    /// first, and a phone with no weights was told "not enough memory"
+    /// — a number about a load that could never have begun. The verdict
+    /// is pure and cheap (a disk look, no MLX), so asking it twice costs
+    /// nothing and the load door keeps its own guard for its other
+    /// callers.
     public func admit(needing bytes: Int) async throws {
+        if let verdict = readiness() { throw ReplyFailure.unavailable(verdict) }
         try await admission.admit(
             needing: bytes,
             resident: { [self] in await self.isResident },
