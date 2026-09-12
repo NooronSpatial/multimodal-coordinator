@@ -519,33 +519,8 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
                 // the deadline's cancel gave it. `concludeStream` reads
                 // which in the same lock step as the latch.
                 self?.concludeStream()
-            } catch is CancellationError {
-                // The worker was cancelled while parked on the stream —
-                // the deadline's doing (`expire`) or a `cancel()`; the
-                // latch tells them apart and the second owes no terminal.
-                self?.concludeStream()
-            } catch let revision as SnapshotRevision {
-                // The tripwire fired: the model rewrote text that may
-                // already be in the room. One honest failure, showing
-                // both sides — never the wrong words, spoken (D-058).
-                self?.report(.failed(.engine("the model revised text already emitted — "
-                    + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\"")))
-            } catch let error as LanguageModelSession.GenerationError {
-                self?.settle(generation: error)
-            } catch let error as LanguageModelSession.ToolCallError {
-                // A tool the model called THREW (4w, AC-225). The adapter
-                // let the throw through, the vendor ended the stream with
-                // this error, and the run ends the way the scripted mind's
-                // `.failsReply` does: one `.failed(.engine(_))` carrying
-                // the SAME `ToolCallFailure` sentence every mind writes.
-                // This ending is the INTERIM one — whether the adapter
-                // should catch instead and let the model speak (the MLX
-                // run's ending) is an open fork, Ryad's, written up at
-                // `AppleReplyRun.toolFailure`. This arm stays under either
-                // ruling: the vendor can raise the error on its own.
-                self?.report(.failed(.engine(Self.toolFailure(from: error).description)))
             } catch {
-                self?.report(.failed(.engine("reply generation failed: \(error)")))
+                self?.settle(streamError: error)
             }
         }
         work.withLock { $0 = task }
@@ -633,11 +608,47 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// SDK's interface has no `finishReason` anywhere). Not first means a
     /// `cancel()` got here before, and no terminal is owed.
     private func concludeStream() {
-        let (first, sleeper, clockWon) = retire()
-        sleeper?.cancel()
-        guard first else { return }
-        out.yield(.finished(clockWon ? .deadline : .unreported))
+        let latch = retire()
+        latch.sleeper?.cancel()
+        guard latch.first else { return }
+        out.yield(.finished(latch.deadlineReached ? .deadline : .unreported))
         out.finish()
+    }
+
+    /// Every way the stream can THROW, mapped onto one honest ending. The
+    /// arms lived as `catch` clauses in `init` until 4y's cancellation
+    /// arm tipped that initialiser past the lint's complexity line; they
+    /// moved here whole, comments and all, and the mapping is unchanged.
+    private func settle(streamError error: any Error) {
+        switch error {
+        case is CancellationError:
+            // The worker was cancelled while parked on the stream —
+            // the deadline's doing (`expire`) or a `cancel()`; the
+            // latch tells them apart and the second owes no terminal.
+            concludeStream()
+        case let revision as SnapshotRevision:
+            // The tripwire fired: the model rewrote text that may
+            // already be in the room. One honest failure, showing
+            // both sides — never the wrong words, spoken (D-058).
+            report(.failed(.engine("the model revised text already emitted — "
+                + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\"")))
+        case let error as LanguageModelSession.GenerationError:
+            settle(generation: error)
+        case let error as LanguageModelSession.ToolCallError:
+            // A tool the model called THREW (4w, AC-225). The adapter
+            // let the throw through, the vendor ended the stream with
+            // this error, and the run ends the way the scripted mind's
+            // `.failsReply` does: one `.failed(.engine(_))` carrying
+            // the SAME `ToolCallFailure` sentence every mind writes.
+            // This ending is the INTERIM one — whether the adapter
+            // should catch instead and let the model speak (the MLX
+            // run's ending) is an open fork, Ryad's, written up at
+            // `AppleReplyRun.toolFailure`. This arm stays under either
+            // ruling: the vendor can raise the error on its own.
+            report(.failed(.engine(Self.toolFailure(from: error).description)))
+        default:
+            report(.failed(.engine("reply generation failed: \(error)")))
+        }
     }
 
     /// AC-114, and since 4v AC-236's table (SPEC §175/3): every case
@@ -736,12 +747,12 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// the latch 4e's review had to force onto `NeuralVoiceRun` after a
     /// failed decode kept running and aborted the process.
     private func report(_ terminal: ReplyUpdate) {
-        let (first, sleeper, _) = retire()
+        let latch = retire()
         // The stream ended: the deadline's sleeper is released BEFORE the
         // terminal goes out, so a test that reads the clock at "ended"
         // finds it empty — and a `ManualClock` never holds a dead reply.
-        sleeper?.cancel()
-        guard first else { return }
+        latch.sleeper?.cancel()
+        guard latch.first else { return }
         out.yield(terminal)
         out.finish()
     }
@@ -756,12 +767,24 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// here, which is why exactly one terminal is ever reported: two
     /// endings that happen "at once" take the lock in some order, and
     /// only the first sees `!was`.
-    private func retire() -> (first: Bool, sleeper: Task<Void, Never>?, deadlineReached: Bool) {
+    private func retire() -> Retirement {
         state.withLock { guarded in
             let was = guarded.retired
             guarded.retired = true
-            return (!was, guarded.sleeper, guarded.deadlineReached)
+            return Retirement(first: !was, sleeper: guarded.sleeper,
+                              deadlineReached: guarded.deadlineReached)
         }
+    }
+
+    /// What one latch step answers — three facts read in ONE lock step,
+    /// named rather than tupled so each caller says which it uses.
+    private struct Retirement {
+        /// Was this the first ending — the one that gets to speak?
+        let first: Bool
+        /// The deadline's sleeper, to be stopped OUTSIDE the lock.
+        let sleeper: Task<Void, Never>?
+        /// Had the clock fired before the latch was taken?
+        let deadlineReached: Bool
     }
 
     /// Ends the stream with NO terminal — the seam's cancel contract.
@@ -770,10 +793,10 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
     /// The deadline's sleeper is stopped too (4y): a cancelled reply must
     /// not leave its clock behind.
     func cancel() async {
-        let (first, sleeper, _) = retire()
+        let latch = retire()
         work.withLock { $0 }?.cancel()
-        sleeper?.cancel()
-        guard first else { return }
+        latch.sleeper?.cancel()
+        guard latch.first else { return }
         out.finish()
     }
 }
