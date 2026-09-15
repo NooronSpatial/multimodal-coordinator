@@ -1536,10 +1536,14 @@ SPEC §182's non-goals, plainly, plus the two things this milestone owes:
   before a download or after one, and F-1 = A named that as the next
   milestone's question. That milestone is the next section, "Running it
   safely (4y)": `admit(needing:)` now compares a number the APP measured
-  to the headroom `DeviceReport` carries, and refuses with
-  `.notEnoughMemory(needed:available:)`. Headroom there is memory, not
-  disk. Nothing here infers that number from `expectedInstall()`; D-105
-  still forbids it.
+  to the phone's headroom, and refuses with
+  `.notEnoughMemory(needed:available:)`. The headroom it reads is a
+  `HeadroomReading` injected at the model's init — by default the same
+  kernel reader (`MemoryHeadroomReader.read`) that fills
+  `DeviceReport.memoryHeadroomBytes` for `readiness()`; admission never
+  opens a `DeviceReport`. Headroom there is memory, not disk. Nothing
+  here infers that number from `expectedInstall()`; D-105 still forbids
+  it.
 - **No free-DISK check at all, and that is a different question.**
   Nothing in this library asks the volume how much room is left, and no
   test fills one, so the disk-full path is argued from the code and never
@@ -1577,9 +1581,26 @@ ruled in **D-107**: **F-1 = A** (the app sets the memory number),
 **F-2 = A** (heat refuses at `.critical` only), **F-3 = A** (a memory
 warning cancels the generation), **F-4 = A** (a deadline is an ending).
 Two more forks, **F-5** and **F-6**, were raised by the build and are
-**open** — they are named at the end, not resolved here. `R1`, `R2`,
-`R3`, `R4`, `R7` are rows of the caller's own requirements list, quoted
-in SPEC §186.
+**open** — they are named at the end, not resolved here. `Rn` is a row
+of the caller's own requirements list: `R1`, `R2`, `R3` and `R7` are
+quoted in SPEC §186 (one admission call; heat before a generation;
+pressure abandons the generation; a wall-clock deadline); `R4` is named
+in AC-262 (a retire is not the end — the next reply reloads); `R5` is
+named in §188 (what happens when the app goes to the background — a
+non-goal here).
+
+**Four memory words, before the picture.** *Jetsam* is iOS's memory
+killer: it does not warn, it terminates the process that is over its
+limit. The *dirty-memory limit* is that limit — the ceiling iOS sets on
+the memory one process has written to; *headroom* is the bytes left
+before it. A Mac has no such limit, so a Mac reports no headroom. The
+*prefill* is the model's first pass over the whole prompt, before the
+first token comes out — where a reply's short-lived memory is born
+(INSTRUMENTS §68: ~95 MB above the floor on the Mac's 0.6B). The *KV
+cache* is what the prefill builds: the model's working memory
+for that prompt, one entry per prompt token, grown by one per generated
+token, read again for every later token. It lives inside the vendor's
+generation task and dies with it.
 
 ### The life of a generation under threat
 
@@ -1611,7 +1632,7 @@ in SPEC §186.
             ├── the lock is taken; the prompt is built and counted (AC-236) ────────┤
             │ ✓ CHECK 2  Task.checkCancellation()  BEFORE the prefill               │
             │            the vendor's lock ignores cancellation, so a run cut while │
-            │            parked on it arrives here ALIVE  LocalMind.swift:576       │
+            │            parked on it arrives here ALIVE  LocalMind.swift:578       │
             ├── PREFILL: the KV cache is born, inside the vendor's own task ────────┤
             │            ~95 MB over the floor on the Mac's 0.6B (INSTRUMENTS §68)  │
             ├── TOKENS: .token … .token — each admitted under the run's lock ───────┤
@@ -1654,10 +1675,13 @@ import MultiModalKitMLX
 let model = LocalMindModel(weights: weightsFolder)
 
 // 1 — ONE admission call, with YOUR number (F-1 = A). Bytes the app
-//     measured for itself. The library will not guess it from a file
-//     size (D-105). 0 means "no claim": the load is admitted unasked.
+//     measured for itself: the PEAK a load plus one reply reaches, not
+//     the file size (D-105). 3.3 GB here rounds UP the phone's largest
+//     measured peak for a 2.3 GB model (3.26 GB, INSTRUMENTS §60) —
+//     see "What the number should be, and one way to get it".
+//     0 means "no claim": the load is admitted unasked.
 do {
-    try await model.admit(needing: 3_000_000_000)
+    try await model.admit(needing: 3_300_000_000)
 } catch ReplyFailure.unavailable(.notEnoughMemory(needed: let needed, available: let available)) {
     print("short by \(needed - available) bytes")      // refused BEFORE a byte was read
 } catch let failure as ReplyFailure {
@@ -1700,8 +1724,9 @@ block.
 **One call, one gate.** `LocalMindModel.admit(needing:)` is Aura's R1
 (SPEC §187/1, AC-258, AC-259). Before 4y a caller asked `readiness()`
 and then loaded, and between the check and the allocation there was a
-window — a second caller, or the phone itself, could fall into it and
-jetsam would kill the app inside it. The gate closes the window:
+window — a second caller, or the phone itself, could fall into it, and
+jetsam (the killer defined above) would end the app inside it. The gate
+closes the window:
 
 ```
  admit(needing: N)
@@ -1732,21 +1757,40 @@ has ENDED, released on every exit. So a second caller's check runs
 against the number the first caller's allocation left behind — never a
 stale one.
 
-**How it is proven.** `MLXAdmissionTests.theSecondCallerSeesTheFirstsAllocation`:
-headroom 3 GB, two callers each needing 2 GB. The first's load is begun
-and parked; the second arrives during it. The row waits for the FACT
-that the second caller is parked at the gate (`MindAdmission.parked`, a
-count a test can wait on), only then lets the first's load end — which
-sets the headroom to 1 GB, the way the kernel would see it — and then
-asserts the second is refused with
-`.notEnoughMemory(needed: 2 GB, available: 1 GB)`, that exactly one
-load ran, and that the facts came in the order
+**How it is proven.** `MLXAdmissionTests.theSecondCallerSeesTheFirstsAllocation`.
+The picture of the row:
+
+```
+ headroom 3 GB · two callers · each needs 2 GB
+
+ first  ─ admit ─ headroom read: 3 GB ─ load BEGINS ─ (parked) ──────── load ENDS ─►
+                                                                        headroom := 1 GB
+ second ───────── admit ─ waits at the gate ................................. ─ headroom read: 1 GB
+                          ▲ the row WAITS for this fact                          ──► refused:
+                            (MindAdmission.parked ≥ 1)                              needed 2 GB,
+                            before it lets the first load end                       available 1 GB
+```
+
+In words, one step at a time. The first caller's load begins and parks.
+The second caller arrives and waits at the gate. The row waits for the
+FACT that the second is parked (`MindAdmission.parked`, a count a test
+can wait on). Only then does it let the first's load end, which sets the
+headroom to 1 GB — the way the kernel would see the allocation land.
+Then it asserts three things: the second is refused with
+`.notEnoughMemory(needed: 2 GB, available: 1 GB)`; exactly one load ran;
+and the facts came in this order:
 `headroom read: 3 GB · first load began · first load ended · headroom read: 1 GB`.
-Remove the wait on the flag and the row goes red. It did not always:
-SPEC §190a records that the first draft passed 9 of 10 times by luck,
-because it did not gate on the park, and the mutant only lost when the
-scheduler ran the second caller first. Gated on the event, it loses every
-time. The house rule about events, again.
+
+Remove the wait on the `admitting` flag (the mutant) and the row goes
+red. It did not always. The first draft did not wait for the park, so
+the mutant slipped through green one run in ten: whenever the scheduler
+ran the second caller only after the first load had landed, the stale
+window was never entered (the row's comment; SPEC §190a and the source
+comment say the same fact from the other side — the red held nine runs
+in ten). Now the row gates on the park: a gate that does not park never
+sends that fact, and the row dies on its cap instead of on the
+scheduler's mood. No run count is claimed for the fixed row beyond
+that. The house rule about events, again.
 
 **The number is the app's to measure (F-1 = A).** `admit(needing:)`
 takes bytes the APP measured for itself and compares them to the phone's
@@ -1760,6 +1804,35 @@ the weights are resident, and a refused door never gets there. A number
 that can lock a device out belongs with a measurement, not a guess. The
 rejected options are in D-107: infer it (D-105 forbids), or no check at
 all (admits a load that jetsam kills seconds later — the race R1 names).
+
+**What the number should be, and one way to get it.** The comparison
+is made while the weights are NOT resident (a resident model is admitted
+unasked), so `N` is everything the load and one reply will add on top of
+an empty mind: the weights, plus the prefill and the KV cache of a
+prompt the app's own size. Not the file size — the file is only the
+weights. One way to measure it, the way §68's rows do: on a reference
+device, with the mind unloaded, call `MLXRuntime.resetPeakMemory()`,
+then load and run one reply of the app's usual prompt, then read
+`MLXRuntime.peakMemoryBytes` — the peak in bytes since the reset, MLX's
+own counter (what MLX held, not the whole process; the weights are in
+it because they were loaded after the reset). Round it up and ship it
+as `N`. The picture on the phone: the 4B sits at ~2.3 GB resident, and
+MLX's peak in a field session reached 3.06 GB and 3.26 GB (INSTRUMENTS
+§58, §60); on the Mac's 0.6B the reply adds ~95 MB above a 320 MB floor
+(§68). That
+is why the example passes 3.3 GB for a 2.3 GB model: it rounds UP the
+larger of the two measured peaks — the weights plus the working memory
+a reply needs. A number below the measured peak is a guess dressed as
+a measurement. The library does not check the number against anything
+but the headroom, so a number too small admits a load that jetsam will
+kill — the app's measurement is the whole safety of this call.
+
+**Admission asks no heat question.** `admit(needing:)` reads readiness
+and headroom, nothing else (`LocalMindModel.admit`, five steps in the
+picture above, none of them a thermometer). A hot phone is admitted and
+loads 2.3 GB; heat is asked at `openReply`, once per door (the "Heat"
+section). A caller that wants to refuse a hot load asks its own
+thermometer before it calls `admit`.
 
 **What `0` means.** No claim — D-105's own shape. The load is admitted
 with no memory question asked, even on an `.exhausted` headroom
@@ -1787,10 +1860,18 @@ woken — not one — because a woken waiter here may return early, and a
 one-at-a-time hand-off would strand the rest (the lesson `Retirable`
 records, D-051).
 
-**Admission is optional.** `openReply` loads the weights itself if they
-are not resident, through the same load door — with no memory question.
-`admit(needing:)` is the call that ASKS one. A caller that never calls it
-is where it was before 4y, and finds out at the load, as D-105 says.
+**Admission is optional — and it is not remembered.** `openReply` loads
+the weights itself if they are not resident, through the same load door
+— with no memory question. `admit(needing:)` is the call that ASKS one.
+A caller that never calls it is where it was before 4y, and finds out at
+the load, as D-105 says. **This matters after a `.critical`.** A
+critical warning retires the weights (the "Pressure" section), and the
+next `openReply` reloads them with no memory question — on a phone that
+just ran out of memory. So the caller must call `admit(needing:)` AGAIN
+before its next reply, or it is back in the pre-4y race for that one
+load. The gate does not know the weights were once admitted; it asks
+`resident` and the headroom fresh every time (`MindAdmission.admit`,
+the `resident()` read inside the gate).
 
 **On the Mac and on the phone.** This Mac reports no headroom, so the
 real door admits any number and the load lands
@@ -1824,10 +1905,13 @@ then ask readiness (`MLXReplyGenerator.openReply`,
 whatever is installed; a refusal is `ReplyFailure.tooHot(state)`, thrown
 at the door, so no run exists and nothing was said. The state rides on
 the case so a counting caller sees WHERE an app's stricter policy
-refused. The order is a test on each mind: a `.critical` thermometer
-with the weights absent hears `.tooHot`, not `.unavailable`
-(`MLXThermalDoorTests.heatSpeaksBeforeReadiness`,
-`AppleHeatTests.heatBeforeTheVerdict`); the thermometer is read at every
+refused. The order is a test on each mind: on a `.critical` thermometer
+a door that would ALSO refuse for readiness hears `.tooHot`, not
+`.unavailable` — the MLX row scripts absent weights
+(`MLXThermalDoorTests.heatSpeaksBeforeReadiness`, `.weightsAbsent`), the
+Apple row scripts a vendor still downloading
+(`AppleHeatTests.heatBeforeTheVerdict`, `.modelDownloading`), and both
+check that the cooler door then speaks the verdict; the thermometer is read at every
 door, never cached, so a phone that cools between two turns is admitted
 on the second (`theThermometerIsReadEveryTime`); and three doors on a
 `.critical` thermometer are three equal `.tooHot(.critical)` values
@@ -1844,13 +1928,15 @@ counts the reads: one per door).
    .critical  refuse       ──► .tooHot(.critical)
 ```
 
-Why `.serious` generates: on the phone, thermal went `nominal` at 73 s
-to `serious` by 128 s and never recovered in a 1132-second session —
-seventeen of nineteen minutes at `serious` (INSTRUMENTS §40, the AC-140
-row; the spec and the source cite this as §26). The field sessions since
-that recorded heat read `serious` too — from turn 5 in §60, throughout in
-§61, §63 and §67. A
-default that refused at `.serious` would refuse the product. D-107 lists
+Why `.serious` generates. On the phone, thermal went `nominal` at 73 s
+to `serious` by 128 s. It never recovered in a 1132-second session:
+seventeen of nineteen minutes at `serious`. The numbers are in
+INSTRUMENTS §40, the AC-140 row — open §40. (SPEC §186 and D-107 write
+"§26" for the same fact; §26 is a different section, the 0 Hz crash.
+The cite there is wrong; the fact is not.) The field sessions since
+that recorded heat read `serious` too — from turn 5 in §60, throughout
+in §61, §63 and §67. A default that refused at `.serious` would refuse
+the product. D-107 lists
 the rejected options: refuse at `.serious` (safer for the battery,
 unusable on the measured phone) and never refuse (what the library did
 before 4y). The table is pinned state by state on the policy alone, on
@@ -1904,10 +1990,16 @@ of this milestone, and it is still open.
 
 ### Pressure
 
-The MLX mind subscribes to memory pressure ONCE, at its construction,
-for its whole life — not from load to retire, because a retire is not the
-end of the model (R4: the next `openReply` reloads), and a subscription
-tied to residency would miss a `.critical` that lands between. The seam
+**Which object listens: the MODEL, not the mind.** `LocalMindModel` —
+the actor that holds the weights and the registry of live runs —
+subscribes to memory pressure ONCE, in its `init`, for its whole life
+(`watchPressure`, `LocalMind.swift`). `MLXReplyGenerator`, the mind,
+subscribes to nothing; it only opens runs on the model. So the object a
+caller must keep alive for pressure to be acted on is the model — the
+mind holds it, and a model with no owner cancels its subscription in
+`deinit`. Not from load to retire, because a retire is not the end of
+the model (R4: the next `openReply` reloads), and a subscription tied
+to residency would miss a `.critical` that lands between. The seam
 is `MemoryPressureSourcing` in `MindPressure.swift`; the real source
 wraps `MemoryPressureMonitor`, the kernel's dispatch source; a test's
 source pushes levels by hand. Three levels: `.normal`, `.warning`,
@@ -1927,29 +2019,72 @@ source pushes levels by hand. Three levels: `.normal`, `.warning`,
 
 **What `.warning` does (F-3 = A).** Every run alive on these weights is
 ended the way a barge ends one: through the run's own `retired` latch,
-raised in the same locked step that finishes the stream, so a token the
-vendor produces after the warning is provably unable to reach a
-listener. The stream carries the tokens already spoken and then simply
-ENDS — no terminal. The generation's task is then cancelled as the
-optimisation, the source's end path awaits the vendor's task, and the
-prefill is freed. The weights STAY resident, and the next turn runs
-clean. Proven with a scripted source: the two tokens already spoken,
-then the end, no terminal, the generation cancelled, the registry empty,
-zero retirements (`MLXPressureTests.aWarningEndsTheRunWithNoTerminal`);
-a run opened after the warning runs untouched (`theNextTurnRunsClean`);
-every live run ends, not only the latest (`aWarningEndsEveryLiveRun`);
-`.normal` ends nothing (`normalDoesNothing`). D-107 records the rejected
-option: let it finish, then release — a warning is a warning, and the
-finish may be the kill.
+raised in the same locked step that finishes the stream
+(`MLXReplyRun.abandon()` — the body `cancel()` also runs). Every token
+is admitted under that same lock (`guard !guarded.retired`), so once the
+latch is up no later token can reach a listener. Be exact about WHEN
+the latch goes up: not in the kernel's callback, but one hop later, on
+the model actor's step — "What that shape costs" below says what can
+happen in between. The stream carries the tokens already spoken and
+then simply ENDS — no terminal. The generation's task is then cancelled
+as the optimisation, the source's end path awaits the vendor's task,
+and the prefill is freed. The weights STAY resident, and the next turn
+runs clean. Proven with a scripted source: the two tokens already
+spoken, then the end, no terminal, the generation cancelled, the
+registry empty, zero retirements
+(`MLXPressureTests.aWarningEndsTheRunWithNoTerminal`; its source stops
+on cancellation, so this row does not test a defiant token). The
+after-the-latch defiance is proven on the same `abandon()` through the
+cancel seam: a source that yields a token AFTER the cut, and a listener
+that never hears it
+(`MLXReplyConformanceTests.nothingAfterTheCancelSurvives`, promise 3,
+`gatedDefiance`). A run opened after the warning runs untouched
+(`theNextTurnRunsClean`); every live run ends, not only the latest
+(`aWarningEndsEveryLiveRun`); `.normal` ends nothing
+(`normalDoesNothing`). D-107 records the rejected option: let it
+finish, then release — a warning is a warning, and the finish may be
+the kill.
 
-**Note for a whole-reply caller.** `openReply` gives a stream that ends
-with no terminal. `reply(to:)`, the convenience that drains one, treats a
-stream that ends with no terminal and no cancel of its own as a broken
-seam and throws `.failed(.engine("the reply ended without a terminal"))`.
-That mapping is proven on a scripted silently-ending mind
-(`ReplyContractTests.noTerminalIsAnEngineFailure`); no row drives a
-pressure warning through `reply(to:)` itself. A caller that wants to
-tell a warning from a broken engine reads the stream.
+**What the two callers of this page SEE — read from the code.** This
+section's own persona is a whole-reply caller with a spinner, and for
+them a warning is not the quiet ending above:
+
+```
+ how the reply is read        what a .warning mid-reply looks like        proven by
+ ─────────────────────        ───────────────────────────────────        ─────────
+ openReply, the stream        tokens so far, then the stream ENDS,       MLXPressureTests
+                              no terminal                                 (scripted source)
+ reply(to:), whole reply      THROWS ReplyFailure.engine(                 ReplyContractTests
+                                "the reply ended without a terminal");     .noTerminalIsAnEngineFailure
+                              the partial text is GONE                    (a scripted silent mind — no row
+                                                                           drives a real warning through it)
+ the voice path               the tokens already said are spoken; then    NO row. Read from
+  (the coordinator)           NOTHING arrives — no .finished, no .failed:  TurnCoordinator+Stages.swift
+                              the turn is neither completed nor failed     (`handleReply`) and
+                              by the library                               +Transcripts.swift
+```
+
+`reply(to:)` drains a stream and treats "ended with no terminal and no
+cancel of my own" as a broken seam: it throws
+`ReplyFailure.engine("the reply ended without a terminal")` — a thrown
+`ReplyFailure`, not a `.failed` update (`ReplyContract.swift`,
+`drainWholeReply`). Under a warning that is what the spinner caller
+gets: an engine failure, and the words already generated thrown away
+with it. A caller that wants to tell a warning from a broken engine, or
+keep the partial text, reads the stream.
+
+On the voice path, argued from the code and proven by no row: the
+coordinator forwards the run's updates one by one and acts on `.token`,
+`.finished` and `.failed` (`handleReply`); a stream that just ends
+delivers none of those, and the forwarding task returns silently. The
+tokens already spoken were fed to the mouth, which speaks each phrase
+as it completes; the mouth is never told the tokens are finished, so a
+half-built last phrase is never flushed (`AppleSpeechSynthesizer`,
+`feed` and `finishTokens`); the turn stays where it was until the next
+barge or `stop()`. Nothing publishes `turnFailed` or `turnCompleted`
+for it. What the person hears is the completed phrases up to the cut,
+then silence — and the library has no test that says so. This is listed
+under "What this does NOT do".
 
 **What `.critical` adds.** The same cut, then `retire()`: the weights are
 released, and the next `openReply` reloads them through the same door as
@@ -1959,7 +2094,11 @@ retirement, not resident, and the door opens again
 retires, because the weights, not the run, are the target
 (`aCriticalWithNoRunStillRetires`). Live, on the Mac: the reload answers
 (`MLXAdmissionLiveTests.aCriticalRetiresAndTheNextReplyReloads`, and the
-last two rows of §68's table).
+last two rows of §68's table). **That reload asks no memory question.**
+It goes through the plain load door, on a phone that just ran out of
+memory. A caller that wants the gate again calls `admit(needing:)`
+before the next `openReply` — "Admission is optional — and it is not
+remembered", above.
 
 **The handler does no work (AC-263).** The kernel calls it on a dispatch
 queue, synchronously, while it is already short of memory. The handler's
@@ -1980,7 +2119,10 @@ in the module, so the scan covers every subscription there is.
 **What that shape costs, stated.** The runs' tickets are raised one
 scheduler hop later, on the actor's step — not in the handler itself.
 Between the kernel's callback and that step the vendor may produce a
-token and a listener may hear it. The source says so
+token and a listener may hear it. So the two sentences on this page
+fit together like this: BEFORE the actor's step, a token may pass;
+AFTER it, none can. "After the warning" in the paragraph above means
+after that step, not after the kernel spoke. The source says so
 (`LocalMind.swift`, `watchPressure`) and names the alternative — raising
 every latch synchronously in the handler — as a fork, not a fix, because
 it would finish streams and run their termination handlers on the
@@ -1995,9 +2137,12 @@ under its lock and ends each run OUTSIDE it (lock rule 2 — a stream's
 termination handler is somebody else's code). A run that finished on its
 own is gone from the table and a later warning finds nothing
 (`aFinishedRunIsNotInTheRegistry`). And the subscription lives exactly
-as long as the model: one subscribe at birth, one cancel at `deinit`, and
-a level pushed afterwards goes nowhere
-(`theSubscriptionLivesAsLongAsTheModel`).
+as long as the model: one subscribe at birth, one cancel at `deinit`
+(`theSubscriptionLivesAsLongAsTheModel` counts both — subscriptions 1,
+cancellations 1). The same row pushes a `.critical` after the model is
+gone and asserts only that the push does not crash; that nothing acts
+on it is argued from the `[weak self]` in the handler, which the scan
+row checks for, not from an assertion about where the level went.
 
 **The door does not read pressure (§190a F-5, open).** SPEC §187/1 says
 `admit()` reads "headroom and pressure". What shipped reads headroom
@@ -2061,17 +2206,24 @@ terminal — whichever won (`AppleDeadlineTests.deadlineAndFinishAtOnceReportOne
 **The sleeper is cancelled when the run ends first.** A reply that ends
 before its deadline leaves NO sleeper on the clock: on the MLX mind the
 task group cancels the loser by structure; on the Apple mind the terminal
-path stops the sleeper in the same lock step that takes the latch, and a
-sleeper stored into an already-ended run is cancelled on the spot. A
+path takes the latch and hands the sleeper OUT in the same lock step,
+then cancels it outside the lock (rule 2: nothing is resumed while the
+lock is held — `concludeStream`), and a sleeper stored into an
+already-ended run is cancelled on the spot. A
 cancelled sleep ends nothing — the clock was stopped, not reached
 (`aReplyThatEndsFirstLeavesNoSleeper`, `aCancelBeforeTheDeadlineLeavesNothing`,
 and the Apple rows "a source that finishes first … releases the
 sleeper" and "cancel() ends with no terminal and releases the sleeper").
 With no deadline nothing sleeps on the clock at all — the run adds
 nothing to what ran before 4y (`noDeadlineArmsNothing`, AC-265's half).
-Every row measures the deadline on a `ManualClock`: 199 ms is not the
-deadline, 200 ms is, and nothing waits on wall time
-(`aSlowReplyEndsOnTheDeadlineWithItsPartialText`).
+Every SCRIPTED row measures the deadline on a `ManualClock`: 199 ms is
+not the deadline, 200 ms is, and nothing waits on wall time
+(`aSlowReplyEndsOnTheDeadlineWithItsPartialText`). Two rows are the
+exception, on purpose: the live rows
+(`MLXAdmissionLiveTests.aRealReplyEndsOnTheDeadlineAndFreesItsPrefill`,
+`AppleDeadlineLiveTests`) build the mind on its default
+`ContinuousClock` and give it a real 200 ms, because they measure a real
+model — they are gated, and they skip in CI.
 
 **On the public seam** `reply(to:)` returns `Reply(text: "two tokens",
 stop: .deadline)` (`replyReturnsTheStopReason`), and on the voice path a
@@ -2139,8 +2291,10 @@ construction — it holds the vendor's own lock before the reply is opened,
 cancels the run, and only then lets the generation reach the vendor
 (`aRunCancelledAtBirthNeverPrefills`). **The pair is proven; each half
 alone is not.** The row goes red only when BOTH checks are removed;
-either one alone keeps it green, because the row cuts the run before the
-lock and the first check catches that. The second check — the last look
+either one alone keeps it green. With the second removed, the first
+catches the run before the lock. With the first removed, the run parks
+on the lock the row is holding, enters when the row lets go, and the
+second catches it there. The second check — the last look
 before the prefill, for a run cut while PARKED on the lock — is justified
 by reading the vendor's `AsyncMutex`, not by a row: there is no hook for
 "parked on the lock" to build one from. The source says exactly that
@@ -2179,6 +2333,16 @@ SPEC §188's non-goals, plainly, plus what this milestone owes:
 - **No Aura-side code.**
 - **The door does not read pressure** — §190a F-5, open, above.
 - **One throw off the seam** — §190a F-6, open, above.
+- **Admission is not remembered across a `.critical`.** The reload
+  after a critical asks no memory question; the caller calls
+  `admit(needing:)` again, or takes the pre-4y race for that one load.
+- **A whole-reply caller cannot tell a memory warning from a broken
+  engine, and loses the partial text.** `reply(to:)` throws
+  `ReplyFailure.engine("the reply ended without a terminal")` for both.
+  Open; the stream reader is the way around it today.
+- **The voice path under a memory warning is argued from the code, not
+  tested.** The phrases already spoken, then silence, and no turn event
+  — no row says so ("What the two callers of this page SEE").
 - **The phone is not measured here.** §68's phone rows and the thermal
   curve with the mind generating are owed (AC-266's second half).
 

@@ -568,11 +568,13 @@ struct MLXTokenSource: ReplyTokenStreaming {
         // lock arrives here alive, and this line is what keeps its
         // prefill from happening. WHAT IS MEASURED AND WHAT IS NOT (the
         // re-attack): the live row goes red only when BOTH checks are
-        // removed; either one alone keeps it green, because the row cuts
-        // the run before the lock and the first check catches that. This
-        // second check is justified by reading the vendor's AsyncMutex,
-        // not by a row — there is no hook for "parked on the lock" to
-        // build one from. The pair is what is proven.
+        // removed; either one alone keeps it green. With this check
+        // removed, the first catches the run before the lock; with the
+        // first removed, the run parks on the lock the row holds, enters
+        // when the row lets go, and this check catches it here. Neither
+        // half is proven alone: there is no hook for "parked on the
+        // lock" to build a row from, so this check is justified by
+        // reading the vendor's AsyncMutex. The pair is what is proven.
         try Task.checkCancellation()
         let (events, vendor) = try generateTokensTask(
             input: input,
