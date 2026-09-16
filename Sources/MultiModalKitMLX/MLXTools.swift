@@ -60,26 +60,49 @@ extension ReplyTool {
     /// The `ToolSpec` the vendor renders into the chat template — the
     /// `<tools>` block the model reads before the question.
     ///
-    /// A NO-ARGUMENT READ, THIS SPIKE (§170): `parameters` is an empty
-    /// object, because Aura's session read takes none (F-3 = C) and
-    /// `ReplyTool` has no schema to render. The contract milestone
-    /// widens this in one place: typed arguments — a schema the model is
-    /// shown, so the Apple mind can build its `GenerationSchema` and
-    /// this template can render real parameters. Nothing else here is
-    /// expected to change: the outer shape is the one every chat
-    /// template of this family reads.
+    /// The parameters (4z, AC-270) render as the JSON-schema object every
+    /// chat template of this family reads: one property per parameter
+    /// with its kind's JSON type and the app's sentence, and `required`
+    /// naming the ones the model may not leave out. A tool with no
+    /// parameters renders the spike's bytes exactly — an empty
+    /// `properties` and NO `required` key — so AC-227's measured prompt
+    /// is unchanged (AC-277).
     var toolSpec: ToolSpec {
-        [
+        var schema: [String: any Sendable] = [
+            "type": "object",
+            "properties": Dictionary(uniqueKeysWithValues: parameters.map { parameter in
+                (parameter.name, [
+                    "type": parameter.kind.jsonType,
+                    "description": parameter.description
+                ] as [String: any Sendable])
+            }) as [String: any Sendable]
+        ]
+        let required = parameters.filter(\.isRequired).map(\.name)
+        if !required.isEmpty {
+            schema["required"] = required
+        }
+        return [
             "type": "function",
             "function": [
                 "name": name,
                 "description": description,
-                "parameters": [
-                    "type": "object",
-                    "properties": [String: any Sendable]()
-                ] as [String: any Sendable]
+                "parameters": schema
             ] as [String: any Sendable]
         ]
+    }
+}
+
+// Qualified: the vendor (MLXLMCommon) has a `ToolParameter` of its own.
+extension MultiModalKit.ToolParameter.Kind {
+    /// The JSON-schema word for the kind — the same four the Apple mind's
+    /// schema uses, so one declaration reads the same to both minds.
+    var jsonType: String {
+        switch self {
+        case .string: "string"
+        case .number: "number"
+        case .integer: "integer"
+        case .boolean: "boolean"
+        }
     }
 }
 

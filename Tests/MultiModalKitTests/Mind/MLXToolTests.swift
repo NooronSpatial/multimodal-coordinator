@@ -45,6 +45,44 @@ struct ToolSpecTests {
         #expect(specs.count == 2)
         #expect(specs.allSatisfy { ($0["type"] as? String) == "function" })
     }
+
+    /// AC-270: the model is SHOWN the parameters — the JSON-schema object
+    /// every chat template of this family reads: `properties` with a
+    /// `type` and a `description` each, and `required` listing the ones
+    /// the model may not leave out. Keys sorted, byte for byte, for the
+    /// same reason as the row above.
+    @Test("a tool with parameters renders them as properties and required (AC-270)")
+    func parametersAreRendered() throws {
+        let logWeight = ReplyTool(
+            name: "log_weight",
+            description: "Record today's body weight.",
+            parameters: [
+                ToolParameter(name: "kg", description: "the weight in kilograms", kind: .number),
+                ToolParameter(name: "note", description: "an optional note", kind: .string, isRequired: false),
+                ToolParameter(name: "sets", description: "how many", kind: .integer),
+                ToolParameter(name: "sync", description: "also to Health", kind: .boolean, isRequired: false)
+            ]) { _ in "" }
+        let data = try JSONSerialization.data(
+            withJSONObject: logWeight.toolSpec, options: [.sortedKeys, .withoutEscapingSlashes])
+        let rendered = try #require(String(data: data, encoding: .utf8))
+        let fixture = #"{"function":{"description":"Record today's body weight.","name":"log_weight","parameters":{"#
+            + #""properties":{"kg":{"description":"the weight in kilograms","type":"number"},"#
+            + #""note":{"description":"an optional note","type":"string"},"#
+            + #""sets":{"description":"how many","type":"integer"},"#
+            + #""sync":{"description":"also to Health","type":"boolean"}},"#
+            + #""required":["kg","sets"],"type":"object"}},"type":"function"}"#
+        #expect(rendered == fixture)
+    }
+
+    /// A tool without parameters renders EXACTLY the spike's spec: no
+    /// `required` key appears, so AC-227's measured prompt is unchanged.
+    @Test("no parameters renders no required key — the spike's bytes (AC-277)")
+    func noParametersNoRequired() throws {
+        let data = try JSONSerialization.data(
+            withJSONObject: session.toolSpec, options: [.sortedKeys, .withoutEscapingSlashes])
+        let rendered = try #require(String(data: data, encoding: .utf8))
+        #expect(!rendered.contains("required"))
+    }
 }
 
 // MARK: - the mapping (the contract's `ToolValue`, 4z)
