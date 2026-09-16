@@ -272,12 +272,30 @@ public struct ReplyTool: Sendable {
     /// tool: check the arguments, run the body, fold a throw. Written
     /// once, used by the table (the MLX and scripted minds) and by the
     /// Apple adapter (whose framework does its own lookup).
+    ///
+    /// THE BODY RUNS TO ITS END (F-5 = A, AC-274). A barge cancels the
+    /// reply's task tree — the run, the round, the await on this call —
+    /// and before 4z that cancellation reached INTO the tool's body: a
+    /// tool that looked at the flag before committing (the kind an app
+    /// writes) skipped its write, and a tool half-way through two
+    /// writes stopped between them. The ruling says a write is not
+    /// un-written by a barge, so the body runs in a task of its own that
+    /// the reply's cancellation does not reach. This is the one
+    /// unstructured task in the library's reply path, and it is what
+    /// §4.1 allows: small, documented, and provably safe — the task is
+    /// awaited here, never leaked; its result is a value; and whether
+    /// anyone is still listening is the RUN's question (the ticket),
+    /// answered after this returns, not the tool's. Cancellation stays
+    /// what §4.1 says it is: an optimisation for the reply, never the
+    /// correctness mechanism for the app's state.
     public func invoke(_ arguments: ToolArguments) async -> Result<String, ToolCallFailure> {
         if let failure = arguments.check(against: parameters) {
             return .failure(ToolCallFailure(tool: name, reason: .badArgument(failure)))
         }
+        let body = call
+        let shielded = Task { try await body(arguments) }
         do {
-            return .success(try await call(arguments))
+            return .success(try await shielded.value)
         } catch {
             return .failure(ToolCallFailure(tool: name, reason: .threw(String(describing: error))))
         }
