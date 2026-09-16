@@ -25,13 +25,16 @@ import MultiModalKit
 /// model, long before a byte is allocated. The flag is what the AC-258
 /// test proves — remove the wait on it and that row goes red.)
 ///
-/// PRESSURE IS NOT READ HERE. SPEC §187/1 says `admit()` reads "headroom
-/// and pressure"; what shipped reads headroom, because no acceptance
-/// criterion (AC-258, AC-259) names a pressure verdict at admission,
-/// `MindUnavailable` has no case for one, and a level that arrives is
-/// acted on by `pressure(_:)` whenever it lands — before, during or
-/// after a load. What a `.warning` at the door should mean is an open
-/// question, not a ruling this file may make.
+/// PRESSURE IS NOT READ HERE — by ruling (F-5 = B, D-108). SPEC §187/1
+/// said `admit()` reads "headroom and pressure"; what ships reads
+/// headroom, and stays so: the gate's number is the app's own against
+/// the kernel's PER-PROCESS headroom — the number that decides jetsam —
+/// while pressure is system-wide and momentary, and a level that
+/// arrives is acted on by `pressure(_:)` whenever it lands — before,
+/// during or after a load (AC-261, AC-262). No acceptance criterion
+/// (AC-258, AC-259) names a pressure verdict at admission and
+/// `MindUnavailable` has no case for one; the rejected option and its
+/// cost are in SPEC §190a and D-108.
 ///
 /// Its own actor, not a field of the model, for one reason: it can be
 /// PROVED without weights or a GPU. `LocalMindModel.admit(needing:)`
@@ -142,11 +145,26 @@ extension LocalMindModel {
     /// reply seam: a `.critical` that lands DURING this call's own load
     /// retires the weights (AC-262), and the load door then throws
     /// `Retirable.Failure.retiredDuringLoad` — the same word
-    /// `ensureModel()` has spoken for that case since 4r. The retire is
-    /// right (the loaded weights are discarded, `isResident` is false);
-    /// whether the door should speak it as a `MindUnavailable` case, as
-    /// `.engine(_)`, or as it does now is Ryad's to rule, and nothing
-    /// here decides it.
+    /// `ensureModel()` has spoken for that case since 4j. The retire is
+    /// right (the loaded weights are discarded, `isResident` is false).
+    /// How the door should speak it was F-6, ruled A in D-108: as a
+    /// typed verdict, `ReplyFailure.unavailable(.retiredDuringLoad)` — a
+    /// new `MindUnavailable` case beside `.notEnoughMemory`, because it
+    /// is a memory event and `.engine(_)` is the bucket for the vendor's
+    /// errors, not the library's own. The reply door does not change:
+    /// there a `.critical` during the load ends the run SILENTLY —
+    /// `pressure(_:)` below abandons the live runs BEFORE it retires the
+    /// weights, so the run is retired when the holder throws and
+    /// nothing it would say is heard (AC-262's own row shows the
+    /// silence mid-generation; the during-a-load case follows from the
+    /// registration order — no row drives one through that door's load
+    /// either). D-108 first
+    /// ruled B on the claim that the reply door "already speaks"
+    /// `.engine` for this event; the claim was false and the ruling was
+    /// corrected before commit (D-108's correction). The case, the
+    /// catch and one row that scripts a `.critical` through this door's
+    /// own load are OWED under AC-268 — none is in this file yet, so
+    /// today the raw `Retirable.Failure` still leaves here.
     ///
     /// The load it begins is `ensureModelLoaded()`, whose own door
     /// (`readiness()`) runs inside it too — but it is asked HERE first,

@@ -1580,8 +1580,11 @@ the option Ryad chose on it — here always a fork of milestone **4y**,
 ruled in **D-107**: **F-1 = A** (the app sets the memory number),
 **F-2 = A** (heat refuses at `.critical` only), **F-3 = A** (a memory
 warning cancels the generation), **F-4 = A** (a deadline is an ending).
-Two more forks, **F-5** and **F-6**, were raised by the build and are
-**open** — they are named at the end, not resolved here. `Rn` is a row
+Two more forks, **F-5** and **F-6**, were raised by the build and ruled
+by delegation in **D-108**: **F-5 = B** (the door reads headroom, not
+pressure) and **F-6 = A** (the one untyped throw is to become a typed
+verdict, `.unavailable(.retiredDuringLoad)` — owed under AC-268, not
+built) — they are named where they bite, below. `Rn` is a row
 of the caller's own requirements list: `R1`, `R2`, `R3` and `R7` are
 quoted in SPEC §186 (one admission call; heat before a generation;
 pressure abandons the generation; a wall-clock deadline); `R4` is named
@@ -1883,18 +1886,34 @@ never begins the load, then admits the same call once the headroom stops
 giving a number (`theMindsOwnDoorRefusesOnAKnownShortfall`). The phone's
 own row — a real short headroom on a real 4B load — is not in this repo.
 
-**The one untyped throw that remains (§190a F-6, open).** The two
-refusals above are typed: `ReplyFailure.unavailable(_)` carrying the
-readiness verdict or `.notEnoughMemory`. One more error can leave this
-door, and it is NOT on the reply seam: a `.critical` that lands DURING
-this call's own load retires the weights (AC-262), and the holder then
-throws `Retirable.Failure.retiredDuringLoad` — the same word the load
-door has spoken for that case since 4r. The retire is right. Whether the
-door should speak it as a new `MindUnavailable` case, as `.engine(_)`, or
-as it does now is F-6, raised by the build and **not ruled**. No test
-drives a `.critical` through `admit`'s own load; the path is argued from
-`Retirable`'s own row (`RetirableTests`) and the pressure step's
-`retire()`.
+**The one untyped throw that remains (§190a F-6, ruled A — D-108).**
+The two refusals above are typed: `ReplyFailure.unavailable(_)` carrying
+the readiness verdict or `.notEnoughMemory`. One more error can leave
+this door today, and it is NOT on the reply seam: a `.critical` that
+lands DURING this call's own load retires the weights (AC-262), and the
+holder then throws `Retirable.Failure.retiredDuringLoad` — the same word
+the load door has spoken for that case since 4j. The retire is right.
+F-6, raised by the build, was ruled **A** in D-108: the door is to
+speak it as a typed verdict, `ReplyFailure.unavailable(.retiredDuringLoad)`,
+a new `MindUnavailable` case beside `.notEnoughMemory` — because it is
+a memory event, and `.engine(_)` is the bucket for the VENDOR's errors,
+not the library's own. The reply door does not change: there a
+`.critical` during the load ends the run SILENTLY — `pressure(_:)`
+abandons the live runs before it retires the weights, so the run is
+already retired when the holder throws and nothing it would say is
+heard (AC-262's own row asserts no terminal for a `.critical`
+mid-generation; the during-a-load case follows from the order, since a
+run joins the registry in its init, before its load — no row drives
+one through the reply door's load). A stream may end in silence;
+`admit()` must throw a word. (D-108 first
+ruled B — map to `.engine(_)` — on the claim that the reply door
+"already speaks" that word for this event; the facts lens read the code
+and the claim was false; the ruling was corrected before commit and the
+correction is recorded in D-108.) The case, the catch and one row that
+scripts a `.critical` through `admit`'s own load are **owed under
+AC-268**; none is built yet. Until then no test drives a `.critical`
+through `admit`'s own load; the path is argued from `Retirable`'s own
+row (`RetirableTests`) and the pressure step's `retire()`.
 
 ### Heat
 
@@ -2144,15 +2163,23 @@ gone and asserts only that the push does not crash; that nothing acts
 on it is argued from the `[weak self]` in the handler, which the scan
 row checks for, not from an assertion about where the level went.
 
-**The door does not read pressure (§190a F-5, open).** SPEC §187/1 says
-`admit()` reads "headroom and pressure". What shipped reads headroom
-only: no acceptance criterion names a pressure verdict at the door, and
-`MindUnavailable` has no case for one. So a phone already at `.warning`
-is admitted, loads 2.3 GB, and is then cut by the same warning a moment
-later — correct under F-3, but a load that was never going to survive.
-The source says it refused to rule this
-(`LocalMind+Admission.swift`, "PRESSURE IS NOT READ HERE"); the fork's
-options are in §190a and it is **not ruled**.
+**The door does not read pressure (§190a F-5, ruled B — D-108).** SPEC
+§187/1 said `admit()` reads "headroom and pressure". What shipped reads
+headroom only: no acceptance criterion names a pressure verdict at the
+door, and `MindUnavailable` has no case for one. So a phone already at
+`.warning` is admitted, loads 2.3 GB, and is then cut by the same
+warning a moment later (the fork's framing; the source delivers
+transitions, so the cut is the NEXT one — D-108) — correct under F-3,
+but a load that was never going to survive. F-5, raised by the build,
+was ruled **B** in D-108 —
+what ships stays: the gate's number is the app's own against the
+kernel's per-process headroom, the number that decides jetsam, while
+pressure is system-wide and momentary and already acts where it bites
+(a `.warning` cuts the generation, a `.critical` retires the weights —
+even one that lands during a load, so a load begun under pressure ends
+under the same net as any other). The rejected option and its cost are
+in §190a and D-108; the source cites the ruling
+(`LocalMind+Admission.swift`, "PRESSURE IS NOT READ HERE").
 
 ### The deadline
 
@@ -2331,8 +2358,11 @@ SPEC §188's non-goals, plainly, plus what this milestone owes:
   six; `.refused` is still not a failure (`AdmissionSeamTests`, the two
   enum rows).
 - **No Aura-side code.**
-- **The door does not read pressure** — §190a F-5, open, above.
-- **One throw off the seam** — §190a F-6, open, above.
+- **The door does not read pressure** — by ruling, not by omission:
+  §190a F-5 = B, D-108, above.
+- **One throw off the seam, still** — §190a F-6 = A, D-108: the typed
+  verdict `.unavailable(.retiredDuringLoad)`, its catch and its row are
+  owed under AC-268 and are not built yet, above.
 - **Admission is not remembered across a `.critical`.** The reload
   after a critical asks no memory question; the caller calls
   `admit(needing:)` again, or takes the pre-4y race for that one load.

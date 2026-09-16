@@ -5732,8 +5732,10 @@ a generation runs long            a token cap only; no deadline — a spinner
 **Two rulings this milestone must respect, not revisit.** D-105 (F-8 = A):
 no mind CLAIMS memory at the reply door, because a claim inferred from a
 file size locked a phone out for good. Admission here is therefore built
-on what the phone SAYS — its headroom and its pressure — not on what the
-library guesses. And D-028: the thermal seam is one question at one
+on what the phone SAYS — its headroom and its pressure *[the door reads
+headroom; pressure acts on the runs and the weights — F-5 = B, D-108]*
+— not on what the library guesses. And D-028: the thermal seam is one
+question at one
 moment. This milestone asks it at a second moment.
 
 **Facts measured before this was written.** On the phone, thermal went
@@ -5748,10 +5750,12 @@ resurrect retired weights.
 ## §187 — scope
 
 1. **One admission call** (R1) — `admit()` on the mind: reads headroom and
-   pressure, and either BEGINS the load inside the same actor step or
-   refuses with a typed `MindUnavailable` — no window between the check
-   and the allocation that a second caller could fall into. F-1 rules
-   whether the memory check is a threshold Aura sets or none at all.
+   pressure *[correction, 2026-09-16: pressure is NOT read at the door —
+   the door reads headroom only; F-5 = B, D-108]*, and either BEGINS the
+   load inside the same actor step or refuses with a typed
+   `MindUnavailable` — no window between the check and the allocation
+   that a second caller could fall into. F-1 rules whether the memory
+   check is a threshold Aura sets or none at all.
 2. **Heat before a generation** (R2) — the thermal seam asked at
    `openReply`, with a policy the app injects (the shape `ThermalPolicy`
    already has); the default refuses at `.critical` only, and the refusal
@@ -5812,6 +5816,20 @@ resurrect retired weights.
 - **AC-267** The contract page's "running it safely" section, verified
   claim by claim; 20× with every failing log kept; zero warnings; lint
   zero; the phone demo builds.
+- **AC-268** `admit(needing:)` speaks the holder's `retiredDuringLoad` —
+  a `.critical` that lands DURING the door's own load — as a typed
+  verdict, `ReplyFailure.unavailable(.retiredDuringLoad)`, a new
+  `MindUnavailable` case with its own description (F-6 = A, D-108 —
+  first ruled B, corrected; on the reply door the same event ends the
+  run silently, argued from the order in `pressure(_:)` and `report`'s
+  no-op — AC-262's row shows the silence for a `.critical`
+  mid-generation, and no row drives one through the reply door's load
+  either — so the reply door does not change); proven by one row that
+  scripts a `.critical` through `admit`'s own load and sees that
+  verdict.
+  **Owed; built when the suite can run again** — this Mac's Xcode 27
+  has no Metal toolchain today, so no MLX test can run here; CI is the
+  harness.
 
 ## §190 — the forks (Ryad rules)
 
@@ -5848,7 +5866,7 @@ resurrect retired weights.
 - *B:* `.failed(.deadline)` — a failure. Throws away words the person may
   already have heard.
 
-### §190a. Raised by the build, not ruled (2026-09-12)
+### §190a. Raised by the build, not ruled (2026-09-12) *[ruled by delegation 2026-09-16, D-108]*
 
 **F-5 — does admission read PRESSURE as well as headroom?** §187/1 says
 `admit()` "reads headroom and pressure". What shipped reads headroom
@@ -5863,6 +5881,9 @@ later — correct under F-3, but a load that was never going to survive.
 - *B:* leave it — pressure is a signal about the FUTURE and the door
   reads the present; F-3 handles what comes. Simpler, and what ships.
 
+**Ruled B — against this section's recommendation — D-108 (2026-09-16,
+by delegation).**
+
 **F-6 — the one untyped throw left.** `admit(needing:)` can throw the
 holder's own `retiredDuringLoad` when a `.critical` lands during its
 own load — correct behaviour, untyped surface. Typing it needs either a
@@ -5871,6 +5892,10 @@ new `MindUnavailable` case (`.retiredDuringLoad`) or a mapping to
 on. **Recommended.** *B:* map to `.engine(_)` — countable as a bucket,
 not as a cause.
 
+**Ruled A — D-108 (2026-09-16, by delegation; first ruled B on a reason
+the code did not support, corrected before commit — D-108's correction).**
+The case, the catch and the row are owed: AC-268.
+
 **And one honest note on AC-258.** "No window" is proven by a test in
 which the second caller waits on the first's allocation EVENT; the
 first draft of that test passed 9 of 10 times by luck before it was
@@ -5878,7 +5903,8 @@ gated on the fact. The house rule about events, again.
 
 ## §191 — definition of done
 
-The four forks ruled and logged · red → green per AC with scripted
+The four forks ruled and logged *[and F-5, F-6 — raised by the build,
+ruled by delegation, D-108]* · red → green per AC with scripted
 headroom, pressure and thermal sources · the memory-freed number
 measured on the Mac (§68) · the phone thermal curve as Ryad's gate · the
 contract page's new section fact-checked · 20× with every failing log
