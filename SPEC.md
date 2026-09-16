@@ -5701,12 +5701,12 @@ fact-checked claim by claim · 20× with every failing log kept · zero
 warnings · lint zero · the phone demo builds · every review fix pushed
 before the PR is called ready · teach-back.
 
-# Milestone 4z — the tool contract (Phase B's first real capability) — PROPOSED, not signed
+# Milestone 4z — the tool contract (Phase B's first real capability)
 
 > Drafted 2026-09-16 on `milestone/4z-tool-contract` from `main` (`ee6788c`),
 > while `milestone/4y-admission` is open. Section numbers continue after 4y's
 > §191 and AC numbers after its AC-267, so the two merge without a collision.
-> Nothing here is code; this is the HALT.
+> Signed 2026-09-16 — "sign both" (D-108: F-1 A, F-2 A, F-3 A, F-4 B, F-5 A, F-6 A).
 
 ## §192 — the callers, and the gap
 

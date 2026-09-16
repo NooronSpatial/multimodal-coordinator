@@ -4665,3 +4665,40 @@ F-5 = A** (SPEC §184).
 **What this milestone is not:** admission, thermal and memory-pressure
 work (Aura's R1–R3, R7) stay parked, and F-8's memory question (D-105)
 stays ruled A until a milestone measures the number.
+
+## D-108 — 4z signed: the tool contract's six forks, all ruled as recommended (Milestone 4z)
+
+**Date:** 2026-09-16 · **Decided by:** Ryad ("sign both" — this milestone
+and Emberleaf's M15, D-077/D-078 there, in one word) · **Rulings:** F-1 = A,
+F-2 = A, F-3 = A, F-4 = B, F-5 = A, F-6 = A (SPEC §196).
+
+> Numbered D-108 on a branch from `main` while `milestone/4y-admission`
+> holds D-106 and D-107; the numbers were chosen not to collide.
+
+- **F-1 A** — `ToolArguments` over `[String: ToolValue]` with throwing typed
+  accessors; `ReplyTool.parameters: [ToolParameter]`. *Rejected:* keeping
+  `[String: String]` (every tool a parser, a bad number a silent nil) and a
+  `Codable` generic (a type-erased table, no schema without reflection).
+- **F-2 A** — tools per call, `GenerationOptions.tools`; the generator's
+  table is the default. 4w's closing fork, on its numbers (+419 ms first
+  token when always in the prompt). *Rejected:* per generator with a prompt
+  cache (unmeasured across per-turn sessions) and always-in-the-prompt.
+- **F-3 A** — the result stays `String`. *Rejected:* a second `spoken`
+  channel to the mouth, which would bypass the coordinator's one stream.
+- **F-4 B** — the Apple adapter catches a thrown tool and answers the model
+  in `ToolCallFailure`'s words, the same as the MLX run; the seam reports
+  `.finished`. 4w's open F-5, closed. *Rejected:* propagate — two minds
+  ending one event two ways.
+- **F-5 A** — a tool runs to its end under a barge; its result dies with
+  the ticket; the app's state stands. *Rejected:* cancelling the tool's
+  task — a write cannot be half-done, and every tool would become a
+  transaction. Undo (Emberleaf) and confirmation (Aura) are the apps'.
+- **F-6 A** — the demo's tool is `set_timer(minutes:)`. *Rejected:* a
+  caller's own verb on a stub — checkable by fewer people.
+
+Build order (the spec's own): the types first (`ToolValue`, `ToolParameter`,
+`ToolArguments`, the failure, the table's validation — pure, with the
+scripted tool moved onto them), then the two minds (MLX's spec and parse;
+Apple's dynamic schema and F-4's catch), then per-call tools, then the
+coordinator's barge row, the two policy rows, the demo, and INSTRUMENTS §69
+with the phone rows as Ryad's gate.
