@@ -89,7 +89,7 @@ struct AppleToolAdapter: Tool {
     /// interface), a late answer is thrown away HERE, before the vendor
     /// can spend a prefill feeding it to a model nobody is listening to.
     func call(arguments: AppleToolNoArguments) async throws -> String {
-        let answer = try await tool.call([:])
+        let answer = try await tool.call(.none)
         try Task.checkCancellation()
         return answer
     }

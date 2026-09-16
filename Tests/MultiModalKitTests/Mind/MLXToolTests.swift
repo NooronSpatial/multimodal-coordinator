@@ -47,31 +47,38 @@ struct ToolSpecTests {
     }
 }
 
-// MARK: - the flattening (the seam's `[String: String]`)
+// MARK: - the mapping (the contract's `ToolValue`, 4z)
 
-@Suite("4w · a parsed call's arguments flatten to strings, losslessly for scalars")
-struct ToolCallFlatteningTests {
-    @Test("each JSON scalar becomes its plain text; containers become sorted JSON",
+@Suite("4z · a parsed call's arguments become the contract's values — scalars typed, containers as JSON text")
+struct ToolCallMappingTests {
+    @Test("each JSON scalar keeps its kind; containers become sorted JSON text",
           arguments: [
-            (JSONValue.string("today"), "today"),
-            (.int(40), "40"),
-            (.double(0.25), "0.25"),
-            (.bool(true), "true"),
-            (.bool(false), "false"),
-            (.null, "null"),
-            (.array([.int(1), .string("b")]), #"[1,"b"]"#),
-            (.object(["zebra": .int(1), "apple": .string("x")]), #"{"apple":"x","zebra":1}"#)
-          ] as [(JSONValue, String)])
-    func flattens(value: JSONValue, expected: String) {
-        #expect(ToolCallRequest.flatten(value) == expected)
+            (JSONValue.string("today"), ToolValue.string("today")),
+            (.int(40), .integer(40)),
+            (.double(0.25), .number(0.25)),
+            (.bool(true), .boolean(true)),
+            (.bool(false), .boolean(false)),
+            (.null, .null),
+            (.array([.int(1), .string("b")]), .string(#"[1,"b"]"#)),
+            (.object(["zebra": .int(1), "apple": .string("x")]), .string(#"{"apple":"x","zebra":1}"#))
+          ] as [(JSONValue, ToolValue)])
+    func maps(value: JSONValue, expected: ToolValue) {
+        #expect(ToolValue(json: value) == expected)
     }
 
-    @Test("the vendor's ToolCall becomes the seam's request, name kept, arguments flattened")
+    @Test("the way back keeps the kind, so the model's own record of its call is what it wrote")
+    func roundTrip() {
+        for value in [JSONValue.string("today"), .int(40), .double(0.25), .bool(true), .null] {
+            #expect(ToolValue(json: value).json == value)
+        }
+    }
+
+    @Test("the vendor's ToolCall becomes the seam's request, name kept, arguments typed")
     func fromTheVendorsCall() {
         let call = ToolCall(function: .init(
             name: "session", arguments: ["day": .string("today"), "minutes": .int(40)]))
         #expect(ToolCallRequest(vendor: call)
-                == ToolCallRequest(name: "session", arguments: ["day": "today", "minutes": "40"]))
+                == ToolCallRequest(name: "session", arguments: ["day": "today", "minutes": 40]))
     }
 
     @Test("a call with no arguments is a request with none — the spike's read")
@@ -107,7 +114,7 @@ struct ToolExchangeMessagesTests {
         #expect(messages[1].content == "")
         #expect(messages[2].content == exchange.answer)
         // The vendor's own message generator is what the template reads;
-        // it must see the call by name with the flattened arguments.
+        // it must see the call by name with the arguments as it wrote them.
         let raw = DefaultMessageGenerator().generate(message: messages[1])
         let calls = try #require(raw["tool_calls"] as? [[String: any Sendable]])
         let function = try #require(calls.first?["function"] as? [String: any Sendable])
@@ -155,7 +162,7 @@ struct ToolCallSieveTests {
         #expect(sieve.finish() == [])
     }
 
-    @Test("words before the call are spoken; the call's arguments arrive flattened")
+    @Test("words before the call are spoken; the call's arguments arrive typed")
     func wordsThenCallWithArguments() {
         let sieve = sieve()
         var events: [TokenEvent] = []
@@ -166,7 +173,7 @@ struct ToolCallSieveTests {
         }
         #expect(events == [
             .token("Let me check. "),
-            .toolCall(ToolCallRequest(name: "session", arguments: ["day": "today", "n": "2"]))
+            .toolCall(ToolCallRequest(name: "session", arguments: ["day": "today", "n": 2]))
         ])
     }
 

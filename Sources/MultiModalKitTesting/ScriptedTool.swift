@@ -30,18 +30,18 @@ public final class ScriptedTool: Sendable {
     }
 
     private struct State {
-        var calls: [[String: String]] = []
+        var calls: [ToolArguments] = []
         var gate: CheckedContinuation<Void, Never>?
         var releasedEarly = false
     }
 
     public let name: String
     public let plan: Plan
-    private let onEnter: @Sendable ([String: String]) -> Void
+    private let onEnter: @Sendable (ToolArguments) -> Void
     private let state = Mutex(State())
 
     public init(name: String, plan: Plan,
-                onEnter: @escaping @Sendable ([String: String]) -> Void = { _ in }) {
+                onEnter: @escaping @Sendable (ToolArguments) -> Void = { _ in }) {
         self.name = name
         self.plan = plan
         self.onEnter = onEnter
@@ -50,7 +50,7 @@ public final class ScriptedTool: Sendable {
     // MARK: - the record
 
     /// Every call, with the arguments it was made with, in order.
-    public var calls: [[String: String]] { state.withLock { $0.calls } }
+    public var calls: [ToolArguments] { state.withLock { $0.calls } }
 
     // MARK: - the test's hand
 
@@ -76,7 +76,7 @@ public final class ScriptedTool: Sendable {
         }
     }
 
-    private func run(_ plan: Plan, arguments: [String: String]) async throws -> String {
+    private func run(_ plan: Plan, arguments: ToolArguments) async throws -> String {
         switch plan {
         case .answers(let answer):
             return answer
@@ -115,7 +115,7 @@ public struct ToolScript: Sendable {
     }
 
     public var name: String
-    public var arguments: [String: String]
+    public var arguments: ToolArguments
     public var before: [String]
     public var after: [String]
     public var onFailure: OnFailure
@@ -130,7 +130,7 @@ public struct ToolScript: Sendable {
     public var whenDone: @Sendable () -> Void
 
     public init(name: String,
-                arguments: [String: String] = [:],
+                arguments: ToolArguments = .none,
                 before: [String] = [],
                 after: [String] = [],
                 onFailure: OnFailure = .failsReply,
@@ -155,7 +155,7 @@ public struct ToolCallRecord: Sendable, Equatable {
     }
 
     public let name: String
-    public let arguments: [String: String]
+    public let arguments: ToolArguments
     /// `nil` while the call is still in flight.
     public var outcome: Outcome?
     /// True when the answer came back AFTER `cancel()` and a
@@ -163,7 +163,7 @@ public struct ToolCallRecord: Sendable, Equatable {
     /// coordinator's ticket is the other half, and the guarantee.
     public var answerDropped = false
 
-    public init(name: String, arguments: [String: String],
+    public init(name: String, arguments: ToolArguments,
                 outcome: Outcome? = nil, answerDropped: Bool = false) {
         self.name = name
         self.arguments = arguments

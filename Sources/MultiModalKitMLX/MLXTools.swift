@@ -28,15 +28,15 @@ import MultiModalKit
 
 // MARK: - the call, as the token seam carries it
 
-/// One call the model asked for, in the seam's flat shape (§170: the
-/// spike's `ReplyTool` takes `[String: String]`). Built from the
-/// vendor's `ToolCall` by `init(vendor:)`; built by hand by a scripted
-/// source, so the run's arm is proven without a model.
+/// One call the model asked for, in the contract's shape (4z, F-1 = A:
+/// `ToolArguments`). Built from the vendor's `ToolCall` by
+/// `init(vendor:)`; built by hand by a scripted source, so the run's arm
+/// is proven without a model.
 struct ToolCallRequest: Sendable, Equatable {
     let name: String
-    let arguments: [String: String]
+    let arguments: ToolArguments
 
-    init(name: String, arguments: [String: String] = [:]) {
+    init(name: String, arguments: ToolArguments = .none) {
         self.name = name
         self.arguments = arguments
     }
@@ -98,39 +98,48 @@ extension ToolTable {
 // MARK: - from the vendor's call to the seam's request
 
 extension ToolCallRequest {
-    /// The vendor's parsed call, flattened to the spike's `[String:
-    /// String]`. Every `JSONValue` becomes text by `flatten(_:)`; the
-    /// vendor's optional call `id` is not carried, because the template
-    /// this mind runs does not need one to pair a call with its result
-    /// (it pairs by order: `<tool_call>` then `<tool_response>`).
+    /// The vendor's parsed call, its arguments mapped onto the contract's
+    /// values. The vendor's optional call `id` is not carried, because
+    /// the template this mind runs does not need one to pair a call with
+    /// its result (it pairs by order: `<tool_call>` then `<tool_response>`).
     init(vendor call: ToolCall) {
         self.init(name: call.function.name,
-                  arguments: call.function.arguments.mapValues(Self.flatten))
+                  arguments: ToolArguments(call.function.arguments.mapValues(ToolValue.init(json:))))
     }
+}
 
-    /// One `JSONValue` as a string, LOSSLESSLY for the scalars a tool
-    /// argument is likely to be, and as JSON text for the rest:
-    /// - a string is itself, unquoted (`"40"` → `40`);
-    /// - an int, a double, a bool print the way Swift prints them;
-    /// - `null` is the word `null`;
-    /// - an array or an object is its JSON, keys sorted, so the same
-    ///   value always flattens to the same bytes.
-    ///
-    /// A pure function, tested against fixtures (`MLXToolTests`). The
-    /// contract milestone replaces this with typed arguments; until
-    /// then a tool that wants a number parses the text it is given.
-    static func flatten(_ value: JSONValue) -> String {
+extension ToolValue {
+    /// One `JSONValue` as the contract's value: the four scalars are
+    /// themselves; `null` is `.null`; an array or an object — which §194
+    /// keeps out of the contract — arrives as its JSON text, keys sorted,
+    /// so a tool that wants it can still read it and the same value
+    /// always maps to the same bytes.
+    init(json value: JSONValue) {
         switch value {
-        case .null: "null"
-        case .bool(let bool): bool ? "true" : "false"
-        case .int(let int): String(int)
-        case .double(let double): String(double)
-        case .string(let string): string
-        case .array, .object: json(value)
+        case .null: self = .null
+        case .bool(let bool): self = .boolean(bool)
+        case .int(let int): self = .integer(int)
+        case .double(let double): self = .number(double)
+        case .string(let string): self = .string(string)
+        case .array, .object: self = .string(ToolCallRequest.json(value))
         }
     }
 
-    private static func json(_ value: JSONValue) -> String {
+    /// The way back, for the prompt's own record of a call (`LocalMind+Tools`).
+    var json: JSONValue {
+        switch self {
+        case .null: .null
+        case .boolean(let flag): .bool(flag)
+        case .integer(let integer): .int(integer)
+        case .number(let number): .double(number)
+        case .string(let text): .string(text)
+        }
+    }
+}
+
+extension ToolCallRequest {
+
+    static func json(_ value: JSONValue) -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         guard let data = try? encoder.encode(value),

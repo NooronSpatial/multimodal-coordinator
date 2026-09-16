@@ -75,7 +75,7 @@ struct MLXToolLiveTests {
     func theModelCallsTheToolAndSpeaksTheAnswer() async throws {
         guard let weights = Self.live() else { return }
         let clock = ContinuousClock()
-        let calls = Mutex<[[String: String]]>([])
+        let calls = Mutex<[ToolArguments]>([])
         let calledAt = Mutex<ContinuousClock.Instant?>(nil)
         let tool = ReplyTool(name: "session",
                              description: "Read today's training session and readiness.") { arguments in
@@ -118,7 +118,7 @@ struct MLXToolLiveTests {
                   + "call→first word after the answer \(calledAt.duration(to: firstWordAfterAnswer))")
         }
         #expect(made.count == 1, "the tool was called exactly once")
-        #expect(made.first == [:], "the spike's read takes no arguments")
+        #expect(made.first == .none, "the spike's read takes no arguments")
         #expect(stop == .complete)
         #expect(text.contains("40") && text.contains("71"),
                 "the reply carries the session's numbers — the answer went back and was spoken")
