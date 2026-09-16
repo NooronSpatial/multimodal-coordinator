@@ -5480,3 +5480,101 @@ Not ruled here. Presented for Phase B's contract milestone:
 4v already chose for instructions and budget, and it needs no new
 machinery. B is worth measuring later if the second-prefill cost in §2
 turns out to matter more than the idle cost in §1.
+
+## 69. The tool contract, measured — what the parameters cost, and whether the number the person said is the number the tool gets (4z, AC-276)
+
+> Numbered 69 on a branch from `main`; §68 is 4y's, on its own branch.
+
+**What was asked.** 4w priced a tool the reply never uses. 4z's tools
+carry PARAMETERS — a schema in the prompt on every turn that may use one
+— and their whole point is an ARGUMENT arriving: "log eighty-three point
+two kilos" must reach `log_weight` as `83.2`, and "log my weight" — no
+number said — must not reach it as anything. Two questions, one
+instrument: `swift run -c release bakeoff tool-contract` (COMMANDS).
+
+**Machine.** Ryad's Mac, 2026-09-16, Xcode 27.0 beta, release build,
+greedy, budget 120. Two models from this Mac's cache: the 0.6B (the
+house's Mac model) and the **4B — the phone's own model** — which is the
+closest a Mac gets to the phone's answer. The phone's rows remain
+Ryad's gate (§172c); the shape below is what he is looking for.
+
+### 1. The spec's price — first token on a question that needs no tool
+
+| table | spec chars | 0.6B, median of 3 | 4B, median of 3 |
+|---|---|---|---|
+| no table | 0 | 31 ms | 355 ms |
+| one tool, no parameters (4w's) | 179 | 93 ms (+62) | 674 ms (+319) |
+| three tools with parameters (Emberleaf's first verbs) | 900 | 179 ms (+148) | 1,206 ms (+851) |
+| **slope, the parameters alone** (721 chars) | | **0.12 ms/char** | **0.74 ms/char** |
+
+§58b's slope (0.68 ms per prefill character on the 4B) re-read with a
+schema in the prompt: 0.74. Parameters are prefill like any other text;
+there is no hidden cost beyond their characters. What the number means
+for a caller: a voice app that offers three verbs on every turn pays
+the 4B **+0.85 s on every first token** on this Mac, before any call is
+made — which is why F-2 = A (tools per call) was ruled, and why
+Emberleaf, which cannot know in advance which turn will edit, pays it
+knowingly (D-077 there) and Aura offers the session tools only on
+session turns.
+
+### 2. The arguments — twenty sentences, three tools, greedy
+
+Per sentence the row records what the model did against what a right
+answer is. Six verdicts: **right** · **NO CALL** (a tool applied and
+none was called) · **refused** (the table refused the call in words,
+F-4 = B) · **WRONG TOOL** · **wrong arguments** · **INVENTED** (a number
+the person never said — the one failure an app cannot live with).
+
+| | 0.6B, no instruction | 4B, with the app's instruction |
+|---|---|---|
+| right | 11 | 15 |
+| NO CALL | 5 | 0 |
+| wrong arguments | 2 | 3 |
+| INVENTED | 2 | 2 |
+| first token on a call turn | ~450 ms | ~2.9 s |
+| total, call round + answer | ~500 ms | ~3.2 s |
+
+The 4B's instruction: *"You are the voice of a diet app. When the
+person tells you something to record, call the matching tool with
+exactly what they said. Never guess a number they did not say. Reply in
+one short sentence."* The 0.6B ran with none — 4w's finding that any
+instruction stops it calling held; with one it would have been a table
+of NO CALL.
+
+**Four things this table settles.**
+
+1. **The number the person said is the number the tool gets.** All six
+   weights, on both models — including "eighty-three point two kilos"
+   spoken in words → `83.2`, and a note carried beside the number. The
+   contract's typed arguments arrive typed: the 4B wrote `84`, the
+   accessor read a number; nothing was parsed by a tool.
+2. **"wrong arguments" is one thing, and it is the app's.** Every one of
+   the five is `tick_meal(slot: "dinner")` or `"lunch"` where the
+   declaration said `first` / `second`: the model passes the WORD THE
+   PERSON SAID over the enum the description named. An app that accepts
+   the synonyms (Emberleaf's `tick_meal` will) turns the 4B's column into
+   18 of 20. A contract-level enum kind (§194 keeps it out for now) would
+   make the vendor's constrained decoding enforce it on the Apple mind;
+   the MLX template cannot.
+3. **INVENTED is real, and the two models invent differently.** Told "log
+   my weight" with no number, the 0.6B wrote `kg: 123` and, for "heavy",
+   `kg: 100` — plausible weights, indistinguishable from a real one by
+   the contract. The 4B, told never to guess, wrote `kg: 0` both times —
+   a number, still, but one an app's range check catches. **The
+   contract cannot catch an invented number; the verb must**: a
+   plausibility band on the value (Emberleaf's AC-M15-4: `kg ≤ 0` or far
+   from the last known weight performs nothing and says why) and undo
+   beside every write (D-077). This is the finding Emberleaf's M15 slice
+   3 is built on.
+4. **The 0.6B's misses are reluctance, not confusion.** Its five NO CALLs
+   answered in words ("You have finished lunch.") — the same shape 4w
+   measured. The 4B called on all eighteen sentences that wanted a call
+   and on neither of the two that did not.
+
+**Not measured here, honestly.** The Apple mind's arguments: its live
+rows SKIPPED on this Mac ("the on-device model is still downloading",
+as every Apple row has since 4v). The adapter's schema and its reading
+of the arguments are pinned by `AppleToolTests` without the model; the
+phone is where the Apple half becomes a number. And thermal drift: the
+twenty sentences ran once each, in order, on a Mac that had just loaded
+2.2 GB of weights — the milliseconds are a shape, not a promise.
