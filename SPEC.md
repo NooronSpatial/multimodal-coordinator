@@ -5700,3 +5700,193 @@ by deleting and re-downloading · the contract page's new section
 fact-checked claim by claim · 20× with every failing log kept · zero
 warnings · lint zero · the phone demo builds · every review fix pushed
 before the PR is called ready · teach-back.
+
+# Milestone 4z — the tool contract (Phase B's first real capability) — PROPOSED, not signed
+
+> Drafted 2026-09-16 on `milestone/4z-tool-contract` from `main` (`ee6788c`),
+> while `milestone/4y-admission` is open. Section numbers continue after 4y's
+> §191 and AC numbers after its AC-267, so the two merge without a collision.
+> Nothing here is code; this is the HALT.
+
+## §192 — the callers, and the gap
+
+Two of Ryad's apps now need the same thing from this library, and the
+spike (4w) said in its own file that it would not be the thing:
+
+- **Emberleaf M15 (D-077 there)** — a live conversation in which the mind
+  *edits the day*: "log eighty-three and a half" → `log_weight(kg: 83.5)`;
+  "I had two eggs" → `add_extra(food: "two eggs")`; "undo that". Act at
+  once, undo beside it — the app's policy.
+- **Aura (§168a)** — "make it shorter" changes a training plan; the
+  confirmation is a spoken turn — the app's policy, the other way round.
+
+What a tool call can carry today, and what both need:
+
+```
+today (4w, a spike)                        needed (4z, the contract)
+──────────────────                         ─────────────────────────
+Apple mind: Arguments = an empty           a schema built from the ReplyTool at
+  @Generable struct → the tool gets [:]      run time; the tool gets the numbers
+MLX mind: [String: String], the model      the same schema rendered into the
+  is SHOWN no parameters                     template's <tools> block
+result: String, fed back verbatim          the same, plus nothing — see F-3
+tools: per generator, always in the        per CALL (4w's closing fork, on the
+  prompt: +419 ms first token on the 4B      numbers) — the app pays only on the
+                                             turns that may use one
+a thrown tool: MLX tells the model,        one ending, both minds (4w's F-5)
+  Apple ends the stream
+policy: none (D-027)                       none — proved by one scripted test
+                                             per caller's policy
+```
+
+Verified against the iOS 26 SDK on this Mac before writing this (the
+`FoundationModels.swiftinterface`): `Tool.parameters: GenerationSchema` is
+a requirement the adapter may satisfy itself; `DynamicGenerationSchema(name:
+description:properties:)` with `Property(name:description:schema:isOptional:)`
+and `GenerationSchema(root:dependencies:)` build one at run time;
+`GeneratedContent` is `Generable` (so it is a legal `Arguments`), and
+`value(_:forProperty:)` / `.kind` (`.number`, `.string`, `.bool`, `.null`,
+`.array`) read the model's arguments without a compile-time type. The
+vendor's side of the contract exists.
+
+## §193 — scope
+
+1. **Parameters on the tool.** `ReplyTool` gains `parameters:
+   [ToolParameter]` — name, description, kind (`.string`, `.number`,
+   `.integer`, `.boolean`), required or not. The words are the app's
+   (D-027); the library renders them, once, for each mind.
+2. **Typed arguments at the call.** `call` receives `ToolArguments` — a
+   value with `string(_:)`, `number(_:)`, `integer(_:)`, `boolean(_:)`
+   accessors that THROW a typed `ToolArgumentFailure` (missing, wrong
+   kind) — so a tool never parses text and a bad argument is countable.
+   (F-1 rules the exact shape.)
+3. **The Apple mind builds the schema.** `AppleToolAdapter.Arguments`
+   becomes `GeneratedContent`; `parameters` is built from the
+   `ToolParameter`s through `DynamicGenerationSchema`; the arguments are
+   read by kind into `ToolArguments`.
+4. **The MLX mind renders the schema.** `toolSpec` carries the
+   parameters as the template's JSON-schema object (`type`,
+   `properties`, `required`); the parsed `.toolCall` arguments become
+   `ToolArguments` by the same kinds.
+5. **Tools per call.** `GenerationOptions` gains `tools: ToolTable`; a
+   generator built with a table keeps it as the default (the spike's
+   shape still works); options given per call replace it for that call.
+   (F-2, ruled on 4w's numbers.)
+6. **One ending for a thrown tool.** 4w's F-5 ruled: the Apple adapter
+   catches and answers the model in the same words `ToolTable.call`
+   gives the MLX model. (F-4 confirms or reverses.)
+7. **A barge during a tool that writes.** The turn's ticket doctrine says
+   the reply dies; the contract says what the TOOL does: it runs to its
+   end, its result is dropped with the ticket, and the app's state
+   stands — "a write is not un-written by a barge". A coordinator test
+   with a scripted slow tool proves it. (F-5.)
+8. **No policy.** The library confirms nothing and refuses nothing. Two
+   scripted tests prove both callers' policies are buildable on top:
+   Aura's "the tool answers `needs confirmation`, the mind asks, the
+   next turn calls again" and Emberleaf's "the tool acts and returns
+   what it did".
+9. **Measured on the phone (INSTRUMENTS §69).** The spec's cost per
+   parameter character on the first token (§58b's slope, re-read with
+   parameters); the 4B's argument accuracy on twenty scripted sentences
+   with three tools; the Apple mind's, the same twenty.
+10. **The demo** calls one tool WITH an argument on both minds — the
+    proof a reader can run.
+
+## §194 — non-goals
+
+- A capability or permission system. The app grants tools per call; that
+  IS the permission (F-2).
+- Nested objects, arrays or enums as parameters. Four scalar kinds cover
+  both callers' verbs today; widening is a later delta with its own row.
+- Streaming a tool's result, or a tool that emits tokens.
+- Chains the vendor does not already loop on its own.
+- Undo, confirmation, or any policy — the apps'.
+- Any change to memory, the phraser, the mouths, admission (4y).
+
+## §195 — acceptance criteria
+
+- **AC-268** A `ReplyTool` with parameters is called by BOTH real minds
+  with the arguments the model chose — the demo's `set_timer(minutes:)`
+  (or the sentence the fork picks) reaches the tool as a number, on the
+  Mac's 0.6B and on the phone's 4B, and on the Apple mind on the phone.
+- **AC-269** The Apple adapter's schema is built from the parameters at
+  run time: a unit test on the adapter renders three kinds and one
+  optional, and the schema's JSON names them.
+- **AC-270** The MLX template is shown the parameters: the rendered
+  `<tools>` block for the same tool carries `properties` and `required`;
+  pinned by a test on the spec.
+- **AC-271** A missing, wrong-kind or unknown argument never reaches the
+  tool's body: `ToolArguments` throws a typed value, the model is told in
+  words, the failure is countable — one test per case, no mind.
+- **AC-272** Tools per call: a generator with `.empty` and a call with
+  `options.tools` set calls the tool; the next call without them cannot;
+  the plain path's cost (AC-227's row) is unchanged when no call
+  carries a table.
+- **AC-273** One ending for a thrown tool on both minds (4w F-5 = B, or
+  F-4's ruling): the same sentence reaches the model; the seam reports
+  `.finished`, not `.failed`; the failure is counted at the table.
+- **AC-274** A barge during a slow writing tool: the tool's write
+  happens exactly once, the result is dropped, the next turn is clean —
+  a coordinator test under `ManualClock` with the scripted mind.
+- **AC-275** Both policies are buildable without the library knowing:
+  the two scripted tests of §193 (8).
+- **AC-276** INSTRUMENTS §69: the cost per parameter character; the
+  argument accuracy of the 4B and of the Apple mind on twenty sentences
+  with three tools; the phone rows are Ryad's gate.
+- **AC-277** Every pre-4z test passes; the spike's no-argument tool
+  still works unchanged (`parameters: []`); zero warnings; lint zero.
+- **AC-278** 20× with evidence; teach-back.
+
+## §196 — the forks (Ryad rules)
+
+**F-1 — THE SHAPE OF THE ARGUMENTS.**
+*A:* `ToolArguments` — a small value over `[String: ToolValue]`
+(`.string/.number/.integer/.boolean/.null`) with throwing typed accessors.
+*B:* keep `[String: String]` and let each tool parse (`Double("83.5")`).
+*C:* a `Codable` generic — `ReplyTool<Arguments: Codable>` decoded from
+the model's JSON.
+**Recommendation: A.** B makes every tool a parser and a bad number a
+silent nil; C makes `ToolTable` heterogeneous (a type-erased box again)
+and cannot render a schema without reflection. *Rejected: B, C.*
+
+**F-2 — WHERE THE TOOLS LIVE.** 4w's closing fork (INSTRUMENTS §67).
+*A:* per call, `GenerationOptions.tools`; the generator's table is the
+default. *B:* per generator with a prompt cache (unmeasured across
+per-turn sessions, D-057). *C:* per generator, always in the prompt.
+**Recommendation: A** — the measured shape; Emberleaf will pass the
+table on every turn and pay for it knowingly; Aura only on session
+turns. *Rejected: C by the numbers; B until §2's second-prefill cost is
+measured.*
+
+**F-3 — THE RESULT.** *A:* `String`, as today — what both minds feed
+back verbatim. *B:* `ToolResult { text; spoken: String? }` — a separate
+sentence for the mouth. **Recommendation: A** — the reply's words are
+the model's (D-027); a second channel to the mouth would bypass the
+coordinator's one stream. *Rejected: B.*
+
+**F-4 — A THROWN TOOL ON THE APPLE MIND** (4w's F-5, still open).
+*A:* propagate (`.failed`), as the code does. *B:* catch in the adapter,
+answer in words, `.finished`. **Recommendation: B**, 4w's reason: two
+minds ending one event two ways is what the seam exists to prevent.
+
+**F-5 — A BARGE DURING A WRITING TOOL.** *A:* the tool runs to its end;
+its result dies with the ticket; the app's state stands. *B:* cancel the
+tool's task and let the tool decide. **Recommendation: A** — a write
+cannot be half-done by cancellation; B makes every tool a transaction.
+The app that wants "nothing happened" has undo (Emberleaf) or
+confirmation (Aura).
+
+**F-6 — THE DEMO'S TOOL.** *A:* `set_timer(minutes:)` — a number, a
+visible effect. *B:* Aura's `shorten_session(by_minutes:)` on the stub.
+*C:* Emberleaf's `log_weight(kg:)` on a stub. **Recommendation: A** —
+checkable by anyone, one number, no domain.
+
+## §197 — definition of done (4z)
+
+One tool with an argument called by both real minds, on the Mac and on
+the phone · the schema built and rendered from the app's words · a bad
+argument countable and never in a tool's body · tools per call, the
+plain path unchanged · one ending for a thrown tool · a barge cannot
+un-write · both callers' policies proved buildable on top · INSTRUMENTS
+§69 · every pre-4z test green · 20× · zero warnings · lint zero ·
+reviewed with every fix pushed before the PR is called ready · teach-back.
