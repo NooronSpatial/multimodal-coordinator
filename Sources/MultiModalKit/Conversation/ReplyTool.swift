@@ -247,6 +247,17 @@ public struct ReplyTool: Sendable {
     /// The tool itself.
     public let call: @Sendable (ToolArguments) async throws -> String
 
+    /// What the model is shown of this tool — everything but the body.
+    public struct Declaration: Sendable, Equatable {
+        public let name: String
+        public let description: String
+        public let parameters: [ToolParameter]
+    }
+
+    public var declaration: Declaration {
+        Declaration(name: name, description: description, parameters: parameters)
+    }
+
     public init(name: String,
                 description: String,
                 parameters: [ToolParameter] = [],
@@ -324,8 +335,24 @@ public struct ToolCallFailure: Error, Sendable, Equatable, CustomStringConvertib
 ///
 /// One lookup rule for every mind: exact name, first match, `nil` for a
 /// name no tool has.
-public struct ToolTable: Sendable {
+public struct ToolTable: Sendable, Equatable {
     public let tools: [ReplyTool]
+
+    /// Two tables are equal when they show the model the same thing —
+    /// the same names, words and parameters in the same order. The
+    /// bodies are closures and cannot be compared; a test that needs to
+    /// tell two bodies apart calls them. This is what lets
+    /// `GenerationOptions` stay `Equatable` with a table on it.
+    public static func == (lhs: ToolTable, rhs: ToolTable) -> Bool {
+        lhs.tools.map(\.declaration) == rhs.tools.map(\.declaration)
+    }
+
+    /// THE resolution rule, written once for every mind (F-2 = A): the
+    /// call's table when the call carries one — even an empty one — and
+    /// this table otherwise.
+    public func resolved(for options: GenerationOptions) -> ToolTable {
+        options.tools ?? self
+    }
 
     public init(_ tools: [ReplyTool] = []) {
         self.tools = tools

@@ -334,11 +334,14 @@ struct MLXTokenSource: ReplyTokenStreaming {
                     // Sendable, so only the strings cross the boundary.
                     let asked = context.transcript
                     let past = context.history
-                    // `nil` when no tool was given (AC-227): the template
-                    // branches on it, and a generator with no tools must
-                    // render exactly the prompt it rendered before 4w.
-                    let specs = tools.toolSpecs
-                    let tooled = !tools.isEmpty
+                    // The call's table when it brought one, this mind's
+                    // otherwise (4z, F-2 = A). `nil` when there are none
+                    // (AC-227): the template branches on it, and a turn with
+                    // no tools must render exactly the prompt it rendered
+                    // before 4w.
+                    let turnTools = tools(for: context)
+                    let specs = turnTools.toolSpecs
+                    let tooled = !turnTools.isEmpty
                     try await container.perform { (model: ModelContext) in
                         let messages = Self.messages(
                             spoken: settings.instructions, asked: asked, past: past, exchanges: exchanges)

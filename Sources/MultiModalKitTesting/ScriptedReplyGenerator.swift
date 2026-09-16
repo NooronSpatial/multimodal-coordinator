@@ -191,7 +191,8 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
             // (AC-224); a structured child of `openReply` could not
             // outlive the call that opened it. Stored under the lock so
             // `cancel()` can find it.
-            let run = Task { await self.runToolScript(script, reply: index) }
+            let run = Task { await self.runToolScript(script, reply: index,
+                                                      tools: self.tools.resolved(for: context.options)) }
             state.withLock { $0.toolRuns[index] = run }
         }
         return ScriptedReply(generator: self, index: index, plan: plan, updates: stream)
@@ -204,7 +205,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     /// through the same `!cancelled` guard the test's hands use, unless
     /// the script is defiant, in which case NOTHING is guarded: the
     /// ghost is the point.
-    private func runToolScript(_ script: ToolScript, reply index: Int) async {
+    private func runToolScript(_ script: ToolScript, reply index: Int, tools: ToolTable) async {
         defer { script.whenDone() }
         let force = script.ignoresCancel
         for token in script.before {

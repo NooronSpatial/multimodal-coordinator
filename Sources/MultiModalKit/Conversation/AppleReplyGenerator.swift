@@ -39,10 +39,15 @@ protocol ReplySnapshotStreaming: Sendable {
 @available(macOS 26.0, iOS 26.0, *)
 struct FoundationModelSnapshots: ReplySnapshotStreaming {
 
-    /// The tools this mind was GIVEN (4w, F-2 = A): handed down from the
-    /// generator at construction, never per reply, so the session each
-    /// reply is born with carries them and the coordinator never does.
+    /// The tools this mind was GIVEN — its DEFAULT (4z, F-2 = A): handed
+    /// down from the generator at construction. The session each reply is
+    /// born with carries the call's table when the call brought one, and
+    /// this one otherwise (`tools(for:)`); the coordinator never holds them.
     let tools: ToolTable
+
+    func tools(for context: ReplyContext) -> ToolTable {
+        tools.resolved(for: context.options)
+    }
 
     init(tools: ToolTable = .empty) {
         self.tools = tools
@@ -60,7 +65,8 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         AsyncThrowingStream { continuation in
             let task = Task {
                 let session = self.session(instructions: instructions,
-                                           history: context.history)
+                                           history: context.history,
+                                           tools: self.tools(for: context))
                 let options = Self.vendorOptions(for: context.options)
                 do {
                     for try await snapshot in session.streamResponse(to: context.transcript,
@@ -152,8 +158,9 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     /// what it already knows. Also measured: writing one anyway does NOT
     /// double it — the vendor keeps one — so the reason to leave it empty
     /// is "the vendor owns that list", not a fear of a doubled prompt.
-    private func session(instructions: String?,
-                         history: [ConversationTurn]) -> LanguageModelSession {
+    func session(instructions: String?,
+                 history: [ConversationTurn],
+                 tools: ToolTable) -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
         if let instructions {
             entries.append(.instructions(Transcript.Instructions(
@@ -169,7 +176,8 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
                     content: turn.replied + (turn.interrupted ? "…" : "")))])))
         }
         // One call for both shapes: `.empty` maps to `[]`, which is the
-        // vendor's default and the pre-4w session (see above).
+        // vendor's default and the pre-4w session (see above). The table
+        // is the caller's resolved one (4z): the call's, or this mind's.
         return LanguageModelSession(tools: AppleToolAdapter.adapters(for: tools),
                                     transcript: Transcript(entries: entries))
     }

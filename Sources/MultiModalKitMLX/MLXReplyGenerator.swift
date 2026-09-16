@@ -27,11 +27,11 @@ protocol ReplyTokenStreaming: Sendable {
     /// TYPED since 4v (AC-238): the real source answers with
     /// `.unavailable(verdict)`, and the door throws exactly what it said.
     var unavailable: ReplyFailure? { get }
-    /// The tools this source was given at construction (4w, F-2 = A).
-    /// The RUN reads them to execute a call the source reports; the
-    /// source reads them to render the spec into its prompt. One table,
-    /// one owner — the generator's initializer hands it to both by
-    /// handing it here.
+    /// The tools this source was given at construction — its DEFAULT
+    /// (4z, F-2 = A). The RUN reads them to execute a call the source
+    /// reports; the source reads them to render the spec into its prompt.
+    /// Both go through `tools(for:)`, so a call that brought its own
+    /// table is rendered and executed from that one.
     var tools: ToolTable { get }
     /// Opens one generation and returns its tokens, in birth order, and
     /// — when the vendor says — why it stopped.
@@ -48,6 +48,12 @@ protocol ReplyTokenStreaming: Sendable {
 }
 
 extension ReplyTokenStreaming {
+    /// The table THIS reply renders and executes: the call's when it
+    /// carries one, the source's own otherwise (4z, F-2 = A).
+    func tools(for context: ReplyContext) -> ToolTable {
+        tools.resolved(for: context.options)
+    }
+
     /// The first round, which every reply has and which is the whole of
     /// a reply that calls nothing.
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
@@ -155,7 +161,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                         return
                     }
                     rounds += 1
-                    guard let answered = await self.execute(round.calls, with: source.tools) else { return }
+                    guard let answered = await self.execute(round.calls, with: source.tools(for: context)) else { return }
                     exchanges += answered
                 }
             } catch let failure as ReplyFailure {

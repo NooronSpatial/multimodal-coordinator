@@ -39,15 +39,23 @@ public struct GenerationOptions: Sendable, Equatable {
     public var temperature: Float?
     /// A sampling seed; `nil` leaves the vendor's randomness alone.
     public var seed: UInt64?
+    /// The tools THIS call may use (4z, F-2 = A — 4w's closing fork,
+    /// ruled on its numbers). `nil` is the generator's own table; a table
+    /// here REPLACES it for this call — so `.empty` means "no tools this
+    /// turn" even on a generator that holds some, and the app pays the
+    /// prompt's tool cost only on the turns that may use one.
+    public var tools: ToolTable?
 
     public init(instructions: String? = nil,
                 maxTokens: Int? = nil,
                 temperature: Float? = nil,
-                seed: UInt64? = nil) {
+                seed: UInt64? = nil,
+                tools: ToolTable? = nil) {
         self.instructions = instructions
         self.maxTokens = maxTokens
         self.temperature = temperature
         self.seed = seed
+        self.tools = tools
     }
 }
 
