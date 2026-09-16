@@ -28,10 +28,12 @@ struct ToolArgumentsTests {
         #expect(try arguments.integer("a") == 5)
         #expect(try arguments.integer("b") == 7)
         #expect(try arguments.integer("c") == 12)
-        #expect(throws: ToolArgumentFailure(argument: "d", reason: .wrongKind(expected: .integer, got: .number(7.5)))) {
+        #expect(throws: ToolArgumentFailure(argument: "d",
+                                            reason: .wrongKind(expected: .integer, got: .number(7.5)))) {
             try arguments.integer("d")
         }
-        #expect(throws: ToolArgumentFailure(argument: "e", reason: .wrongKind(expected: .integer, got: .string("7.5")))) {
+        #expect(throws: ToolArgumentFailure(argument: "e",
+                                            reason: .wrongKind(expected: .integer, got: .string("7.5")))) {
             try arguments.integer("e")
         }
     }
@@ -41,10 +43,12 @@ struct ToolArgumentsTests {
         let arguments: ToolArguments = ["a": true, "b": "false", "c": "yes", "d": 1]
         #expect(try arguments.boolean("a") == true)
         #expect(try arguments.boolean("b") == false)
-        #expect(throws: ToolArgumentFailure(argument: "c", reason: .wrongKind(expected: .boolean, got: .string("yes")))) {
+        #expect(throws: ToolArgumentFailure(argument: "c",
+                                            reason: .wrongKind(expected: .boolean, got: .string("yes")))) {
             try arguments.boolean("c")
         }
-        #expect(throws: ToolArgumentFailure(argument: "d", reason: .wrongKind(expected: .boolean, got: .integer(1)))) {
+        #expect(throws: ToolArgumentFailure(argument: "d",
+                                            reason: .wrongKind(expected: .boolean, got: .integer(1)))) {
             try arguments.boolean("d")
         }
     }
@@ -53,7 +57,8 @@ struct ToolArgumentsTests {
     func stringIsStrict() throws {
         let arguments: ToolArguments = ["food": "two eggs", "kg": 83.5]
         #expect(try arguments.string("food") == "two eggs")
-        #expect(throws: ToolArgumentFailure(argument: "kg", reason: .wrongKind(expected: .string, got: .number(83.5)))) {
+        #expect(throws: ToolArgumentFailure(argument: "kg",
+                                            reason: .wrongKind(expected: .string, got: .number(83.5)))) {
             try arguments.string("kg")
         }
     }
@@ -71,8 +76,8 @@ struct ToolArgumentsTests {
     func words() {
         #expect(ToolArgumentFailure(argument: "kg", reason: .missing).description
                 == "argument 'kg' is missing")
-        #expect(ToolArgumentFailure(argument: "kg", reason: .wrongKind(expected: .number, got: .string("heavy"))).description
-                == "argument 'kg' should be a number, got \"heavy\"")
+        let wrong = ToolArgumentFailure(argument: "kg", reason: .wrongKind(expected: .number, got: .string("heavy")))
+        #expect(wrong.description == "argument 'kg' should be a number, got \"heavy\"")
     }
 }
 
@@ -108,7 +113,8 @@ struct ToolTableValidationTests {
         let outcome = await logWeight(scripted).call("log_weight", arguments: ["kg": "heavy"])
         #expect(outcome == .failure(ToolCallFailure(
             tool: "log_weight",
-            reason: .badArgument(ToolArgumentFailure(argument: "kg", reason: .wrongKind(expected: .number, got: .string("heavy")))))))
+            reason: .badArgument(ToolArgumentFailure(
+                argument: "kg", reason: .wrongKind(expected: .number, got: .string("heavy")))))))
         #expect(scripted.calls.isEmpty)
     }
 
@@ -117,7 +123,8 @@ struct ToolTableValidationTests {
         let scripted = ScriptedTool(name: "log_weight", plan: .answers("logged"))
         let table = logWeight(scripted)
         #expect(await table.call("log_weight", arguments: ["kg": 83.5]) == .success("logged"))
-        #expect(await table.call("log_weight", arguments: ["kg": "84", "note": "morning", "mood": "fine"]) == .success("logged"))
+        #expect(await table.call("log_weight", arguments: ["kg": "84", "note": "morning", "mood": "fine"])
+                == .success("logged"))
         #expect(scripted.calls == [["kg": 83.5], ["kg": "84", "note": "morning", "mood": "fine"]])
     }
 

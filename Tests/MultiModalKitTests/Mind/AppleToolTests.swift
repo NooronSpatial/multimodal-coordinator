@@ -108,7 +108,8 @@ struct AppleToolTests {
         #expect(schema["type"] as? String == "object", "schema: \(schema)")
         let properties = try #require(schema["properties"] as? [String: Any], "schema: \(schema)")
         #expect(Set(properties.keys) == ["kg", "note", "sets", "sync"])
-        #expect((properties["kg"] as? [String: Any])?["type"] as? String == "number", "kg: \(String(describing: properties["kg"]))")
+        #expect((properties["kg"] as? [String: Any])?["type"] as? String == "number",
+                "kg: \(String(describing: properties["kg"]))")
         #expect((properties["note"] as? [String: Any])?["type"] as? String == "string")
         #expect((properties["sets"] as? [String: Any])?["type"] as? String == "integer")
         #expect((properties["sync"] as? [String: Any])?["type"] as? String == "boolean")

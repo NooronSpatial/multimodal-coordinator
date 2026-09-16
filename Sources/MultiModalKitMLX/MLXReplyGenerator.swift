@@ -161,7 +161,8 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                         return
                     }
                     rounds += 1
-                    guard let answered = await self.execute(round.calls, with: source.tools(for: context)) else { return }
+                    let table = source.tools(for: context)
+                    guard let answered = await self.execute(round.calls, with: table) else { return }
                     exchanges += answered
                 }
             } catch let failure as ReplyFailure {

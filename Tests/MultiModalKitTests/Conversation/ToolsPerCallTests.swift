@@ -43,7 +43,7 @@ struct ToolsPerCallTests {
         #expect(tool.calls == [["day": "today"]], "the tool ran exactly once")
     }
 
-    @Test("the scripted mind: a call's table REPLACES the generator's for that call, it does not add to it")
+    @Test("the scripted mind: a call's table REPLACES the generator's for that call — it does not add")
     func theCallsTableReplaces() async throws {
         let own = ScriptedTool(name: "session", plan: .answers("own"))
         let perCall = ScriptedTool(name: "weather", plan: .answers("sunny"))
@@ -51,7 +51,8 @@ struct ToolsPerCallTests {
         let generator = ScriptedReplyGenerator(plans: [.callsTool(script)], tools: ToolTable([own.tool]))
         let reply = try await generator.reply(to: ReplyContext(
             transcript: "q", options: GenerationOptions(tools: ToolTable([perCall.tool]))))
-        #expect(reply.text == "no session", "the generator's own tool is not visible on a call that brought its own table")
+        #expect(reply.text == "no session",
+                "the generator's own tool is not visible on a call that brought its own table")
         #expect(own.calls.isEmpty)
     }
 
@@ -85,10 +86,12 @@ struct ToolsPerCallTests {
                                   instructions: nil, maxTokens: 8, tools: ToolTable([own]))
         let withOwn = mind.tools(for: ReplyContext(transcript: "q"))
         #expect(withOwn.tools.map(\.name) == ["session"])
-        let withCall = mind.tools(for: ReplyContext(transcript: "q", options: GenerationOptions(tools: ToolTable([perCall]))))
+        let withCall = mind.tools(for: ReplyContext(transcript: "q",
+                                                    options: GenerationOptions(tools: ToolTable([perCall]))))
         #expect(withCall.tools.map(\.name) == ["weather"])
-        let withEmptyCall = mind.tools(for: ReplyContext(transcript: "q", options: GenerationOptions(tools: .empty)))
-        #expect(withEmptyCall.isEmpty, "an explicit empty table on the call means NO tools this turn, not the default")
+        let withEmptyCall = mind.tools(for: ReplyContext(transcript: "q",
+                                                         options: GenerationOptions(tools: .empty)))
+        #expect(withEmptyCall.isEmpty, "an explicit empty table on the call means NO tools this turn")
     }
 
     // MARK: the Apple mind
@@ -108,21 +111,23 @@ struct ToolsPerCallTests {
         }
         #expect(names(snapshots.session(instructions: "brief", history: [],
                                         tools: snapshots.tools(for: ReplyContext(transcript: "q")))) == ["session"])
+        let perCallContext = ReplyContext(transcript: "q", options: GenerationOptions(tools: ToolTable([perCall])))
         #expect(names(snapshots.session(instructions: "brief", history: [],
-                                        tools: snapshots.tools(for: ReplyContext(
-                                            transcript: "q", options: GenerationOptions(tools: ToolTable([perCall])))))) == ["weather"])
+                                        tools: snapshots.tools(for: perCallContext))) == ["weather"])
     }
 
     // MARK: the option itself
 
     @Test("GenerationOptions compares tables by what the model is shown, not by the closures")
     func optionsEquality() {
-        let a = ReplyTool(name: "session", description: "reads", parameters: [ToolParameter(name: "day", description: "which", kind: .string)]) { _ in "a" }
-        let b = ReplyTool(name: "session", description: "reads", parameters: [ToolParameter(name: "day", description: "which", kind: .string)]) { _ in "b" }
-        let c = ReplyTool(name: "session", description: "reads more") { _ in "a" }
-        #expect(GenerationOptions(tools: ToolTable([a])) == GenerationOptions(tools: ToolTable([b])))
-        #expect(GenerationOptions(tools: ToolTable([a])) != GenerationOptions(tools: ToolTable([c])))
+        let day = ToolParameter(name: "day", description: "which", kind: .string)
+        let shown = ReplyTool(name: "session", description: "reads", parameters: [day]) { _ in "one body" }
+        let sameShown = ReplyTool(name: "session", description: "reads", parameters: [day]) { _ in "another body" }
+        let otherWords = ReplyTool(name: "session", description: "reads more") { _ in "one body" }
+        #expect(GenerationOptions(tools: ToolTable([shown])) == GenerationOptions(tools: ToolTable([sameShown])))
+        #expect(GenerationOptions(tools: ToolTable([shown])) != GenerationOptions(tools: ToolTable([otherWords])))
         #expect(GenerationOptions() == GenerationOptions(tools: nil))
-        #expect(GenerationOptions(tools: .empty) != GenerationOptions(), "nil is 'the generator's'; .empty is 'none this call'")
+        #expect(GenerationOptions(tools: .empty) != GenerationOptions(),
+                "nil is 'the generator's'; .empty is 'none this call'")
     }
 }

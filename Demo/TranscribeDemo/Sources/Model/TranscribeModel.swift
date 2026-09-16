@@ -234,11 +234,14 @@ final class TranscribeModel {
     /// `TurnReport` by `record(_:)`. The demo's evidence that a call
     /// happened, which the reply's words alone cannot be (§60).
     let toolRecorder = SessionToolRecorder()
-    /// The table both minds are built with: the one stub when Tools is
-    /// on, `.empty` when it is off — and `.empty` leaves the prompt and
+    /// The table both minds are built with: the two stubs when Tools is
+    /// on — the session READ (4w) and the timer WITH AN ARGUMENT (4z,
+    /// `TimerStub`) — `.empty` when it is off, which leaves the prompt and
     /// the loop byte-identical to 4v (AC-227's baseline).
     var grantedTools: ToolTable {
-        toolsEnabled ? ToolTable([SessionStub.tool(recording: toolRecorder)]) : .empty
+        toolsEnabled
+            ? ToolTable([SessionStub.tool(recording: toolRecorder), TimerStub.tool(recording: toolRecorder)])
+            : .empty
     }
 
     /// THE SECOND MIND's weights (4h, D-062 F-1 = A). `repoID` means the

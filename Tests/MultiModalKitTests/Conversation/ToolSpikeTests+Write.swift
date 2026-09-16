@@ -16,7 +16,7 @@ import Synchronization
 import Testing
 
 extension ToolSpikeTests {
-    @Test("AC-274: a barge during a writing tool — the write happens once, the answer dies, the next turn is clean (F-5 = A)")
+    @Test("AC-274: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)")
     func aBargeDoesNotUnwrite() async throws {
         let signals = Signals()
         let writes = Mutex(0)

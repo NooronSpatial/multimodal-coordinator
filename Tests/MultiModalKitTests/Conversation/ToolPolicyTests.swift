@@ -32,11 +32,13 @@ struct ToolPolicyTests {
             description: "Shorten today's session.",
             parameters: [
                 ToolParameter(name: "by_minutes", description: "how many minutes less", kind: .integer),
-                ToolParameter(name: "confirmed", description: "true once the person has said yes", kind: .boolean, isRequired: false)
+                ToolParameter(name: "confirmed", description: "true once the person has said yes",
+                              kind: .boolean, isRequired: false)
             ]) { arguments in
                 let minutes = try arguments.integer("by_minutes")
                 guard arguments.has("confirmed"), try arguments.boolean("confirmed") else {
-                    return "needs confirmation: shortening today's session by \(minutes) minutes — ask the person to say yes"
+                    return "needs confirmation: shortening today's session by \(minutes) minutes"
+                        + " — ask the person to say yes"
                 }
                 sessionMinutes.withLock { $0 -= minutes }
                 return "done: the session is now \(sessionMinutes.withLock { $0 }) minutes"
@@ -89,7 +91,8 @@ struct ToolPolicyTests {
             .callsTool(ToolScript(name: "undo_last"))
         ], tools: ToolTable([logWeight, undoLast]))
 
-        #expect(try await generator.reply(to: ReplyContext(transcript: "log eighty-three and a half")).text == "logged 83.5 kg")
+        #expect(try await generator.reply(to: ReplyContext(transcript: "log eighty-three and a half")).text
+                == "logged 83.5 kg")
         #expect(entries.withLock { $0 } == [Entry(kg: 83.5)], "acted at once")
         #expect(try await generator.reply(to: ReplyContext(transcript: "undo that")).text == "undone")
         #expect(entries.withLock { $0 }.isEmpty, "reversed by the app's own undo")
