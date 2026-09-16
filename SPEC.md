@@ -5890,3 +5890,58 @@ plain path unchanged · one ending for a thrown tool · a barge cannot
 un-write · both callers' policies proved buildable on top · INSTRUMENTS
 §69 · every pre-4z test green · 20× · zero warnings · lint zero ·
 reviewed with every fix pushed before the PR is called ready · teach-back.
+
+## §198 — results, measured 2026-09-16 on `milestone/4z-tool-contract`
+
+**What was built**, in the spec's own order, one commit each: the types
+(`ToolValue`, `ToolParameter`, `ToolArguments`, the failure, the table's
+check before the body — `75f072f`); the MLX mind shown the parameters
+(`2bf82a0`); the Apple mind's run-time schema, typed arguments and F-4's
+catch (`e29c8ec`); tools per call (`ad260c3`); the barge that cannot
+un-write (`11a643e`); the two policies (`1d2286e`); the demo's
+`set_timer(minutes:)` (`09a2fd4`); INSTRUMENTS §69 (`a05ecfb`).
+
+**One thing the tests found before it shipped.** AC-274's row bit: with a
+cooperative tool — one that looks at `Task.isCancelled` before it
+commits, the kind an app writes — the barge's cancellation reached into
+the body and the write was skipped (0 writes, "aborted" fed back), the
+exact half-done case F-5 = A forbids. `ReplyTool.invoke` now runs the
+body in a task the reply's cancellation does not reach: awaited, never
+leaked, §4.1's one documented island in the reply path.
+
+**Criteria.**
+
+| AC | status | evidence |
+|---|---|---|
+| AC-268 | **Mac half met; phone is Ryad's gate** | §69: all six weights reached `log_weight` as the number said, on the 0.6B and on the phone's 4B run on this Mac — "eighty-three point two" → 83.2. The Apple mind: adapter proved without the model (`AppleToolTests`); its live rows SKIP here (model not ready), as every Apple row has since 4v. The demo builds with `set_timer` beside the session read. |
+| AC-269 | met | `schemaCarriesTheParameters`: the schema's JSON names the four properties, their types, `required: [kg, sets]` |
+| AC-270 | met | `parametersAreRendered`: the `<tools>` block's `properties` and `required`, byte for byte; no parameters → the spike's bytes (`noParametersNoRequired`) |
+| AC-271 | met | `ToolTableValidationTests` (5) + `ToolArgumentsTests` (6): missing and wrong-kind never reach the body, told in words; the Apple adapter's `missingArgumentIsToldNotRun` |
+| AC-272 | met | `ToolsPerCallTests` (6): the scripted mind, the MLX run, the MLX source, the Apple session, and the option's equality |
+| AC-273 | met | `throwIsAnsweredInWords` (Apple) and the MLX/scripted table write one sentence; the live Apple row flipped to F-4 = B (gated) |
+| AC-274 | met | `aBargeDoesNotUnwrite` — red first (see above), then green |
+| AC-275 | met | `ToolPolicyTests` (2): Aura's spoken confirmation, Emberleaf's act-at-once with undo |
+| AC-276 | **Mac half met** | INSTRUMENTS §69: 0.12 / 0.74 ms per spec character (0.6B / 4B); 11 / 15 of 20 right; INVENTED 2 / 2 — the finding the callers build on |
+| AC-277 | met | 728 tests, 0 failures on a single run (701 before 4z + 27); the spike's no-argument tool unchanged; zero warnings of ours; lint zero |
+| AC-278 | see below | the 20× loop; teach-back pending |
+
+**Machine evidence (this Mac, Xcode 27.0 beta, 2026-09-16):**
+
+```
+tests .............. 728 in 102 suites, 0 failures (27 new)
+lint ............... 0 (the demo's SwiftLint plugin caught 3 names and 17 long lines; fixed)
+demo ............... TranscribeDemo builds for the simulator with set_timer beside session
+instrument ......... bakeoff tool-contract, on the 0.6B and on the phone's 4B (§69)
+20× ................ __LOOP__
+```
+
+**A note on the worktree.** The suite ran red once at `main` before any
+change of mine: `MLXInstallTests` expects a Mac with `default.metallib`
+in the working directory, and a fresh worktree has none (it is
+git-ignored). Copying the main clone's shader library in made the row
+green and the live MLX rows real. Not a 4z finding; written down so the
+next worktree does not chase it.
+
+**Left for the phone (Ryad's gate, §172c):** AC-268's Apple half and the
+4B's arguments on the device itself — `TranscribeDemo` with Tools ON, say
+"Set a timer for ten minutes", read the turn line.
