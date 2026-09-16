@@ -70,9 +70,93 @@ struct AppleToolTests {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let scripted = ScriptedTool(name: "session", plan: .answers(Self.answer))
         let adapter = AppleToolAdapter(scripted.tool)
-        let answer = try await adapter.call(arguments: AppleToolNoArguments())
+        let answer = try await adapter.call(arguments: Self.arguments([:]))
         #expect(answer == Self.answer)
-        #expect(scripted.calls == [[:]], "the spike's arguments are the empty dictionary")
+        #expect(scripted.calls == [.none], "the spike's read still takes nothing (AC-277)")
+    }
+
+    // MARK: the schema and the arguments (4z, AC-269, AC-271)
+
+    /// Emberleaf's first verb, with all four kinds and one optional.
+    private static let logWeight = ReplyTool(
+        name: "log_weight",
+        description: "Record today's body weight.",
+        parameters: [
+            ToolParameter(name: "kg", description: "the weight in kilograms", kind: .number),
+            ToolParameter(name: "note", description: "an optional note", kind: .string, isRequired: false),
+            ToolParameter(name: "sets", description: "how many", kind: .integer),
+            ToolParameter(name: "sync", description: "also to Health", kind: .boolean, isRequired: false)
+        ]) { arguments in
+            "logged \(try arguments.number("kg")) kg"
+        }
+
+    /// The model's arguments, built the way the vendor delivers them: one
+    /// structure whose properties are the scalars it generated.
+    @available(macOS 26.0, iOS 26.0, *)
+    private static func arguments(_ values: [String: GeneratedContent.Kind]) -> GeneratedContent {
+        GeneratedContent(kind: .structure(
+            properties: values.mapValues { GeneratedContent(kind: $0) },
+            orderedKeys: values.keys.sorted()))
+    }
+
+    @Test("the schema the model is shown is built from the parameters at run time (AC-269)")
+    func schemaCarriesTheParameters() throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let adapter = AppleToolAdapter(Self.logWeight)
+        let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(adapter.parameters))
+        let schema = try #require(json as? [String: Any])
+        #expect(schema["type"] as? String == "object", "schema: \(schema)")
+        let properties = try #require(schema["properties"] as? [String: Any], "schema: \(schema)")
+        #expect(Set(properties.keys) == ["kg", "note", "sets", "sync"])
+        #expect((properties["kg"] as? [String: Any])?["type"] as? String == "number", "kg: \(String(describing: properties["kg"]))")
+        #expect((properties["note"] as? [String: Any])?["type"] as? String == "string")
+        #expect((properties["sets"] as? [String: Any])?["type"] as? String == "integer")
+        #expect((properties["sync"] as? [String: Any])?["type"] as? String == "boolean")
+        #expect((properties["kg"] as? [String: Any])?["description"] as? String == "the weight in kilograms")
+        let required = Set(schema["required"] as? [String] ?? [])
+        #expect(required == ["kg", "sets"], "required: \(required)")
+    }
+
+    @Test("call(arguments:) reads the model's structure into ToolArguments, kinds kept")
+    func argumentsArriveTyped() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let scripted = ScriptedTool(name: "log_weight", plan: .answers("logged"))
+        let adapter = AppleToolAdapter(ReplyTool(name: "log_weight", description: "records",
+                                                 parameters: Self.logWeight.parameters,
+                                                 call: scripted.tool.call))
+        let answer = try await adapter.call(arguments: Self.arguments([
+            "kg": .number(83.5), "note": .string("morning"), "sets": .number(3), "sync": .bool(true)
+        ]))
+        #expect(answer == "logged")
+        #expect(scripted.calls == [["kg": 83.5, "note": "morning", "sets": 3.0, "sync": true]],
+                "the vendor has one number kind; 3 arrives as 3.0 and reads as a whole number")
+    }
+
+    @Test("a missing required argument never reaches the body; the model is told in words (AC-271)")
+    func missingArgumentIsToldNotRun() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let scripted = ScriptedTool(name: "log_weight", plan: .answers("logged"))
+        let adapter = AppleToolAdapter(ReplyTool(name: "log_weight", description: "records",
+                                                 parameters: Self.logWeight.parameters,
+                                                 call: scripted.tool.call))
+        let answer = try await adapter.call(arguments: Self.arguments(["note": .string("no number")]))
+        #expect(answer == "tool 'log_weight' cannot run: argument 'kg' is missing")
+        #expect(scripted.calls.isEmpty, "the body did not run")
+    }
+
+    // MARK: a thrown tool is answered, not propagated (4z, F-4 = B, AC-273)
+
+    @Test("a tool's throw is answered to the model in the agreed words — the stream does not end (F-4 = B)")
+    func throwIsAnsweredInWords() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let scripted = ScriptedTool(name: "session", plan: .throwsError("the stub is offline"))
+        let adapter = AppleToolAdapter(scripted.tool)
+        let answer = try await adapter.call(arguments: Self.arguments([:]))
+        #expect(answer == "tool 'session' failed: the stub is offline")
+        // The SAME sentence the MLX and scripted minds hand their model.
+        let other = await ToolTable([scripted.tool]).call("session", arguments: [:])
+        #expect(other == .failure(ToolCallFailure(tool: "session", reason: .threw("the stub is offline"))))
+        #expect(other.failureWords == answer)
     }
 
     // MARK: a throw, in the seam's words (AC-225)
@@ -96,7 +180,11 @@ struct AppleToolTests {
         #expect(other == .failure(failure))
     }
 
-    @Test("the run ends .failed(.engine(the sentence)) when the stream throws the vendor's ToolCallError")
+    /// Under F-4 = B the adapter never throws, so the vendor never builds
+    /// a `ToolCallError` from OUR tools. This row keeps the belt: if the
+    /// vendor ever throws one anyway, the run still ends in the agreed
+    /// words rather than the vendor's.
+    @Test("the run ends .failed(.engine(the sentence)) if the stream ever throws the vendor's ToolCallError")
     func runReportsTheToolFailure() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let scripted = ScriptedTool(name: "session", plan: .throwsError("the stub is offline"))
@@ -187,7 +275,7 @@ struct AppleToolTests {
         let scripted = ScriptedTool(name: "session", plan: .waitsForRelease(then: .answers(Self.answer)),
                                     onEnter: { _ in entered.continuation.yield() })
         let adapter = AppleToolAdapter(scripted.tool)
-        let call = Task { try await adapter.call(arguments: AppleToolNoArguments()) }
+        let call = Task { try await adapter.call(arguments: Self.arguments([:])) }
         var gate = entered.stream.makeAsyncIterator()
         _ = await gate.next()
         call.cancel()
@@ -195,5 +283,12 @@ struct AppleToolTests {
         let outcome = await call.result
         #expect(scripted.calls.count == 1, "the tool ran to its answer")
         #expect(throws: CancellationError.self) { try outcome.get() }
+    }
+}
+
+private extension Result where Success == String, Failure == ToolCallFailure {
+    var failureWords: String? {
+        if case .failure(let failure) = self { return failure.description }
+        return nil
     }
 }

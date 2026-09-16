@@ -109,20 +109,16 @@ struct AppleToolLiveTests {
                 "the vendor reports no stop reason (AC-235): \(String(describing: reply.terminal))")
     }
 
-    /// AC-225 through the real session: a tool that THROWS. Today the
-    /// adapter lets the throw through, the vendor ends the stream with
-    /// its `ToolCallError`, and the run ends `.failed(.engine(_))` with
-    /// the sentence every mind writes. That is the INTERIM ending — the
-    /// vendor's interface allows the other one too (the adapter catches
-    /// and answers the model with the sentence, and the model speaks),
-    /// which is how the MLX run ends the same case. Which ending the
-    /// Apple mind keeps is an open fork, Ryad's, written up at
-    /// `AppleReplyRun.toolFailure`; this test pins the interim ending
-    /// until the ruling changes it, so that a change is a visible red,
-    /// never a silent drift. It has not yet run against a ready model
-    /// (see `realMindCallsTheTool`).
-    @Test("a throwing tool ends the real reply as the agreed failure (AC-225)")
-    func throwingToolFailsTheReply() async throws {
+    /// AC-225 / AC-273 through the real session: a tool that THROWS.
+    /// Under F-4 = B (D-108, 4z) the adapter catches the throw and answers
+    /// the model with the sentence every mind writes, so the reply ENDS
+    /// `.finished` with the model speaking — the same ending the MLX run
+    /// gives the same case. Before 4z this row pinned the interim ending
+    /// (`.failed(.engine(_))`, the vendor's `ToolCallError`), so that the
+    /// ruling would be a visible red; this is that red, turned green by
+    /// the ruling. Gated on a ready model like every live row.
+    @Test("a throwing tool is answered in words and the real reply finishes (AC-273, F-4 = B)")
+    func throwingToolIsAnsweredNotFailed() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
         let tool = ScriptedTool(name: "session", plan: .throwsError("the stub is offline"))
@@ -134,11 +130,13 @@ struct AppleToolLiveTests {
         generator.prewarm()
 
         let reply = try await Self.timedReply(generator)
-        print("AC-225 · tool called \(tool.calls.count)× · ended \(String(describing: reply.terminal)) · "
+        print("AC-273 · tool called \(tool.calls.count)× · ended \(String(describing: reply.terminal)) · "
             + "said: \(reply.text)")
         #expect(tool.calls.count >= 1, "the model did not call the tool; said: \(reply.text)")
-        #expect(reply.terminal == .failed(.engine("tool 'session' failed: the stub is offline")),
-                "ended: \(String(describing: reply.terminal))")
+        if case .failed(let failure) = reply.terminal {
+            Issue.record("the reply failed instead of finishing: \(failure)")
+        }
+        #expect(!reply.text.isEmpty, "the model recovers in words after the tool's sentence")
     }
 
     /// AC-228's Mac half for this mind: the first token WITH the tool in

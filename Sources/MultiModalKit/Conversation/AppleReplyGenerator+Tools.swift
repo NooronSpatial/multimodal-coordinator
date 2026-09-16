@@ -1,50 +1,34 @@
-// THE APPLE MIND'S TOOL ADAPTER (4w piece 3, AC-223, D-101 F-1 = B, F-2 = A).
+// THE APPLE MIND'S TOOL ADAPTER (4w piece 3 → 4z, AC-223, AC-269, AC-271,
+// AC-273; D-101 F-1 = B, D-108 F-4 = B).
 //
 // The vendor's shape and ours, side by side:
 //
-//     ours (ReplyTool)                 the vendor's (protocol Tool)
-//     ─────────────────                ────────────────────────────
-//     name: String                     name: String
-//     description: String              description: String
-//     call([String: String]) -> String call(arguments: Arguments) -> Output
-//                                      parameters: GenerationSchema   ← derived from Arguments
+//     ours (ReplyTool)                     the vendor's (protocol Tool)
+//     ─────────────────                    ────────────────────────────
+//     name: String                         name: String
+//     description: String                  description: String
+//     parameters: [ToolParameter]          parameters: GenerationSchema   ← built HERE, at run time
+//     call(ToolArguments) -> String        call(arguments: Arguments) -> Output
+//                                          Arguments = GeneratedContent   ← read HERE, by kind
 //
 // The vendor EXECUTES the tool itself, inside `streamResponse`, and then
 // continues the reply — which is exactly why F-1 = B was ruled: the run
 // never sees a call, the seam stays "tokens, then one terminal", and
 // this file's whole job is to make ONE `ReplyTool` look like ONE vendor
-// `Tool`. There is no loop of ours here and no second lookup (F-4 = B):
-// the framework matches names against the tools it was handed. What it
-// does for a name no tool has is the vendor's and NOT MEASURED HERE —
-// SPEC §172's F-4 reads it as "tells the model and lets it recover in
-// words", which is the policy `ToolTable.call` writes for the other
-// minds; no test on this Mac can reach that path (the model was not
-// ready — see `AppleToolLiveTests`), so this file adds no lookup of its
-// own and makes no promise about the vendor's.
+// `Tool`. There is no loop of ours here and no second lookup: the
+// framework matches names against the tools it was handed.
+//
+// WHAT 4z CHANGED. The spike showed the model an EMPTY schema and handed
+// the tool `[:]`. Now the schema is built from the app's `ToolParameter`s
+// through `DynamicGenerationSchema` — checked against the SDK's own
+// interface before it was written (SPEC §192) — and the model's
+// arguments arrive as `GeneratedContent`, which is `Generable` and so a
+// legal `Arguments`, and are read by their `kind` into `ToolArguments`.
+// And a tool that cannot run is ANSWERED, not thrown (F-4 = B): the
+// model reads the same sentence the MLX run hands its model, and the
+// reply goes on.
 
 import FoundationModels
-
-// MARK: - the arguments (none, this spike)
-
-/// What the model may pass to a spike tool: NOTHING. The spike's one
-/// tool is a no-argument read ("what is today's session?", F-3 = C), and
-/// `ReplyTool.call` takes `[String: String]`, so an empty dictionary is
-/// what the tool receives (SPEC §170: arguments are the contract's to
-/// widen).
-///
-/// It is `@Generable` because the vendor derives `Tool.parameters` — the
-/// JSON schema the model is SHOWN — from the `Arguments` type, and
-/// refuses a bare `String`/`Int`/… with a compile-time "use a
-/// `@Generable` struct instead". An empty struct yields a schema with no
-/// properties, which is the honest description of a read that takes
-/// nothing. WHAT THE CONTRACT WIDENS: a tool with real parameters needs
-/// a schema built from the `ReplyTool` (the vendor's
-/// `GenerationSchema(type:properties:)` is public, so it can be built by
-/// hand at runtime) and the typed `GeneratedContent` rendered into the
-/// `[String: String]` the tool takes. Neither is decided here (§170).
-@available(macOS 26.0, iOS 26.0, *)
-@Generable
-struct AppleToolNoArguments {}
 
 // MARK: - the adapter
 
@@ -54,44 +38,62 @@ struct AppleToolNoArguments {}
 /// proved on the adapter, not through the seam).
 @available(macOS 26.0, iOS 26.0, *)
 struct AppleToolAdapter: Tool {
-    typealias Arguments = AppleToolNoArguments
+    /// The vendor's own untyped content, so a schema built at run time
+    /// has a matching argument type without a compile-time struct.
+    typealias Arguments = GeneratedContent
     typealias Output = String
 
     let tool: ReplyTool
 
-    init(_ tool: ReplyTool) { self.tool = tool }
+    /// The schema the model is shown (AC-269), built once from the
+    /// parameters. `GenerationSchema(root:dependencies:)` throws only for
+    /// a malformed dynamic schema — for four scalar kinds under unique
+    /// names it cannot — so the fallback is the spike's empty schema,
+    /// which never traps and, if ever reached, makes the table refuse
+    /// every required argument in words rather than crash an app.
+    let parameters: GenerationSchema
+
+    init(_ tool: ReplyTool) {
+        self.tool = tool
+        self.parameters = (try? GenerationSchema(root: Self.dynamicSchema(for: tool), dependencies: []))
+            ?? AppleToolNoArguments.generationSchema
+    }
 
     /// The model's name for it — `ReplyTool.name`, verbatim. The
     /// vendor's default would be the TYPE's name, which is the same
     /// word for every tool in the table.
     var name: String { tool.name }
+
     /// The words the model is shown — the app's (D-027), verbatim.
     var description: String { tool.description }
 
     /// The vendor calls this from inside the session while the reply is
     /// being generated; the answer goes back to the MODEL, not to us.
     ///
-    /// A THROW IS LET THROUGH ON PURPOSE, FOR NOW: the vendor wraps it in
-    /// its `ToolCallError` and ends the response, and the run reports
-    /// `.failed`. Catching it here and returning the failure sentence as
-    /// the `Output` — so the model is told and recovers in words — is the
-    /// other half of an open fork (see `AppleReplyRun.toolFailure`), and
-    /// it is Ryad's to rule, not this file's.
+    /// Three things happen here and nowhere else on this mind:
+    /// 1. the vendor's content is read into `ToolArguments` by kind;
+    /// 2. `ReplyTool.invoke` checks the declaration, runs the body, and
+    ///    folds a throw — the one rule every mind shares;
+    /// 3. a failure is RETURNED as the tool's output (F-4 = B), so the
+    ///    model reads "tool 'x' cannot run: …" or "tool 'x' failed: …"
+    ///    and recovers in words, exactly as the MLX run's model does.
     ///
     /// THE REENTRANCY LAW (§4.1), applied at the one `await` this file
     /// owns: a barge may have retired the run while the tool was busy.
     /// The run's `retired` latch is the PRIMARY guard — once `cancel()`
     /// has finished the output stream, nothing the framework produces
-    /// afterwards reaches anyone (AC-226's rule, the fourth use of the
-    /// ticket doctrine). This check is the belt: when the vendor runs the
-    /// tool inside the cancelled task tree (whether it does is the
-    /// vendor's, not a promise this library can read from its
-    /// interface), a late answer is thrown away HERE, before the vendor
-    /// can spend a prefill feeding it to a model nobody is listening to.
-    func call(arguments: AppleToolNoArguments) async throws -> String {
-        let answer = try await tool.call(.none)
+    /// afterwards reaches anyone (AC-226's rule). This check is the belt:
+    /// when the vendor runs the tool inside the cancelled task tree, a
+    /// late answer is thrown away HERE, before the vendor can spend a
+    /// prefill feeding it to a model nobody is listening to. The tool
+    /// itself ran to its end (F-5 = A): a write is not un-written.
+    func call(arguments: GeneratedContent) async throws -> String {
+        let outcome = await tool.invoke(Self.toolArguments(from: arguments))
         try Task.checkCancellation()
-        return answer
+        switch outcome {
+        case .success(let answer): return answer
+        case .failure(let failure): return failure.description
+        }
     }
 }
 
@@ -105,52 +107,92 @@ extension AppleToolAdapter {
     static func adapters(for table: ToolTable) -> [any Tool] {
         table.tools.map { AppleToolAdapter($0) }
     }
+
+    // MARK: the schema (AC-269)
+
+    /// One object whose properties are the parameters: the kind's own
+    /// `Generable` scalar, the app's description, and `isOptional` for a
+    /// parameter the model may leave out.
+    static func dynamicSchema(for tool: ReplyTool) -> DynamicGenerationSchema {
+        DynamicGenerationSchema(
+            name: tool.name,
+            description: tool.description,
+            properties: tool.parameters.map { parameter in
+                DynamicGenerationSchema.Property(
+                    name: parameter.name,
+                    description: parameter.description,
+                    schema: scalarSchema(for: parameter.kind),
+                    isOptional: !parameter.isRequired)
+            })
+    }
+
+    private static func scalarSchema(for kind: ToolParameter.Kind) -> DynamicGenerationSchema {
+        switch kind {
+        case .string: DynamicGenerationSchema(type: String.self)
+        case .number: DynamicGenerationSchema(type: Double.self)
+        case .integer: DynamicGenerationSchema(type: Int.self)
+        case .boolean: DynamicGenerationSchema(type: Bool.self)
+        }
+    }
+
+    // MARK: the arguments (AC-271)
+
+    /// The vendor's content, read by kind. The vendor has ONE number kind
+    /// (`Double`), so an `integer` parameter arrives as `.number(3.0)`
+    /// and `ToolArguments.integer` reads it as 3. A nested array or
+    /// structure — outside the contract (§194) — arrives as its JSON
+    /// text, the same rule as the MLX mind's. Anything that is not a
+    /// structure at the top (the vendor generating a bare scalar for a
+    /// tool with no properties) is no arguments.
+    static func toolArguments(from content: GeneratedContent) -> ToolArguments {
+        guard case .structure(let properties, _) = content.kind else { return .none }
+        return ToolArguments(properties.mapValues(toolValue))
+    }
+
+    private static func toolValue(_ content: GeneratedContent) -> ToolValue {
+        switch content.kind {
+        case .null: .null
+        case .bool(let flag): .boolean(flag)
+        case .number(let number): .number(number)
+        case .string(let text): .string(text)
+        case .array, .structure: .string(content.jsonString)
+        // The vendor's enum is not frozen: a kind added by a future SDK
+        // arrives as its JSON text rather than a crash or a silent drop.
+        @unknown default: .string(content.jsonString)
+        }
+    }
 }
 
-// MARK: - a tool's throw, in the seam's words (AC-225)
+// MARK: - the empty schema (the spike's, kept as the fallback)
+
+/// The schema a tool with no parameters showed in 4w, and the fallback
+/// the initializer names above. `@Generable` because the vendor derives
+/// a schema from a type; an empty struct yields an object with no
+/// properties, which is the honest description of a read that takes
+/// nothing.
+@available(macOS 26.0, iOS 26.0, *)
+@Generable
+struct AppleToolNoArguments {}
+
+// MARK: - the vendor's own tool error, in the seam's words (the belt)
 
 @available(macOS 26.0, iOS 26.0, *)
 extension AppleReplyRun {
     /// The vendor's `ToolCallError` — thrown out of `streamResponse` when
     /// a tool's `call` throws — folded into the SAME `ToolCallFailure`
-    /// the scripted and MLX minds produce, so a caller counting failures
-    /// reads one sentence from every mind: `tool 'x' failed: <words>`.
+    /// the scripted and MLX minds produce.
     ///
-    /// Checked against the interface: `GenerationError` has NO tool case
-    /// (its nine are context, assets, guardrail, guide, locale, decoding,
-    /// rate, concurrency, refusal); the tool failure is its own error
-    /// type beside it, carrying `tool` and `underlyingError`. The words
-    /// are `String(describing: underlyingError)`, which is what
-    /// `ToolTable.call` writes for the other minds — the same error
-    /// gives the same sentence.
+    /// Under F-4 = B (D-108) `AppleToolAdapter.call` never throws for a
+    /// tool of ours, so the vendor never builds this error from one. It
+    /// stays as the belt for whatever else the vendor may raise under
+    /// that type: if the stream ever ends with it, the run reports the
+    /// agreed words rather than the vendor's.
     ///
-    /// AN OPEN FORK, NOT RULED HERE (the 4w review's blocking finding on
-    /// this piece). When a tool's `call` throws, the vendor ends the
-    /// response with this error — it does not tell the model on its own.
-    /// But the ADAPTER could: `Tool.Output` is any `PromptRepresentable`,
-    /// `String` is one, so `AppleToolAdapter.call` could `catch` and
-    /// return `ToolCallFailure(…).description` as the tool's output, and
-    /// the model would read the sentence and recover in words. The
-    /// interface allows both endings; a first draft of this comment
-    /// claimed it forbade the second, which was wrong. So the fork:
-    ///
-    ///   A — propagate the throw (TODAY'S CODE, kept until ruled): the
-    ///       run ends `.failed(.engine("tool 'x' failed: …"))`, the
-    ///       scripted mind's `.failsReply` shape — a hard failure a
-    ///       caller can count, and the person hears nothing.
-    ///   B — catch in the adapter and answer the model with the sentence:
-    ///       the run ends `.finished` with a spoken "I couldn't read
-    ///       that", the scripted mind's `.speaks` shape — which is what
-    ///       the MLX run does for BOTH failure ways, and the words of
-    ///       AC-225 ("the mind is told, the reply says so").
-    ///
-    /// Until Ryad rules it the two real minds END AC-225 DIFFERENTLY for
-    /// the same throwing tool, and a caller counting outcomes must know
-    /// that. D-101's F-4 = B does not settle it: F-4 names the MLX run's
-    /// unknown-name case only. This function stays under either ruling —
-    /// it is the fold for the error the vendor can raise regardless of
-    /// what the adapter does — and the live test (`AppleToolLiveTests`,
-    /// AC-225) pins the interim ending A until the ruling changes it.
+    /// Checked against the interface: `GenerationError` has NO tool case;
+    /// the tool failure is its own error type beside it, carrying `tool`
+    /// and `underlyingError`. The words are `String(describing:
+    /// underlyingError)`, which is what `ReplyTool.invoke` writes for the
+    /// other minds — the same error gives the same sentence.
     static func toolFailure(from error: LanguageModelSession.ToolCallError) -> ToolCallFailure {
         ToolCallFailure(tool: error.tool.name,
                         reason: .threw(String(describing: error.underlyingError)))
