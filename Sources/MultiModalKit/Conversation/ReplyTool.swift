@@ -257,9 +257,10 @@ public struct ReplyTool: Sendable {
     /// The app's one policy bit (F-10 B): a flagged tool does not run on
     /// the model's word alone. NO default (as F-13 k): the app writes it.
     public let requiresConfirmation: Bool
-    /// The body. NOT public (F-13 g): the only way in is the checked door,
-    /// `ToolTable.invoke`.
-    let body: @Sendable (ToolArguments) async throws -> String
+    /// The body. PRIVATE (F-13 g): the only way in is the checked door,
+    /// `ToolTable.invoke`, in this file — inside the module too, so the
+    /// compiler checks the sentence.
+    private let body: @Sendable (ToolArguments) async throws -> String
 
     public init(name: String,
                 description: String,
@@ -525,7 +526,7 @@ extension ReplyTool {
     /// was the recommendation Ryad overruled; B, a rule the library
     /// cannot prove, and D, the shield written once per mind, were
     /// rejected with it.)
-    func run(_ arguments: ToolArguments) async -> (Result<String, ToolCallFailure>, cut: Bool) {
+    fileprivate func run(_ arguments: ToolArguments) async -> (Result<String, ToolCallFailure>, cut: Bool) {
         let body = body
         let shielded = Task { try await body(arguments) }
         do {
