@@ -22,10 +22,12 @@ extension MLXTokenSource {
     /// The assistant turn's content is EMPTY: the words the model said
     /// before its call were already spoken by the run, and repeating
     /// them here would make the model read its own half-sentence as a
-    /// finished turn. The arguments go back AS THE MODEL WROTE THEM (4z,
+    /// finished turn. The arguments go back in the contract's values (4z,
     /// `ToolValue.json`): a string a string, a whole number whole, a
-    /// decimal a decimal — so the model reads its own call as it made
-    /// it, not a flattened copy.
+    /// decimal a decimal — so the model reads its own call as a call,
+    /// not a flattened copy. Not byte for byte: ONE number case (F-13 b)
+    /// loses the model's spelling, so an `84.0` it wrote goes back as
+    /// `84` (the builder's Q4, for the ledger).
     static func messages(spoken: String?, asked: String,
                          past: [ConversationTurn],
                          exchanges: [ToolExchange]) -> [Chat.Message] {

@@ -208,8 +208,9 @@ extension ToolValue {
 
     /// The way back, for the prompt's own record of a call (the
     /// assistant turn the next round reads, `LocalMind+Tools`): a whole
-    /// number is written whole — `84`, as the model wrote it — the rest
-    /// are themselves, and a container recurses.
+    /// number is written whole — `84`, even if the model spelled it
+    /// `84.0`: one number case (F-13 b) keeps no spelling — a decimal as
+    /// a decimal, the rest are themselves, and a container recurses.
     var json: JSONValue {
         switch self {
         case .null: .null
