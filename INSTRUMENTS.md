@@ -5480,3 +5480,66 @@ Not ruled here. Presented for Phase B's contract milestone:
 4v already chose for instructions and budget, and it needs no new
 machinery. B is worth measuring later if the second-prefill cost in §2
 turns out to matter more than the idle cost in §1.
+
+## 68. What a cut generation gives back — memory before, during and after (4y, AC-261, AC-264, AC-266)
+
+**What was asked.** A generation that is cut — by a memory warning, by a
+deadline, or by dying before its first token — must GIVE BACK the
+memory it took. Aura's R3 and R7 say so; AC-261 and AC-264 make it a
+number. A claim that memory was "freed" is worth nothing without a
+before-and-after, so every row below is `MLXRuntime.activeMemoryBytes`
+read three times: before the reply, at its peak, after the cut.
+
+**Machine.** Ryad's Mac, 2026-09-12, the 0.6B model (the phone's 4B is
+larger, so every number below scales up on the phone — the SHAPE is the
+finding, and the phone's own row is Ryad's gate). The floor is the
+resident weights: 320 MB. The live rows are gated on `MMK_MLX_MODEL` and
+RAN here; the same rows print an honest SKIPPED in CI.
+
+| what cut the generation | before | peak during | after | cache after |
+|---|---|---|---|---|
+| a deadline at 200 ms, 13 tokens out | 320 MB | 415 MB | **320 MB** | 0 MB |
+| a memory warning after 3 tokens | 320 MB | 411 MB | **320 MB** | 0 MB |
+| a run cancelled BEFORE its first token — before the fix | 320 MB | **413 MB** | 320 MB | |
+| the same run — after the fix | 320 MB | **0 MB** | 320 MB | |
+| a critical warning, then idle | 320 MB | | **0 MB** | |
+| …then the next reply reloads | 0 MB | | 320 MB, and it answers | |
+
+**Four things this table settles.**
+
+1. **A cut generation gives everything back.** The prefill and the KV
+   cache — the ~95 MB above the floor — are gone after a deadline and
+   after a warning. `MLX.Memory.clearCache()` on the cut, after the
+   vendor's task is cancelled AND awaited, because the cache belongs to
+   a local of that task. Cancelling without awaiting frees nothing.
+2. **The bug that mattered: a dead run was still prefilling.** A run cut
+   BEFORE its first token — a warning during the load, an early barge,
+   an early deadline — still paid the whole prompt prefill, 413 MB peak
+   for a run that should have done nothing. The vendor's serial lock
+   ignores cancellation: a cancelled task waits its turn and enters
+   alive. Two cancellation checks now stand between the load door and
+   the vendor loop. Peak after the fix: 0.0 MB. The pair is proven by
+   the live row; each half alone keeps the row green, and the comment
+   in the code says exactly that.
+3. **A critical warning empties the phone, and the phone recovers.**
+   The weights are retired to 0 MB resident; the next reply reloads them
+   and answers. That is R4's "non-terminal" — it must reload tomorrow.
+4. **Admission leaves the weights resident and nothing else.** After
+   `admit(needing:)` the floor is 320 MB — the model, no prefill.
+
+**A finding from the same session, about tests rather than memory.** A
+wait that cannot be cancelled is a hang waiting to happen: twice in this
+milestone a test that awaited `Task.value` bare HUNG the whole run under
+a mutant instead of failing — once for ten minutes, once past the
+suite's limit with the helper process outliving the driver. Every wait
+in the new suites now races its task through a sleeping cap that
+cancels it. This is the 4t lesson (a yield-spin froze CI for six hours)
+in a new coat, and it is why the house rule says EVENTS racing a CAP,
+never a bare await.
+
+**Not measured here.** The phone: the 4B's numbers for the same three
+cuts, and the thermal curve with the mind generating every turn —
+AC-266's second half, Ryad's gate. Whether `.serious` is the right
+place to refuse: F-2 = A chose `.critical` because the measured phone
+sat at `.serious` for every session and never recovered (§26); nothing
+here re-measures that.

@@ -93,6 +93,22 @@ public enum MLXRuntime {
     /// would abort on a machine with no metallib.
     public static var activeMemoryBytes: Int { isAvailable ? MLX.Memory.activeMemory : 0 }
     public static var peakMemoryBytes: Int { isAvailable ? MLX.Memory.peakMemory : 0 }
+    /// The vendor's buffer pool — bytes held but not in use, what
+    /// `MLX.Memory.clearCache()` returns to the system. Read by the 4y
+    /// live rows (AC-261, AC-264) to say, in numbers, what a cancelled
+    /// generation left behind: active is the KV cache's home, cache is
+    /// the pool it is recycled into up to `cacheLimit`.
+    public static var cacheMemoryBytes: Int { isAvailable ? MLX.Memory.cacheMemory : 0 }
+
+    /// Starts the peak over, so "the peak DURING this generation" is a
+    /// number about this generation and not about the load before it.
+    /// The vendor's setter ignores its value and resets; this spells
+    /// that honestly. A no-op without a metallib, for the same reason
+    /// as the readers above.
+    public static func resetPeakMemory() {
+        guard isAvailable else { return }
+        MLX.Memory.peakMemory = 0
+    }
 
     /// True when MLX may be called. `false` means SKIP — never "try and
     /// see", because trying is what aborts the process.

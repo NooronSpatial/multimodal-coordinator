@@ -4666,6 +4666,164 @@ F-5 = A** (SPEC §184).
 work (Aura's R1–R3, R7) stay parked, and F-8's memory question (D-105)
 stays ruled A until a milestone measures the number.
 
+## D-107 — 4y signed: admission built on what the phone says, and four rulings (Milestone 4y)
+
+**Date:** 2026-09-12 · **Decided by:** Ryad ("signed off plus F-1 to F-4
+recommended") · **Rulings: F-1 = A, F-2 = A, F-3 = A, F-4 = A** (SPEC
+§190).
+
+- **F-1 A — the app sets the memory threshold.** `admit(needing:)` takes
+  the number the app measured for itself (Aura's own AC6) and compares
+  it to the phone's headroom. *Rejected:* the library inferring it from
+  the weights × 1.5 — the exact claim D-105 removed because it locked a
+  phone out for good; and no check at all — which admits a load that
+  jetsam kills seconds later, the race Aura's R1 names.
+- **F-2 A — refuse at `.critical` only.** The measured phone reached
+  `.serious` in every session and never recovered (INSTRUMENTS §26), so
+  refusing at `.serious` would refuse every second turn. *Rejected:*
+  refuse at `.serious` — safer for the battery, unusable on the phone;
+  and never refuse — what the library does today.
+- **F-3 A — a memory warning cancels the generation through the
+  ticket.** The turn ends with no terminal, the way a barge does, and
+  the prefill is freed; the next turn runs clean. *Rejected:* let it
+  finish, then release — a warning is a warning, and the finish may be
+  the kill.
+- **F-4 A — a deadline is a stop reason.** `.finished(.deadline)` with
+  the partial text, beside `.tokenBudget`. *Rejected:* a failure — it
+  throws away words the person may already have heard, and D-104
+  already ruled that how a reply ENDS is not a failure.
+
+**What this milestone must not touch:** D-105 (no memory claim from a
+file size) and D-028 (the thermal seam is one question at one moment —
+this milestone asks it at a second moment, it does not change the
+seam). The mouth's thermal policy (4e's open item) stays open.
+
+## D-108 — 4y's two build-raised forks, ruled by delegation (Milestone 4y)
+
+**Date:** 2026-09-16 · **Decided by:** Ryad, by delegation ("you
+decide", given after the 4y milestone PR's description was found to
+have flipped §190a's letters; the choices below were made by Claude
+under that delegation) · **Rulings: F-5 = B, F-6 = A** (SPEC §190a).
+
+**What delegation means here, so it is not misread later.** D-102's
+delegation ADOPTED the written recommendation. This one does not, on
+one fork: **F-5 = B goes AGAINST §190a's own recommendation (A)**, for
+the five reasons below; the PR's text had recommended "keep what ships"
+under the wrong letter, and this entry follows the reasons, not the
+letter. **F-6 = A FOLLOWS §190a's recommendation** — after a first
+ruling of B, made on a reason the code did not support, was withdrawn
+(the correction at the end of this entry). Either ruling is Ryad's to
+overrule with one word; both are teach-back items.
+
+**F-5 = B — admission reads HEADROOM, not pressure. What ships stays —
+against §190a's recommendation (A).** Reasons, in order:
+
+1. The gate's contract (F-1 = A, D-107) is the app's own number against
+   the kernel's PER-PROCESS headroom — the number that decides jetsam
+   for a foreground app. Memory pressure is system-wide and momentary.
+2. Pressure already acts where it bites: a `.warning` cuts the live
+   generation (F-3 = A, AC-261) and a `.critical` retires the weights —
+   including a `.critical` that lands DURING a load (AC-262; the
+   during-a-load half is the holder's ticket, `RetirableTests`). A load
+   begun under pressure ends under the same net as any other.
+3. A refusal on a sticky `.warning` that the headroom says fits is the
+   lock-out shape D-105 removed: a door that refuses never gets to the
+   state that would let it admit.
+4. No phone row measured the pressure level at admission time
+   (INSTRUMENTS §58, §60 recorded headroom, not pressure). A refusal
+   that can lock a device out belongs with a measurement, not a guess —
+   F-1's own argument.
+5. The words "reads headroom and pressure" in SPEC §187/1 were the
+   spec's, not Aura's. Aura's R1 is "one admission call, no window"
+   (SPEC §186) and it stands met.
+
+*Rejected — A (refuse at the door on a current `.warning`/`.critical`
+with a new `MindUnavailable.underMemoryPressure(level)`):* beyond
+(1)–(4): the library's `MemoryPressureMonitor` coalesces the kernel's
+events to TRANSITIONS, starting from an assumed `.normal`, so "current
+pressure" would be a remembered last level, unknown at start — a second
+door state to keep and to test, for a refusal nobody measured.
+
+**F-6 = A — `admit(needing:)` speaks the throw as a typed verdict:
+`ReplyFailure.unavailable(.retiredDuringLoad)`, a new `MindUnavailable`
+case.** Reasons, in order:
+
+1. It is a MEMORY event. A `.critical` retired the weights while this
+   door was loading them. `MindUnavailable` is the family of "why the
+   mind cannot run here right now" — `.notEnoughMemory` already lives
+   there — and this belongs beside it. A caller can then say "the phone
+   ran out of memory during the load; try again later", not "the
+   engine failed".
+2. `.engine(String)` is the honest catch-all for what the VENDOR throws
+   (D-103 F-3 = A; the run's catch-all in `MLXReplyGenerator.swift`
+   says it in its own words: "anything the vendor throws"). This throw
+   is the library's own holder speaking (`Retirable.Failure`,
+   `Retirable.swift`). A library event in the vendor's bucket is
+   hidden, not reported.
+3. The reply door does not "already speak" for this event, so nothing
+   there needs to change. On the reply door a `.critical` during the
+   load ends the run SILENTLY: `pressure(_:)`
+   (`LocalMind+Admission.swift`) abandons the live runs BEFORE it
+   retires the weights, so the run is already retired when the holder
+   throws; whatever the rounds task would then say — an `.engine` wrap
+   from its catch-all (`MLXReplyGenerator.swift`), or a bare end — the
+   run is retired, `report` drops it, and `abandon()` already finished
+   the stream. AC-262's own row asserts "no terminal, as for a warning"
+   for a `.critical` MID-generation (`MLXPressureTests`); the during-a-
+   load case follows from the order, because a run joins the registry
+   in its init, before its load begins — no row drives one through the
+   reply door's load either. A stream may end in silence; `admit()` has
+   no stream and must throw a word. F-6 is only WHICH word.
+4. The cost is small, and the break it causes is already priced in.
+   One public case with its description, one catch in
+   `admit(needing:)`, one row (AC-268). Aura's exhaustive
+   `MLXLocalMind.translate(_: MindUnavailable)` gains one arm at the
+   pin bump that brings 4y — a bump that already breaks Aura's build,
+   because its `translate(_: ReplyFailure)` has no arm for 4y's
+   `.tooHot`. No second break event, provided the AC-268 case lands in
+   the same release as `.tooHot`.
+
+*Rejected — B (map the throw to `ReplyFailure.engine(_)`):* first
+chosen, on the reason that "the reply door already speaks `.engine` for
+the same event". That reason was FALSE — see the correction below.
+Without it, B only saves one enum case, at the price of reporting a
+memory event as an engine failure.
+
+*Rejected — "leave as shipped" (the un-lettered status quo):* a raw
+`Retirable.Failure` leaving a door that otherwise throws only
+`ReplyFailure` is a contract hole.
+
+**Owed by this ruling (NOT built in this commit):** the case, the
+catch, and one row that scripts a `.critical` through `admit`'s own
+load and sees `ReplyFailure.unavailable(.retiredDuringLoad)` — SPEC
+AC-268, under the 4y ACs, marked "owed; built when the suite can run
+again" (this Mac has Xcode 27 without the Metal toolchain today, so no
+MLX test can run here; CI is the harness).
+
+### Correction, 2026-09-16 — F-6 was first ruled B on a false reason; re-ruled A
+
+Before this entry was committed, the facts lens read the code the first
+F-6 reason cited. The sentence "on the reply door the same event — a
+`.critical` during the door's own load — already surfaces as
+`.failed(.engine("…retiredDuringLoad…"))`" **is withdrawn.** It does
+not: `pressure(_:)` abandons the live runs BEFORE it retires the
+weights, so the run is already retired when the holder throws, and the
+`.engine` wrap the catch-all would build is never heard — `report`
+drops a terminal on a retired run, and AC-262's own row asserts no
+terminal for the mid-generation case (the during-a-load case follows
+from the registration order). The reply door speaks `.engine("…retiredDuringLoad…")` only for a
+ticket raised by the app's direct `retire()` during a reply's load, not
+by a pressure step.
+
+That sentence was B's first and main leg. With it gone, the question is
+only which WORD `admit()` throws for a memory event — and the typed
+case is the honest one (reasons 1–4 above). So F-6 is **re-ruled A**,
+under the same delegation ("you decide"), and both rulings are recorded
+here: B first, on a reason the code did not support; A after the lens
+read the code. A decision log that corrects itself silently is not one.
+The corrected fact is stated in SPEC AC-268; the correction itself —
+B first, then A — in §190a's ruling line, in ARCHITECTURE ("The one
+untyped throw that remains") and in `LocalMind+Admission.swift`.
 ## D-109 — the 4z reference branch is a proposal: spec first, then the code piece by piece (Milestone 4z)
 
 **Date:** 2026-09-17 · **Decided by:** Ryad ("B") · *(D-108 is 4y's,

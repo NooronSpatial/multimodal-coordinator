@@ -16,7 +16,12 @@ import Synchronization
 /// - Cancel and advance race for the same sleeper: removing the waiter from
 ///   the queue under the lock is the claim ticket — one claim, one resume.
 /// - `waitForSleepers(atLeast:)` parks the TEST until sleeps are registered,
-///   so tests never advance past a sleep that doesn't exist yet.
+///   so tests never advance past a sleep that doesn't exist yet. It honours
+///   cancellation the way `sleep` does (one claim ticket, resumed outside
+///   the lock), so a test can race it against a sleeping cap and a red
+///   test dies in seconds instead of parking forever — the 4y review's
+///   mutation of a deadline test hung a run for ten minutes on exactly
+///   this wait before it could cancel.
 public final class ManualClock: Clock, Sendable {
     public struct Instant: InstantProtocol, Sendable, Hashable, CustomStringConvertible {
         public var offset: Duration
@@ -47,8 +52,9 @@ public final class ManualClock: Clock, Sendable {
     }
 
     private struct Observer {
+        let id: UInt64
         let threshold: Int
-        let continuation: CheckedContinuation<Void, Never>
+        let continuation: CheckedContinuation<Bool, Never>
     }
 
     private struct State {
@@ -104,7 +110,7 @@ public final class ManualClock: Clock, Sendable {
                     continuation.resume(throwing: CancellationError())
                 case .parked(let satisfied):
                     for observer in satisfied {
-                        observer.continuation.resume()
+                        observer.continuation.resume(returning: true)
                     }
                 }
             }
@@ -154,18 +160,46 @@ public final class ManualClock: Clock, Sendable {
 
     /// Park the TEST until at least `threshold` tasks are asleep here.
     /// Event-driven — resumed from sleep's own registration, never polled.
-    public func waitForSleepers(atLeast threshold: Int) async {
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            let ready: Bool = state.withLock { clockState in
-                if clockState.sleepers.count >= threshold {
-                    return true
+    /// Returns `true` when the sleepers are there, `false` when the
+    /// waiting task was cancelled first — so a caller racing it against a
+    /// cap can tell the two apart. Cancel and registration race for the
+    /// same observer: removing it under the lock is the claim ticket.
+    @discardableResult
+    public func waitForSleepers(atLeast threshold: Int) async -> Bool {
+        let id: UInt64 = state.withLock { clockState in
+            defer { clockState.nextID += 1 }
+            return clockState.nextID
+        }
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+                enum Decision {
+                    case ready
+                    case alreadyCancelled
+                    case parked
                 }
-                clockState.observers.append(Observer(threshold: threshold, continuation: continuation))
-                return false
+                let decision: Decision = state.withLock { clockState in
+                    if Task.isCancelled {
+                        return .alreadyCancelled       // the cancel handler ran before we parked
+                    }
+                    if clockState.sleepers.count >= threshold {
+                        return .ready
+                    }
+                    clockState.observers.append(
+                        Observer(id: id, threshold: threshold, continuation: continuation))
+                    return .parked
+                }
+                switch decision {
+                case .ready: continuation.resume(returning: true)
+                case .alreadyCancelled: continuation.resume(returning: false)
+                case .parked: break
+                }
             }
-            if ready {
-                continuation.resume()
+        } onCancel: {
+            let claimed: Observer? = state.withLock { clockState in
+                guard let index = clockState.observers.firstIndex(where: { $0.id == id }) else { return nil }
+                return clockState.observers.remove(at: index)       // the claim ticket
             }
+            claimed?.continuation.resume(returning: false)
         }
     }
 

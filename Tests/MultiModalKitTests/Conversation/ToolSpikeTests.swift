@@ -10,11 +10,17 @@
 //
 // **Nothing here polls** (§3.3, and the 4t runner freeze). Every wait is
 // an EVENT: the coordinator's own stream is forwarded into `Signals`, the
-// scripted tool signals the moment it is entered, and the scripted run
-// signals when it has pushed its last update. Each wait races a SLEEPING
-// deadline, so a red test still dies in ten seconds. `.serialized` for
-// the same reason the runtime tests are: nothing overlaps until the
-// runner's freeze is explained.
+// scripted tool signals the moment it is entered, the scripted run
+// signals when it has pushed its last update, the mind the coordinator
+// is handed says `opened:N` the moment reply N's run EXISTS (the 4y
+// review: `thinking:N` is published before `openReply` is awaited, so a
+// hand that emits on `thinking` can emit into nothing), and the mouth it
+// is handed says `tokensFinished:N` the moment utterance N is told the
+// sentence is over (a mouth reported finished before that completes the
+// turn first, and the reply's terminal then dies at the ticket). Each
+// wait races a SLEEPING deadline, so a red test still dies in ten
+// seconds. `.serialized` for the same reason the runtime tests are:
+// nothing overlaps until the runner's freeze is explained.
 
 import MultiModalKit
 import MultiModalKitTesting
@@ -80,14 +86,21 @@ struct ToolSpikeTests {
     /// measures the barge's cancel.
     struct Rig {
         let bench: Bench
-        let signals = Signals()
+        let signals: Signals
         let reporter = TurnCoordinatorTests.RecordingLatencyReporter()
         private let listener: Broadcast<TurnEvent>.Listener
         private let forwarded: Broadcast<TurnEvent>.Listener
 
         init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer) async throws {
+            let signals = Signals()
+            self.signals = signals
+            // The coordinator is handed the announcing wrappers; the test's
+            // hands (`bench.generator`, `bench.synthesizer`) stay on the
+            // scripted doubles inside them.
             bench = try Bench(generator: generator, synthesizer: synthesizer,
-                              clock: ManualClock(), reporter: reporter)
+                              clock: ManualClock(), reporter: reporter,
+                              mindSeenByCoordinator: OpenAnnouncingMind(inner: generator, signals: signals),
+                              mouthSeenByCoordinator: AnnouncingMouth(inner: synthesizer, signals: signals))
             listener = await bench.coordinator.listen()
             forwarded = await bench.coordinator.listen()
         }
@@ -104,18 +117,26 @@ struct ToolSpikeTests {
 
         func heard(_ name: String) async -> Bool { await signals.heard(name) }
 
-        /// Drives a `.manual` reply to a completed turn: two tokens (the
-        /// second's event proves the mouth opened on the first — the mouth
-        /// opens AFTER a token is published, so one token's event alone
-        /// would not), the mouth's evidence, the finish.
+        /// Drives a `.manual` reply to a completed turn: the run's own
+        /// "opened" first (an `emit` into a reply with no record yet is a
+        /// silent no-op, and `thinking:N` arrives before the record
+        /// exists), then two tokens (the second's event proves the mouth
+        /// opened on the first — the mouth opens AFTER a token is
+        /// published, so one token's event alone would not), the mouth's
+        /// evidence, the finish — and the mouth is only reported finished
+        /// once it has been TOLD the tokens are over, or the mouth's
+        /// report would complete the turn first and the reply's terminal
+        /// would die at the ticket.
         func completeManualTurn(_ turn: Int, reply: Int, utterance: Int,
                                 tokens: (String, String)) async {
+            #expect(await heard("opened:\(reply)"), "reply \(reply) must be open before a hand emits into it")
             bench.generator.emit(reply: reply, token: tokens.0)
             bench.generator.emit(reply: reply, token: tokens.1)
             #expect(await heard("token:\(tokens.1):\(turn)"))
             bench.synthesizer.reportStarted(utterance: utterance)
             #expect(await heard("speaking:\(turn)"))
             bench.generator.finish(reply: reply)
+            #expect(await heard("tokensFinished:\(utterance)"), "the mouth must be told before it reports")
             bench.synthesizer.reportFinished(utterance: utterance)
             #expect(await heard("completed:\(turn)"))
         }
@@ -137,6 +158,54 @@ struct ToolSpikeTests {
             bench.finishInputs()
             await bench.coordinator.stop()
         }
+    }
+
+    /// The mind the coordinator is handed: the scripted one, plus one
+    /// event — `opened:N` the moment reply N's run has been handed back,
+    /// which is the one fact the coordinator's own events cannot give
+    /// (`thinking` comes first, `openReply` after). A refused door says
+    /// nothing: the `failed:N` event is the news there.
+    struct OpenAnnouncingMind: ReplyGenerating {
+        let inner: ScriptedReplyGenerator
+        let signals: Signals
+
+        func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+            let run = try await inner.openReply(to: context)
+            // The coordinator opens one reply at a time, so the newest
+            // record is this one.
+            signals.send("opened:\(inner.repliesOpened - 1)")
+            return run
+        }
+    }
+
+    /// The mouth the coordinator is handed: the scripted one, plus one
+    /// event — `tokensFinished:N` the moment utterance N has been told
+    /// the sentence is over, which is the fact a test must have before
+    /// it reports the mouth finished. Everything else passes straight
+    /// through to the scripted utterance.
+    struct AnnouncingMouth: SpeechSynthesizing {
+        let inner: ScriptedSynthesizer
+        let signals: Signals
+
+        func openUtterance() async throws -> any SynthesisRun {
+            let run = try await inner.openUtterance()
+            // One utterance at a time, so the newest record is this one.
+            return AnnouncingUtterance(inner: run, index: inner.utterancesOpened - 1, signals: signals)
+        }
+    }
+
+    struct AnnouncingUtterance: SynthesisRun {
+        let inner: any SynthesisRun
+        let index: Int
+        let signals: Signals
+
+        var updates: AsyncStream<SynthesisUpdate> { inner.updates }
+        func feed(_ token: String) async { await inner.feed(token) }
+        func finishTokens() async {
+            await inner.finishTokens()
+            signals.send("tokensFinished:\(index)")
+        }
+        func cancel() async { await inner.cancel() }
     }
 
     /// The throwaway tool's stub answer (F-3 = C): a fixed session with a
