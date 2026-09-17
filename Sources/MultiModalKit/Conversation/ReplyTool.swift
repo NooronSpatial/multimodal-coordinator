@@ -468,9 +468,44 @@ extension ReplyTool {
     /// The body, then the cap. The answer and a thrown tool's own words
     /// are cut alike (F-13 e under F-13 f): both go back to the model,
     /// and the cap is on what the model reads. `cut` is the count.
+    ///
+    /// THE BODY RUNS TO ITS END (F-5 = A, AC-277; Ryad's own letter in
+    /// D-110). A barge cancels the reply's task tree — the run, the
+    /// round, the await on this call — and before this line that
+    /// cancellation reached INTO the tool's body: a tool that looked at
+    /// `Task.isCancelled` before committing (the kind an app writes)
+    /// skipped its write, and the diet app's `log_weight` would have
+    /// been half-done by a person clearing their throat. So the body
+    /// runs in a task of its own that the reply's cancellation does not
+    /// reach: an unstructured `Task` does not inherit its creator's
+    /// cancellation, and `.value` waits for it whether or not the waiter
+    /// was cancelled.
+    ///
+    /// THE ISLAND, AND ITS PROOF (§4.1: small, documented, provably safe).
+    /// It is awaited on the next line, never leaked, never `detached` —
+    /// its lifetime is exactly this call's. Its result is a value. It
+    /// holds only the `@Sendable` body and the `Sendable` arguments, no
+    /// actor, no lock. Correctness never rested on cancellation:
+    /// cancellation is a request (§4.1), and whether anyone is still
+    /// listening is the RUN's question — the ticket it re-checks after
+    /// this returns (`retired` on the MLX run, `cancelled` on the scripted
+    /// one, the Apple adapter's `checkCancellation`) — so a dead reply's
+    /// result goes nowhere while the app's state stands. It is NOT the
+    /// only unstructured task in the library: `main` carries eight (both
+    /// reply runs, the Apple stream, the MLX token stream, the ear, the
+    /// mouth, two prewarms), each with its own reason on the page.
+    ///
+    /// THE PRICE, stated and accepted in D-110: no tool at all — a slow
+    /// READ included — can be stopped by a barge; a network read runs to
+    /// its end on a reply nobody is listening to. (C, per-tool opt-in,
+    /// was the recommendation Ryad overruled; B, a rule the library
+    /// cannot prove, and D, the shield written once per mind, were
+    /// rejected with it.)
     func run(_ arguments: ToolArguments) async -> (Result<String, ToolCallFailure>, cut: Bool) {
+        let body = body
+        let shielded = Task { try await body(arguments) }
         do {
-            let (answer, cut) = Self.capped(try await body(arguments))
+            let (answer, cut) = Self.capped(try await shielded.value)
             return (.success(answer), cut)
         } catch {
             let (words, cut) = Self.capped(String(describing: error))
