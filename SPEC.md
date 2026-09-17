@@ -5703,22 +5703,41 @@ before the PR is called ready · teach-back.
 
 # Milestone 4z — the tool contract (Phase B's first real capability) — PROPOSED, not signed
 
-> Drafted 2026-09-16 on `milestone/4z-tool-contract` from `main` (`ee6788c`),
-> while `milestone/4y-admission` is open. Section numbers continue after 4y's
-> §191 and AC numbers after its AC-267, so the two merge without a collision.
+> Drafted 2026-09-16 on `origin/milestone/4z-tool-contract` from `main`
+> (`ee6788c` = tag 0.2.0); rewritten 2026-09-17 on `milestone/4z-tools`
+> after the four-lens review that D-109 records. Section numbers continue
+> after 4y's §191. **4y (`milestone/4y-admission`, PR #48) lands first;**
+> its criteria end at AC-268, so this milestone's start at AC-269.
 > Nothing here is code; this is the HALT.
 
 ## §192 — the callers, and the gap
 
+**How this spec came to be.** A second session, working in Ryad's diet
+app, wrote a requirement for this library and — before it was told never
+to touch the library — pushed a reference branch,
+`origin/milestone/4z-tool-contract`: eleven commits off `main` — two of
+spec and decisions, eight of code and instruments written in thirty
+minutes, one results page — on a spec that was never signed in this
+repo. D-109 ruled the
+branch a PROPOSAL, not a delivery. Its spec commit was cherry-picked here
+(`45fe8a8`) and then rewritten: this text — §192 to §197 as they stand
+on `milestone/4z-tools` — is the one Ryad signs. Every fork in §196
+names what the branch DID on that question, so no ruling is silent; none
+is decided until he rules. Only then does code come in, piece by piece,
+under present → explain → HALT; a branch commit is cherry-picked only
+where it survives that review. The repo is the memory: nothing said in
+the other app's session counts here.
+
 Two of Ryad's apps now need the same thing from this library, and the
 spike (4w) said in its own file that it would not be the thing:
 
-- **Emberleaf M15 (D-077 there)** — a live conversation in which the mind
+- **The diet app (its M15)** — a live conversation in which the mind
   *edits the day*: "log eighty-three and a half" → `log_weight(kg: 83.5)`;
   "I had two eggs" → `add_extra(food: "two eggs")`; "undo that". Act at
-  once, undo beside it — the app's policy.
+  once, undo beside it — that app's policy.
 - **Aura (§168a)** — "make it shorter" changes a training plan; the
-  confirmation is a spoken turn — the app's policy, the other way round.
+  confirmation is a spoken turn — today the app's policy, the other way
+  round; F-10 asks whether the library carries one bit of it.
 
 What a tool call can carry today, and what both need:
 
@@ -5735,109 +5754,315 @@ tools: per generator, always in the        per CALL (4w's closing fork, on the
                                              turns that may use one
 a thrown tool: MLX tells the model,        one ending, both minds (4w's F-5)
   Apple ends the stream
-policy: none (D-027)                       none — proved by one scripted test
-                                             per caller's policy
+policy: none (D-027)                       §172a reserved the write's
+                                             confirmation as a fork — F-10 is it
 ```
 
-Verified against the iOS 26 SDK on this Mac before writing this (the
-`FoundationModels.swiftinterface`): `Tool.parameters: GenerationSchema` is
-a requirement the adapter may satisfy itself; `DynamicGenerationSchema(name:
-description:properties:)` with `Property(name:description:schema:isOptional:)`
-and `GenerationSchema(root:dependencies:)` build one at run time;
+The vendor's side of the contract exists. Read in the
+`FoundationModels.swiftinterface` on this Mac — the iOS **27.0** SDK is
+the one installed here; the pieces are stamped `iOS 26.0`, so the phone
+has them, but "verified against the iOS 26 SDK" is not literally what
+happened: `Tool.parameters: GenerationSchema` is a requirement the
+adapter may satisfy itself; `DynamicGenerationSchema(name:description:
+properties:)` with `Property(name:description:schema:isOptional:)` and
+`GenerationSchema(root:dependencies:)` build one at run time;
 `GeneratedContent` is `Generable` (so it is a legal `Arguments`), and
 `value(_:forProperty:)` / `.kind` (`.number`, `.string`, `.bool`, `.null`,
-`.array`) read the model's arguments without a compile-time type. The
-vendor's side of the contract exists.
+`.array`, `.structure` — the object case F-13 (i) is about) read the
+model's arguments without a compile-time type. Note
+the vendor has ONE number kind (`Double`) — F-13 (b) is that fact.
 
 ## §193 — scope
+
+*Items 1–5 and 11 below, and §194's first non-goal, are written under
+F-1 A and F-2 A — the recommendations, not rulings. If Ryad rules either
+fork otherwise, they are rewritten before any code.*
 
 1. **Parameters on the tool.** `ReplyTool` gains `parameters:
    [ToolParameter]` — name, description, kind (`.string`, `.number`,
    `.integer`, `.boolean`), required or not. The words are the app's
    (D-027); the library renders them, once, for each mind.
-2. **Typed arguments at the call.** `call` receives `ToolArguments` — a
-   value with `string(_:)`, `number(_:)`, `integer(_:)`, `boolean(_:)`
-   accessors that THROW a typed `ToolArgumentFailure` (missing, wrong
-   kind) — so a tool never parses text and a bad argument is countable.
-   (F-1 rules the exact shape.)
-3. **The Apple mind builds the schema.** `AppleToolAdapter.Arguments`
-   becomes `GeneratedContent`; `parameters` is built from the
-   `ToolParameter`s through `DynamicGenerationSchema`; the arguments are
-   read by kind into `ToolArguments`.
-4. **The MLX mind renders the schema.** `toolSpec` carries the
+2. **Typed arguments at the call.** The body receives `ToolArguments` —
+   a value with `string(_:)`, `number(_:)`, `integer(_:)`, `boolean(_:)`
+   accessors that THROW a typed failure (missing, wrong kind) — so a
+   tool never parses text and a bad argument is countable. (F-1 rules
+   the exact shape; F-8 rules how strict a kind is; F-7 rules what an
+   unknown extra does.)
+3. **The Apple mind builds the schema at run time** from the
+   `ToolParameter`s, and reads the model's arguments by kind into
+   `ToolArguments`. A new parameter needs no new type.
+4. **The MLX mind renders the schema.** The tool's spec carries the
    parameters as the template's JSON-schema object (`type`,
-   `properties`, `required`); the parsed `.toolCall` arguments become
+   `properties`, `required`); the parsed call's arguments become
    `ToolArguments` by the same kinds.
-5. **Tools per call.** `GenerationOptions` gains `tools: ToolTable`; a
+5. **Tools per call.** `GenerationOptions` gains `tools: ToolTable?`; a
    generator built with a table keeps it as the default (the spike's
    shape still works); options given per call replace it for that call.
-   (F-2, ruled on 4w's numbers.)
-6. **One ending for a thrown tool.** 4w's F-5 ruled: the Apple adapter
-   catches and answers the model in the same words `ToolTable.call`
-   gives the MLX model. (F-4 confirms or reverses.)
-7. **A barge during a tool that writes.** The turn's ticket doctrine says
-   the reply dies; the contract says what the TOOL does: it runs to its
-   end, its result is dropped with the ticket, and the app's state
-   stands — "a write is not un-written by a barge". A coordinator test
-   with a scripted slow tool proves it. (F-5.)
-8. **No policy.** The library confirms nothing and refuses nothing. Two
-   scripted tests prove both callers' policies are buildable on top:
-   Aura's "the tool answers `needs confirmation`, the mind asks, the
-   next turn calls again" and Emberleaf's "the tool acts and returns
-   what it did".
-9. **Measured on the phone (INSTRUMENTS §69).** The spec's cost per
-   parameter character on the first token (§58b's slope, re-read with
-   parameters); the 4B's argument accuracy on twenty scripted sentences
-   with three tools; the Apple mind's, the same twenty.
-10. **The demo** calls one tool WITH an argument on both minds — the
-    proof a reader can run.
+   (F-2 rules it, on 4w's numbers — presented in §67, not yet ruled.)
+6. **One ending for a thrown tool.** 4w's F-5 (`main`'s §172)
+   RECOMMENDED that the Apple adapter catch and answer the model in the
+   same words the MLX run gives its model; it was never ruled (D-101
+   rules 4w's F-1..F-4 only), so it is still open. F-4 below is that
+   ruling.
+7. **A barge during a tool that writes.** The turn's ticket doctrine
+   (the ticket: the reply's generation number; a reply whose ticket is
+   old can no longer cause a visible effect) says the reply dies; the
+   contract says what the TOOL does — F-5 rules it.
+   A coordinator test with a scripted slow tool proves the ruling, and
+   F-9 rules what 4y's deadline does while a tool's body runs.
+8. **The write and its confirmation — F-10.** Today the library confirms
+   nothing and refuses nothing (D-027). §172a reserved the write's
+   confirmation as a Phase B fork; the reference branch closed it as a
+   non-goal, so it is reopened here. Whatever the ruling, two scripted
+   tests prove both callers' policies are buildable on top.
+9. **The invented number — F-11.** §69 measured the 4B writing `kg 0`
+   twice when no number was said. What the library can honestly own
+   (kind, presence, and — if declared — a range) and what it cannot
+   (whether the person said it) is F-11's question.
+10. **Measured on the phone (INSTRUMENTS §69, re-measured).** The spec's
+    cost per parameter character on the first token (§58b's slope,
+    re-read with parameters), reconciled with §67; the 4B's argument
+    accuracy on twenty scripted sentences with three tools; the Apple
+    mind's, the same twenty; INVENTED counted.
+11. **The demo** calls one tool WITH an argument on both minds, through
+    the per-call door — the proof a reader can run on hardware.
 
 ## §194 — non-goals
 
 - A capability or permission system. The app grants tools per call; that
-  IS the permission (F-2).
+  IS the permission (per F-2 A; F-10 B's one bit per tool is not that).
 - Nested objects, arrays or enums as parameters. Four scalar kinds cover
   both callers' verbs today; widening is a later delta with its own row.
 - Streaming a tool's result, or a tool that emits tokens.
 - Chains the vendor does not already loop on its own.
-- Undo, confirmation, or any policy — the apps'.
+- A second seam: the coordinator never sees a call (4w's F-1 = B, ruled
+  in D-101). (F-10 C would reopen this line; if ruled, §194 changes
+  with it.)
+- Push or pull of the day's facts (§172a's first Phase B fork) — a later
+  milestone's.
+- **A new runtime dependency.** `Package.swift`'s dependency list does
+  not change — the core library keeps zero (§4.1's tiered policy). The
+  reference branch kept this; the review verified it.
+- Undo — the diet app's, beside its own writes. (Confirmation is NOT a
+  non-goal: §172a reserved it, and F-10 rules it.)
 - Any change to memory, the phraser, the mouths, admission (4y).
 
 ## §195 — acceptance criteria
 
-- **AC-268** A `ReplyTool` with parameters is called by BOTH real minds
-  with the arguments the model chose — the demo's `set_timer(minutes:)`
-  (or the sentence the fork picks) reaches the tool as a number, on the
-  Mac's 0.6B and on the phone's 4B, and on the Apple mind on the phone.
-- **AC-269** The Apple adapter's schema is built from the parameters at
-  run time: a unit test on the adapter renders three kinds and one
-  optional, and the schema's JSON names them.
-- **AC-270** The MLX template is shown the parameters: the rendered
-  `<tools>` block for the same tool carries `properties` and `required`;
-  pinned by a test on the spec.
-- **AC-271** A missing, wrong-kind or unknown argument never reaches the
-  tool's body: `ToolArguments` throws a typed value, the model is told in
-  words, the failure is countable — one test per case, no mind.
-- **AC-272** Tools per call: a generator with `.empty` and a call with
-  `options.tools` set calls the tool; the next call without them cannot;
-  the plain path's cost (AC-227's row) is unchanged when no call
-  carries a table.
-- **AC-273** One ending for a thrown tool on both minds (4w F-5 = B, or
-  F-4's ruling): the same sentence reaches the model; the seam reports
-  `.finished`, not `.failed`; the failure is counted at the table.
-- **AC-274** A barge during a slow writing tool: the tool's write
-  happens exactly once, the result is dropped, the next turn is clean —
-  a coordinator test under `ManualClock` with the scripted mind.
-- **AC-275** Both policies are buildable without the library knowing:
-  the two scripted tests of §193 (8).
-- **AC-276** INSTRUMENTS §69: the cost per parameter character; the
-  argument accuracy of the 4B and of the Apple mind on twenty sentences
-  with three tools; the phone rows are Ryad's gate.
-- **AC-277** Every pre-4z test passes; the spike's no-argument tool
-  still works unchanged (`parameters: []`); zero warnings; lint zero.
-- **AC-278** 20× with evidence; teach-back.
+*4y's AC-258..268 land first; this milestone starts at AC-269. Every
+criterion below says what a test SEES, not which mechanism makes it so.
+Where a criterion depends on an open fork it says "per F-n" and gives
+the observable for each option. AC-270..275, AC-282 and AC-286 are
+written under F-1 A and F-2 A — the recommendations, not rulings; if
+Ryad rules either fork otherwise they are rewritten before any code.*
+
+One path, and the criterion that watches each stop on it:
+
+```
+model's call ──► unknown name? (AC-275) ──► missing / wrong kind / extra? (AC-273, AC-274)
+  ──► out of range? (AC-280) ──► needs confirmation? (AC-279) ──► BODY (AC-277, AC-278)
+  ──► result, capped (AC-276, AC-288) ──► model
+```
+
+- **AC-269** A `ReplyTool` with parameters is called by BOTH real minds
+  with the arguments the model chose, and a number arrives as a number.
+  A live row on the MLX mind (the Mac's 0.6B; model-gated, skips
+  honestly) says a sentence with a decimal number in it and the tool's
+  recorder holds that number — the value, not its text. A live row on
+  the Apple mind does the same (OS-gated; it skips on this Mac while the
+  model reports not ready, as every Apple row has since 4w — it was
+  ready during 4v, AC-223's note). The Apple
+  half is a **phone gate**: it is claimed only when the phone's turn line
+  shows the number (Ryad's, §172c). Neither row exists on the reference
+  branch; every live row there still uses 4w's no-argument tool.
+- **AC-270** The Apple mind is shown the parameters. A test on the
+  adapter with no model: on a pre-26 host it compiles and skips; on a
+  26 host, for a
+  tool with the four kinds and one optional parameter, the schema the
+  model is shown has exactly the parameters' names as its properties,
+  each with the declared kind and the app's sentence, the optional one
+  marked optional; a tool with no parameters shows the spike's schema,
+  unchanged.
+- **AC-271** The MLX mind is shown the parameters. The rendered `<tools>`
+  block for the same tool carries one property per parameter with its
+  JSON type and the app's sentence, and a `required` list naming the
+  required ones — pinned byte for byte (sorted keys) by a test on the
+  spec. A tool with no parameters renders 4w's fixture bytes unchanged,
+  with no `required` key.
+- **AC-272** The plain path is unchanged when no call carries a table
+  and the generator holds none: (a) the MLX run hands the vendor NO
+  tool specs (`main`'s `emptyTableIsNil` row, scripted); and — model-
+  gated — the WHOLE rendered prompt for one fixed chat (§67's plain
+  question, no table on the call, none on the generator) is captured by
+  a live row BEFORE 4z's first code commit and kept in
+  `docs/evidence/4z/`; after 4z the same row renders the same bytes. A
+  new row: 4w captured no whole prompt (its only byte fixture is the
+  `<tools>` block), and AC-234 is the sampling criterion, not a prompt
+  capture. (b) The Apple session is built with the vendor's default
+  tool list, exactly as before 4w. (c) AC-227's phone number — never
+  read in 4w (§67 §6) — is read in one sitting in §69: Tools OFF against
+  a turn with no table on the call, the same phone, the same session;
+  under F-2 = A the delta is expected near zero, because no spec is
+  rendered.
+- **AC-273** A missing or wrong-kind argument never reaches the tool's
+  body: with no mind, a required parameter absent (or `null`, per F-13
+  j) means the body does not run, the model is told in words, and the
+  failure is a countable typed value; a value of a kind the parameter
+  cannot read ends the same way — and two more wrong-kind rows: a
+  nested value (an array or an object) for a scalar parameter (per
+  F-13 i), and a non-whole value (`84.5`) for an integer parameter (per
+  F-13 b). Per F-8: *A* — `"84"` for a number parameter is
+  refused, and so are `"nan"` and `"inf"`; *B* — `"84"` is read as 84
+  and the body runs, and `"nan"`/`"inf"` reach the body (what the
+  reference branch does today); *C* — `"84"` is read as 84, the body
+  runs, the coercion is COUNTED, and `"nan"`/`"inf"` are refused. One
+  test per case.
+- **AC-274** An unknown extra — an argument name the tool never declared
+  — per F-7: *A* — the call is refused, told in words, counted; *B* —
+  the body receives it unchanged (the reference branch's own row pins
+  this); *C* — the body sees only the declared names, and the strip is
+  counted. One test with no mind, whichever the ruling.
+- **AC-275** Tools per call. A generator built with no table and a call
+  whose options carry a table calls the tool; the next call without them
+  cannot (the model is shown no tool, and a scripted call to it is
+  refused as unknown). A generator built WITH a table and a call
+  carrying `.empty` shows the model no tool that turn. Proved on the
+  scripted mind, on the MLX run without a model, and on the Apple
+  session's tool list (OS-gated).
+- **AC-276** One ending for a thrown tool, per F-4: on both real minds
+  the same sentence reaches the model, the seam reports `.finished`
+  (never `.failed`), and the failure is counted at the table; under
+  *A* the Apple mind's seam reports `.failed`, as 4w's code does. Per
+  F-13 (e) the sentence carries the error's own words or a fixed one.
+- **AC-277** A barge during a slow WRITING tool, per F-5. A coordinator
+  test under `ManualClock` with the scripted mind and a slow scripted
+  tool, waiting on events ("entered", "written"), never on time. Under
+  every option the reply is dropped and the next turn is clean. And —
+  *A*: the write happens exactly once, even for a tool that looks at the
+  cancellation flag before it commits; *B*: the write happens once only
+  for a tool that does NOT look at the flag, and the contract page says
+  so in words; *C*: a tool marked to run to its end writes once even
+  when it looks at the flag, and a second row shows a tool NOT marked
+  (a read) ended by the barge; *D*: as *A*, and the same row passes on
+  the scripted mind and on the MLX run alike.
+- **AC-278** A tool plus a deadline, per F-9 — born from the merge with
+  4y; no test on either branch covers it. Under `ManualClock`, the
+  reply's deadline fires while a tool's body is running. *A*: the write
+  happens once, `.finished(.deadline)` is spoken after the body ends,
+  and the terminal is spoken exactly once; *B*: `.finished(.deadline)`
+  is spoken at the deadline and the write still lands afterwards (the
+  test sees it later); *C*: the clock does not advance while the body
+  runs, so the deadline fires on the model's own time only.
+- **AC-279** The write and its confirmation, per F-10. *A*: two scripted
+  tests prove both callers' policies are buildable with no library code
+  (the reference branch's rows). *B*: a tool flagged as needing
+  confirmation is NOT run on the model's first call — the body does not
+  run, the model is told to ask, the count says so — and a scripted call
+  that carries `confirmed: true` in its ARGUMENTS still does not run the
+  body; after the app signals the yes (per B's sub-fork), the next call
+  of that tool runs the body exactly once, and before it a call carrying
+  `confirmed: true` in its arguments still does not. *C*: the
+  tool's "needs confirmation" answer becomes a spoken turn from the
+  coordinator, and the next turn's call runs the body once.
+- **AC-280** The invented number, per F-11. *A*: nothing in the library;
+  §69's INVENTED column stands as the callers' warning. *B*: a parameter
+  with a declared range — a value outside it never reaches the body, the
+  model is told in words, and the failure is counted under its own name;
+  "shown to the model" and "checked by the table" are two switches, and
+  §69 counts INVENTED under both settings. *C*: rejected before
+  recommending (F-11 says why).
+- **AC-281** INSTRUMENTS §69, re-measured on the MERGED tree (4y + 4z)
+  with the raw logs kept: the cost per parameter character on the first
+  token (0.6B and 4B on this Mac), RECONCILED with §67 — today §69's 4B
+  plain first token is 355 ms where §67's is 146 ms; 4w's one tool is
+  179 spec characters (§69) against the +559 prompt characters one tool
+  adds (§67) — probably two measures, and §69 must say so; and the
+  requirement's "+851 ms (0.74 ms per spec character)" — 851/900 is
+  0.95, so §69 says which number is the slope and which the whole-spec
+  delta; one sentence explains each or the numbers are taken again; the
+  argument accuracy of the 4B and of
+  the Apple mind on twenty scripted sentences with three tools; INVENTED
+  counted with `kg` required AND with `kg` optional (nobody measured
+  optional); per F-11 *B*, with the range hidden and with it shown; the
+  price of one tool round (F-13 h). The phone rows are Ryad's gate.
+- **AC-282** The API breaks are named. The tag note (0.3.0, or as Ryad
+  numbers it) names every public signature changed since 0.2.0: a
+  `ReplyTool` body now receives `ToolArguments` (was `[String:
+  String]`); the table's entry point takes `ToolArguments`;
+  `ScriptedTool.calls` is `[ToolArguments]`; and every F-13 rename. The
+  contract page's tool section changes in the same PR.
+- **AC-283** Nothing else moved. Every pre-4z test passes; the spike's
+  no-argument tool works unchanged (`parameters: []`);
+  `Package.swift`'s dependency list is unchanged; zero warnings; per
+  F-12 the public repo says the codename or "the diet app" — and never a
+  company name.
+- **AC-284** CI green on the runner, on every push. The runner is
+  `macos-26` with its default Xcode (Swift 6.3.3, read from the CI log;
+  the workflow pins no Xcode) — code that compiles only on this Mac's
+  Swift 6.4 is red there. Lint zero on EVERY commit that adds a file:
+  CI's lint step runs after the tests, so a red test hides lint (the
+  reference branch's §69 commit, `a05ecfb` — one before its last —
+  added a file with ten lint errors nobody saw, because that push's
+  Test step was red and lint never ran); each such commit's run shows
+  the lint step ran and passed.
+- **AC-285** 20× with every failing log kept, in `docs/evidence/4z/`
+  beside the raw bakeoff runs (the shape of `docs/evidence/4w/`); the
+  results table holds numbers and never a template token.
+- **AC-286** The demo, on hardware, per TURN. `TranscribeDemo`'s Tools
+  switch is per turn: a turn with it ON shows the model F-6's tool, Ryad
+  says the sentence, and the turn line prints the number that arrived —
+  on the MLX mind and on the Apple mind; a turn with it OFF shows the
+  model no tool and pays nothing (AC-272 c).
+- **AC-287** Teach-back: Ryad explains the contract cold — the per-call
+  door, the check before the body, the barge and the deadline, and each
+  fork's rejected options.
+- **AC-288** The result is capped (per F-13 f, F-3): a tool answer
+  longer than the cap reaches the model cut at the cap with the marker,
+  the cut is counted, and a closing tag (`</tool_response>`) inside a
+  result never reaches the template. An answer under the cap reaches
+  the model unchanged. Scripted, no mind.
+- **AC-289** A table whose schema cannot be built is refused where it is
+  built (per F-13 d) — the caller sees the error; the model is never
+  shown that tool as one with no parameters. OS-gated, no model.
+- **AC-290** Two tables with one declaration and different bodies are
+  equal (per F-13 c); two tables whose declarations differ in one
+  parameter are not. Scripted, no mind.
+
+*AC-288..290 come after the teach-back only in number: they are built
+red → green with the F-13 pieces they pin, in §195's order of the code,
+before AC-287 is claimed.*
+
+### Test matrix
+
+| criterion | planned test (file · row) | kind |
+|---|---|---|
+| AC-269 | `MLXToolLiveTests` · "a decimal said is the number received"; `AppleToolLiveTests` · the same row, OS-gated | live (Mac 0.6B) · live (Apple; phone gate) |
+| AC-270 | `AppleToolTests` · "the schema names the parameters" (four kinds, one optional; no-parameter tool unchanged) | scripted, OS-gated |
+| AC-271 | `MLXToolTests` · "parameters render properties and required"; "no parameters, no required, the 4w bytes" | scripted |
+| AC-272 | `MLXToolTests` · `emptyTableIsNil` (no specs on the plain path); `MLXToolLiveTests` · the plain prompt's bytes, captured before, compared after (model-gated); `AppleToolTests` · the empty-table session; §69 in one sitting (Tools OFF, no table) | scripted · live · scripted (OS-gated) · phone |
+| AC-273 | `ToolContractTests` · one row per case: missing, null (per F-13 j), wrong kind, a nested value for a scalar (per F-13 i), `84.5` for an integer (per F-13 b); per F-8 the `"84"`, `"nan"`, `"inf"` rows | scripted |
+| AC-274 | `ToolContractTests` · "an unknown extra" (per F-7's ruling, one row) | scripted |
+| AC-275 | `ToolsPerCallTests` · scripted mind, MLX run without a model, Apple session's tool list | scripted (Apple row OS-gated) |
+| AC-276 | `AppleToolTests` · "a throw is answered in words"; `ToolContractTests` · the MLX/scripted sentence; `AppleToolLiveTests` · the live ending | scripted · live |
+| AC-277 | `ToolSpikeTests+Write` · "a barge does not un-write" under `ManualClock`, events only; per F-5 *C* a second row "a read is stopped" | scripted |
+| AC-278 | `ToolSpikeTests+Write` · "a deadline during a body" under `ManualClock` (per F-9's ruling) | scripted |
+| AC-279 | `ToolPolicyTests` · Aura's spoken confirmation; the diet app's act-at-once with undo; per F-10 *B* "the model cannot confirm itself" | scripted |
+| AC-280 | `ToolContractTests` · "out of range never reaches the body" (per F-11 *B*); §69's INVENTED rows hidden/shown | scripted · Mac bakeoff |
+| AC-281 | `bakeoff tool-contract` on the merged tree; INSTRUMENTS §69 rewritten with §67 reconciled | Mac bakeoff · phone |
+| AC-282 | the tag note and the contract page, reviewed claim by claim | doc |
+| AC-283 | the full suite; `git diff main -- Package.swift` empty; a grep for the codename per F-12 | scripted · CI |
+| AC-284 | every push's CI run: build, test, then lint, all green | CI |
+| AC-285 | the 20× loop with logs in `docs/evidence/4z/` | scripted, 20× |
+| AC-286 | `TranscribeDemo` with Tools ON, the sentence said on the phone, both minds | phone |
+| AC-287 | the teach-back, decision by decision | Ryad |
+| AC-288 | `ToolContractTests` · "a long result is cut at the cap, marked and counted"; "a closing tag inside a result never reaches the template"; "a short result is unchanged" | scripted |
+| AC-289 | `AppleToolTests` · "a schema that cannot be built is refused where it is built, not shown empty" | scripted, OS-gated |
+| AC-290 | `ToolContractTests` · "two bodies, one declaration, equal"; "one parameter apart, not equal" | scripted |
 
 ## §196 — the forks (Ryad rules)
+
+*Each fork says what the reference branch DID, so the silent ruling is
+visible. "Did" is not "decided": nothing below is ruled until D-110.*
 
 **F-1 — THE SHAPE OF THE ARGUMENTS.**
 *A:* `ToolArguments` — a small value over `[String: ToolValue]`
@@ -5845,48 +6070,345 @@ vendor's side of the contract exists.
 *B:* keep `[String: String]` and let each tool parse (`Double("83.5")`).
 *C:* a `Codable` generic — `ReplyTool<Arguments: Codable>` decoded from
 the model's JSON.
-**Recommendation: A.** B makes every tool a parser and a bad number a
-silent nil; C makes `ToolTable` heterogeneous (a type-erased box again)
-and cannot render a schema without reflection. *Rejected: B, C.*
+*The branch did A.* **Recommendation: A.** B makes every tool a parser and
+a bad number a silent nil; C makes `ToolTable` heterogeneous (a
+type-erased box again) and cannot render a schema without reflection.
+*Rejected: B, C.* (How strict an accessor is, is F-8; whether the value
+has one number case or two is F-13 (b) — neither is this fork.)
 
 **F-2 — WHERE THE TOOLS LIVE.** 4w's closing fork (INSTRUMENTS §67).
 *A:* per call, `GenerationOptions.tools`; the generator's table is the
-default. *B:* per generator with a prompt cache (unmeasured across
-per-turn sessions, D-057). *C:* per generator, always in the prompt.
-**Recommendation: A** — the measured shape; Emberleaf will pass the
-table on every turn and pay for it knowingly; Aura only on session
-turns. *Rejected: C by the numbers; B until §2's second-prefill cost is
-measured.*
+default; one resolution rule for every mind. *B:* per generator with a
+prompt cache (unmeasured across per-turn sessions, D-057). *C:* per
+generator, always in the prompt.
+*The branch did A — and its demo never used the door; only unit tests
+did (AC-286 closes that).* **Recommendation: A** — the measured shape;
+the diet app will pass the table on every turn and pay for it knowingly;
+Aura only on session turns. *Rejected: C by the numbers; B until §2's
+second-prefill cost is measured (prefill: the model reading the prompt
+before its first token — the felt pause, §67).*
 
-**F-3 — THE RESULT.** *A:* `String`, as today — what both minds feed
-back verbatim. *B:* `ToolResult { text; spoken: String? }` — a separate
-sentence for the mouth. **Recommendation: A** — the reply's words are
-the model's (D-027); a second channel to the mouth would bypass the
-coordinator's one stream. *Rejected: B.*
+**F-3 — THE RESULT.**
+*A:* `String`, as today — what both minds feed back verbatim. Its cost:
+a tool that answers with a whole session as JSON hands the model every
+byte, at §69's 0.74 ms per character on the 4B; the mouth then says
+whatever the model makes of it.
+*B:* `ToolResult { text; spoken: String? }` — the model gets the detail,
+the mouth a short sentence the app wrote. Its cost: a second channel to
+the mouth bypasses the coordinator's one stream, the model never hears
+what was spoken, and the barge window gains a second speaker.
+*C:* `String`, capped and marked when cut (F-13 f) — A with a ceiling.
+*The branch did A, uncapped.* **Recommendation: A, with F-13 (f)'s cap**
+— the reply's words are the model's (D-027); the app that wants a short
+answer returns a short answer. *Rejected: B.*
 
 **F-4 — A THROWN TOOL ON THE APPLE MIND** (4w's F-5, still open).
-*A:* propagate (`.failed`), as the code does. *B:* catch in the adapter,
-answer in words, `.finished`. **Recommendation: B**, 4w's reason: two
+*A:* propagate (`.failed`), as `main`'s code does — the seam tells the
+truth about the vendor, and two minds end one event two ways. *B:* catch
+in the adapter, answer the model in words, `.finished` — one ending, at
+the cost of the seam never seeing a tool's throw on this mind (the count
+at the table is where it shows).
+*The branch did B — and its comment says the adapter "never throws for a
+tool of ours" while the same file throws after a barge (its `:92`); the
+sentence is wrong, not the code.* **Recommendation: B**, 4w's reason: two
 minds ending one event two ways is what the seam exists to prevent.
+*Rejected: A.*
 
-**F-5 — A BARGE DURING A WRITING TOOL.** *A:* the tool runs to its end;
-its result dies with the ticket; the app's state stands. *B:* cancel the
-tool's task and let the tool decide. **Recommendation: A** — a write
-cannot be half-done by cancellation; B makes every tool a transaction.
-The app that wants "nothing happened" has undo (Emberleaf) or
-confirmation (Aura).
+**F-5 — A BARGE DURING A WRITING TOOL.** The ticket doctrine says the
+reply dies. The question is what happens INSIDE the tool's body when the
+reply's task tree is cancelled. The branch found the bug first: a
+cooperative tool — one that looks at `Task.isCancelled` before it
+commits, the kind an app writes — skipped its write on a barge.
 
-**F-6 — THE DEMO'S TOOL.** *A:* `set_timer(minutes:)` — a number, a
-visible effect. *B:* Aura's `shorten_session(by_minutes:)` on the stub.
-*C:* Emberleaf's `log_weight(kg:)` on a stub. **Recommendation: A** —
-checkable by anyone, one number, no domain.
+```
+barge ──► reply's task tree cancelled
+              │
+              ├─ the round's await on the tool ── cancelled
+              │
+              └─ the tool's BODY ─────────────── A/D: not reached (a shield)
+                                                 B: reached; the rule says "do not look"
+                                                 C: reached unless the tool opted out
+```
+
+*A:* the body runs in a task of its own that the reply's cancellation
+does not reach, awaited on the public type — a shield for EVERY tool.
+Its costs, plainly: an awaited unstructured `Task` on the public type;
+no tool at all — reads included — can be stopped by a barge, so a slow
+network read runs to its end on a reply nobody is listening to; and the
+branch's proof sentence ("the one unstructured task in the library's
+reply path") is refutable by one grep — eight such islands already exist
+on `main`, four of them on the reply path itself (both reply runs, the
+Apple stream, the MLX token stream); the other four are the ear, the
+mouth and two prewarms.
+*B:* a contract RULE only — "a tool's body must not observe
+cancellation" — zero library code; the app owns it. Its cost: the
+library cannot prove it; an app's cooperative tool has exactly the bug
+the branch found, and the library's test can only show a tool that does
+not look at the flag.
+*C:* per-tool opt-in — a tool declares it runs to its end
+(`runsToCompletion` or a better name); a tool that does not is
+cancellable like any other work, so reads stay stoppable. Its cost: one
+more flag the app must set right — a write with the flag forgotten is
+B's bug; and the island exists, small, per tool that asks for it.
+*D:* the shield inside the two runs (MLX and Apple), not on the public
+type. Its cost: the same rule written twice, once per mind, plus a third
+copy for the scripted mind the tests use.
+*The branch did A.* **Recommendation: C** — it keeps §4.1's doctrine
+("cancellation is a request") for reads, names the exception per tool
+where a reader can see it, and the island stays small and documented.
+*Rejected: A, B, D.* Whatever the ruling, correctness stays with the
+ticket, and each mind has its own guard: the MLX run reads `retired`
+before AND after the call; the Apple adapter checks cancellation once,
+after the body (the vendor runs the tool, so there is no "before" of
+ours), and the run's `retired` latch makes anything the vendor produces
+afterwards go nowhere (AC-226's rule).
+
+**F-6 — THE DEMO'S TOOL.**
+*A:* `set_timer(minutes:)` on a stub that RECORDS. Honest cost: its
+"visible effect" is one printed turn line (`CALLED · timer set: 10
+minutes`); nothing rings, nothing counts down. An integer, so the
+`.number` path (a decimal) is never walked by the demo.
+*B:* Aura's `shorten_session(by_minutes:)` on the demo's session stub —
+the real caller's verb and a real delta on a stub session; the sentence
+Ryad must say is Aura's, and the number is again an integer.
+*C:* the diet app's `log_weight(kg:)` on a stub — the caller that asked,
+and a DECIMAL (the `.number` path the others skip); the codename
+question (F-12) follows it onto the demo's screen.
+*D:* `set_timer` with a real countdown on the demo's screen — a truly
+visible effect, at the cost of a view and the demo's clock, and a demo
+that rings a bell is measuring the bell.
+*The branch did A.* **Recommendation: A**, priced honestly as a printed
+line — checkable by anyone, one number, no domain words — with AC-269's
+live rows walking the decimal path instead. *Rejected: B, C, D.*
+
+**F-7 — AN UNKNOWN EXTRA** (the review's B5). The model adds an argument
+the tool never declared: `["kg": 84, "mood": "fine"]`.
+*A:* refuse the call, typed and counted — strict; a chatty model is
+refused more often, and a misspelt name (`kilos`) is refused rather
+than silently dropped.
+*B:* ignore it and pass it through — the body sees `mood`; a typo'd name
+is silently dropped INTO the body, and the criterion "never reaches the
+body" is false.
+*C:* strip it before the body and COUNT it — the body sees only declared
+names; the count makes the model's habit measurable in §69.
+*The branch did B — and its own test pins it, while its AC-271 said the
+opposite.* **Recommendation: C** — the criterion's promise survives and
+INSTRUMENTS gains a column. *Rejected: A, B.*
+
+**F-8 — KIND COERCION** (the review's B5). What a value of the "wrong"
+shape does.
+*A:* strict kinds — `"84"` is refused for a number parameter. On the
+Apple mind constrained decoding (the vendor lets the model write only
+tokens that fit the schema it was shown, so a shown kind or range cannot
+be broken by the model — only met from nothing) already guarantees the
+kind, so strictness costs nothing there; on MLX, chat models often write
+numbers
+as strings, so the "right" count in §69 falls.
+*B:* lenient — `"84"` → 84, `"7"` → 7, `"true"` → true; but
+`Double("nan")` and `Double("inf")` pass too, and the leniency is
+one-way: a number given to a STRING parameter is refused. The rule is
+hidden in the accessor, and nobody sees how often it fired.
+*C:* lenient, finite numbers only, COUNTED — the MLX wins are kept, the
+NaN/inf hole is closed, and the coercion is a number in §69 rather than
+a secret in the accessor.
+*The branch did B, with the one-way asymmetry.* **Recommendation: C** —
+it keeps the MLX wins A would lose, closes the NaN/inf hole B leaves,
+and turns a hidden accessor rule into a number in §69. *Rejected: A, B.*
+
+**F-9 — THE DEADLINE VERSUS THE BODY** (the review's M3; born from the
+merge with 4y). 4y's deadline fires a flag and cancels the group; the
+terminal `.finished(.deadline)` is spoken when the round loop returns.
+With 4z the loop awaits the tool's body.
+
+```
+deadline ──► group cancelled ──► the round loop ── awaiting the body ── returns ──► .finished(.deadline)
+                                                  ▲
+                                   A: waits here  │  B: does not wait; the body runs on, detached
+                                                  │  C: the clock stood still while the body ran
+```
+
+*A:* the deadline waits for the body — what the merged code does today,
+silently. Document it, add AC-278 and its test. Its cost: 4y's promise
+"a reply past the deadline ENDS" is bounded by the clock only while no
+tool runs; a slow body stretches the end.
+*B:* end the reply at the deadline and let the body finish detached — a
+leaked task, against §4.1, and a write that lands after the terminal was
+spoken.
+*C:* pause the clock while a tool runs — the deadline measures the
+model's time only; its cost: a second clock rule the app must know, and
+the felt pause is no longer what the deadline says.
+*The branch did nothing here: no test on either branch covers a tool
+plus a deadline.* **Recommendation: A, with the test** — the only option
+that keeps both promises (no un-written write, one speaker of the
+terminal) without a leak. *Rejected: B, C.*
+
+**F-10 — THE WRITE AND ITS CONFIRMATION** (the review's M2). `main`'s
+§172a reserved this: "The brief's §5 says default-deny for a
+model-initiated write; in a voice app the confirmation is a *spoken
+turn*." §168a: "the confirmation policy the brief's §5 demands for it …
+Phase B's own forks, named in §172a and not ruled here."
+*A:* no policy — the library confirms nothing and refuses nothing; each
+app builds its own on top. Its cost, shown by the branch's own Aura
+proof: the confirmation is a BOOLEAN THE MODEL WRITES (`confirmed: true`
+in the arguments). A real model can write it on the first call; a
+scripted test cannot show that. For a running coach and a weight logger,
+"the mind must never invent health data" is exactly the rule at stake.
+*B:* a per-tool `requiresConfirmation` flag the RUN enforces — the first
+call is refused and the model is told to ask; the model cannot set the
+flag. Its cost: the library carries one policy bit, and the "yes" is the
+app's to detect. **B has a sub-fork — how the app says yes** (the review
+named only the flag; the reference branch's session had no answer, and
+the first draft of this spec wrote one in as fact):
+  - *B-i:* the app re-hands the same tool WITHOUT the flag on the turn
+    after the "yes". Cost: the flag is off for every call that turn, so
+    the model may call the tool for a DIFFERENT write than the one the
+    person confirmed; it ties B to F-2 A (two tables per tool, one
+    flagged, one not), and F-13 (c)'s declaration-equality is what tells
+    them apart.
+  - *B-ii:* the app marks the yes on that call's options — a set of
+    confirmed tool names, or a `confirmed:` list on the per-call table —
+    so the flag stays on and only the named tool's next call runs.
+    Cost: one more field on the options, and the app must name the tool
+    it heard the yes for.
+  - *B-iii:* the flag is an app-supplied closure the run asks at call
+    time. Cost: a closure on the options breaks `GenerationOptions`'s
+    equality (F-13 c), and app code runs on the reply's own task, inside
+    the barge window.
+  Recommendation: *B-ii* — the confirmed write is the only one that
+  runs, the flag is never off, and nothing new is compared or awaited.
+  *Rejected: B-i, B-iii.*
+*C:* a typed result — `.needsConfirmation(question)` — the coordinator
+turns into a spoken turn, and the next turn's call runs. Its cost: the
+seam grows a case, the coordinator learns a tool's shape (against 4w's
+F-1 = B), and the barge window meets the question head-on.
+*The branch did A, and wrote it into the non-goals.* **Recommendation:
+B** — the brief's default-deny with the smallest surface; it keeps the
+spoken-turn shape (C) for a later fork. *Rejected: A, C.*
+
+**F-11 — THE INVENTED NUMBER** (the review's M4). Facts first: §69's 4B
+column ran under the instruction "Never guess a number they did not say"
+and STILL wrote `kg 0` twice; the harness declared `kg` REQUIRED, and on
+the Apple mind a required parameter is a decoding DEMAND — the model
+must produce a number when it calls; nobody measured `kg` optional; an
+app's range check catches 0 but not the 0.6B's 100 kg.
+*A:* nothing in the library — the app's verbs check a range and keep an
+undo. Its cost: the library counts nothing, and the callers' warning is
+one line in §69.
+*B:* a declared numeric range on `ToolParameter`, rendered into both
+schemas AND checked by the table before the body, countable under its
+own name (out of range) — a band, not a proof; it catches 0 and 123, not
+a plausible 83. Two cautions belong in the spec with it: **a required
+parameter is a demand the model meets from nothing** — so §69 measures
+`kg` optional too; and **a range SHOWN under constrained decoding turns
+a catchable 0 into an uncatchable 75** — so "shown to the model" and
+"checked by the table" are two separate switches, and both settings are
+measured.
+*C:* a "must have been said" check against the transcript — REJECTED
+before recommending: it would make the library parse spoken numbers, the
+thing F-1 exists to stop.
+*The branch did A.* **Recommendation: B**, with both cautions written
+into the doc and both switches measured in §69. *Rejected: A, C.*
+
+**F-12 — THE DIET APP'S CODENAME IN THE PUBLIC REPO** (the review's
+F-G). This repo is public; `main` names no company, and the only app
+names on it are Aura's and one mention of Lanegrade (D-100). The
+reference branch used the diet app's codename
+21 times in 8 files; this rewrite says "the diet app" everywhere.
+*A:* return the codename — the docs read as the other repo's do, and a
+reader can follow its decision numbers (its D-077, its M15) by name.
+Its cost: once pushed it is in the history for good (no rewriting), and
+a product name is a trace toward the company the house rule keeps out.
+*B:* keep "the diet app" — nothing a reader of THIS library needs is
+lost; returning it later is one small change, removing it later is
+impossible. Its cost: cross-references to the other repo stay generic.
+*The branch did A.* **Recommendation: B** — nothing this library's
+reader needs is lost, and the change is reversible in one direction
+only. *Rejected: A.*
+
+**F-13 — THE SMALL IN-CODE RULINGS** (the review's M6). One line each;
+each needs a line in D-110, or a revert.
+
+- *(a)* `ToolArguments.none` → `.empty`, or keep. *The branch named it
+  `.none`, which collides with `Optional.none` — that collision is the
+  wrong assertion that turned CI red.* Rec: rename to `.empty`, beside
+  `ToolTable.empty`. Cost: one more line in the tag note (AC-282).
+- *(b)* one number case, or `.integer` beside `.number`. *The branch has
+  two; the Apple vendor has one, so the same model output is
+  `.integer(84)` on MLX and `.number(84.0)` on Apple, and a test that
+  pins a value must know the mind.* Rec: ONE case, `.number(Double)`;
+  the `integer` accessor reads an exact whole and refuses `84.5` as
+  wrong kind (AC-273's non-whole row); `.integer` stays as a parameter
+  KIND (the schema word). Cost: whole numbers above 2^53 lose precision
+  — no caller's verb has one.
+- *(c)* `ToolTable` equality by declaration, or drop `Equatable`. *The
+  branch compares declarations only, so two tables with different bodies
+  are equal, and `GenerationOptions` inherits that.* Rec: by declaration
+  — a closure can never be compared, and `GenerationOptions` stays
+  `Equatable` — with the sentence in the doc and one row that pins "two
+  bodies, one declaration, equal" so nobody is surprised (AC-290).
+- *(d)* a malformed schema: silent fallback to the empty schema, or a
+  thrown error where the table is handed to the mind. *The branch falls
+  back silently (`try? … ?? empty`) — the model is then shown no
+  parameters and every call is refused in words.* The vendor's
+  `GenerationSchema(root:dependencies:)` throws; the fork is WHERE that
+  throw lands. Rec: throw where the Apple adapter is built from the
+  table (the generator's init on that mind), so the first test that
+  hands a bad table sees it (AC-289) — the house pattern; a schema that
+  cannot be built is a programmer error, not a quiet model. Cost: that
+  init becomes throwing, one more `try` for the app on that mind.
+- *(e)* a thrown tool's words to the model: the error's own text
+  verbatim, or a fixed sentence. *The branch feeds
+  `String(describing: error)` verbatim.* Rec: verbatim, under (f)'s cap
+  — the app throws the words it wants the model to read (D-027); a fixed
+  sentence hides what the app meant to say. Cost: an app that throws a
+  bare enum case hands the model a case name, not a sentence — the
+  contract page must say the words are the app's to write.
+- *(f)* a cap on the result. *The branch has none: a result is uncapped,
+  and a closing `</tool_response>` inside an answer is not escaped.*
+  Rec: a cap sized from §69's slope (4,000 characters ≈ 3 s of prefill
+  on the 4B), cut with a marker and counted; and the template's closing
+  tag inside a result replaced, with one row pinning it (AC-288).
+- *(g)* the body reachable only through the checked door. *The branch
+  leaves the stored body `public` beside the checked entry point, so a
+  caller can bypass the check.* Rec: the body non-public; the door is
+  the only way in — the whole point of the table. Cost: the bakeoff and
+  the scripted tests reach a body only through the door, so a test that
+  wants the body alone must build a table first.
+- *(h)* the rounds cap. *`main` caps a reply at 4 tool rounds with a
+  plain engine sentence and says the contract milestone rules whether it
+  earns a typed case; the branch left it untouched and unpriced.* Rec:
+  keep 4, PRICE one round in §69 (the 4B's round trip), and give it a
+  typed case only when a caller asks.
+- *(i)* a nested value (array, object) for a scalar parameter: JSON text
+  in a `.string`, or refused as wrong kind. *The branch hands the body
+  the JSON text.* Rec: wrong kind, counted (AC-273's nested row) — §194
+  says four scalars; a JSON string the body must parse is the thing F-1
+  exists to prevent.
+- *(j)* `null` for a required parameter: absent (refused), or a value
+  the body sees. *The branch's tests do not say; this spec's AC-273
+  wrote "absent" as fact until this line.* Rec: absent — the model wrote
+  no value, and the count should say so (AC-273's null row).
+- *(k)* `isRequired`'s default: `true` (the branch, `ReplyTool.swift:80`
+  there), `false`, or no default. *The branch defaulted to `true`, and
+  F-11's first caution says a required parameter is a demand the model
+  meets from nothing — so the default decides how often a number is
+  invented.* Rec: NO default — the app writes it, so the demand is
+  visible at the declaration. Cost: one more word on every parameter.
 
 ## §197 — definition of done (4z)
 
-One tool with an argument called by both real minds, on the Mac and on
-the phone · the schema built and rendered from the app's words · a bad
-argument countable and never in a tool's body · tools per call, the
-plain path unchanged · one ending for a thrown tool · a barge cannot
-un-write · both callers' policies proved buildable on top · INSTRUMENTS
-§69 · every pre-4z test green · 20× · zero warnings · lint zero ·
-reviewed with every fix pushed before the PR is called ready · teach-back.
+The thirteen forks ruled by Ryad and logged in THIS repo (D-110) — F-10
+B's sub-fork and F-13's eleven lines with them — the rejected options
+with them · red → green per AC, in §195's order, each
+piece presented and explained before the next · 20× with every failing
+log kept · CI green on the runner (its default Xcode — Swift 6.3.3,
+read from the CI log) on every push · lint zero on every commit that
+adds a file · `docs/evidence/4z/` with the raw runs · INSTRUMENTS §69
+re-measured on the merged tree and reconciled with §67 (its baseline
+disagrees today: 355 ms against 146 ms on the 4B's plain first token;
+179 spec characters in §69 against the +559 prompt characters one tool
+adds in §67; and the requirement's "+851 ms, 0.74 ms per character"
+mixes a whole-spec delta with the parameters-only slope) · the demo
+exercises the per-call door on hardware with
+one number through both minds · the tag note names every API break ·
+every review fix pushed before the PR is called ready · teach-back.
