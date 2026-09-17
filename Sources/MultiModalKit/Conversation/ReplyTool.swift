@@ -437,14 +437,21 @@ public struct ToolTable: Sendable, Equatable {
     ///
     /// ONE rule today: no two parameters of one tool share a name. Two
     /// TOOLS sharing a name is not an error — the lookup rule above
-    /// ("exact name, first match") already says what that means.
+    /// ("exact name, first match") already says what that means. The
+    /// FIRST offence is the one named — table order, then declaration
+    /// order — so the sentence is deterministic and an app with two
+    /// mistakes reads them one at a time. Exact names, as the lookup
+    /// reads them: `kg` and `KG` are two parameters.
     ///
     /// Nothing about `invoke` changes: the door reads a table exactly as
     /// it did, and a table this refuses is one the door was never handed.
     public func checkDeclarations() throws(ToolDeclarationError) {
-        // THE SHAPE (piece 2b's first commit): the signature every caller
-        // and every row compiles against; the judgment lands with the
-        // rows that were seen red against this.
+        for tool in tools {
+            var seen: Set<String> = []
+            for parameter in tool.parameters where !seen.insert(parameter.name).inserted {
+                throw .duplicateParameter(tool: tool.name, parameter: parameter.name)
+            }
+        }
     }
 
     // MARK: the door

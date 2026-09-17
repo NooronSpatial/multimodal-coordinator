@@ -52,9 +52,15 @@ public struct GenerationOptions: Sendable, Equatable {
     /// a table here REPLACES it for this call — so `.empty` means "no
     /// tools this turn" even on a generator that holds some, and the app
     /// pays the prompt's tool cost only on the turns that may use one.
-    /// (The scripted mind resolves it today; the MLX and Apple minds
-    /// resolve it with their own pieces of 4z — until then they read the
-    /// generator's table and this field rides unread.)
+    /// (The scripted mind and the MLX mind resolve it; the Apple mind
+    /// resolves it with its own piece of 4z — until then it reads the
+    /// generator's table and this field rides unread there.)
+    ///
+    /// A table here that no mind can show — two parameters of one tool
+    /// with one name — is refused by `openReply` BEFORE any run exists,
+    /// as a `ReplyFailure` on the same call (AC-289, F-13 d; the MLX
+    /// mind since piece 2b, the Apple mind with its piece). The rule is
+    /// `ToolTable.checkDeclarations()`, which an app can ask itself.
     public var tools: ToolTable?
     /// The person's "yes", by tool NAME (4z, D-110 F-10 B, sub-fork
     /// B-ii): a tool flagged `requiresConfirmation` runs only on a call

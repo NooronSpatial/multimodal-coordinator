@@ -114,12 +114,19 @@ public struct MLXReplyGenerator: ReplyGenerating {
     let clock: any Clock<Duration>
 
     /// THROWING since 4z piece 2b (AC-289, D-110 F-13 d): the source's
-    /// DEFAULT table is checked here, where it enters — the shape, in
-    /// this commit; the judgment with the rows seen red against it.
+    /// DEFAULT table is checked HERE, where it enters, by the core's one
+    /// mind-agnostic check — so the rendering a reply does later
+    /// (`ReplyTool.toolSpec`, inside the generation task, where nothing
+    /// can throw) never meets a declaration it cannot render. Both real
+    /// sources hold their table as a `let`, so what is checked at birth
+    /// is what every reply reads; a per-call table is checked at
+    /// `openReply`. The public init delegates here, so there is one door
+    /// for the default table and one sentence.
     init(source: any ReplyTokenStreaming,
          thermal: any ThermalStateProviding = SystemThermalProvider(),
          thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
          clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        try source.tools.checkDeclarations()
         self.source = source
         self.thermal = thermal
         self.thermalPolicy = thermalPolicy
@@ -127,7 +134,35 @@ public struct MLXReplyGenerator: ReplyGenerating {
     }
 
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
-        // HEAT FIRST (AC-260, Aura's R2): the policy is asked with the
+        // THE CALL'S TABLE, CHECKED FIRST (4z piece 2b, AC-289, D-110
+        // F-13 d): a schema that cannot be built throws where it is built
+        // — here, to the caller that handed it, on the same call, before
+        // any run exists — and the DEFAULT table was checked the same way
+        // at init, so the rendering inside a reply never meets a
+        // duplicate (the trap `ReplyTool.toolSpec` carried until this
+        // piece). BEFORE the heat and the verdict, on purpose: the table
+        // is the caller's own value and its error is true whatever the
+        // phone's state, so a hot phone or weights still arriving must
+        // not hide a bug that will still be there when they clear.
+        //
+        // FOLDED INTO `.engine(words)`, the typed error's own sentence:
+        // `ReplyFailure` has no case for a caller's programmer error at
+        // the door, and adding one is a public enum change nobody ruled
+        // (a question for the ledger, beside `ToolRounds`'). Of the six
+        // cases, five each name a device or model condition that is not
+        // true here — the mind can run, the phone is not (necessarily)
+        // hot, nothing is busy, the window fits, the language is fine —
+        // and `.engine` is the honest catch-all D-103 F-3 = A gave this
+        // seam for what it cannot type yet, the case `ToolRounds.exceeded`
+        // already rides on this mind. Equatable, so an app matches it
+        // exactly; the words name the tool and the parameter.
+        if let perCall = context.options.tools {
+            do { try perCall.checkDeclarations() } catch {
+                throw ReplyFailure.engine(String(describing: error))
+            }
+        }
+        // HEAT BEFORE THE VERDICT (AC-260, Aura's R2; "heat first" until
+        // the table's check above): the policy is asked with the
         // thermometer's state at this moment, BEFORE the readiness
         // verdict — a phone too hot to generate is told so whatever is
         // installed, and no run exists to have said anything. Typed and
