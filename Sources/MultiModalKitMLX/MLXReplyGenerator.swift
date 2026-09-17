@@ -57,6 +57,15 @@ extension ReplyTokenStreaming {
     /// a test hands them a registry to prove the warning's reach.
     var liveRuns: LiveRunRegistry? { nil }
 
+    /// The table ONE reply renders and executes (4z, F-2 = A). THE SHAPE:
+    /// this source's own, whatever the call carries — as every reply on
+    /// this mind read it before 4z. The rule — the call's table when the
+    /// call carries one, even `.empty`; this source's otherwise — is the
+    /// next commit's, and `MLXToolsPerCallTests` is red until it lands.
+    func tools(for context: ReplyContext) -> ToolTable {
+        tools
+    }
+
     /// The first round, which every reply has and which is the whole of
     /// a reply that calls nothing.
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
@@ -285,7 +294,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     return
                 }
                 rounds += 1
-                guard let answered = await execute(round.calls, with: source.tools,
+                guard let answered = await execute(round.calls, with: source.tools(for: context),
                                                    confirmed: context.options.confirmedTools) else { return }
                 exchanges += answered
             }
@@ -380,12 +389,12 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// turn AC-225 wants. Reporting `.failed` instead was the rejected
     /// option A.
     ///
-    /// THE SEAM, STILL FLAT (4z's MLX piece widens it): the request's
-    /// arguments are the spike's `[String: String]`, handed to the door
-    /// as `.string` values. The door's lenient kinds (F-8 C) read "84"
-    /// as 84 for a number parameter and count the coercion, so a tool
-    /// with parameters already works on this mind; parsing the vendor's
-    /// JSON by kind, so the count is honest, is that piece's job.
+    /// THE SEAM, TYPED IN SHAPE (4z): the request carries `ToolArguments`
+    /// and is handed to the door as it is. What the values ARE is the
+    /// source's parse (`ToolValue.init(json:)`) — in this commit still
+    /// 4w's flattened text, so the door's lenient kinds (F-8 C) read "84"
+    /// as 84 and count a coercion the model never made; the parse by kind,
+    /// so the count is honest, is the next commit's.
     ///
     /// THE REENTRANCY LAW (§4.1), after EVERY await: the tool took as long
     /// as it took, and a barge may have retired this run meanwhile. A
@@ -405,10 +414,9 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
             // event and this arm must not start a tool it can never use.
             // A run past its deadline neither (4y): the clock ended it.
             guard !dead else { return nil }
-            let arguments = ToolArguments(request.arguments.mapValues { ToolValue.string($0) })
-            let outcome = await tools.invoke(request.name, arguments: arguments, confirmed: confirmed)
+            let outcome = await tools.invoke(request.name, arguments: request.arguments, confirmed: confirmed)
             guard !dead else { return nil }
-            answered.append(ToolExchange(request: request, answer: outcome.wordsForModel))
+            answered.append(ToolExchange(request: request, answer: ToolResponseTag.escape(outcome.wordsForModel)))
         }
         return answered
     }

@@ -22,10 +22,10 @@ extension MLXTokenSource {
     /// The assistant turn's content is EMPTY: the words the model said
     /// before its call were already spoken by the run, and repeating
     /// them here would make the model read its own half-sentence as a
-    /// finished turn. The arguments go back as strings, the shape the
-    /// seam flattened them to (`ToolCallRequest.flatten`) — lossless for
-    /// this spike's no-argument read, and the contract milestone's to
-    /// carry typed when it types them.
+    /// finished turn. The arguments go back AS THE MODEL WROTE THEM (4z,
+    /// `ToolValue.json`): a string a string, a whole number whole, a
+    /// decimal a decimal — so the model reads its own call as it made
+    /// it, not a flattened copy.
     static func messages(spoken: String?, asked: String,
                          past: [ConversationTurn],
                          exchanges: [ToolExchange]) -> [Chat.Message] {
@@ -39,7 +39,7 @@ extension MLXTokenSource {
         for exchange in exchanges {
             let call = ToolCall(function: .init(
                 name: exchange.request.name,
-                arguments: exchange.request.arguments.mapValues { JSONValue.string($0) }))
+                arguments: exchange.request.arguments.values.mapValues(\.json)))
             messages.append(.assistant("", toolCalls: [call]))
             messages.append(.tool(exchange.answer))
         }

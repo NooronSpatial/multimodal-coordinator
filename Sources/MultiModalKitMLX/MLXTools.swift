@@ -28,15 +28,15 @@ import MultiModalKit
 
 // MARK: - the call, as the token seam carries it
 
-/// One call the model asked for, in the seam's flat shape (§170: the
-/// spike's `ReplyTool` takes `[String: String]`). Built from the
-/// vendor's `ToolCall` by `init(vendor:)`; built by hand by a scripted
-/// source, so the run's arm is proven without a model.
+/// One call the model asked for, in the contract's shape (4z, F-1 = A:
+/// `ToolArguments`, the value the door checks and the body receives).
+/// Built from the vendor's `ToolCall` by `init(vendor:)`; built by hand
+/// by a scripted source, so the run's arm is proven without a model.
 struct ToolCallRequest: Sendable, Equatable {
     let name: String
-    let arguments: [String: String]
+    let arguments: ToolArguments
 
-    init(name: String, arguments: [String: String] = [:]) {
+    init(name: String, arguments: ToolArguments = .empty) {
         self.name = name
         self.arguments = arguments
     }
@@ -98,14 +98,14 @@ extension ToolTable {
 // MARK: - from the vendor's call to the seam's request
 
 extension ToolCallRequest {
-    /// The vendor's parsed call, flattened to the spike's `[String:
-    /// String]`. Every `JSONValue` becomes text by `flatten(_:)`; the
-    /// vendor's optional call `id` is not carried, because the template
-    /// this mind runs does not need one to pair a call with its result
-    /// (it pairs by order: `<tool_call>` then `<tool_response>`).
+    /// The vendor's parsed call, its arguments mapped onto the contract's
+    /// values by `ToolValue.init(json:)`. The vendor's optional call `id`
+    /// is not carried, because the template this mind runs does not need
+    /// one to pair a call with its result (it pairs by order:
+    /// `<tool_call>` then `<tool_response>`).
     init(vendor call: ToolCall) {
         self.init(name: call.function.name,
-                  arguments: call.function.arguments.mapValues(Self.flatten))
+                  arguments: ToolArguments(call.function.arguments.mapValues(ToolValue.init(json:))))
     }
 
     /// One `JSONValue` as a string, LOSSLESSLY for the scalars a tool
@@ -116,9 +116,9 @@ extension ToolCallRequest {
     /// - an array or an object is its JSON, keys sorted, so the same
     ///   value always flattens to the same bytes.
     ///
-    /// A pure function, tested against fixtures (`MLXToolTests`). The
-    /// contract milestone replaces this with typed arguments; until
-    /// then a tool that wants a number parses the text it is given.
+    /// 4w's flattening (D-101), kept for THE SHAPE: `ToolValue.init(json:)`
+    /// wraps it as `.string` until the typed parse lands, so this commit
+    /// hands the door exactly the bytes `main`'s arm handed it.
     static func flatten(_ value: JSONValue) -> String {
         switch value {
         case .null: "null"
@@ -142,6 +142,54 @@ extension ToolCallRequest {
             return "\(value)"
         }
         return text
+    }
+}
+
+// MARK: - the vendor's JSON and the contract's value (4z, AC-269's MLX half)
+
+extension ToolValue {
+    /// One `JSONValue` as the contract's value. THE SHAPE, without the
+    /// judgment: every value is 4w's flattened text in a `.string` — the
+    /// bytes `main`'s arm handed the door — and the door's lenient kinds
+    /// (F-8 C) read `"84"` as 84 and COUNT it as a coercion the model
+    /// never made. The typed parse — a JSON number to `.number`, a
+    /// container carried so the door can refuse it (F-13 b, F-13 i) —
+    /// is the next commit's, and `ToolCallParsingTests` is red until it
+    /// lands.
+    init(json value: JSONValue) {
+        self = .string(ToolCallRequest.flatten(value))
+    }
+
+    /// The way back, for the prompt's own record of a call (the
+    /// assistant turn the next round reads, `LocalMind+Tools`): a whole
+    /// number is written whole — `84`, as the model wrote it — the rest
+    /// are themselves, and a container recurses.
+    var json: JSONValue {
+        switch self {
+        case .null: .null
+        case .boolean(let flag): .bool(flag)
+        case .number(let number):
+            if let whole = Int(exactly: number) { .int(whole) } else { .double(number) }
+        case .string(let text): .string(text)
+        case .array(let items): .array(items.map(\.json))
+        case .object(let fields): .object(fields.mapValues(\.json))
+        }
+    }
+}
+
+// MARK: - the template's closing tag inside a result (4z, AC-288, F-13 f: the escape at THIS seam)
+
+/// A tool's answer goes back to the model INSIDE the template's
+/// `<tool_response>…</tool_response>` block, so an answer that carries
+/// the closing tag itself would end the block early and hand the model
+/// whatever follows as if the template had written it. D-110 F-13 (f)
+/// puts the escape HERE, at the MLX seam, not in the core door: the tag
+/// is this chat template's word, and the core stays template-blind (the
+/// Apple result is untouched). THE SHAPE: identity, until the escape
+/// lands; `ToolResponseEscapeTests` is red until it does.
+enum ToolResponseTag {
+    static func escape(_ answer: String) -> String {
+        answer
     }
 }
 

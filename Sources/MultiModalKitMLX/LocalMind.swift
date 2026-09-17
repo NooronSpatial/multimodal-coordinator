@@ -436,6 +436,25 @@ struct MLXTokenSource: ReplyTokenStreaming {
         messages(spoken: spoken, asked: asked, past: past, exchanges: [])
     }
 
+    /// THE WHOLE PROMPT'S INPUT for one round — the chat in the template's
+    /// roles, the specs (or `nil`), and the think switch — built in ONE
+    /// place so the row that captures the plain path's bytes (AC-272,
+    /// `MLXPlainPromptTests`) renders exactly what `generate` renders,
+    /// not a copy of it. Synchronous and called inside the container's
+    /// `perform`, because `Chat.Message` is not Sendable.
+    ///
+    /// LAYER 1 (§86): `enable_thinking: false` asks the model not to
+    /// think at all — the template pre-fills a closed block. A
+    /// convention, not a constraint, which is why the gate in the loop
+    /// still exists.
+    static func userInput(spoken: String?, asked: String, past: [ConversationTurn],
+                          exchanges: [ToolExchange], specs: [ToolSpec]?) -> UserInput {
+        UserInput(
+            chat: messages(spoken: spoken, asked: asked, past: past, exchanges: exchanges),
+            tools: specs,
+            additionalContext: ["enable_thinking": false])
+    }
+
     func tokens(for context: ReplyContext,
                 after exchanges: [ToolExchange]) -> AsyncThrowingStream<TokenEvent, any Error> {
         AsyncThrowingStream { continuation in
@@ -474,11 +493,16 @@ struct MLXTokenSource: ReplyTokenStreaming {
             // Sendable, so only the strings cross the boundary.
             let asked = context.transcript
             let past = context.history
-            // `nil` when no tool was given (AC-227): the template
-            // branches on it, and a generator with no tools must
-            // render exactly the prompt it rendered before 4w.
-            let specs = tools.toolSpecs
-            let tooled = !tools.isEmpty
+            // THE TABLE FOR THIS REPLY (4z, F-2 = A): resolved once per
+            // call on the seam's rule, and the SAME resolution the run
+            // executes from — so what the model is shown and what can
+            // answer it are one table. `nil` when it is empty (AC-227):
+            // the template branches on it, and a generator with no
+            // tools must render exactly the prompt it rendered before
+            // 4w — AC-272's capture pins those bytes.
+            let turnTools = tools(for: context)
+            let specs = turnTools.toolSpecs
+            let tooled = !turnTools.isEmpty
             // A RUN ALREADY DEAD STOPS HERE (the review of this piece,
             // AC-261, Aura's R3). A `.warning` during the load, an early
             // barge, an early deadline: the run's latch is up and this
@@ -495,17 +519,9 @@ struct MLXTokenSource: ReplyTokenStreaming {
             // cancel has already finished, and is dropped there.
             try Task.checkCancellation()
             try await container.perform { (model: ModelContext) in
-                let messages = Self.messages(
-                    spoken: settings.instructions, asked: asked, past: past, exchanges: exchanges)
                 let input = try await model.processor.prepare(
-                    input: UserInput(
-                        chat: messages,
-                        tools: specs,
-                        // LAYER 1 (§86): ask the model not to think
-                        // at all. The template pre-fills a closed
-                        // block. A convention, not a constraint —
-                        // which is why the gate below still exists.
-                        additionalContext: ["enable_thinking": false]))
+                    input: Self.userInput(spoken: settings.instructions, asked: asked,
+                                          past: past, exchanges: exchanges, specs: specs))
 
                 // AC-236: COUNTED BEFORE GENERATION. The vendor
                 // does not throw for a prompt past the window — it
