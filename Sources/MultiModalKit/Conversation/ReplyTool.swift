@@ -1,12 +1,16 @@
-// THE TOOL A MIND MAY CALL — the contract's SHAPE (4z, SPEC §192–§197, D-110).
+// THE TOOL A MIND MAY CALL — the contract (4z, SPEC §192–§197, D-110).
 //
-// THE SHAPE WITHOUT THE JUDGMENT (the ledger's precedent, 4c): every type
-// the signed contract names is here with its final signature, so the
-// door's tests compile and are SEEN red — and the door itself does what
-// the spike's did: look the name up, run the body, fold a throw. No
-// argument is stripped or checked, no flag is read, no answer is cut,
-// no body is shielded. Each of those lands green in its own commit, in
-// §195's order of the code.
+// The spike (4w, D-101) held the SMALLEST thing both real minds could
+// consume — a name, a description, and a function over `[String:
+// String]` — and said in this file that the contract milestone would
+// replace it. This is that replacement. What it adds is exactly what two
+// callers needed and nothing they did not (§194): a tool DECLARES its
+// parameters, so each mind can show the model a schema; a tool RECEIVES
+// typed arguments, so no tool is a parser; the table's DOOR checks the
+// model's arguments against the declaration before the body runs, so a
+// bad argument is a countable value and never a wrong number in an app;
+// and one policy bit — the person's yes for a flagged tool — is enforced
+// at that door, not left to the model.
 //
 // What did NOT change, on purpose: F-1 = B (the run executes the tool
 // itself; the coordinator never sees a call), the exact-name lookup, and
@@ -326,8 +330,15 @@ public struct ToolCallOutcome: Sendable, Equatable {
 
 // MARK: - the tools a mind may call
 
-/// The tools ONE generator holds by default, or ONE call carries
-/// (`GenerationOptions.tools`, F-2 = A).
+/// The tools ONE generator holds by default — handed at construction —
+/// or ONE call carries (`GenerationOptions.tools`, F-2 = A): tools are
+/// policy the app grants, so they live with the mind the app configured
+/// or ride on the call the app makes, never with the coordinator.
+///
+/// It exists so every mind shares ONE lookup rule and ONE door instead
+/// of each writing its own. The rule: exact name, first match, `nil` for
+/// a name no tool has. The door: `invoke`, below — the whole of what a
+/// run must do with a model's request, written once.
 public struct ToolTable: Sendable, Equatable {
     public let tools: [ReplyTool]
 
@@ -335,14 +346,18 @@ public struct ToolTable: Sendable, Equatable {
         self.tools = tools
     }
 
-    /// No tools at all — the shape every generator had before 4w.
+    /// No tools at all — the shape every generator had before 4w, and
+    /// "none this turn" on a call's options (F-2 = A).
     public static let empty = ToolTable()
 
     public var isEmpty: Bool { tools.isEmpty }
 
-    /// The cap on a tool's answer, in characters (F-13 f).
+    /// The cap on what goes back to the model, in characters (F-13 f):
+    /// 4,000 ≈ 3 s of prefill on the 4B at §69's 0.74 ms per character.
+    /// A tool that answers with a whole session as JSON is bounded here;
+    /// an app that wants a short answer returns a short answer.
     public static let answerCap = 4_000
-    /// The sentence that marks a cut answer.
+    /// The sentence that marks a cut, after the cap's worth of text.
     public static let cutMarker = "\n[the rest of this answer was cut: it ran past the cap of 4000 characters]"
 
     /// THE lookup: exact name, first match, `nil` for a name no tool has.
@@ -350,24 +365,189 @@ public struct ToolTable: Sendable, Equatable {
         tools.first { $0.name == name }
     }
 
-    /// The SHAPE of equality (F-13 c lands with the door): names only.
+    /// Equal when they show the model the same thing (F-13 c): the same
+    /// names, words, parameters and flags, in the same order. The bodies
+    /// are closures and cannot be compared, so two tables that DO
+    /// different things compare equal — pinned by a row (AC-290) so
+    /// nobody is surprised. This is what keeps `GenerationOptions`
+    /// `Equatable` with a table on it.
     public static func == (lhs: ToolTable, rhs: ToolTable) -> Bool {
-        lhs.tools.map(\.name) == rhs.tools.map(\.name)
+        lhs.tools.map(\.declaration) == rhs.tools.map(\.declaration)
     }
 
-    /// THE DOOR — the one way to a tool's body (F-13 g). In this commit
-    /// it is the spike's: look the name up, run the body, fold a throw.
+    // MARK: the door
+
+    /// THE DOOR — the only way to a tool's body (F-13 g), and the one
+    /// place every check lives, so the MLX mind, the scripted mind and
+    /// the Apple adapter cannot drift apart. The stops, in §195's order:
+    ///
+    ///     name ─► unknown? ─► extras stripped, counted (F-7 C)
+    ///       ─► each declared parameter: absent or null and required →
+    ///          .missing (F-13 j); the wrong kind → .wrongKind, with text
+    ///          read leniently into a number or a boolean and COUNTED
+    ///          (F-8 C; "nan"/"inf" refused; a nested value refused,
+    ///          F-13 i; a non-whole value refused for an integer, F-13 b);
+    ///          outside the declared band → .outOfRange (F-11 B)
+    ///       ─► flagged and the name not in `confirmed` → .needsConfirmation
+    ///          (F-10 B-ii: the yes is the app's, on the call's options)
+    ///       ─► the BODY, with only the declared names and the values the
+    ///          door normalised (a coerced "84" arrives as 84)
+    ///       ─► the answer, or a thrown tool's own words (F-13 e), cut at
+    ///          the cap and counted (F-13 f) ─► the words for the model
+    ///
+    /// Why the arguments are checked BEFORE the flag is read: a bad call
+    /// is a bad call whatever the policy, and the model should learn the
+    /// argument it got wrong rather than ask the person for a yes to a
+    /// call that could never run. Why every refusal is a typed value and
+    /// a sentence: F-4 = B — the model is told in words and recovers;
+    /// the app counts. Nothing here is a `ReplyFailure`: a refused tool
+    /// is not a failed reply.
     public func invoke(_ name: String,
                        arguments: ToolArguments,
                        confirmed: Set<String> = []) async -> ToolCallOutcome {
         guard let tool = self[name] else {
             return ToolCallOutcome(result: .failure(ToolCallFailure(tool: name, reason: .unknownTool)))
         }
-        do {
-            return ToolCallOutcome(result: .success(try await tool.body(arguments)))
-        } catch {
-            return ToolCallOutcome(result: .failure(
-                ToolCallFailure(tool: name, reason: .threw(String(describing: error)))))
+        let declared = Set(tool.parameters.map(\.name))
+        let stripped = arguments.values.keys.filter { !declared.contains($0) }.sorted()
+
+        var admitted: [String: ToolValue] = [:]
+        var coerced: [String] = []
+        for parameter in tool.parameters {
+            guard let value = arguments.values[parameter.name], value != .null else {
+                if parameter.isRequired {
+                    return refusal(tool, stripped: stripped, coerced: coerced,
+                                   ToolArgumentFailure(argument: parameter.name, reason: .missing))
+                }
+                continue
+            }
+            switch parameter.read(value) {
+            case .exact(let read):
+                admitted[parameter.name] = read
+            case .coerced(let read):
+                admitted[parameter.name] = read
+                coerced.append(parameter.name)
+            case .refused(let reason):
+                return refusal(tool, stripped: stripped, coerced: coerced,
+                               ToolArgumentFailure(argument: parameter.name, reason: reason))
+            }
         }
+
+        if tool.requiresConfirmation, !confirmed.contains(name) {
+            return ToolCallOutcome(result: .failure(ToolCallFailure(tool: name, reason: .needsConfirmation)),
+                                   stripped: stripped, coerced: coerced)
+        }
+
+        let (result, cut) = await tool.run(ToolArguments(admitted))
+        return ToolCallOutcome(result: result, stripped: stripped, coerced: coerced, cut: cut)
+    }
+
+    private func refusal(_ tool: ReplyTool, stripped: [String], coerced: [String],
+                         _ failure: ToolArgumentFailure) -> ToolCallOutcome {
+        ToolCallOutcome(result: .failure(ToolCallFailure(tool: tool.name, reason: .badArgument(failure))),
+                        stripped: stripped, coerced: coerced)
+    }
+}
+
+extension ReplyTool {
+    /// What the model is shown of this tool, and what equality reads:
+    /// everything but the body (F-13 c). The flag is part of it (F-10 B),
+    /// so a flagged and an unflagged declaration of one verb are two.
+    struct Declaration: Equatable {
+        let name: String
+        let description: String
+        let parameters: [ToolParameter]
+        let requiresConfirmation: Bool
+    }
+
+    var declaration: Declaration {
+        Declaration(name: name, description: description,
+                    parameters: parameters, requiresConfirmation: requiresConfirmation)
+    }
+
+    /// The body, then the cap. The answer and a thrown tool's own words
+    /// are cut alike (F-13 e under F-13 f): both go back to the model,
+    /// and the cap is on what the model reads. `cut` is the count.
+    func run(_ arguments: ToolArguments) async -> (Result<String, ToolCallFailure>, cut: Bool) {
+        do {
+            let (answer, cut) = Self.capped(try await body(arguments))
+            return (.success(answer), cut)
+        } catch {
+            let (words, cut) = Self.capped(String(describing: error))
+            return (.failure(ToolCallFailure(tool: name, reason: .threw(words))), cut)
+        }
+    }
+
+    /// `text` unchanged under the cap; cut at the cap with the marker
+    /// after it, and `true`, past it. Counted in `Character`s, the unit
+    /// a person would count in.
+    static func capped(_ text: String) -> (String, cut: Bool) {
+        guard text.count > ToolTable.answerCap else { return (text, false) }
+        return (String(text.prefix(ToolTable.answerCap)) + ToolTable.cutMarker, true)
+    }
+}
+
+extension ToolParameter {
+    /// What the door decided about one given value, against this
+    /// parameter's kind and band.
+    enum Reading {
+        /// The value already had the kind; handed on as it was.
+        case exact(ToolValue)
+        /// Text that read as the kind (F-8 C): handed on as the kind's
+        /// value, and counted.
+        case coerced(ToolValue)
+        case refused(ToolArgumentFailure.Reason)
+    }
+
+    /// The kind check and the band check, in that order (§195's path).
+    ///
+    /// The leniency is ONE WAY, as the reference branch had it and F-8 C
+    /// kept: text may read as a number or a boolean, because chat models
+    /// write `"84"` and `"true"`; nothing reads as text, so a number for
+    /// a `.string` parameter is refused (a body that wanted a number
+    /// declares one). Finite numbers only: `Double("nan")` and
+    /// `Double("inf")` parse, and both are refused here.
+    func read(_ value: ToolValue) -> Reading {
+        switch kind {
+        case .string:
+            if case .string = value { return .exact(value) }
+            return .refused(.wrongKind(expected: .string, got: value))
+        case .boolean:
+            if case .boolean = value { return .exact(value) }
+            if case .string(let text) = value {
+                switch text.trimmingCharacters(in: .whitespaces).lowercased() {
+                case "true": return .coerced(.boolean(true))
+                case "false": return .coerced(.boolean(false))
+                default: break
+                }
+            }
+            return .refused(.wrongKind(expected: .boolean, got: value))
+        case .number, .integer:
+            return readNumber(value)
+        }
+    }
+
+    private func readNumber(_ value: ToolValue) -> Reading {
+        let number: Double
+        let wasText: Bool
+        switch value {
+        case .number(let given):
+            (number, wasText) = (given, false)
+        case .string(let text):
+            guard let parsed = Double(text.trimmingCharacters(in: .whitespaces)) else {
+                return .refused(.wrongKind(expected: kind, got: value))
+            }
+            (number, wasText) = (parsed, true)
+        default:
+            return .refused(.wrongKind(expected: kind, got: value))
+        }
+        guard number.isFinite else { return .refused(.wrongKind(expected: kind, got: value)) }
+        if kind == .integer, Int(exactly: number) == nil {
+            return .refused(.wrongKind(expected: .integer, got: value))
+        }
+        if let range, !range.contains(number) {
+            return .refused(.outOfRange(allowed: range, got: number))
+        }
+        return wasText ? .coerced(.number(number)) : .exact(value)
     }
 }

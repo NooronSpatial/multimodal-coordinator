@@ -271,7 +271,17 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
             // (AC-224); a structured child of `openReply` could not
             // outlive the call that opened it. Stored under the lock so
             // `cancel()` can find it.
-            let run = Task { await self.runToolScript(script, reply: index) }
+            //
+            // TOOLS PER CALL (4z, D-110 F-2 = A): the call's table when
+            // the call carries one — even `.empty` — and this mind's
+            // otherwise; the same one-line rule the real minds read. The
+            // person's yes rides the same options (F-10 B-ii).
+            let options = context.options
+            let run = Task {
+                await self.runToolScript(script, reply: index,
+                                         tools: options.tools ?? self.tools,
+                                         confirmed: options.confirmedTools)
+            }
             state.withLock { $0.toolRuns[index] = run }
         }
         if let deadline = context.options.deadline {
@@ -309,7 +319,8 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
     /// through the same `!cancelled` guard the test's hands use, unless
     /// the script is defiant, in which case NOTHING is guarded: the
     /// ghost is the point.
-    private func runToolScript(_ script: ToolScript, reply index: Int) async {
+    private func runToolScript(_ script: ToolScript, reply index: Int,
+                               tools: ToolTable, confirmed: Set<String>) async {
         defer { script.whenDone() }
         let force = script.ignoresCancel
         for token in script.before {
@@ -321,7 +332,9 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
                 ToolCallRecord(name: script.name, arguments: script.arguments))
             return state.records[index].toolCalls.count - 1
         }
-        let outcome = await tools.invoke(script.name, arguments: script.arguments).result
+        // Through the door (4z, F-13 g): the checks, the flag, the body,
+        // the cap — the same stops the real minds' runs go through.
+        let outcome = await tools.invoke(script.name, arguments: script.arguments, confirmed: confirmed).result
 
         // THE REENTRANCY LAW (§4.1): the tool took as long as it took, and
         // a barge may have cancelled this reply in the meantime. A
