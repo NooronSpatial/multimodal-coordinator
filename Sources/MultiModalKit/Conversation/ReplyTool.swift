@@ -513,9 +513,11 @@ extension ReplyTool {
     /// this returns (`retired` on the MLX run, `cancelled` on the scripted
     /// one, the Apple adapter's `checkCancellation`) — so a dead reply's
     /// result goes nowhere while the app's state stands. It is NOT the
-    /// only unstructured task in the library: `main` carries eight (both
-    /// reply runs, the Apple stream, the MLX token stream, the ear, the
-    /// mouth, two prewarms), each with its own reason on the page.
+    /// only unstructured task in the library — grep `Task {` in
+    /// `Sources/` for the others (the reply runs, the token streams, the
+    /// ears, the mouths, the prewarms, 4y's deadline sleeper), each with
+    /// its own reason on its page; no number is written here, because a
+    /// number is exactly the sentence one grep refutes.
     ///
     /// THE PRICE, stated and accepted in D-110: no tool at all — a slow
     /// READ included — can be stopped by a barge; a network read runs to
