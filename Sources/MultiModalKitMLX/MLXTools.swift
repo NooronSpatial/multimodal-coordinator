@@ -245,6 +245,11 @@ extension ToolValue {
 /// opening tag does not end the block and is not named by F-13 (f), so
 /// it is left alone; the template's other markers are a question for
 /// the ledger, not a behaviour to invent here.
+///
+/// Applied AFTER the door's cap (`ToolTable.answerCap`, in the core):
+/// the template may read up to three characters more per escaped tag
+/// than the cap — the cap is the door's, the escape the seam's (F-13 f,
+/// sub-fork 2), and the other order would put the escape in the core.
 enum ToolResponseTag {
     /// The template's closing tag, as the chat template of this family
     /// writes it.
