@@ -348,6 +348,34 @@ public struct ToolCallOutcome: Sendable, Equatable {
     }
 }
 
+// MARK: - a declaration no mind can show (AC-289, F-13 d)
+
+/// A table declared in a way no mind can render into the schema the
+/// model reads — the APP's error, typed so the app reads WHICH tool and
+/// WHICH parameter, and thrown where the table is handed over (F-13 d):
+/// a generator's init for its default table, `openReply` for a per-call
+/// one. Never from inside a reply: the rendering runs in the reply's own
+/// task, where nothing can throw and a trap takes the process.
+///
+/// Mind-agnostic on purpose. The rule is the DECLARATION's, not a
+/// template's, so both real minds refuse the same table with the same
+/// words — checked once, in `ToolTable.checkDeclarations`.
+public enum ToolDeclarationError: Error, Sendable, Equatable, CustomStringConvertible {
+    /// Two parameters of one tool share a name. A JSON-schema object
+    /// holds ONE property per name — the MLX template's `properties`, the
+    /// Apple vendor's `duplicateProperty` — so no schema can carry both,
+    /// and the door, which reads the names as a set, would check one
+    /// value against two declarations.
+    case duplicateParameter(tool: String, parameter: String)
+
+    public var description: String {
+        switch self {
+        case .duplicateParameter(let tool, let parameter):
+            "tool '\(tool)' declares the parameter '\(parameter)' more than once"
+        }
+    }
+}
+
 // MARK: - the tools a mind may call
 
 /// The tools ONE generator holds by default — handed at construction —
@@ -396,6 +424,27 @@ public struct ToolTable: Sendable, Equatable {
     /// `Equatable` with a table on it.
     public static func == (lhs: ToolTable, rhs: ToolTable) -> Bool {
         lhs.tools.map(\.declaration) == rhs.tools.map(\.declaration)
+    }
+
+    // MARK: the check on the declarations (AC-289, F-13 d)
+
+    /// What no mind can show the model, refused where the table is
+    /// handed over and never inside a reply. Both real minds call it —
+    /// the generator's init for its default table, `openReply` for a
+    /// per-call one — so the rendering a reply does later never meets a
+    /// declaration it cannot render. Public so an app can check its own
+    /// table before it builds a mind, the shape `Config.validate()` has.
+    ///
+    /// ONE rule today: no two parameters of one tool share a name. Two
+    /// TOOLS sharing a name is not an error — the lookup rule above
+    /// ("exact name, first match") already says what that means.
+    ///
+    /// Nothing about `invoke` changes: the door reads a table exactly as
+    /// it did, and a table this refuses is one the door was never handed.
+    public func checkDeclarations() throws(ToolDeclarationError) {
+        // THE SHAPE (piece 2b's first commit): the signature every caller
+        // and every row compiles against; the judgment lands with the
+        // rows that were seen red against this.
     }
 
     // MARK: the door

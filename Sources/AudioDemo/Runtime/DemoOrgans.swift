@@ -61,8 +61,17 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
                 + "than failing, so this refuses instead.")
             return PacedEchoReply(screen: screen)
         }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
-                                     instructions: spoken, maxTokens: 160)
+        let mind: MLXReplyGenerator
+        do {
+            mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights),
+                                         instructions: spoken, maxTokens: 160)
+        } catch {
+            // 4z (AC-289): a default table no mind can show throws HERE,
+            // where it is handed over — the same refusal as the others
+            // above, never a trap inside the first reply.
+            refuse("--mind=local: \(error)")
+            return PacedEchoReply(screen: screen)
+        }
         mind.prewarm()          // loading is not warming — INSTRUMENTS §25
         return mind
     default:

@@ -264,14 +264,14 @@ struct MLXDoorTests {
     }
 
     @Test("an absent model's verdict is typed, and the door throws it as ReplyFailure.unavailable")
-    func theDoorThrowsTheVerdict() async {
+    func theDoorThrowsTheVerdict() async throws {
         let absent = LocalMindModel(weights: URL(filePath: "/nowhere/no-model"))
         #expect(absent.readiness() == Self.expectedForAbsentWeights)
 
         let source = MLXTokenSource(model: absent, instructions: nil, maxTokens: 8)
         #expect(source.unavailable == .unavailable(Self.expectedForAbsentWeights))
 
-        let mind = MLXReplyGenerator(model: absent)
+        let mind = try MLXReplyGenerator(model: absent)
         await #expect(throws: ReplyFailure.unavailable(Self.expectedForAbsentWeights)) {
             _ = try await mind.openReply(to: "hello?")
         }

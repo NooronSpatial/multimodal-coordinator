@@ -139,7 +139,10 @@ extension TranscribeModel {
                                                       hostedOn: microphone))
         } catch {
             // The door refused the configuration (AC-241): a mind without
-            // a mouth or the reverse, or a turns number it cannot honour.
+            // a mouth or the reverse, or a turns number it cannot honour;
+            // or, since 4z (AC-289), the local mind's own table could not
+            // be shown — `refreshMind()` above already put that sentence
+            // on the caption, so Listen refused before this line.
             // `makeConfiguration` pairs the organs from one switch and the
             // memory depth is a picker's, so this is a safety net — but
             // the microphone is already capturing and the interruption
@@ -206,7 +209,7 @@ extension TranscribeModel {
     private func makeConfiguration(
         reading consumer: AudioRingConsumer, at rate: Double,
         hostedOn microphone: MicrophoneSource
-    ) -> AIRuntime<ContinuousClock>.Configuration {
+    ) throws -> AIRuntime<ContinuousClock>.Configuration {
         let chunk = Int(rate * 0.02)                       // 20 ms per verdict
         let host = neuralHost
         return .init(
@@ -226,7 +229,7 @@ extension TranscribeModel {
             // mouth together, or neither). Same coordinator, same ledger,
             // same phraser, same mouth as the Mac — AC-92's whole point is
             // that none of them needed an iOS variant.
-            mind: talkEnabled ? currentGenerator : nil,
+            mind: talkEnabled ? (try currentGenerator) : nil,
             mouth: talkEnabled
                 ? currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil)
                 : nil,

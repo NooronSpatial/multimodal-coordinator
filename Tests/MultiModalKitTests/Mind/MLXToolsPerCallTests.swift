@@ -49,7 +49,7 @@ struct MLXToolsPerCallTests {
     func theCallsTableIsUsedThenGone() async throws {
         let tool = ScriptedTool(name: "log_reading", parameters: [Self.value], plan: .answers("logged"))
         let source = ScriptedTokenSource(Self.twoReplies())
-        let mind = MLXReplyGenerator(source: source)
+        let mind = try MLXReplyGenerator(source: source)
 
         let with = try await mind.openReply(to: ReplyContext(
             transcript: "log eighty-three and a half",
@@ -69,7 +69,7 @@ struct MLXToolsPerCallTests {
     func emptyOnTheCallMeansNone() async throws {
         let own = ScriptedTool(name: "log_reading", parameters: [Self.value], plan: .answers("logged"))
         let source = ScriptedTokenSource(Self.twoReplies(), tools: ToolTable([own.tool]))
-        let mind = MLXReplyGenerator(source: source)
+        let mind = try MLXReplyGenerator(source: source)
 
         let none = try await mind.openReply(to: ReplyContext(
             transcript: "q", options: GenerationOptions(tools: .empty)))
@@ -88,7 +88,7 @@ struct MLXToolsPerCallTests {
         let own = ScriptedTool(name: "log_reading", parameters: [Self.value], plan: .answers("own"))
         let perCall = ScriptedTool(name: "set_timer", plan: .answers("set"))
         let source = ScriptedTokenSource(Self.twoReplies(), tools: ToolTable([own.tool]))
-        let mind = MLXReplyGenerator(source: source)
+        let mind = try MLXReplyGenerator(source: source)
         let reply = try await mind.openReply(to: ReplyContext(
             transcript: "q", options: GenerationOptions(tools: ToolTable([perCall.tool]))))
         _ = await ReplyConformanceKit.drain(reply)
@@ -123,7 +123,7 @@ struct MLXToolsPerCallTests {
         let write = ScriptedTool(name: "log_reading", parameters: [Self.value],
                                  requiresConfirmation: true, plan: .answers("logged"))
         let source = ScriptedTokenSource(Self.twoReplies(), tools: ToolTable([write.tool]))
-        let mind = MLXReplyGenerator(source: source)
+        let mind = try MLXReplyGenerator(source: source)
 
         let asked = try await mind.openReply(to: "log eighty-three and a half")
         _ = await ReplyConformanceKit.drain(asked)

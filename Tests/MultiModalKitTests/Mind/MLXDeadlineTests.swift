@@ -25,10 +25,10 @@ struct MLXDeadlineTests {
     /// on its own.
     private static let firehose = (0..<20_000).map { "t\($0)" }
 
-    private func mind(_ plan: ScriptedTokenSource.Plan, clock: ManualClock)
+    private func mind(_ plan: ScriptedTokenSource.Plan, clock: ManualClock) throws
     -> (MLXReplyGenerator, ScriptedTokenSource) {
         let source = ScriptedTokenSource(plan)
-        return (MLXReplyGenerator(source: source, clock: clock), source)
+        return (try MLXReplyGenerator(source: source, clock: clock), source)
     }
 
     /// THE ROW THE AC NAMES: a generation that never finishes on its own,
@@ -37,7 +37,7 @@ struct MLXDeadlineTests {
     @Test("a reply that never finishes ends .finished(.deadline) with the tokens so far when the clock reaches 200 ms")
     func aSlowReplyEndsOnTheDeadlineWithItsPartialText() async throws {
         let clock = ManualClock()
-        let (mind, source) = mind(.tokensThenHold(Self.twoTokens), clock: clock)
+        let (mind, source) = try mind(.tokensThenHold(Self.twoTokens), clock: clock)
         let facts = Facts()
         let run = try await mind.openReply(to: ReplyContext(
             transcript: "a long question",
@@ -70,7 +70,7 @@ struct MLXDeadlineTests {
     @Test("a reply that ends before its deadline leaves NO sleeper on the clock")
     func aReplyThatEndsFirstLeavesNoSleeper() async throws {
         let clock = ManualClock()
-        let (mind, _) = mind(.events([.token("done"), .stopped(.complete)]), clock: clock)
+        let (mind, _) = try mind(.events([.token("done"), .stopped(.complete)]), clock: clock)
         let run = try await mind.openReply(to: ReplyContext(
             transcript: "a short question",
             options: GenerationOptions(deadline: .seconds(30))))
@@ -93,7 +93,7 @@ struct MLXDeadlineTests {
     @Test("with no deadline the run arms nothing on the clock")
     func noDeadlineArmsNothing() async throws {
         let clock = ManualClock()
-        let (mind, _) = mind(.tokensThenHold(Self.twoTokens), clock: clock)
+        let (mind, _) = try mind(.tokensThenHold(Self.twoTokens), clock: clock)
         let facts = Facts()
         let run = try await mind.openReply(to: "a question with no deadline")
         let story = ReplyStory.collect(run, facts: facts)
@@ -109,7 +109,7 @@ struct MLXDeadlineTests {
     @Test("a cancel before the deadline ends with no terminal and no sleeper")
     func aCancelBeforeTheDeadlineLeavesNothing() async throws {
         let clock = ManualClock()
-        let (mind, _) = mind(.tokensThenHold(Self.twoTokens), clock: clock)
+        let (mind, _) = try mind(.tokensThenHold(Self.twoTokens), clock: clock)
         let facts = Facts()
         let run = try await mind.openReply(to: ReplyContext(
             transcript: "a question", options: GenerationOptions(deadline: .milliseconds(200))))
@@ -135,7 +135,7 @@ struct MLXDeadlineTests {
     @Test("a token the source yields after the deadline is never heard")
     func aTokenAfterTheDeadlineIsNotHeard() async throws {
         let clock = ManualClock()
-        let (mind, source) = mind(.gatedDefiance(before: "before", after: "AFTER-THE-DEADLINE"),
+        let (mind, source) = try mind(.gatedDefiance(before: "before", after: "AFTER-THE-DEADLINE"),
                                   clock: clock)
         let facts = Facts()
         let run = try await mind.openReply(to: ReplyContext(
@@ -165,7 +165,7 @@ struct MLXDeadlineTests {
         var violations: [String] = []
         for iteration in 0..<400 {
             let clock = ManualClock()
-            let (mind, _) = mind(.tokensThenHold(Self.firehose), clock: clock)
+            let (mind, _) = try mind(.tokensThenHold(Self.firehose), clock: clock)
             let facts = Facts()
             let run = try await mind.openReply(to: ReplyContext(
                 transcript: "a long question",
@@ -188,7 +188,7 @@ struct MLXDeadlineTests {
     @Test("reply(to:) returns the partial text with stop == .deadline — a stop reason, not a failure")
     func replyReturnsTheStopReason() async throws {
         let clock = ManualClock()
-        let (mind, _) = mind(.tokensThenHold(Self.twoTokens), clock: clock)
+        let (mind, _) = try mind(.tokensThenHold(Self.twoTokens), clock: clock)
         let asked = Task {
             try await mind.reply(to: ReplyContext(
                 transcript: "a long question",

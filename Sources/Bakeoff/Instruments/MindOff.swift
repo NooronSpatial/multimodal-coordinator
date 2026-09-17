@@ -113,7 +113,7 @@ private func mindOffLocal(_ arguments: [String], prompts: [String], spoken: Stri
             // pays for Metal pipelines and graph warm-up. `prewarm()`
             // burns that here, off-turn, and this prints what it cost.
             let warmStart = loadClock.now
-            let sacrifice = MLXReplyGenerator(model: model, maxTokens: 1)
+            let sacrifice = askBuildMind { try MLXReplyGenerator(model: model, maxTokens: 1) }
             if let throwaway = try? await sacrifice.openReply(to: "hi") {
                 for await _ in throwaway.updates { break }
                 await throwaway.cancel()
@@ -122,8 +122,8 @@ private func mindOffLocal(_ arguments: [String], prompts: [String], spoken: Stri
             print(String(format: "\n(model load %.0f ms + pipeline warm-up %.0f ms — both paid ONCE, off-turn)",
                          msOf(load), msOf(warm)))
             await mindOffRun("Local · MLX",
-                             MLXReplyGenerator(model: model, instructions: spoken,
-                                               maxTokens: 96),
+                             askBuildMind { try MLXReplyGenerator(model: model, instructions: spoken,
+                                                                  maxTokens: 96) },
                              prompts: prompts)
         }
     } else {

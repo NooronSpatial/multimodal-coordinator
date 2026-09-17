@@ -113,10 +113,13 @@ public struct MLXReplyGenerator: ReplyGenerating {
     /// `ManualClock` in the tests that prove the ending.
     let clock: any Clock<Duration>
 
+    /// THROWING since 4z piece 2b (AC-289, D-110 F-13 d): the source's
+    /// DEFAULT table is checked here, where it enters — the shape, in
+    /// this commit; the judgment with the rows seen red against it.
     init(source: any ReplyTokenStreaming,
          thermal: any ThermalStateProviding = SystemThermalProvider(),
          thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-         clock: any Clock<Duration> = ContinuousClock()) {
+         clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
         self.source = source
         self.thermal = thermal
         self.thermalPolicy = thermalPolicy

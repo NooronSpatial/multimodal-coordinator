@@ -28,14 +28,14 @@ struct MLXPressureTests {
         let source: ScriptedTokenSource
         let mind: MLXReplyGenerator
 
-        init(_ plan: ScriptedTokenSource.Plan = .tokensThenHold(["two", " tokens"])) {
+        init(_ plan: ScriptedTokenSource.Plan = .tokensThenHold(["two", " tokens"])) throws {
             let model = LocalMindModel(
                 weights: URL(filePath: NSTemporaryDirectory()).appending(path: "mmk-4y-\(UUID().uuidString)"),
                 headroom: { .unavailable(.noMemoryLimitOnThisPlatform) },
                 pressure: pressure)
             self.model = model
             self.source = ScriptedTokenSource(plan, liveRuns: model.liveRuns)
-            self.mind = MLXReplyGenerator(source: source)
+            self.mind = try MLXReplyGenerator(source: source)
         }
     }
 
@@ -43,7 +43,7 @@ struct MLXPressureTests {
 
     @Test("a .warning mid-generation ends the run's stream with NO terminal and no later token")
     func aWarningEndsTheRunWithNoTerminal() async throws {
-        let rig = Rig()
+        let rig = try Rig()
         let facts = Facts()
         let run = try await rig.mind.openReply(to: "a thought under pressure")
         let story = ReplyStory.collect(run, facts: facts)
@@ -66,7 +66,7 @@ struct MLXPressureTests {
     /// the warning is not touched by it.
     @Test("a run opened AFTER the warning runs clean")
     func theNextTurnRunsClean() async throws {
-        let rig = Rig(.tokens(["clean"]))
+        let rig = try Rig(.tokens(["clean"]))
         rig.pressure.push(.warning)
         #expect(await Wait4y.handled(.warning, on: rig.model))
         let run = try await rig.mind.openReply(to: "the next turn")
@@ -78,7 +78,7 @@ struct MLXPressureTests {
     /// weights both end.
     @Test("a warning ends EVERY live run on the weights")
     func aWarningEndsEveryLiveRun() async throws {
-        let rig = Rig()
+        let rig = try Rig()
         let facts = Facts()
         let first = try await rig.mind.openReply(to: "first")
         let second = try await rig.mind.openReply(to: "second")
@@ -95,7 +95,7 @@ struct MLXPressureTests {
     /// `.normal` is the kernel saying the pressure LIFTED — nothing ends.
     @Test(".normal does nothing: the generation keeps running")
     func normalDoesNothing() async throws {
-        let rig = Rig()
+        let rig = try Rig()
         let facts = Facts()
         let run = try await rig.mind.openReply(to: "a thought")
         let story = ReplyStory.collect(run, facts: facts)
@@ -117,7 +117,7 @@ struct MLXPressureTests {
     /// warning finds nothing, and the weights are untouched.
     @Test("a run that finished leaves the registry, and a later warning finds nothing")
     func aFinishedRunIsNotInTheRegistry() async throws {
-        let rig = Rig(.tokens(["done"]))
+        let rig = try Rig(.tokens(["done"]))
         let run = try await rig.mind.openReply(to: "quick")
         _ = await ReplyConformanceKit.drain(run)
         #expect(rig.model.liveRuns.count == 0)
@@ -128,7 +128,7 @@ struct MLXPressureTests {
 
     @Test("a .critical ends the run AND retires the weights; the next reply opens again")
     func aCriticalRetiresTheWeights() async throws {
-        let rig = Rig()
+        let rig = try Rig()
         let facts = Facts()
         let run = try await rig.mind.openReply(to: "a thought under critical pressure")
         let story = ReplyStory.collect(run, facts: facts)
@@ -150,7 +150,7 @@ struct MLXPressureTests {
 
     @Test("a .critical with nothing running still retires — the weights, not the run, are the target")
     func aCriticalWithNoRunStillRetires() async throws {
-        let rig = Rig()
+        let rig = try Rig()
         rig.pressure.push(.critical)
         #expect(await Wait4y.handled(.critical, on: rig.model))
         #expect(await rig.model.retirements == 1)

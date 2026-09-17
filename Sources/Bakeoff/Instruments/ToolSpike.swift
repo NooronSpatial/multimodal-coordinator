@@ -58,9 +58,11 @@ func runToolSpike(_ arguments: [String]) async {
     let model = LocalMindModel(weights: weights)
     let stub = ToolSpikeStub()
     // The SAME budget on both minds, or the delta measures the budget.
-    let bare = MLXReplyGenerator(model: model, instructions: instructions, maxTokens: toolSpikeBudget)
-    let tooled = MLXReplyGenerator(model: model, instructions: instructions, maxTokens: toolSpikeBudget,
-                                   tools: ToolTable([stub.tool]))
+    let bare = askBuildMind { try MLXReplyGenerator(model: model, instructions: instructions,
+                                                    maxTokens: toolSpikeBudget) }
+    let tooled = askBuildMind { try MLXReplyGenerator(model: model, instructions: instructions,
+                                                      maxTokens: toolSpikeBudget,
+                                                      tools: ToolTable([stub.tool])) }
     let clock = ContinuousClock()
     await askLoadAndWarm(model: model, mind: bare, weights: weights, clock: clock)
     // The tooled mind's first breath too, so run 1 of the tool path is

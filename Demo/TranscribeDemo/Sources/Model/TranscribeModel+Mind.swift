@@ -55,35 +55,44 @@ extension TranscribeModel {
             : spokenInstructions
     }
 
+    /// THROWING since 4z (AC-289): the library refuses a default table no
+    /// mind can show at THIS line, where the table is handed over, and
+    /// never later from inside a reply. `grantedTools` is `.empty` or one
+    /// stub with no parameters, so this app never sees the throw — the
+    /// two readers still say the library's sentence rather than swallow
+    /// it (`refreshMind()` on the caption, `start()` on the runtime's
+    /// failure line), because "never shown empty" is the ruling's point.
     private var localMind: MLXReplyGenerator {
-        MLXReplyGenerator(model: localModel,
-                          instructions: Self.spokenInstructions(for: language),
-                          maxTokens: 160,
-                          // 4w: the session stub, or `.empty` — see
-                          // `grantedTools`. The instructions above are
-                          // NOT changed by the toggle, and that is the
-                          // shape to be honest about (the 4w demo
-                          // review): the spike measured THREE shapes on
-                          // the 0.6B weights, not one (the suite note of
-                          // `MLXToolLiveTests.swift`; INSTRUMENTS §67
-                          // when written). The naming question alone —
-                          // CALLED 3/3. A system instruction saying
-                          // "always call" — NOT called 0/4, which is
-                          // why no such line is written here. And the
-                          // naming question BESIDE any app instruction,
-                          // even "answer in one sentence" — NOT called
-                          // 0/3. This call is that third shape. So on
-                          // the Mac's record, Tools ON here is expected
-                          // to print "NOT called" on the 0.6B; the
-                          // phone's 4B is unmeasured and the per-turn
-                          // log line is the finding. Kept as built, as
-                          // the safe default and NOT as a ruling:
-                          // whether to drop `instructions` while Tools
-                          // is on (shape 1, the only measured working
-                          // shape, at the cost of the spoken-reply
-                          // rules and lever A) is a fork for Ryad,
-                          // presented with this piece.
-                          tools: grantedTools)
+        get throws {
+            try MLXReplyGenerator(model: localModel,
+                                  instructions: Self.spokenInstructions(for: language),
+                                  maxTokens: 160,
+                                  // 4w: the session stub, or `.empty` — see
+                                  // `grantedTools`. The instructions above are
+                                  // NOT changed by the toggle, and that is the
+                                  // shape to be honest about (the 4w demo
+                                  // review): the spike measured THREE shapes on
+                                  // the 0.6B weights, not one (the suite note of
+                                  // `MLXToolLiveTests.swift`; INSTRUMENTS §67
+                                  // when written). The naming question alone —
+                                  // CALLED 3/3. A system instruction saying
+                                  // "always call" — NOT called 0/4, which is
+                                  // why no such line is written here. And the
+                                  // naming question BESIDE any app instruction,
+                                  // even "answer in one sentence" — NOT called
+                                  // 0/3. This call is that third shape. So on
+                                  // the Mac's record, Tools ON here is expected
+                                  // to print "NOT called" on the 0.6B; the
+                                  // phone's 4B is unmeasured and the per-turn
+                                  // log line is the finding. Kept as built, as
+                                  // the safe default and NOT as a ruling:
+                                  // whether to drop `instructions` while Tools
+                                  // is on (shape 1, the only measured working
+                                  // shape, at the cost of the spoken-reply
+                                  // rules and lever A) is a fork for Ryad,
+                                  // presented with this piece.
+                                  tools: grantedTools)
+        }
     }
 
     private func record(_ turn: TurnReport) {
@@ -318,33 +327,35 @@ extension TranscribeModel {
     /// witness — the 🧠 line shows what the ledger delivered across the
     /// seam, whichever brain answers (AC-91's proof duty, unchanged).
     var currentGenerator: any ReplyGenerating {
-        let witness: @Sendable (ReplyContext) -> Void = { [weak self] context in
-            Task { @MainActor in
-                self?.wholeThought = context.transcript
-                // WHAT THE MIND WAS ALLOWED TO REMEMBER, on screen (4r).
-                // A memory nobody can see is a memory nobody can report
-                // on, and AC-200 asks for a field conversation where turn
-                // 2 leans on turn 1 — which is unreadable without this.
-                self?.remembering = context.history.isEmpty ? "" :
-                    "remembering \(context.history.count) "
-                    + (context.history.count == 1 ? "exchange" : "exchanges")
-                    + (context.history.contains(where: \.interrupted) ? " · one cut off" : "")
+        get throws {
+            let witness: @Sendable (ReplyContext) -> Void = { [weak self] context in
+                Task { @MainActor in
+                    self?.wholeThought = context.transcript
+                    // WHAT THE MIND WAS ALLOWED TO REMEMBER, on screen (4r).
+                    // A memory nobody can see is a memory nobody can report
+                    // on, and AC-200 asks for a field conversation where turn
+                    // 2 leans on turn 1 — which is unreadable without this.
+                    self?.remembering = context.history.isEmpty ? "" :
+                        "remembering \(context.history.count) "
+                        + (context.history.count == 1 ? "exchange" : "exchanges")
+                        + (context.history.contains(where: \.interrupted) ? " · one cut off" : "")
+                }
             }
-        }
-        let sink: @Sendable (TurnReport) -> Void = { [weak self] turn in
-            Task { @MainActor in self?.record(turn) }
-        }
-        switch mind {
-        case .echo:
-            return ThoughtWitness(wrapped: PhoneEchoReply(onThought: witness),
-                                  mindLabel: "Echo (a stand-in that REPEATS your words)",
-                                  onThought: { _ in }, onTurn: sink)
-        case .apple:
-            return ThoughtWitness(wrapped: appleMind, mindLabel: "Apple",
-                                  onThought: witness, onTurn: sink)
-        case .local:
-            return ThoughtWitness(wrapped: localMind, mindLabel: "Local (MLX)",
-                                  onThought: witness, onTurn: sink)
+            let sink: @Sendable (TurnReport) -> Void = { [weak self] turn in
+                Task { @MainActor in self?.record(turn) }
+            }
+            switch mind {
+            case .echo:
+                return ThoughtWitness(wrapped: PhoneEchoReply(onThought: witness),
+                                      mindLabel: "Echo (a stand-in that REPEATS your words)",
+                                      onThought: { _ in }, onTurn: sink)
+            case .apple:
+                return ThoughtWitness(wrapped: appleMind, mindLabel: "Apple",
+                                      onThought: witness, onTurn: sink)
+            case .local:
+                return ThoughtWitness(wrapped: try localMind, mindLabel: "Local (MLX)",
+                                      onThought: witness, onTurn: sink)
+            }
         }
     }
 
@@ -410,8 +421,15 @@ extension TranscribeModel {
             // app says what to tap.
             switch localModel.readiness() {
             case nil:
-                mindAssets.unavailable = nil
-                localMind.prewarm()   // the measured 1.7 s load, paid off-turn
+                do {
+                    try localMind.prewarm()   // the measured 1.7 s load, paid off-turn
+                    mindAssets.unavailable = nil
+                } catch {
+                    // 4z (AC-289): the app's OWN table cannot be shown —
+                    // the library's sentence on the caption, and the
+                    // listen gate refuses on it like any other verdict.
+                    mindAssets.unavailable = String(describing: error)
+                }
             case .some(.weightsAbsent), .some(.installIncomplete):
                 // The one verdict a person can fix from this screen. A
                 // short install is the same tap: the download replaces
