@@ -376,8 +376,11 @@ public struct ToolTable: Sendable, Equatable {
     /// A tool that answers with a whole session as JSON is bounded here;
     /// an app that wants a short answer returns a short answer.
     public static let answerCap = 4_000
-    /// The sentence that marks a cut, after the cap's worth of text.
-    public static let cutMarker = "\n[the rest of this answer was cut: it ran past the cap of 4000 characters]"
+    /// The sentence that marks a cut, after the cap's worth of text. The
+    /// number is READ from `answerCap`, so the marker cannot lie to the
+    /// model when the cap moves.
+    public static let cutMarker =
+        "\n[the rest of this answer was cut: it ran past the cap of \(answerCap) characters]"
 
     /// THE lookup: exact name, first match, `nil` for a name no tool has.
     public subscript(name: String) -> ReplyTool? {
