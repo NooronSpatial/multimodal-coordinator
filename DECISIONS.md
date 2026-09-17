@@ -4824,3 +4824,52 @@ read the code. A decision log that corrects itself silently is not one.
 The corrected fact is stated in SPEC AC-268; the correction itself —
 B first, then A — in §190a's ruling line, in ARCHITECTURE ("The one
 untyped throw that remains") and in `LocalMind+Admission.swift`.
+
+## D-111 — the deadline hammer runs alone on CI (Milestone 4y, after the merge)
+
+**Date:** 2026-09-17 · **Decided by:** Ryad ("agree", after the four
+options were explained) · *(D-109 and D-110 are 4z's, on
+`milestone/4z-tools`; this entry is numbered after them.)*
+
+**The fact.** `main` went red on CI the moment 4y merged (PR #48,
+`1f28e89`), and the branch had been red since its piece 2 landed. Not a
+broken test: a starved runner. GitHub's macOS runner has 3 cores, so
+Swift's cooperative pool there is 3 threads. 4y's regression guard for
+the one-writer deadline fix — `MLXDeadlineTests`, "four hundred
+deadlines against a firehose" — keeps three tasks busy for 400 rounds
+(a producer pushing 20,000 tokens, the run's drain loop, the test's
+collector: ~8 million small operations). On this Mac that is 3 s on 3
+of 10 threads; on the runner it is 15–44 s on all three, and nothing
+else runs underneath it. Two older TTS tests that wait on a capped poll
+could not even read the clock while starved; when the hammer ended they
+woke past their caps and went red. Diagnosis by three skeptic lenses and
+a judge from the runner's own timings; the sheet is
+`docs/evidence/4y/ci-starvation.md`.
+
+**Ruling: A — the hammer runs alone, in its own CI step.** `ci.yml`
+runs the suite with `--skip` for the hammer's ID, then the hammer with
+`--filter` by itself, on the same build; a `grep` on the runner's own
+"passed after" line makes the second step fail loudly if a rename ever
+makes the filter match nothing. The proof is byte-for-byte what the
+review signed: same test, same 400 rounds, same 20,000-token firehose.
+Harness on this Mac before the change: `--filter` selects exactly one
+test (2.3 s alone); `--skip` runs the other 776 green, and the two
+former victims pass in 0.4 s and 0.6 s.
+
+*Rejected — B, the chunked faucet:* pour tokens in batches with a pause
+between, stop at the cut, and MEASURE each round that tokens were still
+in flight. Ten to twenty times cheaper and a printed strength instead of
+a hope — but it edits the guard's teeth, and no run on this Mac can show
+it red then green. It comes back as its own fork with A's numbers (the
+second step prints how long the hammer takes alone on 3 cores).
+*Rejected — C, `--no-parallel`:* one flag; the suite becomes the sum of
+every test's time and serial runs hide the interference parallel runs
+catch. *Rejected — D, an environment gate (`MMK_HAMMER=1`):* a plain
+local `swift test` would stop running the guard — a test gated only
+because it is slow is a hidden shortcut.
+
+**Owed, separately:** the two victims (`PlaybackLeadStrandTests`
+CONTROL, `DecodeStepRecordTests` margin) wait with wall-clock polls, the
+shape the house banned after two CI freezes; they predate 4y. Converting
+them to events raced against a sleeping cap is its own line item — and,
+honestly, would not have saved them under total starvation.
