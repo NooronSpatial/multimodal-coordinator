@@ -49,10 +49,13 @@ struct TurnCoordinatorTests {
 
     /// Waits for the FACT that something is parked on the clock — the house
     /// pattern from `AudioPumpTests.parked`. The clock also offers an
-    /// event-driven `waitForSleepers`, which is prettier but parks forever
-    /// when the sleeper never comes; this polls the same fact with a spin
+    /// event-driven `waitForSleepers`, which is prettier but parked forever
+    /// when the sleeper never came; this polls the same fact with a spin
     /// cap, so a red test dies in milliseconds instead of at the suite's
     /// one-minute limit. Fact-gated AND fail-fast: both laws, not one.
+    /// (Since 4y `waitForSleepers` honours cancellation, so it can be raced
+    /// against a sleeping cap instead — `AdmissionSeamTests.parked` does;
+    /// the tests here keep this helper as they were written.)
     @discardableResult
     static func parked(_ clock: ManualClock, atLeast count: Int = 1, spins: Int = 40_000) async -> Bool {
         for _ in 0..<spins {
@@ -112,9 +115,25 @@ struct TurnCoordinatorTests {
 
         /// The measuring bench (R2): manual clock in, exact durations out.
         /// `config` carries the reply gate for the AC-81 tests.
+        ///
+        /// `mindSeenByCoordinator` and `mouthSeenByCoordinator` are what
+        /// the COORDINATOR is handed when it is not the scripted doubles
+        /// themselves — wrappers that turn two facts into events a test
+        /// can wait for (the 4y review): "the reply's run is open"
+        /// (`thinking:N` is published BEFORE `openReply` is awaited, so a
+        /// hand that emits on `thinking` can emit into a reply with no
+        /// record yet) and "the mouth was told the tokens are over" (a
+        /// mouth reported finished before the reply's terminal is
+        /// processed completes the turn first, and the terminal then
+        /// dies at the ticket). `nil` hands the doubles over directly, as
+        /// every older bench does; `bench.generator` and
+        /// `bench.synthesizer` stay the doubles either way, so the test's
+        /// hands and the records are unchanged.
         init(generator: ScriptedReplyGenerator, synthesizer: ScriptedSynthesizer,
              clock: C, reporter: any LatencyReporter,
-             config: TurnCoordinator<C>.Config = .init()) throws {
+             config: TurnCoordinator<C>.Config = .init(),
+             mindSeenByCoordinator: (any ReplyGenerating)? = nil,
+             mouthSeenByCoordinator: (any SpeechSynthesizing)? = nil) throws {
             var audioHandle: AsyncStream<AudioEvent>.Continuation!
             let audioStream = AsyncStream<AudioEvent> { audioHandle = $0 }
             var transcriptHandle: AsyncStream<TranscriptEvent>.Continuation!
@@ -122,8 +141,9 @@ struct TurnCoordinatorTests {
             self.init(
                 generator: generator, synthesizer: synthesizer,
                 coordinator: try TurnCoordinator(
-                    replyGenerator: generator, synthesizer: synthesizer, config: config,
-                    clock: clock, latencyReporter: reporter),
+                    replyGenerator: mindSeenByCoordinator ?? generator,
+                    synthesizer: mouthSeenByCoordinator ?? synthesizer,
+                    config: config, clock: clock, latencyReporter: reporter),
                 audioStream: audioStream, audio: audioHandle,
                 transcriptStream: transcriptStream, transcripts: transcriptHandle)
         }

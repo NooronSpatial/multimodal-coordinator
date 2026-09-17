@@ -46,6 +46,13 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         /// `askedAfter`, which is how a test reads what the model was
         /// told (F-4 = B's words included).
         case rounds([[TokenEvent]])
+        /// Yields every token, then HOLDS — parked on a continuation
+        /// until the run's task is cancelled, never spinning (4y). A
+        /// generation that never finishes on its own, which is what a
+        /// deadline (AC-264) and a memory warning (AC-261) must be able
+        /// to end; the stream finishes normally once cancelled, with no
+        /// `.stopped`, the way a cancelled vendor finishes.
+        case tokensThenHold([String])
     }
 
     private let plan: Plan
@@ -68,10 +75,27 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
     /// The tools the test hands this source (F-2 = A's seam, one level
     /// down): the run reads them to execute what the script calls.
     let tools: ToolTable
+    /// The registry a run born of this source joins (4y, AC-261) — a
+    /// model's, when a test wants a scripted memory warning to reach a
+    /// scripted generation; `nil` otherwise, the protocol's default.
+    let liveRuns: LiveRunRegistry?
+    /// The FACT that cancellation reached a held plan, as an event a test
+    /// can wait for instead of re-reading `sawCancellation`.
+    private let cancelledStream: AsyncStream<Void>
+    private let cancelledSignal: AsyncStream<Void>.Continuation
 
-    init(_ plan: Plan, tools: ToolTable = .empty) {
+    init(_ plan: Plan, tools: ToolTable = .empty, liveRuns: LiveRunRegistry? = nil) {
         self.plan = plan
         self.tools = tools
+        self.liveRuns = liveRuns
+        (cancelledStream, cancelledSignal) = AsyncStream.makeStream(
+            of: Void.self, bufferingPolicy: .unbounded)
+    }
+
+    /// Parks until a held plan has seen its cancellation. One listener at
+    /// a time — a test's own wait, raced by the test against its cap.
+    func cancellationSeen() async {
+        for await _ in cancelledStream { return }
     }
 
     var capExhausted: Bool { counts.withLock { $0.capExhausted } }
@@ -105,6 +129,10 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
                     for event in script { continuation.yield(event) }
                     counts.withLock { $0.yielded += script.count }
                     continuation.finish()
+                case .tokensThenHold(let all):
+                    yieldAll(all, into: continuation)
+                    await holdUntilCancelled()
+                    continuation.finish()
                 case .tokensThenThrow(let all, let error):
                     yieldAll(all, into: continuation)
                     continuation.finish(throwing: error)
@@ -135,6 +163,34 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
             continuation.yield(.token(token))
             counts.withLock { $0.yielded += 1 }
         }
+    }
+
+    /// PARKS until the run's task is cancelled — a continuation, never a
+    /// spin (the 4y rule, after yield-spins froze a CI run). Cancel and
+    /// registration race for the same slot: taking it under the lock is
+    /// the claim ticket, one claim, one resume, and the resume happens
+    /// OUTSIDE the lock. A task cancelled before it parks resumes at once.
+    /// No cap is needed: a red test's own wait is capped by the test.
+    private func holdUntilCancelled() async {
+        let slot = Mutex<CheckedContinuation<Void, Never>?>(nil)
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                let resumeNow = slot.withLock { parked -> Bool in
+                    if Task.isCancelled { return true }
+                    parked = continuation
+                    return false
+                }
+                if resumeNow { continuation.resume() }
+            }
+        } onCancel: {
+            let claimed = slot.withLock { parked -> CheckedContinuation<Void, Never>? in
+                defer { parked = nil }
+                return parked
+            }
+            claimed?.resume()
+        }
+        counts.withLock { $0.sawCancellation = true }
+        cancelledSignal.yield()
     }
 
     /// Spins until the run's task is cancelled, capped so a red test dies
