@@ -146,7 +146,11 @@ struct MLXToolLiveTests {
     /// this Mac when the row was written (the number printed beside the
     /// call); if a later run shows a different number, the honest
     /// change is to the assertion, not to the model.
-    @Test("the REAL model calls `log_reading` with 83.5, and the body receives .number, not text")
+    @Test("""
+        asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 \
+        through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is \
+        ToolCallParsingTests'
+        """)
     func aDecimalSaidIsTheNumberReceived() async throws {
         guard let weights = Self.live() else { return }
         let calls = Mutex<[ToolArguments]>([])
