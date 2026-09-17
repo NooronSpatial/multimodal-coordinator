@@ -4871,3 +4871,8 @@ forks the review added (unknown extras; kind coercion; the shield's
 shape; deadline versus shield; the write and its confirmation; the
 invented number; the diet app's codename in a public repo; the small
 in-code rulings) — all open until Ryad signs the rewritten §196.
+
+*Correction, 2026-09-17:* eight of the eleven commits carry code and
+instruments (`75f072f` 19:44 → `a05ecfb` 20:14); the results page
+`ea5e4a4` came 22 minutes later — the entry above says nine; §192 has
+the right count.
