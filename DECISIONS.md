@@ -4665,3 +4665,51 @@ F-5 = A** (SPEC §184).
 **What this milestone is not:** admission, thermal and memory-pressure
 work (Aura's R1–R3, R7) stay parked, and F-8's memory question (D-105)
 stays ruled A until a milestone measures the number.
+
+## D-109 — the 4z reference branch is a proposal: spec first, then the code piece by piece (Milestone 4z)
+
+**Date:** 2026-09-17 · **Decided by:** Ryad ("B") · *(D-108 is 4y's,
+on PR #48; this entry is numbered after it.)*
+
+**The situation.** A second session, working in Ryad's diet app, wrote
+a requirement for this library (`4z-tool-contract.md`, 2026-09-16) and
+— before it was told never to touch the library — pushed
+`origin/milestone/4z-tool-contract`: eleven commits off `main`
+(`ee6788c`), nine of them code written in thirty minutes, on a spec
+that was "signed" with the words "sign both" in the OTHER app's session
+together with that app's own forks. Nothing in this repo records that
+sign-off. A four-lens review (2026-09-17; the branch built and run on
+this Mac) found: its only CI run with code is red on a wrong assertion
+(`MLXToolLiveTests`, `made.first == .none` compares to nil); lint has
+ten errors; the 20× loop was never run (the results page still holds
+the token `__LOOP__`); its D-108 and its AC-268 collide with 4y's; six
+files conflict with 4y on merge; criterion 4 ("an unknown argument
+never reaches the body") is contradicted by its own code and test; and
+about twelve design choices were decided in code with no decision
+entry — the write-confirmation fork our own §172a reserved among them.
+The MLX half works, and INSTRUMENTS §69 was reproduced exactly.
+
+**Ruling: B.** The branch is a REFERENCE, not a delivery. The library
+takes its proposed spec commit (`c188007`, cherry-picked with `-x` as
+`45fe8a8` on `milestone/4z-tools`, off `main`), rewrites §196 with the
+forks the review found missing, renumbers its ACs after 4y's, and
+HALTS for Ryad's sign-off IN THIS REPO. Only then does code come in,
+piece by piece, under present → explain → HALT — a branch commit is
+cherry-picked (`-x`) only where it survives that review; otherwise the
+piece is rebuilt. The pushed branch is left untouched.
+
+*Rejected — A: merge the branch after 4y* (renumber, port four lines
+into 4y's moved functions, fix the assertion forward, run 20×; about
+two hours). It would put nine unreviewed code commits on `main` with a
+pull request as the only review, and hand Ryad a dozen rulings he did
+not make — what the Prime Directive forbids.
+
+*Rejected — C: delete the branch and re-spec from the requirement.*
+The slowest path, and it throws away a working MLX implementation and
+a measured §69 that a lens reproduced.
+
+**What this ruling does NOT decide.** The six forks of §196 and the
+forks the review added (unknown extras; kind coercion; the shield's
+shape; deadline versus shield; the write and its confirmation; the
+invented number; the diet app's codename in a public repo; the small
+in-code rulings) — all open until Ryad signs the rewritten §196.
