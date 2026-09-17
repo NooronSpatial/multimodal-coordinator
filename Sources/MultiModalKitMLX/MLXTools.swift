@@ -213,15 +213,30 @@ extension ToolValue {
 
 /// A tool's answer goes back to the model INSIDE the template's
 /// `<tool_response>…</tool_response>` block, so an answer that carries
-/// the closing tag itself would end the block early and hand the model
+/// the closing tag itself — a session that quotes it, an app echoing
+/// what a person typed — would end the block early and hand the model
 /// whatever follows as if the template had written it. D-110 F-13 (f)
 /// puts the escape HERE, at the MLX seam, not in the core door: the tag
 /// is this chat template's word, and the core stays template-blind (the
-/// Apple result is untouched). THE SHAPE: identity, until the escape
-/// lands; `ToolResponseEscapeTests` is red until it does.
+/// Apple result is untouched; a third mind with its own template adds
+/// its own escape). Applied in the run's arm, to everything that goes
+/// back — a tool's answer and a thrown tool's words alike — before it
+/// becomes the exchange the next round's prompt is built from.
+///
+/// EXACTLY the ruling's word and no more: the closing tag, every
+/// occurrence. Its `<` becomes `&lt;` — the HTML way of saying "text,
+/// not markup" — so a person reading the prompt still sees what the
+/// tool said, and the template no longer sees its own ending. The
+/// opening tag does not end the block and is not named by F-13 (f), so
+/// it is left alone; the template's other markers are a question for
+/// the ledger, not a behaviour to invent here.
 enum ToolResponseTag {
+    /// The template's closing tag, as the chat template of this family
+    /// writes it.
+    static let closing = "</tool_response>"
+
     static func escape(_ answer: String) -> String {
-        answer
+        answer.replacingOccurrences(of: closing, with: "&lt;/tool_response>")
     }
 }
 
