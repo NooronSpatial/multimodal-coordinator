@@ -157,8 +157,17 @@ final class MemoryProbe {
         // Sixteen tokens is all this needs, and the reason is thermal, not
         // impatience: a probe that heats the phone changes the number it
         // came to read.
-        let generator = MLXReplyGenerator(model: model, instructions: instructions,
-                                          maxTokens: 16)
+        let generator: MLXReplyGenerator
+        do {
+            generator = try MLXReplyGenerator(model: model, instructions: instructions,
+                                              maxTokens: 16)
+        } catch {
+            // 4z (AC-289): the table here is `.empty`, so this is a net,
+            // shaped like the load's below.
+            status = nil
+            shareText = "the mind could not be built: \(error)"
+            return
+        }
         do { try await model.ensureModel() } catch {
             status = nil
             shareText = "the mind would not load: \(error)"

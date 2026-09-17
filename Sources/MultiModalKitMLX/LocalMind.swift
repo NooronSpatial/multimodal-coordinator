@@ -724,19 +724,26 @@ extension MLXReplyGenerator {
     ///     (AC-265).
     ///   - clock: what a `GenerationOptions.deadline` is measured on
     ///     (AC-264). Wall time by default; a `ManualClock` in the tests.
+    ///
+    /// THROWS `ToolDeclarationError` (4z piece 2b, AC-289, D-110 F-13 d)
+    /// for a `tools` table no mind can show — two parameters of one tool
+    /// with one name — HERE, on the same line that handed the table, and
+    /// never later from inside a reply, where nothing can throw. One more
+    /// `try` for the app, the price D-110 stated. A table an app cannot
+    /// mistake (`.empty`, a tool with no parameters) never throws.
     public init(model: LocalMindModel,
                 instructions: String? = nil,
                 maxTokens: Int = 1024,
                 tools: ToolTable = .empty,
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-                clock: any Clock<Duration> = ContinuousClock()) {
-        self.init(source: MLXTokenSource(model: model,
-                                         instructions: instructions,
-                                         maxTokens: maxTokens,
-                                         tools: tools),
-                  thermal: thermal,
-                  thermalPolicy: thermalPolicy,
-                  clock: clock)
+                clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        try self.init(source: MLXTokenSource(model: model,
+                                             instructions: instructions,
+                                             maxTokens: maxTokens,
+                                             tools: tools),
+                      thermal: thermal,
+                      thermalPolicy: thermalPolicy,
+                      clock: clock)
     }
 }

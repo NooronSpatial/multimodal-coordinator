@@ -38,7 +38,7 @@ struct MLXContractLiveTests {
     @Test("a REAL reply that ends on its own is .finished(.complete)")
     func aWholeReplyEndsComplete() async throws {
         guard let weights = Self.live() else { return }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
         let reply = try await mind.reply(to: ReplyContext(
             transcript: "What is the capital of Italy?",
             options: GenerationOptions(temperature: 0)))
@@ -50,7 +50,7 @@ struct MLXContractLiveTests {
     @Test("a REAL reply cut by a 3-token budget is .finished(.tokenBudget)")
     func aBudgetedReplyEndsOnTheBudget() async throws {
         guard let weights = Self.live() else { return }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
         let reply = try await mind.reply(to: ReplyContext(
             transcript: "Tell me everything you know about the history of Rome.",
             options: GenerationOptions(maxTokens: 3, temperature: 0)))
@@ -69,7 +69,7 @@ struct MLXContractLiveTests {
     @Test("a per-call instruction overrides the source's own on the REAL model")
     func aPerCallInstructionReachesTheModel() async throws {
         guard let weights = Self.live() else { return }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
         let reply = try await mind.reply(to: ReplyContext(
             transcript: "What is the capital of Italy?",
             options: GenerationOptions(
@@ -90,7 +90,7 @@ struct MLXContractLiveTests {
     @Test("temperature 0 twice, and seed 7 twice, are byte-identical")
     func theDeterminismProbe() async throws {
         guard let weights = Self.live() else { return }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights), instructions: Self.spoken)
         let question = "Name three capitals in Europe."
 
         func ask(_ options: GenerationOptions) async throws -> String {

@@ -70,9 +70,22 @@ func askDefaultWeights(_ arguments: [String]) -> URL? {
     return entries.first
 }
 
+/// A mind, or this tool's refusal (4z, AC-289): `MLXReplyGenerator.init`
+/// throws for a default table no mind can show, and an instrument that
+/// wrote such a table in its own source is told so and stops — the same
+/// `exit(2)` every setup refusal above takes, never a trap inside a
+/// generation. Shared by every instrument that builds the local mind.
+@MainActor
+func askBuildMind(_ build: () throws -> MLXReplyGenerator) -> MLXReplyGenerator {
+    do { return try build() } catch {
+        print("could not build the mind: \(error)")
+        exit(2)
+    }
+}
+
 @MainActor
 private func askMakeMind(_ arguments: [String], model: LocalMindModel) -> MLXReplyGenerator {
-    MLXReplyGenerator(
+    askBuildMind { try MLXReplyGenerator(
         model: model,
         // WORD FOR WORD the demo's text by default, so this tool
         // reproduces the phone rather than approximating it — a field
@@ -86,7 +99,7 @@ private func askMakeMind(_ arguments: [String], model: LocalMindModel) -> MLXRep
             + "add extra facts, background or explanation unless the person "
             + "asks for them. Never use lists, bullet points, numbered items, "
             + "markdown, code, or headings.",
-        maxTokens: 160)
+        maxTokens: 160) }
 }
 
 @MainActor

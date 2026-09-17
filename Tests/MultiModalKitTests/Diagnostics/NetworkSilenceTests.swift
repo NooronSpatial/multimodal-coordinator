@@ -320,7 +320,7 @@ struct NetworkSilenceTests {
         let expected = model.expectedBytes()
         let working = model.estimatedWorkingSetBytes()
         _ = model.readiness()
-        _ = MLXReplyGenerator(model: model)
+        _ = try MLXReplyGenerator(model: model)
         let seen = RecordingURLProtocol.stop()
 
         #expect(state == .installed, "the fake tree must read as a verified install")
@@ -369,7 +369,7 @@ struct NetworkSilenceTests {
         guard let weights = Self.liveWeights else { _ = PackageOnDisk.skipping("no MMK_MLX_MODEL"); return }
         guard MLXRuntime.isAvailable else { _ = PackageOnDisk.skipping("no default.metallib"); return }
 
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights))
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights))
         RecordingURLProtocol.start()
         defer { RecordingURLProtocol.stop() }
         let reply = try await mind.reply(to: ReplyContext(

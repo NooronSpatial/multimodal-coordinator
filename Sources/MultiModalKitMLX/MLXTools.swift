@@ -77,26 +77,30 @@ extension ReplyTool {
     /// one more token for nothing, and a moved byte is a moved prompt,
     /// AC-227's measurement with it). The 4w fixture row pins this.
     ///
-    /// OPEN — NOT RULED, a known crash path (piece 2's review, three
-    /// findings on one line): two parameters declared with ONE name TRAP
-    /// the process here — `Dictionary(uniqueKeysWithValues:)` has a
-    /// precondition on unique keys — and this runs inside the source's
-    /// generation task, after `openReply` returned. Nothing upstream
-    /// refuses the name (the door collapses the names into a `Set` and
-    /// checks the value against every declaration). D-110 F-13 (d) and
-    /// AC-289 rule this programmer error for the APPLE mind — it throws
-    /// where the schema is built — and nothing rules it for this one;
-    /// the reference branch carried the same line. The fork (refuse it
-    /// at `openReply` and at the generator's init like AC-289 · merge
-    /// silently · accept the trap on the page) is Ryad's to rule in
-    /// D-110's next amendment; no row can pin a trap, so none does.
+    /// THE TRAP THAT STOOD HERE, and the ruling that removed it (4z piece
+    /// 2b; D-110 F-13 d applied to this mind, AC-289). Until piece 2b the
+    /// properties were built with `Dictionary(uniqueKeysWithValues:)`,
+    /// whose precondition on unique keys TRAPPED the process for two
+    /// parameters of one name — inside the source's generation task,
+    /// after `openReply` had returned, where nothing can throw (piece
+    /// 2's review, three findings on one line; the reference branch
+    /// carried the same line). The ruling puts the refusal at the DOORS,
+    /// mind-agnostic: `ToolTable.checkDeclarations()` in the core, called
+    /// by the generator's init for its default table and by `openReply`
+    /// for a per-call one, so a table with a duplicate never reaches
+    /// this rendering (`MLXToolDeclarationTests`). Rejected with it: a
+    /// silent merge (the model shown one of two declarations, "never
+    /// shown empty"'s cousin), and the trap kept on the page.
+    ///
+    /// The construction below is one that CANNOT trap: each property is
+    /// written under its name by assignment. On a table the doors passed
+    /// every name is written exactly once, which is the whole of what the
+    /// bytes fixtures pin; no precondition stands here, because the doors
+    /// are the guarantee and a second guard would be a second trap.
     var toolSpec: ToolSpec {
-        var schema: [String: any Sendable] = [
-            "type": "object",
-            "properties": Dictionary(uniqueKeysWithValues: parameters.map { parameter in
-                (parameter.name, parameter.property)
-            }) as [String: any Sendable]
-        ]
+        var properties: [String: any Sendable] = [:]
+        for parameter in parameters { properties[parameter.name] = parameter.property }
+        var schema: [String: any Sendable] = ["type": "object", "properties": properties]
         let required = parameters.filter(\.isRequired).map(\.name)
         if !required.isEmpty {
             schema["required"] = required

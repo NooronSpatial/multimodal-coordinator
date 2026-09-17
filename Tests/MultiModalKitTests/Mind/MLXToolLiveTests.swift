@@ -84,7 +84,7 @@ struct MLXToolLiveTests {
             calledAt.withLock { $0 = clock.now }
             return Self.session
         }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights),
                                      tools: ToolTable([tool]))
         // Warm first, so the numbers below are the tool path's and not
         // the metal pipeline's first breath (INSTRUMENTS §25).
@@ -165,7 +165,7 @@ struct MLXToolLiveTests {
             received.withLock { $0.append(kg) }
             return "recorded \(kg) kg"
         }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights))
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights))
         _ = try await mind.reply(to: ReplyContext(transcript: "hi", options: GenerationOptions(maxTokens: 1)))
 
         // The table rides on THIS call (F-2 = A): the mind was built with
@@ -192,7 +192,7 @@ struct MLXToolLiveTests {
     func theNoToolBaselineIsMeasured() async throws {
         guard let weights = Self.live() else { return }
         let clock = ContinuousClock()
-        let bare = MLXReplyGenerator(model: LocalMindModel(weights: weights))
+        let bare = try MLXReplyGenerator(model: LocalMindModel(weights: weights))
         _ = try await bare.reply(to: ReplyContext(transcript: "hi", options: GenerationOptions(maxTokens: 1)))
         let started = clock.now
         let reply = try await bare.reply(to: ReplyContext(

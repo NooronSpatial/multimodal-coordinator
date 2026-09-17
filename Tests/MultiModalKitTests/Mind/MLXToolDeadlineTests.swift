@@ -65,7 +65,7 @@ struct MLXToolDeadlineTests {
             [.token("Let me log that. "), .toolCall(Self.call), .stopped(.complete)],
             [.token("Logged."), .stopped(.complete)]
         ]), tools: ToolTable([Self.writer(facts: facts, gate: gate, writes: writes)]))
-        let mind = MLXReplyGenerator(source: source, clock: clock)
+        let mind = try MLXReplyGenerator(source: source, clock: clock)
         let run = try await mind.openReply(to: ReplyContext(
             transcript: "log eighty-three and a half",
             options: GenerationOptions(deadline: .milliseconds(200))))
@@ -132,7 +132,7 @@ struct MLXToolDeadlineTests {
             [.toolCall(Self.call), .stopped(.complete)],
             [.token("Logged"), .stopped(.complete)]
         ]), tools: ToolTable([Self.writer(facts: facts, gate: gate, writes: writes)]))
-        let mind = MLXReplyGenerator(source: source, clock: clock)
+        let mind = try MLXReplyGenerator(source: source, clock: clock)
         let run = try await mind.openReply(to: ReplyContext(
             transcript: "log eighty-three and a half",
             options: GenerationOptions(deadline: .seconds(30))))
