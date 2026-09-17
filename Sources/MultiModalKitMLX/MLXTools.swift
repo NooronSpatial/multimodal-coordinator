@@ -76,6 +76,20 @@ extension ReplyTool {
     /// empty `properties` and NO `required` key (an empty list would be
     /// one more token for nothing, and a moved byte is a moved prompt,
     /// AC-227's measurement with it). The 4w fixture row pins this.
+    ///
+    /// OPEN — NOT RULED, a known crash path (piece 2's review, three
+    /// findings on one line): two parameters declared with ONE name TRAP
+    /// the process here — `Dictionary(uniqueKeysWithValues:)` has a
+    /// precondition on unique keys — and this runs inside the source's
+    /// generation task, after `openReply` returned. Nothing upstream
+    /// refuses the name (the door collapses the names into a `Set` and
+    /// checks the value against every declaration). D-110 F-13 (d) and
+    /// AC-289 rule this programmer error for the APPLE mind — it throws
+    /// where the schema is built — and nothing rules it for this one;
+    /// the reference branch carried the same line. The fork (refuse it
+    /// at `openReply` and at the generator's init like AC-289 · merge
+    /// silently · accept the trap on the page) is Ryad's to rule in
+    /// D-110's next amendment; no row can pin a trap, so none does.
     var toolSpec: ToolSpec {
         var schema: [String: any Sendable] = [
             "type": "object",
