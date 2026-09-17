@@ -6,7 +6,7 @@ Building for debugging...
 [1 / 97] MLX
 [1 / 118] Jinja
 [1 / 40] Cmlx
-warning: missing creator for mutated node: ('/Users/ryad/Developer/multimodal-coordinator/.claude/worktrees/wf_5e0ba2a9-f80-1/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
+warning: missing creator for mutated node: ('<worktree>/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
 Build complete! (2.09 sec)
 Test Suite 'All tests' started at 2026-09-17 19:51:51.148.
 Test Suite 'All tests' passed at 2026-09-17 19:51:51.157.
