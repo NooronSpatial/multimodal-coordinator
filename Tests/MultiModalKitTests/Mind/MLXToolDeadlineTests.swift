@@ -21,7 +21,7 @@ import Testing
 // What a test SEES, per AC-278 under A: the write happens exactly once;
 // `.finished(.deadline)` is spoken AFTER the body has ended; the terminal
 // is spoken exactly once, and last. Under `ManualClock`, waiting on
-// EVENTS — "entered", "written", "ended" — never on time.
+// EVENTS — "entered", "written", "terminal", "ended" — never on time.
 
 @Suite("AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last",
        .timeLimit(.minutes(1)))
@@ -88,7 +88,7 @@ struct MLXToolDeadlineTests {
         // convicts a design that speaks at the deadline.
         await clock.advance(by: .milliseconds(200))
         #expect(clock.sleeperCount == 0, "the sleeper woke")
-        #expect(!facts.log.contains("ended"), "the terminal is not spoken while the body runs: \(facts.log)")
+        #expect(!facts.log.contains("terminal"), "the terminal is not spoken while the body runs: \(facts.log)")
         #expect(writes.total == 0, "the deadline itself writes nothing")
 
         // The body is let out into a reply the clock has ended: it writes,
@@ -99,8 +99,13 @@ struct MLXToolDeadlineTests {
         #expect(await facts.heard("written"), "the tool ran to its end")
         let log = facts.log
         let written = try #require(log.firstIndex(of: "written"))
+        let terminal = try #require(log.firstIndex(of: "terminal"))
         let ended = try #require(log.firstIndex(of: "ended"))
-        #expect(written < ended, ".finished(.deadline) is spoken AFTER the body ends: \(log)")
+        // The terminal's own yield, not the stream's end as its proxy: a
+        // design that yielded `.finished(.deadline)` at the deadline and
+        // finished the stream after the body would pass the second pin.
+        #expect(written < terminal, ".finished(.deadline) is YIELDED after the body ends: \(log)")
+        #expect(written < ended, "and the stream ends after the body ends: \(log)")
         #expect(!log.contains("aborted"), "the body never saw the cancellation")
 
         #expect(updates == [.token("Let me log that. "), .finished(.deadline)],
