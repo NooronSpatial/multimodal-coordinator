@@ -24,6 +24,8 @@ import Testing
 struct MLXToolRunTests {
     private static let answer = "Today is a 40 minute easy run, readiness 71."
     private static let call = ToolCallRequest(name: "session", arguments: ["day": "today"])
+    private static let day = ToolParameter(name: "day", description: "which day to read",
+                                           kind: .string, isRequired: false)
 
     /// Round 0 ends with a call; round 1 is what the model says once it
     /// has read the answer.
@@ -38,7 +40,9 @@ struct MLXToolRunTests {
 
     @Test("a scripted call: the table is called with the flattened arguments, the answer follows, one terminal")
     func theCallIsMadeAndTheReplyContinues() async throws {
-        let tool = ScriptedTool(name: "session", plan: .answers(Self.answer))
+        // The argument this row watches arrive is DECLARED: since 4z the door
+        // strips what the tool never declared (F-7 C).
+        let tool = ScriptedTool(name: "session", parameters: [Self.day], plan: .answers(Self.answer))
         let source = ScriptedTokenSource(Self.twoRounds(), tools: ToolTable([tool.tool]))
         let run = try await MLXReplyGenerator(source: source).openReply(to: "What is today's session?")
         let updates = await ReplyConformanceKit.drain(run)

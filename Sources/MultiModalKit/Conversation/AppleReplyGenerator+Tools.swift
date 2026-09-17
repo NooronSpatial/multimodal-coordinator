@@ -6,7 +6,7 @@
 //     ─────────────────                ────────────────────────────
 //     name: String                     name: String
 //     description: String              description: String
-//     call([String: String]) -> String call(arguments: Arguments) -> Output
+//     body(ToolArguments) -> String     call(arguments: Arguments) -> Output
 //                                      parameters: GenerationSchema   ← derived from Arguments
 //
 // The vendor EXECUTES the tool itself, inside `streamResponse`, and then
@@ -17,7 +17,7 @@
 // the framework matches names against the tools it was handed. What it
 // does for a name no tool has is the vendor's and NOT MEASURED HERE —
 // SPEC §172's F-4 reads it as "tells the model and lets it recover in
-// words", which is the policy `ToolTable.call` writes for the other
+// words", which is the policy `ToolTable.invoke` writes for the other
 // minds; no test on this Mac can reach that path (the model was not
 // ready — see `AppleToolLiveTests`), so this file adds no lookup of its
 // own and makes no promise about the vendor's.
@@ -28,7 +28,7 @@ import FoundationModels
 
 /// What the model may pass to a spike tool: NOTHING. The spike's one
 /// tool is a no-argument read ("what is today's session?", F-3 = C), and
-/// `ReplyTool.call` takes `[String: String]`, so an empty dictionary is
+/// the door is knocked with `ToolArguments.empty`, so no argument is
 /// what the tool receives (SPEC §170: arguments are the contract's to
 /// widen).
 ///
@@ -41,7 +41,7 @@ import FoundationModels
 /// a schema built from the `ReplyTool` (the vendor's
 /// `GenerationSchema(type:properties:)` is public, so it can be built by
 /// hand at runtime) and the typed `GeneratedContent` rendered into the
-/// `[String: String]` the tool takes. Neither is decided here (§170).
+/// `ToolArguments` the door takes. Both are the Apple piece of 4z.
 @available(macOS 26.0, iOS 26.0, *)
 @Generable
 struct AppleToolNoArguments {}
@@ -76,7 +76,8 @@ struct AppleToolAdapter: Tool {
     /// `.failed`. Catching it here and returning the failure sentence as
     /// the `Output` — so the model is told and recovers in words — is the
     /// other half of an open fork (see `AppleReplyRun.toolFailure`), and
-    /// it is Ryad's to rule, not this file's.
+    /// it is Ryad's to rule, not this file's. RULED SINCE: D-110 F-4 = B —
+    /// the catch lands with the Apple piece of 4z, not with the door.
     ///
     /// THE REENTRANCY LAW (§4.1), applied at the one `await` this file
     /// owns: a barge may have retired the run while the tool was busy.
@@ -88,10 +89,19 @@ struct AppleToolAdapter: Tool {
     /// vendor's, not a promise this library can read from its
     /// interface), a late answer is thrown away HERE, before the vendor
     /// can spend a prefill feeding it to a model nobody is listening to.
+    ///
+    /// THROUGH THE DOOR (4z, F-13 g): the body is not reachable any other
+    /// way, so the adapter builds a one-tool table and knocks. The
+    /// arguments are still `.empty` and the confirmed set still `[]` —
+    /// the schema built at run time, the typed arguments read by kind,
+    /// the call's options and F-4 = B's catch are the Apple piece of 4z,
+    /// not this one. Until it lands a flagged tool on this mind is
+    /// refused every time (fail closed), and a refusal is rethrown as
+    /// the typed failure so `toolFailure(from:)` can carry it whole.
     func call(arguments: AppleToolNoArguments) async throws -> String {
-        let answer = try await tool.call([:])
+        let outcome = await ToolTable([tool]).invoke(tool.name, arguments: .empty)
         try Task.checkCancellation()
-        return answer
+        return try outcome.result.get()
     }
 }
 
@@ -121,7 +131,7 @@ extension AppleReplyRun {
     /// rate, concurrency, refusal); the tool failure is its own error
     /// type beside it, carrying `tool` and `underlyingError`. The words
     /// are `String(describing: underlyingError)`, which is what
-    /// `ToolTable.call` writes for the other minds — the same error
+    /// `ToolTable.invoke` writes for the other minds — the same error
     /// gives the same sentence.
     ///
     /// AN OPEN FORK, NOT RULED HERE (the 4w review's blocking finding on
@@ -151,8 +161,15 @@ extension AppleReplyRun {
     /// it is the fold for the error the vendor can raise regardless of
     /// what the adapter does — and the live test (`AppleToolLiveTests`,
     /// AC-225) pins the interim ending A until the ruling changes it.
+    /// RULED SINCE: D-110 F-4 = B (4z); the adapter's catch is the Apple
+    /// piece of that milestone, and this fold stays for the vendor's
+    /// error either way.
     static func toolFailure(from error: LanguageModelSession.ToolCallError) -> ToolCallFailure {
-        ToolCallFailure(tool: error.tool.name,
-                        reason: .threw(String(describing: error.underlyingError)))
+        // Since 4z the adapter knocks at the table's door, which already
+        // typed the failure; a value the door made is carried whole, not
+        // wrapped a second time into `tool 'x' failed: tool 'x' failed: …`.
+        if let typed = error.underlyingError as? ToolCallFailure { return typed }
+        return ToolCallFailure(tool: error.tool.name,
+                               reason: .threw(String(describing: error.underlyingError)))
     }
 }

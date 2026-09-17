@@ -92,7 +92,7 @@ enum SessionStub {
     /// row is written after that — so `record(_:)` on the model always
     /// finds this call already there.
     static func tool(recording recorder: SessionToolRecorder) -> ReplyTool {
-        ReplyTool(name: name, description: description) { _ in
+        ReplyTool(name: name, description: description, parameters: [], requiresConfirmation: false) { _ in
             await recorder.record(answer)
             return answer
         }

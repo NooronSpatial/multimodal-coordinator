@@ -87,12 +87,10 @@ struct AppleToolLiveTests {
     func realMindCallsTheTool() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let tool = ScriptedTool(name: "session", plan: .answers(Self.session))
-        let generator = AppleReplyGenerator(
-            instructions: Self.instructions,
-            tools: ToolTable([ReplyTool(name: "session",
-                                        description: "Reads today's training session and its readiness verdict.",
-                                        call: tool.tool.call)]))
+        let tool = ScriptedTool(name: "session",
+                                description: "Reads today's training session and its readiness verdict.",
+                                plan: .answers(Self.session))
+        let generator = AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         // Warm the model outside the measured turn (AC-115): the number
         // below is the tool path's, not the cold start's.
         generator.prewarm()
@@ -125,12 +123,10 @@ struct AppleToolLiveTests {
     func throwingToolFailsTheReply() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let tool = ScriptedTool(name: "session", plan: .throwsError("the stub is offline"))
-        let generator = AppleReplyGenerator(
-            instructions: Self.instructions,
-            tools: ToolTable([ReplyTool(name: "session",
-                                        description: "Reads today's training session and its readiness verdict.",
-                                        call: tool.tool.call)]))
+        let tool = ScriptedTool(name: "session",
+                                description: "Reads today's training session and its readiness verdict.",
+                                plan: .throwsError("the stub is offline"))
+        let generator = AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         generator.prewarm()
 
         let reply = try await Self.timedReply(generator)
@@ -149,12 +145,10 @@ struct AppleToolLiveTests {
     func firstTokenWithAndWithoutTheTool() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let tool = ScriptedTool(name: "session", plan: .answers(Self.session))
-        let with = AppleReplyGenerator(
-            instructions: Self.instructions,
-            tools: ToolTable([ReplyTool(name: "session",
-                                        description: "Reads today's training session and its readiness verdict.",
-                                        call: tool.tool.call)]))
+        let tool = ScriptedTool(name: "session",
+                                description: "Reads today's training session and its readiness verdict.",
+                                plan: .answers(Self.session))
+        let with = AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         let without = AppleReplyGenerator(instructions: Self.instructions)
         without.prewarm()
 

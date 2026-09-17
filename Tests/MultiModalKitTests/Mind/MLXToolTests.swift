@@ -19,7 +19,8 @@ import Testing
 @Suite("4w · the spec the MLX mind renders for a tool")
 struct ToolSpecTests {
     private let session = ReplyTool(name: "session",
-                                    description: "Read today's training session.") { _ in "" }
+                                    description: "Read today's training session.",
+                                    parameters: [], requiresConfirmation: false) { _ in "" }
 
     /// The fixture is the vendor's `ToolSpec` shape, byte for byte with
     /// keys sorted, because the template renders it with `tojson` and a

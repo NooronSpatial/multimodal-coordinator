@@ -47,17 +47,38 @@ public struct GenerationOptions: Sendable, Equatable {
     /// does not fail. The minds implement the clock; the seam only
     /// carries the number.
     public var deadline: Duration?
+    /// The tools THIS call may use (4z, D-110 F-2 = A — 4w's closing
+    /// fork, ruled on §67's numbers). `nil` is the generator's own table;
+    /// a table here REPLACES it for this call — so `.empty` means "no
+    /// tools this turn" even on a generator that holds some, and the app
+    /// pays the prompt's tool cost only on the turns that may use one.
+    /// (The scripted mind resolves it today; the MLX and Apple minds
+    /// resolve it with their own pieces of 4z — until then they read the
+    /// generator's table and this field rides unread.)
+    public var tools: ToolTable?
+    /// The person's "yes", by tool NAME (4z, D-110 F-10 B, sub-fork
+    /// B-ii): a tool flagged `requiresConfirmation` runs only on a call
+    /// whose options name it here. The app marks it after it has heard
+    /// the yes; the model cannot — an argument called `confirmed` is
+    /// just an argument. Bound to the name, not the arguments: the
+    /// model's next call of that tool runs with whatever it writes
+    /// (the hole B-iv would close, taken only if §69 shows it).
+    public var confirmedTools: Set<String>
 
     public init(instructions: String? = nil,
                 maxTokens: Int? = nil,
                 temperature: Float? = nil,
                 seed: UInt64? = nil,
-                deadline: Duration? = nil) {
+                deadline: Duration? = nil,
+                tools: ToolTable? = nil,
+                confirmedTools: Set<String> = []) {
         self.instructions = instructions
         self.maxTokens = maxTokens
         self.temperature = temperature
         self.seed = seed
         self.deadline = deadline
+        self.tools = tools
+        self.confirmedTools = confirmedTools
     }
 }
 
