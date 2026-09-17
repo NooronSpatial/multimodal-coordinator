@@ -321,7 +321,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
                 ToolCallRecord(name: script.name, arguments: script.arguments))
             return state.records[index].toolCalls.count - 1
         }
-        let outcome = await tools.call(script.name, arguments: script.arguments)
+        let outcome = await tools.invoke(script.name, arguments: script.arguments).result
 
         // THE REENTRANCY LAW (§4.1): the tool took as long as it took, and
         // a barge may have cancelled this reply in the meantime. A

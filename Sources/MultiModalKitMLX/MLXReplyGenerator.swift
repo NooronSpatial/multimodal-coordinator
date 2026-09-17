@@ -285,7 +285,8 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     return
                 }
                 rounds += 1
-                guard let answered = await execute(round.calls, with: source.tools) else { return }
+                guard let answered = await execute(round.calls, with: source.tools,
+                                                   confirmed: context.options.confirmedTools) else { return }
                 exchanges += answered
             }
         } catch let failure as ReplyFailure {
@@ -370,12 +371,21 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// THE ARM (4w, AC-222; F-1 = B, F-4 = B): every call the round
     /// asked for, executed in order, and what goes back to the model.
     ///
-    /// `ToolTable.call` folds both ways a call can fail — a name no tool
-    /// has, a tool that threw — into one typed value, and BOTH are
-    /// answered to the model as words (F-4 = B, D-101): the model reads
-    /// "no tool named 'x'" as a tool response and recovers in its own
-    /// sentence, which is the honest turn AC-225 wants. Reporting
-    /// `.failed` instead was the rejected option A.
+    /// `ToolTable.invoke` — the door (4z, F-13 g) — folds every way a
+    /// call can fail — a name no tool has, an argument the declaration
+    /// refuses, a flag without the person's yes, a tool that threw —
+    /// into one typed value, and ALL are answered to the model as words
+    /// (F-4 = B, D-101): the model reads "no tool named 'x'" as a tool
+    /// response and recovers in its own sentence, which is the honest
+    /// turn AC-225 wants. Reporting `.failed` instead was the rejected
+    /// option A.
+    ///
+    /// THE SEAM, STILL FLAT (4z's MLX piece widens it): the request's
+    /// arguments are the spike's `[String: String]`, handed to the door
+    /// as `.string` values. The door's lenient kinds (F-8 C) read "84"
+    /// as 84 for a number parameter and count the coercion, so a tool
+    /// with parameters already works on this mind; parsing the vendor's
+    /// JSON by kind, so the count is honest, is that piece's job.
     ///
     /// THE REENTRANCY LAW (§4.1), after EVERY await: the tool took as long
     /// as it took, and a barge may have retired this run meanwhile. A
@@ -385,20 +395,18 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// The task's own cancellation is the optimisation that reaches into
     /// a slow tool; `retired` is the guarantee this guard reads.
     private func execute(_ calls: [ToolCallRequest],
-                         with tools: ToolTable) async -> [ToolExchange]? {
+                         with tools: ToolTable,
+                         confirmed: Set<String>) async -> [ToolExchange]? {
         var answered: [ToolExchange] = []
         for request in calls {
             // Before AND after: a run retired between the round's last
             // event and this arm must not start a tool it can never use.
             // A run past its deadline neither (4y): the clock ended it.
             guard !dead else { return nil }
-            let outcome = await tools.call(request.name, arguments: request.arguments)
+            let arguments = ToolArguments(request.arguments.mapValues { ToolValue.string($0) })
+            let outcome = await tools.invoke(request.name, arguments: arguments, confirmed: confirmed)
             guard !dead else { return nil }
-            let answer = switch outcome {
-            case .success(let words): words
-            case .failure(let failure): failure.description
-            }
-            answered.append(ToolExchange(request: request, answer: answer))
+            answered.append(ToolExchange(request: request, answer: outcome.wordsForModel))
         }
         return answered
     }

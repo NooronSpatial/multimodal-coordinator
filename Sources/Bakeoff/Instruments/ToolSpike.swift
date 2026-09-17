@@ -289,7 +289,8 @@ private final class ToolSpikeStub: Sendable {
     var tool: ReplyTool {
         // `self`, not `record`: a `Mutex` cannot be copied into a capture
         // list, and this class is `Sendable` so the closure may hold it.
-        ReplyTool(name: "session", description: toolSpikeDescription) { [self] _ in
+        ReplyTool(name: "session", description: toolSpikeDescription,
+                  parameters: [], requiresConfirmation: false) { [self] _ in
             let entered = clock.now
             record.withLock { $0.calls += 1; $0.enteredAt = entered }
             let answer = toolSpikeSession

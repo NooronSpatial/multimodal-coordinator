@@ -75,10 +75,11 @@ struct MLXToolLiveTests {
     func theModelCallsTheToolAndSpeaksTheAnswer() async throws {
         guard let weights = Self.live() else { return }
         let clock = ContinuousClock()
-        let calls = Mutex<[[String: String]]>([])
+        let calls = Mutex<[ToolArguments]>([])
         let calledAt = Mutex<ContinuousClock.Instant?>(nil)
         let tool = ReplyTool(name: "session",
-                             description: "Read today's training session and readiness.") { arguments in
+                             description: "Read today's training session and readiness.",
+                             parameters: [], requiresConfirmation: false) { arguments in
             calls.withLock { $0.append(arguments) }
             calledAt.withLock { $0 = clock.now }
             return Self.session
@@ -118,7 +119,7 @@ struct MLXToolLiveTests {
                   + "call→first word after the answer \(calledAt.duration(to: firstWordAfterAnswer))")
         }
         #expect(made.count == 1, "the tool was called exactly once")
-        #expect(made.first == [:], "the spike's read takes no arguments")
+        #expect(made.first == .empty, "the spike's read takes no arguments")
         #expect(stop == .complete)
         #expect(text.contains("40") && text.contains("71"),
                 "the reply carries the session's numbers — the answer went back and was spoken")
@@ -155,7 +156,8 @@ struct MLXToolLiveTests {
         let model = LocalMindModel(weights: weights)
         let container = try await model.ensureModelLoaded()
         let tool = ReplyTool(name: "session",
-                             description: "Read today's training session and readiness.") { _ in Self.session }
+                             description: "Read today's training session and readiness.",
+                             parameters: [], requiresConfirmation: false) { _ in Self.session }
         let specs = ToolTable([tool]).toolSpecs
         let spoken = Self.spoken
         let question = Self.plainQuestion

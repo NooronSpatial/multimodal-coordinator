@@ -42,7 +42,7 @@ extension ToolSpikeTests {
             tool.release()
             #expect(await signals.heard("reply0 done"))
             #expect(rig.bench.generator.record(ofReply: 0)?.toolCalls == [
-                ToolCallRecord(name: "session", arguments: [:],
+                ToolCallRecord(name: "session", arguments: .empty,
                                outcome: .answered(Self.session), answerDropped: true)
             ], "the run saw the answer, re-checked its ticket, and dropped it")
 
@@ -102,7 +102,7 @@ extension ToolSpikeTests {
             tool.release()
             #expect(await signals.heard("reply0 done"))
             #expect(rig.bench.generator.record(ofReply: 0)?.toolCalls == [
-                ToolCallRecord(name: "session", arguments: [:],
+                ToolCallRecord(name: "session", arguments: .empty,
                                outcome: .answered(Self.session), answerDropped: false)
             ], "the defiant run did NOT drop it — the ticket has to")
 
@@ -148,7 +148,7 @@ extension ToolSpikeTests {
             #expect(await rig.heard("failed:0"), "a failing tool must end the turn, not the loop")
             #expect(await rig.heard("idle:0"))
             #expect(rig.bench.generator.record(ofReply: 0)?.toolCalls == [
-                ToolCallRecord(name: "session", arguments: [:], outcome: .failed(failure))
+                ToolCallRecord(name: "session", arguments: .empty, outcome: .failed(failure))
             ], "the failure is a typed, countable value on the side that made the call")
             #expect(await rig.bench.coordinator.currentMemory.isEmpty, "a failed turn is never remembered")
 
@@ -212,7 +212,7 @@ extension ToolSpikeTests {
 
         #expect(tool.calls.isEmpty, "the tool that exists was never asked")
         #expect(rig.bench.generator.record(ofReply: 0)?.toolCalls == [
-            ToolCallRecord(name: "weather", arguments: [:],
+            ToolCallRecord(name: "weather", arguments: .empty,
                            outcome: .failed(ToolCallFailure(tool: "weather", reason: .unknownTool)))
         ])
         #expect(rig.bench.generator.record(ofReply: 1)?.transcript == "and the session?")

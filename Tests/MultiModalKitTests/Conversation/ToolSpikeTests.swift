@@ -212,6 +212,11 @@ struct ToolSpikeTests {
     /// readiness verdict, owned by whoever plays the app.
     static let session = "Push day: 40 minutes of intervals, readiness green."
 
+    /// The one parameter the spike's rows pass (4z): declared, so the
+    /// door lets it through to the body (F-7 C strips the undeclared).
+    static let day = ToolParameter(name: "day", description: "which day to read",
+                                   kind: .string, isRequired: false)
+
     /// What every barged-during-the-call run must leave behind: the exact
     /// stream, with nothing of turn 0 after its barge (AC-63's shape).
     static let bargedSequence: [TurnEvent] = [
@@ -237,7 +242,9 @@ struct ToolSpikeTests {
     /// tokens that follow it.
     @Test("AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal")
     func theRunCallsTheToolItself() async throws {
-        let tool = ScriptedTool(name: "session", plan: .answers(Self.session))
+        // Since 4z the door strips what the tool never declared (F-7 C),
+        // so the argument this row watches arrive is DECLARED.
+        let tool = ScriptedTool(name: "session", parameters: [Self.day], plan: .answers(Self.session))
         let script = ToolScript(name: "session", arguments: ["day": "today"],
                                 before: ["Let me check. "], after: [" Ready?"])
         let rig = try await Rig(
@@ -304,7 +311,7 @@ struct ToolSpikeTests {
 
     @Test("ToolTable: exact name, nil for a stranger, both failures typed")
     func toolTableLookupRule() async {
-        let tool = ScriptedTool(name: "session", plan: .answers("green"))
+        let tool = ScriptedTool(name: "session", parameters: [Self.day], plan: .answers("green"))
         let broken = ScriptedTool(name: "broken", plan: .throwsError("no"))
         let table = ToolTable([tool.tool, broken.tool])
 
@@ -313,12 +320,13 @@ struct ToolSpikeTests {
         #expect(table["weather"] == nil)
         #expect(ToolTable.empty.isEmpty)
 
-        let answered = await table.call("session", arguments: ["a": "1"])
+        // Through the door (4z, F-13 g): the body has no other entrance.
+        let answered = await table.invoke("session", arguments: ["day": "today"]).result
         #expect(answered == .success("green"))
-        #expect(tool.calls == [["a": "1"]])
-        let unknown = await table.call("weather", arguments: [:])
+        #expect(tool.calls == [["day": "today"]])
+        let unknown = await table.invoke("weather", arguments: .empty).result
         #expect(unknown == .failure(ToolCallFailure(tool: "weather", reason: .unknownTool)))
-        let threw = await table.call("broken", arguments: [:])
+        let threw = await table.invoke("broken", arguments: .empty).result
         #expect(threw == .failure(ToolCallFailure(tool: "broken", reason: .threw("no"))))
         #expect(ToolCallFailure(tool: "broken", reason: .threw("no")).description
                 == "tool 'broken' failed: no")

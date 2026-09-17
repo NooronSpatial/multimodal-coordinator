@@ -71,8 +71,10 @@ extension ToolSpikeTests {
         let signals = Signals()
         let gate = Gate()
         let writes = Mutex(0)
-        let logWeight = ReplyTool(name: "log_weight",
-                                  description: "Record today's body weight.") { _ in
+        let logWeight = ReplyTool(
+            name: "log_weight", description: "Record today's body weight.",
+            parameters: [ToolParameter(name: "kg", description: "kilograms", kind: .number, isRequired: true)],
+            requiresConfirmation: false) { _ in
             signals.send("entered")
             await gate.wait()
             // A COOPERATIVE tool — the kind an app writes: it looks at the
@@ -87,7 +89,7 @@ extension ToolSpikeTests {
             signals.send("written")
             return "logged 83.5 kg"
         }
-        let script = ToolScript(name: "log_weight", arguments: ["kg": "83.5"],
+        let script = ToolScript(name: "log_weight", arguments: ["kg": 83.5],
                                 whenDone: { signals.send("reply0 done") })
         let rig = try await Rig(
             generator: ScriptedReplyGenerator(plans: [.callsTool(script), .manual()],
@@ -114,7 +116,7 @@ extension ToolSpikeTests {
             #expect(writes.withLock { $0 } == 1, "exactly one write — a barge is not a cancel (F-5 = A)")
             #expect(await signals.heard("written", within: .seconds(1)), "the tool ran to its end")
             #expect(rig.bench.generator.record(ofReply: 0)?.toolCalls == [
-                ToolCallRecord(name: "log_weight", arguments: ["kg": "83.5"],
+                ToolCallRecord(name: "log_weight", arguments: ["kg": 83.5],
                                outcome: .answered("logged 83.5 kg"), answerDropped: true)
             ], "the answer was dropped by the run's own re-check of its ticket; the write was not")
 

@@ -27,7 +27,7 @@ struct AppleToolTests {
     /// session, answered from a stub.
     private static let answer = "Today's session is a forty minute tempo run. Readiness verdict: push."
 
-    /// What the stub throws, with the words `ToolTable.call` and the
+    /// What the stub throws, with the words `ToolTable.invoke` and the
     /// vendor's `ToolCallError` both carry — `String(describing:)` of
     /// the error, which for a `CustomStringConvertible` is its
     /// `description`. `ScriptedTool.throwsError` throws the testing
@@ -42,7 +42,8 @@ struct AppleToolTests {
     @Test("the adapter wears the ReplyTool's name and description, verbatim")
     func nameAndDescriptionAreTheTools() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let tool = ReplyTool(name: "session", description: "reads today's training session") { _ in
+        let tool = ReplyTool(name: "session", description: "reads today's training session",
+                             parameters: [], requiresConfirmation: false) { _ in
             Self.answer
         }
         let adapter = AppleToolAdapter(tool)
@@ -53,7 +54,8 @@ struct AppleToolTests {
     @Test("the schema the model is shown has no parameters — a no-argument read (§170)")
     func schemaHasNoProperties() throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let adapter = AppleToolAdapter(ReplyTool(name: "session", description: "reads") { _ in "" })
+        let adapter = AppleToolAdapter(ReplyTool(name: "session", description: "reads",
+                                                 parameters: [], requiresConfirmation: false) { _ in "" })
         // `GenerationSchema` is `Codable`; its JSON is the honest witness
         // of what the model is shown. An object type with no properties.
         let json = try JSONSerialization.jsonObject(with: JSONEncoder().encode(adapter.parameters))
@@ -72,7 +74,7 @@ struct AppleToolTests {
         let adapter = AppleToolAdapter(scripted.tool)
         let answer = try await adapter.call(arguments: AppleToolNoArguments())
         #expect(answer == Self.answer)
-        #expect(scripted.calls == [[:]], "the spike's arguments are the empty dictionary")
+        #expect(scripted.calls == [.empty], "the spike's arguments are none at all")
     }
 
     // MARK: a throw, in the seam's words (AC-225)
@@ -90,9 +92,9 @@ struct AppleToolTests {
         #expect(failure == ToolCallFailure(tool: "session", reason: .threw("the stub is offline")))
         #expect(failure.description == "tool 'session' failed: the stub is offline")
         // The SAME sentence the scripted and MLX minds write for the same
-        // tool, through `ToolTable.call` — one lookup rule, one sentence.
+        // tool, through `ToolTable.invoke` — one door, one sentence.
         let table = ToolTable([scripted.tool])
-        let other = await table.call("session", arguments: [:])
+        let other = await table.invoke("session", arguments: .empty).result
         #expect(other == .failure(failure))
     }
 
@@ -126,8 +128,10 @@ struct AppleToolTests {
     func tableBecomesAdaptersInOrder() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let table = ToolTable([
-            ReplyTool(name: "session", description: "reads today's session") { _ in "" },
-            ReplyTool(name: "weather", description: "reads the sky") { _ in "" }
+            ReplyTool(name: "session", description: "reads today's session",
+                      parameters: [], requiresConfirmation: false) { _ in "" },
+            ReplyTool(name: "weather", description: "reads the sky",
+                      parameters: [], requiresConfirmation: false) { _ in "" }
         ])
         let adapters = AppleToolAdapter.adapters(for: table)
         #expect(adapters.map(\.name) == ["session", "weather"])
@@ -161,7 +165,8 @@ struct AppleToolTests {
     @Test("the vendor fills the instructions entry's toolDefinitions from the tools it was handed")
     func vendorOwnsTheToolDefinitions() throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let table = ToolTable([ReplyTool(name: "session", description: "reads today's session") { _ in "" }])
+        let table = ToolTable([ReplyTool(name: "session", description: "reads today's session",
+                                         parameters: [], requiresConfirmation: false) { _ in "" }])
         // Written EMPTY here, exactly as `AppleReplyGenerator.session` writes it.
         let transcript = Transcript(entries: [.instructions(Transcript.Instructions(
             segments: [.text(Transcript.TextSegment(content: "speak briefly"))],
