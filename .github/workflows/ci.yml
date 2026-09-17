@@ -18,8 +18,25 @@ jobs:
         run: swift build --target MultiModalKit -Xswiftc -warnings-as-errors
       - name: Build (warnings as errors)
         run: swift build -Xswiftc -warnings-as-errors
-      - name: Test
-        run: swift test -Xswiftc -warnings-as-errors
+      # THE HAMMER RUNS ALONE (D-111). One 4y test — "four hundred deadlines
+      # against a firehose" — keeps three tasks busy for 400 rounds, which
+      # is every thread of this 3-core runner for 15–44 s; two unrelated
+      # TTS tests starved underneath it and went red on four runs in a row
+      # (docs/evidence/4y/ci-starvation.md). So the suite runs WITHOUT it,
+      # then the hammer runs by itself: same test, same 400 rounds, same
+      # bytes — only the process changes. The pattern is the test's ID
+      # (Type/function), which is what --skip and --filter match on.
+      - name: Test (the suite, minus the hammer)
+        run: swift test -Xswiftc -warnings-as-errors --skip 'MLXDeadlineTests/aTokenIsNeverSpokenAfterTheDeadlineTerminal'
+      - name: Test (the hammer, alone)
+        run: |
+          set -o pipefail
+          echo "cores: $(sysctl -n hw.ncpu)"
+          swift test -Xswiftc -warnings-as-errors --filter 'MLXDeadlineTests/aTokenIsNeverSpokenAfterTheDeadlineTerminal' | tee "$RUNNER_TEMP/hammer.log"
+          # A renamed test would match nothing, and SwiftPM only WARNS
+          # ("No matching test cases were run") and exits 0. This line is
+          # the proof that the hammer really ran here and passed.
+          grep -q 'four hundred deadlines against a firehose.*passed after' "$RUNNER_TEMP/hammer.log"
 
       # SwiftLint runs AFTER the tests, on purpose. A style complaint must
       # never be the thing that hides a red test from a reader scanning a
