@@ -112,9 +112,11 @@ struct MLXToolDeadlineTests {
     }
 
     /// The other order, for contrast: a body that ENDS before the clock
-    /// does — the round continues, the answer goes back, and the deadline
-    /// cuts the NEXT round instead. One terminal either way.
-    @Test("a body that ends before the deadline feeds its answer back; the deadline then ends the next round")
+    /// does — the round continues, the answer goes back, and the reply
+    /// ends on the model's own word. The clock is never advanced here:
+    /// this row proves only that an unfired deadline changes nothing on
+    /// the tool path, and that its sleeper is gone once the reply ends.
+    @Test("a body that ends before the deadline feeds its answer back; the reply ends .complete, the sleeper is gone")
     func aBodyThatEndsFirstIsFedBack() async throws {
         let clock = ManualClock()
         let facts = Facts()
