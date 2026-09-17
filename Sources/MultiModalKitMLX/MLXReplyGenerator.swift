@@ -392,8 +392,10 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// dead run feeds NOTHING back — `nil` here ends the task, and the
     /// answer goes nowhere (AC-226's mirror on this seam: the scripted
     /// mind's `runToolScript` makes the same decision, and records it).
-    /// The task's own cancellation is the optimisation that reaches into
-    /// a slow tool; `retired` is the guarantee this guard reads.
+    /// The task's cancellation ends the ROUND; it does not reach the
+    /// tool's body — since 4z the door shields it (F-5 = A, `ReplyTool.run`),
+    /// so a slow body runs to its end and its answer is dropped by this
+    /// guard. `retired` is the guarantee this guard reads.
     private func execute(_ calls: [ToolCallRequest],
                          with tools: ToolTable,
                          confirmed: Set<String>) async -> [ToolExchange]? {

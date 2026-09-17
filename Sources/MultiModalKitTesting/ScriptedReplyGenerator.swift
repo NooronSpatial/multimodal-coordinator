@@ -415,9 +415,11 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
             return (state.continuations.removeValue(forKey: index), state.toolRuns[index])
         }
         continuation?.finish()   // conformant: ends without a terminal update
-        // The optimization, after the guarantee: a conformant tool run is
-        // asked to stop wasting work. The flag above is what keeps its
-        // answer out of the stream; this is only a courtesy to the tool.
+        // The optimization, after the guarantee: a conformant tool RUN is
+        // asked to stop wasting work — the run's own task, parked on the
+        // door. The door shields the body itself (F-5 = A, `ReplyTool.run`),
+        // so this never reaches the tool; the flag above is what keeps
+        // the answer out of the stream.
         toolRun?.cancel()
         // The clock too, defiant or not: a deadline reached after a cancel
         // would end nothing (`end` is guarded by the flag), so the sleep
