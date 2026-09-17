@@ -30,3 +30,9 @@ Without `MMK_CAPTURE_PROMPT` the same row COMPARES a fresh render
 against both files, and the files against each other, and is red on
 any byte that moved. Without `MMK_MLX_MODEL` it prints `SKIPPED (no
 MMK_MLX_MODEL …)`, as every live MLX row does in CI.
+
+**How to read a green.** A run WITH `MMK_CAPTURE_PROMPT` set ends
+"passed" having compared NOTHING — it wrote a file and printed
+`CAPTURED … this run compared nothing`. Only a run without that
+variable, with the model, is AC-272's proof; a green log that carries
+the CAPTURED line is not one.
