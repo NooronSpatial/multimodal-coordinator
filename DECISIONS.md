@@ -4980,3 +4980,23 @@ review; otherwise the piece is rebuilt. Then the model-downloads
 requirement, whose two forks are presented with a recommendation
 before any code. When both are done: a tag (0.3.0 or as the library
 numbers it) and its commit hash, for the diet app to pin.
+
+**Amendment, 2026-09-17 — piece 1 as built, by delegation ("you decide
+about ToolValue letter … and your go for piece 2").** *F-13 (i), the
+value's shape:* `ToolValue` keeps two structured cases,
+`.array([ToolValue])` and `.object([String: ToolValue])`, so a refusal
+can name what it saw ("a list", "an object"); a nested value for a
+scalar parameter is refused and counted, as ruled. *Rejected:* one
+opaque `.nested` case — a smaller public surface, but the sentence to
+the model loses list-versus-object, and both minds' parsers must fold
+two shapes into one. Five smaller choices the builder took the
+conservative way stand as built, each one word from being flipped:
+`parameters:` has no default at `ReplyTool.init`; `showsRange` must be
+written whenever a band is declared; the arguments are checked BEFORE
+the confirmation flag (the order §195 left to this entry); the sentences
+the model reads are as committed in `ReplyTool.swift`; a refusal's words
+are not capped (they echo one value). `ScriptedTool`, a test double,
+keeps its conveniences (`parameters: []`, `requiresConfirmation:
+false`). Piece 1 is merged at `4f8b350`; the tag comes after 4z alone
+(0.3.0), so the diet app's M15 slice 3 can prove the loop end to end on
+it; the downloads milestone tags separately.
