@@ -1,0 +1,132 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "4z · a table no mind can show is refused at the MLX door, never rendered (AC-289)" started.
+􀟈  Suite "4z · the door: what reaches a tool's body, and what the model is told" started.
+􀟈  Suite "4w · the spec the MLX mind renders for a tool" started.
+􀟈  Test "a bad per-call table throws ReplyFailure.engine with the typed error's words from openReply; no run opens" started.
+􀟈  Test "null for a required parameter is absence, counted .missing (F-13 j)" started.
+􀟈  Test "a value of a kind the parameter cannot read: refused as wrong kind, the body does not run" started.
+􀟈  Test "a bad per-call table is refused before the heat and the verdict: critical and absent hear the table's error" started.
+􀟈  Test "two tools with one name are not the check's business: the lookup rule already defines them" started.
+􀟈  Test "the first offence in table order, then declaration order, is the one named" started.
+􀟈  Test "84.5 for an integer parameter is refused as wrong kind (F-13 b)" started.
+􀟈  Test "a band on an integer parameter is checked the same way" started.
+􀟈  Test "the accessors after the door: they read what the door let in, and throw a typed failure for anything else" started.
+􀟈  Test "a thrown tool's own words reach the model verbatim (F-13 e) — under the same cap" started.
+􀟈  Test "the door reads a checked table exactly as before: the same knock, the same answer" started.
+􀟈  Test "a bad default table throws the typed error from the generator's init — internal seam and public door" started.
+􀟈  Test "an argument the tool never declared is stripped before the body and counted (F-7 C)" started.
+􀟈  Test "a clean per-call table opens a run as before" started.
+􀟈  Test "the spike's no-argument tool: an extra is stripped, the body runs with nothing (AC-283)" started.
+􀟈  Test "two parameters of one tool with one name: the check throws the typed error naming tool and parameter" started.
+􀟈  Test "a required parameter absent: the body does not run, the model is told, the count says .missing" started.
+􀟈  Test "a table the check passed renders exactly the pinned bytes — the rendering never sees a duplicate" started.
+􀟈  Test "two tables with one declaration and different bodies are equal; one parameter apart, not (F-13 c)" started.
+􀟈  Test "inside the band — the edges included — the body runs; a coerced text is checked against the band too" started.
+􀟈  Test "a clean table passes: four distinct parameters, a tool with none, the empty table, names apart by case" started.
+􀟈  Test "an optional parameter not given, or given as null, is simply not there for the body" started.
+􀟈  Test ""nan" and "inf" for a number parameter are refused (F-8 C closes the hole)" started.
+􀟈  Test "an answer of exactly the cap, and a short one, reach the model unchanged" started.
+􀟈  Test "a band with showsRange false renders nothing of it" started.
+􀟈  Test "parameters render one property each with its JSON type and sentence, and `required` names the required ones" started.
+􀟈  Test ""7" for an integer and "true" for a boolean are coerced and counted; "7.5" for an integer is not" started.
+􀟈  Test "a band with showsRange renders minimum and maximum in the property" started.
+􀟈  Test "an empty table renders nil, not []; a table renders one spec per tool" started.
+􀟈  Test "an answer longer than the cap reaches the model cut at the cap with the marker, and the cut is counted" started.
+􀟈  Test "a clean default table builds: .empty, and a tool with parameters" started.
+􀟈  Test ""shown to the model" and "checked by the table" are two switches: the parameter carries both" started.
+􀟈  Test "a number for a string parameter is refused: the leniency is one way (F-8 C keeps the branch's asymmetry)" started.
+􀟈  Test "one tool renders as a function spec with an empty object of parameters" started.
+􀟈  Test "a value outside the declared band is refused before the body, told in words, and counted under its own name" started.
+􀟈  Test "84 parsed on the MLX side and 84.0 read on the Apple side are ONE ToolValue, and the door reads both alike" started.
+􀟈  Test "all-optional parameters render properties and no `required` key" started.
+􀟈  Test ""84" for a number parameter reads 84, the body runs, and the coercion is counted (F-8 C)" started.
+􀟈  Test "a nested value for a .string parameter is wrong kind, counted (F-13 i) — a list and an object" started.
+􀟈  Test "a name no tool has: the sentence the MLX run has always fed back (AC-276)" started.
+􀢄  Test "the first offence in table order, then declaration order, is the one named" recorded an issue at ToolContractTests+Declarations.swift:55:9: Expectation failed: an error was expected but none was thrown
+􀄵  ToolDeclarationError.duplicateParameter(tool: "log_weight", parameter: "kg") → <not evaluated>
+􀄵    ToolDeclarationError → <not evaluated>
+􀄵    "log_weight" → <not evaluated>
+􀄵    "kg" → <not evaluated>
+􀢄  Test "the first offence in table order, then declaration order, is the one named" recorded an issue at ToolContractTests+Declarations.swift:61:9: Expectation failed: an error was expected but none was thrown
+􀄵  ToolDeclarationError.duplicateParameter(tool: "log_reading", parameter: "note") → <not evaluated>
+􀄵    ToolDeclarationError → <not evaluated>
+􀄵    "log_reading" → <not evaluated>
+􀄵    "note" → <not evaluated>
+􀢄  Test "two parameters of one tool with one name: the check throws the typed error naming tool and parameter" recorded an issue at ToolContractTests+Declarations.swift:26:9: Expectation failed: an error was expected but none was thrown
+􀄵  refusal → <not evaluated>
+􀢄  Test "a bad per-call table is refused before the heat and the verdict: critical and absent hear the table's error" recorded an issue at MLXToolDeclarationTests.swift:97:15: Expectation failed: expected error "tool 'log_reading' declares the parameter 'value' more than once" of type ReplyFailure, but "the device is too hot to generate — thermal state critical" of type ReplyFailure was thrown instead
+􀄵  Self.perCallRefusal → the device is too hot to generate — thermal state critical
+􀄵    tooHot → .critical
+􁁛  Test "an empty table renders nil, not []; a table renders one spec per tool" passed after 0.001 seconds.
+􁁛  Test "two tools with one name are not the check's business: the lookup rule already defines them" passed after 0.002 seconds.
+􁁛  Test "a value of a kind the parameter cannot read: refused as wrong kind, the body does not run" passed after 0.002 seconds.
+􁁛  Test "null for a required parameter is absence, counted .missing (F-13 j)" passed after 0.002 seconds.
+􁁛  Test "84.5 for an integer parameter is refused as wrong kind (F-13 b)" passed after 0.002 seconds.
+􀢄  Test "the first offence in table order, then declaration order, is the one named" failed after 0.002 seconds with 2 issues.
+􀄵  /// The FIRST offence is the one named — in table order, then in
+􀄵  /// declaration order — so an app with two mistakes reads them one at
+􀄵  /// a time and the sentence is deterministic.
+􁁛  Test "a required parameter absent: the body does not run, the model is told, the count says .missing" passed after 0.002 seconds.
+􁁛  Test "two tables with one declaration and different bodies are equal; one parameter apart, not (F-13 c)" passed after 0.002 seconds.
+􁁛  Test ""nan" and "inf" for a number parameter are refused (F-8 C closes the hole)" passed after 0.002 seconds.
+􀢄  Test "two parameters of one tool with one name: the check throws the typed error naming tool and parameter" failed after 0.002 seconds with 1 issue.
+􁁛  Test "a clean table passes: four distinct parameters, a tool with none, the empty table, names apart by case" passed after 0.002 seconds.
+􁁛  Test ""shown to the model" and "checked by the table" are two switches: the parameter carries both" passed after 0.002 seconds.
+􁁛  Test "a clean default table builds: .empty, and a tool with parameters" passed after 0.002 seconds.
+􁁛  Test "a number for a string parameter is refused: the leniency is one way (F-8 C keeps the branch's asymmetry)" passed after 0.002 seconds.
+􁁛  Test "a value outside the declared band is refused before the body, told in words, and counted under its own name" passed after 0.002 seconds.
+􀢄  Test "a bad per-call table throws ReplyFailure.engine with the typed error's words from openReply; no run opens" recorded an issue at MLXToolDeclarationTests.swift:80:25: Issue recorded
+􀄵  openReply opened a run on a table no mind can show
+􀢄  Test "a bad per-call table is refused before the heat and the verdict: critical and absent hear the table's error" failed after 0.003 seconds with 1 issue.
+􀄵  /// The order at the door: the table is the caller's own value and its
+􀄵  /// error is true whatever the phone's state, so it is read BEFORE the
+􀄵  /// heat and the verdict — a hot phone, or weights still arriving,
+􀄵  /// must not hide a bug that will still be there when they clear.
+􁁛  Test "a name no tool has: the sentence the MLX run has always fed back (AC-276)" passed after 0.002 seconds.
+􁁛  Test "a nested value for a .string parameter is wrong kind, counted (F-13 i) — a list and an object" passed after 0.002 seconds.
+􁁛  Test "a band on an integer parameter is checked the same way" passed after 0.003 seconds.
+􁁛  Test "the spike's no-argument tool: an extra is stripped, the body runs with nothing (AC-283)" passed after 0.003 seconds.
+􁁛  Test "the door reads a checked table exactly as before: the same knock, the same answer" passed after 0.003 seconds.
+􁁛  Test "an argument the tool never declared is stripped before the body and counted (F-7 C)" passed after 0.003 seconds.
+􀢄  Test "a bad default table throws the typed error from the generator's init — internal seam and public door" recorded an issue at MLXToolDeclarationTests.swift:40:9: Expectation failed: an error was expected but none was thrown and "MLXReplyGenerator(source: MultiModalKitTests.ScriptedTokenSource, thermal: MultiModalKit.SystemThermalProvider(), thermalPolicy: MultiModalKit.DefaultGenerationThermalPolicy(), clock: Swift.ContinuousClock())" was returned
+􀄵  Self.refusal → <not evaluated>
+􀄵    Self → <not evaluated>
+􀄵    refusal → <not evaluated>
+􁁛  Test "an answer longer than the cap reaches the model cut at the cap with the marker, and the cut is counted" passed after 0.002 seconds.
+􁁛  Test "an optional parameter not given, or given as null, is simply not there for the body" passed after 0.003 seconds.
+􁁛  Test "84 parsed on the MLX side and 84.0 read on the Apple side are ONE ToolValue, and the door reads both alike" passed after 0.002 seconds.
+􁁛  Test ""7" for an integer and "true" for a boolean are coerced and counted; "7.5" for an integer is not" passed after 0.003 seconds.
+􁁛  Test ""84" for a number parameter reads 84, the body runs, and the coercion is counted (F-8 C)" passed after 0.002 seconds.
+􁁛  Test "a thrown tool's own words reach the model verbatim (F-13 e) — under the same cap" passed after 0.003 seconds.
+􁁛  Test "an answer of exactly the cap, and a short one, reach the model unchanged" passed after 0.003 seconds.
+􀢄  Test "a bad per-call table throws ReplyFailure.engine with the typed error's words from openReply; no run opens" recorded an issue at MLXToolDeclarationTests.swift:85:9: Expectation failed: source.askedAfter.isEmpty
+􀄵  the source was never asked: no run was opened, nothing was rendered
+􀄵  source.askedAfter.isEmpty → false
+􀄵    source.askedAfter → [[]]
+􀄵    isEmpty → false
+􁁛  Test "a clean per-call table opens a run as before" passed after 0.003 seconds.
+􁁛  Test "inside the band — the edges included — the body runs; a coerced text is checked against the band too" passed after 0.003 seconds.
+􁁛  Test "the accessors after the door: they read what the door let in, and throw a typed failure for anything else" passed after 0.003 seconds.
+􀢄  Test "a bad per-call table throws ReplyFailure.engine with the typed error's words from openReply; no run opens" failed after 0.003 seconds with 2 issues.
+􀢄  Suite "4z · the door: what reaches a tool's body, and what the model is told" failed after 0.003 seconds with 3 issues.
+􀢄  Test "a bad default table throws the typed error from the generator's init — internal seam and public door" recorded an issue at MLXToolDeclarationTests.swift:46:9: Expectation failed: an error was expected but none was thrown and "MLXReplyGenerator(source: MultiModalKitMLX.MLXTokenSource(model: MultiModalKitMLX.LocalMindModel, instructions: nil, maxTokens: 1024, tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_reading", description: "Record one reading.", parameters: [MultiModalKit.ToolParameter(name: "value", description: "the reading", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false), MultiModalKit.ToolParameter(name: "value", description: "the reading", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))])), thermal: MultiModalKit.SystemThermalProvider(), thermalPolicy: MultiModalKit.DefaultGenerationThermalPolicy(), clock: Swift.ContinuousClock())" was returned
+􀄵  // The public init, with the weights of `MLXInstallTests` (absent;
+􀄵  // the init reads nothing from them): the same typed error, on the
+􀄵  // same line that handed the table.
+􀄵  Self.refusal → <not evaluated>
+􀄵    Self → <not evaluated>
+􀄵    refusal → <not evaluated>
+􀢄  Test "a bad default table throws the typed error from the generator's init — internal seam and public door" failed after 0.004 seconds with 2 issues.
+􀢄  Suite "4z · a table no mind can show is refused at the MLX door, never rendered (AC-289)" failed after 0.004 seconds with 5 issues.
+􁁛  Test "one tool renders as a function spec with an empty object of parameters" passed after 0.004 seconds.
+􁁛  Test "parameters render one property each with its JSON type and sentence, and `required` names the required ones" passed after 0.004 seconds.
+􁁛  Test "all-optional parameters render properties and no `required` key" passed after 0.004 seconds.
+􁁛  Test "a table the check passed renders exactly the pinned bytes — the rendering never sees a duplicate" passed after 0.004 seconds.
+􁁛  Test "a band with showsRange renders minimum and maximum in the property" passed after 0.004 seconds.
+􁁛  Test "a band with showsRange false renders nothing of it" passed after 0.004 seconds.
+􁁛  Suite "4w · the spec the MLX mind renders for a tool" passed after 0.005 seconds.
+􀢄  Test run with 40 tests in 3 suites failed after 0.005 seconds with 8 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

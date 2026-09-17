@@ -34,10 +34,14 @@ struct ToolSpecTests {
         let data = try JSONSerialization.data(
             withJSONObject: session.toolSpec, options: [.sortedKeys, .withoutEscapingSlashes])
         let rendered = try #require(String(data: data, encoding: .utf8))
-        let fixture = #"{"function":{"description":"Read today's training session.","name":"session","#
-            + #""parameters":{"properties":{},"type":"object"}},"type":"function"}"#
-        #expect(rendered == fixture)
+        #expect(rendered == Self.sessionFixture)
     }
+
+    /// The 4w bytes: a tool with no parameters, an empty `properties`,
+    /// no `required` key.
+    private static let sessionFixture =
+        #"{"function":{"description":"Read today's training session.","name":"session","#
+        + #""parameters":{"properties":{},"type":"object"}},"type":"function"}"#
 
     /// AC-227's Mac half is this row: NO tools must mean NO `tools:`
     /// argument — `nil`, which the template's `if tools` reads as absent
@@ -72,19 +76,38 @@ struct ToolSpecTests {
             ToolParameter(name: "fasted", description: "before breakfast", kind: .boolean, isRequired: true)
         ], requiresConfirmation: false) { _ in "" }
 
+    /// `logReading`'s bytes — the fixture two rows share.
+    private static let logReadingFixture =
+        #"{"function":{"description":"Record one reading.","name":"log_reading","parameters":"#
+        + #"{"properties":{"count":{"description":"how many","type":"integer"},"#
+        + #""fasted":{"description":"before breakfast","type":"boolean"},"#
+        + #""note":{"description":"a word about it","type":"string"},"#
+        + #""value":{"description":"the reading, in kilograms","type":"number"}},"#
+        + #""required":["value","count","fasted"],"type":"object"}},"type":"function"}"#
+
     /// One property per parameter — its JSON type from the kind, the
     /// app's sentence — and `required` naming the required ones in
     /// declaration order. Pinned as bytes: a key that moves is a prompt
     /// that moves.
     @Test("parameters render one property each with its JSON type and sentence, and `required` names the required ones")
     func parametersRenderPropertiesAndRequired() throws {
-        let fixture = #"{"function":{"description":"Record one reading.","name":"log_reading","parameters":"#
-            + #"{"properties":{"count":{"description":"how many","type":"integer"},"#
-            + #""fasted":{"description":"before breakfast","type":"boolean"},"#
-            + #""note":{"description":"a word about it","type":"string"},"#
-            + #""value":{"description":"the reading, in kilograms","type":"number"}},"#
-            + #""required":["value","count","fasted"],"type":"object"}},"type":"function"}"#
-        #expect(try Self.bytes(Self.logReading.toolSpec) == fixture)
+        #expect(try Self.bytes(Self.logReading.toolSpec) == Self.logReadingFixture)
+    }
+
+    /// AC-289's rendering half (4z piece 2b): the rendering never meets a
+    /// duplicate — the doors refuse the table first — so what it renders
+    /// for a table the check PASSED is the 4w/4z bytes exactly. The
+    /// construction under this row is one that cannot trap on a
+    /// duplicate (this piece's green commit retires
+    /// `Dictionary(uniqueKeysWithValues:)`); no row renders one, because
+    /// a red version of that row would be a crash, not a failure.
+    @Test("a table the check passed renders exactly the pinned bytes — the rendering never sees a duplicate")
+    func aCheckedTableRendersThePinnedBytes() throws {
+        let table = ToolTable([Self.logReading, session])
+        try table.checkDeclarations()
+        let specs = try #require(table.toolSpecs)
+        #expect(try Self.bytes(specs[0]) == Self.logReadingFixture)
+        #expect(try Self.bytes(specs[1]) == Self.sessionFixture, "the 4w fixture, through the same door")
     }
 
     /// A tool whose parameters are all optional has no `required` key at
