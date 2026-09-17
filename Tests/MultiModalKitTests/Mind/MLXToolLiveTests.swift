@@ -126,6 +126,64 @@ struct MLXToolLiveTests {
         #expect(!text.contains("<tool_call>"), "the call's JSON is never spoken")
     }
 
+    // MARK: - AC-269, the MLX half: a decimal said is the number received (4z, F-1 = A)
+
+    /// The contract's own live row: a tool WITH a parameter, a question
+    /// that says a decimal, and the tool's recorder holding that number
+    /// as a `.number` — the value, not its text. The question NAMES the
+    /// tool and the number, the only shape the 0.6B follows (the suite
+    /// note above: it calls a tool when the person asks for it by name,
+    /// and not on an instruction alone); greedy, so the same prompt
+    /// gives the same bytes and a pass is a fact.
+    ///
+    /// WHAT IS CLAIMED: the number arrives at the body as `.number`. The
+    /// door reads text as a number too (F-8 C), so this row proves the
+    /// value's PATH — the model's call, parsed by kind, through the door,
+    /// to the body — and prints what arrived; whether the 0.6B spelled
+    /// it as JSON's 83.5 or as "83.5" is the door's `coerced` count,
+    /// which the run does not surface, so it is not claimed here. The
+    /// VALUE is asserted only because the 0.6B wrote it under greedy on
+    /// this Mac when the row was written (the number printed beside the
+    /// call); if a later run shows a different number, the honest
+    /// change is to the assertion, not to the model.
+    @Test("""
+        asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 \
+        through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is \
+        ToolCallParsingTests'
+        """)
+    func aDecimalSaidIsTheNumberReceived() async throws {
+        guard let weights = Self.live() else { return }
+        let calls = Mutex<[ToolArguments]>([])
+        let received = Mutex<[Double]>([])
+        let tool = ReplyTool(name: "log_reading",
+                             description: "Record one reading of today's body weight.",
+                             parameters: [ToolParameter(name: "kg", description: "the reading, in kilograms",
+                                                        kind: .number, isRequired: true)],
+                             requiresConfirmation: false) { arguments in
+            calls.withLock { $0.append(arguments) }
+            let kg = try arguments.number("kg")
+            received.withLock { $0.append(kg) }
+            return "recorded \(kg) kg"
+        }
+        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights))
+        _ = try await mind.reply(to: ReplyContext(transcript: "hi", options: GenerationOptions(maxTokens: 1)))
+
+        // The table rides on THIS call (F-2 = A): the mind was built with
+        // none, and the door is the per-call one the diet app will use.
+        let reply = try await mind.reply(to: ReplyContext(
+            transcript: "Use the log_reading tool to record 83.5.",
+            options: GenerationOptions(temperature: 0, tools: ToolTable([tool]))))
+
+        let made = calls.withLock { $0 }
+        let numbers = received.withLock { $0 }
+        print("AC-269 live · MLX · calls: \(made) · received: \(numbers) · said: \(reply.text) · stop: \(reply.stop)")
+        #expect(made.count == 1, "the tool was called exactly once")
+        #expect(made.first?.values["kg"] == .number(83.5),
+                "the argument arrived as .number(83.5) — a value, not text (F-1 = A, F-13 b)")
+        #expect(numbers == [83.5], "the body read the number through the typed accessor")
+        #expect(!reply.text.contains("<tool_call>"), "the call's JSON is never spoken")
+    }
+
     /// The same weights, no tool, the plain question — the Mac's
     /// baseline for the round trip above (AC-228's phone row is Ryad's,
     /// §172c). Printed, not asserted: a wall-clock number is evidence,

@@ -38,7 +38,7 @@ struct MLXToolRunTests {
         ])
     }
 
-    @Test("a scripted call: the table is called with the flattened arguments, the answer follows, one terminal")
+    @Test("a scripted call: the table is called with the typed arguments, the answer follows, one terminal")
     func theCallIsMadeAndTheReplyContinues() async throws {
         // The argument this row watches arrive is DECLARED: since 4z the door
         // strips what the tool never declared (F-7 C).

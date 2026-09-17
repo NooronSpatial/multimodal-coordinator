@@ -46,13 +46,21 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         /// `askedAfter`, which is how a test reads what the model was
         /// told (F-4 = B's words included).
         case rounds([[TokenEvent]])
-        /// Yields every token, then HOLDS — parked on a continuation
+        /// Yields every event, then HOLDS — parked on a continuation
         /// until the run's task is cancelled, never spinning (4y). A
         /// generation that never finishes on its own, which is what a
         /// deadline (AC-264) and a memory warning (AC-261) must be able
         /// to end; the stream finishes normally once cancelled, with no
-        /// `.stopped`, the way a cancelled vendor finishes.
-        case tokensThenHold([String])
+        /// `.stopped`, the way a cancelled vendor finishes. EVENTS since
+        /// 4z, so a test can park a round with a call already remembered
+        /// and read what the arm does with a dead run; the 4y rows keep
+        /// their spelling through `tokensThenHold(_:)` below.
+        case eventsThenHold([TokenEvent])
+
+        /// 4y's spelling of the held plan: every token, then the hold.
+        static func tokensThenHold(_ all: [String]) -> Plan {
+            .eventsThenHold(all.map { .token($0) })
+        }
     }
 
     private let plan: Plan
@@ -121,16 +129,13 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
                     yieldAll(all, into: continuation)
                     continuation.finish()
                 case .events(let all):
-                    for event in all { continuation.yield(event) }
-                    counts.withLock { $0.yielded += all.count }
+                    yieldEvents(all, into: continuation)
                     continuation.finish()
                 case .rounds(let scripts):
-                    let script = scripts[min(round, scripts.count - 1)]
-                    for event in script { continuation.yield(event) }
-                    counts.withLock { $0.yielded += script.count }
+                    yieldEvents(scripts[min(round, scripts.count - 1)], into: continuation)
                     continuation.finish()
-                case .tokensThenHold(let all):
-                    yieldAll(all, into: continuation)
+                case .eventsThenHold(let all):
+                    yieldEvents(all, into: continuation)
                     await holdUntilCancelled()
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
@@ -159,8 +164,16 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         _ all: [String],
         into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) {
-        for token in all {
-            continuation.yield(.token(token))
+        yieldEvents(all.map { .token($0) }, into: continuation)
+    }
+
+    /// Yields every event VERBATIM, in order, counting each one.
+    private func yieldEvents(
+        _ all: [TokenEvent],
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
+    ) {
+        for event in all {
+            continuation.yield(event)
             counts.withLock { $0.yielded += 1 }
         }
     }

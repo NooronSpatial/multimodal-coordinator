@@ -1,0 +1,32 @@
+MUTATION M4 (never committed): ToolParameter.property renders minimum/maximum for every band, the showsRange switch ignored. Run: swift test --filter ToolSpecTests on the green rendering (the commit after 52508cd). The row 'a band with showsRange false renders nothing of it' was trivially green on the shape; this is the run that shows it bites once properties render.
+
+Building for debugging...
+Build complete! (5.39 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "4w · the spec the MLX mind renders for a tool" started.
+􀟈  Test "parameters render one property each with its JSON type and sentence, and `required` names the required ones" started.
+􀟈  Test "a band with showsRange renders minimum and maximum in the property" started.
+􀟈  Test "all-optional parameters render properties and no `required` key" started.
+􀟈  Test "an empty table renders nil, not []; a table renders one spec per tool" started.
+􀟈  Test "one tool renders as a function spec with an empty object of parameters" started.
+􀟈  Test "a band with showsRange false renders nothing of it" started.
+􁁛  Test "an empty table renders nil, not []; a table renders one spec per tool" passed after 0.001 seconds.
+􁁛  Test "parameters render one property each with its JSON type and sentence, and `required` names the required ones" passed after 0.004 seconds.
+􁁛  Test "all-optional parameters render properties and no `required` key" passed after 0.004 seconds.
+􁁛  Test "one tool renders as a function spec with an empty object of parameters" passed after 0.004 seconds.
+􁁛  Test "a band with showsRange renders minimum and maximum in the property" passed after 0.004 seconds.
+􀢄  Test "a band with showsRange false renders nothing of it" recorded an issue at MLXToolTests.swift:135:9: Expectation failed: hidden == (try Self.bytes(noBand.toolSpec))
+􀄵  hidden == (try Self.bytes(noBand.toolSpec)) → <not evaluated>
+􀢄  Test "a band with showsRange false renders nothing of it" recorded an issue at MLXToolTests.swift:136:9: Expectation failed: !hidden.contains("minimum") && !hidden.contains("maximum")
+􀄵  !hidden.contains("minimum") && !hidden.contains("maximum") → false
+􀄵    !hidden.contains("minimum") → false
+􀄵    !hidden.contains("maximum") → <not evaluated>
+􀢄  Test "a band with showsRange false renders nothing of it" failed after 0.004 seconds with 2 issues.
+􀄵  /// F-11 B's first switch, OFF: the band is the door's alone; the
+􀄵  /// model is shown the same bytes as for a parameter with no band.
+􀢄  Suite "4w · the spec the MLX mind renders for a tool" failed after 0.004 seconds with 2 issues.
+􀢄  Test run with 6 tests in 1 suite failed after 0.005 seconds with 2 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

@@ -27,11 +27,13 @@ protocol ReplyTokenStreaming: Sendable {
     /// TYPED since 4v (AC-238): the real source answers with
     /// `.unavailable(verdict)`, and the door throws exactly what it said.
     var unavailable: ReplyFailure? { get }
-    /// The tools this source was given at construction (4w, F-2 = A).
-    /// The RUN reads them to execute a call the source reports; the
-    /// source reads them to render the spec into its prompt. One table,
-    /// one owner — the generator's initializer hands it to both by
-    /// handing it here.
+    /// The tools this source was given at construction (4w) — its DEFAULT
+    /// since 4z (F-2 = A). The RUN reads them to execute a call the source
+    /// reports; the source reads them to render the spec into its prompt.
+    /// Both go through `tools(for:)` below, so a call that brought its
+    /// own table is rendered and executed from that one. One table, one
+    /// owner — the generator's initializer hands it to both by handing
+    /// it here.
     var tools: ToolTable { get }
     /// Opens one generation and returns its tokens, in birth order, and
     /// — when the vendor says — why it stopped.
@@ -57,6 +59,19 @@ extension ReplyTokenStreaming {
     /// a test hands them a registry to prove the warning's reach.
     var liveRuns: LiveRunRegistry? { nil }
 
+    /// THE TABLE ONE REPLY RENDERS AND EXECUTES (4z, F-2 = A; 4w's closing
+    /// fork, ruled on §67's numbers): the call's table when the call
+    /// carries one — even `.empty`, which is "no tools this turn" on a
+    /// source that holds some — and this source's own otherwise. ONE
+    /// rule, read in two places — the real source's `generate` (what the
+    /// model is shown) and the run's `rounds` (what may answer a call) —
+    /// so the two can never disagree about which table a turn has. The
+    /// app pays the prompt's tool cost only on the turns that may use
+    /// one (AC-275; AC-272 for the turn that has none).
+    func tools(for context: ReplyContext) -> ToolTable {
+        context.options.tools ?? tools
+    }
+
     /// The first round, which every reply has and which is the whole of
     /// a reply that calls nothing.
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
@@ -70,7 +85,7 @@ extension ReplyTokenStreaming {
 /// stream that ends without `.stopped` means the source could not say.
 ///
 /// `.toolCall` since 4w (AC-222): the source PARSED a call out of what
-/// the model said, and hands it up flattened. It is not a terminal —
+/// the model said, and hands it up typed (4z). It is not a terminal —
 /// the round still ends with `.stopped`, because the model ends its turn
 /// to make the call — and the run, not the source, decides what a call
 /// means (F-1 = B: the run executes tools itself).
@@ -156,6 +171,18 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
         /// task, concurrently with the token loop — and a token whose
         /// latch check had already passed landed AFTER the terminal (the
         /// review's hammer, now `MLXDeadlineTests`' four-hundred row).
+        ///
+        /// AND THE DEADLINE WAITS FOR A RUNNING BODY (4z, AC-278, D-110
+        /// F-9 = A) for the same reason: the flag is raised here, but
+        /// the only task that may speak is the rounds task, and while a
+        /// tool's body runs that task is awaiting the door — which
+        /// shields the body from the cancellation the race sends (F-5 =
+        /// A). So the write lands, once; the arm reads `dead`, feeds
+        /// nothing back, returns; and only then is the clock's word
+        /// spoken, last. A design that spoke at the deadline from the
+        /// sleeper (`MLXToolDeadlineTests`' mutation M1) says "ended"
+        /// before "written" — the row catches it. Its price, stated in
+        /// D-110: a slow body stretches the end past the clock.
         var deadline = false
     }
     private let state: Mutex<Guarded>
@@ -261,7 +288,11 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// substitutes `.finished(.deadline)` for whatever a cancelled round
     /// would have said, and on the mid-round exits below, which are
     /// silent for a barge and speak the clock's word when it was the
-    /// clock that ended them.
+    /// clock that ended them. Since 4z the loop AWAITS a tool's body
+    /// through the door (`execute`), in its own program order — so a
+    /// deadline that fires mid-body is spoken after the body has ended
+    /// (AC-278, F-9 = A), and the one-writer promise is what makes that
+    /// so: nobody else can speak while this task is parked on the door.
     private func rounds(source: any ReplyTokenStreaming, context: ReplyContext) async {
         defer { endedByTheClock() }
         do {
@@ -285,7 +316,7 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     return
                 }
                 rounds += 1
-                guard let answered = await execute(round.calls, with: source.tools,
+                guard let answered = await execute(round.calls, with: source.tools(for: context),
                                                    confirmed: context.options.confirmedTools) else { return }
                 exchanges += answered
             }
@@ -380,12 +411,13 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// turn AC-225 wants. Reporting `.failed` instead was the rejected
     /// option A.
     ///
-    /// THE SEAM, STILL FLAT (4z's MLX piece widens it): the request's
-    /// arguments are the spike's `[String: String]`, handed to the door
-    /// as `.string` values. The door's lenient kinds (F-8 C) read "84"
-    /// as 84 for a number parameter and count the coercion, so a tool
-    /// with parameters already works on this mind; parsing the vendor's
-    /// JSON by kind, so the count is honest, is that piece's job.
+    /// THE SEAM IS TYPED (4z, F-1 = A): the request carries `ToolArguments`
+    /// parsed BY KIND from the vendor's JSON (`ToolValue.init(json:)`), and
+    /// is handed to the door as it is — so a number the model wrote
+    /// arrives as a number, and the door's count of coercions (F-8 C) is
+    /// honest. The table is the CALL's (`tools(for:)`, F-2 = A) and the
+    /// person's yes is the call's too (`confirmedTools`, F-10 B-ii): both
+    /// ride on the options, and the door reads them together.
     ///
     /// THE REENTRANCY LAW (§4.1), after EVERY await: the tool took as long
     /// as it took, and a barge may have retired this run meanwhile. A
@@ -405,10 +437,9 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
             // event and this arm must not start a tool it can never use.
             // A run past its deadline neither (4y): the clock ended it.
             guard !dead else { return nil }
-            let arguments = ToolArguments(request.arguments.mapValues { ToolValue.string($0) })
-            let outcome = await tools.invoke(request.name, arguments: arguments, confirmed: confirmed)
+            let outcome = await tools.invoke(request.name, arguments: request.arguments, confirmed: confirmed)
             guard !dead else { return nil }
-            answered.append(ToolExchange(request: request, answer: outcome.wordsForModel))
+            answered.append(ToolExchange(request: request, answer: ToolResponseTag.escape(outcome.wordsForModel)))
         }
         return answered
     }
