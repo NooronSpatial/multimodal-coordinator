@@ -171,6 +171,18 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
         /// task, concurrently with the token loop — and a token whose
         /// latch check had already passed landed AFTER the terminal (the
         /// review's hammer, now `MLXDeadlineTests`' four-hundred row).
+        ///
+        /// AND THE DEADLINE WAITS FOR A RUNNING BODY (4z, AC-278, D-110
+        /// F-9 = A) for the same reason: the flag is raised here, but
+        /// the only task that may speak is the rounds task, and while a
+        /// tool's body runs that task is awaiting the door — which
+        /// shields the body from the cancellation the race sends (F-5 =
+        /// A). So the write lands, once; the arm reads `dead`, feeds
+        /// nothing back, returns; and only then is the clock's word
+        /// spoken, last. A design that spoke at the deadline from the
+        /// sleeper (`MLXToolDeadlineTests`' mutation M1) says "ended"
+        /// before "written" — the row catches it. Its price, stated in
+        /// D-110: a slow body stretches the end past the clock.
         var deadline = false
     }
     private let state: Mutex<Guarded>
@@ -276,7 +288,11 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// substitutes `.finished(.deadline)` for whatever a cancelled round
     /// would have said, and on the mid-round exits below, which are
     /// silent for a barge and speak the clock's word when it was the
-    /// clock that ended them.
+    /// clock that ended them. Since 4z the loop AWAITS a tool's body
+    /// through the door (`execute`), in its own program order — so a
+    /// deadline that fires mid-body is spoken after the body has ended
+    /// (AC-278, F-9 = A), and the one-writer promise is what makes that
+    /// so: nobody else can speak while this task is parked on the door.
     private func rounds(source: any ReplyTokenStreaming, context: ReplyContext) async {
         defer { endedByTheClock() }
         do {
