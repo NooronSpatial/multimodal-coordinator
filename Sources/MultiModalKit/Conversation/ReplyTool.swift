@@ -157,7 +157,17 @@ public struct ToolArgumentFailure: Error, Sendable, Equatable, CustomStringConve
 
 // MARK: - the arguments a tool receives (F-1 = A)
 
-/// What the model passed, read through typed accessors that THROW.
+/// What the model passed, read through typed accessors that THROW —
+/// so no tool is a parser, and a wrong value is a typed, countable
+/// failure rather than a silent `nil` (F-1 = A).
+///
+/// The accessors are STRICT, because the door was lenient for them
+/// (F-8 C): what a body receives has already been stripped to the
+/// declared names, checked against the declared kinds and bands, and
+/// normalised — a model's `"84"` for a number parameter arrives here as
+/// `.number(84)`. So a throw from an accessor inside a body means the
+/// body asked for a kind it did not declare, and the door folds it into
+/// `.threw` like any other error of the tool's own.
 public struct ToolArguments: Sendable, Equatable {
     public let values: [String: ToolValue]
 
@@ -226,6 +236,15 @@ extension ToolArguments: ExpressibleByDictionaryLiteral {
 // MARK: - one tool
 
 /// One thing a reply may ask for while it is being generated.
+///
+/// The name and the description are what the model reads; the
+/// parameters are what each mind renders into the schema the model is
+/// shown (the Apple `GenerationSchema`, the MLX template's `<tools>`
+/// block) and what the door checks a call against; the flag is the
+/// app's one policy bit. The body runs INSIDE the reply (F-1 = B), so
+/// it must be safe to call from any task and must not touch the
+/// coordinator; it is reached only through `ToolTable.invoke`, which
+/// hands it arguments already checked against this declaration.
 public struct ReplyTool: Sendable {
     /// The name the model uses to ask for it. Exact-match, case-sensitive:
     /// one lookup rule for both minds (`ToolTable`).
@@ -540,49 +559,51 @@ extension ToolParameter {
     /// kept: text may read as a number or a boolean, because chat models
     /// write `"84"` and `"true"`; nothing reads as text, so a number for
     /// a `.string` parameter is refused (a body that wanted a number
-    /// declares one). Finite numbers only: `Double("nan")` and
-    /// `Double("inf")` parse, and both are refused here.
+    /// declares one). Exactly the ruling's words and no more: `"true"`
+    /// and `"false"` as JSON spells them, a number as `Double` parses
+    /// it — no trimming, no case-folding. Finite numbers only:
+    /// `Double("nan")` and `Double("inf")` parse, and both are refused.
     func read(_ value: ToolValue) -> Reading {
         switch kind {
         case .string:
             if case .string = value { return .exact(value) }
             return .refused(.wrongKind(expected: .string, got: value))
         case .boolean:
-            if case .boolean = value { return .exact(value) }
-            if case .string(let text) = value {
-                switch text.trimmingCharacters(in: .whitespaces).lowercased() {
-                case "true": return .coerced(.boolean(true))
-                case "false": return .coerced(.boolean(false))
-                default: break
-                }
+            switch value {
+            case .boolean: return .exact(value)
+            case .string("true"): return .coerced(.boolean(true))
+            case .string("false"): return .coerced(.boolean(false))
+            default: return .refused(.wrongKind(expected: .boolean, got: value))
             }
-            return .refused(.wrongKind(expected: .boolean, got: value))
         case .number, .integer:
             return readNumber(value)
         }
     }
 
     private func readNumber(_ value: ToolValue) -> Reading {
-        let number: Double
-        let wasText: Bool
-        switch value {
-        case .number(let given):
-            (number, wasText) = (given, false)
-        case .string(let text):
-            guard let parsed = Double(text.trimmingCharacters(in: .whitespaces)) else {
-                return .refused(.wrongKind(expected: kind, got: value))
-            }
-            (number, wasText) = (parsed, true)
-        default:
+        guard let read = Self.finiteNumber(in: value) else {
             return .refused(.wrongKind(expected: kind, got: value))
         }
-        guard number.isFinite else { return .refused(.wrongKind(expected: kind, got: value)) }
-        if kind == .integer, Int(exactly: number) == nil {
+        if kind == .integer, Int(exactly: read.number) == nil {
             return .refused(.wrongKind(expected: .integer, got: value))
         }
-        if let range, !range.contains(number) {
-            return .refused(.outOfRange(allowed: range, got: number))
+        if let range, !range.contains(read.number) {
+            return .refused(.outOfRange(allowed: range, got: read.number))
         }
-        return wasText ? .coerced(.number(number)) : .exact(value)
+        return read.wasText ? .coerced(.number(read.number)) : .exact(value)
+    }
+
+    /// The finite number a value holds — as given, or parsed from text
+    /// (`wasText`, the coercion to count) — or nil.
+    private static func finiteNumber(in value: ToolValue) -> (number: Double, wasText: Bool)? {
+        switch value {
+        case .number(let given):
+            return given.isFinite ? (given, false) : nil
+        case .string(let text):
+            guard let parsed = Double(text), parsed.isFinite else { return nil }
+            return (parsed, true)
+        default:
+            return nil
+        }
     }
 }
