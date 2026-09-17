@@ -1,0 +1,9 @@
+tokens: 23
+---
+<|im_start|>user
+Name three capitals in Europe and one fact about each.<|im_end|>
+<|im_start|>assistant
+<think>
+
+</think>
+

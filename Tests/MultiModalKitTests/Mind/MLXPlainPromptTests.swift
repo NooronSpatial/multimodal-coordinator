@@ -16,11 +16,16 @@ import Testing
 // renders the same bytes after — so "the plain path is unchanged" is a
 // diff, not a sentence.
 //
-// The prompt is built the way `MLXTokenSource.generate` builds it: the
-// resolved settings, the chat in the template's roles, the table's
-// specs (`nil` for none — AC-227's rule), and the vendor's own
-// `prepare`. Decoded back to text by the same tokenizer, with the
-// vendor's token count beside it.
+// The prompt is built by the SAME code `MLXTokenSource.generate` runs:
+// the resolved settings, the table resolved for the call (`tools(for:)`,
+// F-2 = A — `.empty` here, which renders `nil`, AC-227's rule), and
+// `MLXTokenSource.userInput` — the one static function that builds the
+// chat in the template's roles, the specs and the think switch for the
+// vendor's `prepare`. The "before" file was rendered from a hand copy of
+// that path at `b0798db` (the function did not exist yet); the "after"
+// row renders from the function itself, so the compare is between the
+// old path and the real new one, not two copies. Decoded back to text
+// by the same tokenizer, with the vendor's token count beside it.
 //
 // Gated on `MMK_MLX_MODEL` and the metallib, and the skip is LOUD (the
 // 4h review): a silent early return prints "passed" for a proof that
@@ -59,11 +64,12 @@ struct MLXPlainPromptTests {
             .appending(path: "docs/evidence/4z")
     }
     private static let before = evidence.appending(path: "plain-prompt-before.txt")
+    private static let after = evidence.appending(path: "plain-prompt-after.txt")
 
     /// The whole prompt for ONE fixed chat: no instruction (§67's default),
     /// no history, no table on the call, none on the generator — rendered
-    /// as `MLXTokenSource.generate` renders it, and decoded back to text.
-    /// The file's shape: the vendor's token count, a rule, the text.
+    /// by the code `MLXTokenSource.generate` runs, and decoded back to
+    /// text. The file's shape: the vendor's token count, a rule, the text.
     private static func render(weights: URL) async throws -> String {
         let model = LocalMindModel(weights: weights)
         let container = try await model.ensureModelLoaded()
@@ -71,22 +77,31 @@ struct MLXPlainPromptTests {
         let context = ReplyContext(transcript: plainQuestion)
         let settings = MLXGenerationSettings(
             options: context.options, instructions: source.instructions, maxTokens: source.maxTokens)
-        // The generator's table, as the source reads it for every call
-        // at this commit: `.empty`, which renders `nil` (AC-227).
-        let specs = source.tools.toolSpecs
+        // The table resolved for THIS call, the way generate resolves it
+        // (F-2 = A): nothing on the call, nothing on the source → `.empty`
+        // → `nil` specs (AC-227). Pinned here too, so a moved byte below
+        // can be read against a moved rule.
+        let turnTools = source.tools(for: context)
+        #expect(turnTools == .empty)
+        let specs = turnTools.toolSpecs
+        #expect(specs == nil, "no specs reach the vendor on the plain path")
         let asked = context.transcript
         let past = context.history
         return try await container.perform { (model: ModelContext) in
-            let messages = MLXTokenSource.messages(
-                spoken: settings.instructions, asked: asked, past: past, exchanges: [])
-            let input = try await model.processor.prepare(input: UserInput(
-                chat: messages, tools: specs, additionalContext: ["enable_thinking": false]))
+            let input = try await model.processor.prepare(
+                input: MLXTokenSource.userInput(spoken: settings.instructions, asked: asked,
+                                                past: past, exchanges: [], specs: specs))
             let ids = input.text.tokens.asArray(Int.self)
             return "tokens: \(ids.count)\n---\n" + model.tokenizer.decode(tokenIds: ids)
         }
     }
 
-    @Test("no table on the call, none on the generator: the prompt is the bytes captured before 4z")
+    private static func file(_ url: URL, _ which: String) throws -> Data {
+        try #require(try? Data(contentsOf: url),
+                     "the \(which)-capture is missing at \(url.path): run once with MMK_CAPTURE_PROMPT set to it")
+    }
+
+    @Test("no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after")
     func thePlainPromptIsTheCapturedBytes() async throws {
         guard let weights = Self.live() else { return }
         let rendered = try await Self.render(weights: weights)
@@ -98,10 +113,13 @@ struct MLXPlainPromptTests {
             print("AC-272 live · CAPTURED to \(capture) — this run compared nothing")
             return
         }
-        let before = try #require(
-            try? Data(contentsOf: Self.before),
-            "the before-capture is missing at \(Self.before.path): run once with MMK_CAPTURE_PROMPT set to it")
+        let before = try Self.file(Self.before, "before")
+        let after = try Self.file(Self.after, "after")
         #expect(Data(rendered.utf8) == before,
-                "the plain path's prompt changed since the capture — AC-272 is broken:\n\(rendered)")
+                "the plain path's prompt changed since the before-capture — AC-272 is broken:\n\(rendered)")
+        #expect(Data(rendered.utf8) == after,
+                "the plain path's prompt changed since the after-capture:\n\(rendered)")
+        #expect(before == after, "the two captures in docs/evidence/4z are not the same bytes")
+        print("AC-272 live · before == after == this render: \(before == after && Data(rendered.utf8) == before)")
     }
 }
