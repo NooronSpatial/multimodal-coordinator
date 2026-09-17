@@ -11,10 +11,15 @@ import Testing
 // its only byte fixture is the `<tools>` block. This row keeps the OTHER
 // promise: a call with no table, on a generator with none, renders
 // exactly the prompt it rendered before 4z touched the MLX mind. The
-// bytes were captured BEFORE any commit that changed
-// `Sources/MultiModalKitMLX` (the "before" file), and the same row
-// renders the same bytes after — so "the plain path is unchanged" is a
-// diff, not a sentence.
+// bytes were captured (the "before" file) BEFORE any of PIECE 2's
+// commits — not before every 4z commit that changed
+// `Sources/MultiModalKitMLX`: piece 1 (4f8b350) had already changed the
+// MLX run's arm (`MLXReplyGenerator.execute`, which runs only after a
+// call) but not the prompt-rendering path — `LocalMind.swift`,
+// `LocalMind+Tools.swift` and `MLXTools.swift` were untouched since
+// 4w/4y — and the capture's 123 chars / 23 tokens match 4w's plain
+// baseline. The same row renders the same bytes after, so "the plain
+// path is unchanged" is a diff, not a sentence.
 //
 // The prompt is built by the SAME code `MLXTokenSource.generate` runs:
 // the resolved settings, the table resolved for the call (`tools(for:)`,
