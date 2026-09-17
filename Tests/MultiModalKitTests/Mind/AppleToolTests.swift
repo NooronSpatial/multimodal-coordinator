@@ -112,6 +112,51 @@ struct AppleToolTests {
         }
     }
 
+    // MARK: the adapter's own throw, through the door (4z, F-13 g)
+
+    /// Since 4z `call(arguments:)` knocks at `ToolTable.invoke` and
+    /// RETHROWS the door's typed failure — so what the vendor wraps in
+    /// its `ToolCallError` is a `ToolCallFailure`, not the tool's raw
+    /// error, and `toolFailure(from:)` must carry it whole rather than
+    /// fold it a second time into `tool 'x' failed: tool 'x' failed: …`.
+    /// The two rows above build the vendor's error by hand around a RAW
+    /// error — the pre-4z shape; this one goes THROUGH the adapter, so
+    /// the unwrap is watched by a row that runs on this Mac (the live
+    /// row, `AppleToolLiveTests`, skips while the model is not ready).
+    @Test("call(arguments:) rethrows the door's typed failure, and toolFailure(from:) carries it whole — one wrap")
+    func adapterThrowIsCarriedWhole() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let scripted = ScriptedTool(name: "session", plan: .throwsError("the stub is offline"))
+        let adapter = AppleToolAdapter(scripted.tool)
+        let typed = ToolCallFailure(tool: "session", reason: .threw("the stub is offline"))
+        let thrown = await #expect(throws: typed) {
+            try await adapter.call(arguments: AppleToolNoArguments())
+        }
+        #expect(scripted.calls == [.empty], "the body ran once, through the door")
+        // What the vendor would wrap: the very value the adapter threw.
+        let carried = try #require(thrown)
+        let vendor = LanguageModelSession.ToolCallError(tool: adapter, underlyingError: carried)
+        let failure = AppleReplyRun.toolFailure(from: vendor)
+        #expect(failure == typed)
+        #expect(failure.description == "tool 'session' failed: the stub is offline",
+                "one wrap — never `tool 'session' failed: tool 'session' failed: …`")
+    }
+
+    /// The interim, stated in the adapter's own comment: until the Apple
+    /// piece of 4z carries the call's options, the adapter knocks with
+    /// an empty confirmed set, so a flagged tool on this mind is refused
+    /// every time — fail CLOSED (F-10 B), the body never runs.
+    @Test("a flagged tool through the adapter is refused, typed, its body never run — fail closed (F-10 B, interim)")
+    func flaggedToolFailsClosed() async {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let scripted = ScriptedTool(name: "session", requiresConfirmation: true, plan: .answers(Self.answer))
+        let adapter = AppleToolAdapter(scripted.tool)
+        await #expect(throws: ToolCallFailure(tool: "session", reason: .needsConfirmation)) {
+            try await adapter.call(arguments: AppleToolNoArguments())
+        }
+        #expect(scripted.calls.isEmpty, "the door refused before the body")
+    }
+
     // MARK: the table at construction (F-2 = A)
 
     @Test("an empty table hands the vendor no tools (AC-227's plain path)")
