@@ -4876,3 +4876,107 @@ in-code rulings) — all open until Ryad signs the rewritten §196.
 instruments (`75f072f` 19:44 → `a05ecfb` 20:14); the results page
 `ea5e4a4` came 22 minutes later — the entry above says nine; §192 has
 the right count.
+
+## D-110 — 4z signed: the tool contract's thirteen forks (Milestone 4z)
+
+**Date:** 2026-09-17 · **Decided by:** Ryad — his own letters for F-1..F-6
+("My rulings, already signed … do not re-open the forks") and "signed,
+accept recommendations" for the seven forks §196 added (F-7..F-13).
+The reading is stated so it can be corrected with one word: the typed
+letters win where they and a recommendation differ (F-5); the
+recommendations rule everything he did not letter. SPEC §192–197 at
+`64a0a26` is the signed text; the full trade-offs are in §196 and are
+not repeated here — only the ruling and what it rejected.
+
+- **F-1 A — `ToolArguments` over `[String: ToolValue]`, throwing typed
+  accessors, `ReplyTool.parameters`.** *Rejected:* B (text in, every
+  tool a parser), C (a generic `Codable` payload — a second schema
+  language for two calls).
+- **F-2 A — tools per call: `GenerationOptions.tools: ToolTable?`; the
+  generator's table is the default; `.empty` means none this turn.**
+  *Rejected:* B (per generator with a prompt cache — the cache is a
+  vendor promise 4w did not measure), C (always present — the +419 ms
+  idle-tool price §67 measured).
+- **F-3 A — the result stays `String`, fed back verbatim** — with the
+  cap of F-13 (f) accepted beside it (§196 wrote that pairing as "C";
+  Ryad's letter is A, and A-with-the-cap is the same shape).
+  *Rejected:* B (a typed result — a second seam for one caller).
+- **F-4 B — a thrown tool on the Apple mind is caught by the adapter
+  and answered to the model in the MLX run's words; the seam reports
+  `.finished`.** 4w's F-5, open since the spike, closed here.
+  *Rejected:* A (`.failed` — a failing tool ends the whole reply).
+- **F-5 A — a tool's body runs to its end under a barge; cancellation
+  must not reach into it; the result dies with the ticket.** AGAINST
+  §196's recommendation (C, per-tool opt-in), by Ryad's own words in
+  the signing message. What A costs, stated on the page and accepted:
+  an awaited unstructured task on the public `ReplyTool` type, every
+  tool covered — a slow READ cannot be stopped by a barge either. What
+  makes it lawful: the task is awaited, never leaked; correctness comes
+  from the ticket (the run re-checks it after the call), never from
+  cancellation; the island is small and its proof is written beside it
+  — and the reference branch's false sentence ("the one unstructured
+  task in the reply path") is not carried over. *Rejected:* B (a
+  contract rule only, no library code — the app owns it), C (per-tool
+  opt-in, reads cancellable — the recommendation), D (shield inside the
+  two runs, not on the public type).
+- **F-6 A — the demo's tool is `set_timer(minutes:)`, honestly a
+  printed line.** *Rejected:* B (a read-only tool — the demo would
+  never show a write), C (the session read again), D (a real
+  countdown — UI work the demo does not need).
+- **F-7 C — an unknown extra argument is stripped before the body and
+  counted.** *Rejected:* A (refuse the call — a chatty model refused
+  more often), B (pass it through, as the branch did — a typo'd name
+  reaches the body silently).
+- **F-8 C — kind coercion is lenient, finite numbers only, checked and
+  counted at the door.** *Rejected:* A (strict kinds — MLX models often
+  write numbers as strings), B (lenient and silent, as the branch did;
+  NaN and inf pass).
+- **F-9 A — the deadline waits for a running tool body; one criterion
+  and one test say so.** *Rejected:* B (end at the deadline, let the
+  body finish detached — a leaked task), C (pause the clock while a
+  tool runs).
+- **F-10 B, sub-fork B-ii — a per-tool `requiresConfirmation` flag the
+  RUN enforces; the model cannot set it; the person's "yes" is marked
+  on the call's options and binds to the tool's NAME.** The write
+  fork our own §172a reserved, ruled here with the brief's default-deny.
+  *Rejected:* A (no policy, as the branch did — the model could write
+  `confirmed: true` itself), C (a typed `.needsConfirmation` result the
+  coordinator speaks — a second seam); sub-options B-i (re-hand the tool
+  without the flag), B-iii (an app closure the run asks), B-iv (the
+  options carry the confirmed call, name plus arguments — the delta to
+  take if §69 shows the model changing a number after a "yes").
+- **F-11 B — a declared numeric range on `ToolParameter`, SHOWN to the
+  model and CHECKED by the table as two separate switches; out of range
+  is refused and counted before the body.** With both cautions in the
+  spec: a required parameter is a demand the model will meet from
+  nothing; a range shown under constrained decoding turns a catchable
+  0 into an uncatchable 75. *Rejected:* A (nothing in the library, as
+  the branch did), C (a "must be said" check against the transcript —
+  the library parsing spoken numbers).
+- **F-12 B — the diet app's codename stays out of this repo's `main`,
+  tags and docs; "the diet app" is the name here.** *Rejected:* A
+  (bring the name in), C (also delete the reference branch from origin
+  after the cherry-picks — its history would be lost).
+- **F-13 — the small in-code rulings, as recommended:** (a)
+  `ToolArguments.none` → `.empty`; (b) ONE number case,
+  `.number(Double)`; (c) `ToolTable` equality by declaration, pinned by
+  a row; (d) a schema that cannot be built throws where it is built —
+  the generator's init for its default table, `openReply` for a
+  per-call one; (e) a thrown tool's own words to the model, under the
+  cap; (f) a cap on the result sized from §69's slope, cut marked, and
+  the escape of the template's closing tag at the MLX seam; (g) the
+  body reachable only through the checked door; (h) the 4-round cap
+  kept and one round priced in §69; (i) a nested value for a `.string`
+  parameter is wrong kind, counted; (j) `null` for a required parameter
+  is absent, counted `.missing`; (k) no default for `isRequired` — the
+  app writes it. *Rejected:* each item's other option, on the page.
+
+**The order of the build (Ryad):** the tool contract first — it blocks
+the diet app's M15 slice 3; AC-6 of the requirement (a barge during a
+writing tool: the write happens exactly once — §195's AC-277/AC-278)
+gets its test written first. The reference branch is a proposal
+(D-109): a commit is cherry-picked with `-x` only where it survives
+review; otherwise the piece is rebuilt. Then the model-downloads
+requirement, whose two forks are presented with a recommendation
+before any code. When both are done: a tag (0.3.0 or as the library
+numbers it) and its commit hash, for the diet app to pin.
