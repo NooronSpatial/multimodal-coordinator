@@ -52,6 +52,9 @@ public struct GenerationOptions: Sendable, Equatable {
     /// a table here REPLACES it for this call — so `.empty` means "no
     /// tools this turn" even on a generator that holds some, and the app
     /// pays the prompt's tool cost only on the turns that may use one.
+    /// (The scripted mind resolves it today; the MLX and Apple minds
+    /// resolve it with their own pieces of 4z — until then they read the
+    /// generator's table and this field rides unread.)
     public var tools: ToolTable?
     /// The person's "yes", by tool NAME (4z, D-110 F-10 B, sub-fork
     /// B-ii): a tool flagged `requiresConfirmation` runs only on a call
