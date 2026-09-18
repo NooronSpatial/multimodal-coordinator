@@ -90,7 +90,7 @@ struct AppleToolLiveTests {
         let tool = ScriptedTool(name: "session",
                                 description: "Reads today's training session and its readiness verdict.",
                                 plan: .answers(Self.session))
-        let generator = AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
+        let generator = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         // Warm the model outside the measured turn (AC-115): the number
         // below is the tool path's, not the cold start's.
         generator.prewarm()
@@ -126,7 +126,7 @@ struct AppleToolLiveTests {
         let tool = ScriptedTool(name: "session",
                                 description: "Reads today's training session and its readiness verdict.",
                                 plan: .throwsError("the stub is offline"))
-        let generator = AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
+        let generator = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         generator.prewarm()
 
         let reply = try await Self.timedReply(generator)
@@ -148,8 +148,8 @@ struct AppleToolLiveTests {
         let tool = ScriptedTool(name: "session",
                                 description: "Reads today's training session and its readiness verdict.",
                                 plan: .answers(Self.session))
-        let with = AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
-        let without = AppleReplyGenerator(instructions: Self.instructions)
+        let with = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
+        let without = try AppleReplyGenerator(instructions: Self.instructions)
         without.prewarm()
 
         // Three of each, interleaved, so a warm-up or a busy Mac does not

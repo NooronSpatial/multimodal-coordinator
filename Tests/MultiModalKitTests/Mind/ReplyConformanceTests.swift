@@ -180,8 +180,8 @@ struct AppleReplyGeneratorTests {
 
     @available(macOS 26.0, iOS 26.0, *)
     static func generator(_ plan: ScriptedSnapshotSource.Plan,
-                          refusal: String = "I can't answer that.") -> AppleReplyGenerator {
-        AppleReplyGenerator(source: ScriptedSnapshotSource(plan), spokenRefusal: refusal)
+                          refusal: String = "I can't answer that.") throws -> AppleReplyGenerator {
+        try AppleReplyGenerator(source: ScriptedSnapshotSource(plan), spokenRefusal: refusal)
     }
 
     @available(macOS 26.0, iOS 26.0, *)
@@ -237,7 +237,7 @@ struct AppleReplyGeneratorTests {
         // anything, which is why the CI matrix must include a 26 host.
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = ScriptedSnapshotSource(.spinsUntilCancelled)
-        let generator = AppleReplyGenerator(source: source)
+        let generator = try AppleReplyGenerator(source: source)
         try await ReplyConformanceKit.verifyOpenReplyHandsOff(generator)
         // DETERMINISTIC, where `!capExhausted` was measured INERT (the
         // review deleted work.cancel() and all 13 tests stayed green —

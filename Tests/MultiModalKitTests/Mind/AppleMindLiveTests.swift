@@ -26,7 +26,7 @@ struct AppleMindLiveTests {
     func perCallInstructionsReachTheModel() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let generator = AppleReplyGenerator(instructions: "Answer in one short sentence.")
+        let generator = try AppleReplyGenerator(instructions: "Answer in one short sentence.")
         let reply = try await generator.reply(to: ReplyContext(
             transcript: "What is the secret word? Answer with only that word.",
             options: MultiModalKit.GenerationOptions(

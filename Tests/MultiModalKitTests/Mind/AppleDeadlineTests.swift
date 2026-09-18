@@ -219,7 +219,7 @@ struct AppleDeadlineTests {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let clock = ManualClock()
         let source = HeldSnapshotSource()
-        let generator = AppleReplyGenerator(source: source, clock: clock)
+        let generator = try AppleReplyGenerator(source: source, clock: clock)
         let task = Task {
             try await generator.reply(to: ReplyContext(
                 transcript: "a long story",

@@ -39,9 +39,10 @@ protocol ReplySnapshotStreaming: Sendable {
 @available(macOS 26.0, iOS 26.0, *)
 struct FoundationModelSnapshots: ReplySnapshotStreaming {
 
-    /// The tools this mind was GIVEN (4w, F-2 = A): handed down from the
-    /// generator at construction, never per reply, so the session each
-    /// reply is born with carries them and the coordinator never does.
+    /// The tools this mind was GIVEN at construction — the DEFAULT table
+    /// (4z, F-2 = A): a call whose options carry a table replaces it for
+    /// that call, `.empty` on the call means no tools that turn, and
+    /// `nil` means this one. The coordinator never hands a table.
     let tools: ToolTable
 
     init(tools: ToolTable = .empty) {
@@ -59,10 +60,12 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         // measured: 1839 ms cold vs ~280 ms warm).
         AsyncThrowingStream { continuation in
             let task = Task {
-                let session = self.session(instructions: instructions,
-                                           history: context.history)
                 let options = Self.vendorOptions(for: context.options)
                 do {
+                    let session = try self.session(instructions: instructions,
+                                                   history: context.history,
+                                                   tools: self.resolvedTools(for: context.options),
+                                                   confirmed: context.options.confirmedTools)
                     for try await snapshot in session.streamResponse(to: context.transcript,
                                                                      options: options) {
                         continuation.yield(snapshot.content)
@@ -152,8 +155,17 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     /// what it already knows. Also measured: writing one anyway does NOT
     /// double it — the vendor keeps one — so the reason to leave it empty
     /// is "the vendor owns that list", not a fear of a doubled prompt.
+    /// The table THIS call runs with (AC-275, F-2 = A). SHAPE ONLY in
+    /// this commit: always the default table — the per-call rows are red
+    /// until the next commit.
+    func resolvedTools(for options: GenerationOptions) -> ToolTable {
+        tools
+    }
+
     private func session(instructions: String?,
-                         history: [ConversationTurn]) -> LanguageModelSession {
+                         history: [ConversationTurn],
+                         tools: ToolTable,
+                         confirmed: Set<String>) throws -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
         if let instructions {
             entries.append(.instructions(Transcript.Instructions(
@@ -170,7 +182,7 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         }
         // One call for both shapes: `.empty` maps to `[]`, which is the
         // vendor's default and the pre-4w session (see above).
-        return LanguageModelSession(tools: AppleToolAdapter.adapters(for: tools),
+        return LanguageModelSession(tools: try AppleToolAdapter.adapters(for: tools, confirmed: confirmed),
                                     transcript: Transcript(entries: entries))
     }
 }
@@ -327,7 +339,10 @@ public struct AppleReplyGenerator: ReplyGenerating {
                 tools: ToolTable = .empty,
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-                clock: any Clock<Duration> = ContinuousClock()) {
+                clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        // SHAPE ONLY in this commit: the init can throw but checks nothing
+        // yet — AC-289's "a bad default table throws from the init" row is
+        // red until the next commit.
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
@@ -355,7 +370,7 @@ public struct AppleReplyGenerator: ReplyGenerating {
          tools: ToolTable = .empty,
          thermal: any ThermalStateProviding = StillThermometer(),
          thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-         clock: any Clock<Duration> = ContinuousClock()) {
+         clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools

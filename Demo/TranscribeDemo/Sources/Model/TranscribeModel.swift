@@ -209,11 +209,17 @@ final class TranscribeModel {
     /// `localMind` has always been computed: the generator is a struct,
     /// and `prewarm()` warms the system model, not this value. The
     /// coordinator reads it once, when Listen starts.
+    /// A `get throws` since 4z, like `localMind`: the init refuses a
+    /// default table no mind can show (F-13 d, AC-289), and the demo's
+    /// one stub tool is well-formed, so the throw is a library bug here
+    /// — surfaced, never swallowed.
     var appleMind: AppleReplyGenerator {
-        AppleReplyGenerator(
-            instructions: TranscribeModel.spokenInstructions,
-            spokenRefusal: "I can't help with that one.",
-            tools: grantedTools)
+        get throws {
+            try AppleReplyGenerator(
+                instructions: TranscribeModel.spokenInstructions,
+                spokenRefusal: "I can't help with that one.",
+                tools: grantedTools)
+        }
     }
 
     /// THE TOOLS TOGGLE (4w, F-3 = C). Off by default: the plain path

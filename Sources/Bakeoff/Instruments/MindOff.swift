@@ -33,8 +33,13 @@ func runMindOff(_ arguments: [String]) async {
     // does. Saying which half of a bake-off did not run is the whole
     // honesty of a bake-off (D-054).
     if #available(macOS 26.0, *) {
-        await mindOffRun("Apple · FoundationModels", AppleReplyGenerator(instructions: spoken),
-                         prompts: prompts)
+        // No table here, so the init's declaration check cannot throw;
+        // an instrument still says so instead of trapping (D-054).
+        if let apple = try? AppleReplyGenerator(instructions: spoken) {
+            await mindOffRun("Apple · FoundationModels", apple, prompts: prompts)
+        } else {
+            print("Apple · FoundationModels — NOT RUN: the init refused an empty table (a library bug).")
+        }
     } else {
         print("Apple · FoundationModels — NOT RUN: needs macOS 26, this Mac is older.")
     }

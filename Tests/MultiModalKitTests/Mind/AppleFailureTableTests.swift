@@ -136,7 +136,7 @@ struct AppleFailureTableTests {
     @Test("reply(to:) RETURNS a refusal as Reply(text:, stop: .refused) — D-104")
     func wholeReplyCarriesTheRefusal() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let mind = AppleReplyGenerator(
+        let mind = try AppleReplyGenerator(
             source: ScriptedSnapshotSource(.snapshotsThenThrow(
                 [], LanguageModelSession.GenerationError
                     .refusal(.init(transcriptEntries: []), Self.forged()))),
@@ -162,7 +162,7 @@ struct AppleFailureTableTests {
     @Test("a refusal after partial text keeps what was already spoken — D-104")
     func refusalAfterPartialTextKeepsIt() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let mind = AppleReplyGenerator(
+        let mind = try AppleReplyGenerator(
             source: ScriptedSnapshotSource(.snapshotsThenThrow(
                 ["Sure", "Sure I can"], LanguageModelSession.GenerationError
                     .refusal(.init(transcriptEntries: []), Self.forged()))),

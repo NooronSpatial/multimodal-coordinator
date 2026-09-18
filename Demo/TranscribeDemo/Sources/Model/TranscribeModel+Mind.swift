@@ -350,7 +350,7 @@ extension TranscribeModel {
                                       mindLabel: "Echo (a stand-in that REPEATS your words)",
                                       onThought: { _ in }, onTurn: sink)
             case .apple:
-                return ThoughtWitness(wrapped: appleMind, mindLabel: "Apple",
+                return ThoughtWitness(wrapped: try appleMind, mindLabel: "Apple",
                                       onThought: witness, onTurn: sink)
             case .local:
                 return ThoughtWitness(wrapped: try localMind, mindLabel: "Local (MLX)",
@@ -448,7 +448,9 @@ extension TranscribeModel {
         switch AppleReplyGenerator.availability {
         case nil:
             mindAssets.unavailable = nil
-            appleMind.prewarm()
+            // The one stub tool is well-formed; a throw here is a library
+            // bug and is shown on the caption rather than swallowed.
+            do { try appleMind.prewarm() } catch { mindAssets.unavailable = String(describing: error) }
         case .some(let reason):
             // THE LIBRARY OWNS THE WORDS (4f review): the same sentence a
             // mid-session failure prints is the one this caption shows, so

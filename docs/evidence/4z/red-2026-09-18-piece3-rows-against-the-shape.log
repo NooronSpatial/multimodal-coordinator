@@ -1,0 +1,139 @@
+Building for debugging...
+[Computing dependencies]
+[Constructing description]
+[Pre-planning 1 / 1861]
+[Planning 1652 / 1861]
+[Planning deferred tasks]
+[Constructing 2670 / 4278]
+warning: missing creator for mutated node: ('/Users/ryad/Developer/multimodal-coordinator/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
+[5 / 73] MLX
+[15 / 16] MultiModalKitTests-product
+Build complete! (2.50 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-223 / AC-270 · the Apple mind's tool adapter, without a model" started.
+􀟈  Test "the vendor fills the instructions entry's toolDefinitions from the tools it was handed" started.
+􀟈  Test "an empty table hands the vendor no tools (AC-227's plain path)" started.
+􀟈  Test "two parameters with one name: the vendor's own schema builder refuses too (AC-289's second line)" started.
+􀟈  Test "an empty table builds the SAME session as the pre-4w init(transcript:) (AC-227's Mac half)" started.
+􀟈  Test "call(arguments:) reaches the ReplyTool with the typed arguments and returns its answer" started.
+􀟈  Test "a tool with no parameters shows the spike's schema, unchanged (AC-270)" started.
+􀟈  Test "the adapter wears the ReplyTool's name and description, verbatim" started.
+􀟈  Test "a band is shown only when the declaration says so — two switches (F-11 B)" started.
+􀟈  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" started.
+􀟈  Test "an answer that arrives after the call's task was cancelled goes nowhere" started.
+􀟈  Test "a table becomes one adapter per tool, in the table's order, and rides to the real source" started.
+􀟈  Test "toolFailure(from:) still carries a typed value whole — one wrap, never two" started.
+􀟈  Test "a tool's throw becomes the ToolCallFailure sentence every mind writes (AC-225)" started.
+􀟈  Test "the session's table is resolved per call: the call's over the default, .empty means none this turn (AC-275)" started.
+􀟈  Test "a flagged tool with no yes on the call is told to ask; with the name confirmed it runs once" started.
+􀟈  Test "the model's whole answer becomes the door's arguments; not a structure is no arguments (AC-269)" started.
+􀟈  Test "a bad DEFAULT table throws from the generator's init, typed (AC-289)" started.
+􀟈  Test "a bad PER-CALL table throws from openReply, before the stream — the source is never asked (AC-289)" started.
+􀟈  Test "the schema names the parameters — four kinds, one optional, the app's sentences (AC-270)" started.
+􀟈  Test "a missing required argument never reaches the body; the model reads the door's sentence (AC-273)" started.
+􀟈  Test "a throw is answered in words: call(arguments:) returns the sentence and does not throw (AC-276, F-4 = B)" started.
+􀢄  Test "two parameters with one name: the vendor's own schema builder refuses too (AC-289's second line)" recorded an issue at AppleToolTests+Schema.swift:62:9: Expectation failed: an error was expected but none was thrown
+􀄵  GenerationSchema.SchemaError.self → <not evaluated>
+􀄵    GenerationSchema.SchemaError → <not evaluated>
+􀄵    self → <not evaluated>
+􀢄  Test "a bad PER-CALL table throws from openReply, before the stream — the source is never asked (AC-289)" recorded an issue at AppleToolTests+Schema.swift:163:15: Expectation failed: an error was expected but none was thrown
+􀄵  ReplyFailure.engine(words) → <not evaluated>
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" recorded an issue at AppleToolTests+Schema.swift:72:9: Expectation failed: ToolValue(try GeneratedContent(json: "83.5")) == .number(83.5)
+􀄵  ToolValue(try GeneratedContent(json: "83.5")) == .number(83.5) → <not evaluated>
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" recorded an issue at AppleToolTests+Schema.swift:73:9: Expectation failed: ToolValue(try GeneratedContent(json: "84")) == .number(84)
+􀄵  a whole number is the one number case
+􀄵  ToolValue(try GeneratedContent(json: "84")) == .number(84) → <not evaluated>
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" recorded an issue at AppleToolTests+Schema.swift:74:9: Expectation failed: ToolValue(try GeneratedContent(json: "\"morning\"")) == .string("morning")
+􀄵  ToolValue(try GeneratedContent(json: "\"morning\"")) == .string("morning") → <not evaluated>
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" recorded an issue at AppleToolTests+Schema.swift:75:9: Expectation failed: ToolValue(try GeneratedContent(json: "true")) == .boolean(true)
+􀄵  ToolValue(try GeneratedContent(json: "true")) == .boolean(true) → <not evaluated>
+􀢄  Test "a bad DEFAULT table throws from the generator's init, typed (AC-289)" recorded an issue at AppleToolTests+Schema.swift:152:9: Expectation failed: an error was expected but none was thrown
+􀄵  ToolDeclarationError.duplicateParameter(tool: "log_reading", parameter: "kg") → <not evaluated>
+􀄵    ToolDeclarationError → <not evaluated>
+􀄵    "log_reading" → <not evaluated>
+􀄵    "kg" → <not evaluated>
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" recorded an issue at AppleToolTests+Schema.swift:77:9: Expectation failed: ToolValue(try GeneratedContent(json: "[1, \"a\"]")) == .array([.number(1), .string("a")])
+􀄵  ToolValue(try GeneratedContent(json: "[1, \"a\"]")) == .array([.number(1), .string("a")]) → <not evaluated>
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" recorded an issue at AppleToolTests+Schema.swift:78:9: Expectation failed: ToolValue(try GeneratedContent(json: "{\"a\": 1}")) == .object(["a": .number(1)])
+􀄵  ToolValue(try GeneratedContent(json: "{\"a\": 1}")) == .object(["a": .number(1)]) → <not evaluated>
+􁁛  Test "an empty table hands the vendor no tools (AC-227's plain path)" passed after 0.001 seconds.
+􀢄  Test "a band is shown only when the declaration says so — two switches (F-11 B)" recorded an issue at AppleToolTests+Schema.swift:44:25: Expectation failed: (shownSchema["properties"] as? [String: Any])?["kg"] as? [String: Any]
+􀄵  (shownSchema["properties"] as? [String: Any])?["kg"] as? [String: Any] → <not evaluated>
+􀄵    (shownSchema["properties"] as? [String: Any])?["kg"] → nil
+􀄵    [String: Any] → Optional<Any>
+􁁛  Test "the adapter wears the ReplyTool's name and description, verbatim" passed after 0.001 seconds.
+􀢄  Test "the session's table is resolved per call: the call's over the default, .empty means none this turn (AC-275)" recorded an issue at AppleToolTests+Schema.swift:131:9: Expectation failed: replaced.tools.map(\.name) == ["set_timer"]
+􀄵  a table on the call replaces the default for that call
+􀄵  replaced.tools.map(\.name) == ["set_timer"] → false
+􀄵    replaced.tools.map(\.name) → ["session"]
+􀢄  Test "two parameters with one name: the vendor's own schema builder refuses too (AC-289's second line)" failed after 0.001 seconds with 1 issue.
+􀢄  Test "the schema names the parameters — four kinds, one optional, the app's sentences (AC-270)" recorded an issue at AppleToolTests+Schema.swift:19:9: Expectation failed: Set(properties.keys) == ["kg", "note", "reps", "fasted"]
+􀄵  exactly the parameters' names: []
+􀄵  Set(properties.keys) == ["kg", "note", "reps", "fasted"] → false
+􀄵    Set(properties.keys) → []
+􀄵    ["kg", "note", "reps", "fasted"] → ["note", "kg", "fasted", "reps"]
+􁁛  Test "a table becomes one adapter per tool, in the table's order, and rides to the real source" passed after 0.001 seconds.
+􀢄  Test "a bad PER-CALL table throws from openReply, before the stream — the source is never asked (AC-289)" failed after 0.001 seconds with 1 issue.
+􁁛  Test "a tool with no parameters shows the spike's schema, unchanged (AC-270)" passed after 0.001 seconds.
+􁁛  Test "toolFailure(from:) still carries a typed value whole — one wrap, never two" passed after 0.001 seconds.
+􀢄  Test "a missing required argument never reaches the body; the model reads the door's sentence (AC-273)" recorded an issue at AppleToolTests.swift:116:6: Caught error: tool 'log_reading' cannot run: argument 'kg' is missing
+􀢄  Test "a flagged tool with no yes on the call is told to ask; with the name confirmed it runs once" recorded an issue at AppleToolTests.swift:179:6: Caught error: tool 'session' needs the person's confirmation: ask them, and call it again once they have said yes
+􀢄  Test "call(arguments:) reaches the ReplyTool with the typed arguments and returns its answer" recorded an issue at AppleToolTests.swift:103:6: Caught error: tool 'log_reading' cannot run: argument 'kg' is missing
+􀢄  Test "the schema names the parameters — four kinds, one optional, the app's sentences (AC-270)" recorded an issue at AppleToolTests+Schema.swift:22:17: Expectation failed: properties[name] as? [String: Any]
+􀄵  kg: [:]
+􀄵  properties[name] as? [String: Any] → <not evaluated>
+􀄵    properties[name] → nil
+􀄵    [String: Any] → Optional<Any>
+􀢄  Test "a bad DEFAULT table throws from the generator's init, typed (AC-289)" failed after 0.002 seconds with 1 issue.
+􀢄  Test "a missing required argument never reaches the body; the model reads the door's sentence (AC-273)" failed after 0.001 seconds with 1 issue.
+􁁛  Test "a tool's throw becomes the ToolCallFailure sentence every mind writes (AC-225)" passed after 0.002 seconds.
+􀢄  Test "a throw is answered in words: call(arguments:) returns the sentence and does not throw (AC-276, F-4 = B)" recorded an issue at AppleToolTests.swift:153:6: Caught error: tool 'session' failed: the stub is offline
+􀢄  Test "a band is shown only when the declaration says so — two switches (F-11 B)" failed after 0.002 seconds with 1 issue.
+􀢄  Test "a flagged tool with no yes on the call is told to ask; with the name confirmed it runs once" failed after 0.002 seconds with 1 issue.
+􀢄  Test "call(arguments:) reaches the ReplyTool with the typed arguments and returns its answer" failed after 0.002 seconds with 1 issue.
+􀢄  Test "a throw is answered in words: call(arguments:) returns the sentence and does not throw (AC-276, F-4 = B)" failed after 0.002 seconds with 1 issue.
+􀢄  Test "GeneratedContent is read by kind into ToolValue — one number case; list and object kept (AC-269)" failed after 0.002 seconds with 6 issues.
+􀢄  Test "the schema names the parameters — four kinds, one optional, the app's sentences (AC-270)" failed after 0.002 seconds with 2 issues.
+􀢄  Test "the model's whole answer becomes the door's arguments; not a structure is no arguments (AC-269)" recorded an issue at AppleToolTests+Schema.swift:85:9: Expectation failed: arguments == ToolArguments(["kg": 83.5, "note": "morning"])
+􀄵  arguments == ToolArguments(["kg": 83.5, "note": "morning"]) → false
+􀄵    arguments → ToolArguments(values: [:])
+􀄵      values → [:]
+􀄵    ToolArguments(["kg": 83.5, "note": "morning"]) → ToolArguments(values: ["note": "morning", "kg": 83.5])
+􀄵      values → ["note": "morning", "kg": 83.5]
+􀢄  Test "the model's whole answer becomes the door's arguments; not a structure is no arguments (AC-269)" failed after 0.002 seconds with 1 issue.
+􁁛  Test "an answer that arrives after the call's task was cancelled goes nowhere" passed after 0.002 seconds.
+􀢄  Test "the session's table is resolved per call: the call's over the default, .empty means none this turn (AC-275)" recorded an issue at AppleToolTests+Schema.swift:132:9: Expectation failed: source.resolvedTools(for: GenerationOptions(tools: .empty)).isEmpty
+􀄵  .empty on the call: no tool this turn
+􀄵  source.resolvedTools(for: GenerationOptions(tools: .empty)).isEmpty → false
+􀄵    source.resolvedTools(for: GenerationOptions(tools: .empty)) → ToolTable(tools: [MultiModalKit.ReplyTool(name: "session", description: "reads", parameters: [], requiresConfirmation: false, body: (Function))])
+􀄵      tools → [MultiModalKit.ReplyTool(name: "session", description: "reads", parameters: [], requiresConfirmation: false, body: (Function))]
+􀄵    isEmpty → false
+􀢄  Test "the session's table is resolved per call: the call's over the default, .empty means none this turn (AC-275)" recorded an issue at AppleToolTests+Schema.swift:136:9: Expectation failed: given.tools.map(\.name) == ["set_timer"]
+􀄵  a generator with no table calls the call's tool
+􀄵  given.tools.map(\.name) == ["set_timer"] → false
+􀄵    given.tools.map(\.name) → []
+􀢄  Test "the session's table is resolved per call: the call's over the default, .empty means none this turn (AC-275)" failed after 0.003 seconds with 3 issues.
+􁁛  Test "the vendor fills the instructions entry's toolDefinitions from the tools it was handed" passed after 0.023 seconds.
+􁁛  Test "an empty table builds the SAME session as the pre-4w init(transcript:) (AC-227's Mac half)" passed after 0.031 seconds.
+􀢄  Suite "AC-223 / AC-270 · the Apple mind's tool adapter, without a model" failed after 0.032 seconds with 20 issues.
+􀄵  /// The Apple mind's tool ADAPTER (4w piece 3, AC-223 / AC-225; 4z piece
+􀄵  /// 3, AC-269 / AC-270 / AC-275 / AC-276 / AC-289 — D-110 F-1 = A, F-2 = A,
+􀄵  /// F-4 = B, F-10 B-ii, F-11 B, F-13 d) — everything that can be proved
+􀄵  /// WITHOUT the vendor's model in the room.
+􀄵  ///
+􀄵  /// The scripted snapshot source behind `AppleReplyGenerator` cannot
+􀄵  /// execute a vendor `Tool` — the framework executes tools inside a real
+􀄵  /// `LanguageModelSession`, and the seam sits above that — so these tests
+􀄵  /// hold the adapter in their hands: its name, its words, the SCHEMA it
+􀄵  /// builds from the declaration, the typed answer it reads into the
+􀄵  /// door's arguments, that a throw is answered in words, that the flag is
+􀄵  /// enforced with the call's yes, and that the table is resolved per
+􀄵  /// call. The real session, with the real model, is `AppleToolLiveTests`.
+􀄵  ///
+􀄵  /// Runtime-gated on OS 26 the way every Apple test is: the vendor's
+􀄵  /// types do not exist below it.
+􀢄  Test run with 21 tests in 1 suite failed after 0.032 seconds with 20 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
