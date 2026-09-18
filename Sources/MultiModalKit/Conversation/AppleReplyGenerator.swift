@@ -155,11 +155,13 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     /// what it already knows. Also measured: writing one anyway does NOT
     /// double it — the vendor keeps one — so the reason to leave it empty
     /// is "the vendor owns that list", not a fear of a doubled prompt.
-    /// The table THIS call runs with (AC-275, F-2 = A). SHAPE ONLY in
-    /// this commit: always the default table — the per-call rows are red
-    /// until the next commit.
+    /// The table THIS call runs with (AC-275, F-2 = A): the call's when
+    /// the options carry one — `.empty` meaning no tool this turn — and
+    /// the default table otherwise. One rule, the same the scripted mind
+    /// and the MLX run apply; a session is born per reply, so the vendor
+    /// sees exactly this call's list.
     func resolvedTools(for options: GenerationOptions) -> ToolTable {
-        tools
+        options.tools ?? tools
     }
 
     private func session(instructions: String?,
@@ -340,9 +342,12 @@ public struct AppleReplyGenerator: ReplyGenerating {
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
                 clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
-        // SHAPE ONLY in this commit: the init can throw but checks nothing
-        // yet — AC-289's "a bad default table throws from the init" row is
-        // red until the next commit.
+        // A DEFAULT table no mind can show is refused HERE, where it is
+        // handed over (F-13 d, AC-289) — typed, naming the tool and the
+        // parameter — never inside a reply, where the vendor's own refusal
+        // would land in the stream's task. The same check, the same words,
+        // as the MLX mind's init.
+        try tools.checkDeclarations()
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
@@ -371,6 +376,7 @@ public struct AppleReplyGenerator: ReplyGenerating {
          thermal: any ThermalStateProviding = StillThermometer(),
          thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
          clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        try tools.checkDeclarations()
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
@@ -413,6 +419,16 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// session was born; the state rides on the case so a counting
     /// caller sees WHERE an app's stricter policy refused.
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        // A PER-CALL table no mind can show is refused first, before the
+        // heat and the verdict, on the reply seam's catch-all (F-13 d,
+        // AC-289): the caller sees it on the same call that handed the
+        // bad table, no session is born, and the model is never shown
+        // that tool as one with no parameters. `.engine` because the
+        // other cases each name a device or model condition that is not
+        // true — the same word the MLX mind's door uses.
+        if let table = context.options.tools {
+            do { try table.checkDeclarations() } catch { throw ReplyFailure.engine(error.description) }
+        }
         let heat = thermal.current
         guard thermalPolicy.allowGeneration(thermal: heat) else { throw ReplyFailure.tooHot(heat) }
         if let verdict = source.unavailable { throw ReplyFailure.unavailable(verdict) }

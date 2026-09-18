@@ -79,23 +79,84 @@ struct AppleToolAdapter: Tool {
     /// The words the model is shown — the app's (D-027), verbatim.
     var description: String { tool.description }
 
-    /// The declaration, in the vendor's words (AC-270, F-11 B's "shown"
-    /// switch). SHAPE ONLY in this commit: every tool shows the spike's
-    /// empty schema — the rows for a tool with parameters are red on
-    /// purpose until the next commit renders them.
+    /// The declaration, in the vendor's words (AC-270): one property per
+    /// `ToolParameter`, its kind as the vendor's type, the app's sentence
+    /// as its description, `isOptional` from `isRequired`. A band rides
+    /// in as the vendor's range guide ONLY when the declaration says
+    /// `showsRange` (F-11 B's two switches: shown here, checked at the
+    /// door regardless — a band shown under constrained decoding turns a
+    /// catchable 0 into an uncatchable 75, so the app decides per
+    /// parameter). A tool with no parameters shows the spike's schema,
+    /// unchanged — the `@Generable` empty struct's, so 4w's measured
+    /// plain path is byte-for-byte what it was (AC-270's last clause).
+    ///
+    /// The vendor's `GenerationSchema(root:dependencies:)` throws for a
+    /// declaration it cannot render — two properties of one name is
+    /// `SchemaError.duplicateProperty`. The library refuses that table
+    /// earlier, where it is handed over (`ToolTable.checkDeclarations`,
+    /// F-13 d), so this throw is the vendor's second line, never the
+    /// first.
     static func schema(for tool: ReplyTool) throws -> GenerationSchema {
-        AppleToolNoArguments.generationSchema
+        guard !tool.parameters.isEmpty else { return AppleToolNoArguments.generationSchema }
+        let properties = tool.parameters.map { parameter in
+            DynamicGenerationSchema.Property(name: parameter.name,
+                                             description: parameter.description,
+                                             schema: Self.valueSchema(for: parameter),
+                                             isOptional: !parameter.isRequired)
+        }
+        let root = DynamicGenerationSchema(name: tool.name, description: tool.description,
+                                           properties: properties)
+        return try GenerationSchema(root: root, dependencies: [])
+    }
+
+    /// One parameter's own schema: the vendor's type for the kind, with
+    /// the band as a guide when — and only when — it is to be shown. An
+    /// integer band is the whole numbers inside the declared band.
+    private static func valueSchema(for parameter: ToolParameter) -> DynamicGenerationSchema {
+        let shown = parameter.showsRange ? parameter.range : nil
+        switch parameter.kind {
+        case .string:
+            return DynamicGenerationSchema(type: String.self)
+        case .boolean:
+            return DynamicGenerationSchema(type: Bool.self)
+        case .number:
+            return DynamicGenerationSchema(type: Double.self, guides: shown.map { [.range($0)] } ?? [])
+        case .integer:
+            let whole = shown.map { Int($0.lowerBound.rounded(.up))...Int($0.upperBound.rounded(.down)) }
+            return DynamicGenerationSchema(type: Int.self, guides: whole.map { [.range($0)] } ?? [])
+        }
     }
 
     /// The vendor calls this from inside the session while the reply is
     /// being generated; the answer goes back to the MODEL, not to us.
-    /// SHAPE ONLY in this commit: the arguments are not read and a
-    /// refusal is still rethrown (4w's ending) — AC-269's conversion rows
-    /// and AC-276's F-4 = B rows are red until the next commit.
+    ///
+    /// THROUGH THE DOOR (F-13 g): the body is reachable no other way, so
+    /// the adapter builds a one-tool table and knocks with the model's
+    /// typed answer read by kind (AC-269) and the call's confirmed names
+    /// (F-10 B-ii). The door strips, checks, bands, flags, shields and
+    /// caps; this function judges nothing.
+    ///
+    /// ANSWERED IN WORDS, NEVER THROWN (F-4 = B, AC-276): whatever the
+    /// door decided — the answer, a refusal, a thrown body, a missing
+    /// yes — goes back to the model as the door's sentence, the same one
+    /// the MLX run feeds back, and the reply goes on to `.finished`. 4w
+    /// let a throw through and the run ended `.failed`; that ending is
+    /// gone.
+    ///
+    /// THE REENTRANCY LAW (§4.1), at the one `await` this file owns: a
+    /// barge may have retired the run while the tool was busy. The run's
+    /// `retired` latch is the PRIMARY guard — once `cancel()` has finished
+    /// the output stream, nothing the framework produces afterwards
+    /// reaches anyone (AC-226's rule). This check is the belt: the body
+    /// ran to its end under the door's shield (F-5 A) and its write
+    /// stands; its ANSWER dies here, before the vendor spends a prefill
+    /// feeding it to a model nobody is listening to. The one throw left
+    /// in this function is that `CancellationError`.
     func call(arguments: GeneratedContent) async throws -> String {
-        let outcome = await ToolTable([tool]).invoke(tool.name, arguments: .empty, confirmed: confirmed)
+        let outcome = await ToolTable([tool]).invoke(tool.name, arguments: ToolArguments(arguments),
+                                                     confirmed: confirmed)
         try Task.checkCancellation()
-        return try outcome.result.get()
+        return outcome.wordsForModel
     }
 }
 
@@ -115,21 +176,32 @@ extension AppleToolAdapter {
 
 extension ToolValue {
     /// The vendor's `GeneratedContent`, read by KIND into the contract's
-    /// value: one number case (F-13 b), strings, booleans, null, and the
-    /// two structured shapes the door refuses for a scalar parameter
-    /// (F-13 i). SHAPE ONLY in this commit: everything reads as `.null`.
+    /// value: one number case (F-13 b — the vendor has one too), strings,
+    /// booleans, null, and the two structured shapes the door refuses for
+    /// a scalar parameter (F-13 i) — kept as what they are so the refusal
+    /// can say "a list" or "an object".
     @available(macOS 26.0, iOS 26.0, *)
     init(_ content: GeneratedContent) {
-        self = .null
+        switch content.kind {
+        case .null: self = .null
+        case .bool(let value): self = .boolean(value)
+        case .number(let value): self = .number(value)
+        case .string(let value): self = .string(value)
+        case .array(let elements): self = .array(elements.map(ToolValue.init))
+        case .structure(let properties, _): self = .object(properties.mapValues(ToolValue.init))
+        @unknown default: self = .null
+        }
     }
 }
 
 extension ToolArguments {
     /// The model's whole answer — a structure — as the door's arguments.
-    /// Anything that is not a structure is no arguments at all (`.empty`).
+    /// Anything that is not a structure is no arguments at all (`.empty`):
+    /// the door then reports every required parameter missing, in words.
     @available(macOS 26.0, iOS 26.0, *)
     init(_ content: GeneratedContent) {
-        self = .empty
+        guard case .structure(let properties, _) = content.kind else { self = .empty; return }
+        self = ToolArguments(properties.mapValues(ToolValue.init))
     }
 }
 
