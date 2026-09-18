@@ -33,9 +33,10 @@ extension SettingsTab {
         // promises no call; it says what was measured and points at the
         // log, where the phone's own answer is written per turn.
         Text(model.toolsEnabled
-             ? "on · both minds get the session tool · say: "
-               + "\u{201C}\(SessionStub.sentenceToSay)\u{201D} "
-               + "· the log records each call · \(SessionStub.measuredNote)"
+             ? "on · per turn, on the call: the session read and set_timer(minutes:) · say: "
+               + "\u{201C}\(SessionStub.sentenceToSay)\u{201D} or "
+               + "\u{201C}\(TimerStub.sentenceToSay)\u{201D} "
+               + "· the log records each call and the number that arrived · \(SessionStub.measuredNote)"
              : "off · the plain path, AC-227's baseline · no tool spec in the prompt")
             .font(.caption2)
             .foregroundStyle(.secondary)

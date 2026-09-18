@@ -99,6 +99,39 @@ enum SessionStub {
     }
 }
 
+/// THE DEMO'S TOOL WITH AN ARGUMENT — `set_timer(minutes:)` (4z, D-110
+/// F-6 = A), honestly a PRINTED LINE: nothing is timed for real. Its job
+/// is AC-286's phone half: a turn with Tools on shows the model this
+/// tool beside the session read, Ryad says the sentence, and the turn
+/// line prints the NUMBER that arrived through the door — a whole number
+/// the model chose, read by the body's typed accessor, on both minds.
+///
+/// The band is checked at the door and NOT shown to the model
+/// (`showsRange: false`): F-11 B's two switches, set the way a caller
+/// would when it wants to see what the model writes unguided — a shown
+/// band under constrained decoding would turn a wrong 0 into a plausible
+/// 5, and this demo exists to read what the model does.
+enum TimerStub {
+    static let name = "set_timer"
+    static let description = "Set a countdown timer for the number of minutes the person asked for."
+    static let sentenceToSay = "Set a timer for five minutes."
+    /// The one parameter: a whole number of minutes, 1 to 180.
+    static let minutes = ToolParameter(name: "minutes",
+                                       description: "How many minutes the timer should run, as a whole number.",
+                                       kind: .integer, isRequired: true,
+                                       range: 1...180, showsRange: false)
+
+    static func tool(recording recorder: SessionToolRecorder) -> ReplyTool {
+        ReplyTool(name: name, description: description, parameters: [minutes],
+                  requiresConfirmation: false) { arguments in
+            let minutes = try arguments.integer("minutes")
+            // The evidence line: the number that ARRIVED, not the one said.
+            await recorder.record("set_timer(minutes: \(minutes))")
+            return "Timer set for \(minutes) minutes."
+        }
+    }
+}
+
 /// WHAT THE TOOL ANSWERED, this turn — the demo's evidence (4w).
 ///
 /// A phone run proves AC-222/AC-223 on device only if the log can say,

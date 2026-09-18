@@ -91,7 +91,9 @@ extension TranscribeModel {
                                   // shape, at the cost of the spoken-reply
                                   // rules and lever A) is a fork for Ryad,
                                   // presented with this piece.
-                                  tools: grantedTools)
+                                  // Since 4z the table rides on the CALL
+                                  // (F-2 = A): see `ThoughtWitness`.
+                                  tools: .empty)
         }
     }
 
@@ -174,10 +176,10 @@ extension TranscribeModel {
     /// so the two surfaces cannot drift apart. `nil` is "Tools was off
     /// for this turn"; an empty list is "on, and the model did not ask".
     nonisolated static func toolLine(for answers: [String]?) -> String {
-        guard let answers else { return "session tool: off" }
-        guard !answers.isEmpty else { return "session tool: NOT called (tools on)" }
+        guard let answers else { return "tools: off" }
+        guard !answers.isEmpty else { return "tools: NOT called (tools on)" }
         let count = answers.count == 1 ? "" : " ×\(answers.count)"
-        return "session tool: CALLED\(count) · answered: \"\(answers.joined(separator: "\" · \""))\""
+        return "tools: CALLED\(count) · \"\(answers.joined(separator: "\" · \""))\""
     }
 
     /// The log as markdown, so it leaves the phone as DATA rather than as
@@ -195,10 +197,12 @@ extension TranscribeModel {
         // known before the phone answered, and the rows below are read
         // as a result and not as a claim.
         out += toolsEnabled
-            ? "session tool: ON · say: \"\(SessionStub.sentenceToSay)\" "
-                + "· the stub answers: \"\(SessionStub.answer)\"\n"
+            ? "tools: ON (per turn, on the call) · say: \"\(SessionStub.sentenceToSay)\" "
+                + "or \"\(TimerStub.sentenceToSay)\" "
+                + "· the session stub answers: \"\(SessionStub.answer)\" "
+                + "· the timer prints the number that arrived\n"
                 + "expected: \(SessionStub.measuredNote)\n"
-            : "session tool: off · the plain path, AC-227's baseline\n"
+            : "tools: off · the plain path, AC-227's baseline\n"
         out += "Apple ear (SpeechTranscriber) locales on this device: \(appleEarLocales)\n"
         out += "local model: \(LocalMind.repoID) · installed: "
         out += "\(localModel.modelInstalled()) · MLX runnable here: "
@@ -344,17 +348,24 @@ extension TranscribeModel {
             let sink: @Sendable (TurnReport) -> Void = { [weak self] turn in
                 Task { @MainActor in self?.record(turn) }
             }
+            // The turn's table, read per call (4z, F-2 = A, AC-286): the
+            // demo's two tools when the stored switch is on, `.empty` off.
+            // The recorder is the same one `record(_:)` drains per turn.
+            let table = grantedTools
+            let toolsForTurn: @Sendable () -> ToolTable = {
+                TranscribeModel.toolsStored ? table : .empty
+            }
             switch mind {
             case .echo:
                 return ThoughtWitness(wrapped: PhoneEchoReply(onThought: witness),
                                       mindLabel: "Echo (a stand-in that REPEATS your words)",
-                                      onThought: { _ in }, onTurn: sink)
+                                      onThought: { _ in }, onTurn: sink, toolsForTurn: toolsForTurn)
             case .apple:
                 return ThoughtWitness(wrapped: try appleMind, mindLabel: "Apple",
-                                      onThought: witness, onTurn: sink)
+                                      onThought: witness, onTurn: sink, toolsForTurn: toolsForTurn)
             case .local:
                 return ThoughtWitness(wrapped: try localMind, mindLabel: "Local (MLX)",
-                                      onThought: witness, onTurn: sink)
+                                      onThought: witness, onTurn: sink, toolsForTurn: toolsForTurn)
             }
         }
     }

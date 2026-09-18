@@ -218,7 +218,7 @@ final class TranscribeModel {
             try AppleReplyGenerator(
                 instructions: TranscribeModel.spokenInstructions,
                 spokenRefusal: "I can't help with that one.",
-                tools: grantedTools)
+                tools: .empty)   // the table rides on the call since 4z (F-2 = A)
         }
     }
 
@@ -240,11 +240,22 @@ final class TranscribeModel {
     /// `TurnReport` by `record(_:)`. The demo's evidence that a call
     /// happened, which the reply's words alone cannot be (§60).
     let toolRecorder = SessionToolRecorder()
-    /// The table both minds are built with: the one stub when Tools is
-    /// on, `.empty` when it is off — and `.empty` leaves the prompt and
-    /// the loop byte-identical to 4v (AC-227's baseline).
+    /// The table a TURN runs with when Tools is on: the session read (4w)
+    /// and the timer with its number (4z, F-6 = A). Since 4z it rides on
+    /// the CALL, not on the mind (F-2 = A, AC-286): `ThoughtWitness` puts
+    /// it on each reply's options, so the switch is per turn and a turn
+    /// with it off hands the mind `.empty` — the prompt byte-identical to
+    /// the plain path (AC-272 c). Both minds are built with no table.
     var grantedTools: ToolTable {
-        toolsEnabled ? ToolTable([SessionStub.tool(recording: toolRecorder)]) : .empty
+        ToolTable([SessionStub.tool(recording: toolRecorder), TimerStub.tool(recording: toolRecorder)])
+    }
+
+    /// The switch as the witness reads it, on whatever task a reply
+    /// opens: the stored flag, which `toolsEnabled`'s `didSet` keeps
+    /// current. Read per call, so the toggle takes effect on the next
+    /// turn without a restart.
+    nonisolated static var toolsStored: Bool {
+        UserDefaults.standard.bool(forKey: toolsKey)
     }
 
     /// THE SECOND MIND's weights (4h, D-062 F-1 = A). `repoID` means the
