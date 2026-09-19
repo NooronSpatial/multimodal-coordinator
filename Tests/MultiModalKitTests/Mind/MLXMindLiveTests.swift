@@ -62,7 +62,7 @@ struct MLXMindLiveTests {
     @Test("a missing model is refused at the door, not discovered mid-reply")
     func theDoorRefusesWhatIsNotThere() async throws {
         guard let weights = Self.weights else { _ = Self.skipping("no MMK_MLX_MODEL"); return }
-        let mind = MLXReplyGenerator(
+        let mind = try MLXReplyGenerator(
             model: LocalMindModel(weights: weights.appending(path: "not-here")))
         // Typed since 4v (AC-238): the door throws the seam's own failure.
         // The ORDER is the contract — a Mac with the shader library is told
@@ -81,7 +81,7 @@ struct MLXMindLiveTests {
         guard let weights = Self.weights, MLXRuntime.isAvailable else {
             _ = Self.skipping("no MMK_MLX_MODEL or no metallib"); return
         }
-        let mind = MLXReplyGenerator(
+        let mind = try MLXReplyGenerator(
             model: LocalMindModel(weights: weights),
             instructions: "You are speaking aloud. Answer in one short sentence. "
                 + "No markdown, no lists.",
@@ -131,7 +131,7 @@ struct MLXMindLiveTests {
         _ = try await model.ensureModel()
         let load = loadStart.duration(to: clock.now)
 
-        let mind = MLXReplyGenerator(model: model,
+        let mind = try MLXReplyGenerator(model: model,
                                      instructions: "Answer in one short sentence.",
                                      maxTokens: 32)
         let askStart = clock.now
@@ -188,7 +188,7 @@ struct MLXMindLiveTests {
         guard let weights = Self.weights, MLXRuntime.isAvailable else {
             _ = Self.skipping("no MMK_MLX_MODEL or no metallib"); return
         }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
+        let mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights),
                                      maxTokens: 256)
         let run = try await mind.openReply(to: "Count slowly from one to fifty.")
         await run.cancel()

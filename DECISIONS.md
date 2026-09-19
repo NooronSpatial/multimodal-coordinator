@@ -4824,6 +4824,182 @@ read the code. A decision log that corrects itself silently is not one.
 The corrected fact is stated in SPEC AC-268; the correction itself —
 B first, then A — in §190a's ruling line, in ARCHITECTURE ("The one
 untyped throw that remains") and in `LocalMind+Admission.swift`.
+## D-109 — the 4z reference branch is a proposal: spec first, then the code piece by piece (Milestone 4z)
+
+**Date:** 2026-09-17 · **Decided by:** Ryad ("B") · *(D-108 is 4y's,
+on PR #48; this entry is numbered after it.)*
+
+**The situation.** A second session, working in Ryad's diet app, wrote
+a requirement for this library (`4z-tool-contract.md`, 2026-09-16) and
+— before it was told never to touch the library — pushed
+`origin/milestone/4z-tool-contract`: eleven commits off `main`
+(`ee6788c`), nine of them code written in thirty minutes, on a spec
+that was "signed" with the words "sign both" in the OTHER app's session
+together with that app's own forks. Nothing in this repo records that
+sign-off. A four-lens review (2026-09-17; the branch built and run on
+this Mac) found: its only CI run with code is red on a wrong assertion
+(`MLXToolLiveTests`, `made.first == .none` compares to nil); lint has
+ten errors; the 20× loop was never run (the results page still holds
+the token `__LOOP__`); its D-108 and its AC-268 collide with 4y's; six
+files conflict with 4y on merge; criterion 4 ("an unknown argument
+never reaches the body") is contradicted by its own code and test; and
+about twelve design choices were decided in code with no decision
+entry — the write-confirmation fork our own §172a reserved among them.
+The MLX half works, and INSTRUMENTS §69 was reproduced exactly.
+
+**Ruling: B.** The branch is a REFERENCE, not a delivery. The library
+takes its proposed spec commit (`c188007`, cherry-picked with `-x` as
+`45fe8a8` on `milestone/4z-tools`, off `main`), rewrites §196 with the
+forks the review found missing, renumbers its ACs after 4y's, and
+HALTS for Ryad's sign-off IN THIS REPO. Only then does code come in,
+piece by piece, under present → explain → HALT — a branch commit is
+cherry-picked (`-x`) only where it survives that review; otherwise the
+piece is rebuilt. The pushed branch is left untouched.
+
+*Rejected — A: merge the branch after 4y* (renumber, port four lines
+into 4y's moved functions, fix the assertion forward, run 20×; about
+two hours). It would put nine unreviewed code commits on `main` with a
+pull request as the only review, and hand Ryad a dozen rulings he did
+not make — what the Prime Directive forbids.
+
+*Rejected — C: delete the branch and re-spec from the requirement.*
+The slowest path, and it throws away a working MLX implementation and
+a measured §69 that a lens reproduced.
+
+**What this ruling does NOT decide.** The six forks of §196 and the
+forks the review added (unknown extras; kind coercion; the shield's
+shape; deadline versus shield; the write and its confirmation; the
+invented number; the diet app's codename in a public repo; the small
+in-code rulings) — all open until Ryad signs the rewritten §196.
+
+*Correction, 2026-09-17:* eight of the eleven commits carry code and
+instruments (`75f072f` 19:44 → `a05ecfb` 20:14); the results page
+`ea5e4a4` came 22 minutes later — the entry above says nine; §192 has
+the right count.
+
+## D-110 — 4z signed: the tool contract's thirteen forks (Milestone 4z)
+
+**Date:** 2026-09-17 · **Decided by:** Ryad — his own letters for F-1..F-6
+("My rulings, already signed … do not re-open the forks") and "signed,
+accept recommendations" for the seven forks §196 added (F-7..F-13).
+The reading is stated so it can be corrected with one word: the typed
+letters win where they and a recommendation differ (F-5); the
+recommendations rule everything he did not letter. SPEC §192–197 at
+`64a0a26` is the signed text; the full trade-offs are in §196 and are
+not repeated here — only the ruling and what it rejected.
+
+- **F-1 A — `ToolArguments` over `[String: ToolValue]`, throwing typed
+  accessors, `ReplyTool.parameters`.** *Rejected:* B (text in, every
+  tool a parser), C (a generic `Codable` payload — a second schema
+  language for two calls).
+- **F-2 A — tools per call: `GenerationOptions.tools: ToolTable?`; the
+  generator's table is the default; `.empty` means none this turn.**
+  *Rejected:* B (per generator with a prompt cache — the cache is a
+  vendor promise 4w did not measure), C (always present — the +419 ms
+  idle-tool price §67 measured).
+- **F-3 A — the result stays `String`, fed back verbatim** — with the
+  cap of F-13 (f) accepted beside it (§196 wrote that pairing as "C";
+  Ryad's letter is A, and A-with-the-cap is the same shape).
+  *Rejected:* B (a typed result — a second seam for one caller).
+- **F-4 B — a thrown tool on the Apple mind is caught by the adapter
+  and answered to the model in the MLX run's words; the seam reports
+  `.finished`.** 4w's F-5, open since the spike, closed here.
+  *Rejected:* A (`.failed` — a failing tool ends the whole reply).
+- **F-5 A — a tool's body runs to its end under a barge; cancellation
+  must not reach into it; the result dies with the ticket.** AGAINST
+  §196's recommendation (C, per-tool opt-in), by Ryad's own words in
+  the signing message. What A costs, stated on the page and accepted:
+  an awaited unstructured task on the public `ReplyTool` type, every
+  tool covered — a slow READ cannot be stopped by a barge either. What
+  makes it lawful: the task is awaited, never leaked; correctness comes
+  from the ticket (the run re-checks it after the call), never from
+  cancellation; the island is small and its proof is written beside it
+  — and the reference branch's false sentence ("the one unstructured
+  task in the reply path") is not carried over. *Rejected:* B (a
+  contract rule only, no library code — the app owns it), C (per-tool
+  opt-in, reads cancellable — the recommendation), D (shield inside the
+  two runs, not on the public type).
+- **F-6 A — the demo's tool is `set_timer(minutes:)`, honestly a
+  printed line.** *Rejected:* B (a read-only tool — the demo would
+  never show a write), C (the session read again), D (a real
+  countdown — UI work the demo does not need).
+- **F-7 C — an unknown extra argument is stripped before the body and
+  counted.** *Rejected:* A (refuse the call — a chatty model refused
+  more often), B (pass it through, as the branch did — a typo'd name
+  reaches the body silently).
+- **F-8 C — kind coercion is lenient, finite numbers only, checked and
+  counted at the door.** *Rejected:* A (strict kinds — MLX models often
+  write numbers as strings), B (lenient and silent, as the branch did;
+  NaN and inf pass).
+- **F-9 A — the deadline waits for a running tool body; one criterion
+  and one test say so.** *Rejected:* B (end at the deadline, let the
+  body finish detached — a leaked task), C (pause the clock while a
+  tool runs).
+- **F-10 B, sub-fork B-ii — a per-tool `requiresConfirmation` flag the
+  RUN enforces; the model cannot set it; the person's "yes" is marked
+  on the call's options and binds to the tool's NAME.** The write
+  fork our own §172a reserved, ruled here with the brief's default-deny.
+  *Rejected:* A (no policy, as the branch did — the model could write
+  `confirmed: true` itself), C (a typed `.needsConfirmation` result the
+  coordinator speaks — a second seam); sub-options B-i (re-hand the tool
+  without the flag), B-iii (an app closure the run asks), B-iv (the
+  options carry the confirmed call, name plus arguments — the delta to
+  take if §69 shows the model changing a number after a "yes").
+- **F-11 B — a declared numeric range on `ToolParameter`, SHOWN to the
+  model and CHECKED by the table as two separate switches; out of range
+  is refused and counted before the body.** With both cautions in the
+  spec: a required parameter is a demand the model will meet from
+  nothing; a range shown under constrained decoding turns a catchable
+  0 into an uncatchable 75. *Rejected:* A (nothing in the library, as
+  the branch did), C (a "must be said" check against the transcript —
+  the library parsing spoken numbers).
+- **F-12 B — the diet app's codename stays out of this repo's `main`,
+  tags and docs; "the diet app" is the name here.** *Rejected:* A
+  (bring the name in), C (also delete the reference branch from origin
+  after the cherry-picks — its history would be lost).
+- **F-13 — the small in-code rulings, as recommended:** (a)
+  `ToolArguments.none` → `.empty`; (b) ONE number case,
+  `.number(Double)`; (c) `ToolTable` equality by declaration, pinned by
+  a row; (d) a schema that cannot be built throws where it is built —
+  the generator's init for its default table, `openReply` for a
+  per-call one; (e) a thrown tool's own words to the model, under the
+  cap; (f) a cap on the result sized from §69's slope, cut marked, and
+  the escape of the template's closing tag at the MLX seam; (g) the
+  body reachable only through the checked door; (h) the 4-round cap
+  kept and one round priced in §69; (i) a nested value for a `.string`
+  parameter is wrong kind, counted; (j) `null` for a required parameter
+  is absent, counted `.missing`; (k) no default for `isRequired` — the
+  app writes it. *Rejected:* each item's other option, on the page.
+
+**The order of the build (Ryad):** the tool contract first — it blocks
+the diet app's M15 slice 3; AC-6 of the requirement (a barge during a
+writing tool: the write happens exactly once — §195's AC-277/AC-278)
+gets its test written first. The reference branch is a proposal
+(D-109): a commit is cherry-picked with `-x` only where it survives
+review; otherwise the piece is rebuilt. Then the model-downloads
+requirement, whose two forks are presented with a recommendation
+before any code. When both are done: a tag (0.3.0 or as the library
+numbers it) and its commit hash, for the diet app to pin.
+
+**Amendment, 2026-09-17 — piece 1 as built, by delegation ("you decide
+about ToolValue letter … and your go for piece 2").** *F-13 (i), the
+value's shape:* `ToolValue` keeps two structured cases,
+`.array([ToolValue])` and `.object([String: ToolValue])`, so a refusal
+can name what it saw ("a list", "an object"); a nested value for a
+scalar parameter is refused and counted, as ruled. *Rejected:* one
+opaque `.nested` case — a smaller public surface, but the sentence to
+the model loses list-versus-object, and both minds' parsers must fold
+two shapes into one. Five smaller choices the builder took the
+conservative way stand as built, each one word from being flipped:
+`parameters:` has no default at `ReplyTool.init`; `showsRange` must be
+written whenever a band is declared; the arguments are checked BEFORE
+the confirmation flag (the order §195 left to this entry); the sentences
+the model reads are as committed in `ReplyTool.swift`; a refusal's words
+are not capped (they echo one value). `ScriptedTool`, a test double,
+keeps its conveniences (`parameters: []`, `requiresConfirmation:
+false`). Piece 1 is merged at `4f8b350`; the tag comes after 4z alone
+(0.3.0), so the diet app's M15 slice 3 can prove the loop end to end on
+it; the downloads milestone tags separately.
 
 ## D-111 — the deadline hammer runs alone on CI (Milestone 4y, after the merge)
 
@@ -4873,3 +5049,54 @@ CONTROL, `DecodeStepRecordTests` margin) wait with wall-clock polls, the
 shape the house banned after two CI freezes; they predate 4y. Converting
 them to events raced against a sleeping cap is its own line item — and,
 honestly, would not have saved them under total starvation.
+
+**Amendment, 2026-09-19 — pieces 2b, 3 and the demo as built.** The
+small choices each piece took the conservative way, recorded so a
+reader finds them here and not in a diff; each is one word from being
+flipped. *Piece 2b (the MLX door, AC-289):* the declaration check is
+the core's, `ToolTable.checkDeclarations() throws(ToolDeclarationError)`
+— mind-agnostic, additive, `invoke` untouched; the MLX generator's init
+is `throws(ToolDeclarationError)` (typed throws, the precedent of
+`AIRuntime.init` and `Config.validate()`); `openReply` refuses a
+per-call table with `ReplyFailure.engine(words)` — the one case that
+names no untrue device or model condition, D-103's catch-all — BEFORE
+the heat and the verdict, pinned by one row; two TOOLS of one name are
+not refused (the lookup rule defines them). *Piece 3 (the Apple mind):*
+the adapter's `Arguments` is the vendor's `GeneratedContent`; the schema
+is built once per adapter and per CALL (the adapter carries the call's
+confirmed names, because the vendor runs the tool where no call context
+of ours can reach); an integer band renders as the whole numbers inside
+the declared band; a tool with no parameters keeps the spike's
+`@Generable` schema; the adapter never throws for a tool of ours — the
+door's `wordsForModel` goes back in every case (F-4 B), the one throw
+left being the cancellation belt after a barge; the Apple init and
+`openReply` check declarations exactly as the MLX ones do. *The demo
+(F-6 A, AC-286):* `set_timer(minutes:)` is a printed line, its band
+1…180 checked and NOT shown; the Tools switch rides on the CALL through
+the demo's `ThoughtWitness` (both minds are built with `.empty`), read
+per turn from the stored flag. *§69:* a call on a no-number sentence
+that carries NO number counts as the honest optional-parameter shape,
+not as INVENTED — the instrument's verdict was corrected and every log
+re-taken before it was kept.
+
+## D-112 — two tags: 0.3.0 the day 4z merges, 0.3.1 after the model downloads (Milestone 4z)
+
+**Date:** 2026-09-18 · **Decided by:** Ryad ("TWO tags, not one — 0.3.0
+the day 4z merges, so the diet app's slice 3b starts; 0.3.1 after the
+downloads milestone. One tag after both would hold the diet app for as
+long as the downloads take.")
+
+**Ruling.** The tool contract ships as **0.3.0** on the merge commit of
+`milestone/4z-tools`, with a tag note that names every public API break
+versus 0.2.0 (AC-282); the model-downloads milestone ships as **0.3.1**
+(or as the library numbers it) on its own merge. The diet app pins
+0.3.0 the same day and proves its loop end to end on it (M15 slices
+3a/3b), and anything that loop finds comes back as a requirement, fixed
+forward here.
+
+*Rejected:* one tag after both milestones — it holds the diet app for
+the whole downloads milestone for no gain, and an end-to-end run with
+nine real verbs is the best test the contract can get BEFORE more API is
+stacked on it. *Also recorded (Ryad, 2026-09-17):* no other session may
+touch this library again; requirements come as documents, code comes
+from here.

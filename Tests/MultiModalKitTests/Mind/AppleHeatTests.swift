@@ -57,8 +57,8 @@ struct AppleHeatTests {
     private static func door(at state: ThermalState,
                              policy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
                              source: RecordingSnapshotSource = RecordingSnapshotSource()
-    ) async -> ReplyFailure? {
-        let generator = AppleReplyGenerator(source: source,
+    ) async throws -> ReplyFailure? {
+        let generator = try AppleReplyGenerator(source: source,
                                             thermal: ScriptedThermalProvider(initial: state),
                                             thermalPolicy: policy)
         do {
@@ -86,7 +86,7 @@ struct AppleHeatTests {
         let every: [ThermalState] = [.nominal, .fair, .serious, .critical]
         for state in every {
             let source = RecordingSnapshotSource()
-            let failure = await Self.door(at: state, source: source)
+            let failure = try await Self.door(at: state, source: source)
             switch state {
             case .nominal, .fair, .serious:
                 #expect(failure == nil, "\(state) generates")
@@ -103,9 +103,9 @@ struct AppleHeatTests {
     @Test("an app's stricter policy refuses at .serious — the INJECTED policy decides (AC-260)")
     func injectedPolicyIsAsked() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let refused = await Self.door(at: .serious, policy: RefusesAtSerious())
+        let refused = try await Self.door(at: .serious, policy: RefusesAtSerious())
         #expect(refused == .tooHot(.serious), "the state on the case is WHERE the app's policy refused")
-        let opened = await Self.door(at: .fair, policy: RefusesAtSerious())
+        let opened = try await Self.door(at: .fair, policy: RefusesAtSerious())
         #expect(opened == nil, "the same policy lets .fair through")
     }
 
@@ -120,9 +120,9 @@ struct AppleHeatTests {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = RecordingSnapshotSource()
         source.refuse(with: .modelDownloading)
-        let hot = await Self.door(at: .critical, source: source)
+        let hot = try await Self.door(at: .critical, source: source)
         #expect(hot == .tooHot(.critical), "heat wins the door when both would refuse")
-        let cool = await Self.door(at: .nominal, source: source)
+        let cool = try await Self.door(at: .nominal, source: source)
         #expect(cool == .unavailable(.modelDownloading), "cool: the verdict is asked next, and it refuses")
     }
 
@@ -136,7 +136,7 @@ struct AppleHeatTests {
     func readOnceAndCountable() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let thermometer = CountingThermometer(.critical)
-        let generator = AppleReplyGenerator(source: RecordingSnapshotSource(), thermal: thermometer)
+        let generator = try AppleReplyGenerator(source: RecordingSnapshotSource(), thermal: thermometer)
         var refusals: [ThermalState] = []
         for _ in 0..<3 {
             do {
@@ -154,9 +154,9 @@ struct AppleHeatTests {
     /// thermometer and the `.critical`-only policy. Read back by type so
     /// a default silently swapped for a stricter one is caught.
     @Test("the public initialiser defaults to the real thermometer and the shipped policy (AC-260)")
-    func publicDefaults() {
+    func publicDefaults() throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let generator = AppleReplyGenerator()
+        let generator = try AppleReplyGenerator()
         #expect(generator.thermal is SystemThermalProvider)
         #expect(generator.thermalPolicy is DefaultGenerationThermalPolicy)
     }

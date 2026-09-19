@@ -76,13 +76,22 @@ struct ThoughtWitness: ReplyGenerating {
     /// evidence AC-200 asks for.
     let onThought: @Sendable (ReplyContext) -> Void
     let onTurn: @Sendable (TurnReport) -> Void
+    /// THE PER-CALL DOOR (4z, F-2 = A, AC-286): what this TURN's table
+    /// is — the demo's tools when the switch is on, `.empty` when it is
+    /// off, so the mind is shown no tool and pays nothing (AC-272 c).
+    /// Read per call; the mind itself is built with no table.
+    let toolsForTurn: @Sendable () -> ToolTable
 
     func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         onThought(context)
-        // The CONTEXT is forwarded, not the transcript. A witness that
-        // rebuilt the argument would silently drop the memory it is
-        // supposed to be watching.
-        let run = try await wrapped.openReply(to: context)
+        // The CONTEXT is forwarded — transcript, history and options —
+        // with ONE field set: the turn's table on the call's options. A
+        // witness that rebuilt the argument would silently drop the
+        // memory it is supposed to be watching, so the copy is complete.
+        var options = context.options
+        options.tools = toolsForTurn()
+        let run = try await wrapped.openReply(to: ReplyContext(
+            transcript: context.transcript, history: context.history, options: options))
         return WitnessedRun(wrapped: run, heard: context.transcript,
                             mind: mindLabel, report: onTurn)
     }

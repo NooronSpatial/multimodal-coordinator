@@ -1,0 +1,25 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "4z · a table no mind can show is refused at the MLX door, never rendered (AC-289)" started.
+􀟈  Test "a bad per-call table is refused before the heat and the verdict: critical and absent hear the table's error" started.
+􀟈  Test "a bad per-call table throws ReplyFailure.engine with the typed error's words from openReply; no run opens" started.
+􀟈  Test "a clean per-call table opens a run as before" started.
+􀟈  Test "a bad default table throws the typed error from the generator's init — internal seam and public door" started.
+􀟈  Test "a clean default table builds: .empty, and a tool with parameters" started.
+􁁛  Test "a clean default table builds: .empty, and a tool with parameters" passed after 0.001 seconds.
+􁁛  Test "a bad per-call table throws ReplyFailure.engine with the typed error's words from openReply; no run opens" passed after 0.001 seconds.
+􁁛  Test "a clean per-call table opens a run as before" passed after 0.001 seconds.
+􁁛  Test "a bad default table throws the typed error from the generator's init — internal seam and public door" passed after 0.001 seconds.
+􀢄  Test "a bad per-call table is refused before the heat and the verdict: critical and absent hear the table's error" recorded an issue at MLXToolDeclarationTests.swift:97:15: Expectation failed: expected error "tool 'log_reading' declares the parameter 'value' more than once" of type ReplyFailure, but "the device is too hot to generate — thermal state critical" of type ReplyFailure was thrown instead
+􀄵  Self.perCallRefusal → the device is too hot to generate — thermal state critical
+􀄵    tooHot → .critical
+􀢄  Test "a bad per-call table is refused before the heat and the verdict: critical and absent hear the table's error" failed after 0.001 seconds with 1 issue.
+􀄵  /// The order at the door: the table is the caller's own value and its
+􀄵  /// error is true whatever the phone's state, so it is read BEFORE the
+􀄵  /// heat and the verdict — a hot phone, or weights still arriving,
+􀄵  /// must not hide a bug that will still be there when they clear.
+􀢄  Suite "4z · a table no mind can show is refused at the MLX door, never rendered (AC-289)" failed after 0.001 seconds with 1 issue.
+􀢄  Test run with 5 tests in 1 suite failed after 0.001 seconds with 1 issue.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

@@ -19,3 +19,4 @@ default.metallib
 
 # A local conversation log, for sharing a session — not history.
 mind-log.md
+.claude/

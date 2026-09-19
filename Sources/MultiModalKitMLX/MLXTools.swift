@@ -2,15 +2,17 @@ import Foundation
 import MLXLMCommon
 import MultiModalKit
 
-// THE LOCAL MIND'S SIDE OF A TOOL CALL (4w, SPEC §169/1–2, AC-222; D-101).
+// THE LOCAL MIND'S SIDE OF A TOOL CALL (4w, SPEC §169/1–2, AC-222; D-101;
+// the contract's parameters and typed arguments since 4z, §193/4, D-110).
 //
 // Everything here is a pure function or a plain value — a `ReplyTool`
-// in, the vendor's spec out; the vendor's parsed call in, the seam's
-// flat request out; a count in, a refusal out. None of it needs
-// weights, a GPU or a metallib, which is why it lives apart from
-// `LocalMind.swift`, the same split `MLXGeneration.swift` made for 4v:
-// the live path is proven by gated tests that need all three, and the
-// RULES it applies are proven here on every machine.
+// in, the vendor's spec out (its parameters as the template's schema);
+// the vendor's parsed call in, the seam's TYPED request out; a tool's
+// answer in, the template-safe text out; a count in, a refusal out.
+// None of it needs weights, a GPU or a metallib, which is why it lives
+// apart from `LocalMind.swift`, the same split `MLXGeneration.swift`
+// made for 4v: the live path is proven by gated tests that need all
+// three, and the RULES it applies are proven here on every machine.
 //
 // A VENDOR FACT, CORRECTED HERE BECAUSE THE SPEC RECORDS THE OLD ONE.
 // §168 says `generateTokens` "emits a `.toolCall(ToolCall)` event
@@ -28,15 +30,15 @@ import MultiModalKit
 
 // MARK: - the call, as the token seam carries it
 
-/// One call the model asked for, in the seam's flat shape (§170: the
-/// spike's `ReplyTool` takes `[String: String]`). Built from the
-/// vendor's `ToolCall` by `init(vendor:)`; built by hand by a scripted
-/// source, so the run's arm is proven without a model.
+/// One call the model asked for, in the contract's shape (4z, F-1 = A:
+/// `ToolArguments`, the value the door checks and the body receives).
+/// Built from the vendor's `ToolCall` by `init(vendor:)`; built by hand
+/// by a scripted source, so the run's arm is proven without a model.
 struct ToolCallRequest: Sendable, Equatable {
     let name: String
-    let arguments: [String: String]
+    let arguments: ToolArguments
 
-    init(name: String, arguments: [String: String] = [:]) {
+    init(name: String, arguments: ToolArguments = .empty) {
         self.name = name
         self.arguments = arguments
     }
@@ -54,32 +56,102 @@ struct ToolExchange: Sendable, Equatable {
     let answer: String
 }
 
-// MARK: - the spec the model is shown (AC-222)
+// MARK: - the spec the model is shown (AC-222; the parameters since 4z, AC-271)
 
 extension ReplyTool {
     /// The `ToolSpec` the vendor renders into the chat template — the
     /// `<tools>` block the model reads before the question.
     ///
-    /// A NO-ARGUMENT READ, THIS SPIKE (§170): `parameters` is an empty
-    /// object, because Aura's session read takes none (F-3 = C) and
-    /// `ReplyTool` has no schema to render. The contract milestone
-    /// widens this in one place: typed arguments — a schema the model is
-    /// shown, so the Apple mind can build its `GenerationSchema` and
-    /// this template can render real parameters. Nothing else here is
-    /// expected to change: the outer shape is the one every chat
-    /// template of this family reads.
+    /// THE PARAMETERS (4z, AC-271, F-1 = A) render as the JSON-schema
+    /// object every chat template of this family reads: one property per
+    /// `ToolParameter` — its kind's JSON type and the app's sentence
+    /// (D-027), and, for a band the app chose to SHOW (F-11 B's first
+    /// switch, `showsRange`), `minimum` and `maximum`; then `required`
+    /// naming the ones the model may not leave out, in declaration
+    /// order. A hidden band renders nothing: the door still checks it
+    /// (the second switch), and the model is shown the same bytes as
+    /// for a parameter with no band.
+    ///
+    /// A tool with NO parameters renders the spike's bytes EXACTLY — an
+    /// empty `properties` and NO `required` key (an empty list would be
+    /// one more token for nothing, and a moved byte is a moved prompt,
+    /// AC-227's measurement with it). The 4w fixture row pins this.
+    ///
+    /// THE TRAP THAT STOOD HERE, and the ruling that removed it (4z piece
+    /// 2b; D-110 F-13 d applied to this mind, AC-289). Until piece 2b the
+    /// properties were built with `Dictionary(uniqueKeysWithValues:)`,
+    /// whose precondition on unique keys TRAPPED the process for two
+    /// parameters of one name — inside the source's generation task,
+    /// after `openReply` had returned, where nothing can throw (piece
+    /// 2's review, three findings on one line; the reference branch
+    /// carried the same line). The ruling puts the refusal at the DOORS,
+    /// mind-agnostic: `ToolTable.checkDeclarations()` in the core, called
+    /// by the generator's init for its default table and by `openReply`
+    /// for a per-call one, so a table with a duplicate never reaches
+    /// this rendering (`MLXToolDeclarationTests`). Rejected with it: a
+    /// silent merge (the model shown one of two declarations, "never
+    /// shown empty"'s cousin), and the trap kept on the page.
+    ///
+    /// The construction below is one that CANNOT trap: each property is
+    /// written under its name by assignment. On a table the doors passed
+    /// every name is written exactly once, which is the whole of what the
+    /// bytes fixtures pin; no precondition stands here, because the doors
+    /// are the guarantee and a second guard would be a second trap.
     var toolSpec: ToolSpec {
-        [
+        var properties: [String: any Sendable] = [:]
+        for parameter in parameters { properties[parameter.name] = parameter.property }
+        var schema: [String: any Sendable] = ["type": "object", "properties": properties]
+        let required = parameters.filter(\.isRequired).map(\.name)
+        if !required.isEmpty {
+            schema["required"] = required
+        }
+        return [
             "type": "function",
             "function": [
                 "name": name,
                 "description": description,
-                "parameters": [
-                    "type": "object",
-                    "properties": [String: any Sendable]()
-                ] as [String: any Sendable]
+                "parameters": schema
             ] as [String: any Sendable]
         ]
+    }
+}
+
+// Qualified: the vendor (MLXLMCommon) has a `ToolParameter` of its own.
+extension MultiModalKit.ToolParameter {
+    /// This parameter's JSON-schema property: the type, the sentence, and
+    /// the band only when it is shown.
+    fileprivate var property: [String: any Sendable] {
+        var property: [String: any Sendable] = [
+            "type": kind.jsonType,
+            "description": description
+        ]
+        if let range, showsRange {
+            property["minimum"] = Self.bound(range.lowerBound)
+            property["maximum"] = Self.bound(range.upperBound)
+        }
+        return property
+    }
+
+    /// A bound as the model reads it: a whole number WHOLE (`20`, not
+    /// `20.0`) — the spelling `ToolValue.plain` uses in the refusal
+    /// sentence, so the model meets one spelling of the band whichever
+    /// way it meets it — and a decimal as itself.
+    private static func bound(_ number: Double) -> any Sendable {
+        if let whole = Int(exactly: number) { return whole }
+        return number
+    }
+}
+
+extension MultiModalKit.ToolParameter.Kind {
+    /// The JSON-schema word for the kind — the same four the Apple mind's
+    /// schema uses, so one declaration reads the same to both minds.
+    var jsonType: String {
+        switch self {
+        case .string: "string"
+        case .number: "number"
+        case .integer: "integer"
+        case .boolean: "boolean"
+        }
     }
 }
 
@@ -98,50 +170,97 @@ extension ToolTable {
 // MARK: - from the vendor's call to the seam's request
 
 extension ToolCallRequest {
-    /// The vendor's parsed call, flattened to the spike's `[String:
-    /// String]`. Every `JSONValue` becomes text by `flatten(_:)`; the
-    /// vendor's optional call `id` is not carried, because the template
-    /// this mind runs does not need one to pair a call with its result
-    /// (it pairs by order: `<tool_call>` then `<tool_response>`).
+    /// The vendor's parsed call, its arguments mapped onto the contract's
+    /// values by `ToolValue.init(json:)`. The vendor's optional call `id`
+    /// is not carried, because the template this mind runs does not need
+    /// one to pair a call with its result (it pairs by order:
+    /// `<tool_call>` then `<tool_response>`).
     init(vendor call: ToolCall) {
         self.init(name: call.function.name,
-                  arguments: call.function.arguments.mapValues(Self.flatten))
+                  arguments: ToolArguments(call.function.arguments.mapValues(ToolValue.init(json:))))
     }
+}
 
-    /// One `JSONValue` as a string, LOSSLESSLY for the scalars a tool
-    /// argument is likely to be, and as JSON text for the rest:
-    /// - a string is itself, unquoted (`"40"` → `40`);
-    /// - an int, a double, a bool print the way Swift prints them;
-    /// - `null` is the word `null`;
-    /// - an array or an object is its JSON, keys sorted, so the same
-    ///   value always flattens to the same bytes.
+// MARK: - the vendor's JSON and the contract's value (4z, AC-269's MLX half)
+
+extension ToolValue {
+    /// One `JSONValue` as the contract's value, BY KIND — so a number the
+    /// model wrote as a number arrives as `.number` and the door's count
+    /// of coercions (F-8 C) is honest: a `"84"` it wrote as text is a
+    /// coercion, an `84` it wrote as a number is not. (4w flattened every
+    /// argument to text and the tool parsed it; D-101's spike, replaced
+    /// here under F-1 = A.)
     ///
-    /// A pure function, tested against fixtures (`MLXToolTests`). The
-    /// contract milestone replaces this with typed arguments; until
-    /// then a tool that wants a number parses the text it is given.
-    static func flatten(_ value: JSONValue) -> String {
+    /// - the vendor's `.int` and `.double` are ONE value, `.number`
+    ///   (F-13 b): `84` here and `84.0` on the Apple mind are the same
+    ///   `ToolValue`, so one literal in a test matches both minds;
+    /// - a string, a bool and `null` are themselves;
+    /// - an array or an object is carried as `.array` / `.object`, not
+    ///   folded into text (F-13 i): the door refuses it for a scalar
+    ///   parameter and names what it saw ("a list", "an object").
+    init(json value: JSONValue) {
         switch value {
-        case .null: "null"
-        case .bool(let bool): bool ? "true" : "false"
-        case .int(let int): String(int)
-        case .double(let double): String(double)
-        case .string(let string): string
-        case .array, .object: json(value)
+        case .null: self = .null
+        case .bool(let flag): self = .boolean(flag)
+        case .int(let whole): self = .number(Double(whole))
+        case .double(let number): self = .number(number)
+        case .string(let text): self = .string(text)
+        case .array(let items): self = .array(items.map(ToolValue.init(json:)))
+        case .object(let fields): self = .object(fields.mapValues(ToolValue.init(json:)))
         }
     }
 
-    private static func json(_ value: JSONValue) -> String {
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
-        guard let data = try? encoder.encode(value),
-              let text = String(data: data, encoding: .utf8) else {
-            // `JSONValue` is `Codable` over plain JSON scalars; encoding
-            // cannot fail for a value the vendor's parser produced. The
-            // fallback is named rather than trapped on, because a tool
-            // argument is not worth a crash.
-            return "\(value)"
+    /// The way back, for the prompt's own record of a call (the
+    /// assistant turn the next round reads, `LocalMind+Tools`): a whole
+    /// number is written whole — `84`, even if the model spelled it
+    /// `84.0`: one number case (F-13 b) keeps no spelling — a decimal as
+    /// a decimal, the rest are themselves, and a container recurses.
+    var json: JSONValue {
+        switch self {
+        case .null: .null
+        case .boolean(let flag): .bool(flag)
+        case .number(let number):
+            if let whole = Int(exactly: number) { .int(whole) } else { .double(number) }
+        case .string(let text): .string(text)
+        case .array(let items): .array(items.map(\.json))
+        case .object(let fields): .object(fields.mapValues(\.json))
         }
-        return text
+    }
+}
+
+// MARK: - the template's closing tag inside a result (4z, AC-288, F-13 f: the escape at THIS seam)
+
+/// A tool's answer goes back to the model INSIDE the template's
+/// `<tool_response>…</tool_response>` block, so an answer that carries
+/// the closing tag itself — a session that quotes it, an app echoing
+/// what a person typed — would end the block early and hand the model
+/// whatever follows as if the template had written it. D-110 F-13 (f)
+/// puts the escape HERE, at the MLX seam, not in the core door: the tag
+/// is this chat template's word, and the core stays template-blind (the
+/// Apple result is untouched; a third mind with its own template adds
+/// its own escape). Applied in the run's arm, to everything that goes
+/// back — a tool's answer and a thrown tool's words alike — before it
+/// becomes the exchange the next round's prompt is built from.
+///
+/// EXACTLY the ruling's word and no more: the closing tag, every
+/// occurrence. Its `<` becomes `&lt;` — the HTML way of saying "text,
+/// not markup" — so a person reading the prompt still sees what the
+/// tool said, and the template no longer sees its own ending. The
+/// opening tag does not end the block and is not named by F-13 (f), so
+/// it is left alone; the template's other markers are a question for
+/// the ledger, not a behaviour to invent here.
+///
+/// Applied AFTER the door's cap (`ToolTable.answerCap`, in the core):
+/// the template may read up to three characters more per escaped tag
+/// than the cap — the cap is the door's, the escape the seam's (F-13 f,
+/// sub-fork 2), and the other order would put the escape in the core.
+enum ToolResponseTag {
+    /// The template's closing tag, as the chat template of this family
+    /// writes it.
+    static let closing = "</tool_response>"
+
+    static func escape(_ answer: String) -> String {
+        answer.replacingOccurrences(of: closing, with: "&lt;/tool_response>")
     }
 }
 

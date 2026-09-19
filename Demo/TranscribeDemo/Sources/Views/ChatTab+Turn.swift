@@ -116,7 +116,8 @@ extension ChatTab {
                 // prints, so a run can be read off the screen before it
                 // is shared.
                 if model.toolsEnabled {
-                    Label("Tools ON — say: \u{201C}\(SessionStub.sentenceToSay)\u{201D}",
+                    Label("Tools ON — say: \u{201C}\(SessionStub.sentenceToSay)\u{201D} "
+                          + "or \u{201C}\(TimerStub.sentenceToSay)\u{201D}",
                           systemImage: "wrench.and.screwdriver")
                         .font(.caption)
                         .foregroundStyle(.blue)

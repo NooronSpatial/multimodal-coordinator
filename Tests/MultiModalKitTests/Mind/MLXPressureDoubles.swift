@@ -209,14 +209,17 @@ struct Wait4yTimedOut: Error, CustomStringConvertible {
 
 /// Collects a run's updates until its stream ends — the whole story of
 /// one reply, and `Facts` for the tokens as they land, so a test can act
-/// AFTER the second token rather than after a guess.
+/// AFTER the second token rather than after a guess; "terminal" when the
+/// terminal itself lands (a `ReplyUpdate` that is not a token is one),
+/// distinct from "ended", the stream's end — so an order pin can name
+/// the yield, not its proxy (AC-278's row, piece 2's review).
 enum ReplyStory {
     static func collect(_ run: any ReplyRun, facts: Facts) -> Task<[ReplyUpdate], any Error> {
         Task {
             var story: [ReplyUpdate] = []
             for await update in run.updates {
                 story.append(update)
-                if case .token = update { facts.send("token \(story.count)") }
+                if case .token = update { facts.send("token \(story.count)") } else { facts.send("terminal") }
             }
             facts.send("ended")
             return story

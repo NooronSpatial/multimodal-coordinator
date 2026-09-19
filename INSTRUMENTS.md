@@ -5543,3 +5543,103 @@ AC-266's second half, Ryad's gate. Whether `.serious` is the right
 place to refuse: F-2 = A chose `.critical` because the measured phone
 sat at `.serious` for every session and never recovered (§26); nothing
 here re-measures that.
+
+## 69. The tool contract, priced and counted — parameters on the first token, arguments on twenty sentences (4z, AC-281, the Mac half)
+
+**What was asked.** Four things, and every number's home: what the
+PARAMETERS cost on the first token; whether the model passes the NUMBER
+the person said; what a required parameter, an optional one, and a band
+shown or hidden do to a number nobody said; and what one tool round
+costs. Instrument: `bakeoff tool-contract`; raw logs in
+`docs/evidence/4z/tool-contract-{0.6B,4B,4B-with-instruction}-2026-09-19.log`.
+
+**Machine.** Ryad's Mac (10 cores), 2026-09-19, greedy (temperature 0),
+budget 120 tokens, three runs per price row, alternated. The 0.6B and
+the 4B — the phone's own model — from this Mac's cache. **The Apple
+mind: NOT RUN** — its on-device model still reports "downloading" on
+this Mac (the same fact since 4w); the instrument's `--apple` prints
+those words. The phone's rows, on both minds, are Ryad's gate (§172c).
+
+### 1. The parameters' price on the first token
+
+| table | spec chars | 0.6B | 4B, bare | 4B, under the instruction |
+|---|---|---|---|---|
+| no table | 0 | 32 ms | 150 ms | 357 ms |
+| one tool, no parameters (4w) | 179 | 96 ms (+64) | 569 ms (**+419**) | 676 ms (+319) |
+| three tools with parameters | 900 | 181 ms (+149) | 1105 ms (+955) | 1210 ms (+853) |
+| slope, parameters only | 721 chars | 0.12 ms/char | **0.74 ms/char** | 0.74 ms/char |
+
+**Reconciled with §67, as AC-281 asked — three sentences.** (1) §67's
+4B plain first token was 146 ms; today's bare 4B reads 150 ms, and the
+reference branch's 355 ms was measured UNDER the diet app's instruction
+(today: 357 ms) — the ~200 ms between them is the instruction's own
+prefill, not a drift. (2) §67's "+559 characters for one tool" counted
+the whole rendered PROMPT's growth (the `<tools>` block, its
+boilerplate and the spec); "179 spec chars" here is the tool's JSON
+alone, sorted keys — two measures of one thing, both right. (3) The
+requirement's "+851 ms (0.74 ms per spec character)" mixed two
+numbers: **0.74 ms/char is the parameters-only SLOPE** (721 chars from
+the one-tool table to the three-tool table, +536 ms); **+851–955 ms is
+the whole three-tool table's delta** over no table (900 chars —
+851/900 = 0.95 ms/char because it carries three tools' fixed cost). The
+4w number stands: one idle tool with no parameters costs the 4B +419 ms
+on every turn, byte for byte what §67 measured.
+
+### 2. The arguments — twenty sentences, three tools
+
+| | right | no call | wrong arguments | INVENTED |
+|---|---|---|---|---|
+| 0.6B, no instruction | 11 | 5 | 2 | **2** |
+| 4B, bare | **18** | 0 | 2 | 0 |
+| 4B, under the instruction | 17 | 0 | 3 | 0 |
+
+The 4B's misses are all one tool: `tick_meal` asked for the slot as
+"first"/"second" (its description says lunch is the first meal) and the
+4B wrote `slot: "dinner"` — the person's word, not the tool's — twice;
+under the instruction it also wrote `slot: "lunch"` for the untick. The
+door let them through (a string is a string); the harness's expectation
+is stricter than the tool's description, and an app that wants
+"first"/"second" would declare the slot as a choice, which this contract
+does not carry (§194). The 0.6B's misses: five "no call" answered in
+prose ("None of the provided functions are relevant…"), the same two
+`dinner`/`lunch` rows, and the two inventions below.
+
+### 3 and 4. The number nobody said — required or optional, band hidden or shown (F-11 B's two cautions)
+
+| switches | 0.6B: "Log my weight." | 0.6B: "…as heavy." | 4B bare | 4B, instruction |
+|---|---|---|---|---|
+| `kg` required · band hidden | kg **123** | kg **100** | no call | no call |
+| `kg` optional · band hidden | kg **123** | kg **100** | no call | no call / a call with NO number |
+| `kg` required · band SHOWN 20…400 | kg **120** | kg **20** | no call | no call |
+| `kg` optional · band SHOWN 20…400 | kg **123** | kg **20** | no call | no call |
+
+**What this settles.** On the 0.6B the invention is not a demand
+problem: `kg` optional invents exactly as `kg` required does (8 of 8
+trap rows). And the band's second caution is measured: SHOWN, the
+invented number moves INSIDE the band — "heavy" became `kg: 20`, the
+band's own edge — so the door's check can no longer catch it; hidden,
+the same model wrote 100 and 123, which a 20…400 band refuses. On the
+4B — the phone's model — no trap row invented a number today, bare or
+under the instruction (0 of 16); the one call it made without a number
+(`log_weight(note: "heavy")`, `kg` optional) is the honest shape an
+optional parameter allows. The reference branch's finding that the 4B
+wrote `kg: 0` twice under this instruction did NOT reproduce here; the
+difference is not explained by anything measured in this section.
+
+### 5. One tool round's price (F-13 h)
+
+| | rounds priced | question → the call | the call → first word after it | one round |
+|---|---|---|---|---|
+| 0.6B | 13 | 266 ms | 198 ms | **≈ 460 ms** |
+| 4B, bare | 16 | 1445 ms | 1210 ms | **≈ 2.65 s** |
+| 4B, under the instruction | 16 | 1584 ms | 1320 ms | ≈ 2.9 s |
+
+A round is one trip model → tool → model. On the 4B the second half —
+the second prefill, with the tool's answer in the prompt — costs as much
+as the first; that is the price §67 §2 named and did not measure. The
+4-round cap (F-13 h) stays: four rounds on the phone's model would be
+ten seconds of a spinner, and nothing here asked for more than one.
+
+**What was NOT measured.** The Apple mind's twenty sentences (model not
+ready on this Mac); anything on the phone; the argument accuracy under
+sampling (every row here is greedy); a `slot` declared as a choice.

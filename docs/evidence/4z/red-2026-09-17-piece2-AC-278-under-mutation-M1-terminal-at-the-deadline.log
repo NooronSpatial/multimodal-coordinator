@@ -1,0 +1,26 @@
+MUTATION M1 (never committed): MLXReplyRun.deadlineFired() also calls report(.finished(.deadline)) — F-9 B's observable, the terminal spoken at the deadline while the body is parked. Run: swift test --filter MLXToolDeadlineTests at a78971d plus piece 2's rows.
+
+Building for debugging...
+Build complete! (5.75 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last" started.
+􀟈  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" started.
+􀟈  Test "a body that ends before the deadline feeds its answer back; the deadline then ends the next round" started.
+􁁛  Test "a body that ends before the deadline feeds its answer back; the deadline then ends the next round" passed after 0.001 seconds.
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" recorded an issue at MLXToolDeadlineTests.swift:91:9: Expectation failed: !facts.log.contains("ended")
+􀄵  the terminal is not spoken while the body runs: ["token 1", "entered", "ended"]
+􀄵  !facts.log.contains("ended") → true
+􀄵    facts.log.contains("ended") → false
+􀄵      facts.log → ["token 1", "entered", "ended"]
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" recorded an issue at MLXToolDeadlineTests.swift:103:9: Expectation failed: written < ended
+􀄵  .finished(.deadline) is spoken AFTER the body ends: ["token 1", "entered", "ended", "written"]
+􀄵  written < ended → false
+􀄵    written → 3
+􀄵    ended → 2
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" failed after 0.002 seconds with 2 issues.
+􀢄  Suite "AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last" failed after 0.002 seconds with 2 issues.
+􀢄  Test run with 2 tests in 1 suite failed after 0.002 seconds with 2 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

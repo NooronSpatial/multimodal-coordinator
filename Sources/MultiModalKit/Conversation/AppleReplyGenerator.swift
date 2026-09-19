@@ -39,9 +39,10 @@ protocol ReplySnapshotStreaming: Sendable {
 @available(macOS 26.0, iOS 26.0, *)
 struct FoundationModelSnapshots: ReplySnapshotStreaming {
 
-    /// The tools this mind was GIVEN (4w, F-2 = A): handed down from the
-    /// generator at construction, never per reply, so the session each
-    /// reply is born with carries them and the coordinator never does.
+    /// The tools this mind was GIVEN at construction — the DEFAULT table
+    /// (4z, F-2 = A): a call whose options carry a table replaces it for
+    /// that call, `.empty` on the call means no tools that turn, and
+    /// `nil` means this one. The coordinator never hands a table.
     let tools: ToolTable
 
     init(tools: ToolTable = .empty) {
@@ -59,10 +60,12 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         // measured: 1839 ms cold vs ~280 ms warm).
         AsyncThrowingStream { continuation in
             let task = Task {
-                let session = self.session(instructions: instructions,
-                                           history: context.history)
                 let options = Self.vendorOptions(for: context.options)
                 do {
+                    let session = try self.session(instructions: instructions,
+                                                   history: context.history,
+                                                   tools: self.resolvedTools(for: context.options),
+                                                   confirmed: context.options.confirmedTools)
                     for try await snapshot in session.streamResponse(to: context.transcript,
                                                                      options: options) {
                         continuation.yield(snapshot.content)
@@ -152,8 +155,19 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
     /// what it already knows. Also measured: writing one anyway does NOT
     /// double it — the vendor keeps one — so the reason to leave it empty
     /// is "the vendor owns that list", not a fear of a doubled prompt.
+    /// The table THIS call runs with (AC-275, F-2 = A): the call's when
+    /// the options carry one — `.empty` meaning no tool this turn — and
+    /// the default table otherwise. One rule, the same the scripted mind
+    /// and the MLX run apply; a session is born per reply, so the vendor
+    /// sees exactly this call's list.
+    func resolvedTools(for options: GenerationOptions) -> ToolTable {
+        options.tools ?? tools
+    }
+
     private func session(instructions: String?,
-                         history: [ConversationTurn]) -> LanguageModelSession {
+                         history: [ConversationTurn],
+                         tools: ToolTable,
+                         confirmed: Set<String>) throws -> LanguageModelSession {
         var entries: [Transcript.Entry] = []
         if let instructions {
             entries.append(.instructions(Transcript.Instructions(
@@ -170,7 +184,7 @@ struct FoundationModelSnapshots: ReplySnapshotStreaming {
         }
         // One call for both shapes: `.empty` maps to `[]`, which is the
         // vendor's default and the pre-4w session (see above).
-        return LanguageModelSession(tools: AppleToolAdapter.adapters(for: tools),
+        return LanguageModelSession(tools: try AppleToolAdapter.adapters(for: tools, confirmed: confirmed),
                                     transcript: Transcript(entries: entries))
     }
 }
@@ -327,7 +341,13 @@ public struct AppleReplyGenerator: ReplyGenerating {
                 tools: ToolTable = .empty,
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-                clock: any Clock<Duration> = ContinuousClock()) {
+                clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        // A DEFAULT table no mind can show is refused HERE, where it is
+        // handed over (F-13 d, AC-289) — typed, naming the tool and the
+        // parameter — never inside a reply, where the vendor's own refusal
+        // would land in the stream's task. The same check, the same words,
+        // as the MLX mind's init.
+        try tools.checkDeclarations()
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
@@ -355,7 +375,8 @@ public struct AppleReplyGenerator: ReplyGenerating {
          tools: ToolTable = .empty,
          thermal: any ThermalStateProviding = StillThermometer(),
          thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-         clock: any Clock<Duration> = ContinuousClock()) {
+         clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        try tools.checkDeclarations()
         self.instructions = instructions
         self.spokenRefusal = spokenRefusal
         self.tools = tools
@@ -398,6 +419,16 @@ public struct AppleReplyGenerator: ReplyGenerating {
     /// session was born; the state rides on the case so a counting
     /// caller sees WHERE an app's stricter policy refused.
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        // A PER-CALL table no mind can show is refused first, before the
+        // heat and the verdict, on the reply seam's catch-all (F-13 d,
+        // AC-289): the caller sees it on the same call that handed the
+        // bad table, no session is born, and the model is never shown
+        // that tool as one with no parameters. `.engine` because the
+        // other cases each name a device or model condition that is not
+        // true — the same word the MLX mind's door uses.
+        if let table = context.options.tools {
+            do { try table.checkDeclarations() } catch { throw ReplyFailure.engine(error.description) }
+        }
         let heat = thermal.current
         guard thermalPolicy.allowGeneration(thermal: heat) else { throw ReplyFailure.tooHot(heat) }
         if let verdict = source.unavailable { throw ReplyFailure.unavailable(verdict) }

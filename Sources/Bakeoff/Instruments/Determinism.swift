@@ -32,7 +32,7 @@ func runDeterminism(_ arguments: [String]) async {
     // price from a spoken sentence.
     let instructions = determinismArgument("--system=", in: arguments) ?? determinismInstructions
     let budget = determinismArgument("--budget=", in: arguments).flatMap(Int.init) ?? 160
-    let mind = MLXReplyGenerator(model: model, instructions: instructions, maxTokens: budget)
+    let mind = askBuildMind { try MLXReplyGenerator(model: model, instructions: instructions, maxTokens: budget) }
     let clock = ContinuousClock()
     await askLoadAndWarm(model: model, mind: mind, weights: weights, clock: clock)
 

@@ -55,7 +55,7 @@ struct AppleOptionsTests {
     func perCallInstructionsWin() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = RecordingSnapshotSource()
-        let generator = AppleReplyGenerator(source: source, instructions: "speak briefly")
+        let generator = try AppleReplyGenerator(source: source, instructions: "speak briefly")
         let context = ReplyContext(
             transcript: "plan my week",
             options: MultiModalKit.GenerationOptions(instructions: "propose a session as JSON"))
@@ -68,7 +68,7 @@ struct AppleOptionsTests {
     func generatorInstructionsAreTheFallback() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = RecordingSnapshotSource()
-        let generator = AppleReplyGenerator(source: source, instructions: "speak briefly")
+        let generator = try AppleReplyGenerator(source: source, instructions: "speak briefly")
         _ = try await generator.reply(to: ReplyContext(transcript: "hello"))
         #expect(source.recorded.map(\.instructions) == ["speak briefly"])
     }

@@ -135,7 +135,7 @@ struct MLXAdmissionLiveTests {
     func aRealReplyEndsOnTheDeadlineAndFreesItsPrefill() async throws {
         guard let weights = Self.live() else { return }
         let model = LocalMindModel(weights: weights)
-        let mind = MLXReplyGenerator(model: model, instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: model, instructions: Self.spoken)
         try await Self.warm(mind)
         await model.waitForIdle()
         let before = MLXRuntime.activeMemoryBytes
@@ -191,7 +191,7 @@ struct MLXAdmissionLiveTests {
         guard let weights = Self.live() else { return }
         let pressure = ScriptedPressureSource()
         let model = LocalMindModel(weights: weights, pressure: pressure)
-        let mind = MLXReplyGenerator(model: model, instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: model, instructions: Self.spoken)
         try await Self.warm(mind)
         await model.waitForIdle()
         let before = MLXRuntime.activeMemoryBytes
@@ -248,7 +248,7 @@ struct MLXAdmissionLiveTests {
     func aRunCancelledAtBirthNeverPrefills() async throws {
         guard let weights = Self.live() else { return }
         let model = LocalMindModel(weights: weights, pressure: ScriptedPressureSource())
-        let mind = MLXReplyGenerator(model: model, instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: model, instructions: Self.spoken)
         try await Self.warm(mind)
         await model.waitForIdle()
         let container = try await model.ensureModelLoaded()
@@ -301,7 +301,7 @@ struct MLXAdmissionLiveTests {
         guard let weights = Self.live() else { return }
         let pressure = ScriptedPressureSource()
         let model = LocalMindModel(weights: weights, pressure: pressure)
-        let mind = MLXReplyGenerator(model: model, instructions: Self.spoken)
+        let mind = try MLXReplyGenerator(model: model, instructions: Self.spoken)
         try await Self.warm(mind)
         await model.waitForIdle()
         let resident = MLXRuntime.activeMemoryBytes

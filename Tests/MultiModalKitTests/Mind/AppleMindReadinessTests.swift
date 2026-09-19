@@ -91,7 +91,7 @@ struct AppleMindReadinessTests {
     func doorThrowsTheVerdict() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = RecordingSnapshotSource()
-        let generator = AppleReplyGenerator(source: source)
+        let generator = try AppleReplyGenerator(source: source)
         for verdict: MindUnavailable in [.modelDownloading,
                                          .featureDisabled("Apple Intelligence"),
                                          .deviceCannotRun(.notEligible),
@@ -108,7 +108,7 @@ struct AppleMindReadinessTests {
     func doorIsNeverCached() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let source = RecordingSnapshotSource()
-        let generator = AppleReplyGenerator(source: source)
+        let generator = try AppleReplyGenerator(source: source)
         source.refuse(with: .modelDownloading)
         await #expect(throws: ReplyFailure.unavailable(.modelDownloading)) {
             _ = try await generator.openReply(to: "too early")

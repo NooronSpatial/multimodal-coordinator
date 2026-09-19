@@ -1,0 +1,93 @@
+MUTATION M3 (never committed): MLXReplyRun.execute hands the door confirmed: [] instead of the call's options.confirmedTools. Run: swift test --filter MLXToolsPerCallTests at a78971d plus piece 2's rows. The per-call rows (lines 58–113) are red here for the shape's reason, not the mutation's; the mutation's own catch is lines 137–138, 'a flagged tool is refused until the call's options name it'.
+
+Building for debugging...
+Build complete! (5.07 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "4z · tools per call on the MLX run — the call's table wins, the source's is the default (AC-275)" started.
+􀟈  Test "a run retired after the round ended never knocks the door: the body does not run" started.
+􀟈  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" started.
+􀟈  Test "a call's table REPLACES the source's for that call; it does not add to it" started.
+􀟈  Test "a source with no table and a call carrying one: the tool runs; the next call without it is refused as unknown" started.
+􀟈  Test "a flagged tool is refused until the call's options name it; then its body runs once" started.
+􀟈  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" started.
+􁁛  Test "a run retired after the round ended never knocks the door: the body does not run" passed after 0.001 seconds.
+􀢄  Test "a flagged tool is refused until the call's options name it; then its body runs once" recorded an issue at MLXToolsPerCallTests.swift:137:9: Expectation failed: Self.told(source, reply: 1) == "logged"
+􀄵  Self.told(source, reply: 1) == "logged" → false
+􀄵    Self.told(source, reply: 1) → "tool 'log_reading' needs the person's confirmation: ask them, and call it again once they have said yes"
+􀄵      some → "tool 'log_reading' needs the person's confirmation: ask them, and call it again once they have said yes"
+􀄵      some → "logged"
+􀢄  Test "a call's table REPLACES the source's for that call; it does not add to it" recorded an issue at MLXToolsPerCallTests.swift:95:9: Expectation failed: Self.told(source, reply: 0) == "no tool named 'log_reading'"
+􀄵  the source's own tool is not visible on a call that brought its own table
+􀄵  Self.told(source, reply: 0) == "no tool named 'log_reading'" → false
+􀄵    Self.told(source, reply: 0) → "own"
+􀄵      some → "own"
+􀄵      some → "no tool named 'log_reading'"
+􀢄  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" recorded an issue at MLXToolsPerCallTests.swift:77:9: Expectation failed: Self.told(source, reply: 0) == "no tool named 'log_reading'"
+􀄵  Self.told(source, reply: 0) == "no tool named 'log_reading'" → false
+􀄵    Self.told(source, reply: 0) → "logged"
+􀄵      some → "logged"
+􀄵      some → "no tool named 'log_reading'"
+􀢄  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" recorded an issue at MLXToolsPerCallTests.swift:78:9: Expectation failed: own.calls.isEmpty
+􀄵  the source's own tool was hidden for that call
+􀄵  own.calls.isEmpty → false
+􀄵    own.calls → [MultiModalKit.ToolArguments(values: ["value": 83.5])]
+􀄵    isEmpty → false
+􀢄  Test "a source with no table and a call carrying one: the tool runs; the next call without it is refused as unknown" recorded an issue at MLXToolsPerCallTests.swift:58:9: Expectation failed: tool.calls == [["value": 83.5]]
+􀄵  the run called the call's tool with the typed argument
+􀄵  tool.calls == [["value": 83.5]] → false
+􀄵    tool.calls → []
+􀄵    [["value": 83.5]] → [MultiModalKit.ToolArguments(values: ["value": 83.5])]
+􀢄  Test "a flagged tool is refused until the call's options name it; then its body runs once" recorded an issue at MLXToolsPerCallTests.swift:138:9: Expectation failed: write.calls == [["value": 83.5]]
+􀄵  the yes on the call's options let the body run, once
+􀄵  write.calls == [["value": 83.5]] → false
+􀄵    write.calls → []
+􀄵    [["value": 83.5]] → [MultiModalKit.ToolArguments(values: ["value": 83.5])]
+􀢄  Test "a call's table REPLACES the source's for that call; it does not add to it" recorded an issue at MLXToolsPerCallTests.swift:97:9: Expectation failed: own.calls.isEmpty
+􀄵  own.calls.isEmpty → false
+􀄵    own.calls → [MultiModalKit.ToolArguments(values: ["value": 83.5])]
+􀄵    isEmpty → false
+􀢄  Test "a source with no table and a call carrying one: the tool runs; the next call without it is refused as unknown" recorded an issue at MLXToolsPerCallTests.swift:59:9: Expectation failed: Self.told(source, reply: 0) == "logged"
+􀄵  Self.told(source, reply: 0) == "logged" → false
+􀄵    Self.told(source, reply: 0) → "no tool named 'log_reading'"
+􀄵      some → "no tool named 'log_reading'"
+􀄵      some → "logged"
+􀢄  Test "a flagged tool is refused until the call's options name it; then its body runs once" failed after 0.002 seconds with 2 issues.
+􀢄  Test "a call's table REPLACES the source's for that call; it does not add to it" failed after 0.002 seconds with 2 issues.
+􀢄  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" recorded an issue at MLXToolsPerCallTests.swift:83:9: Expectation failed: own.calls.count == 1
+􀄵  own.calls.count == 1 → false
+􀄵    own.calls.count → 2
+􀢄  Test "a source with no table and a call carrying one: the tool runs; the next call without it is refused as unknown" recorded an issue at MLXToolsPerCallTests.swift:65:9: Expectation failed: tool.calls.count == 1
+􀄵  the tool ran exactly once
+􀄵  tool.calls.count == 1 → false
+􀄵    tool.calls.count → 0
+􀢄  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" failed after 0.002 seconds with 3 issues.
+􀢄  Test "a source with no table and a call carrying one: the tool runs; the next call without it is refused as unknown" failed after 0.002 seconds with 3 issues.
+􀢄  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" recorded an issue at MLXToolsPerCallTests.swift:109:9: Expectation failed: source.tools(for: ReplyContext(
+            transcript: "q", options: GenerationOptions(tools: ToolTable([other.tool])))) == ToolTable([other.tool])
+􀄵  source.tools(for: ReplyContext(
+               transcript: "q", options: GenerationOptions(tools: ToolTable([other.tool])))) == ToolTable([other.tool]) → false
+􀄵    source.tools(for: ReplyContext(
+                 transcript: "q", options: GenerationOptions(tools: ToolTable([other.tool])))) → ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_reading", description: "a scripted tool named log_reading", parameters: [MultiModalKit.ToolParameter(name: "value", description: "the reading", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))])
+􀄵      tools → [MultiModalKit.ReplyTool(name: "log_reading", description: "a scripted tool named log_reading", parameters: [MultiModalKit.ToolParameter(name: "value", description: "the reading", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]
+􀄵    ToolTable([other.tool]) → ToolTable(tools: [MultiModalKit.ReplyTool(name: "set_timer", description: "a scripted tool named set_timer", parameters: [], requiresConfirmation: false, body: (Function))])
+􀄵      tools → [MultiModalKit.ReplyTool(name: "set_timer", description: "a scripted tool named set_timer", parameters: [], requiresConfirmation: false, body: (Function))]
+􀢄  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" recorded an issue at MLXToolsPerCallTests.swift:112:9: Expectation failed: none == .empty
+􀄵  none == .empty → false
+􀄵    none → ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_reading", description: "a scripted tool named log_reading", parameters: [MultiModalKit.ToolParameter(name: "value", description: "the reading", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))])
+􀄵      tools → [MultiModalKit.ReplyTool(name: "log_reading", description: "a scripted tool named log_reading", parameters: [MultiModalKit.ToolParameter(name: "value", description: "the reading", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]
+􀄵    .empty → ToolTable(tools: [])
+􀄵      tools → []
+􀢄  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" recorded an issue at MLXToolsPerCallTests.swift:113:9: Expectation failed: none.toolSpecs == nil
+􀄵  no specs reach the vendor: the plain prompt of 4r (AC-272)
+􀄵  none.toolSpecs == nil → false
+􀄵    none.toolSpecs → [["function": ["description": "a scripted tool named log_reading", "parameters": ["type": "object", "properties": [:]], "name": "log_reading"], "type": "function"]]
+􀄵      some → [["function": ["description": "a scripted tool named log_reading", "parameters": ["type": "object", "properties": [:]], "name": "log_reading"], "type": "function"]]
+􀢄  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" failed after 0.004 seconds with 3 issues.
+􀄵  /// The rule itself, read off the source — what the prompt renders
+􀄵  /// from and what the run executes from are one table.
+􀢄  Suite "4z · tools per call on the MLX run — the call's table wins, the source's is the default (AC-275)" failed after 0.004 seconds with 13 issues.
+􀢄  Test run with 6 tests in 1 suite failed after 0.004 seconds with 13 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

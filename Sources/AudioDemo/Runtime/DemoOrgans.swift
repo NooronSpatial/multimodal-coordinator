@@ -32,7 +32,9 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
                 + "Use `--mind=local`, which runs from 15.")
             return PacedEchoReply(screen: screen)
         }
-        return AppleReplyGenerator(instructions: spoken)
+        // The init throws only for a default table no mind can show
+        // (F-13 d); this demo hands it none, so a throw is a library bug.
+        return appleMind(spoken, screen: screen, refuse: refuse)
     case "local":
         // A path is not a model. `--model=/nope` used to sail past this
         // guard — the URL is non-nil, so the refusal never fired and MLX
@@ -61,8 +63,17 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
                 + "than failing, so this refuses instead.")
             return PacedEchoReply(screen: screen)
         }
-        let mind = MLXReplyGenerator(model: LocalMindModel(weights: weights),
-                                     instructions: spoken, maxTokens: 160)
+        let mind: MLXReplyGenerator
+        do {
+            mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights),
+                                         instructions: spoken, maxTokens: 160)
+        } catch {
+            // 4z (AC-289): a default table no mind can show throws HERE,
+            // where it is handed over — the same refusal as the others
+            // above, never a trap inside the first reply.
+            refuse("--mind=local: \(error)")
+            return PacedEchoReply(screen: screen)
+        }
         mind.prewarm()          // loading is not warming — INSTRUMENTS §25
         return mind
     default:
@@ -141,4 +152,16 @@ func defaultLocalWeights(_ arguments: [String]) -> URL? {
     guard let entries = try? FileManager.default.contentsOfDirectory(
         at: cache, includingPropertiesForKeys: nil) else { return nil }
     return entries.first
+}
+
+/// The Apple mind for `--mind=apple`, or the echo stand-in with the reason
+/// on stderr when the init refuses — which, with no table, is a library bug.
+@available(macOS 26.0, *)
+private func appleMind(_ spoken: String, screen: Screen,
+                       refuse: (String) -> Void) -> any ReplyGenerating {
+    guard let apple = try? AppleReplyGenerator(instructions: spoken) else {
+        refuse("the Apple mind refused an EMPTY table — a library bug.")
+        return PacedEchoReply(screen: screen)
+    }
+    return apple
 }

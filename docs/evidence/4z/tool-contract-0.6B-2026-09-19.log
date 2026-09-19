@@ -1,0 +1,67 @@
+loading 73e3e38d981303bc594367cd910ea6eb48349da8…
+MLX memory: active 349 MB · peak 362 MB (RESIDENT — MLX does not mmap)
+ready in 1.8 s · everything below runs on this Mac, offline
+
+model: models--mlx-community--Qwen3-0.6B-4bit / 73e3e38d981303bc594367cd910ea6eb48349da8
+runs: 3 per price row · greedy (temperature 0) · budget 120 tokens
+instruction: NONE
+AC-281's phone rows are Ryad's gate (§172c). This Mac shows the shape, not the claim.
+
+## 1. the spec's price — first token on a question that needs no tool
+| table | spec chars | first token, median of 3 | delta vs no table |
+|---|---|---|---|
+| no table | 0 | 32 ms | +0 ms |
+| one tool, no parameters (4w) | 179 | 96 ms | +64 ms |
+| three tools with parameters | 900 | 181 ms | +149 ms |
+
+slope, parameters only: 0.12 ms per spec character (721 chars, +85 ms)
+spec chars = the tool JSON with sorted keys; §67's +559 was the whole rendered PROMPT's growth.
+
+## 2. the arguments — twenty sentences, three tools, greedy
+| # | said | expected | did | verdict | first token | total |
+|---|---|---|---|---|---|---|
+| 1 | Log my weight as 83.5 kilos. | log_weight(kg) | log_weight(kg: 83.5) | right | 460 ms | 503 ms |
+| 2 | I weigh 84 kg this morning. | log_weight(kg) | log_weight(kg: 84) | right | 459 ms | 514 ms |
+| 3 | Record 82.7 kilograms. | log_weight(kg) | log_weight(kg: 82.7) | right | 498 ms | 528 ms |
+| 4 | My weight today is 85. | log_weight(kg) | log_weight(kg: 85) | right | 454 ms | 504 ms |
+| 5 | Put down eighty-three point two kilos. | log_weight(kg) | log_weight(kg: 83.2) | right | 465 ms | 497 ms |
+| 6 | Set my weight to 81.9 kg with the note: after the run. | log_weight(kg, note) | log_weight(kg: 81.9, note: "after the run") | right | 504 ms | 592 ms |
+| 7 | I had two eggs and a coffee. | add_extra(food) | no call: None of the provided functions are relevant to recording foo | NO CALL | 182 ms | 547 ms |
+| 8 | Add a handful of almonds as a snack. | add_extra(food) | add_extra(food: "almonds") | right | 452 ms | 491 ms |
+| 9 | I just ate a protein bar. | add_extra(food) | add_extra(food: "protein bar") | right | 444 ms | 491 ms |
+| 10 | Log an extra: half an avocado. | add_extra(food) | add_extra(food: "half an avocado") | right | 459 ms | 477 ms |
+| 11 | I also had a small salad after lunch. | add_extra(food) | no call: None of the provided functions seem to be relevant for recor | NO CALL | 182 ms | 300 ms |
+| 12 | I finished lunch. | tick_meal(slot) | no call: You have finished lunch. | NO CALL | 181 ms | 202 ms |
+| 13 | Mark dinner as done. | tick_meal(slot) | tick_meal(done: true, slot: "dinner") | wrong arguments | 479 ms | 512 ms |
+| 14 | I ate my first meal. | tick_meal(slot) | no call: You have eaten your first meal. | NO CALL | 181 ms | 207 ms |
+| 15 | Dinner is eaten. | tick_meal(slot) | no call: You have already marked dinner as eaten. | NO CALL | 182 ms | 221 ms |
+| 16 | Untick lunch, I did not eat it. | tick_meal(done, slot) | tick_meal(done: false, slot: "lunch") | wrong arguments | 479 ms | 510 ms |
+| 17 | What is the weather like today? | no call | no call | right | 182 ms | 270 ms |
+| 18 | Tell me a short joke. | no call | no call | right | 182 ms | 283 ms |
+| 19 | Log my weight. | no call / refused | log_weight(kg: 123, note: "I weighed myself today.") | INVENTED | 535 ms | 630 ms |
+| 20 | Log my weight as heavy. | no call / refused | log_weight(kg: 100, note: "heavy") | INVENTED | 467 ms | 518 ms |
+
+totals: INVENTED 2 · NO CALL 5 · right 11 · wrong arguments 2 — of 20
+INVENTED is the failure an app cannot live with; refused and NO CALL are the honest misses.
+
+## 3 and 4. the trap sentences under the other switches (F-11 B)
+| switches | said | did | verdict |
+|---|---|---|---|
+| kg required · band hidden (the twenty above) | Log my weight. | log_weight(kg: 123, note: "I weighed myself today.") | INVENTED |
+| kg required · band hidden (the twenty above) | Log my weight as heavy. | log_weight(kg: 100, note: "heavy") | INVENTED |
+| kg OPTIONAL · band hidden | Log my weight. | log_weight(kg: 123, note: "I weighed myself today.") | INVENTED |
+| kg OPTIONAL · band hidden | Log my weight as heavy. | log_weight(kg: 100, note: "Heavy") | INVENTED |
+| kg required · band SHOWN 20…400 | Log my weight. | log_weight(kg: 120, note: "I weighed 120 kg today.") | INVENTED |
+| kg required · band SHOWN 20…400 | Log my weight as heavy. | log_weight(kg: 20, note: "heavy") | INVENTED |
+| kg OPTIONAL · band SHOWN 20…400 | Log my weight. | log_weight(kg: 123, note: "I weighed myself today.") | INVENTED |
+| kg OPTIONAL · band SHOWN 20…400 | Log my weight as heavy. | log_weight(kg: 20, note: "heavy") | INVENTED |
+
+required = a demand the model meets from nothing; a band SHOWN under constrained decoding
+turns a catchable 0 into an uncatchable 75 — the two cautions of F-11 B, measured.
+
+## 5. one tool round's price (F-13 h) — the calls above, medians
+rounds priced: 13 · median question→call 266 ms · call→first word after the answer 198 ms · one round ≈ 464 ms
+
+## the Apple mind — the same twenty sentences
+NOT RUN: the on-device model is still downloading — try later
+

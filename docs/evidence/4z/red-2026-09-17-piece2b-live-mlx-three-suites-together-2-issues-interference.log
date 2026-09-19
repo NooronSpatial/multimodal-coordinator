@@ -1,0 +1,92 @@
+warning: 'zipfoundation': <worktree>/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "4w · AC-222: the local mind asks the session tool and speaks the answer, when this machine has the model" started.
+􀟈  Suite "4v · the local mind honours the contract, when this machine has the model" started.
+􀟈  Suite "AC-272 · the plain path's whole prompt is the same bytes before and after 4z, when this machine has the model" started.
+􀟈  Test "the REAL model calls `session` and its reply carries the session's numbers" started.
+􀟈  Test "a REAL reply that ends on its own is .finished(.complete)" started.
+􀟈  Test "no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after" started.
+􀢄  Test "the REAL model calls `session` and its reply carries the session's numbers" recorded an issue at MLXToolLiveTests.swift:74:6: Caught error: the reply ended without a terminal
+􀢄  Test "a REAL reply that ends on its own is .finished(.complete)" recorded an issue at MLXContractLiveTests.swift:38:6: Caught error: the reply ended without a terminal
+􀢄  Test "the REAL model calls `session` and its reply carries the session's numbers" failed after 2.242 seconds with 1 issue.
+􀢄  Test "a REAL reply that ends on its own is .finished(.complete)" failed after 2.242 seconds with 1 issue.
+􀟈  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" started.
+􀟈  Test "asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is ToolCallParsingTests'" started.
+AC-272 live · the plain prompt: tokens: 23, 138 bytes
+AC-272 live · before == after == this render: true
+􁁛  Test "no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after" passed after 3.042 seconds.
+􁁛  Suite "AC-272 · the plain path's whole prompt is the same bytes before and after 4z, when this machine has the model" passed after 3.043 seconds.
+AC-235 budget · said: Rome's
+􁁛  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" passed after 2.123 seconds.
+􀟈  Test "a per-call instruction overrides the source's own on the REAL model" started.
+AC-269 live · MLX · calls: [MultiModalKit.ToolArguments(values: ["kg": 83.5])] · received: [83.5] · said: Recorded 83.5 kg. · stop: complete
+􁁛  Test "asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is ToolCallParsingTests'" passed after 2.806 seconds.
+􀟈  Test "the no-tool baseline for the same weights is measured beside it" started.
+AC-232 per-call · said: BANANA
+􁁛  Test "a per-call instruction overrides the source's own on the REAL model" passed after 1.600 seconds.
+􀟈  Test "temperature 0 twice, and seed 7 twice, are byte-identical" started.
+AC-228 live · no tool, plain question: 0.477304542 seconds · said: I don't have access to real-time information or current events. If you have a specific topic or context in mind, please let me know, and I can
+􁁛  Test "the no-tool baseline for the same weights is measured beside it" passed after 2.052 seconds.
+􀟈  Test "the spec's prefill cost is measured: tokens and characters, with and without the tool" started.
+AC-234 greedy · Three capitals in Europe are London, Paris, and Berlin.
+AC-234 seeded · Three capitals in Europe are Rome, Paris, and Berlin.
+􁁛  Test "temperature 0 twice, and seed 7 twice, are byte-identical" passed after 2.408 seconds.
+􀟈  Test "a prompt longer than the model's window is .failed(.contextWindowExceeded), no token spoken" started.
+AC-236 · the window is 40960 tokens
+AC-228 prefill · without the spec: 38 tokens / 190 chars; with: 147 tokens / 721 chars; the spec adds 109 tokens / 531 chars
+􁁛  Test "the spec's prefill cost is measured: tokens and characters, with and without the tool" passed after 1.512 seconds.
+􀢄  Suite "4w · AC-222: the local mind asks the session tool and speaks the answer, when this machine has the model" failed after 8.614 seconds with 1 issue.
+􀄵  /// AC-222 against the REAL model: the local mind is given Aura's session
+􀄵  /// read (F-3 = C), asked for today's session, and must CALL the tool and
+􀄵  /// speak its answer. Gated exactly as `MLXContractLiveTests` is — on
+􀄵  /// `MMK_MLX_MODEL` and on `MLXRuntime.isAvailable` — because without a
+􀄵  /// metallib MLX aborts the process (D-061), and a skip that says so is
+􀄵  /// the least dishonest thing available.
+􀄵  ///
+􀄵  /// WHAT A 0.6B MODEL CAN BE RELIED ON TO DO, measured before this row
+􀄵  /// was written (eight prompt shapes, then the passing one three times
+􀄵  /// greedy and twice at the vendor's temperature; the run's own record
+􀄵  /// is printed by each test):
+􀄵  ///
+􀄵  /// - It calls `session` when the USER'S turn names the tool ("use the
+􀄵  ///   session tool…") and there is NO system instruction: 3/3 greedy,
+􀄵  ///   2/2 at 0.6, every reply carrying the answer's numbers.
+􀄵  /// - It does NOT call when only a system instruction asks it to —
+􀄵  ///   "always call the session tool", "you MUST first call…" — 0/4; it
+􀄵  ///   answers "I don't have access to today's session".
+􀄵  /// - It does NOT call when ANY app instruction is present beside the
+􀄵  ///   naming question, even "answer in one sentence of plain prose":
+􀄵  ///   0/3 — it parrots the question back.
+􀄵  ///
+􀄵  /// So this row uses the shape that holds, under greedy so the same
+􀄵  /// prompt gives the same bytes (AC-234) and a pass is a fact, not a
+􀄵  /// hope. What is NOT claimed, and is the honest finding for the
+􀄵  /// contract milestone: on this size the tool is a thing the PERSON
+􀄵  /// must ask for by name, and the app's instruction (D-027) and the tool
+􀄵  /// do not yet coexist. The spike's question (§169/2) is narrower — the
+􀄵  /// call crosses the seam and the reply continues — and that is what
+􀄵  /// this row proves on real weights.
+􁁛  Test "a prompt longer than the model's window is .failed(.contextWindowExceeded), no token spoken" passed after 1.797 seconds.
+􀟈  Test "with the weights on disk and MLX runnable, the verdict is nil and the door opens" started.
+􁁛  Test "with the weights on disk and MLX runnable, the verdict is nil and the door opens" passed after 0.002 seconds.
+􀢄  Suite "4v · the local mind honours the contract, when this machine has the model" failed after 10.175 seconds with 1 issue.
+􀄵  /// 4v's contract against the REAL model (AC-234, AC-235, AC-236, AC-238):
+􀄵  /// the stop reason read from the vendor's `.info` event, the sampling
+􀄵  /// levers reaching the sampler, the window refusal before generation,
+􀄵  /// and the typed door. Gated exactly as `MLXMindLiveTests` is — on
+􀄵  /// `MMK_MLX_MODEL` and on `MLXRuntime.isAvailable` — because without a
+􀄵  /// metallib MLX aborts the process (D-061), and a skip that says so is
+􀄵  /// the least dishonest thing available.
+􀢄  Test run with 11 tests in 3 suites failed after 10.175 seconds with 2 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

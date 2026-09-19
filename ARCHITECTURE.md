@@ -2376,6 +2376,154 @@ SPEC §188's non-goals, plainly, plus what this milestone owes:
 - **The phone is not measured here.** §68's phone rows and the thermal
   curve with the mind generating are owed (AC-266's second half).
 
+## The tool contract (4z)
+
+The section above is how the mind runs SAFELY. This one is how the mind
+DOES something: it calls a verb the app hands it, with the numbers the
+person said, and the app's code runs. It is written for the caller that
+declares nine verbs with one number each and wants to know exactly what
+reaches its code (SPEC §192–197, D-110; the diet app's requirement,
+`4z-tool-contract.md`, and Aura's §168a before it).
+
+**The short codes.** `AC-nnn` is a criterion in `SPEC.md`; `F-n` is a
+fork of milestone 4z ruled in **D-110** — F-1 A (typed arguments),
+F-2 A (tools per call), F-3 A (a `String` result, capped), F-4 B (a
+thrown tool answered in words), F-5 A (a body runs to its end under a
+barge), F-6 A (the demo's timer), F-7 C (extras stripped and counted),
+F-8 C (lenient kinds, counted at the door), F-9 A (the deadline waits
+for a body), F-10 B-ii (a confirmation flag the run enforces), F-11 B (a
+band shown and checked as two switches), F-12 B (no app codename here),
+F-13 a–k (the small rulings). A *verb* is a tool the app owns; the
+*door* is the one function every call passes through; a *round* is one
+trip model → tool → model.
+
+### The life of one call
+
+```
+ the app declares                    the model                      the LIBRARY
+ ────────────────                    ─────────                      ───────────
+ ReplyTool(                                                         SHOWN to the model, per mind:
+   name: "log_reading",                                              MLX   <tools> JSON: properties,
+   description: "…",                                                       required, a band if shown
+   parameters: [kg: number,                                          Apple GenerationSchema built at
+      required, band 20…400,                                               run time from the same list
+      showsRange: false],
+   requiresConfirmation: false,      writes a call ──────────────►  THE DOOR  ToolTable.invoke
+   body: { args in … })                {"kg": "83.5",                1 strip   undeclared names dropped, COUNTED   F-7 C
+                                        "mood": "fine"}              2 check   missing / null / wrong kind → REFUSED,
+ GenerationOptions(                                                            told in words; "83.5" → 83.5 COUNTED   F-8 C
+   tools: table,          ◄── per call, or nil = the mind's own      3 band    20…400? out → REFUSED, counted      F-11 B
+   confirmedTools: ["…"])                                            4 flag    needs a yes and none on this call →
+                                                                               body NOT run, model told to ask   F-10 B-ii
+                                                                     5 shield  the BODY runs in its own awaited task:
+                                                                               a barge cannot reach inside it       F-5 A
+                                                                     6 cap     4,000 chars, cut marked, COUNTED    F-3/F-13 f
+                                                                     7 words   the sentence the model reads, either way
+                                     reads the words ◄──────────────  (MLX: the template's closing tag escaped here)
+                                     and speaks
+```
+
+The one sentence to keep: **the library owns the door; the app owns the
+verbs.** No verb, no kilogram, no notion of a meal lives in the library —
+`kg` and `log_reading` appear in this repo only as test examples and in
+one comment that tells the story of the bug F-5 answers.
+
+### The shortest code that works
+
+```swift
+let logReading = ReplyTool(
+    name: "log_reading",
+    description: "Record a body reading the person gives, in kilograms.",
+    parameters: [ToolParameter(name: "kg", description: "the reading in kilograms",
+                               kind: .number, isRequired: true,
+                               range: 20...400, showsRange: false)],
+    requiresConfirmation: false) { arguments in
+        let kg = try arguments.number("kg")        // a number, never text (F-1 A, F-8 C)
+        await store.record(kg)                     // runs to its end even under a barge (F-5 A)
+        return "Recorded \(kg) kg."                 // back to the model, verbatim, capped (F-3 A)
+    }
+
+// The table rides on the CALL (F-2 A). nil = the generator's own table;
+// .empty = no tools this turn (the plain path, byte-identical to 4v).
+let reply = try await mind.reply(to: ReplyContext(
+    transcript: "log eighty-three and a half",
+    options: GenerationOptions(tools: ToolTable([logReading]))))
+```
+
+Two more lines when a verb needs a yes: declare it
+`requiresConfirmation: true`, and when the person has said yes, put the
+tool's NAME on the next call — `GenerationOptions(tools: table,
+confirmedTools: ["log_reading"])`. The model cannot confirm itself: a
+`confirmed: true` it writes into the arguments changes nothing. **The
+known hole, ruled and recorded (D-110 F-10 B-ii):** the yes binds to the
+name, so the model's next call of that tool runs with whatever number
+it writes; re-check the number in the verb after a yes, or wait for the
+delta that binds name plus arguments (B-iv on the page).
+
+### What each mind shows the model, and how the answer comes back
+
+| | MLX mind | Apple mind |
+|---|---|---|
+| the schema | the `<tools>` JSON block: one property per parameter with its type and sentence, `required`, `minimum`/`maximum` when `showsRange` (AC-271) | a `GenerationSchema` built at run time from the same list — `DynamicGenerationSchema`, a range guide when shown (AC-270) |
+| no parameters | 4w's bytes, unchanged (the fixture) | the spike's `@Generable` empty schema, unchanged |
+| the answer | the vendor's `.toolCall` JSON parsed by KIND into `ToolValue` — one number case (F-13 b); a list or object is refused for a scalar (F-13 i) | the vendor's `GeneratedContent`, read by kind into the same `ToolValue` |
+| the table per call | `options.tools ?? own` (AC-275) | the same rule; a session is born per reply with exactly that list |
+| a thrown body | the door's sentence goes back to the model; `.finished` | the adapter returns the door's sentence — never throws (F-4 B, AC-276) |
+| the closing tag | `</tool_response>` inside a result is escaped at the MLX seam, before `.tool(answer)` (F-13 f) | not a template mind; untouched |
+| a bad table (two parameters, one name) | `init` throws `ToolDeclarationError`; `openReply` throws `.engine(words)` before any run (AC-289) | the same two doors; the vendor's `duplicateProperty` stays as the second line |
+
+Neither mind judges an argument. The door does, once, the same way.
+
+### The proofs, one line each
+
+- **A barge does not un-write** (F-5 A, AC-277): a cooperative tool that
+  looks at the cancellation flag before it commits used to skip its
+  write on a barge — the bug that bit first. Now the body runs in an
+  awaited task of its own; the test was commit one of the milestone,
+  red (`writes == 1 → 0`), then green.
+- **The deadline waits for a body** (F-9 A, AC-278): the rounds task
+  awaits the door, then speaks `.finished(.deadline)` in its own program
+  order — one write, one terminal, last. The opposite design is
+  convicted by a kept mutation log.
+- **The plain path is unchanged** (AC-272): the prepared prompt for a
+  question with no tools was captured with the 0.6B before the first MLX
+  change and after — byte-identical (23 tokens, 138 bytes), both files
+  kept.
+- **A number arrives as a number** (AC-269): the 0.6B, asked by name,
+  called `log_reading` and the body's typed accessor read `83.5`. The
+  Apple mind's row is written and skips on this Mac (model not ready);
+  the phone is its gate.
+
+### What it costs, measured (INSTRUMENTS §69)
+
+On the 4B — the phone's model — an idle tool with no parameters costs
+**+419 ms** on the first token of every turn (4w's number, reproduced
+byte for byte); the parameters add **0.74 ms per spec character** on top
+(three verbs: +955 ms in all). One tool round is **≈2.65 s** on the 4B,
+≈460 ms on the 0.6B — the second prefill costs as much as the first.
+Arguments: the 4B got 18 of 20 scripted sentences right and invented
+nothing in 16 trap rows; the 0.6B got 11 and invented in every trap row,
+optional `kg` or not — and with the band SHOWN it invented `kg: 20`, the
+band's own edge, which no door can catch. That is why `showsRange` is a
+separate switch, and why the demo keeps it off.
+
+### What this does NOT do
+
+- **No verb, no policy, no undo.** The library confirms nothing on its
+  own and refuses nothing on its own; the flag and the band are bits the
+  app declares.
+- **No provenance.** The door checks presence, kind and band; whether
+  the person actually SAID the number is the app's to confirm — the 0.6B
+  writes a plausible 83 that no band catches.
+- **No nested parameters** (§194): a list or an object for a scalar is
+  refused; a tool that wants one waits for a later milestone.
+- **The yes is bound to a name, not to the arguments** (F-10 B-ii) —
+  the recorded hole, and B-iv the delta that closes it.
+- **The Apple mind's live rows skip on this Mac** (model not ready);
+  the phone is their gate, as it is for the demo's per-turn line.
+- **One tool per round on the demo; four rounds on the MLX mind** — the
+  cap stands (F-13 h), priced in §69.
+
 ## The rails — cross-cutting, everything rides on them
 
 ```
@@ -2493,6 +2641,9 @@ variable, and every fault of that afternoon was findable in one command
 | The install seam a caller can fake, and the typed install failure (4x) | `MultiModalKitMLX/WeightsFetching.swift` |
 | Which hosts this library can contact, and what a request carries (4x) | `docs/HOSTS.md` |
 | ONE admission call — the gate, the app's number, and the pressure step (4y) | `MultiModalKitMLX/LocalMind+Admission.swift` |
+| The tool contract's types and THE DOOR — strip, check, band, flag, shield, cap (4z) | `Conversation/ReplyTool.swift` |
+| What the MLX mind SHOWS the model, and how its call is parsed by kind (4z) | `MultiModalKitMLX/MLXTools.swift` |
+| The Apple mind's tool adapter — the schema built at run time, the answer read by kind (4z) | `Conversation/AppleReplyGenerator+Tools.swift` |
 | The headroom hand, the pressure seam, and the runs a warning must reach (4y) | `MultiModalKitMLX/MindPressure.swift` |
 | The two cancellation checks before the prefill; what frees the KV cache (4y) | `MultiModalKitMLX/LocalMind.swift` — `generate`, `stream`; `VendorLoop.swift` |
 | Heat at the door — the second moment, and its `.critical`-only default (4y) | `Diagnostics/ThermalPolicy.swift` — `GenerationThermalPolicy` |
@@ -2511,13 +2662,13 @@ is right.
 
 ```
 $ Scripts/shape.sh
-commit          6aea757
-library core    6942 lines   Sources/MultiModalKit
-all sources     16809 lines   every product, demo and instrument under Sources/
-demo app        5629 lines   Demo/
-tests           14717 lines   Tests/
+commit          7a4f10e
+library core    8278 lines   Sources/MultiModalKit
+all sources     22039 lines   every product, demo and instrument under Sources/
+demo app        6092 lines   Demo/
+tests           23532 lines   Tests/
 TurnCoordinator 1028 lines across 5 files
-runner          Test run with 615 tests in 83 suites
+runner          Test run with 855 tests in 119 suites
 ```
 
 More test than library, which is the point. The test folder mirrors this

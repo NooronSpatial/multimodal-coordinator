@@ -58,9 +58,11 @@ func runToolSpike(_ arguments: [String]) async {
     let model = LocalMindModel(weights: weights)
     let stub = ToolSpikeStub()
     // The SAME budget on both minds, or the delta measures the budget.
-    let bare = MLXReplyGenerator(model: model, instructions: instructions, maxTokens: toolSpikeBudget)
-    let tooled = MLXReplyGenerator(model: model, instructions: instructions, maxTokens: toolSpikeBudget,
-                                   tools: ToolTable([stub.tool]))
+    let bare = askBuildMind { try MLXReplyGenerator(model: model, instructions: instructions,
+                                                    maxTokens: toolSpikeBudget) }
+    let tooled = askBuildMind { try MLXReplyGenerator(model: model, instructions: instructions,
+                                                      maxTokens: toolSpikeBudget,
+                                                      tools: ToolTable([stub.tool])) }
     let clock = ContinuousClock()
     await askLoadAndWarm(model: model, mind: bare, weights: weights, clock: clock)
     // The tooled mind's first breath too, so run 1 of the tool path is
@@ -289,7 +291,8 @@ private final class ToolSpikeStub: Sendable {
     var tool: ReplyTool {
         // `self`, not `record`: a `Mutex` cannot be copied into a capture
         // list, and this class is `Sendable` so the closure may hold it.
-        ReplyTool(name: "session", description: toolSpikeDescription) { [self] _ in
+        ReplyTool(name: "session", description: toolSpikeDescription,
+                  parameters: [], requiresConfirmation: false) { [self] _ in
             let entered = clock.now
             record.withLock { $0.calls += 1; $0.enteredAt = entered }
             let answer = toolSpikeSession

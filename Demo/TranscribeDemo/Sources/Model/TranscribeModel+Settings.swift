@@ -113,7 +113,7 @@ extension TranscribeModel {
     /// 4w: does the mind get the session tool. OFF by default — the plain
     /// path is what ships, and AC-227 measures the tool path AGAINST it,
     /// so a fresh install must start where the baseline is.
-    static let toolsKey = "dev.nooron.demo.toolsEnabled"
+    nonisolated static let toolsKey = "dev.nooron.demo.toolsEnabled"
     /// `object(forKey:)` and not `bool(forKey:)`: the latter answers
     /// `false` for "never set", which would silently flip a default that
     /// is deliberately `true`.

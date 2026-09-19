@@ -18,9 +18,9 @@ struct MLXThermalDoorTests {
 
     private func mind(at state: ThermalState,
                       policy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-                      source: ScriptedTokenSource = ScriptedTokenSource(.tokens(["hi"])))
+                      source: ScriptedTokenSource = ScriptedTokenSource(.tokens(["hi"]))) throws
     -> MLXReplyGenerator {
-        MLXReplyGenerator(source: source,
+        try MLXReplyGenerator(source: source,
                           thermal: ScriptedThermalProvider(initial: state),
                           thermalPolicy: policy)
     }
@@ -29,7 +29,7 @@ struct MLXThermalDoorTests {
     @Test("the default policy opens at nominal, fair and serious, and refuses at critical",
           arguments: [ThermalState.nominal, .fair, .serious, .critical])
     func theDefaultPolicyStateByState(state: ThermalState) async throws {
-        let mind = mind(at: state)
+        let mind = try mind(at: state)
         if state == .critical {
             await #expect(throws: ReplyFailure.tooHot(.critical)) {
                 _ = try await mind.openReply(to: "too hot to think")
@@ -77,7 +77,7 @@ struct MLXThermalDoorTests {
     @Test("the thermometer is read every time — a phone that cools is admitted on the next turn")
     func theThermometerIsReadEveryTime() async throws {
         let thermometer = ScriptedThermalProvider(initial: .critical)
-        let mind = MLXReplyGenerator(source: ScriptedTokenSource(.tokens(["hi"])),
+        let mind = try MLXReplyGenerator(source: ScriptedTokenSource(.tokens(["hi"])),
                                      thermal: thermometer)
         await #expect(throws: ReplyFailure.tooHot(.critical)) {
             _ = try await mind.openReply(to: "first, hot")
@@ -105,7 +105,7 @@ struct MLXThermalDoorTests {
     /// device, so the Mac this runs on must be cool enough to open.
     @Test("the public constructor's defaults are the system thermometer and the shipped policy")
     func thePublicDefaultsAreTheSystemsAndTheShipped() async throws {
-        let mind = MLXReplyGenerator(model: LocalMindModel(
+        let mind = try MLXReplyGenerator(model: LocalMindModel(
             weights: URL(filePath: NSTemporaryDirectory()).appending(path: "mmk-4y-\(UUID().uuidString)"),
             pressure: ScriptedPressureSource()))
         #expect(mind.thermal is SystemThermalProvider)

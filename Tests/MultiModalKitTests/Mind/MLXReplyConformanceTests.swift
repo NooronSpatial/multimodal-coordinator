@@ -46,13 +46,21 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         /// `askedAfter`, which is how a test reads what the model was
         /// told (F-4 = B's words included).
         case rounds([[TokenEvent]])
-        /// Yields every token, then HOLDS — parked on a continuation
+        /// Yields every event, then HOLDS — parked on a continuation
         /// until the run's task is cancelled, never spinning (4y). A
         /// generation that never finishes on its own, which is what a
         /// deadline (AC-264) and a memory warning (AC-261) must be able
         /// to end; the stream finishes normally once cancelled, with no
-        /// `.stopped`, the way a cancelled vendor finishes.
-        case tokensThenHold([String])
+        /// `.stopped`, the way a cancelled vendor finishes. EVENTS since
+        /// 4z, so a test can park a round with a call already remembered
+        /// and read what the arm does with a dead run; the 4y rows keep
+        /// their spelling through `tokensThenHold(_:)` below.
+        case eventsThenHold([TokenEvent])
+
+        /// 4y's spelling of the held plan: every token, then the hold.
+        static func tokensThenHold(_ all: [String]) -> Plan {
+            .eventsThenHold(all.map { .token($0) })
+        }
     }
 
     private let plan: Plan
@@ -121,16 +129,13 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
                     yieldAll(all, into: continuation)
                     continuation.finish()
                 case .events(let all):
-                    for event in all { continuation.yield(event) }
-                    counts.withLock { $0.yielded += all.count }
+                    yieldEvents(all, into: continuation)
                     continuation.finish()
                 case .rounds(let scripts):
-                    let script = scripts[min(round, scripts.count - 1)]
-                    for event in script { continuation.yield(event) }
-                    counts.withLock { $0.yielded += script.count }
+                    yieldEvents(scripts[min(round, scripts.count - 1)], into: continuation)
                     continuation.finish()
-                case .tokensThenHold(let all):
-                    yieldAll(all, into: continuation)
+                case .eventsThenHold(let all):
+                    yieldEvents(all, into: continuation)
                     await holdUntilCancelled()
                     continuation.finish()
                 case .tokensThenThrow(let all, let error):
@@ -159,8 +164,16 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
         _ all: [String],
         into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) {
-        for token in all {
-            continuation.yield(.token(token))
+        yieldEvents(all.map { .token($0) }, into: continuation)
+    }
+
+    /// Yields every event VERBATIM, in order, counting each one.
+    private func yieldEvents(
+        _ all: [TokenEvent],
+        into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
+    ) {
+        for event in all {
+            continuation.yield(event)
             counts.withLock { $0.yielded += 1 }
         }
     }
@@ -236,28 +249,28 @@ final class ScriptedTokenSource: ReplyTokenStreaming, @unchecked Sendable {
        .timeLimit(.minutes(1)))
 struct MLXReplyGeneratorTests {
 
-    private func generator(_ plan: ScriptedTokenSource.Plan)
+    private func generator(_ plan: ScriptedTokenSource.Plan) throws
     -> (MLXReplyGenerator, ScriptedTokenSource) {
         let source = ScriptedTokenSource(plan)
-        return (MLXReplyGenerator(source: source), source)
+        return (try MLXReplyGenerator(source: source), source)
     }
 
     @Test("promise 1 — tokens in birth order, then exactly one terminal")
     func tokensThenOneTerminal() async throws {
-        let (mind, _) = generator(.tokens(["Rome", " is", " the capital."]))
+        let (mind, _) = try generator(.tokens(["Rome", " is", " the capital."]))
         try await ReplyConformanceKit.verifyTokensThenExactlyOneTerminal(
             mind, expecting: ["Rome", " is", " the capital."])
     }
 
     @Test("promise 2 — a cancelled reply ends its stream WITHOUT a terminal")
     func cancelEndsWithoutATerminal() async throws {
-        let (mind, _) = generator(.spinsUntilCancelled)
+        let (mind, _) = try generator(.spinsUntilCancelled)
         try await ReplyConformanceKit.verifyCancelEndsWithoutATerminal(mind)
     }
 
     @Test("promise 3 — nothing AFTER the cancel survives, gated defiance")
     func nothingAfterTheCancelSurvives() async throws {
-        let (mind, source) = generator(
+        let (mind, source) = try generator(
             .gatedDefiance(before: "before", after: "AFTER-THE-CANCEL"))
         try await ReplyConformanceKit.verifyNothingAfterTheCancelSurvives(
             mind,
@@ -267,13 +280,13 @@ struct MLXReplyGeneratorTests {
 
     @Test("promise 4 — openReply hands off; generation never blocks the opener")
     func openReplyHandsOff() async throws {
-        let (mind, _) = generator(.spinsUntilCancelled)
+        let (mind, _) = try generator(.spinsUntilCancelled)
         try await ReplyConformanceKit.verifyOpenReplyHandsOff(mind)
     }
 
     @Test("promise 5 — a failing generation is ONE .failed, terminal")
     func failureIsOneTerminal() async throws {
-        let (mind, _) = generator(
+        let (mind, _) = try generator(
             .tokensThenThrow([], ReplyFailure.engine("the model died mid-thought")))
         try await ReplyConformanceKit.verifyFailureIsOneTerminal(mind)
     }
@@ -282,7 +295,7 @@ struct MLXReplyGeneratorTests {
 
     @Test("the door is asked EVERY time — weights can arrive between turns")
     func theDoorIsAskedEveryTime() async throws {
-        let (mind, source) = generator(.tokens(["hello"]))
+        let (mind, source) = try generator(.tokens(["hello"]))
         _ = try await mind.openReply(to: "first, while installed")
         source.makeUnavailable(.unavailable(.weightsAbsent))
         await #expect(throws: ReplyFailure.unavailable(.weightsAbsent)) {
@@ -295,7 +308,7 @@ struct MLXReplyGeneratorTests {
     /// token is not a word, and must never reach the mouth as one.
     @Test("an EMPTY token is never spoken — the incomplete-character case")
     func emptyTokensAreNotWords() async throws {
-        let (mind, _) = generator(.tokens(["Genè", "", "ve"]))
+        let (mind, _) = try generator(.tokens(["Genè", "", "ve"]))
         try await ReplyConformanceKit.verifyTokensThenExactlyOneTerminal(
             mind, expecting: ["Genè", "ve"])
     }
@@ -311,7 +324,7 @@ struct MLXReplyGeneratorTests {
     /// catch the finish going missing.
     @Test("a source that finishes AFTER the cancel still reports no terminal")
     func finishingAfterCancelReportsNothing() async throws {
-        let (mind, source) = generator(.finishesAfterRelease(before: "before"))
+        let (mind, source) = try generator(.finishesAfterRelease(before: "before"))
         let run = try await mind.openReply(to: "a thought cut short")
         let seen = Mutex<[ReplyUpdate]>([])
         let ended = Mutex(false)
@@ -341,7 +354,7 @@ struct MLXReplyGeneratorTests {
     /// this pins the contract before a second source can drift from it.
     @Test("the FIRST .stopped is terminal — a later token or reason is not heard")
     func stoppedIsTerminalOnTheTokenSeam() async throws {
-        let (mind, _) = generator(.events([
+        let (mind, _) = try generator(.events([
             .token("a"), .stopped(.complete), .token("LATE"), .stopped(.tokenBudget)
         ]))
         let run = try await mind.openReply(to: "a thought")
@@ -392,7 +405,7 @@ struct MLXTypedFailureTests {
     @Test("contextWindowExceeded thrown by the source is .failed(.contextWindowExceeded)")
     func typedFailurePassesThrough() async throws {
         let source = ScriptedTokenSource(.tokensThenThrow([], ReplyFailure.contextWindowExceeded))
-        let mind = MLXReplyGenerator(source: source)
+        let mind = try MLXReplyGenerator(source: source)
         let run = try await mind.openReply(to: "a prompt the window cannot hold")
         let updates = await ReplyConformanceKit.drain(run)
         #expect(updates == [.failed(.contextWindowExceeded)],
@@ -403,7 +416,7 @@ struct MLXTypedFailureTests {
     func untypedFailureIsEngine() async throws {
         struct VendorError: Error {}
         let source = ScriptedTokenSource(.tokensThenThrow(["a"], VendorError()))
-        let mind = MLXReplyGenerator(source: source)
+        let mind = try MLXReplyGenerator(source: source)
         let run = try await mind.openReply(to: "doomed")
         let updates = await ReplyConformanceKit.drain(run)
         guard case .failed(.engine(let words))? = updates.last else {

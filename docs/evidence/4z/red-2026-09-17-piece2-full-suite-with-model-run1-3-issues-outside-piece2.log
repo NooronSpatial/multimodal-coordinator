@@ -1,0 +1,2076 @@
+Building for debugging...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 1]
+[1 / 55] RealModule
+[1 / 102] Crypto
+warning: missing creator for mutated node: ('<worktree>/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
+Build complete! (1.66 sec)
+Test Suite 'All tests' started at 2026-09-17 19:47:51.510.
+Test Suite 'All tests' passed at 2026-09-17 19:47:51.512.
+	 Executed 0 tests, with 0 failures (0 unexpected) in 0.000 (0.003) seconds
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "Is there anything worth speaking?" started.
+􀟈  Suite AudioPumpTests started.
+􀟈  Suite ConversationMemoryTests started.
+􀟈  Suite "AC-245/AC-246 · the size, before anything is fetched" started.
+􀟈  Suite "4z · a result containing </tool_response> is escaped at the MLX seam, never in the core (AC-288)" started.
+􀟈  Suite "AC-238 · readiness is a pure verdict over a hand-written device report" started.
+􀟈  Suite "timing one utterance" started.
+􀟈  Suite "AC-239 · the install manifest: every file, every byte" started.
+􀟈  Suite "AC-247/248/249/250 · a download that stops, and one that finishes" started.
+􀟈  Suite "digital silence is measured, not estimated" started.
+􀟈  Suite "the 0 Hz guard — an invalid format must throw, never abort" started.
+􀟈  Suite AdmissionSeamTests started.
+􀟈  Suite NeuralVoiceFailurePathTests started.
+􀟈  Suite "AC-272 · the plain path's whole prompt is the same bytes before and after 4z, when this machine has the model" started.
+􀟈  Suite TranscriptionSessionTests started.
+􀟈  Suite DiagnosticsWiringTests started.
+􀟈  Suite "AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last" started.
+􀟈  Suite "AC-258 / AC-259 · admission is one step, on the app's number" started.
+􀟈  Suite "AC-238 wiring · the MLX door throws the typed verdict" started.
+􀟈  Suite "AC-263 · the pressure handler is one hop and nothing else" started.
+􀟈  Suite AppleSpeechEngineConformanceTests started.
+􀟈  Suite AIRuntimeConfigurationTests started.
+􀟈  Suite SnapshotDifferTests started.
+􀟈  Suite "AC-125 · the ids come from the model, not from me" started.
+􀟈  Suite "the platform's no is honored before CoreML" started.
+􀟈  Suite "AC-236 · a ReplyFailure thrown by the source keeps its case" started.
+􀟈  Suite PhraseCapTests started.
+􀟈  Suite AppleReplyGeneratorTests started.
+􀟈  Suite "4w · the spec the MLX mind renders for a tool" started.
+􀟈  Suite "the barge window" started.
+􀟈  Suite "AC-261 / AC-262 · a memory warning ends the generation with no terminal" started.
+􀟈  Suite "AC-233/AC-234 · the resolved settings become the vendor's parameters" started.
+􀟈  Suite "Gate calibration — between the room and the voice" started.
+􀟈  Suite ToolSpikeTests started.
+􀟈  Suite "AC-232 · the resolved instruction becomes the .system message" started.
+􀟈  Suite TurnHealthTests started.
+􀟈  Suite NeuralVoiceConformanceTests started.
+􀟈  Suite "4z · the door: what reaches a tool's body, and what the model is told" started.
+􀟈  Suite "keeps-up is a flag, and it stayed one" started.
+􀟈  Suite ReplyContractTests started.
+􀟈  Suite "the tokenizer folder is the one TTSKit asks for" started.
+􀟈  Suite "The playback lead — when it is safe to start speaking" started.
+􀟈  Suite "AC-239/AC-240 · what a download does after the bytes land" started.
+􀟈  Suite "Playback hosts — where a reply is allowed to render" started.
+􀟈  Suite DiagnosticsTests started.
+􀟈  Suite "§175/5 · the Apple mind's readiness is the contract's verdict" started.
+􀟈  Suite "4x · the network, named and proven" started.
+􀟈  Suite "AC-247 · a failure after the fetch, over a tree that was already there" started.
+􀟈  Suite "4w · the sieve turns decoded pieces into text and .toolCall events" started.
+􀟈  Suite "ThresholdWatch · wakes on the count, and lets a cap cancel it" started.
+􀟈  Suite AIRuntimeTests started.
+􀟈  Suite "4z · tools per call on the MLX run — the call's table wins, the source's is the default (AC-275)" started.
+􀟈  Suite ThermalPolicyTests started.
+􀟈  Suite ScriptedTranscriberConformanceTests started.
+􀟈  Suite WordErrorRateTests started.
+􀟈  Suite "4w · AC-222: the local mind asks the session tool and speaks the answer, when this machine has the model" started.
+􀟈  Suite "live · the Apple mind's deadline against the real model" started.
+􀟈  Suite AudioSessionSeamTests started.
+􀟈  Suite "AC-223 · the Apple mind's tool adapter, without a model" started.
+􀟈  Suite DecodeStepRecordTests started.
+􀟈  Suite "AC-260 · the MLX door asks the thermal policy before it opens" started.
+􀟈  Suite "what the learner refuses to learn" started.
+􀟈  Suite "AC-232..234 · per-call options resolve against the source's own settings" started.
+􀟈  Suite "4z · the write and its confirmation — one flag the door enforces, the yes on the call (AC-279)" started.
+􀟈  Suite EnergyVADTests started.
+􀟈  Suite KokoroWeightsTests started.
+􀟈  Suite "AC-222 · the MLX run executes a call itself and asks again with the answer" started.
+􀟈  Suite PlaybackLeadStrandTests started.
+􀟈  Suite "launching exactly once" started.
+􀟈  Suite "AC-251 · the suspend truth, stated and not contradicted" started.
+􀟈  Suite "4w · the exchanges are appended after the question, in the template's roles" started.
+􀟈  Suite AppleSynthesizerConformanceTests started.
+􀟈  Suite "AC-260 · the Apple mind asks the thermal policy at the door" started.
+􀟈  Suite "the first reply's cushion is stated, not assumed" started.
+􀟈  Suite WhisperLanguageHintTests started.
+􀟈  Suite "AC-126 · the second mind keeps the same five promises" started.
+􀟈  Suite BroadcastTests started.
+􀟈  Suite "live · the Apple model, when this machine has one" started.
+􀟈  Suite "AC-125 · the think gate" started.
+􀟈  Suite "AC-240 · install progress carries bytes when they are known" started.
+􀟈  Suite WrittenSynthesizerLiveTests started.
+􀟈  Suite "4y · the vendor's task is cancelled on every cut of the drain" started.
+􀟈  Suite "the bench sweep" started.
+􀟈  Suite "the lead learns from the machine" started.
+􀟈  Suite "the cushion is what the bank had to hold" started.
+􀟈  Suite ManualClockTests started.
+􀟈  Suite WrittenSynthesisHeadlessTests started.
+􀟈  Suite "4z · a parsed call's arguments become the contract's values, by kind" started.
+􀟈  Suite "4x · the privacy contract, checked against the source" started.
+􀟈  Suite "4z · tools per call — the call's table wins, the generator's is the default (AC-275)" started.
+􀟈  Suite "a retirable resource" started.
+􀟈  Suite "the compiled-plan cache control does not lie" started.
+􀟈  Suite AdmissionCoordinatorTests started.
+􀟈  Suite TranscriptLedgerTests started.
+􀟈  Suite "AC-128/129 · the real model, when this machine has one" started.
+􀟈  Suite "AC-264 · a deadline ends a slow MLX reply .finished(.deadline)" started.
+􀟈  Suite "the lead follows the decoder" started.
+􀟈  Suite "the lead learns the conversation" started.
+􀟈  Suite "live · AC-223 · the Apple mind asks the session tool" started.
+􀟈  Suite WhisperEngineConformanceTests started.
+􀟈  Suite "AC-264 · the Apple mind's deadline is the injected clock's ending" started.
+􀟈  Suite "AC-132 · the headroom instrument never reports an ambiguous zero" started.
+􀟈  Suite AudioSourceTests started.
+􀟈  Suite SpeechPhraserTests started.
+􀟈  Suite "the voice levers" started.
+􀟈  Suite "4y · admission, pressure and the deadline against the real model, when this machine has it" started.
+􀟈  Suite UnavailableWordsTests started.
+􀟈  Suite "the cushion follows the stall" started.
+􀟈  Suite "AC-232/233/234 · the Apple mind honours the caller's levers" started.
+􀟈  Suite BatchTranscriptionTests started.
+􀟈  Suite "a null probe phase is announced" started.
+􀟈  Suite AudioRingBufferTests started.
+􀟈  Suite "AC-236 · a prompt longer than the window is refused before generation" started.
+􀟈  Suite TurnCoordinatorTests started.
+􀟈  Suite "a retired voice is terminal" started.
+􀟈  Suite "AC-236 · the Apple mind's failures are typed, one row per vendor case" started.
+􀟈  Suite "AC-235 · the vendor's stop reason maps to the seam's StopReason" started.
+􀟈  Suite "4v · the local mind honours the contract, when this machine has the model" started.
+􀟈  Test "other writing systems are speakable" started.
+􀟈  Test "punctuation alone is not speakable" started.
+􀟈  Test "digits are speakable — a number is a word out loud" started.
+􀟈  Test "ordinary text is speakable" started.
+􀟈  Test "whitespace alone is not speakable — the case that hung the suite" started.
+􀟈  Test "an exchange the mind answered with silence is not recorded" started.
+􀟈  Test "a completed exchange carries no mark" started.
+􀟈  Test "past the depth, the oldest whole exchange is dropped" started.
+􀟈  Test "an exchange with no question is not recorded" started.
+􀟈  Test "the person's words and the mind's stay apart" started.
+􀟈  Test "an exchange too large to fit alone is kept alone, over budget" started.
+􀟈  Test "the budget bites while the depth still has room" started.
+􀟈  Test "an ordinary exchange cannot reach the cliff at the shipped bound" started.
+􀟈  Test "clearing forgets everything and stays usable" started.
+􀟈  Test "the shipped bound is the measured one, and it clears both limits" started.
+􀟈  Test "an interrupted exchange is kept, and says so" started.
+􀟈  Test "the budget is paid in whole exchanges" started.
+􀟈  Test "the next exchange evicts the oversized one, and the bound holds again" started.
+􀟈  Test "whitespace on either side is not an exchange" started.
+􀟈  Test "two memories holding the same conversation are equal" started.
+􀟈  Test "record says whether the memory took the exchange" started.
+􀟈  Test "a depth of zero remembers nothing and says so" started.
+􀟈  Test "the size sums exactly the files the download's glob would fetch" started.
+􀟈  Test "every verdict, one row each, and the healthy phone is ready" started.
+􀟈  Test "the platform knows both floors: the library's and the Apple mind's" started.
+􀟈  Test "headroom exactly equal to the need is enough" started.
+􀟈  Test "a report that trips two rules gets the first one" started.
+􀟈  Test "an unverified install counts as installed" started.
+􀟈  Test "the floor is rendered with the report's platform name" started.
+􀟈  Test "the text handed to the MLX chat for such a result carries no closing tag — the bytes are pinned" started.
+􀟈  Test "only the Simulator verdict says Simulator" started.
+􀟈  Test "an unknown headroom with a memory need is NOT a refusal" started.
+􀟈  Test "a mind that claims no memory is never refused for memory" started.
+􀟈  Test "versions compare as numbers, not as words" started.
+􀟈  Test "the core door hands the tag through untouched — the escape is the MLX seam's alone" started.
+􀟈  Test "a mouth that never speaks reports zero, not a plausibly fast number" started.
+􀟈  Test "the pure function: only the closing tag is touched; text without it is unchanged; every occurrence goes" started.
+􀟈  Test "Two listeners receive identical sequences" started.
+􀟈  Test "first audio is stamped at `.started`, not when the feed returns" started.
+􀟈  Test "a thrown tool's words are escaped the same way" started.
+􀟈  Test "A scripted utterance produces the exact event sequence, in timeline order" started.
+􀟈  Test "Only the last two held chunks are pre-rolled, and they arrive before the live audio" started.
+􀟈  Test "Frames lost to a full ring appear as a dropped event with the exact count" started.
+􀟈  Test "The pump parks on the injected clock, wakes on each poll, and leaves nothing behind" started.
+􀟈  Test "Latency from capture to speechStarted is exact audio time" started.
+􀟈  Test "a caller's fake drives a complete install, with progress and a manifest" started.
+􀟈  Test "A sub-window transient publishes nothing — nothing for the turn loop to barge on" started.
+􀟈  Test "a second `.started` does not move the number already earned" started.
+􀟈  Test "the cushion's own silence is not counted against it" started.
+􀟈  Test "stop() alone ends the loop — no cancellation, no clock advance" started.
+􀟈  Test "a sane format passes the check — the guard is not simply always-no" started.
+􀟈  Test "the refusal carries the numbers, so a report says what was wrong" started.
+􀟈  Test "With the window wired per the F-4 law, the word is not beheaded" started.
+􀟈  Test "a tree that matches its manifest is .installed" started.
+􀟈  Test "runs below the minimum are not gaps" started.
+􀟈  Test "all-silent audio reports nothing rather than dividing by zero" started.
+􀟈  Test "A partial chunk waits for the next poll instead of being padded or judged" started.
+􀟈  Test "a reply finished before its deadline ends .complete, and releases the clock's sleeper (AC-264)" started.
+􀟈  Test "a gap inside the speech is found, with its length" started.
+􀟈  Test "quiet speech is speech, not a dropout" started.
+􀟈  Test "many small gaps are counted and summed — the starvation shape" started.
+􀟈  Test "GenerationOptions.deadline defaults to nil and is a value (AC-264, AC-265)" started.
+􀟈  Test "continuous speech has no dropouts" started.
+􀟈  Test "ReplyFailure gained .tooHot — and still has no .refused (D-104)" started.
+􀟈  Test "the microphone host still refuses when it is not capturing" started.
+􀟈  Test "a 0 Hz format is refused by name, not by crashing" started.
+􀟈  Test "the transcription policy's table is untouched — D-028 stands" started.
+􀟈  Test "openReply opens at .nominal, .fair and .serious (AC-260)" started.
+􀟈  Test "tooHot describes itself in plain words, naming the state" started.
+􀟈  Test "a counting caller sees two .tooHot across three attempts (AC-260, the AC-236 shape)" started.
+􀟈  Test "a throwing decode reports failed once, terminal, and ends the stream" started.
+􀟈  Test "an injected policy overrules the default: refusing at .serious" started.
+􀟈  Test "a zero minimum still needs a real run, not every sample boundary" started.
+􀟈  Test "openReply throws ReplyFailure.tooHot(.critical) at the door, and opens no run (AC-260)" started.
+􀟈  Test "no deadline means no sleeper: the clock cannot end a reply that carries nil (AC-264, AC-265)" started.
+􀟈  Test "GenerationOptions.deadline ends a slow reply on the injected clock — Reply(partial, .deadline) (AC-264)" started.
+􀟈  Test "stop() mid-recognition finishes every stream and cancels the open run" started.
+􀟈  Test "DefaultGenerationThermalPolicy refuses at .critical only (F-2 = A)" started.
+􀟈  Test "One utterance opens one run and feeds it every chunk, pre-roll first" started.
+􀟈  Test "An engine that cannot even open a run yields failed, and the session lives on" started.
+􀟈  Test "A scripted utterance publishes partials and a final with exact audio times" started.
+􀟈  Test "no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after" started.
+􀟈  Test "StopReason is complete / tokenBudget / unreported / refused / deadline — F-4 = A" started.
+􀟈  Test "An utterance longer than the ceiling is cut with truncated, audio released" started.
+􀟈  Test ".exhausted is a KNOWN zero, and refuses with available 0" started.
+􀟈  Test "a headroom the phone will not give NEVER refuses — D-092" started.
+􀟈  Test "a headroom EQUAL to the need admits — the refusal is strictly below" started.
+􀟈  Test "Two listeners receive identical transcript sequences" started.
+􀟈  Test "The pump mirrors ring drops into health, same numbers, same stamp" started.
+􀟈  Test "A run that fails mid-utterance publishes failed; the next utterance transcribes" started.
+􀟈  Test "The session's settling table reports its count changes" started.
+􀟈  Test "a memory-tight phone that has not loaded yet still opens the door" started.
+􀟈  Test "between its markers the handler is the one hop: no await of its own, no MLX call, no work" started.
+􀟈  Test "a load that throws lets the next admission through — the gate is released on every exit" started.
+􀟈  Test "a need of 0 bytes is NO claim (D-105's shape): admitted with no memory question" started.
+􀟈  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" started.
+􀟈  Test "a RESIDENT model claims no memory, and retire() gives the claim back" started.
+􀟈  Test "the door's needs are the platform's floor and NO memory claim" started.
+􀟈  Test "the model is the only subscriber in the module" started.
+􀟈  Test "A late final from a dead utterance is dropped; the next utterance is untouched" started.
+􀟈  Test "a body that ends before the deadline feeds its answer back; the reply ends .complete, the sleeper is gone" started.
+􀟈  Test "an absent model's verdict is typed, and the door throws it as ReplyFailure.unavailable" started.
+􀟈  Test "two concurrent callers: the second is refused on the post-allocation headroom, not the stale one" started.
+􀟈  Test "the working-set estimate is 0 for absent weights — no claim on a number we do not have" started.
+􀟈  Test "a device that cannot load is refused with its readiness verdict, not a memory number" started.
+􀟈  Test "the working-set estimate saturates instead of trapping, like the manifest's own sum" started.
+􀟈  Test "two concurrent callers: the second is admitted when the post-allocation headroom still fits it" started.
+􀟈  Test "cancel ends the stream without a final (model required; skips if absent)" started.
+􀟈  Test "with no headroom number the model admits, and the load door speaks next" started.
+􀟈  Test "both organs, or neither, is a valid configuration and does not throw (F-3 = B)" started.
+􀟈  Test "the clockless door reports the gate before the bounds" started.
+􀟈  Test "the working-set estimate is the safetensors bytes × 1.5 — the measured phone peaks" started.
+􀟈  Test "a mouth without a mind throws .mouthWithoutMind, at init, before any loop (AC-241)" started.
+􀟈  Test "a ledger bound of zero is refused by AIRuntime.init, not trapped in run() (AC-241)" started.
+􀟈  Test "the runtime's error says what to do in plain words" started.
+􀟈  Test "weights already RESIDENT are admitted without the memory question" started.
+􀟈  Test "a known headroom below the need refuses, typed, and no load begins" started.
+􀟈  Test "listen-only still has its turns numbers checked at the door (AC-241)" started.
+􀟈  Test "a mind without a mouth throws .mindWithoutMouth, at init, before any loop (AC-241)" started.
+􀟈  Test "a verdict's words never say Simulator on a machine that is not one" started.
+􀟈  Test "the clockless coordinator with a reply gate throws .replyGateNeedsAClock (AC-241)" started.
+􀟈  Test "a combining mark landing on spoken text fires the tripwire" started.
+􀟈  Test "validate() passes the default and the legal zero-depth memory (AC-197)" started.
+􀟈  Test "cumulative snapshots become exactly their new suffixes" started.
+􀟈  Test "both coordinator doors refuse a bad number with the same error (AC-241)" started.
+􀟈  Test "the coordinator's errors name the number they refuse" started.
+􀟈  Test "HALF a vocabulary throws rather than guesses" started.
+􀟈  Test "multi-byte text diffs at character boundaries, not bytes" started.
+􀟈  Test "platform-refused AND retired says the platform's no — order is load-bearing" started.
+􀟈  Test "both markers present — the two ids are read from the vocabulary" started.
+􀟈  Test "a REWRITE of emitted text throws, carrying both sides" started.
+􀟈  Test "a refused variant throws OUR error and never reaches for the models" started.
+􀟈  Test "a model that does not reason out loud is nil, not an error" started.
+􀟈  Test "a SHRUNKEN snapshot throws — shorter cannot extend" started.
+􀟈  Test "nil verdict defaults to the vendor, which says yes on this Mac" started.
+􀟈  Test "anything else the vendor throws is still .engine(String)" started.
+􀟈  Test "after a violation the differ vouches for nothing new" started.
+􀟈  Test "cumulative snapshots become suffix tokens, then finished, once" started.
+􀟈  Test "nothing AFTER the cancel survives — gated defiance, event-gated end to end" started.
+􀟈  Test "CONTROL: a true verdict passes the guard — the tripwire behind it fires instead" started.
+􀟈  Test "the first snapshot is emitted whole, even when empty" started.
+􀟈  Test "openReply throws the honest reason when the model is unavailable" started.
+􀟈  Test "a file that is not a tokenizer configuration is refused" started.
+􀟈  Test "openReply hands off — generation never blocks the opener" started.
+􀟈  Test "an unchanged snapshot is nothing to say, not a violation" started.
+􀟈  Test "contextWindowExceeded thrown by the source is .failed(.contextWindowExceeded)" started.
+􀟈  Test "openUtterance refuses through the same door" started.
+􀟈  Test "a throwing source is one .failed, terminal" started.
+􀟈  Test "a guardrail violation is SPOKEN, and the reply ends .refused (F-4 = A, D-104)" started.
+􀟈  Test "the REAL model's config yields 151667/151668 (model config; skips if absent)" started.
+􀟈  Test "an unchanged snapshot says nothing — no empty tokens" started.
+􀟈  Test "the context window overflowing is a named failure" started.
+􀟈  Test "a smaller cap cuts the same reply into more decodes" started.
+􀟈  Test "assets unavailable names the Simulator lesson — availability lied" started.
+􀟈  Test "a band with showsRange renders minimum and maximum in the property" started.
+􀟈  Test "rate limiting, concurrency, decoding, guides: each one honest .failed" started.
+􀟈  Test "parameters render one property each with its JSON type and sentence, and `required` names the required ones" started.
+􀟈  Test "the error names the variant and the reason, in our words" started.
+􀟈  Test "a REVISING stream: true tokens out, then one honest failure, never the rewrite" started.
+􀟈  Test "the clockless coordinator with the default (zero) gate does not throw" started.
+􀟈  Test "cancel ends the stream without a terminal" started.
+􀟈  Test "a 480 ms burst — the echo's exact fingerprint — does NOT barge" started.
+􀟈  Test "just under the window does not barge" started.
+􀟈  Test "a model refusal is SPOKEN the same way, and ends .refused (F-4 = A, D-104)" started.
+􀟈  Test "just over the window barges — it opens, it does not merely delay" started.
+􀟈  Test "a warning ends EVERY live run on the weights" started.
+􀟈  Test "all-optional parameters render properties and no `required` key" started.
+􀟈  Test "a 1160 ms utterance — the shortest real one ever logged — DOES barge" started.
+􀟈  Test "an empty table renders nil, not []; a table renders one spec per tool" started.
+􀟈  Test "a band with showsRange false renders nothing of it" started.
+􀟈  Test "the measured window cannot swallow the shortest real utterance" started.
+􀟈  Test "the budget reaches maxTokens, and nothing else is invented" started.
+􀟈  Test "temperature and seed reach the vendor when the caller gives them" started.
+􀟈  Test "the caller's per-call instruction is the system message — Aura's G1" started.
+􀟈  Test "a .warning mid-generation ends the run's stream with NO terminal and no later token" started.
+􀟈  Test "a .critical with nothing running still retires — the weights, not the run, are the target" started.
+􀟈  Test "zero window is the old behaviour — the first onset kills the reply" started.
+􀟈  Test ".normal does nothing: the generation keeps running" started.
+􀟈  Test "the system source subscribes and cancels without a level ever arriving" started.
+􀟈  Test "one tool renders as a function spec with an empty object of parameters" started.
+􀟈  Test "nil per-call instructions leave the source's own as the system message" started.
+􀟈  Test "null for a required parameter is absence, counted .missing (F-13 j)" started.
+􀟈  Test "a run that finished leaves the registry, and a later warning finds nothing" started.
+􀟈  Test "the model subscribes once at birth and cancels when it dies" started.
+􀟈  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" started.
+􀟈  Test "the past arrives in roles, and a barged reply ends in the ellipsis" started.
+􀟈  Test "a silent reply completes without speaking (model required; skips if absent)" started.
+􀟈  Test ""nan" and "inf" for a number parameter are refused (F-8 C closes the hole)" started.
+􀟈  Test "temperature 0 travels as 0 — the greedy path, not a nil that becomes 0.6" started.
+􀟈  Test "a voice barely above the room cannot carry a gate" started.
+􀟈  Test "the midpoint is geometric — equally clear of both mistakes" started.
+􀟈  Test "a leak that ended cannot barge later on somebody else's audio" started.
+􀟈  Test "exactly real time is not keeping up" started.
+􀟈  Test "a band on an integer parameter is checked the same way" started.
+􀟈  Test "nil on both sides is NO system message at all — the voice path, unchanged" started.
+􀟈  Test "a required parameter absent: the body does not run, the model is told, the count says .missing" started.
+􀟈  Test "a .critical ends the run AND retires the weights; the next reply opens again" started.
+􀟈  Test "the configurations that never starved all read keepsUp" started.
+􀟈  Test "the gate always sits strictly below the speech it must pass" started.
+􀟈  Test "no speech at all is refused rather than guessed" started.
+􀟈  Test "a perfectly silent room still yields a usable gate" started.
+􀟈  Test "a nested value for a .string parameter is wrong kind, counted (F-13 i) — a list and an object" started.
+􀟈  Test "a value outside the declared band is refused before the body, told in words, and counted under its own name" started.
+􀟈  Test "a quiet room and a normal voice put the gate between them" started.
+􀟈  Test "the configurations that DID starve all read not-keepsUp" started.
+􀟈  Test "the accessors after the door: they read what the door let in, and throw a typed failure for anything else" started.
+􀟈  Test "a name no tool has: the sentence the MLX run has always fed back (AC-276)" started.
+􀟈  Test "a run opened AFTER the warning runs clean" started.
+􀟈  Test ""7" for an integer and "true" for a boolean are coerced and counted; "7.5" for an integer is not" started.
+􀟈  Test "exactly the minimum ratio is accepted" started.
+􀟈  Test "a value of a kind the parameter cannot read: refused as wrong kind, the body does not run" started.
+􀟈  Test "a decode can keep up on average and still have needed a cushion" started.
+􀟈  Test "an argument the tool never declared is stripped before the body and counted (F-7 C)" started.
+􀟈  Test ""84" for a number parameter reads 84, the body runs, and the coercion is counted (F-8 C)" started.
+􀟈  Test "a stream that ends with no terminal and no cancel is an engine failure" started.
+􀟈  Test "two tables with one declaration and different bodies are equal; one parameter apart, not (F-13 c)" started.
+􀟈  Test ""shown to the model" and "checked by the table" are two switches: the parameter carries both" started.
+􀟈  Test "a number for a string parameter is refused: the leniency is one way (F-8 C keeps the branch's asymmetry)" started.
+􀟈  Test "84.5 for an integer parameter is refused as wrong kind (F-13 b)" started.
+􀟈  Test "a thrown tool's own words reach the model verbatim (F-13 e) — under the same cap" started.
+􀟈  Test "an answer of exactly the cap, and a short one, reach the model unchanged" started.
+􀟈  Test "the spike's no-argument tool: an extra is stripped, the body runs with nothing (AC-283)" started.
+􀟈  Test "an answer longer than the cap reaches the model cut at the cap with the marker, and the cut is counted" started.
+􀟈  Test "tokens then .finished(.complete) become Reply(text:stop:) (AC-237 a)" started.
+􀟈  Test "84 parsed on the MLX side and 84.0 read on the Apple side are ONE ToolValue, and the door reads both alike" started.
+􀟈  Test "GenerationOptions is a value: equal when every field is equal" started.
+􀟈  Test "a .failed(.busy) run makes reply(to:) throw ReplyFailure.busy (AC-237 c)" started.
+􀟈  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" started.
+􀟈  Test "only .deviceCannotRun(.simulator) may say the word Simulator (AC-238)" started.
+􀟈  Test "an optional parameter not given, or given as null, is simply not there for the body" started.
+􀟈  Test "cancelling the calling task cancels the run and throws CancellationError (AC-237 d)" started.
+􀟈  Test "Ring drops are mirrored exactly, where and as reported" started.
+􀟈  Test "openReply throws ReplyFailure.unavailable(verdict) at the door, never a run" started.
+􀟈  Test "a counting caller sees two refusals across three scripted runs (AC-236, D-104)" started.
+􀟈  Test "detaching a node that is attached but wired to nothing is a no-op" started.
+􀟈  Test "a counting caller sees two .busy across three scripted runs (AC-236)" started.
+􀟈  Test "a complete download writes manifest.json listing every file at its byte count" started.
+􀟈  Test "StopReason and ReplyFailure round-trip as values" started.
+􀟈  Test "explicit options come back from the record unchanged (AC-231)" started.
+􀟈  Test "a zero target reproduces the un-buffered behaviour exactly" started.
+􀟈  Test "an engine failure describes itself with the engine's own words" started.
+􀟈  Test "inside the band — the edges included — the body runs; a coerced text is checked against the band too" started.
+􀟈  Test "openReply(to: String) passes the default options (AC-231)" started.
+􀟈  Test "Settling count publishes only on change" started.
+􀟈  Test "a token-budget stop round-trips (AC-237 b)" started.
+􀟈  Test "ReplyFailure has no .refused case any more — D-104" started.
+􀟈  Test "no Apple verdict says the word Simulator" started.
+􀟈  Test "below the floor: the verdict names the platform and the Apple mind's floor" started.
+􀟈  Test "the folder ends in the vendor's constant, quoted" started.
+􀟈  Test "below the target waits, however many buffers arrive" started.
+􀟈  Test "the end of the reply cannot re-start an already-playing reply" started.
+􀟈  Test "enough audio queued starts playback" started.
+􀟈  Test "both variants resolve to the SAME tokenizer folder" started.
+􀟈  Test "a host takes several replies in turn" started.
+􀟈  Test "The baseline is published on start, then every transition, in order" started.
+􀟈  Test "stop() finishes every health stream; run() returns when the provider ends" started.
+􀟈  Test "the recorder sees a MARKED request that IS made — the control for every silence proof" started.
+􀟈  Test "a microphone that has not started is not watching, and says so" started.
+􀟈  Test "A slow listener's losses become visible to everyone else" started.
+􀟈  Test "a host that borrowed an engine never stops it" started.
+􀟈  Test "A late health listener hears only what comes next — no replay" started.
+􀟈  Test "the thrown failure speaks the verdict's own sentence — the screen and the turn agree" started.
+􀟈  Test "empty audio moves nothing" started.
+􀟈  Test "a host that is torn down keeps no nodes" started.
+􀟈  Test "every vendor reason lands on one contract verdict" started.
+􀟈  Test "a plain engine host attaches, renders, and gives the node back" started.
+􀟈  Test "a reply that ends before the lead still plays" started.
+􀟈  Test "the platform the below-floor sentence names is this binary's" started.
+􀟈  Test "a silent reply starts nothing" started.
+􀟈  Test "the exact boundary starts — the target is a floor, not a fence" started.
+􀟈  Test "an abandoned reply starts nothing, before or after the target" started.
+􀟈  Test "attaching to a microphone that is not capturing fails loudly" started.
+􀟈  Test "the door is asked EVERY time — a download that completes is seen on the next call" started.
+􀟈  Test "the sizing rule covers a measured deficit" started.
+􀟈  Test "a call still buffered at end of sequence is parsed by finish()" started.
+􀟈  Test "tearing down after the engine stopped is safe" started.
+􀟈  Test "detaching a node that was never attached is harmless" started.
+􀟈  Test "words before the call are spoken; the call's arguments arrive typed — the model's 2 is a number" started.
+􀟈  Test "detaching a node the engine already dropped is a no-op, not a crash" started.
+􀟈  Test "Barging a batch utterance that never settled retires it silently — no consultation, no failure event" started.
+􀟈  Test "a tagged call is collected silently and emitted whole when its end tag arrives" started.
+􀟈  Test "plain text passes through as tokens, one per piece" started.
+􀟈  Test "a count already at the threshold returns at once; a rising count wakes the waiter" started.
+􀟈  Test "Heat arriving mid-session: earlier settling decode survives, the next move is refused with exact inputs" started.
+􀟈  Test "playback starts exactly once, however much more arrives" started.
+􀟈  Test "the app's listeners are open before any loop publishes (AC-202)" started.
+􀟈  Test "a brace that was not a call is text after all, flushed at the end" started.
+􀟈  Test "At .serious the default policy refuses the settling move: named failure, health event, no ghost final" started.
+􀟈  Test "a decoder that keeps ahead needs no lead at all" started.
+􀟈  Test "one final, then silence, then the stream ends" started.
+􀟈  Test "a host that made its own engine stops it" started.
+􀟈  Test "a failure after the move over a caller's tree keeps that tree, and never locks the model out" started.
+􀟈  Test "cancel ends the stream without a final" started.
+􀟈  Test "A streaming engine's barge-in retirement never consults the policy" started.
+􀟈  Test "With no policy, a settling decode at .serious survives exactly as D-024 ruled" started.
+􀟈  Test "ConservativeThermalPolicy: allow below .serious, refuse from .serious up" started.
+􀟈  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" started.
+􀟈  Test "readiness() is askable on any OS and agrees with the vendor on this one" started.
+􀟈  Test "At .critical the ACTIVE utterance still settles and its final surfaces — only overlap is gated" started.
+􀟈  Test "a flagged tool is refused until the call's options name it; then its body runs once" started.
+􀟈  Test "a call's table REPLACES the source's for that call; it does not add to it" started.
+􀟈  Test "partials come before the final, never after" started.
+􀟈  Test "a source with no table and a call carrying one: the tool runs; the next call without it cannot" started.
+􀟈  Test "a waiter whose task is cancelled returns false, at once — the cap can end a red test" started.
+􀟈  Test "identical text scores zero" started.
+􀟈  Test "Arabic: tatweel (the stretching mark) is not a letter" started.
+􀟈  Test "The policy is consulted once, at the settling move, with the exact thermal state and count" started.
+􀟈  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" started.
+􀟈  Test "Arabic: Arabic punctuation does not count" started.
+􀟈  Test "Arabic: the four alef forms are one letter" started.
+􀟈  Test "Without diagnostics the policy still rules (thermal = .nominal) and a refusal still surfaces" started.
+􀟈  Test "Arabic: diacritics (tashkeel) do not count" started.
+􀟈  Test "the REAL model calls `session` and its reply carries the session's numbers" started.
+􀟈  Test "a missing word is a deletion; an extra word is an insertion" started.
+􀟈  Test "a run retired after the round ended never knocks the door: the body does not run" started.
+􀟈  Test "case and punctuation do not count" started.
+􀟈  Test "A session that refuses to activate stops the whole start — capture is never attempted" started.
+􀟈  Test "Starting twice activates once — the session is not re-entered" started.
+􀟈  Test "an empty hypothesis deletes every reference word" started.
+􀟈  Test "The session is activated BEFORE capture, and released after — never left active" started.
+􀟈  Test "No session means the pre-4d path, byte for byte" started.
+􀟈  Test "an empty table builds the SAME session as the pre-4w init(transcript:) (AC-227's Mac half)" started.
+􀟈  Test "digits are spelled out: 20 equals twenty" started.
+􀟈  Test "English normalisation is unchanged by the Arabic rules" started.
+􀟈  Test "one substitution in four words is 0.25 exactly" started.
+􀟈  Test "stop() without start() releases nothing" started.
+􀟈  Test "the schema the model is shown has no parameters — a no-argument read (§170)" started.
+􀟈  Test "Arabic: a real substitution still counts" started.
+􀟈  Test "Arabic: taa marbuta and alef maqsura fold to their common spellings" started.
+􀟈  Test "a tool's throw becomes the ToolCallFailure sentence every mind writes (AC-225)" started.
+􀟈  Test "call(arguments:) reaches the ReplyTool with empty arguments and returns its answer" started.
+􀟈  Test "call(arguments:) rethrows the door's typed failure, and toolFailure(from:) carries it whole — one wrap" started.
+􀟈  Test "the default policy opens at nominal, fair and serious, and refuses at critical" started.
+􀟈  Test "the run ends .failed(.engine(the sentence)) when the stream throws the vendor's ToolCallError" started.
+􀟈  Test "one entry per step, carrying the audio that step produced" started.
+􀟈  Test "the thermometer is read every time — a phone that cools is admitted on the next turn" started.
+􀟈  Test "an empty table hands the vendor no tools (AC-227's plain path)" started.
+􀟈  Test "the refusal is one typed case a caller can count" started.
+􀟈  Test "the public constructor's defaults are the system thermometer and the shipped policy" started.
+􀟈  Test "heat is asked before readiness: a hot phone with no weights hears .tooHot, not .unavailable" started.
+􀟈  Test "the adapter wears the ReplyTool's name and description, verbatim" started.
+􀟈  Test "a flagged tool through the adapter is refused, typed, its body never run — fail closed (F-10 B, interim)" started.
+􀟈  Test "a real reply with a 200 ms deadline ends .finished(.deadline) (AC-264)" started.
+􀟈  Test "an answer that arrives after the call's task was cancelled goes nowhere" started.
+􀟈  Test "temperature and seed travel; nil leaves the vendor's default untouched" started.
+􀟈  Test "a failed run teaches nothing — its truncated length stays out of the window" started.
+􀟈  Test "a failed run before any finished one leaves the learner empty" started.
+􀟈  Test "per-call maxTokens replaces the source's own" started.
+􀟈  Test "the cushion RISES when the machine slows — latest-wins in the harmful direction" started.
+􀟈  Test "the vendor fills the instructions entry's toolDefinitions from the tools it was handed" started.
+􀟈  Test "nil on both sides means NO system message, as before 4v" started.
+􀟈  Test exactThresholdCountsAsLoud() started.
+􀟈  Test "a table becomes one adapter per tool, in the table's order, and rides to the real source" started.
+􀟈  Test oneBigChunkCompletesTheWindowAlone() started.
+􀟈  Test emptyChunkIsIgnored() started.
+􀟈  Test "per-call instructions replace the source's own for that call" started.
+􀟈  Test loudChunkResetsTheHangoverBudget() started.
+􀟈  Test fullConversationSequence() started.
+􀟈  Test "nil instructions keep the source's own" started.
+􀟈  Test fullSequenceWithTransientsAroundARealWord() started.
+􀟈  Test firstLoudChunkStartsSpeech() started.
+􀟈  Test "nil maxTokens keeps the source's default — 1024 since F-6 = A" started.
+􀟈  Test "an injected policy is the one asked, and the refusal carries the state it saw" started.
+􀟈  Test silenceProducesNothing() started.
+􀟈  Test onsetBoundaryIsExact() started.
+􀟈  Test defaultWindowIsZeroAndOff() started.
+􀟈  Test "fp32 is installed as soon as both downloads are whole" started.
+􀟈  Test "a model that calls forever is stopped after ToolRounds.cap rounds with a typed failure" started.
+􀟈  Test "a tool round's stop is not the reply's terminal — only the last round's is" started.
+􀟈  Test "damage is reported, a not-yet-built cast is not" started.
+􀟈  Test "an empty directory is not installed" started.
+􀟈  Test hangoverIsUntouchedByTheWindow() started.
+􀟈  Test shortGapInsideHangoverKeepsSpeaking() started.
+􀟈  Test "fp16 is not installed until the cast copy exists" started.
+􀟈  Test "an incomplete download names both sizes" started.
+􀟈  Test hangoverBoundaryIsExact() started.
+􀟈  Test subWindowBurstProducesNothingEver() started.
+􀟈  Test "a name no tool has is answered to the MODEL as 'no tool named …' and the reply completes" started.
+􀟈  Test "the whole resolution is one Equatable value — the door hands it on, whole" started.
+􀟈  Test "`confirmed: true` in the ARGUMENTS does not run the body — the model cannot confirm itself" started.
+􀟈  Test quietKillsTheCandidate() started.
+􀟈  Test "a tool that throws is answered to the MODEL as 'tool … failed: …' and the reply completes" started.
+􀟈  Test "CONTROL — the shipped zero lead finishes even when tokens close after the decode" started.
+􀟈  Test "an unflagged tool needs no yes: the diet app's act-at-once is the flag left off" started.
+􀟈  Test "Aura's spoken confirmation: refused and asked on turn 0, run once on turn 1 with the yes on the options" started.
+􀟈  Test "a scripted call: the table is called with the flattened arguments, the answer follows, one terminal" started.
+􀟈  Test "a call after it has finished does nothing at all" started.
+􀟈  Test "the name in the call's confirmed set: the body runs exactly once; the yes rides THAT call only" started.
+􀟈  Test "each precision has its own file" started.
+􀟈  Test "a cancel while the tool is in flight: the answer is dropped, no round 1, no terminal" started.
+􀟈  Test "two tabs appearing together launch the sequence once, not twice" started.
+􀟈  Test "the arguments are checked BEFORE the flag is read: a bad call is refused as a bad call, not told to ask" started.
+􀟈  Test "weights without a voice are not installed" started.
+􀟈  Test "no background session is built or asked for anywhere in the MLX module" started.
+􀟈  Test "THE ORDER THAT KILLS: the voice must precede the mind" started.
+􀟈  Test "a truncated weight file is not installed, however present it looks" started.
+􀟈  Test "a silent reply completes without speaking (runs everywhere)" started.
+􀟈  Test "the diet app's act-at-once: an unflagged write runs on the model's first call" started.
+􀟈  Test "the public initialiser defaults to the real thermometer and the shipped policy (AC-260)" started.
+􀟈  Test "the default refuses at .critical only — each state scripted (AC-260, F-2 = A)" started.
+􀟈  Test "the download's doc comment states what happens when the app leaves the foreground" started.
+􀟈  Test "the thermometer is read once per door, and refusals count (AC-260)" started.
+􀟈  Test "two exchanges keep their order — the template pairs a call with its result by order" started.
+􀟈  Test "one exchange is an assistant turn carrying the call, then a tool turn carrying the answer" started.
+􀟈  Test "an app's stricter policy refuses at .serious — the INJECTED policy decides (AC-260)" started.
+􀟈  Test "no exchanges renders exactly the 4r chat" started.
+􀟈  Test "heat is asked before the availability verdict (AC-260)" started.
+􀟈  Test "a fresh learner offers no cushion at all" started.
+􀟈  Test "it says whether it has run" started.
+􀟈  Test "the hint is stored as given, and absent by default" started.
+􀟈  Test "a directory with a space in its name is still checked correctly" started.
+􀟈  Test "the FIRST .stopped is terminal — a later token or reason is not heard" started.
+􀟈  Test "the second caller does not return until the sequence is complete" started.
+􀟈  Test "the Mac's first reply is under-cushioned, by a number we know" started.
+􀟈  Test "promise 4 — openReply hands off; generation never blocks the opener" started.
+􀟈  Test "A slow listener never affects what another listener sees" started.
+􀟈  Test "promise 5 — a failing generation is ONE .failed, terminal" started.
+􀟈  Test "Every listener receives the same sequence" started.
+􀟈  Test "the door is asked EVERY time — weights can arrive between turns" started.
+􀟈  Test "per-call instructions reach the real model (AC-232)" started.
+􀟈  Test "a stray close with no open is harmless, not a crash" started.
+􀟈  Test "a flagged tool on the model's first call: the body does not run, the model is told to ask, counted" started.
+􀟈  Test "the steps run in the order they were given" started.
+􀟈  Test "A slow listener loses the oldest events, and the loss is counted" started.
+􀟈  Test "a decoder that keeps up gets no first-reply cushion either" started.
+􀟈  Test "promise 1 — tokens in birth order, then exactly one terminal" started.
+􀟈  Test "promise 2 — a cancelled reply ends its stream WITHOUT a terminal" started.
+􀟈  Test "a source that finishes AFTER the cancel still reports no terminal" started.
+􀟈  Test "the markers themselves never reach the mouth — punctuation, not words" started.
+􀟈  Test "an unclosed thought swallows to the end, and SAYS that it is still holding" started.
+􀟈  Test "Listeners are counted while they exist, and forgotten when their stream dies" started.
+􀟈  Test "with an expected total, received is fraction × expected" started.
+􀟈  Test "finish() ends every listener's stream, and is safe to call twice" started.
+􀟈  Test "Listening after finish gets a stream that is already over" started.
+􀟈  Test "a template that already opened the thought starts inside it" started.
+􀟈  Test "the removed-gate control — a foreign vocabulary lets the reasoning through" started.
+􀟈  Test "an EMPTY token is never spoken — the incomplete-character case" started.
+􀟈  Test "a NaN fraction is 0, never a trap" started.
+􀟈  Test "a per-call budget bounds the real reply (AC-233)" started.
+􀟈  Test "A late listener hears only what comes next — no replay" started.
+􀟈  Test "a DEFIANT <think> is swallowed — layer 1 is a convention, this is the net" started.
+􀟈  Test "a stream that ends on its own is drained whole, awaited, and reported as not cut" started.
+􀟈  Test "a reply that never spoke prints an em dash, never 0 ms" started.
+􀟈  Test "a cancel that lands while next() is parked cancels the vendor's task too" started.
+􀟈  Test "written run: started once, finished once, in order (MMK_LIVE_SYNTH=1)" started.
+􀟈  Test "a cancel that lands while the body runs still cancels the vendor's task, and the drain returns" started.
+􀟈  Test "reset happens AFTER prepare — the row counts the run, not the setup" started.
+􀟈  Test "with the mind resident it refuses, and changes nothing" started.
+􀟈  Test "a device that cannot answer prints an em dash, never 0 MB" started.
+􀟈  Test "the fraction is clamped to 0…1 — the client has reported outside it" started.
+􀟈  Test "the door's refusal describes itself in the verdict's honest words, undecorated" started.
+􀟈  Test "a throw part-way keeps every row already measured" started.
+􀟈  Test "durations render as whole milliseconds" started.
+􀟈  Test "each row is prepare → reset → sample → measure, in that order" started.
+􀟈  Test "every configuration is prepared before it is measured, every run" started.
+􀟈  Test "the most recent reply wins — a bad sample costs one reply, not a session" started.
+􀟈  Test "promise 3 — nothing AFTER the cancel survives, gated defiance" started.
+􀟈  Test "`lead` still reports what the voice was born with" started.
+􀟈  Test "the iPhone's measured 1.21 asks for about 1.26 s, not 396 ms" started.
+􀟈  Test "cancellation keeps the rows already measured, and still restores" started.
+􀟈  Test "after a reply, the voice uses what THIS machine managed" started.
+􀟈  Test "the table is the shape INSTRUMENTS already uses" started.
+􀟈  Test "the row being measured when the cancel lands is DROPPED, not published" started.
+􀟈  Test "a completed sweep restores exactly once" started.
+􀟈  Test "a stage that throws mid-sweep still gets its settings back" started.
+􀟈  Test "a decoder faster than the ear waits only for its first buffer" started.
+􀟈  Test "consecutive small overruns accumulate — the worst STEP would miss them" started.
+􀟈  Test "an expected total at the edge of Int64 is not a trap" started.
+􀟈  Test "a machine that keeps up is given no cushion at all" started.
+􀟈  Test "a row carries the conditions sampled for that row, not the sweep's first" started.
+􀟈  Test "the phone sweep does not include a decoder that cannot load there" started.
+􀟈  Test "a human's number outranks the machine's — D-068 D" started.
+􀟈  Test "before any reply, the voice uses the decoder's constant" started.
+􀟈  Test "no steps at all is zero, not a guess" started.
+􀟈  Test "runsEach of zero measures nothing — it does not halt the process" started.
+􀟈  Test "a long prefill delays the start and is NOT banked as cushion" started.
+􀟈  Test "a deficit repaid before the end still had to be banked" started.
+􀟈  Test sleepOnAnAlreadyCancelledTaskThrowsImmediately() started.
+􀟈  Test earlierDeadlinesWakeFirstWithTheirOwnMoments() started.
+􀟈  Test timeStandsStillUntilAdvanced() started.
+􀟈  Test "the peak is measured before the slow step delivers, not after" started.
+􀟈  Test "without an expected total, both byte fields are nil — a fraction is all that is known" started.
+􀟈  Test chainedSleepsLandExactlyInsideOneAdvance() started.
+􀟈  Test "a declared host is either named in Sources/ or declared as never called" started.
+􀟈  Test sleepingIntoThePastReturnsImmediately() started.
+􀟈  Test "an unspeakable reply terminates without touching write() or the host" started.
+􀟈  Test sleeperWakesAtItsExactMoment() started.
+􀟈  Test "a declared required-reason category is one the source actually uses" started.
+􀟈  Test "the credential scan reports a credential attached the ordinary way" started.
+􀟈  Test "the manifest guard names a new library product that declares none" started.
+􀟈  Test "cancel before anything spoken: silent end, host untouched" started.
+􀟈  Test "it knows nothing until something has been decoded" started.
+􀟈  Test "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test "84 as an int and 84.0 as a double are one value (F-13 b)" started.
+􀟈  Test "the vendor's ToolCall becomes the seam's request, name kept, arguments typed" started.
+􀟈  Test "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test "a call with no arguments is a request with none — the spike's read" started.
+􀟈  Test "every linked module ships a privacy manifest, declared in Package.swift" started.
+􀟈  Test "a uniformly slow decode asks for its accumulated deficit" started.
+􀟈  Test "the list names the hub the MLX weight fetch reaches, which no literal in Sources/ names" started.
+􀟈  Test "forget puts it back to knowing nothing" started.
+􀟈  Test "every host in Sources/ is named in docs/HOSTS.md" started.
+􀟈  Test "a credential cannot hide a host, and a substring is not a match" started.
+􀟈  Test "a generator built WITH a table and a call carrying .empty: no tool this turn" started.
+􀟈  Test "the weight URLs carry no identifier — no query, no user, no fragment" started.
+􀟈  Test "the options carry the table and the yes, and stay Equatable (AC-282's shape)" started.
+􀟈  Test "the scanner reports a host the document does not name" started.
+􀟈  Test "a host is a host: ports and trailing punctuation are stripped" started.
+􀟈  Test "a generator with no tools and a call carrying a table: the tool is called; the next call without one cannot" started.
+􀟈  Test "no module supplies a credential or reads an identifier" started.
+􀟈  Test "a call's table REPLACES the generator's for that call; it does not add to it" started.
+􀟈  Test "after a retire-during-load the holder is still usable" started.
+􀟈  Test "retire hands back what was held, and the next call builds again" started.
+􀟈  Test "a second call after the first finished does not rebuild" started.
+􀟈  Test "the required-reason cross-check accepts a used API that IS declared" started.
+􀟈  Test "the host list states the credential caveat AC-254 cannot prove away" started.
+􀟈  Test "each manifest declares no collection and no tracking" started.
+􀟈  Test "THREE concurrent cold callers all get the value — none is stranded" started.
+􀟈  Test "two callers arriving together get one build, and the same value" started.
+􀟈  Test "N lever changes leave exactly one resident — AC-145's shape" started.
+􀟈  Test "a retire during the build does not strand the queue either" started.
+􀟈  Test cancellationClaimsTheSleeperExactlyOnce() started.
+􀟈  Test "an empty directory holds: [nothing] — the line C rests on" started.
+􀟈  Test "a clear in which every delete failed never says 'cleared'" started.
+􀟈  Test "a directory the control cannot read is reported as such, not as empty" started.
+􀟈  Test "a plain FILE is measured at its real size, not zero" started.
+􀟈  Test "absence is said in words, and it names EVERY neighbourhood" started.
+􀟈  Test "the report names every matching directory and its bytes" started.
+􀟈  Test "the same directory passed twice is surveyed once" started.
+􀟈  Test "the proofs block names the file each check lives in" started.
+􀟈  Test theBoundCountsPiecesNotRecords() started.
+􀟈  Test "an unreadable directory is named even beside a success" started.
+􀟈  Test "clear deletes from EVERY directory and reports each with its place" started.
+􀟈  Test whitespaceIsNotSpeech() started.
+􀟈  Test "a matching SYMLINK is not ours to delete, and the target survives" started.
+􀟈  Test aLateOldPieceCannotEvictANewerOneItPredates() started.
+􀟈  Test "a .tooHot door fails the turn honestly; the next turn runs clean; memory is not poisoned" started.
+􀟈  Test outOfOrderArrivalStillReadsInSpokenOrder() started.
+􀟈  Test oneUtteranceContributesOnce() started.
+􀟈  Test oneFinalIsExactlyItsOwnText() started.
+􀟈  Test clearForgetsEverything() started.
+􀟈  Test textIsTrimmedAtTheEdgesAndJoinedBySingleSpaces() started.
+􀟈  Test aRepeatedIdentityDoesNotReorderTheThought() started.
+􀟈  Test "the survey reaches every directory, and an entry says where it was found" started.
+􀟈  Test piecesJoinInSpokenOrder() started.
+􀟈  Test "a build that throws leaves nothing resident, and does not wedge the queue" started.
+􀟈  Test "WARM, the first token is fast — the cold 1.9 s is the load, not the model" started.
+􀟈  Test "the model reports honestly whether it is installed — asking triggers nothing" started.
+􀟈  Test theBoundDropsTheOldestAndKeepsSpokenOrder() started.
+􀟈  Test "a token the source yields after the deadline is never heard" started.
+􀟈  Test "a cancel before the deadline ends with no terminal and no sleeper" started.
+􀟈  Test "a build that finishes after a retire does NOT come back to life" started.
+􀟈  Test "reply(to:) returns the partial text with stop == .deadline — a stop reason, not a failure" started.
+􀟈  Test "a REAL reply: tokens then one terminal, and NO reasoning is spoken" started.
+􀟈  Test "the two decoders do NOT get the same cushion" started.
+􀟈  Test "a reply that never finishes ends .finished(.deadline) with the tokens so far when the clock reaches 200 ms" started.
+􀟈  Test "an explicit lead still wins — the derivation is a default, not a law" started.
+􀟈  Test "the REAL source is wired to the door — it refuses what is not installed" started.
+􀟈  Test "`.stepped` needs one — it decodes slower than real time" started.
+􀟈  Test "the CONSTANT is `.fused`'s cushion, and passing it to `.stepped` is the bug" started.
+􀟈  Test "a cancelled REAL reply ends without a terminal" started.
+􀟈  Test "four hundred deadlines against a firehose: a token is never spoken after .finished(.deadline)" started.
+􀟈  Test "a reply that ends before its deadline leaves NO sleeper on the clock" started.
+􀟈  Test "measuredRealTimeFactor provides platform-calibrated values" started.
+􀟈  Test "the reply's LENGTH reaches the window — the assertion §48 was missing" started.
+􀟈  Test "the RTF stays latest-wins while the length is windowed" started.
+􀟈  Test "a missing model is refused at the door, not discovered mid-reply" started.
+􀟈  Test "forget empties the window — no lengths survive a decoder change" started.
+􀟈  Test "the real mind calls the session tool and speaks its answer (AC-223)" started.
+􀟈  Test "the runtime guard answers, and says WHERE it found the shaders" started.
+􀟈  Test "a throwing tool ends the real reply as the agreed failure (AC-225)" started.
+􀟈  Test "a long reply raises the cushion, and four short ones retire it" started.
+􀟈  Test "first-token latency, with and without the tool in the session (AC-228, Mac half)" started.
+􀟈  Test "a never-finishing source ends .finished(.deadline) with the snapshots so far (AC-264)" started.
+􀟈  Test "a source that finishes first ends .finished(.unreported) and releases the sleeper (AC-264)" started.
+􀟈  Test "`.fused` needs no cushion — it decodes faster than the ear drinks" started.
+􀟈  Test "reply(to:) returns Reply("", .deadline) when the clock ends a silent reply (AC-264)" started.
+􀟈  Test "deadline then finish, and finish then deadline: the second ending is a no-op (AC-264)" started.
+􀟈  Test "cancel() ends with no terminal and releases the sleeper (AC-264)" started.
+􀟈  Test "no deadline arms no sleeper (AC-264, AC-265)" started.
+􀟈  Test "the window is the MEAN of the last four lengths" started.
+􀟈  Test "one final, then silence, then the stream ends (model required; skips if absent)" started.
+􀟈  Test emitBeforeStartDeliversNothing() started.
+􀟈  Test aLimitOfOneStillMakesProgress() started.
+􀟈  Test "with no deadline the run arms nothing on the clock" started.
+􀟈  Test aBurstCanCompleteSeveralPhrasesInOneFeed() started.
+􀟈  Test oneUnbrokenRunIsCutHardAtTheLimit() started.
+􀟈  Test "a real reading reports both a number and that it is measuring" started.
+􀟈  Test "every unavailable reason is distinct — a caller can tell them apart" started.
+􀟈  Test wordTokensSplitAtPunctuation() started.
+􀟈  Test emittedChunksFlowThroughTheRingInOrder() started.
+􀟈  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" started.
+􀟈  Test flushDeliversTheRemainder() started.
+􀟈  Test "exhausted and unavailable are never the same answer" started.
+􀟈  Test noEmittedPhraseIsUnspeakable() started.
+􀟈  Test stopDisconnectsTheSource() started.
+􀟈  Test everyClauseMarkCuts() started.
+􀟈  Test "the Arabic question mark ends a phrase exactly like ASCII's" started.
+􀟈  Test subwordFragmentsAreJoinedVerbatim() started.
+􀟈  Test "the phone's default is not a decoder the phone cannot load" started.
+􀟈  Test punctuationGluedInsideATokenSplitsCorrectly() started.
+􀟈  Test "on this Mac the reader refuses to invent a number" started.
+􀟈  Test flushWithNothingWorthSayingIsNil() started.
+􀟈  Test "the default voice is Kokoro, which is what D-084 ruled" started.
+􀟈  Test "the deadline and the last snapshot at once: exactly one terminal (AC-264, the latch)" started.
+􀟈  Test punctuationInsideANumberDoesNotCut() started.
+􀟈  Test "an unknown voice is refused in our words, never guessed" started.
+􀟈  Test emptyAndWhitespaceTokensCompleteNothing() started.
+􀟈  Test "the voice lever parses in both directions" started.
+􀟈  Test "choosing Kokoro keeps Qwen's knobs untouched" started.
+􀟈  Test "every flag reaches the levers, in the app's own tokens" started.
+􀟈  Test "no flags means base, untouched — lead stays derivable" started.
+􀟈  Test "no lead given means the cushion is still derived, not zeroed" started.
+􀟈  Test "a voice that keeps up says it needs no cushion" started.
+􀟈  Test "an unreadable number is refused, not shrugged into the default" started.
+􀟈  Test maxLengthCutsAtTheLastWhitespace() started.
+􀟈  Test "when the picker and the built voice disagree, the voice wins" started.
+􀟈  Test "each voice reports its own levers, not the other's" started.
+􀟈  Test "a voice that cannot keep up shows the cushion in milliseconds" started.
+􀟈  Test "--mouth is still not this lever's flag" started.
+􀟈  Test "the model reaches the voice, and the display names it" started.
+􀟈  Test "CONTROL: .fused really does load here, so an iOS refusal means something" started.
+􀟈  Test "--decoder=banana is refused in our words, never silently .fused" started.
+􀟈  Test "every unavailability reason describes itself in honest words" started.
+􀟈  Test "what is in force names every lever that was actually built" started.
+􀟈  Test "an unfinished reply still teaches nothing" started.
+􀟈  Test "a measured cushion is labelled as measured, a typed one is not" started.
+􀟈  Test "a decoder that keeps up is asked for no cushion" started.
+􀟈  Test "a uniformly slow decode sizes the same as it always did" started.
+􀟈  Test "a short reply after a long one lowers the cushion — the known cost" started.
+􀟈  Test "every lever reaches the voice that gets built" started.
+􀟈  Test "stop() cancels settling batch runs; nothing is published after" started.
+􀟈  Test "Input ending mid-decode still delivers the final, then run() returns" started.
+􀟈  Test "per-call instructions replace the generator's own (AC-232)" started.
+􀟈  Test "The ceiling truncates a feeding batch run; its final still arrives" started.
+􀟈  Test "the factory builds the voice the lever names" started.
+􀟈  Test "the refusal names the flag, the wrong value, and the allowed tokens" started.
+􀟈  Test "admit(needing:) on this Mac reads no headroom, admits, and the weights are resident after" started.
+􀟈  Test "the default budget is 1024 — set even when the caller says nothing (AC-233, F-6 = A)" started.
+􀟈  Test "no per-call instructions: the generator's own are used (AC-232)" started.
+􀟈  Test "a seed is .random(top: 50, seed:) (AC-234)" started.
+􀟈  Test "a stall repaid by the end still sizes the cushion" started.
+􀟈  Test "the whole options struct travels to the source untouched (AC-231's seam, read here)" started.
+􀟈  Test "temperature 0 beside a seed: greedy wins — there is no randomness to seed" started.
+􀟈  Test "temperature 0 is .greedy (AC-234)" started.
+􀟈  Test "a temperature alone is passed through, and sampling stays the vendor's" started.
+􀟈  Test "A batch final arriving after the next utterance began is published, tagged with its own utterance" started.
+􀟈  Test "no step record means no learned cushion, not a guessed one" started.
+􀟈  Test "the small model parses with the token the phone persists" started.
+􀟈  Test "a per-call budget reaches maximumResponseTokens (AC-233)" started.
+􀟈  Test "zero samples means the phase measured nothing, and the line says why" started.
+􀟈  Test partialReadsDeliverInOrder() started.
+􀟈  Test "A read never returns a mix of old and in-flight frames" started.
+􀟈  Test droppedFramesAccumulateAcrossOverruns() started.
+􀟈  Test capacityRoundsUpToPowerOfTwo() started.
+􀟈  Test "a phase with real samples gets no announcement — one sample included" started.
+􀟈  Test emptyReadReturnsNothing() started.
+􀟈  Test wraparoundKeepsOrderAcrossTheSeam() started.
+􀟈  Test roundtripPreservesOrderAndValues() started.
+􀟈  Test overflowOverwritesOldestAndCountsExactly() started.
+􀟈  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" started.
+􀟈  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" started.
+􀟈  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" started.
+􀟈  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" started.
+􀟈  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" started.
+􀟈  Test "the window is read from config.json's max_position_embeddings, and absent is nil" started.
+􀟈  Test "a failed turn is never remembered, and keeps its words (AC-194)" started.
+􀟈  Test "a retired voice refuses to open an utterance WITHOUT reaching for the models" started.
+􀟈  Test "retiring a speaking voice cancels the reply in flight (model + MMK_LIVE_SYNTH=1)" started.
+􀟈  Test "a prompt that fills or exceeds the window is refused — nothing could be said" started.
+􀟈  Test "no window number means no refusal — the library does not refuse on a number it lacks" started.
+􀟈  Test "clearMemory() forgets the past and leaves the thought alone" started.
+􀟈  Test "An onset one tick before expiry wins the race" started.
+􀟈  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" started.
+􀟈  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" started.
+􀟈  Test stressAccountingBalancesAndOrderSurvives() started.
+􀟈  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" started.
+􀟈  Test "A final STASHED before an interruption is not replayed after resume" started.
+􀟈  Test "an error the vendor's enum does not own is .engine with its words" started.
+􀟈  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" started.
+􀟈  Test "An onset during the gate kills the pending reply silently; the next final gates again" started.
+􀟈  Test "a prompt that leaves room for one reply token fits" started.
+􀟈  Test "a refusal is spoken and ends .finished(.refused) — D-104" started.
+􀟈  Test "retiring twice is safe, and the second changes nothing" started.
+􀟈  Test "The refused final contributes content and still triggers nothing (AC-87)" started.
+􀟈  Test "a caller can COUNT: two scripted .busy runs are two" started.
+􀟈  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" started.
+􀟈  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" started.
+􀟈  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" started.
+􀟈  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" started.
+􀟈  Test "stop() ends the conversation's memory (F-4 = A)" started.
+􀟈  Test "A barge moves the thought into the conversation, not into the next question (D-089)" started.
+􀟈  Test "reply(to:) RETURNS a refusal as Reply(text:, stop: .refused) — D-104" started.
+􀟈  Test ".stop is .complete — the model ended its own turn" started.
+􀟈  Test "an empty refusal sentence yields no token, only the ending — D-104" started.
+􀟈  Test "The context bound is the app's number, and its default is stated" started.
+􀟈  Test "a voice that was never retired still opens (the eyes control)" started.
+􀟈  Test "the coordinator passes the default options (AC-231)" started.
+􀟈  Test ".length is .tokenBudget — the cap cut it" started.
+􀟈  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" started.
+􀟈  Test "an unsupported language is .unsupportedLanguage" started.
+􀟈  Test ".cancelled is nil — a cancelled run has no terminal to report" started.
+􀟈  Test "a refusal after partial text keeps what was already spoken — D-104" started.
+􀟈  Test "the context window overflowing stays .contextWindowExceeded" started.
+􀟈  Test "a retired voice refuses ensureModel without loading either" started.
+􀟈  Test "a decoding failure and an unsupported guide are .engine — the honest rest" started.
+􀟈  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" started.
+􀟈  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" started.
+􀟈  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" started.
+􀟈  Test "a reply of no tokens is answered, and not remembered" started.
+􀟈  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" started.
+􀟈  Test "rate limiting and a concurrent request are both .busy" started.
+􀟈  Test "a REAL reply that ends on its own is .finished(.complete)" started.
+􀟈  Test "An interruption ends the live turn like a failure — not a barge" started.
+􀟈  Test "The app's context bound reaches the ledger and drops the oldest through the loop" started.
+􀟈  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" started.
+􀟈  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" started.
+􀟈  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" started.
+􀟈  Test "A failed turn keeps its words — nothing answered them (AC-89)" started.
+􀟈  Test "Interrupting while idle publishes nothing at all" started.
+􀟈  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" started.
+􀟈  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" started.
+􀟈  Test "completion forgets and remembers in the same step (AC-195)" started.
+􀟈  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" started.
+􀟈  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" started.
+􀟈  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" started.
+􀟈  Test "A stale final during the gate is dropped at the door; the armed reply survives it" started.
+􀟈  Test "a barge before the first token loses nothing (F-5 = A)" started.
+􀟈  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" started.
+􀟈  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" started.
+􀟈  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" started.
+􀟈  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" started.
+􀟈  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" started.
+􀟈  Test "an interruption keeps the conversation and drops the thought (AC-196)" started.
+􀟈  Test "Every adjacent state pair across a multi-turn run is in the legal table" started.
+􀟈  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" started.
+􀟈  Test "A dead turn cannot speak after an interruption — defiant stages included" started.
+􀟈  Test "A whitespace-only final produces no reply: back to idle, generator untouched" started.
+􀟈  Test case passing 2 arguments turns → Config(listenerBufferCapacity: 64, replyGate: 0.0 seconds, maxContextPieces: 0, bargeWindow: 0.0 seconds, maxMemoryTurns: 8, maxMemoryCharacters: 600), expected → maxContextPieces must be at least 1: a ledger that can hold nothing loses the sentence being spoken to "a ledger bound of zero is refused by AIRuntime.init, not trapped in run() (AC-241)" started.
+􀟈  Test case passing 2 arguments turns → Config(listenerBufferCapacity: 64, replyGate: 0.0 seconds, maxContextPieces: 16, bargeWindow: 0.0 seconds, maxMemoryTurns: -1, maxMemoryCharacters: 600), expected → maxMemoryTurns must be 0 or more: 0 turns the memory off, a negative depth is not a bound to "a ledger bound of zero is refused by AIRuntime.init, not trapped in run() (AC-241)" started.
+􀟈  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" started.
+􀟈  Test "run() returns after an interruption even when the inputs ended first" started.
+􀟈  Test case passing 2 arguments turns → Config(listenerBufferCapacity: 64, replyGate: 0.0 seconds, maxContextPieces: 16, bargeWindow: 0.0 seconds, maxMemoryTurns: 8, maxMemoryCharacters: 0), expected → maxMemoryCharacters must be at least 1: a memory with no room cannot hold half a word to "a ledger bound of zero is refused by AIRuntime.init, not trapped in run() (AC-241)" started.
+􀟈  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" started.
+􀟈  Test case passing 1 argument state → .nominal to "the default policy opens at nominal, fair and serious, and refuses at critical" started.
+􀟈  Test case passing 1 argument state → .fair to "the default policy opens at nominal, fair and serious, and refuses at critical" started.
+􀟈  Test case passing 1 argument state → .critical to "the default policy opens at nominal, fair and serious, and refuses at critical" started.
+􀟈  Test case passing 1 argument state → .serious to "the default policy opens at nominal, fair and serious, and refuses at critical" started.
+􀟈  Test case passing 2 arguments value → 84, expected → .int(84) to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test case passing 2 arguments value → 83.5, expected → .double(83.5) to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test case passing 2 arguments value → .string("today"), expected → "today" to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → .int(84), expected → 84 to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → .double(83.5), expected → 83.5 to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → .double(0.25), expected → 0.25 to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → .bool(true), expected → true to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → .bool(false), expected → false to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → "today", expected → .string("today") to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test case passing 2 arguments value → .null, expected → null to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → .array([MLXLMCommon.JSONValue.int(1), MLXLMCommon.JSONValue.string("b")]), expected → a list to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → true, expected → .bool(true) to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test case passing 2 arguments value → .object(["zebra": MLXLMCommon.JSONValue.int(1), "apple": MLXLMCommon.JSONValue.string("x")]), expected → an object to "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" started.
+􀟈  Test case passing 2 arguments value → null, expected → .null to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test case passing 2 arguments value → a list, expected → .array([MLXLMCommon.JSONValue.int(1), MLXLMCommon.JSONValue.string("b")]) to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􀟈  Test case passing 2 arguments value → an object, expected → .object(["a": MLXLMCommon.JSONValue.double(0.5)]) to "the way back: a whole number is an int, the rest are themselves, containers recurse" started.
+􁁛  Test "punctuation alone is not speakable" passed after 0.258 seconds.
+􁁛  Test "other writing systems are speakable" passed after 0.258 seconds.
+􁁛  Test "digits are speakable — a number is a word out loud" passed after 0.258 seconds.
+􁁛  Test "whitespace alone is not speakable — the case that hung the suite" passed after 0.258 seconds.
+􁁛  Test "ordinary text is speakable" passed after 0.259 seconds.
+􁁛  Test "the platform knows both floors: the library's and the Apple mind's" passed after 0.258 seconds.
+􁁛  Test "headroom exactly equal to the need is enough" passed after 0.259 seconds.
+􁁛  Test "every verdict, one row each, and the healthy phone is ready" passed after 0.259 seconds.
+􁁛  Test "an unverified install counts as installed" passed after 0.259 seconds.
+􁁛  Test "the floor is rendered with the report's platform name" passed after 0.259 seconds.
+􁁛  Test "a report that trips two rules gets the first one" passed after 0.259 seconds.
+􁁛  Test "an unknown headroom with a memory need is NOT a refusal" passed after 0.259 seconds.
+􁁛  Test "only the Simulator verdict says Simulator" passed after 0.259 seconds.
+􁁛  Test "a mind that claims no memory is never refused for memory" passed after 0.259 seconds.
+􁁛  Test "versions compare as numbers, not as words" passed after 0.259 seconds.
+􁁛  Test "the size sums exactly the files the download's glob would fetch" passed after 0.260 seconds.
+􁁛  Test "runs below the minimum are not gaps" passed after 0.260 seconds.
+􁁛  Test "all-silent audio reports nothing rather than dividing by zero" passed after 0.260 seconds.
+􁁛  Test "quiet speech is speech, not a dropout" passed after 0.260 seconds.
+􁁛  Test "a gap inside the speech is found, with its length" passed after 0.260 seconds.
+􁁛  Test "many small gaps are counted and summed — the starvation shape" passed after 0.260 seconds.
+􁁛  Test "the cushion's own silence is not counted against it" passed after 0.261 seconds.
+􁁛  Test "continuous speech has no dropouts" passed after 0.261 seconds.
+􁁛  Test "a sane format passes the check — the guard is not simply always-no" passed after 0.262 seconds.
+􁁛  Test "a zero minimum still needs a real run, not every sample boundary" passed after 0.262 seconds.
+􁁛  Test "the refusal carries the numbers, so a report says what was wrong" passed after 0.263 seconds.
+􁁛  Test "a memory-tight phone that has not loaded yet still opens the door" passed after 0.263 seconds.
+􁁛  Test "the door's needs are the platform's floor and NO memory claim" passed after 0.263 seconds.
+􁁛  Test "the working-set estimate is 0 for absent weights — no claim on a number we do not have" passed after 0.263 seconds.
+􁁛  Test "the working-set estimate saturates instead of trapping, like the manifest's own sum" passed after 0.264 seconds.
+􁁛  Test "a RESIDENT model claims no memory, and retire() gives the claim back" passed after 0.275 seconds.
+􁁛  Test "the working-set estimate is the safetensors bytes × 1.5 — the measured phone peaks" passed after 0.275 seconds.
+􁁛  Test "cumulative snapshots become exactly their new suffixes" passed after 0.275 seconds.
+􁁛  Test "a combining mark landing on spoken text fires the tripwire" passed after 0.275 seconds.
+􁁛  Test "multi-byte text diffs at character boundaries, not bytes" passed after 0.275 seconds.
+􁁛  Test "platform-refused AND retired says the platform's no — order is load-bearing" passed after 0.275 seconds.
+􁁛  Test "HALF a vocabulary throws rather than guesses" passed after 0.275 seconds.
+􁁛  Test "a REWRITE of emitted text throws, carrying both sides" passed after 0.275 seconds.
+􁁛  Test "a refused variant throws OUR error and never reaches for the models" passed after 0.275 seconds.
+􁁛  Test "both markers present — the two ids are read from the vocabulary" passed after 0.275 seconds.
+􁁛  Test "a SHRUNKEN snapshot throws — shorter cannot extend" passed after 0.275 seconds.
+􁁛  Test "between its markers the handler is the one hop: no await of its own, no MLX call, no work" passed after 0.275 seconds.
+􁁛  Test "nil verdict defaults to the vendor, which says yes on this Mac" passed after 0.275 seconds.
+􁁛  Test "after a violation the differ vouches for nothing new" passed after 0.275 seconds.
+􁁛  Test "CONTROL: a true verdict passes the guard — the tripwire behind it fires instead" passed after 0.275 seconds.
+􁁛  Test "the first snapshot is emitted whole, even when empty" passed after 0.275 seconds.
+􁁛  Test "an unchanged snapshot is nothing to say, not a violation" passed after 0.275 seconds.
+􁁛  Test "openUtterance refuses through the same door" passed after 0.275 seconds.
+􁁛  Test "a tree that matches its manifest is .installed" passed after 0.276 seconds.
+􁁛  Test "a model that does not reason out loud is nil, not an error" passed after 0.276 seconds.
+􁁛  Test "the REAL model's config yields 151667/151668 (model config; skips if absent)" passed after 0.275 seconds.
+􁁛  Test "the error names the variant and the reason, in our words" passed after 0.275 seconds.
+􁁛  Test "parameters render one property each with its JSON type and sentence, and `required` names the required ones" passed after 0.276 seconds.
+􁁛  Test "a band with showsRange renders minimum and maximum in the property" passed after 0.275 seconds.
+􁁛  Test "a caller's fake drives a complete install, with progress and a manifest" passed after 0.277 seconds.
+􁁛  Test "all-optional parameters render properties and no `required` key" passed after 0.278 seconds.
+􁁛  Test "a file that is not a tokenizer configuration is refused" passed after 0.278 seconds.
+􁁛  Test "an empty table renders nil, not []; a table renders one spec per tool" passed after 0.278 seconds.
+􁁛  Test "a band with showsRange false renders nothing of it" passed after 0.278 seconds.
+􁁛  Test "the measured window cannot swallow the shortest real utterance" passed after 0.278 seconds.
+􁁛  Test "the budget reaches maxTokens, and nothing else is invented" passed after 0.278 seconds.
+􁁛  Test "temperature and seed reach the vendor when the caller gives them" passed after 0.278 seconds.
+􁁛  Test "the caller's per-call instruction is the system message — Aura's G1" passed after 0.278 seconds.
+􁁛  Test "nil per-call instructions leave the source's own as the system message" passed after 0.279 seconds.
+􁁛  Test "one tool renders as a function spec with an empty object of parameters" passed after 0.279 seconds.
+􁁛  Test "the past arrives in roles, and a barged reply ends in the ellipsis" passed after 0.279 seconds.
+􁁛  Test "temperature 0 travels as 0 — the greedy path, not a nil that becomes 0.6" passed after 0.280 seconds.
+􁁛  Test "a voice barely above the room cannot carry a gate" passed after 0.279 seconds.
+􁁛  Test "the midpoint is geometric — equally clear of both mistakes" passed after 0.279 seconds.
+􁁛  Test "exactly real time is not keeping up" passed after 0.280 seconds.
+􁁛  Test "nil on both sides is NO system message at all — the voice path, unchanged" passed after 0.280 seconds.
+􁁛  Test "the configurations that never starved all read keepsUp" passed after 0.280 seconds.
+􁁛  Test "a perfectly silent room still yields a usable gate" passed after 0.280 seconds.
+􁁛  Test "a quiet room and a normal voice put the gate between them" passed after 0.280 seconds.
+􁁛  Test "the configurations that DID starve all read not-keepsUp" passed after 0.280 seconds.
+􁁛  Test "no speech at all is refused rather than guessed" passed after 0.280 seconds.
+􁁛  Test "exactly the minimum ratio is accepted" passed after 0.283 seconds.
+􁁛  Test "the gate always sits strictly below the speech it must pass" passed after 0.284 seconds.
+􁁛  Test "a decode can keep up on average and still have needed a cushion" passed after 0.283 seconds.
+􁁛  Test "a zero target reproduces the un-buffered behaviour exactly" passed after 0.285 seconds.
+􁁛  Test "below the target waits, however many buffers arrive" passed after 0.285 seconds.
+􁁛  Test "the end of the reply cannot re-start an already-playing reply" passed after 0.285 seconds.
+􁁛  Test "enough audio queued starts playback" passed after 0.285 seconds.
+􁁛  Test "the folder ends in the vendor's constant, quoted" passed after 0.285 seconds.
+􁁛  Test "both variants resolve to the SAME tokenizer folder" passed after 0.285 seconds.
+􁁛  Test "a microphone that has not started is not watching, and says so" passed after 0.285 seconds.
+􁁛  Test "empty audio moves nothing" passed after 0.285 seconds.
+􁁛  Test "the model is the only subscriber in the module" passed after 0.287 seconds.
+􁁛  Test "a complete download writes manifest.json listing every file at its byte count" passed after 0.286 seconds.
+􁁛  Test "a reply that ends before the lead still plays" passed after 0.286 seconds.
+􁁛  Test "a silent reply starts nothing" passed after 0.286 seconds.
+􁁛  Test "the exact boundary starts — the target is a floor, not a fence" passed after 0.286 seconds.
+􁁛  Test "an abandoned reply starts nothing, before or after the target" passed after 0.286 seconds.
+􁁛  Test "attaching to a microphone that is not capturing fails loudly" passed after 0.286 seconds.
+􁁛  Test "the microphone host still refuses when it is not capturing" passed after 0.288 seconds.
+􁁛  Test "the sizing rule covers a measured deficit" passed after 0.286 seconds.
+􁁛  Test "a call still buffered at end of sequence is parsed by finish()" passed after 0.286 seconds.
+􁁛  Test "a 0 Hz format is refused by name, not by crashing" passed after 0.288 seconds.
+􁁛  Test "words before the call are spoken; the call's arguments arrive typed — the model's 2 is a number" passed after 0.286 seconds.
+􁁛  Test "detaching a node that was never attached is harmless" passed after 0.286 seconds.
+􁁛  Test "a tagged call is collected silently and emitted whole when its end tag arrives" passed after 0.286 seconds.
+􁁛  Test "plain text passes through as tokens, one per piece" passed after 0.286 seconds.
+􁁛  Test "a brace that was not a call is text after all, flushed at the end" passed after 0.286 seconds.
+􁁛  Test "a decoder that keeps ahead needs no lead at all" passed after 0.286 seconds.
+􁁛  Test "playback starts exactly once, however much more arrives" passed after 0.286 seconds.
+􁁛  Test "detaching a node the engine already dropped is a no-op, not a crash" passed after 0.287 seconds.
+􁁛  Test "detaching a node that is attached but wired to nothing is a no-op" passed after 0.287 seconds.
+􁁛  Test "a host that is torn down keeps no nodes" passed after 0.287 seconds.
+􁁛  Test "a host that borrowed an engine never stops it" passed after 0.287 seconds.
+􁁛  Test "a host that made its own engine stops it" passed after 0.287 seconds.
+􁁛  Test "a plain engine host attaches, renders, and gives the node back" passed after 0.287 seconds.
+􁁛  Test "a host takes several replies in turn" passed after 0.287 seconds.
+􁁛  Test "tearing down after the engine stopped is safe" passed after 0.287 seconds.
+􁁛  Test "temperature and seed travel; nil leaves the vendor's default untouched" passed after 0.505 seconds.
+􁁛  Test "a failed run teaches nothing — its truncated length stays out of the window" passed after 0.508 seconds.
+􁁛  Test "a failed run before any finished one leaves the learner empty" passed after 0.508 seconds.
+􁁛  Test "per-call instructions replace the source's own for that call" passed after 0.508 seconds.
+􁁛  Test "nil on both sides means NO system message, as before 4v" passed after 0.508 seconds.
+􁁛  Test "nil instructions keep the source's own" passed after 0.509 seconds.
+􁁛  Test "per-call maxTokens replaces the source's own" passed after 0.509 seconds.
+􁁛  Test "nil maxTokens keeps the source's default — 1024 since F-6 = A" passed after 0.509 seconds.
+􁁛  Test "the whole resolution is one Equatable value — the door hands it on, whole" passed after 0.513 seconds.
+􁁛  Test "the cushion RISES when the machine slows — latest-wins in the harmful direction" passed after 0.514 seconds.
+􁁛  Test "a call after it has finished does nothing at all" passed after 0.515 seconds.
+􁁛  Test "THE ORDER THAT KILLS: the voice must precede the mind" passed after 0.515 seconds.
+􁁛  Test "two exchanges keep their order — the template pairs a call with its result by order" passed after 0.520 seconds.
+􁁛  Test "a fresh learner offers no cushion at all" passed after 0.520 seconds.
+􁁛  Test "no exchanges renders exactly the 4r chat" passed after 0.520 seconds.
+􁁛  Test "one exchange is an assistant turn carrying the call, then a tool turn carrying the answer" passed after 0.520 seconds.
+􁁛  Test "the hint is stored as given, and absent by default" passed after 0.525 seconds.
+􁁛  Test "the Mac's first reply is under-cushioned, by a number we know" passed after 0.525 seconds.
+􁁛  Test "a decoder that keeps up gets no first-reply cushion either" passed after 0.529 seconds.
+􁁛  Test "the steps run in the order they were given" passed after 0.529 seconds.
+􁁛  Test "a stray close with no open is harmless, not a crash" passed after 0.529 seconds.
+􁁛  Test "it says whether it has run" passed after 0.529 seconds.
+􁁛  Test "an unclosed thought swallows to the end, and SAYS that it is still holding" passed after 0.529 seconds.
+􁁛  Test "the markers themselves never reach the mouth — punctuation, not words" passed after 0.529 seconds.
+􁁛  Test "with an expected total, received is fraction × expected" passed after 0.529 seconds.
+􁁛  Test "a template that already opened the thought starts inside it" passed after 0.529 seconds.
+􁁛  Test "a NaN fraction is 0, never a trap" passed after 0.529 seconds.
+􁁛  Test "the removed-gate control — a foreign vocabulary lets the reasoning through" passed after 0.545 seconds.
+􁁛  Test "a DEFIANT <think> is swallowed — layer 1 is a convention, this is the net" passed after 0.545 seconds.
+􁁛  Test "the fraction is clamped to 0…1 — the client has reported outside it" passed after 0.545 seconds.
+􁁛  Test "a reply that never spoke prints an em dash, never 0 ms" passed after 0.546 seconds.
+􁁛  Test "a device that cannot answer prints an em dash, never 0 MB" passed after 0.546 seconds.
+􁁛  Test "each row is prepare → reset → sample → measure, in that order" passed after 0.546 seconds.
+􁁛  Test "reset happens AFTER prepare — the row counts the run, not the setup" passed after 0.546 seconds.
+􁁛  Test "durations render as whole milliseconds" passed after 0.546 seconds.
+􁁛  Test "a throw part-way keeps every row already measured" passed after 0.546 seconds.
+􁁛  Test "the most recent reply wins — a bad sample costs one reply, not a session" passed after 0.546 seconds.
+􁁛  Test "`lead` still reports what the voice was born with" passed after 0.546 seconds.
+􁁛  Test "the iPhone's measured 1.21 asks for about 1.26 s, not 396 ms" passed after 0.546 seconds.
+􁁛  Test "after a reply, the voice uses what THIS machine managed" passed after 0.546 seconds.
+􁁛  Test "every configuration is prepared before it is measured, every run" passed after 0.546 seconds.
+􁁛  Test "the table is the shape INSTRUMENTS already uses" passed after 0.546 seconds.
+􁁛  Test "a completed sweep restores exactly once" passed after 0.546 seconds.
+􀙟  Test "the row being measured when the cancel lands is DROPPED, not published" was cancelled after 0.546 seconds.
+􁁛  Test "a decoder faster than the ear waits only for its first buffer" passed after 0.546 seconds.
+􁁛  Test "consecutive small overruns accumulate — the worst STEP would miss them" passed after 0.546 seconds.
+􀙟  Test "cancellation keeps the rows already measured, and still restores" was cancelled after 0.546 seconds.
+􁁛  Test "an expected total at the edge of Int64 is not a trap" passed after 0.546 seconds.
+􁁛  Test "with the mind resident it refuses, and changes nothing" passed after 0.546 seconds.
+􁁛  Test "the phone sweep does not include a decoder that cannot load there" passed after 0.546 seconds.
+􁁛  Test "a row carries the conditions sampled for that row, not the sweep's first" passed after 0.546 seconds.
+􁁛  Test "a human's number outranks the machine's — D-068 D" passed after 0.546 seconds.
+􁁛  Test "runsEach of zero measures nothing — it does not halt the process" passed after 0.546 seconds.
+􁁛  Test "a machine that keeps up is given no cushion at all" passed after 0.546 seconds.
+􁁛  Test "before any reply, the voice uses the decoder's constant" passed after 0.546 seconds.
+􁁛  Test "a long prefill delays the start and is NOT banked as cushion" passed after 0.546 seconds.
+􁁛  Test "without an expected total, both byte fields are nil — a fraction is all that is known" passed after 0.547 seconds.
+􁁛  Test "a deficit repaid before the end still had to be banked" passed after 0.547 seconds.
+􁁛  Test "no steps at all is zero, not a guess" passed after 0.547 seconds.
+􁁛  Test "the peak is measured before the slow step delivers, not after" passed after 0.547 seconds.
+􁁛  Test "a stage that throws mid-sweep still gets its settings back" passed after 0.548 seconds.
+􁁛  Test "the credential scan reports a credential attached the ordinary way" passed after 0.548 seconds.
+􁁛  Test "84 as an int and 84.0 as a double are one value (F-13 b)" passed after 0.548 seconds.
+􁁛  Test "the manifest guard names a new library product that declares none" passed after 0.548 seconds.
+􁁛  Test "the way back: a whole number is an int, the rest are themselves, containers recurse" with 7 test cases passed after 0.548 seconds.
+􁁛  Test "a call with no arguments is a request with none — the spike's read" passed after 0.548 seconds.
+􁁛  Test "it knows nothing until something has been decoded" passed after 0.548 seconds.
+􁁛  Test "the download's doc comment states what happens when the app leaves the foreground" passed after 0.549 seconds.
+􁁛  Test "a uniformly slow decode asks for its accumulated deficit" passed after 0.548 seconds.
+􁁛  Test "the vendor's ToolCall becomes the seam's request, name kept, arguments typed" passed after 0.548 seconds.
+􁁛  Test "each JSON kind becomes its ToolValue: numbers to .number, containers carried for the door to refuse" with 9 test cases passed after 0.548 seconds.
+􁁛  Test "forget puts it back to knowing nothing" passed after 0.548 seconds.
+􁁛  Test "a credential cannot hide a host, and a substring is not a match" passed after 0.548 seconds.
+􁁛  Test "the weight URLs carry no identifier — no query, no user, no fragment" passed after 0.548 seconds.
+􁁛  Test "the scanner reports a host the document does not name" passed after 0.548 seconds.
+􁁛  Test "a host is a host: ports and trailing punctuation are stripped" passed after 0.548 seconds.
+􁁛  Test "every linked module ships a privacy manifest, declared in Package.swift" passed after 0.548 seconds.
+􁁛  Test "the list names the hub the MLX weight fetch reaches, which no literal in Sources/ names" passed after 0.548 seconds.
+􁁛  Test "retire hands back what was held, and the next call builds again" passed after 0.548 seconds.
+SKIPPED (the on-device model is still downloading — try later) — an OS-26 machine with the on-device model ready makes this test REAL
+􁁛  Test "a second call after the first finished does not rebuild" passed after 0.548 seconds.
+􁁛  Test "the required-reason cross-check accepts a used API that IS declared" passed after 0.548 seconds.
+􁁛  Test "each manifest declares no collection and no tracking" passed after 0.548 seconds.
+􁁛  Test "N lever changes leave exactly one resident — AC-145's shape" passed after 0.548 seconds.
+􁁛  Test "the host list states the credential caveat AC-254 cannot prove away" passed after 0.548 seconds.
+􁁛  Test "a clear in which every delete failed never says 'cleared'" passed after 0.548 seconds.
+􁁛  Test "an empty directory holds: [nothing] — the line C rests on" passed after 0.548 seconds.
+􁁛  Test "a plain FILE is measured at its real size, not zero" passed after 0.548 seconds.
+􁁛  Test "no background session is built or asked for anywhere in the MLX module" passed after 0.550 seconds.
+􁁛  Test "the report names every matching directory and its bytes" passed after 0.548 seconds.
+􁁛  Test "a directory the control cannot read is reported as such, not as empty" passed after 0.548 seconds.
+􁁛  Test "absence is said in words, and it names EVERY neighbourhood" passed after 0.548 seconds.
+􁁛  Test "the same directory passed twice is surveyed once" passed after 0.548 seconds.
+􁁛  Test "an unreadable directory is named even beside a success" passed after 0.548 seconds.
+􁁛  Test "a matching SYMLINK is not ours to delete, and the target survives" passed after 0.548 seconds.
+􁁛  Test "clear deletes from EVERY directory and reports each with its place" passed after 0.549 seconds.
+􁁛  Test "a build that throws leaves nothing resident, and does not wedge the queue" passed after 0.549 seconds.
+􁁛  Test "the two decoders do NOT get the same cushion" passed after 0.552 seconds.
+􁁛  Test "an explicit lead still wins — the derivation is a default, not a law" passed after 0.552 seconds.
+􁁛  Test "`.stepped` needs one — it decodes slower than real time" passed after 0.553 seconds.
+􁁛  Test "the CONSTANT is `.fused`'s cushion, and passing it to `.stepped` is the bug" passed after 0.553 seconds.
+SKIPPED (the on-device model is still downloading — try later) — an OS-26 machine with the on-device model ready makes this test REAL
+􁁛  Test "measuredRealTimeFactor provides platform-calibrated values" passed after 0.555 seconds.
+􁁛  Test "the reply's LENGTH reaches the window — the assertion §48 was missing" passed after 0.555 seconds.
+􁁛  Test "the RTF stays latest-wins while the length is windowed" passed after 0.555 seconds.
+􁁛  Test "forget empties the window — no lengths survive a decoder change" passed after 0.556 seconds.
+􁁛  Test "a long reply raises the cushion, and four short ones retire it" passed after 0.559 seconds.
+SKIPPED (the on-device model is still downloading — try later) — an OS-26 machine with the on-device model ready makes this test REAL
+􁁛  Test "`.fused` needs no cushion — it decodes faster than the ear drinks" passed after 0.581 seconds.
+􁁛  Test "the window is the MEAN of the last four lengths" passed after 0.581 seconds.
+SKIPPED (the on-device model is still downloading — try later) — an OS-26 machine with the on-device model ready makes this test REAL
+􁁛  Test "a real reading reports both a number and that it is measuring" passed after 0.582 seconds.
+􁁛  Test "every unavailable reason is distinct — a caller can tell them apart" passed after 0.582 seconds.
+􁁛  Test "exhausted and unavailable are never the same answer" passed after 0.582 seconds.
+􁁛  Test "on this Mac the reader refuses to invent a number" passed after 0.582 seconds.
+􁁛  Test "the phone's default is not a decoder the phone cannot load" passed after 0.582 seconds.
+􁁛  Test "the default voice is Kokoro, which is what D-084 ruled" passed after 0.582 seconds.
+􁁛  Test "an unknown voice is refused in our words, never guessed" passed after 0.582 seconds.
+􁁛  Test "the voice lever parses in both directions" passed after 0.582 seconds.
+􁁛  Test "choosing Kokoro keeps Qwen's knobs untouched" passed after 0.582 seconds.
+􁁛  Test "every flag reaches the levers, in the app's own tokens" passed after 0.582 seconds.
+􁁛  Test "no lead given means the cushion is still derived, not zeroed" passed after 0.582 seconds.
+􁁛  Test "the survey reaches every directory, and an entry says where it was found" passed after 0.583 seconds.
+􁁛  Test "the proofs block names the file each check lives in" passed after 0.584 seconds.
+􁁛  Test "no flags means base, untouched — lead stays derivable" passed after 0.582 seconds.
+􁁛  Test "a voice that keeps up says it needs no cushion" passed after 0.583 seconds.
+􁁛  Test "when the picker and the built voice disagree, the voice wins" passed after 0.582 seconds.
+􁁛  Test "a voice that cannot keep up shows the cushion in milliseconds" passed after 0.582 seconds.
+􁁛  Test "--mouth is still not this lever's flag" passed after 0.582 seconds.
+􁁛  Test "each voice reports its own levers, not the other's" passed after 0.583 seconds.
+􁁛  Test "the model reaches the voice, and the display names it" passed after 0.582 seconds.
+􁁛  Test "--decoder=banana is refused in our words, never silently .fused" passed after 0.583 seconds.
+􁁛  Test "every unavailability reason describes itself in honest words" passed after 0.582 seconds.
+􁁛  Test "what is in force names every lever that was actually built" passed after 0.582 seconds.
+􁁛  Test "an unfinished reply still teaches nothing" passed after 0.582 seconds.
+􁁛  Test "an unreadable number is refused, not shrugged into the default" passed after 0.583 seconds.
+􁁛  Test "a measured cushion is labelled as measured, a typed one is not" passed after 0.582 seconds.
+􁁛  Test "a decoder that keeps up is asked for no cushion" passed after 0.582 seconds.
+􁁛  Test "a uniformly slow decode sizes the same as it always did" passed after 0.583 seconds.
+􁁛  Test "a short reply after a long one lowers the cushion — the known cost" passed after 0.583 seconds.
+􁁛  Test "every lever reaches the voice that gets built" passed after 0.583 seconds.
+􁁛  Test "the refusal names the flag, the wrong value, and the allowed tokens" passed after 0.583 seconds.
+􁁛  Test "the factory builds the voice the lever names" passed after 0.586 seconds.
+􁁛  Test "a stall repaid by the end still sizes the cushion" passed after 0.586 seconds.
+􁁛  Test "no step record means no learned cushion, not a guessed one" passed after 0.586 seconds.
+􁁛  Test "the small model parses with the token the phone persists" passed after 0.586 seconds.
+􁁛  Test "zero samples means the phase measured nothing, and the line says why" passed after 0.586 seconds.
+􁁛  Test "a phase with real samples gets no announcement — one sample included" passed after 0.586 seconds.
+􁁛  Test "a failure after the move over a caller's tree keeps that tree, and never locks the model out" passed after 0.591 seconds.
+􁁛  Test "a retired voice refuses to open an utterance WITHOUT reaching for the models" passed after 0.586 seconds.
+􁁛  Test "a prompt that fills or exceeds the window is refused — nothing could be said" passed after 0.586 seconds.
+􁁛  Test "retiring a speaking voice cancels the reply in flight (model + MMK_LIVE_SYNTH=1)" passed after 0.586 seconds.
+􁁛  Test "no window number means no refusal — the library does not refuse on a number it lacks" passed after 0.586 seconds.
+􁁛  Test "a prompt that leaves room for one reply token fits" passed after 0.586 seconds.
+􁁛  Test "retiring twice is safe, and the second changes nothing" passed after 0.586 seconds.
+􁁛  Test ".stop is .complete — the model ended its own turn" passed after 0.586 seconds.
+􁁛  Test "the window is read from config.json's max_position_embeddings, and absent is nil" passed after 0.587 seconds.
+􁁛  Test ".length is .tokenBudget — the cap cut it" passed after 0.586 seconds.
+􁁛  Test ".cancelled is nil — a cancelled run has no terminal to report" passed after 0.586 seconds.
+􁁛  Test "a retired voice refuses ensureModel without loading either" passed after 0.587 seconds.
+SKIPPED (the on-device model is still downloading — try later) — an OS-26 machine with the on-device model ready makes this test REAL
+SKIPPED (the on-device model is still downloading — try later) — an OS-26 machine with the on-device model ready makes this test REAL
+􁁛  Test "every host in Sources/ is named in docs/HOSTS.md" passed after 0.694 seconds.
+􁁛  Test "a declared host is either named in Sources/ or declared as never called" passed after 0.694 seconds.
+􁁛  Test "an absent model's verdict is typed, and the door throws it as ReplyFailure.unavailable" passed after 0.717 seconds.
+􁁛  Test "a verdict's words never say Simulator on a machine that is not one" passed after 0.718 seconds.
+􁁛  Suite "Is there anything worth speaking?" passed after 0.723 seconds.
+􁁛  Suite "AC-238 · readiness is a pure verdict over a hand-written device report" passed after 0.724 seconds.
+􁁛  Suite "digital silence is measured, not estimated" passed after 0.741 seconds.
+􁁛  Suite "the 0 Hz guard — an invalid format must throw, never abort" passed after 0.741 seconds.
+􁁛  Suite SnapshotDifferTests passed after 0.742 seconds.
+􁁛  Suite "the platform's no is honored before CoreML" passed after 0.742 seconds.
+􁁛  Suite "AC-125 · the ids come from the model, not from me" passed after 0.742 seconds.
+􁁛  Suite "AC-263 · the pressure handler is one hop and nothing else" passed after 0.742 seconds.
+􁁛  Suite "4w · the spec the MLX mind renders for a tool" passed after 0.743 seconds.
+􁁛  Suite "AC-233/AC-234 · the resolved settings become the vendor's parameters" passed after 0.743 seconds.
+􁁛  Suite "AC-232 · the resolved instruction becomes the .system message" passed after 0.743 seconds.
+􁁛  Suite "Gate calibration — between the room and the voice" passed after 0.743 seconds.
+􁁛  Suite "keeps-up is a flag, and it stayed one" passed after 0.743 seconds.
+􁁛  Test "no module supplies a credential or reads an identifier" passed after 0.736 seconds.
+􁁛  Suite "The playback lead — when it is safe to start speaking" passed after 0.744 seconds.
+􁁛  Suite "the tokenizer folder is the one TTSKit asks for" passed after 0.744 seconds.
+􁁛  Suite "Playback hosts — where a reply is allowed to render" passed after 0.744 seconds.
+􁁛  Suite "4w · the sieve turns decoded pieces into text and .toolCall events" passed after 0.744 seconds.
+􁁛  Suite "AC-232..234 · per-call options resolve against the source's own settings" passed after 0.759 seconds.
+􁁛  Suite "what the learner refuses to learn" passed after 0.760 seconds.
+􁁛  Suite "4w · the exchanges are appended after the question, in the template's roles" passed after 0.760 seconds.
+􁁛  Suite "the first reply's cushion is stated, not assumed" passed after 0.760 seconds.
+􁁛  Suite WhisperLanguageHintTests passed after 0.761 seconds.
+􁁛  Suite "AC-125 · the think gate" passed after 0.761 seconds.
+􁁛  Suite "AC-240 · install progress carries bytes when they are known" passed after 0.761 seconds.
+􁁛  Suite "the bench sweep" passed after 0.762 seconds.
+􁁛  Suite "the lead learns from the machine" passed after 0.762 seconds.
+􁁛  Suite "the cushion is what the bank had to hold" passed after 0.762 seconds.
+􁁛  Suite "4z · a parsed call's arguments become the contract's values, by kind" passed after 0.763 seconds.
+􁁛  Suite "AC-251 · the suspend truth, stated and not contradicted" passed after 0.764 seconds.
+􁁛  Suite "the compiled-plan cache control does not lie" passed after 0.764 seconds.
+􁁛  Suite "the lead follows the decoder" passed after 0.764 seconds.
+􁁛  Suite "the lead learns the conversation" passed after 0.764 seconds.
+􁁛  Suite "AC-132 · the headroom instrument never reports an ambiguous zero" passed after 0.851 seconds.
+􁁛  Suite UnavailableWordsTests passed after 0.851 seconds.
+􁁛  Suite "the cushion follows the stall" passed after 0.852 seconds.
+􁁛  Suite "a null probe phase is announced" passed after 0.852 seconds.
+􁁛  Suite "AC-236 · a prompt longer than the window is refused before generation" passed after 0.855 seconds.
+􁁛  Suite "AC-235 · the vendor's stop reason maps to the seam's StopReason" passed after 0.856 seconds.
+􁁛  Suite "AC-238 wiring · the MLX door throws the typed verdict" passed after 0.988 seconds.
+􁁛  Test "a completed exchange carries no mark" passed after 1.017 seconds.
+􁁛  Test "an exchange the mind answered with silence is not recorded" passed after 1.017 seconds.
+􁁛  Test "past the depth, the oldest whole exchange is dropped" passed after 1.017 seconds.
+􁁛  Test "the person's words and the mind's stay apart" passed after 1.017 seconds.
+􁁛  Test "an ordinary exchange cannot reach the cliff at the shipped bound" passed after 1.017 seconds.
+􁁛  Test "an exchange with no question is not recorded" passed after 1.017 seconds.
+􁁛  Test "clearing forgets everything and stays usable" passed after 1.017 seconds.
+􁁛  Test "an interrupted exchange is kept, and says so" passed after 1.017 seconds.
+􁁛  Test "the budget is paid in whole exchanges" passed after 1.034 seconds.
+􁁛  Test "an exchange too large to fit alone is kept alone, over budget" passed after 1.035 seconds.
+􁁛  Test "the next exchange evicts the oversized one, and the bound holds again" passed after 1.035 seconds.
+􁁛  Test "whitespace on either side is not an exchange" passed after 1.035 seconds.
+􁁛  Test "a depth of zero remembers nothing and says so" passed after 1.035 seconds.
+􁁛  Test "the shipped bound is the measured one, and it clears both limits" passed after 1.035 seconds.
+􁁛  Test "record says whether the memory took the exchange" passed after 1.035 seconds.
+􁁛  Test "two memories holding the same conversation are equal" passed after 1.035 seconds.
+􁁛  Test "the budget bites while the depth still has room" passed after 1.035 seconds.
+􁁛  Test "the pure function: only the closing tag is touched; text without it is unchanged; every occurrence goes" passed after 1.039 seconds.
+􀟈  Test "asking for the size fetches nothing — and the same recorder DOES record a fetch" started.
+􁁛  Test "GenerationOptions.deadline defaults to nil and is a value (AC-264, AC-265)" passed after 1.040 seconds.
+􁁛  Test "ReplyFailure gained .tooHot — and still has no .refused (D-104)" passed after 1.040 seconds.
+􁁛  Test "the transcription policy's table is untouched — D-028 stands" passed after 1.040 seconds.
+􁁛  Test "openReply opens at .nominal, .fair and .serious (AC-260)" passed after 1.041 seconds.
+􁁛  Test "tooHot describes itself in plain words, naming the state" passed after 1.041 seconds.
+􁁛  Test "an injected policy overrules the default: refusing at .serious" passed after 1.041 seconds.
+􁁛  Test "openReply throws ReplyFailure.tooHot(.critical) at the door, and opens no run (AC-260)" passed after 1.042 seconds.
+􁁛  Test "DefaultGenerationThermalPolicy refuses at .critical only (F-2 = A)" passed after 1.042 seconds.
+􁁛  Test "StopReason is complete / tokenBudget / unreported / refused / deadline — F-4 = A" passed after 1.042 seconds.
+􁁛  Test ".exhausted is a KNOWN zero, and refuses with available 0" passed after 1.042 seconds.
+􁁛  Test "a headroom EQUAL to the need admits — the refusal is strictly below" passed after 1.042 seconds.
+􁁛  Test "a headroom the phone will not give NEVER refuses — D-092" passed after 1.042 seconds.
+􁁛  Test "a need of 0 bytes is NO claim (D-105's shape): admitted with no memory question" passed after 1.042 seconds.
+􁁛  Test "a device that cannot load is refused with its readiness verdict, not a memory number" passed after 1.042 seconds.
+􁁛  Test "the clockless door reports the gate before the bounds" passed after 1.042 seconds.
+􁁛  Test "both organs, or neither, is a valid configuration and does not throw (F-3 = B)" passed after 1.042 seconds.
+􁁛  Test "the runtime's error says what to do in plain words" passed after 1.042 seconds.
+􁁛  Test "weights already RESIDENT are admitted without the memory question" passed after 1.042 seconds.
+􁁛  Test "with no headroom number the model admits, and the load door speaks next" passed after 1.042 seconds.
+􁁛  Test "a mind without a mouth throws .mindWithoutMouth, at init, before any loop (AC-241)" passed after 1.042 seconds.
+􁁛  Test "listen-only still has its turns numbers checked at the door (AC-241)" passed after 1.042 seconds.
+􁁛  Test "a mouth without a mind throws .mouthWithoutMind, at init, before any loop (AC-241)" passed after 1.043 seconds.
+􁁛  Test "a known headroom below the need refuses, typed, and no load begins" passed after 1.043 seconds.
+􁁛  Test "the clockless coordinator with a reply gate throws .replyGateNeedsAClock (AC-241)" passed after 1.043 seconds.
+􁁛  Test "a ledger bound of zero is refused by AIRuntime.init, not trapped in run() (AC-241)" with 3 test cases passed after 1.043 seconds.
+􁁛  Test "validate() passes the default and the legal zero-depth memory (AC-197)" passed after 1.043 seconds.
+􁁛  Test "both coordinator doors refuse a bad number with the same error (AC-241)" passed after 1.043 seconds.
+􁁛  Test "the coordinator's errors name the number they refuse" passed after 1.043 seconds.
+􀟈  Test "one truncated file is .incomplete(files:) naming exactly that file" started.
+􁁛  Test "the clockless coordinator with the default (zero) gate does not throw" passed after 1.043 seconds.
+􀟈  Test "a cancel after the second file leaves .absent and deletes the partial tree" started.
+􁁛  Test "the system source subscribes and cancels without a level ever arriving" passed after 1.042 seconds.
+􁁛  Test "the model subscribes once at birth and cancels when it dies" passed after 1.043 seconds.
+􁁛  Test ""nan" and "inf" for a number parameter are refused (F-8 C closes the hole)" passed after 1.042 seconds.
+􁁛  Test "null for a required parameter is absence, counted .missing (F-13 j)" passed after 1.043 seconds.
+􁁛  Test "a required parameter absent: the body does not run, the model is told, the count says .missing" passed after 1.042 seconds.
+􁁛  Test "a value outside the declared band is refused before the body, told in words, and counted under its own name" passed after 1.042 seconds.
+􁁛  Test "the accessors after the door: they read what the door let in, and throw a typed failure for anything else" passed after 1.042 seconds.
+􁁛  Test "a name no tool has: the sentence the MLX run has always fed back (AC-276)" passed after 1.042 seconds.
+􁁛  Test "a value of a kind the parameter cannot read: refused as wrong kind, the body does not run" passed after 1.042 seconds.
+􁁛  Test "a nested value for a .string parameter is wrong kind, counted (F-13 i) — a list and an object" passed after 1.042 seconds.
+􁁛  Test ""shown to the model" and "checked by the table" are two switches: the parameter carries both" passed after 1.042 seconds.
+􁁛  Test "two tables with one declaration and different bodies are equal; one parameter apart, not (F-13 c)" passed after 1.043 seconds.
+􁁛  Test "84.5 for an integer parameter is refused as wrong kind (F-13 b)" passed after 1.042 seconds.
+􁁛  Test "a stream that ends with no terminal and no cancel is an engine failure" passed after 1.042 seconds.
+􁁛  Test "a number for a string parameter is refused: the leniency is one way (F-8 C keeps the branch's asymmetry)" passed after 1.042 seconds.
+􁁛  Test "GenerationOptions is a value: equal when every field is equal" passed after 1.042 seconds.
+􁁛  Test "only .deviceCannotRun(.simulator) may say the word Simulator (AC-238)" passed after 1.043 seconds.
+􁁛  Test "openReply throws ReplyFailure.unavailable(verdict) at the door, never a run" passed after 1.043 seconds.
+􁁛  Test "StopReason and ReplyFailure round-trip as values" passed after 1.043 seconds.
+􁁛  Test "an engine failure describes itself with the engine's own words" passed after 1.043 seconds.
+􁁛  Test "explicit options come back from the record unchanged (AC-231)" passed after 1.043 seconds.
+􁁛  Test "openReply(to: String) passes the default options (AC-231)" passed after 1.043 seconds.
+􁁛  Test "below the floor: the verdict names the platform and the Apple mind's floor" passed after 1.043 seconds.
+􁁛  Test "ReplyFailure has no .refused case any more — D-104" passed after 1.043 seconds.
+􁁛  Test "no Apple verdict says the word Simulator" passed after 1.043 seconds.
+􁁛  Test "the thrown failure speaks the verdict's own sentence — the screen and the turn agree" passed after 1.043 seconds.
+􀟈  Test "a re-install reports the client's fraction plus the OLD manifest's expected bytes" started.
+􁁛  Test "every vendor reason lands on one contract verdict" passed after 1.043 seconds.
+􁁛  Test "the platform the below-floor sentence names is this binary's" passed after 1.043 seconds.
+􁁛  Test "one final, then silence, then the stream ends" passed after 1.042 seconds.
+􁁛  Test "cancel ends the stream without a final" passed after 1.042 seconds.
+􁁛  Test "ConservativeThermalPolicy: allow below .serious, refuse from .serious up" passed after 1.042 seconds.
+􁁛  Test "partials come before the final, never after" passed after 1.042 seconds.
+􁁛  Test "identical text scores zero" passed after 1.042 seconds.
+􁁛  Test "Arabic: diacritics (tashkeel) do not count" passed after 1.042 seconds.
+􁁛  Test "Arabic: tatweel (the stretching mark) is not a letter" passed after 1.042 seconds.
+􁁛  Test "Arabic: the four alef forms are one letter" passed after 1.042 seconds.
+􁁛  Test "the resolution rule: nil is the source's own, a table is that table, .empty is none — and renders nil" passed after 1.042 seconds.
+􁁛  Test "case and punctuation do not count" passed after 1.043 seconds.
+􁁛  Test "A session that refuses to activate stops the whole start — capture is never attempted" passed after 1.043 seconds.
+􁁛  Test "an empty hypothesis deletes every reference word" passed after 1.044 seconds.
+􁁛  Test "a missing word is a deletion; an extra word is an insertion" passed after 1.044 seconds.
+􁁛  Test "digits are spelled out: 20 equals twenty" passed after 1.044 seconds.
+􁁛  Test "openReply throws the honest reason when the model is unavailable" passed after 1.046 seconds.
+􁁛  Test "Arabic: Arabic punctuation does not count" passed after 1.044 seconds.
+􁁛  Test "readiness() is askable on any OS and agrees with the vendor on this one" passed after 1.045 seconds.
+􁁛  Test "the schema the model is shown has no parameters — a no-argument read (§170)" passed after 1.044 seconds.
+􁁛  Test "Arabic: taa marbuta and alef maqsura fold to their common spellings" passed after 1.044 seconds.
+􁁛  Test "English normalisation is unchanged by the Arabic rules" passed after 1.044 seconds.
+􁁛  Test "one substitution in four words is 0.25 exactly" passed after 1.044 seconds.
+􁁛  Test "stop() without start() releases nothing" passed after 1.044 seconds.
+􁁛  Test "Arabic: a real substitution still counts" passed after 1.044 seconds.
+􁁛  Test "the thermometer is read every time — a phone that cools is admitted on the next turn" passed after 1.044 seconds.
+􁁛  Test "an empty table hands the vendor no tools (AC-227's plain path)" passed after 1.044 seconds.
+􁁛  Test "the public constructor's defaults are the system thermometer and the shipped policy" passed after 1.044 seconds.
+􁁛  Test "the adapter wears the ReplyTool's name and description, verbatim" passed after 1.044 seconds.
+􁁛  Test "an empty table builds the SAME session as the pre-4w init(transcript:) (AC-227's Mac half)" passed after 1.045 seconds.
+􁁛  Test "heat is asked before readiness: a hot phone with no weights hears .tooHot, not .unavailable" passed after 1.044 seconds.
+􁁛  Test "a flagged tool through the adapter is refused, typed, its body never run — fail closed (F-10 B, interim)" passed after 1.044 seconds.
+􁁛  Test "the refusal is one typed case a caller can count" passed after 1.044 seconds.
+􁁛  Test "a table becomes one adapter per tool, in the table's order, and rides to the real source" passed after 1.044 seconds.
+􁁛  Test oneBigChunkCompletesTheWindowAlone() passed after 1.044 seconds.
+􁁛  Test exactThresholdCountsAsLoud() passed after 1.044 seconds.
+􁁛  Test loudChunkResetsTheHangoverBudget() passed after 1.044 seconds.
+􁁛  Test fullConversationSequence() passed after 1.044 seconds.
+􁁛  Test "an injected policy is the one asked, and the refusal carries the state it saw" passed after 1.044 seconds.
+􁁛  Test fullSequenceWithTransientsAroundARealWord() passed after 1.044 seconds.
+􁁛  Test firstLoudChunkStartsSpeech() passed after 1.044 seconds.
+􁁛  Test silenceProducesNothing() passed after 1.044 seconds.
+􁁛  Test emptyChunkIsIgnored() passed after 1.045 seconds.
+􁁛  Test "fp32 is installed as soon as both downloads are whole" passed after 1.044 seconds.
+􁁛  Test shortGapInsideHangoverKeepsSpeaking() passed after 1.044 seconds.
+􁁛  Test onsetBoundaryIsExact() passed after 1.045 seconds.
+􁁛  Test hangoverIsUntouchedByTheWindow() passed after 1.044 seconds.
+􁁛  Test "damage is reported, a not-yet-built cast is not" passed after 1.044 seconds.
+􁁛  Test "fp16 is not installed until the cast copy exists" passed after 1.044 seconds.
+􁁛  Test defaultWindowIsZeroAndOff() passed after 1.045 seconds.
+􁁛  Test subWindowBurstProducesNothingEver() passed after 1.044 seconds.
+􁁛  Test "`confirmed: true` in the ARGUMENTS does not run the body — the model cannot confirm itself" passed after 1.044 seconds.
+􁁛  Test hangoverBoundaryIsExact() passed after 1.045 seconds.
+􁁛  Test quietKillsTheCandidate() passed after 1.045 seconds.
+􁁛  Test "the arguments are checked BEFORE the flag is read: a bad call is refused as a bad call, not told to ask" passed after 1.044 seconds.
+􁁛  Test "an incomplete download names both sizes" passed after 1.045 seconds.
+􁁛  Test "each precision has its own file" passed after 1.045 seconds.
+􁁛  Test "two tabs appearing together launch the sequence once, not twice" passed after 1.045 seconds.
+􁁛  Test "an empty directory is not installed" passed after 1.045 seconds.
+􁁛  Test "weights without a voice are not installed" passed after 1.045 seconds.
+􁁛  Test "the public initialiser defaults to the real thermometer and the shipped policy (AC-260)" passed after 1.045 seconds.
+􁁛  Test "the thermometer is read once per door, and refusals count (AC-260)" passed after 1.045 seconds.
+􁁛  Test "a truncated weight file is not installed, however present it looks" passed after 1.045 seconds.
+􁁛  Test "a silent reply completes without speaking (runs everywhere)" passed after 1.045 seconds.
+􁁛  Test "heat is asked before the availability verdict (AC-260)" passed after 1.045 seconds.
+􁁛  Test "the second caller does not return until the sequence is complete" passed after 1.044 seconds.
+􁁛  Test "a directory with a space in its name is still checked correctly" passed after 1.045 seconds.
+􁁛  Test "Every listener receives the same sequence" passed after 1.044 seconds.
+􁁛  Test "A slow listener never affects what another listener sees" passed after 1.045 seconds.
+􁁛  Test "the door is asked EVERY time — weights can arrive between turns" passed after 1.044 seconds.
+􁁛  Test "the vendor fills the instructions entry's toolDefinitions from the tools it was handed" passed after 1.046 seconds.
+􁁛  Test "a flagged tool on the model's first call: the body does not run, the model is told to ask, counted" passed after 1.045 seconds.
+􁁛  Test "Listeners are counted while they exist, and forgotten when their stream dies" passed after 1.044 seconds.
+􁁛  Test "A slow listener loses the oldest events, and the loss is counted" passed after 1.045 seconds.
+􁁛  Test "finish() ends every listener's stream, and is safe to call twice" passed after 1.044 seconds.
+􁁛  Test "Listening after finish gets a stream that is already over" passed after 1.044 seconds.
+􁁛  Test "A late listener hears only what comes next — no replay" passed after 1.045 seconds.
+􁁛  Test "written run: started once, finished once, in order (MMK_LIVE_SYNTH=1)" passed after 1.044 seconds.
+􁁛  Test "the door's refusal describes itself in the verdict's honest words, undecorated" passed after 1.045 seconds.
+􁁛  Test "cancel before anything spoken: silent end, host untouched" passed after 1.044 seconds.
+􁁛  Test "the options carry the table and the yes, and stay Equatable (AC-282's shape)" passed after 1.044 seconds.
+􁁛  Test "after a retire-during-load the holder is still usable" passed after 1.044 seconds.
+􁁛  Test "per-call instructions reach the real model (AC-232)" passed after 1.045 seconds.
+􁁛  Test "two callers arriving together get one build, and the same value" passed after 1.044 seconds.
+􁁛  Test whitespaceIsNotSpeech() passed after 1.044 seconds.
+􁁛  Test theBoundCountsPiecesNotRecords() passed after 1.044 seconds.
+􁁛  Test aLateOldPieceCannotEvictANewerOneItPredates() passed after 1.044 seconds.
+􁁛  Test outOfOrderArrivalStillReadsInSpokenOrder() passed after 1.044 seconds.
+􁁛  Test oneUtteranceContributesOnce() passed after 1.044 seconds.
+􁁛  Test oneFinalIsExactlyItsOwnText() passed after 1.044 seconds.
+􁁛  Test textIsTrimmedAtTheEdgesAndJoinedBySingleSpaces() passed after 1.044 seconds.
+􁁛  Test aRepeatedIdentityDoesNotReorderTheThought() passed after 1.044 seconds.
+􁁛  Test clearForgetsEverything() passed after 1.044 seconds.
+􁁛  Test piecesJoinInSpokenOrder() passed after 1.044 seconds.
+􁁛  Test "the model reports honestly whether it is installed — asking triggers nothing" passed after 1.044 seconds.
+􁁛  Test theBoundDropsTheOldestAndKeepsSpokenOrder() passed after 1.044 seconds.
+􁁛  Test "a build that finishes after a retire does NOT come back to life" passed after 1.044 seconds.
+􁁛  Test "the REAL source is wired to the door — it refuses what is not installed" passed after 1.044 seconds.
+􁁛  Test "a real reply with a 200 ms deadline ends .finished(.deadline) (AC-264)" passed after 1.047 seconds.
+􁁛  Test "a missing model is refused at the door, not discovered mid-reply" passed after 1.044 seconds.
+􁁛  Test "the runtime guard answers, and says WHERE it found the shaders" passed after 1.044 seconds.
+􁁛  Test "a per-call budget bounds the real reply (AC-233)" passed after 1.099 seconds.
+􁁛  Test "a throwing tool ends the real reply as the agreed failure (AC-225)" passed after 1.097 seconds.
+􁁛  Test emitBeforeStartDeliversNothing() passed after 1.097 seconds.
+􁁛  Test aLimitOfOneStillMakesProgress() passed after 1.097 seconds.
+􁁛  Test aBurstCanCompleteSeveralPhrasesInOneFeed() passed after 1.097 seconds.
+􁁛  Test oneUnbrokenRunIsCutHardAtTheLimit() passed after 1.097 seconds.
+􁁛  Test wordTokensSplitAtPunctuation() passed after 1.097 seconds.
+􁁛  Test emittedChunksFlowThroughTheRingInOrder() passed after 1.097 seconds.
+􁁛  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" passed after 1.097 seconds.
+􁁛  Test flushDeliversTheRemainder() passed after 1.097 seconds.
+􁁛  Test noEmittedPhraseIsUnspeakable() passed after 1.097 seconds.
+􁁛  Test stopDisconnectsTheSource() passed after 1.097 seconds.
+􁁛  Test everyClauseMarkCuts() passed after 1.097 seconds.
+􁁛  Test "the Arabic question mark ends a phrase exactly like ASCII's" passed after 1.097 seconds.
+􁁛  Test subwordFragmentsAreJoinedVerbatim() passed after 1.097 seconds.
+􁁛  Test punctuationGluedInsideATokenSplitsCorrectly() passed after 1.097 seconds.
+􁁛  Test flushWithNothingWorthSayingIsNil() passed after 1.097 seconds.
+􁁛  Test punctuationInsideANumberDoesNotCut() passed after 1.097 seconds.
+􁁛  Test emptyAndWhitespaceTokensCompleteNothing() passed after 1.097 seconds.
+􁁛  Test maxLengthCutsAtTheLastWhitespace() passed after 1.097 seconds.
+􁁛  Test "the default budget is 1024 — set even when the caller says nothing (AC-233, F-6 = A)" passed after 1.097 seconds.
+􁁛  Test "a seed is .random(top: 50, seed:) (AC-234)" passed after 1.097 seconds.
+􁁛  Test "temperature 0 beside a seed: greedy wins — there is no randomness to seed" passed after 1.097 seconds.
+􁁛  Test "temperature 0 is .greedy (AC-234)" passed after 1.097 seconds.
+􁁛  Test "a temperature alone is passed through, and sampling stays the vendor's" passed after 1.097 seconds.
+􁁛  Test "a per-call budget reaches maximumResponseTokens (AC-233)" passed after 1.097 seconds.
+􁁛  Test partialReadsDeliverInOrder() passed after 1.097 seconds.
+􁁛  Test "a declared required-reason category is one the source actually uses" passed after 1.099 seconds.
+􁁛  Test droppedFramesAccumulateAcrossOverruns() passed after 1.098 seconds.
+􁁛  Test capacityRoundsUpToPowerOfTwo() passed after 1.098 seconds.
+􁁛  Test emptyReadReturnsNothing() passed after 1.098 seconds.
+􁁛  Test wraparoundKeepsOrderAcrossTheSeam() passed after 1.098 seconds.
+􁁛  Test roundtripPreservesOrderAndValues() passed after 1.098 seconds.
+􁁛  Test overflowOverwritesOldestAndCountsExactly() passed after 1.098 seconds.
+􀟈  Test "a move that fails never touches the tree it was going to replace" started.
+􁁛  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" passed after 1.098 seconds.
+􁁛  Test "The context bound is the app's number, and its default is stated" passed after 1.098 seconds.
+􁁛  Test "the real mind calls the session tool and speaks its answer (AC-223)" passed after 1.112 seconds.
+􁁛  Test "first-token latency, with and without the tool in the session (AC-228, Mac half)" passed after 1.112 seconds.
+􁁛  Test "anything else the vendor throws is still .engine(String)" passed after 1.118 seconds.
+􁁛  Test "contextWindowExceeded thrown by the source is .failed(.contextWindowExceeded)" passed after 1.118 seconds.
+􁁛  Test "the recorder sees a MARKED request that IS made — the control for every silence proof" passed after 1.145 seconds.
+􁁛  Suite ConversationMemoryTests passed after 1.371 seconds.
+􁁛  Test "the core door hands the tag through untouched — the escape is the MLX seam's alone" passed after 1.407 seconds.
+􁁛  Test "asking for the size fetches nothing — and the same recorder DOES record a fetch" passed after 0.376 seconds.
+􁁛  Test "a throwing decode reports failed once, terminal, and ends the stream" passed after 1.417 seconds.
+􁁛  Suite AIRuntimeConfigurationTests passed after 1.421 seconds.
+􁁛  Test "openReply hands off — generation never blocks the opener" passed after 1.418 seconds.
+􁁛  Test "one truncated file is .incomplete(files:) naming exactly that file" passed after 0.374 seconds.
+􁁛  Test "cancel ends the stream without a terminal" passed after 1.417 seconds.
+􁁛  Test "a band on an integer parameter is checked the same way" passed after 1.419 seconds.
+􁁛  Test ""7" for an integer and "true" for a boolean are coerced and counted; "7.5" for an integer is not" passed after 1.419 seconds.
+􁁛  Test "an argument the tool never declared is stripped before the body and counted (F-7 C)" passed after 1.419 seconds.
+􁁛  Test ""84" for a number parameter reads 84, the body runs, and the coercion is counted (F-8 C)" passed after 1.419 seconds.
+􁁛  Test "an answer longer than the cap reaches the model cut at the cap with the marker, and the cut is counted" passed after 1.420 seconds.
+􁁛  Test "84 parsed on the MLX side and 84.0 read on the Apple side are ONE ToolValue, and the door reads both alike" passed after 1.420 seconds.
+􁁛  Test "the spike's no-argument tool: an extra is stripped, the body runs with nothing (AC-283)" passed after 1.420 seconds.
+􁁛  Test "an optional parameter not given, or given as null, is simply not there for the body" passed after 1.420 seconds.
+􁁛  Test "stop() finishes every health stream; run() returns when the provider ends" passed after 1.420 seconds.
+􁁛  Test "a re-install reports the client's fraction plus the OLD manifest's expected bytes" passed after 0.377 seconds.
+􁁛  Test "the door is asked EVERY time — a download that completes is seen on the next call" passed after 1.420 seconds.
+􁁛  Suite ScriptedTranscriberConformanceTests passed after 1.425 seconds.
+􁁛  Suite WordErrorRateTests passed after 1.425 seconds.
+􁁛  Test "The session is activated BEFORE capture, and released after — never left active" passed after 1.420 seconds.
+􁁛  Test "a tool's throw becomes the ToolCallFailure sentence every mind writes (AC-225)" passed after 1.420 seconds.
+􁁛  Test "call(arguments:) rethrows the door's typed failure, and toolFailure(from:) carries it whole — one wrap" passed after 1.420 seconds.
+􁁛  Test "call(arguments:) reaches the ReplyTool with empty arguments and returns its answer" passed after 1.420 seconds.
+􁁛  Suite EnergyVADTests passed after 1.434 seconds.
+􁁛  Suite KokoroWeightsTests passed after 1.434 seconds.
+􁁛  Test "an unflagged tool needs no yes: the diet app's act-at-once is the flag left off" passed after 1.428 seconds.
+􁁛  Test "the name in the call's confirmed set: the body runs exactly once; the yes rides THAT call only" passed after 1.428 seconds.
+􁁛  Suite "launching exactly once" passed after 1.434 seconds.
+􁁛  Test "an app's stricter policy refuses at .serious — the INJECTED policy decides (AC-260)" passed after 1.428 seconds.
+􁁛  Suite BroadcastTests passed after 1.434 seconds.
+􁁛  Test "promise 4 — openReply hands off; generation never blocks the opener" passed after 1.428 seconds.
+􁁛  Test "promise 2 — a cancelled reply ends its stream WITHOUT a terminal" passed after 1.428 seconds.
+􁁛  Test "a stream that ends on its own is drained whole, awaited, and reported as not cut" passed after 1.428 seconds.
+􁁛  Test sleepOnAnAlreadyCancelledTaskThrowsImmediately() passed after 1.427 seconds.
+􁁛  Test "an unspeakable reply terminates without touching write() or the host" passed after 1.427 seconds.
+􁁛  Test "a call's table REPLACES the generator's for that call; it does not add to it" passed after 1.427 seconds.
+􁁛  Suite "live · the Apple model, when this machine has one" passed after 1.435 seconds.
+􁁛  Suite TranscriptLedgerTests passed after 1.435 seconds.
+􁁛  Test "a cancelled REAL reply ends without a terminal" passed after 1.427 seconds.
+􁁛  Suite "live · the Apple mind's deadline against the real model" passed after 1.435 seconds.
+􁁛  Suite "live · AC-223 · the Apple mind asks the session tool" passed after 1.801 seconds.
+􁁛  Suite AudioSourceTests passed after 1.802 seconds.
+􁁛  Suite SpeechPhraserTests passed after 1.802 seconds.
+􁁛  Test "no per-call instructions: the generator's own are used (AC-232)" passed after 1.793 seconds.
+􁁛  Test "the whole options struct travels to the source untouched (AC-231's seam, read here)" passed after 1.793 seconds.
+􁁛  Test "per-call instructions replace the generator's own (AC-232)" passed after 1.793 seconds.
+􁁛  Suite "4x · the privacy contract, checked against the source" passed after 1.803 seconds.
+􁁛  Test "a move that fails never touches the tree it was going to replace" passed after 0.697 seconds.
+􁁛  Test stressAccountingBalancesAndOrderSurvives() passed after 1.796 seconds.
+􁁛  Suite "AC-236 · a ReplyFailure thrown by the source keeps its case" passed after 1.812 seconds.
+􁁛  Test "Starting twice activates once — the session is not re-entered" passed after 1.807 seconds.
+􁁛  Test "No session means the pre-4d path, byte for byte" passed after 1.807 seconds.
+􁁛  Test "a load that throws lets the next admission through — the gate is released on every exit" passed after 2.714 seconds.
+􁁛  Test "cumulative snapshots become suffix tokens, then finished, once" passed after 2.713 seconds.
+􁁛  Test "a throwing source is one .failed, terminal" passed after 2.713 seconds.
+􁁛  Test "a guardrail violation is SPOKEN, and the reply ends .refused (F-4 = A, D-104)" passed after 2.713 seconds.
+􁁛  Test "an unchanged snapshot says nothing — no empty tokens" passed after 2.713 seconds.
+􁁛  Test "the context window overflowing is a named failure" passed after 2.713 seconds.
+􁁛  Test "a smaller cap cuts the same reply into more decodes" passed after 2.713 seconds.
+􁁛  Test "assets unavailable names the Simulator lesson — availability lied" passed after 2.713 seconds.
+􁁛  Test "a REVISING stream: true tokens out, then one honest failure, never the rewrite" passed after 2.713 seconds.
+􁁛  Test "a model refusal is SPOKEN the same way, and ends .refused (F-4 = A, D-104)" passed after 2.713 seconds.
+􁁛  Test "a .critical with nothing running still retires — the weights, not the run, are the target" passed after 2.713 seconds.
+􁁛  Test "an answer of exactly the cap, and a short one, reach the model unchanged" passed after 2.713 seconds.
+􁁛  Test "a thrown tool's own words reach the model verbatim (F-13 e) — under the same cap" passed after 2.713 seconds.
+􁁛  Suite "§175/5 · the Apple mind's readiness is the contract's verdict" passed after 2.717 seconds.
+􁁛  Suite AudioSessionSeamTests passed after 2.717 seconds.
+􁁛  Test "the run ends .failed(.engine(the sentence)) when the stream throws the vendor's ToolCallError" passed after 2.712 seconds.
+􁁛  Test "the diet app's act-at-once: an unflagged write runs on the model's first call" passed after 2.711 seconds.
+􀟈  Test "started once, finished once, in order (live audio; MMK_LIVE_SYNTH=1 to run)" started.
+􀟈  Test "written run: cancel ends without a terminal (MMK_LIVE_SYNTH=1)" started.
+􁁛  Suite WrittenSynthesisHeadlessTests passed after 2.718 seconds.
+􁁛  Suite "AC-232/233/234 · the Apple mind honours the caller's levers" passed after 2.777 seconds.
+􁁛  Test "an error the vendor's enum does not own is .engine with its words" passed after 2.769 seconds.
+􁁛  Test "reply(to:) RETURNS a refusal as Reply(text:, stop: .refused) — D-104" passed after 2.769 seconds.
+􁁛  Test "an empty refusal sentence yields no token, only the ending — D-104" passed after 2.769 seconds.
+􁁛  Test "an unsupported language is .unsupportedLanguage" passed after 2.769 seconds.
+􁁛  Test "a refusal after partial text keeps what was already spoken — D-104" passed after 2.769 seconds.
+􁁛  Test "the context window overflowing stays .contextWindowExceeded" passed after 2.769 seconds.
+􁁛  Test "a run that finished leaves the registry, and a later warning finds nothing" passed after 2.777 seconds.
+􀟈  Test "an unmarked request is watched but NEVER failed by the recorder" started.
+􁁛  Test "the default policy opens at nominal, fair and serious, and refuses at critical" with 4 test cases passed after 2.776 seconds.
+􁁛  Test "the FIRST .stopped is terminal — a later token or reason is not heard" passed after 2.775 seconds.
+􁁛  Test "promise 5 — a failing generation is ONE .failed, terminal" passed after 2.775 seconds.
+􁁛  Test "promise 1 — tokens in birth order, then exactly one terminal" passed after 2.775 seconds.
+􁁛  Test "an EMPTY token is never spoken — the incomplete-character case" passed after 2.775 seconds.
+􀟈  Test "a model with no repo throws the same typed error the download throws" started.
+􀟈  Test "a terminal RETIRES the run: a phrase queued behind the failure is never decoded" started.
+􁁛  Test "One utterance opens one run and feeds it every chunk, pre-roll first" passed after 3.286 seconds.
+􁁛  Test "An utterance longer than the ceiling is cut with truncated, audio released" passed after 3.286 seconds.
+􁁛  Test "nothing AFTER the cancel survives — gated defiance, event-gated end to end" passed after 3.286 seconds.
+􀟈  Test "a missing listed file is .incomplete too, and names it" started.
+􁁛  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" passed after 3.287 seconds.
+􁁛  Test "Ring drops are mirrored exactly, where and as reported" passed after 3.287 seconds.
+􁁛  Test "inside the band — the edges included — the body runs; a coerced text is checked against the band too" passed after 3.287 seconds.
+􁁛  Test "Settling count publishes only on change" passed after 3.287 seconds.
+􁁛  Test "The baseline is published on start, then every transition, in order" passed after 3.287 seconds.
+􁁛  Test "A slow listener's losses become visible to everyone else" passed after 3.287 seconds.
+􁁛  Test "A late health listener hears only what comes next — no replay" passed after 3.287 seconds.
+􀟈  Test "a FIRST install invents no expected total — a fraction is all anyone knows" started.
+􁁛  Test "an answer that arrives after the call's task was cancelled goes nowhere" passed after 3.286 seconds.
+􁁛  Test "Aura's spoken confirmation: refused and asked on turn 0, run once on turn 1 with the yes on the options" passed after 3.286 seconds.
+􁁛  Test "the default refuses at .critical only — each state scripted (AC-260, F-2 = A)" passed after 3.286 seconds.
+􁁛  Test "a generator built WITH a table and a call carrying .empty: no tool this turn" passed after 3.284 seconds.
+􁁛  Test "a generator with no tools and a call carrying a table: the tool is called; the next call without one cannot" passed after 3.284 seconds.
+􀟈  Test "a fetcher that names the weights tree by another spelling never sends it to staging" started.
+􁁛  Test "stop() alone ends the loop — no cancellation, no clock advance" passed after 3.951 seconds.
+􁁛  Test "stop() mid-recognition finishes every stream and cancels the open run" passed after 3.951 seconds.
+􁁛  Test "A whitespace-only final produces no reply: back to idle, generator untouched" passed after 3.941 seconds.
+􁁛  Suite "AC-260 · the MLX door asks the thermal policy before it opens" passed after 3.960 seconds.
+􁁛  Test "a call's table REPLACES the source's for that call; it does not add to it" passed after 3.955 seconds.
+􁁛  Test "a name no tool has is answered to the MODEL as 'no tool named …' and the reply completes" passed after 3.954 seconds.
+􁁛  Test "a cancel that lands while the body runs still cancels the vendor's task, and the drain returns" passed after 3.953 seconds.
+AC-272 live · the plain prompt: tokens: 23, 138 bytes
+AC-272 live · before == after == this render: true
+􁁛  Test "stop() cancels settling batch runs; nothing is published after" passed after 4.032 seconds.
+􁁛  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" passed after 4.038 seconds.
+􁁛  Test "a model with no repo throws the same typed error the download throws" passed after 0.759 seconds.
+􁁛  Test "Two listeners receive identical transcript sequences" passed after 4.047 seconds.
+􁁛  Test "a missing listed file is .incomplete too, and names it" passed after 0.760 seconds.
+􀟈  Test "no decoded phrase is longer than the cap it was given" started.
+􁁛  Suite TurnHealthTests passed after 4.050 seconds.
+􁁛  Test "tokens then .finished(.complete) become Reply(text:stop:) (AC-237 a)" passed after 4.046 seconds.
+􁁛  Suite DiagnosticsTests passed after 4.050 seconds.
+􁁛  Test "a .failed(.busy) run makes reply(to:) throw ReplyFailure.busy (AC-237 c)" passed after 4.046 seconds.
+􁁛  Suite "4z · the door: what reaches a tool's body, and what the model is told" passed after 4.050 seconds.
+􁁛  Test "a token-budget stop round-trips (AC-237 b)" passed after 4.046 seconds.
+􁁛  Test "a FIRST install invents no expected total — a fraction is all anyone knows" passed after 0.758 seconds.
+􁁛  Test "a count already at the threshold returns at once; a rising count wakes the waiter" passed after 4.045 seconds.
+􁁛  Test "a waiter whose task is cancelled returns false, at once — the cap can end a red test" passed after 4.045 seconds.
+􁁛  Suite "AC-223 · the Apple mind's tool adapter, without a model" passed after 4.050 seconds.
+􁁛  Suite "4z · the write and its confirmation — one flag the door enforces, the yes on the call (AC-279)" passed after 4.050 seconds.
+􁁛  Suite "AC-260 · the Apple mind asks the thermal policy at the door" passed after 4.050 seconds.
+􁁛  Test "a source that finishes AFTER the cancel still reports no terminal" passed after 4.044 seconds.
+􁁛  Test "a cancel that lands while next() is parked cancels the vendor's task too" passed after 4.044 seconds.
+􁁛  Test "promise 3 — nothing AFTER the cancel survives, gated defiance" passed after 4.043 seconds.
+􁁛  Suite "4z · tools per call — the call's table wins, the generator's is the default (AC-275)" passed after 4.050 seconds.
+AC-258 Mac · resident after admit: 1919.1 MB
+􁁛  Test "Input ending mid-decode still delivers the final, then run() returns" passed after 4.087 seconds.
+􁁛  Test "a fetcher that names the weights tree by another spelling never sends it to staging" passed after 0.144 seconds.
+􁁛  Test "a failed turn is never remembered, and keeps its words (AC-194)" passed after 4.087 seconds.
+􁁛  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" passed after 4.086 seconds.
+􁁛  Test "the text handed to the MLX chat for such a result carries no closing tag — the bytes are pinned" passed after 4.095 seconds.
+􁁛  Test "a refusal is spoken and ends .finished(.refused) — D-104" passed after 4.086 seconds.
+􁁛  Test "a thrown tool's words are escaped the same way" passed after 4.095 seconds.
+􁁛  Test "a caller can COUNT: two scripted .busy runs are two" passed after 4.086 seconds.
+􁁛  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" passed after 4.086 seconds.
+􁁛  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" passed after 4.086 seconds.
+􁁛  Test "a decoding failure and an unsupported guide are .engine — the honest rest" passed after 4.086 seconds.
+􁁛  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" passed after 4.086 seconds.
+􁁛  Test "rate limiting and a concurrent request are both .busy" passed after 4.086 seconds.
+􁁛  Test "A failed turn keeps its words — nothing answered them (AC-89)" passed after 4.086 seconds.
+􁁛  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" passed after 4.085 seconds.
+􁁛  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" passed after 4.085 seconds.
+􁁛  Test "a cancel after the second file leaves .absent and deletes the partial tree" passed after 3.051 seconds.
+􁁛  Test "a run opened AFTER the warning runs clean" passed after 4.094 seconds.
+􁁛  Test "the app's listeners are open before any loop publishes (AC-202)" passed after 4.093 seconds.
+􁁛  Test "a tool that throws is answered to the MODEL as 'tool … failed: …' and the reply completes" passed after 4.092 seconds.
+􁁛  Test "a tool round's stop is not the reply's terminal — only the last round's is" passed after 4.092 seconds.
+􁁛  Test "a scripted call: the table is called with the flattened arguments, the answer follows, one terminal" passed after 4.092 seconds.
+􁁛  Test "a 1160 ms utterance — the shortest real one ever logged — DOES barge" passed after 4.096 seconds.
+􁁛  Test "zero window is the old behaviour — the first onset kills the reply" passed after 4.096 seconds.
+􁁛  Test "just over the window barges — it opens, it does not merely delay" passed after 4.096 seconds.
+􁁛  Suite "ThresholdWatch · wakes on the count, and lets a cap cancel it" passed after 4.103 seconds.
+􁁛  Test "At .critical the ACTIVE utterance still settles and its final surfaces — only overlap is gated" passed after 4.098 seconds.
+􁁛  Test "a cancel while the tool is in flight: the answer is dropped, no round 1, no terminal" passed after 4.097 seconds.
+􁁛  Test "started once, finished once, in order (live audio; MMK_LIVE_SYNTH=1 to run)" passed after 1.385 seconds.
+􁁛  Suite "AC-126 · the second mind keeps the same five promises" passed after 4.103 seconds.
+􁁛  Suite "4y · the vendor's task is cancelled on every cut of the drain" passed after 4.103 seconds.
+􁁛  Test "written run: cancel ends without a terminal (MMK_LIVE_SYNTH=1)" passed after 1.385 seconds.
+􁁛  Test "The ceiling truncates a feeding batch run; its final still arrives" passed after 4.094 seconds.
+􁁛  Test "A read never returns a mix of old and in-flight frames" passed after 4.093 seconds.
+􁁛  Suite "4z · a result containing </tool_response> is escaped at the MLX seam, never in the core (AC-288)" passed after 4.104 seconds.
+􁁛  Suite "AC-236 · the Apple mind's failures are typed, one row per vendor case" passed after 4.103 seconds.
+􁁛  Test "a reply of no tokens is answered, and not remembered" passed after 4.092 seconds.
+􁁛  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" passed after 4.092 seconds.
+􁁛  Test "An interruption ends the live turn like a failure — not a barge" passed after 4.092 seconds.
+􁁛  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" passed after 4.092 seconds.
+􁁛  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" passed after 4.092 seconds.
+􁁛  Test "Without diagnostics the policy still rules (thermal = .nominal) and a refusal still surfaces" passed after 4.099 seconds.
+􁁛  Test "no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after" passed after 4.102 seconds.
+􁁛  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" passed after 4.094 seconds.
+􁁛  Test "a reply finished before its deadline ends .complete, and releases the clock's sleeper (AC-264)" passed after 4.102 seconds.
+􀟈  Test "a file whose size the source cannot give reaches the caller as a typed error" started.
+􁁛  Test "An engine that cannot even open a run yields failed, and the session lives on" passed after 4.102 seconds.
+􁁛  Test "two concurrent callers: the second is admitted when the post-allocation headroom still fits it" passed after 4.102 seconds.
+􀟈  Test "files present but no manifest is .installedUnverified — the phones in the field" started.
+􁁛  Test "a warning ends EVERY live run on the weights" passed after 4.102 seconds.
+􁁛  Test "a 480 ms burst — the echo's exact fingerprint — does NOT barge" passed after 4.102 seconds.
+􁁛  Test "just under the window does not barge" passed after 4.102 seconds.
+􁁛  Test "a leak that ended cannot barge later on somebody else's audio" passed after 4.102 seconds.
+􁁛  Test "cancelling the calling task cancels the run and throws CancellationError (AC-237 d)" passed after 4.101 seconds.
+􀟈  Test "a cancelled download writes no manifest, and the partial tree is not moved" started.
+􁁛  Test "admit(needing:) on this Mac reads no headroom, admits, and the weights are resident after" passed after 4.096 seconds.
+􁁛  Test "an unmarked request is watched but NEVER failed by the recorder" passed after 1.324 seconds.
+􁁛  Suite AudioRingBufferTests passed after 4.105 seconds.
+􀟈  Test "a racing download that fails AFTER its fetch never deletes the finished install" started.
+􁁛  Test "The app's context bound reaches the ledger and drops the oldest through the loop" passed after 4.095 seconds.
+􁁛  Test "a barge before the first token loses nothing (F-5 = A)" passed after 4.094 seconds.
+􁁛  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" passed after 4.094 seconds.
+􀟈  Test "a fetch that throws leaves .absent, and the error is typed and switchable" started.
+􀟈  Test "teardown runs actors → stopRendering → releaseSource (AC-203)" started.
+􁁛  Test "The policy is consulted once, at the settling move, with the exact thermal state and count" passed after 4.104 seconds.
+􁁛  Suite "AC-272 · the plain path's whole prompt is the same bytes before and after 4z, when this machine has the model" passed after 4.110 seconds.
+􁁛  Test "with no deadline the run arms nothing on the clock" passed after 4.101 seconds.
+􁁛  Test "a file whose size the source cannot give reaches the caller as a typed error" passed after 0.005 seconds.
+􁁛  Test "a terminal RETIRES the run: a phrase queued behind the failure is never decoded" passed after 0.821 seconds.
+􁁛  Test "A run that fails mid-utterance publishes failed; the next utterance transcribes" passed after 4.108 seconds.
+􁁛  Test "The session's settling table reports its count changes" passed after 4.108 seconds.
+􁁛  Test "A late final from a dead utterance is dropped; the next utterance is untouched" passed after 4.108 seconds.
+􁁛  Test "files present but no manifest is .installedUnverified — the phones in the field" passed after 0.005 seconds.
+􁁛  Suite "the barge window" passed after 4.113 seconds.
+􁁛  Test "Barging a batch utterance that never settled retires it silently — no consultation, no failure event" passed after 4.108 seconds.
+􀟈  Test "cancel silences and ends without a terminal (live audio; MMK_LIVE_SYNTH=1 to run)" started.
+􀟈  Test "written run: nothing survives the cancel (MMK_LIVE_SYNTH=1)" started.
+􁁛  Test "stop() ends the conversation's memory (F-4 = A)" passed after 4.103 seconds.
+􁁛  Test "the coordinator passes the default options (AC-231)" passed after 4.103 seconds.
+􁁛  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" passed after 4.102 seconds.
+􁁛  Test "completion forgets and remembers in the same step (AC-195)" passed after 4.102 seconds.
+􁁛  Test "a body that ends before the deadline feeds its answer back; the reply ends .complete, the sleeper is gone" passed after 4.111 seconds.
+􁁛  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" passed after 4.101 seconds.
+􁁛  Test "a fetch that throws leaves .absent, and the error is typed and switchable" passed after 0.005 seconds.
+􁁛  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" passed after 4.104 seconds.
+􁁛  Suite "AC-245/AC-246 · the size, before anything is fetched" passed after 4.115 seconds.
+􁁛  Test "a counting caller sees two .tooHot across three attempts (AC-260, the AC-236 shape)" passed after 4.112 seconds.
+􁁛  Test "two concurrent callers: the second is refused on the post-allocation headroom, not the stale one" passed after 4.112 seconds.
+􁁛  Test "no decoded phrase is longer than the cap it was given" passed after 0.065 seconds.
+􁁛  Test "A streaming engine's barge-in retirement never consults the policy" passed after 4.110 seconds.
+􁁛  Test "a flagged tool is refused until the call's options name it; then its body runs once" passed after 4.110 seconds.
+􁁛  Test "a source with no table and a call carrying one: the tool runs; the next call without it cannot" passed after 4.110 seconds.
+􁁛  Test "a source built WITH a table and a call carrying .empty: no tool that turn; the next call has it back" passed after 4.110 seconds.
+􀟈  Test "with a KNOWN short headroom the mind's own door refuses on the app's number, and loads when it is gone" started.
+􀟈  Test "an offline install cycle issues ZERO requests" started.
+􁁛  Test "cancel() ends with no terminal and releases the sleeper (AC-264)" passed after 4.106 seconds.
+􁁛  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" passed after 4.105 seconds.
+􁁛  Test "A barge moves the thought into the conversation, not into the next question (D-089)" passed after 4.105 seconds.
+􁁛  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" passed after 4.104 seconds.
+􁁛  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" passed after 4.104 seconds.
+􁁛  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" passed after 4.103 seconds.
+􁁛  Test ".normal does nothing: the generation keeps running" passed after 4.112 seconds.
+􁁛  Test "a .critical ends the run AND retires the weights; the next reply opens again" passed after 4.112 seconds.
+􁁛  Test "a run retired after the round ended never knocks the door: the body does not run" passed after 4.111 seconds.
+􀟈  Test "an unspeakable phrase is never decoded, and the reply still finishes" started.
+􁁛  Suite "AC-258 / AC-259 · admission is one step, on the app's number" passed after 4.120 seconds.
+􀟈  Test "an empty directory, or none at all, is .absent" started.
+􁁛  Test "At .serious the default policy refuses the settling move: named failure, health event, no ghost final" passed after 4.114 seconds.
+􁁛  Test "With no policy, a settling decode at .serious survives exactly as D-024 ruled" passed after 4.114 seconds.
+􁁛  Test "A batch final arriving after the next utterance began is published, tagged with its own utterance" passed after 4.206 seconds.
+􁁛  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" passed after 4.205 seconds.
+􁁛  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" passed after 4.204 seconds.
+􁁛  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" passed after 4.201 seconds.
+􀟈  Test "the shipped fetcher's cleanup deletes its own tree, and only its own" started.
+􁁛  Suite "4z · tools per call on the MLX run — the call's table wins, the source's is the default (AC-275)" passed after 4.217 seconds.
+􁁛  Test "A scripted utterance publishes partials and a final with exact audio times" passed after 4.216 seconds.
+􁁛  Test "an empty directory, or none at all, is .absent" passed after 0.099 seconds.
+􀟈  Test "cutting harder never drops a word" started.
+􁁛  Test "rate limiting, concurrency, decoding, guides: each one honest .failed" passed after 4.215 seconds.
+􁁛  Test "cancel silences and ends without a terminal (live audio; MMK_LIVE_SYNTH=1 to run)" passed after 0.111 seconds.
+􁁛  Test "written run: nothing survives the cancel (MMK_LIVE_SYNTH=1)" passed after 0.111 seconds.
+􁁛  Suite BatchTranscriptionTests passed after 4.231 seconds.
+􁁛  Test "clearMemory() forgets the past and leaves the thought alone" passed after 4.221 seconds.
+􁁛  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" passed after 4.221 seconds.
+􁁛  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" passed after 4.221 seconds.
+􁁛  Test "an interruption keeps the conversation and drops the thought (AC-196)" passed after 4.219 seconds.
+􁁛  Test "the shipped fetcher's cleanup deletes its own tree, and only its own" passed after 0.015 seconds.
+􁁛  Test "a .warning mid-generation ends the run's stream with NO terminal and no later token" passed after 4.228 seconds.
+􁁛  Test "a cancelled download writes no manifest, and the partial tree is not moved" passed after 0.126 seconds.
+􁁛  Test "a model that calls forever is stopped after ToolRounds.cap rounds with a typed failure" passed after 4.226 seconds.
+􁁛  Suite TranscriptionSessionTests passed after 4.245 seconds.
+􁁛  Suite AppleReplyGeneratorTests passed after 4.245 seconds.
+􁁛  Test "Heat arriving mid-session: earlier settling decode survives, the next move is refused with exact inputs" passed after 4.239 seconds.
+􁁛  Suite WrittenSynthesizerLiveTests passed after 4.244 seconds.
+􁁛  Test "an offline install cycle issues ZERO requests" passed after 0.202 seconds.
+􁁛  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" passed after 4.310 seconds.
+􁁛  Suite "AC-261 / AC-262 · a memory warning ends the generation with no terminal" passed after 4.323 seconds.
+􁁛  Suite "AC-239/AC-240 · what a download does after the bytes land" passed after 4.323 seconds.
+􁁛  Suite "AC-222 · the MLX run executes a call itself and asks again with the answer" passed after 4.323 seconds.
+􁁛  Test "a racing download that fails AFTER its fetch never deletes the finished install" passed after 0.308 seconds.
+􀟈  Test "the safetensors alone, without the tokenizer's files, is .absent — offline-capable or nothing" started.
+􁁛  Test "a counting caller sees two refusals across three scripted runs (AC-236, D-104)" passed after 4.413 seconds.
+􁁛  Test "a counting caller sees two .busy across three scripted runs (AC-236)" passed after 4.413 seconds.
+􁁛  Suite ThermalPolicyTests passed after 4.418 seconds.
+􀟈  Test "an unspeakable reply still terminates — the liveness promise (runs everywhere)" started.
+􁁛  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" passed after 4.605 seconds.
+􁁛  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" passed after 4.603 seconds.
+􀟈  Test "a fetcher that hands back the download base never loses the base, or a sibling" started.
+􁁛  Suite "AC-247 · a failure after the fetch, over a tree that was already there" passed after 4.715 seconds.
+􁁛  Test "an unspeakable phrase is never decoded, and the reply still finishes" passed after 0.596 seconds.
+􁁛  Test "the safetensors alone, without the tokenizer's files, is .absent — offline-capable or nothing" passed after 0.300 seconds.
+􁁛  Suite ReplyContractTests passed after 4.721 seconds.
+􀟈  Test "a REAL load-and-generate cycle issues ZERO requests" started.
+􁁛  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" passed after 4.710 seconds.
+􁁛  Test "a fetcher that hands back the download base never loses the base, or a sibling" passed after 0.103 seconds.
+􁁛  Test "teardown runs actors → stopRendering → releaseSource (AC-203)" passed after 0.611 seconds.
+􁁛  Test "Every adjacent state pair across a multi-turn run is in the legal table" passed after 4.710 seconds.
+􀟈  Test "cancel during a decode stops it through the decode's own channel" started.
+􀟈  Test "a manifest over a tree that cannot answer offline is .absent, not .installed" started.
+􁁛  Test "cutting harder never drops a word" passed after 0.504 seconds.
+􀟈  Test "a failure after the move leaves .absent, not a tree pretending to be installed" started.
+􁁛  Test "a manifest over a tree that cannot answer offline is .absent, not .installed" passed after 0.011 seconds.
+􀟈  Test "listen-only tears down source-last with no rendering step" started.
+􁁛  Test "a failure after the move leaves .absent, not a tree pretending to be installed" passed after 0.057 seconds.
+􀟈  Test "Kokoro's default cap is the phraser's 120, restored by D-087" started.
+AC-128 WARM · model load 3.660336584 seconds · first token 0.503406417 seconds · said: The capital of France is Paris.
+􀟈  Test "the manifest lists every regular file with its bytes, and never itself" started.
+􀟈  Test "a failed re-download never deletes a tree it did not create" started.
+􁁛  Test "the manifest lists every regular file with its bytes, and never itself" passed after 0.005 seconds.
+􁁛  Test "WARM, the first token is fast — the cold 1.9 s is the load, not the model" passed after 5.297 seconds.
+􁁛  Test "a failed re-download never deletes a tree it did not create" passed after 0.005 seconds.
+􁁛  Test "cancel during a decode stops it through the decode's own channel" passed after 0.582 seconds.
+􁁛  Test "Kokoro's default cap is the phraser's 120, restored by D-087" passed after 0.426 seconds.
+􁁛  Test timeStandsStillUntilAdvanced() passed after 5.298 seconds.
+􁁛  Test sleepingIntoThePastReturnsImmediately() passed after 5.298 seconds.
+􀟈  Test "a manifest whose numbers overflow Int64 saturates, and never traps" started.
+􁁛  Suite PhraseCapTests passed after 5.307 seconds.
+􀟈  Test "a download that fails LATE never deletes the install another one just finished" started.
+􁁛  Test "a .tooHot door fails the turn honestly; the next turn runs clean; memory is not poisoned" passed after 5.298 seconds.
+􀟈  Test "a decode that throws after a cancel reports nothing" started.
+􁁛  Test "a manifest whose numbers overflow Int64 saturates, and never traps" passed after 0.001 seconds.
+􁁛  Test cancellationClaimsTheSleeperExactlyOnce() passed after 5.299 seconds.
+􁁛  Test "listen-only tears down source-last with no rendering step" passed after 0.562 seconds.
+􀟈  Test "a reply that ends .finished(.deadline) is spoken as far as it got and completes the turn (AC-264)" started.
+􁁛  Test "no deadline means no sleeper: the clock cannot end a reply that carries nil (AC-264, AC-265)" passed after 5.306 seconds.
+􀟈  Test "download on a complete pre-4v tree touches nothing and writes no manifest" started.
+􁁛  Test "download on a complete pre-4v tree touches nothing and writes no manifest" passed after 0.004 seconds.
+􁁛  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" passed after 5.301 seconds.
+􀟈  Test "every policy value goes through untouched (AC-204)" started.
+􁁛  Test "a reply that ends before its deadline leaves NO sleeper on the clock" passed after 5.305 seconds.
+􁁛  Suite "AC-239 · the install manifest: every file, every byte" passed after 5.314 seconds.
+􁁛  Test "a decode that throws after a cancel reports nothing" passed after 0.008 seconds.
+􁁛  Test "a download that fails LATE never deletes the install another one just finished" passed after 0.008 seconds.
+􁁛  Test "no deadline arms no sleeper (AC-264, AC-265)" passed after 5.307 seconds.
+􁁛  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" passed after 5.301 seconds.
+􁁛  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" passed after 5.312 seconds.
+􁁛  Test "every policy value goes through untouched (AC-204)" passed after 0.002 seconds.
+AC-128 · first token in 4.741982708 seconds · said: The capital of Italy is Rome.
+􀟈  Test "a host that refuses to render makes the run fail loudly at construction" started.
+􀟈  Test "an existing complete install survives a later re-download, untouched" started.
+􁁛  Suite AIRuntimeTests passed after 5.318 seconds.
+􁁛  Test "a source that finishes first ends .finished(.unreported) and releases the sleeper (AC-264)" passed after 5.311 seconds.
+􁁛  Test "an existing complete install survives a later re-download, untouched" passed after 0.004 seconds.
+􀟈  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" started.
+􁁛  Test "a REAL reply: tokens then one terminal, and NO reasoning is spoken" passed after 5.312 seconds.
+􁁛  Suite "AC-128/129 · the real model, when this machine has one" passed after 5.321 seconds.
+􁁛  Test "a host that refuses to render makes the run fail loudly at construction" passed after 0.004 seconds.
+􀟈  Test "the backup flag is set by a download, and restored by the next one" started.
+􁁛  Test "a cancel before the deadline ends with no terminal and no sleeper" passed after 5.313 seconds.
+􁁛  Test "the backup flag is set by a download, and restored by the next one" passed after 0.012 seconds.
+􀟈  Test "feed hands off rather than decoding — no model needed" started.
+􁁛  Suite "AC-247/248/249/250 · a download that stops, and one that finishes" passed after 5.334 seconds.
+􁁛  Test "feed hands off rather than decoding — no model needed" passed after 0.001 seconds.
+􀟈  Test "the run's render format comes from the decoder, not from the host" started.
+􁁛  Test "the run's render format comes from the decoder, not from the host" passed after 0.003 seconds.
+􁁛  Test "A scripted utterance produces the exact event sequence, in timeline order" passed after 5.336 seconds.
+􁁛  Test "Two listeners receive identical sequences" passed after 5.336 seconds.
+􁁛  Test "Frames lost to a full ring appear as a dropped event with the exact count" passed after 5.336 seconds.
+􁁛  Test "Only the last two held chunks are pre-rolled, and they arrive before the live audio" passed after 5.336 seconds.
+􁁛  Test "The pump parks on the injected clock, wakes on each poll, and leaves nothing behind" passed after 5.336 seconds.
+􁁛  Test "Latency from capture to speechStarted is exact audio time" passed after 5.336 seconds.
+􁁛  Test "A sub-window transient publishes nothing — nothing for the turn loop to barge on" passed after 5.336 seconds.
+􁁛  Test "With the window wired per the F-4 law, the word is not beheaded" passed after 5.336 seconds.
+􁁛  Test "The pump mirrors ring drops into health, same numbers, same stamp" passed after 5.336 seconds.
+􀟈  Test "shutdown is safe on a voice that never spoke, and safe twice" started.
+􁁛  Suite DiagnosticsWiringTests passed after 5.339 seconds.
+􁁛  Test "a reply that ends .finished(.deadline) is spoken as far as it got and completes the turn (AC-264)" passed after 0.030 seconds.
+􁁛  Test "reply(to:) returns the partial text with stop == .deadline — a stop reason, not a failure" passed after 5.331 seconds.
+􁁛  Test "GenerationOptions.deadline ends a slow reply on the injected clock — Reply(partial, .deadline) (AC-264)" passed after 5.337 seconds.
+􀟈  Test "the coordinator passes no deadline: every driven call records deadline == nil (AC-265)" started.
+􁁛  Test "shutdown is safe on a voice that never spoke, and safe twice" passed after 0.009 seconds.
+􁁛  Suite AdmissionSeamTests passed after 5.348 seconds.
+􁁛  Test "reply(to:) returns Reply("", .deadline) when the clock ends a silent reply (AC-264)" passed after 5.339 seconds.
+􁁛  Test "a token the source yields after the deadline is never heard" passed after 5.355 seconds.
+􀟈  Test "a one-shot decode cannot be stopped in flight, and still publishes nothing" started.
+􁁛  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" passed after 5.488 seconds.
+􁁛  Suite "AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last" passed after 5.503 seconds.
+􁁛  Test "a one-shot decode cannot be stopped in flight, and still publishes nothing" passed after 0.119 seconds.
+􁁛  Test "a never-finishing source ends .finished(.deadline) with the snapshots so far (AC-264)" passed after 5.494 seconds.
+􁁛  Suite NeuralVoiceFailurePathTests passed after 5.503 seconds.
+􁁛  Test chainedSleepsLandExactlyInsideOneAdvance() passed after 5.495 seconds.
+􁁛  Test sleeperWakesAtItsExactMoment() passed after 5.495 seconds.
+􁁛  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" passed after 0.182 seconds.
+􁁛  Test earlierDeadlinesWakeFirstWithTheirOwnMoments() passed after 5.496 seconds.
+􁁛  Suite ManualClockTests passed after 5.503 seconds.
+􀟈  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" started.
+􁁛  Test "A stale final during the gate is dropped at the door; the armed reply survives it" passed after 5.491 seconds.
+􁁛  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" passed after 5.492 seconds.
+􁁛  Test "An onset one tick before expiry wins the race" passed after 5.493 seconds.
+􁁛  Test "a reply that never finishes ends .finished(.deadline) with the tokens so far when the clock reaches 200 ms" passed after 5.496 seconds.
+􁁛  Test "deadline then finish, and finish then deadline: the second ending is a no-op (AC-264)" passed after 5.496 seconds.
+􁁛  Test "A partial chunk waits for the next poll instead of being padded or judged" passed after 5.503 seconds.
+􁁛  Suite AudioPumpTests passed after 5.506 seconds.
+􁁛  Test "the coordinator passes no deadline: every driven call records deadline == nil (AC-265)" passed after 0.164 seconds.
+􀟈  Test "the coordinator's own source names no thermal policy, no thermometer and no GenerationOptions (AC-265)" started.
+􁁛  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" passed after 0.003 seconds.
+􀟈  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" started.
+􁁛  Test "the coordinator's own source names no thermal policy, no thermometer and no GenerationOptions (AC-265)" passed after 0.105 seconds.
+􁁛  Suite AdmissionCoordinatorTests passed after 5.610 seconds.
+􁁛  Test "An onset during the gate kills the pending reply silently; the next final gates again" passed after 5.601 seconds.
+􁁛  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" passed after 0.109 seconds.
+􀟈  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" started.
+􁁛  Test "a mouth that never speaks reports zero, not a plausibly fast number" passed after 5.626 seconds.
+􁁛  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" passed after 0.013 seconds.
+􀟈  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" started.
+􁁛  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" passed after 0.001 seconds.
+􀟈  Test "F-1 = B: ReplyUpdate is still .token / .finished / .failed" started.
+􁁛  Test "F-1 = B: ReplyUpdate is still .token / .finished / .failed" passed after 0.001 seconds.
+􀟈  Test "ToolTable: exact name, nil for a stranger, both failures typed" started.
+􁁛  Test "ToolTable: exact name, nil for a stranger, both failures typed" passed after 0.001 seconds.
+􁁛  Suite ToolSpikeTests passed after 5.635 seconds.
+􁁛  Test "THREE concurrent cold callers all get the value — none is stranded" passed after 5.627 seconds.
+􁁛  Test "a retire during the build does not strand the queue either" passed after 5.760 seconds.
+􁁛  Suite "a retirable resource" passed after 5.768 seconds.
+􁁛  Test "first audio is stamped at `.started`, not when the feed returns" passed after 5.766 seconds.
+􁁛  Test "a second `.started` does not move the number already earned" passed after 5.767 seconds.
+􁁛  Suite "timing one utterance" passed after 5.770 seconds.
+AC-235 complete · said: The capital of Italy is Rome.
+􁁛  Test "a REAL reply that ends on its own is .finished(.complete)" passed after 5.866 seconds.
+􀟈  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" started.
+deadline-vs-finish winners over 20 rounds: [MultiModalKit.StopReason.deadline]
+􁁛  Test "the deadline and the last snapshot at once: exactly one terminal (AC-264, the latch)" passed after 5.872 seconds.
+􁁛  Suite "AC-264 · the Apple mind's deadline is the injected clock's ending" passed after 5.880 seconds.
+􁁛  Test "Interrupting while idle publishes nothing at all" passed after 6.045 seconds.
+􁁛  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" passed after 6.047 seconds.
+􁁛  Test "run() returns after an interruption even when the inputs ended first" passed after 6.042 seconds.
+􁁛  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" passed after 6.047 seconds.
+􁁛  Test "A final STASHED before an interruption is not replayed after resume" passed after 6.046 seconds.
+􁁛  Test "A dead turn cannot speak after an interruption — defiant stages included" passed after 6.044 seconds.
+􁁛  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" passed after 6.045 seconds.
+􁁛  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" passed after 6.045 seconds.
+􁁛  Test "The refused final contributes content and still triggers nothing (AC-87)" passed after 6.047 seconds.
+􁁛  Suite TurnCoordinatorTests passed after 6.057 seconds.
+AC-222 live · calls: [MultiModalKit.ToolArguments(values: [:])]
+AC-222 live · said: Today's session is a 40-minute easy run with a readiness of 71.
+AC-222 live · stop: complete
+AC-222 live · whole reply 1.374537458 seconds
+AC-222 live · question→call 0.710944041 seconds, call→first word after the answer 0.178466167 seconds
+􁁛  Test "the REAL model calls `session` and its reply carries the session's numbers" passed after 6.119 seconds.
+􁁛  Test "an unspeakable reply still terminates — the liveness promise (runs everywhere)" passed after 1.706 seconds.
+􀟈  Test "the REAL model calls `log_reading` with 83.5, and the body receives .number, not text" started.
+􀟈  Test "nothing survives the cancel — late feeds are silent (live audio; MMK_LIVE_SYNTH=1)" started.
+􁁛  Test "nothing survives the cancel — late feeds are silent (live audio; MMK_LIVE_SYNTH=1)" passed after 0.001 seconds.
+􁁛  Suite AppleSynthesizerConformanceTests passed after 6.125 seconds.
+􀢄  Test "CONTROL — the shipped zero lead finishes even when tokens close after the decode" recorded an issue at PlaybackLeadStrandTests.swift:142:9: Expectation failed: updates.contains(.finished)
+􀄵  the configuration this library actually ships must never strand a reply
+􀄵  updates.contains(.finished) → false
+􀄵    updates → [MultiModalKit.SynthesisUpdate.started]
+􁁛  Test "with a KNOWN short headroom the mind's own door refuses on the app's number, and loads when it is gone" passed after 2.636 seconds.
+􀟈  Test "a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed" started.
+􁁛  Test "a REAL load-and-generate cycle issues ZERO requests" passed after 4.116 seconds.
+􀟈  Test "a REAL neural-voice load with the model on disk issues ZERO requests" started.
+AC-235 budget · said: Rome's
+􁁛  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" passed after 4.053 seconds.
+􀟈  Test "a per-call instruction overrides the source's own on the REAL model" started.
+AC-264 live · deadline 200 ms · 4 tokens · said: Rome was founded
+AC-264 live · active before 987.6 MB · peak during 1262.2 MB · active after 987.6 MB · cache after 0.6 MB
+􀢄  Test "a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed" recorded an issue at MLXAdmissionLiveTests.swift:183:9: Expectation failed: cache < 65_536
+􀄵  // Not `== 0`: the first run of this row measured 232 BYTES in the
+􀄵  // pool after the clear — one small buffer the vendor's final
+􀄵  // `synchronize()` released after our `clearCache()` ran. The
+􀄵  // claim that is true is that the pool holds no generation's
+􀄵  // worth of buffers: kilobytes, not the ~100 MB the peak shows.
+􀄵  clearCache() emptied the vendor's pool after the cut: 609136 bytes left
+􀄵  cache < 65_536 → false
+􀄵    cache → 609136
+􀄵    65_536 → 65536
+􁁛  Test "cancel ends the stream without a final (model required; skips if absent)" passed after 11.644 seconds.
+􁁛  Suite AppleSpeechEngineConformanceTests passed after 11.647 seconds.
+􁁛  Test "one entry per step, carrying the audio that step produced" passed after 11.646 seconds.
+􀟈  Test "the margin carries the first step's audio beside its wall time" started.
+􀢄  Test "CONTROL — the shipped zero lead finishes even when tokens close after the decode" failed after 11.658 seconds with 1 issue.
+􀟈  Test "THE HOLE, CLOSED (D-055) — a lead larger than the reply, tokens closing last" started.
+􀢄  Test "a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed" failed after 4.925 seconds with 1 issue.
+􀟈  Test "a .warning during a REAL generation ends it with no terminal, and the memory falls back" started.
+AC-269 live · MLX · calls: [MultiModalKit.ToolArguments(values: ["kg": 83.5])] · received: [83.5] · said: Recorded 83.5 kg. · stop: complete
+􁁛  Test "the REAL model calls `log_reading` with 83.5, and the body receives .number, not text" passed after 5.554 seconds.
+􀟈  Test "the no-tool baseline for the same weights is measured beside it" started.
+􁁛  Test "the margin carries the first step's audio beside its wall time" passed after 0.833 seconds.
+􀟈  Test "the record finds a peak the old rule reads as zero" started.
+􁁛  Test "the record finds a peak the old rule reads as zero" passed after 0.017 seconds.
+􀟈  Test "a decode that produces nothing records nothing to size from" started.
+􁁛  Test "a decode that produces nothing records nothing to size from" passed after 0.001 seconds.
+􁁛  Suite DecodeStepRecordTests passed after 12.503 seconds.
+􁁛  Test "THE HOLE, CLOSED (D-055) — a lead larger than the reply, tokens closing last" passed after 1.011 seconds.
+􀟈  Test "THE CONTRAST — the same lead is fine when the token stream closes first" started.
+􁁛  Test "THE CONTRAST — the same lead is fine when the token stream closes first" passed after 1.006 seconds.
+􀢄  Suite PlaybackLeadStrandTests failed after 13.683 seconds with 1 issue.
+􀄵  /// A LIVENESS HOLE, FOUND, MEASURED AND CLOSED (D-055 = B).
+􀄵  ///
+􀄵  /// Found by the adversarial review of the `TTSDecoding` seam, and then
+􀄵  /// MEASURED here rather than argued (D-054). It is **pre-existing** — the
+􀄵  /// seam did not cause it — and the seam is why it can now be reproduced at
+􀄵  /// all: making a decode finish on command, before the token stream closes,
+􀄵  /// needs an injectable decoder.
+􀄵  ///
+􀄵  /// ## The hole
+􀄵  ///
+􀄵  /// `PlaybackLead` banks audio before the first sound. Two places learn that
+􀄵  /// "the reply is complete, so the target will never be reached":
+􀄵  ///
+􀄵  /// - `speak()`'s liveness step, which has a `.release` arm and calls
+􀄵  ///   `releaseLead()`. Its own comment says why: *"If nothing released it
+􀄵  ///   here, the player would never start, no buffer would ever report
+􀄵  ///   played, `finished` would never fire, and the turn would hang."*
+􀄵  /// - `finishTokens()`, which has **no such arm**. Its last line is
+􀄵  ///   `(phrasesInFlight == 0 && scheduled == played) ? .finishNow : .wait`,
+􀄵  ///   and `.wait` does nothing.
+􀄵  ///
+􀄵  /// So when the last phrase's decode has ALREADY completed and the token
+􀄵  /// stream closes afterwards, nobody releases the lead. Measured:
+􀄵  ///
+􀄵  /// | lead target | `finishTokens` | started | finished |
+􀄵  /// |---|---|---|---|
+􀄵  /// | `.zero` (shipped today) | after the decode | true | true |
+􀄵  /// | 1500 ms | **after** the decode | **false** | **false** |
+􀄵  /// | 1500 ms | before the decode ends | true | true |
+􀄵  ///
+􀄵  /// ## Why it is not biting today, and why that is temporary
+􀄵  ///
+􀄵  /// `NeuralVoice.defaultLead` is `PlaybackLead.deficit(forReplyOf: 6s,
+􀄵  /// realTimeFactor: 0.752)`, and `deficit` returns `.zero` for any RTF at or
+􀄵  /// below 1.0 — so every caller in this repo runs with a zero lead, where
+􀄵  /// the first buffer starts the player and the hole cannot open.
+􀄵  ///
+􀄵  /// **It opens the moment RTF exceeds 1.0**, because then the lead is
+􀄵  /// non-zero by arithmetic. That is a slower machine — and the iPhone's RTF
+􀄵  /// has never been measured, because AC-104 did not happen. A phone that
+􀄵  /// decodes slower than it plays, with a reply short enough to fit inside
+􀄵  /// the lead, hangs the turn. That is 4f's territory exactly.
+􀄵  ///
+􀄵  /// ## The fix, and why this file is its proof
+􀄵  ///
+􀄵  /// Ruled **B — one funnel**: not "add the missing arm" but "stop having
+􀄵  /// three sites answer one question". `NeuralVoiceRun.owed(by:)` is now the
+􀄵  /// single answer to *is this reply complete, and if so does it owe a
+􀄵  /// terminal or a released lead?*, and all three sites that can learn a
+􀄵  /// reply became complete — the last decode, the closing token stream, the
+􀄵  /// last buffer heard — go through it. A fourth caller cannot half-apply an
+􀄵  /// invariant that lives in one function.
+􀄵  ///
+􀄵  /// The middle test below asserted the BUG while D-055 was open, so the hole
+􀄵  /// could not be forgotten. Its expectations were flipped when the funnel
+􀄵  /// landed, and it went red before the fix and green after — the wall time
+􀄵  /// says it too: 3.054 s of waiting out the window before, 0.525 s after.
+AC-232 per-call · said: BANANA
+􁁛  Test "a per-call instruction overrides the source's own on the REAL model" passed after 4.909 seconds.
+􀟈  Test "temperature 0 twice, and seed 7 twice, are byte-identical" started.
+􁁛  Test "four hundred deadlines against a firehose: a token is never spoken after .finished(.deadline)" passed after 15.953 seconds.
+􁁛  Suite "AC-264 · a deadline ends a slow MLX reply .finished(.deadline)" passed after 15.962 seconds.
+AC-261 live · warning after 3 tokens · active before 959.6 MB · during 1015.9 MB · peak 1078.9 MB · after 987.6 MB · cache after 0.0 MB
+􀢄  Test "a .warning during a REAL generation ends it with no terminal, and the memory falls back" recorded an issue at MLXAdmissionLiveTests.swift:220:9: Expectation failed: after <= before + Self.releaseSlack
+􀄵  the prefill's memory is released: 987.6 MB vs 959.6 MB before
+􀄵  after <= before + Self.releaseSlack → false
+􀄵    after → 1035552244
+􀄵    before + Self.releaseSlack → 1007240884
+􀢄  Test "a .warning during a REAL generation ends it with no terminal, and the memory falls back" failed after 5.552 seconds with 1 issue.
+􀟈  Test "a run cancelled at birth never prefills: the active memory never rises above the floor" started.
+AC-228 live · no tool, plain question: 0.919536291 seconds · said: I don't have access to real-time information or current events. If you have a specific topic or context in mind, please let me know, and I can
+􁁛  Test "the no-tool baseline for the same weights is measured beside it" passed after 6.232 seconds.
+􀟈  Test "the spec's prefill cost is measured: tokens and characters, with and without the tool" started.
+AC-234 greedy · Three capitals in Europe are London, Paris, and Berlin.
+AC-234 seeded · Three capitals in Europe are Rome, Paris, and Berlin.
+􁁛  Test "temperature 0 twice, and seed 7 twice, are byte-identical" passed after 3.732 seconds.
+􀟈  Test "a prompt longer than the model's window is .failed(.contextWindowExceeded), no token spoken" started.
+AC-236 · the window is 40960 tokens
+AC-261 dead-at-birth · active before 959.6 MB · peak during 0.0 MB · after 959.6 MB
+􁁛  Test "a run cancelled at birth never prefills: the active memory never rises above the floor" passed after 1.718 seconds.
+􀟈  Test "a .critical during a REAL generation retires the weights, and the next reply reloads them" started.
+AC-228 prefill · without the spec: 38 tokens / 190 chars; with: 147 tokens / 721 chars; the spec adds 109 tokens / 531 chars
+􁁛  Test "the spec's prefill cost is measured: tokens and characters, with and without the tool" passed after 1.798 seconds.
+􁁛  Suite "4w · AC-222: the local mind asks the session tool and speaks the answer, when this machine has the model" passed after 19.711 seconds.
+􁁛  Test "a prompt longer than the model's window is .failed(.contextWindowExceeded), no token spoken" passed after 2.215 seconds.
+􀟈  Test "with the weights on disk and MLX runnable, the verdict is nil and the door opens" started.
+􁁛  Test "with the weights on disk and MLX runnable, the verdict is nil and the door opens" passed after 0.002 seconds.
+􁁛  Suite "4v · the local mind honours the contract, when this machine has the model" passed after 20.791 seconds.
+AC-262 live · resident 639.7 MB · after critical, idle: 0.1 MB
+AC-262 live · after reload, said: Italy's capital is Rome.
+􁁛  Test "a .critical during a REAL generation retires the weights, and the next reply reloads them" passed after 3.444 seconds.
+􀢄  Suite "4y · admission, pressure and the deadline against the real model, when this machine has it" failed after 22.392 seconds with 2 issues.
+􀄵  /// 4y against the REAL model (AC-258/259's Mac row, AC-261, AC-262,
+􀄵  /// AC-264): a real admission on this Mac's own headroom, a real reply
+􀄵  /// cut by a memory warning and by a 200 ms deadline, and MLX's own
+􀄵  /// `activeMemory` before and after each cut — the numbers INSTRUMENTS
+􀄵  /// §68 records. Gated exactly as `MLXContractLiveTests` is — on
+􀄵  /// `MMK_MLX_MODEL` and on `MLXRuntime.isAvailable` — because without a
+􀄵  /// metallib MLX aborts the process (D-061), and the skip says so loudly.
+􀄵  ///
+􀄵  /// The pressure source is SCRIPTED even here: the kernel's own warning
+􀄵  /// cannot be asked for, and a test that waited for a real one would wait
+􀄵  /// for the Mac to run out of memory. What is real is everything the
+􀄵  /// level then reaches — the vendor's task, its KV cache, the allocator.
+􀄵  ///
+􀄵  /// THE NUMBERS ARE PROCESS-GLOBAL. `activeMemory` counts every model
+􀄵  /// this process holds, and the other live suites load and retire their
+􀄵  /// own beside this one when the whole suite runs with `MMK_MLX_MODEL`
+􀄵  /// set: measured once in twenty full runs, another suite's 0.6B landed
+􀄵  /// between a row's `before` and `after` (639.7 → 959.6 MB — one model,
+􀄵  /// to the megabyte) and the release claim went red for a reason that
+􀄵  /// was not a leak. Alone (`--filter MLXAdmissionLiveTests`, the way
+􀄵  /// INSTRUMENTS §68 was measured) the rows read `after == before` to
+􀄵  /// 0.1 MB, twenty of twenty. CI never sets the variable. Whether the
+􀄵  /// live suites should be serialised against each other is an open
+􀄵  /// question, not one this file answers.
+􁁛  Test "CONTROL: .fused really does load here, so an iOS refusal means something" passed after 73.222 seconds.
+􁁛  Suite "the voice levers" passed after 73.232 seconds.
+􁁛  Test "a voice that was never retired still opens (the eyes control)" passed after 73.392 seconds.
+􁁛  Suite "a retired voice is terminal" passed after 73.403 seconds.
+􁁛  Test "a silent reply completes without speaking (model required; skips if absent)" passed after 76.442 seconds.
+􀟈  Test "an unspeakable reply still terminates — liveness (model required; skips if absent)" started.
+􁁛  Test "an unspeakable reply still terminates — liveness (model required; skips if absent)" passed after 0.006 seconds.
+􀟈  Test "started once, finished once, in order (model + MMK_LIVE_SYNTH=1)" started.
+􁁛  Test "started once, finished once, in order (model + MMK_LIVE_SYNTH=1)" passed after 0.001 seconds.
+􀟈  Test "cancel silences and ends without a terminal (model + MMK_LIVE_SYNTH=1)" started.
+􁁛  Test "cancel silences and ends without a terminal (model + MMK_LIVE_SYNTH=1)" passed after 0.001 seconds.
+􀟈  Test "nothing survives the cancel — late feeds are silent (model + MMK_LIVE_SYNTH=1)" started.
+􁁛  Test "nothing survives the cancel — late feeds are silent (model + MMK_LIVE_SYNTH=1)" passed after 0.001 seconds.
+􀟈  Test "the fused decoder keeps the same promises (model required; skips if absent)" started.
+􁁛  Test "a REAL neural-voice load with the model on disk issues ZERO requests" passed after 67.819 seconds.
+􀟈  Test "the page states the recorder's REAL reach, not a wider one" started.
+􁁛  Test "the page states the recorder's REAL reach, not a wider one" passed after 0.002 seconds.
+􀟈  Test "the recorder is BLIND to a session built the way the hub client builds one" started.
+􁁛  Test "the recorder is BLIND to a session built the way the hub client builds one" passed after 0.013 seconds.
+􁁛  Suite "4x · the network, named and proven" passed after 76.673 seconds.
+􁁛  Test "the fused decoder keeps the same promises (model required; skips if absent)" passed after 7.094 seconds.
+􀟈  Test "feed hands off — an immediate cancel is never heard (model required)" started.
+􁁛  Test "feed hands off — an immediate cancel is never heard (model required)" passed after 0.004 seconds.
+􀟈  Test "the fused decoder speaks and stops (model + MMK_LIVE_SYNTH=1)" started.
+􁁛  Test "the fused decoder speaks and stops (model + MMK_LIVE_SYNTH=1)" passed after 0.001 seconds.
+􁁛  Suite NeuralVoiceConformanceTests passed after 83.553 seconds.
+􁁛  Test "one final, then silence, then the stream ends (model required; skips if absent)" passed after 86.377 seconds.
+􀟈  Test "cancel ends the stream without a final (model required; skips if absent)" started.
+􁁛  Test "cancel ends the stream without a final (model required; skips if absent)" passed after 0.903 seconds.
+􀟈  Test "prewarm is safe and idempotent (model required; skips if absent)" started.
+􁁛  Test "prewarm is safe and idempotent (model required; skips if absent)" passed after 0.847 seconds.
+􁁛  Suite WhisperEngineConformanceTests passed after 88.137 seconds.
+􀢄  Test run with 834 tests in 118 suites failed after 88.139 seconds with 3 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

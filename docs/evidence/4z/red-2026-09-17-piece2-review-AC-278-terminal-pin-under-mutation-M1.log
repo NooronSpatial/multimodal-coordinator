@@ -1,0 +1,61 @@
+MUTATION M1 re-applied (never committed): MLXReplyRun.deadlineFired() also calls report(.finished(.deadline)) — the terminal spoken at the deadline while the body is parked. Run: swift test --filter MLXToolDeadlineTests at c476b13 plus the review's stronger pin (the "terminal" fact from ReplyStory.collect; written < terminal beside written < ended). The new pin at :107 is red on its own: written → 4, terminal → 2.
+
+warning: 'zipfoundation': <worktree>/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Building for debugging...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 1]
+[1 / 2] KokoroSwift_KokoroSwift
+[1 / 65] MultiModalKitTests-product
+[1 / 136] ArgmaxCore
+[1 / 38] Cmlx
+[2 / 16] MultiModalKitMLX
+[6 / 20] MultiModalKitMLX
+[12 / 22] MultiModalKitMLX
+[16 / 21] MultiModalKitMLX-product
+[16 / 21] audio-demo-product
+[22 / 27] MultiModalKitTests-product
+[29 / 33] MultiModalKitTests-product
+[31 / 33] MultiModalKitTests-product
+[32 / 32] audio-demo-product
+[34 / 34] bakeoff-product
+warning: missing creator for mutated node: ('<worktree>/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
+Build complete! (10.27 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last" started.
+􀟈  Test "a body that ends before the deadline feeds its answer back; the reply ends .complete, the sleeper is gone" started.
+􀟈  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" started.
+􁁛  Test "a body that ends before the deadline feeds its answer back; the reply ends .complete, the sleeper is gone" passed after 0.001 seconds.
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" recorded an issue at MLXToolDeadlineTests.swift:91:9: Expectation failed: !facts.log.contains("terminal")
+􀄵  the terminal is not spoken while the body runs: ["token 1", "entered", "terminal", "ended"]
+􀄵  !facts.log.contains("terminal") → true
+􀄵    facts.log.contains("terminal") → false
+􀄵      facts.log → ["token 1", "entered", "terminal", "ended"]
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" recorded an issue at MLXToolDeadlineTests.swift:107:9: Expectation failed: written < terminal
+􀄵  // The terminal's own yield, not the stream's end as its proxy: a
+􀄵  // design that yielded `.finished(.deadline)` at the deadline and
+􀄵  // finished the stream after the body would pass the second pin.
+􀄵  .finished(.deadline) is YIELDED after the body ends: ["token 1", "entered", "terminal", "ended", "written"]
+􀄵  written < terminal → false
+􀄵    written → 4
+􀄵    terminal → 2
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" recorded an issue at MLXToolDeadlineTests.swift:108:9: Expectation failed: written < ended
+􀄵  and the stream ends after the body ends: ["token 1", "entered", "terminal", "ended", "written"]
+􀄵  written < ended → false
+􀄵    written → 4
+􀄵    ended → 3
+􀢄  Test "the deadline fires while the body is parked: the write lands once, then ONE terminal, the clock's, last" failed after 0.002 seconds with 3 issues.
+􀢄  Suite "AC-278 · the deadline waits for a running tool body: one write, then .finished(.deadline), once and last" failed after 0.003 seconds with 3 issues.
+􀢄  Test run with 2 tests in 1 suite failed after 0.003 seconds with 3 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

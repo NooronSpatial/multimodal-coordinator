@@ -27,11 +27,13 @@ protocol ReplyTokenStreaming: Sendable {
     /// TYPED since 4v (AC-238): the real source answers with
     /// `.unavailable(verdict)`, and the door throws exactly what it said.
     var unavailable: ReplyFailure? { get }
-    /// The tools this source was given at construction (4w, F-2 = A).
-    /// The RUN reads them to execute a call the source reports; the
-    /// source reads them to render the spec into its prompt. One table,
-    /// one owner — the generator's initializer hands it to both by
-    /// handing it here.
+    /// The tools this source was given at construction (4w) — its DEFAULT
+    /// since 4z (F-2 = A). The RUN reads them to execute a call the source
+    /// reports; the source reads them to render the spec into its prompt.
+    /// Both go through `tools(for:)` below, so a call that brought its
+    /// own table is rendered and executed from that one. One table, one
+    /// owner — the generator's initializer hands it to both by handing
+    /// it here.
     var tools: ToolTable { get }
     /// Opens one generation and returns its tokens, in birth order, and
     /// — when the vendor says — why it stopped.
@@ -57,6 +59,19 @@ extension ReplyTokenStreaming {
     /// a test hands them a registry to prove the warning's reach.
     var liveRuns: LiveRunRegistry? { nil }
 
+    /// THE TABLE ONE REPLY RENDERS AND EXECUTES (4z, F-2 = A; 4w's closing
+    /// fork, ruled on §67's numbers): the call's table when the call
+    /// carries one — even `.empty`, which is "no tools this turn" on a
+    /// source that holds some — and this source's own otherwise. ONE
+    /// rule, read in two places — the real source's `generate` (what the
+    /// model is shown) and the run's `rounds` (what may answer a call) —
+    /// so the two can never disagree about which table a turn has. The
+    /// app pays the prompt's tool cost only on the turns that may use
+    /// one (AC-275; AC-272 for the turn that has none).
+    func tools(for context: ReplyContext) -> ToolTable {
+        context.options.tools ?? tools
+    }
+
     /// The first round, which every reply has and which is the whole of
     /// a reply that calls nothing.
     func tokens(for context: ReplyContext) -> AsyncThrowingStream<TokenEvent, any Error> {
@@ -70,7 +85,7 @@ extension ReplyTokenStreaming {
 /// stream that ends without `.stopped` means the source could not say.
 ///
 /// `.toolCall` since 4w (AC-222): the source PARSED a call out of what
-/// the model said, and hands it up flattened. It is not a terminal —
+/// the model said, and hands it up typed (4z). It is not a terminal —
 /// the round still ends with `.stopped`, because the model ends its turn
 /// to make the call — and the run, not the source, decides what a call
 /// means (F-1 = B: the run executes tools itself).
@@ -98,10 +113,20 @@ public struct MLXReplyGenerator: ReplyGenerating {
     /// `ManualClock` in the tests that prove the ending.
     let clock: any Clock<Duration>
 
+    /// THROWING since 4z piece 2b (AC-289, D-110 F-13 d): the source's
+    /// DEFAULT table is checked HERE, where it enters, by the core's one
+    /// mind-agnostic check — so the rendering a reply does later
+    /// (`ReplyTool.toolSpec`, inside the generation task, where nothing
+    /// can throw) never meets a declaration it cannot render. Both real
+    /// sources hold their table as a `let`, so what is checked at birth
+    /// is what every reply reads; a per-call table is checked at
+    /// `openReply`. The public init delegates here, so there is one door
+    /// for the default table and one sentence.
     init(source: any ReplyTokenStreaming,
          thermal: any ThermalStateProviding = SystemThermalProvider(),
          thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-         clock: any Clock<Duration> = ContinuousClock()) {
+         clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+        try source.tools.checkDeclarations()
         self.source = source
         self.thermal = thermal
         self.thermalPolicy = thermalPolicy
@@ -109,7 +134,35 @@ public struct MLXReplyGenerator: ReplyGenerating {
     }
 
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
-        // HEAT FIRST (AC-260, Aura's R2): the policy is asked with the
+        // THE CALL'S TABLE, CHECKED FIRST (4z piece 2b, AC-289, D-110
+        // F-13 d): a schema that cannot be built throws where it is built
+        // — here, to the caller that handed it, on the same call, before
+        // any run exists — and the DEFAULT table was checked the same way
+        // at init, so the rendering inside a reply never meets a
+        // duplicate (the trap `ReplyTool.toolSpec` carried until this
+        // piece). BEFORE the heat and the verdict, on purpose: the table
+        // is the caller's own value and its error is true whatever the
+        // phone's state, so a hot phone or weights still arriving must
+        // not hide a bug that will still be there when they clear.
+        //
+        // FOLDED INTO `.engine(words)`, the typed error's own sentence:
+        // `ReplyFailure` has no case for a caller's programmer error at
+        // the door, and adding one is a public enum change nobody ruled
+        // (a question for the ledger, beside `ToolRounds`'). Of the six
+        // cases, five each name a device or model condition that is not
+        // true here — the mind can run, the phone is not (necessarily)
+        // hot, nothing is busy, the window fits, the language is fine —
+        // and `.engine` is the honest catch-all D-103 F-3 = A gave this
+        // seam for what it cannot type yet, the case `ToolRounds.exceeded`
+        // already rides on this mind. Equatable, so an app matches it
+        // exactly; the words name the tool and the parameter.
+        if let perCall = context.options.tools {
+            do { try perCall.checkDeclarations() } catch {
+                throw ReplyFailure.engine(String(describing: error))
+            }
+        }
+        // HEAT BEFORE THE VERDICT (AC-260, Aura's R2; "heat first" until
+        // the table's check above): the policy is asked with the
         // thermometer's state at this moment, BEFORE the readiness
         // verdict — a phone too hot to generate is told so whatever is
         // installed, and no run exists to have said anything. Typed and
@@ -156,6 +209,18 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
         /// task, concurrently with the token loop — and a token whose
         /// latch check had already passed landed AFTER the terminal (the
         /// review's hammer, now `MLXDeadlineTests`' four-hundred row).
+        ///
+        /// AND THE DEADLINE WAITS FOR A RUNNING BODY (4z, AC-278, D-110
+        /// F-9 = A) for the same reason: the flag is raised here, but
+        /// the only task that may speak is the rounds task, and while a
+        /// tool's body runs that task is awaiting the door — which
+        /// shields the body from the cancellation the race sends (F-5 =
+        /// A). So the write lands, once; the arm reads `dead`, feeds
+        /// nothing back, returns; and only then is the clock's word
+        /// spoken, last. A design that spoke at the deadline from the
+        /// sleeper (`MLXToolDeadlineTests`' mutation M1) says "ended"
+        /// before "written" — the row catches it. Its price, stated in
+        /// D-110: a slow body stretches the end past the clock.
         var deadline = false
     }
     private let state: Mutex<Guarded>
@@ -261,7 +326,11 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// substitutes `.finished(.deadline)` for whatever a cancelled round
     /// would have said, and on the mid-round exits below, which are
     /// silent for a barge and speak the clock's word when it was the
-    /// clock that ended them.
+    /// clock that ended them. Since 4z the loop AWAITS a tool's body
+    /// through the door (`execute`), in its own program order — so a
+    /// deadline that fires mid-body is spoken after the body has ended
+    /// (AC-278, F-9 = A), and the one-writer promise is what makes that
+    /// so: nobody else can speak while this task is parked on the door.
     private func rounds(source: any ReplyTokenStreaming, context: ReplyContext) async {
         defer { endedByTheClock() }
         do {
@@ -285,7 +354,8 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
                     return
                 }
                 rounds += 1
-                guard let answered = await execute(round.calls, with: source.tools) else { return }
+                guard let answered = await execute(round.calls, with: source.tools(for: context),
+                                                   confirmed: context.options.confirmedTools) else { return }
                 exchanges += answered
             }
         } catch let failure as ReplyFailure {
@@ -370,35 +440,44 @@ final class MLXReplyRun: ReplyRun, @unchecked Sendable {
     /// THE ARM (4w, AC-222; F-1 = B, F-4 = B): every call the round
     /// asked for, executed in order, and what goes back to the model.
     ///
-    /// `ToolTable.call` folds both ways a call can fail — a name no tool
-    /// has, a tool that threw — into one typed value, and BOTH are
-    /// answered to the model as words (F-4 = B, D-101): the model reads
-    /// "no tool named 'x'" as a tool response and recovers in its own
-    /// sentence, which is the honest turn AC-225 wants. Reporting
-    /// `.failed` instead was the rejected option A.
+    /// `ToolTable.invoke` — the door (4z, F-13 g) — folds every way a
+    /// call can fail — a name no tool has, an argument the declaration
+    /// refuses, a flag without the person's yes, a tool that threw —
+    /// into one typed value, and ALL are answered to the model as words
+    /// (F-4 = B, D-101): the model reads "no tool named 'x'" as a tool
+    /// response and recovers in its own sentence, which is the honest
+    /// turn AC-225 wants. Reporting `.failed` instead was the rejected
+    /// option A.
+    ///
+    /// THE SEAM IS TYPED (4z, F-1 = A): the request carries `ToolArguments`
+    /// parsed BY KIND from the vendor's JSON (`ToolValue.init(json:)`), and
+    /// is handed to the door as it is — so a number the model wrote
+    /// arrives as a number, and the door's count of coercions (F-8 C) is
+    /// honest. The table is the CALL's (`tools(for:)`, F-2 = A) and the
+    /// person's yes is the call's too (`confirmedTools`, F-10 B-ii): both
+    /// ride on the options, and the door reads them together.
     ///
     /// THE REENTRANCY LAW (§4.1), after EVERY await: the tool took as long
     /// as it took, and a barge may have retired this run meanwhile. A
     /// dead run feeds NOTHING back — `nil` here ends the task, and the
     /// answer goes nowhere (AC-226's mirror on this seam: the scripted
     /// mind's `runToolScript` makes the same decision, and records it).
-    /// The task's own cancellation is the optimisation that reaches into
-    /// a slow tool; `retired` is the guarantee this guard reads.
+    /// The task's cancellation ends the ROUND; it does not reach the
+    /// tool's body — since 4z the door shields it (F-5 = A, `ReplyTool.run`),
+    /// so a slow body runs to its end and its answer is dropped by this
+    /// guard. `retired` is the guarantee this guard reads.
     private func execute(_ calls: [ToolCallRequest],
-                         with tools: ToolTable) async -> [ToolExchange]? {
+                         with tools: ToolTable,
+                         confirmed: Set<String>) async -> [ToolExchange]? {
         var answered: [ToolExchange] = []
         for request in calls {
             // Before AND after: a run retired between the round's last
             // event and this arm must not start a tool it can never use.
             // A run past its deadline neither (4y): the clock ended it.
             guard !dead else { return nil }
-            let outcome = await tools.call(request.name, arguments: request.arguments)
+            let outcome = await tools.invoke(request.name, arguments: request.arguments, confirmed: confirmed)
             guard !dead else { return nil }
-            let answer = switch outcome {
-            case .success(let words): words
-            case .failure(let failure): failure.description
-            }
-            answered.append(ToolExchange(request: request, answer: answer))
+            answered.append(ToolExchange(request: request, answer: ToolResponseTag.escape(outcome.wordsForModel)))
         }
         return answered
     }

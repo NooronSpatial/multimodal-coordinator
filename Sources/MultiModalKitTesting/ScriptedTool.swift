@@ -6,12 +6,19 @@ import Synchronization
 /// spike's survival tests need, and the way a test proves a call was
 /// made with the arguments the script gave.
 ///
-/// The run calls `tool.call` from inside itself (F-1 = B). What the test
-/// does with that moment is its own: `onEnter` fires with the arguments
-/// as the call begins, so a test can wait on the FACT "the tool was
-/// entered" instead of a delay (§3.3), and `release()` lets a parked
-/// call out — safe to call before anyone is waiting, the release is
-/// remembered (the same rule as `ScriptedReplyGenerator.releaseOpen`).
+/// The run reaches the body through the table's door (F-1 = B, and since
+/// 4z F-13 g: the door is the only way in). What the test does with that
+/// moment is its own: `onEnter` fires with the arguments as the body
+/// begins, so a test can wait on the FACT "the tool was entered" instead
+/// of a delay (§3.3), and `release()` lets a parked call out — safe to
+/// call before anyone is waiting, the release is remembered (the same
+/// rule as `ScriptedReplyGenerator.releaseOpen`).
+///
+/// Since 4z the tool DECLARES like a real one (`parameters`, the
+/// confirmation flag, its own description), so a test can put the door's
+/// checks in front of a scripted body. The defaults here are a test
+/// double's conveniences — no parameters, no flag — not the contract's:
+/// `ReplyTool` itself has no default for either (F-13 k's rule).
 public final class ScriptedTool: Sendable {
     public indirect enum Plan: Sendable {
         /// Returns this string.
@@ -30,27 +37,39 @@ public final class ScriptedTool: Sendable {
     }
 
     private struct State {
-        var calls: [[String: String]] = []
+        var calls: [ToolArguments] = []
         var gate: CheckedContinuation<Void, Never>?
         var releasedEarly = false
     }
 
     public let name: String
+    public let description: String
+    public let parameters: [ToolParameter]
+    public let requiresConfirmation: Bool
     public let plan: Plan
-    private let onEnter: @Sendable ([String: String]) -> Void
+    private let onEnter: @Sendable (ToolArguments) -> Void
     private let state = Mutex(State())
 
-    public init(name: String, plan: Plan,
-                onEnter: @escaping @Sendable ([String: String]) -> Void = { _ in }) {
+    public init(name: String,
+                description: String? = nil,
+                parameters: [ToolParameter] = [],
+                requiresConfirmation: Bool = false,
+                plan: Plan,
+                onEnter: @escaping @Sendable (ToolArguments) -> Void = { _ in }) {
         self.name = name
+        self.description = description ?? "a scripted tool named \(name)"
+        self.parameters = parameters
+        self.requiresConfirmation = requiresConfirmation
         self.plan = plan
         self.onEnter = onEnter
     }
 
     // MARK: - the record
 
-    /// Every call, with the arguments it was made with, in order.
-    public var calls: [[String: String]] { state.withLock { $0.calls } }
+    /// Every time the body RAN, with the arguments the door let in, in
+    /// order. A call the door refused is not here — the body never saw
+    /// it; the refusal is on the run's record (`ToolCallRecord`).
+    public var calls: [ToolArguments] { state.withLock { $0.calls } }
 
     // MARK: - the test's hand
 
@@ -67,16 +86,17 @@ public final class ScriptedTool: Sendable {
     // MARK: - the tool the generator is handed
 
     /// The library-facing value (F-2 = A): put it in the `ToolTable` the
-    /// scripted generator is built with.
+    /// scripted generator is built with, or on a call's options.
     public var tool: ReplyTool {
-        ReplyTool(name: name, description: "a scripted tool named \(name)") { [self] arguments in
+        ReplyTool(name: name, description: description, parameters: parameters,
+                  requiresConfirmation: requiresConfirmation) { [self] arguments in
             state.withLock { $0.calls.append(arguments) }
             onEnter(arguments)
             return try await self.run(plan, arguments: arguments)
         }
     }
 
-    private func run(_ plan: Plan, arguments: [String: String]) async throws -> String {
+    private func run(_ plan: Plan, arguments: ToolArguments) async throws -> String {
         switch plan {
         case .answers(let answer):
             return answer
@@ -115,7 +135,9 @@ public struct ToolScript: Sendable {
     }
 
     public var name: String
-    public var arguments: [String: String]
+    /// What the scripted model "writes" — handed to the table's door as
+    /// it is, so a test can script a bad argument and watch the door.
+    public var arguments: ToolArguments
     public var before: [String]
     public var after: [String]
     public var onFailure: OnFailure
@@ -130,7 +152,7 @@ public struct ToolScript: Sendable {
     public var whenDone: @Sendable () -> Void
 
     public init(name: String,
-                arguments: [String: String] = [:],
+                arguments: ToolArguments = .empty,
                 before: [String] = [],
                 after: [String] = [],
                 onFailure: OnFailure = .failsReply,
@@ -155,7 +177,10 @@ public struct ToolCallRecord: Sendable, Equatable {
     }
 
     public let name: String
-    public let arguments: [String: String]
+    /// The arguments the SCRIPT asked with — before the door, so a test
+    /// can see what the model "wrote" beside what the body received
+    /// (`ScriptedTool.calls`).
+    public let arguments: ToolArguments
     /// `nil` while the call is still in flight.
     public var outcome: Outcome?
     /// True when the answer came back AFTER `cancel()` and a
@@ -163,7 +188,7 @@ public struct ToolCallRecord: Sendable, Equatable {
     /// coordinator's ticket is the other half, and the guarantee.
     public var answerDropped = false
 
-    public init(name: String, arguments: [String: String],
+    public init(name: String, arguments: ToolArguments = .empty,
                 outcome: Outcome? = nil, answerDropped: Bool = false) {
         self.name = name
         self.arguments = arguments

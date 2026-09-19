@@ -87,12 +87,10 @@ struct AppleToolLiveTests {
     func realMindCallsTheTool() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let tool = ScriptedTool(name: "session", plan: .answers(Self.session))
-        let generator = AppleReplyGenerator(
-            instructions: Self.instructions,
-            tools: ToolTable([ReplyTool(name: "session",
-                                        description: "Reads today's training session and its readiness verdict.",
-                                        call: tool.tool.call)]))
+        let tool = ScriptedTool(name: "session",
+                                description: "Reads today's training session and its readiness verdict.",
+                                plan: .answers(Self.session))
+        let generator = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         // Warm the model outside the measured turn (AC-115): the number
         // below is the tool path's, not the cold start's.
         generator.prewarm()
@@ -109,36 +107,57 @@ struct AppleToolLiveTests {
                 "the vendor reports no stop reason (AC-235): \(String(describing: reply.terminal))")
     }
 
-    /// AC-225 through the real session: a tool that THROWS. Today the
-    /// adapter lets the throw through, the vendor ends the stream with
-    /// its `ToolCallError`, and the run ends `.failed(.engine(_))` with
-    /// the sentence every mind writes. That is the INTERIM ending — the
-    /// vendor's interface allows the other one too (the adapter catches
-    /// and answers the model with the sentence, and the model speaks),
-    /// which is how the MLX run ends the same case. Which ending the
-    /// Apple mind keeps is an open fork, Ryad's, written up at
-    /// `AppleReplyRun.toolFailure`; this test pins the interim ending
-    /// until the ruling changes it, so that a change is a visible red,
-    /// never a silent drift. It has not yet run against a ready model
-    /// (see `realMindCallsTheTool`).
-    @Test("a throwing tool ends the real reply as the agreed failure (AC-225)")
-    func throwingToolFailsTheReply() async throws {
+    /// AC-276 through the real session (F-4 = B, D-110): a tool that
+    /// THROWS is answered to the model in the door's words, the model
+    /// speaks, and the reply ends `.finished` — the ending the MLX run has
+    /// for the same case. 4w pinned the interim ending (`.failed`) here;
+    /// the ruling replaced it. It has not yet run against a ready model
+    /// (see `realMindCallsTheTool`): the phone is this row's gate.
+    @Test("a throwing tool is answered in words and the real reply still ends .finished (AC-276, F-4 = B)")
+    func throwingToolIsAnsweredInWords() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let tool = ScriptedTool(name: "session", plan: .throwsError("the stub is offline"))
-        let generator = AppleReplyGenerator(
-            instructions: Self.instructions,
-            tools: ToolTable([ReplyTool(name: "session",
-                                        description: "Reads today's training session and its readiness verdict.",
-                                        call: tool.tool.call)]))
+        let tool = ScriptedTool(name: "session",
+                                description: "Reads today's training session and its readiness verdict.",
+                                plan: .throwsError("the stub is offline"))
+        let generator = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
         generator.prewarm()
 
         let reply = try await Self.timedReply(generator)
-        print("AC-225 · tool called \(tool.calls.count)× · ended \(String(describing: reply.terminal)) · "
+        print("AC-276 · tool called \(tool.calls.count)× · ended \(String(describing: reply.terminal)) · "
             + "said: \(reply.text)")
         #expect(tool.calls.count >= 1, "the model did not call the tool; said: \(reply.text)")
-        #expect(reply.terminal == .failed(.engine("tool 'session' failed: the stub is offline")),
-                "ended: \(String(describing: reply.terminal))")
+        #expect(reply.terminal == .finished(.unreported),
+                "answered in words, so the reply ENDS — never .failed: \(String(describing: reply.terminal))")
+    }
+
+    /// AC-269's Apple half: a tool WITH a parameter, called by the real
+    /// model with the number it chose — a number arriving as a number,
+    /// through the schema built at run time and the door. The question
+    /// names the tool and the number, as the MLX row does, because a
+    /// small model calls a tool it was not asked for by name rarely
+    /// (INSTRUMENTS §67). Not yet run against a ready model: the phone
+    /// is this row's gate.
+    @Test("the real mind calls a tool with a parameter, and the body reads the number (AC-269, Apple half)")
+    func realMindPassesANumber() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
+        let tool = ScriptedTool(name: "log_reading",
+                                description: "Records a reading the person gives, in kilograms.",
+                                parameters: [ToolParameter(name: "kg", description: "the reading in kilograms",
+                                                           kind: .number, isRequired: true)],
+                                plan: .answers("Recorded."))
+        let generator = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
+        generator.prewarm()
+        let run = try await generator.openReply(to: ReplyContext(
+            transcript: "Use log_reading to record 83.5.",
+            options: GenerationOptions(temperature: 0)))
+        let updates = await ReplyConformanceKit.drain(run)
+        let received = tool.calls.compactMap { try? $0.number("kg") }
+        print("AC-269 live · Apple · calls: \(tool.calls) · received: \(received) · ended: "
+            + "\(String(describing: ReplyConformanceKit.terminals(in: updates)))")
+        #expect(!tool.calls.isEmpty, "the model did not call the tool")
+        #expect(received.first == 83.5, "a number arrives as a number: \(tool.calls)")
     }
 
     /// AC-228's Mac half for this mind: the first token WITH the tool in
@@ -149,13 +168,11 @@ struct AppleToolLiveTests {
     func firstTokenWithAndWithoutTheTool() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         if let verdict = AppleMind.readiness() { _ = Self.skipping(verdict); return }
-        let tool = ScriptedTool(name: "session", plan: .answers(Self.session))
-        let with = AppleReplyGenerator(
-            instructions: Self.instructions,
-            tools: ToolTable([ReplyTool(name: "session",
-                                        description: "Reads today's training session and its readiness verdict.",
-                                        call: tool.tool.call)]))
-        let without = AppleReplyGenerator(instructions: Self.instructions)
+        let tool = ScriptedTool(name: "session",
+                                description: "Reads today's training session and its readiness verdict.",
+                                plan: .answers(Self.session))
+        let with = try AppleReplyGenerator(instructions: Self.instructions, tools: ToolTable([tool.tool]))
+        let without = try AppleReplyGenerator(instructions: Self.instructions)
         without.prewarm()
 
         // Three of each, interleaved, so a warm-up or a busy Mac does not

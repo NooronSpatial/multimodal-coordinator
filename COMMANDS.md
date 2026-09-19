@@ -176,6 +176,7 @@ Each answers one question and writes its numbers into
 | `bakeoff install-size` | what a model costs to download, asked BEFORE a byte moves (4x, AC-245/AC-246) | `--repo=` |
 | `bakeoff determinism` | the same question twice under three sampling settings — do the same bytes come back (4v, AC-234/AC-244) | `--model=`, `--runs=`, `--prompt=`, `--system=`, `--budget=` |
 | `bakeoff tool-spike` | what a tool table costs a reply that never uses it, what a call costs one that does, and whether the model calls a tool the person did not name — the Mac half of AC-227/AC-228 (4w); the phone decides | `--model=` (defaults to the 0.6B like `ask`; pass the 4B for the phone's model), `--runs=` (5), `--system=` (none by default — the shape the 0.6B calls under) |
+| `bakeoff tool-contract` | the parameters' price on the first token (no table · 4w's one tool · three tools with parameters), twenty scripted sentences through three tools (right · no call · refused · wrong tool · wrong arguments · INVENTED), the two trap sentences with `kg` optional and with the band shown, and one tool round's price — the Mac half of AC-281 (4z); the phone decides | `--model=` (defaults to the 0.6B; pass the 4B for the phone's model), `--runs=` (3, the price rows), `--system=` (none by default), `--apple` (the same twenty on the Apple mind when its model is ready; NOT RUN otherwise) |
 
 Every bakeoff flag uses the `--name=value` shape. There are no two-word flags
 here — that inconsistency is `audio-demo`'s alone.
