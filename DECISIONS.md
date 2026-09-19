@@ -5100,3 +5100,39 @@ nine real verbs is the best test the contract can get BEFORE more API is
 stacked on it. *Also recorded (Ryad, 2026-09-17):* no other session may
 touch this library again; requirements come as documents, code comes
 from here.
+
+## D-113 — API documentation for humans and agents: an integration page and `llms.txt` now, DocC after the downloads milestone (Milestone 4z, after the tag)
+
+**Date:** 2026-09-19 · **Decided by:** Ryad ("do Recommendation: A now,
+B as portfolio polish after the downloads milestone").
+
+**The fact.** The diet app's session, coding against the library from
+its own reading of the source, built a `ToolArguments.none` and an
+`.integer` case that do not exist and misread the fork letters; the two
+handoff messages written for it were "signature + rule + gotcha" — the
+document the repo did not have. The doc comments are long and in the
+house voice (good for a person, thin signal for an agent), and the
+contract pages are story-shaped.
+
+**Ruling: A now.** `docs/INTEGRATE.md` — one quick start per organ
+(the mind, the weights, admission and heat, the tools, the voice loop),
+each block lifted from a fact-checked contract page or the demo; a tag
+table; ten rules; a paragraph for an AI agent; and the public surface
+as an APPENDIX that is the OUTPUT of `Scripts/api.sh`, pasted with its
+commit — never typed (the `shape.sh` rule, D-054/5). `llms.txt` at the
+root: the map, the record, the tags, and the process rules an agent
+broke this month. Every milestone's definition of done gains one line:
+the integration page and its appendix are regenerated.
+
+**B after 0.3.1: DocC**, rendered from the existing comments
+(`xcodebuild docbuild`), hosted on GitHub Pages — the reference a
+reviewer clicks through; portfolio polish, not a caller's need.
+
+*Rejected — C, later:* the diet app codes against 0.3.0 this week with
+only the tag note and a chat handoff; a page that lies cannot be worse
+than a page that does not exist only if it never drifts — hence the
+generated appendix.
+
+**Found while writing it:** four constructions on the 4v and 4y contract
+pages built a generator without `try` — stale since piece 2b's throwing
+init. Fixed in the same change. That is the page's job: it drifts first.

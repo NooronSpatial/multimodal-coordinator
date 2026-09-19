@@ -200,7 +200,7 @@ import MultiModalKitMLX
 
 // 1 — the mind: weights on disk, and a generator over them.
 let model = LocalMindModel(weights: weightsFolder)
-let mind  = MLXReplyGenerator(model: model)   // defaults: nil, 1024
+let mind  = try MLXReplyGenerator(model: model)   // defaults: nil, 1024; `try` since 4z (F-13 d)
 
 // 2 — can it run on THIS device? nil means yes.
 if let why = model.readiness() {
@@ -228,7 +228,7 @@ if let why = model.readiness() {
 ```
 
 The Apple mind is the same four steps with two names changed:
-`AppleReplyGenerator()` for the mind, and `AppleMind.readiness()` for
+`try AppleReplyGenerator()` for the mind, and `AppleMind.readiness()` for
 step 2. Everything below is commentary on that block.
 
 ### Why it exists, and what moved under the voice path
@@ -1693,8 +1693,8 @@ do {
 
 // 2 — the mind. Thermometer, policy and clock are the shipped defaults;
 //     an app that wants to refuse earlier injects its own policy here.
-let mind = MLXReplyGenerator(model: model)
-// let mind = MLXReplyGenerator(model: model, thermalPolicy: RefuseAtSerious())
+let mind = try MLXReplyGenerator(model: model)      // `try`: a default table no mind can show throws (4z, F-13 d)
+// let mind = try MLXReplyGenerator(model: model, thermalPolicy: RefuseAtSerious())
 
 // 3 — a reply with a wall-clock budget BESIDE the token budget.
 do {
@@ -1713,7 +1713,7 @@ do {
 }
 ```
 
-The Apple mind is steps 2 and 3 with `AppleReplyGenerator()` in place of
+The Apple mind is steps 2 and 3 with `try AppleReplyGenerator()` in place of
 the MLX mind: it takes the same `thermal:`, `thermalPolicy:` and `clock:`
 at `init`, throws the same `.tooHot`, and ends the same
 `.finished(.deadline)`. It has no `admit(needing:)` and reads no memory
@@ -1976,7 +1976,7 @@ are injected — never through the coordinator (AC-265):
 struct RefuseAtSerious: GenerationThermalPolicy {
     func allowGeneration(thermal: ThermalState) -> Bool { thermal < .serious }
 }
-let mind = MLXReplyGenerator(model: model, thermalPolicy: RefuseAtSerious())
+let mind = try MLXReplyGenerator(model: model, thermalPolicy: RefuseAtSerious())
 ```
 
 The injected policy is the one asked, and its refusal names ITS state —
