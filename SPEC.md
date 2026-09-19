@@ -6745,3 +6745,46 @@ mixes a whole-spec delta with the parameters-only slope) · the demo
 exercises the tools door as F-2 rules it, on hardware, with
 one number through both minds · the tag note names every API break ·
 every review fix pushed before the PR is called ready · teach-back.
+
+## §198 — results, measured 2026-09-17…19 on `milestone/4z-tools`
+
+Every criterion, with what was RUN and what is owed. "Phone" means
+Ryad's gate: nothing here claims a phone number. The raw logs are in
+`docs/evidence/4z/` (its README names each).
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-269 both minds pass a number | MLX half **met** (live, the 0.6B: `calls: ["kg": 83.5] · received: [83.5]`); Apple half **owed** — the row is written and skips on this Mac (model not ready) | `MLXToolLiveTests`, `AppleToolLiveTests` |
+| AC-270 the Apple mind is shown the parameters | **met** — four kinds, one optional, the app's sentences; band shown only when `showsRange`; the no-parameter schema byte-identical (sorted keys) | `AppleToolTests+Schema` |
+| AC-271 the MLX mind is shown the parameters | **met** — properties, `required`, the band when shown; 4w's fixture unchanged | `MLXToolTests` |
+| AC-272 the plain path unchanged | (a) **met** — the whole prompt captured with the 0.6B before piece 2 and after, byte-identical (23 tokens, 138 bytes); (b) `emptyTableIsNil` green; (c) the phone's Tools-OFF number **owed** | `MLXPlainPromptTests`, `plain-prompt-{before,after}.txt` |
+| AC-273 missing / null / wrong kind never reach the body | **met**, every row incl. `84.5` for an integer and a nested value for a `.string` | `ToolContractTests` |
+| AC-274 an unknown extra | **met** — stripped before the body, counted (F-7 C) | `ToolContractTests` |
+| AC-275 tools per call | **met** on the scripted mind, the MLX run and the Apple session's tool list | `ToolsPerCallTests`, `MLXToolsPerCallTests`, `AppleToolTests+Schema` |
+| AC-276 one ending for a thrown tool | **met** without a model on both minds (the door's sentence; the Apple adapter never throws — F-4 B); the Apple LIVE ending **owed** (model not ready) | `AppleToolTests`, `ToolContractTests`, `AppleToolLiveTests` |
+| AC-277 a barge during a writing tool | **met** — commit one of the milestone, red (`writes == 1 → 0`), green after the shield (F-5 A) | `ToolSpikeTests+Write` |
+| AC-278 a tool plus a deadline | **met** on the MLX run under `ManualClock` — one write, `.finished(.deadline)` after the body, one terminal last; the opposite design convicted by a kept mutation. Built as `MLXToolDeadlineTests`, not the matrix's `ToolSpikeTests+Write` row — the MLX run is where the deadline machinery lives | `MLXToolDeadlineTests`, `red-…-AC-278-under-mutation-M1…log` |
+| AC-279 B the write and its confirmation | **met** at the door and on the Apple adapter: flagged and no yes → not run, told to ask; `confirmed: true` in the arguments changes nothing; the name on the call → runs once | `ToolPolicyTests`, `AppleToolTests` |
+| AC-280 B the invented number | **met** — the band checked at the door and shown on both schemas only when `showsRange`; §69 measured both switches | `ToolContractTests`, `MLXToolTests`, `AppleToolTests+Schema`, §69 |
+| AC-281 INSTRUMENTS §69 | **met, the Mac half** — reconciled with §67 in three sentences; the 4B and the 0.6B; the Apple mind NOT RUN; the phone **owed** | §69, three logs |
+| AC-282 the API breaks named | **met** — the tag note (D-112) lists every break versus 0.2.0 | the 0.3.0 tag note |
+| AC-283 nothing else moved | **met** — every pre-4z test green; the spike's bytes unchanged; no codename in the repo | the suite; `git grep` |
+| AC-284 CI green on the runner | **met** since the hammer fix landed on the branch (`26c868e`, `c26e6b6` green; earlier pushes red for D-111's reason) | the runner |
+| AC-285 20× with every failing log kept | **met** — 20 of 20 on the merged branch (`2d7a3c6`+), `855 tests in 119 suites` identical every run, no failing log; runs 1 and 9 took ~100 s (the neural voice's cold load), the rest ~10 s | `stability-2026-09-19.txt` |
+| AC-286 the demo, per turn | **built** — `set_timer(minutes:)` beside the session read, the switch on the CALL, the number printed per turn; the phone run **owed** | the demo; `** BUILD SUCCEEDED **` |
+| AC-287 teach-back | **owed** | — |
+| AC-288 the result capped | **met** — the cap, the marker, the count; the closing tag escaped at the MLX seam | `ToolContractTests`, `MLXToolTests` |
+| AC-289 a table no mind can show | **met** on both minds — the init throws typed, `openReply` throws `.engine` before the stream; the vendor's `duplicateProperty` as the second line | `MLXToolDeclarationTests`, `AppleToolTests+Schema`, `ToolContractTests+Declarations` |
+| AC-290 tables equal by declaration | **met** | `ToolContractTests` |
+
+**The 20× loop.** Run in CI's shape (no `MMK_MLX_MODEL`), the way the
+runner runs it. The live MLX suites were run beside the milestone's
+pieces with the model, one suite at a time — the way INSTRUMENTS §68
+measures them — because three live 0.6B loads in one process end each
+other's replies with a memory warning (the interference piece 2's logs
+name; a question for the ledger, not decided here).
+
+**Owed, in one place.** The phone: AC-269's Apple half, AC-276's live
+ending, AC-272 (c), AC-281's phone rows, AC-286's per-turn line. The
+teach-back (AC-287). The recorded hole of F-10 B-ii (a "yes" bound to a
+name), with B-iv as the delta.
