@@ -1,0 +1,33 @@
+# MultiModalKit (multimodal-coordinator)
+
+> An on-device voice assistant for iOS/macOS in three organs — ear (speech to text), mind (a language model), mouth (text to speech) — and a coordinator that runs the turn loop with barge-in. Swift 6, strict concurrency, zero runtime dependencies in the core module. Apache-2.0. Nothing leaves the device after the weights are on disk.
+
+## Read this first
+- docs/INTEGRATE.md — the quick starts (mind, weights, admission, tools, the voice loop), the ten rules, and the generated public API surface. Start here.
+- README.md — what this is, the concurrency model, the hardest problem, how to build and test.
+- llms.txt (this file) — the map.
+
+## The contract pages (one per milestone, fact-checked against the source)
+- ARCHITECTURE.md § "The mind's text contract (4v)" — reply(to:), GenerationOptions, StopReason, ReplyFailure, MindReadiness.
+- ARCHITECTURE.md § "Getting the weights (4x)" — expectedInstall(), download(reporting:), InstallState, WeightsFetching, the privacy manifests.
+- ARCHITECTURE.md § "Running it safely (4y)" — admit(needing:), heat at the door, memory pressure, the deadline, what is measured.
+- ARCHITECTURE.md § "The tool contract (4z)" — ReplyTool with typed parameters, the door (strip → check → band → flag → shield → cap → words), tools per call, the confirmation flag, what each mind shows the model.
+- ARCHITECTURE.md § "Where is …? — the geography table" — file for every seam.
+
+## The record (the repo is the memory)
+- SPEC.md — every milestone's scope, acceptance criteria (AC-nnn) and test matrix; §198 is 4z's results.
+- DECISIONS.md — every ruling (D-nnn) with the options it rejected; D-110 is the tool contract's thirteen forks.
+- INSTRUMENTS.md — every measurement with its methodology; §67 the tool spike, §68 memory under a cut, §69 the tool contract's cost and accuracy.
+- COMMANDS.md — the instruments and demos (`swift run bakeoff …`), and how to run the tests.
+- docs/HOSTS.md — the two hosts a download may contact, and what a request carries.
+- docs/evidence/<milestone>/ — raw logs: red tests, mutation runs, the 20× loops.
+
+## Tags
+- 0.1.0 (e7993b4) the text contract · 0.2.0 (ee6788c) the install and the tool spike · 0.3.0 (228b7e6) admission, heat, and the tool contract. Pin an exact tag; `git show 0.3.0` lists every public break versus 0.2.0.
+
+## Rules for an agent working near this library
+- Requirements come as documents; code comes from this repository's own owner session. Do not push branches here from another project's session.
+- Design forks are the owner's to rule: present options with trade-offs and one recommendation; never decide one.
+- SPEC first, then tests (red before green, waits on events never on time), then code; 20× before a test phase is done; never rewrite history.
+- Both generator inits throw; GenerationOptions.tools nil ≠ .empty; a number is a number (one ToolValue case); isRequired and requiresConfirmation have no default; the confirmation "yes" binds to a tool NAME.
+- Measured claims live in INSTRUMENTS.md; a Mac number is the shape, the phone decides.
