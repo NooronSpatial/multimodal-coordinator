@@ -5049,3 +5049,54 @@ CONTROL, `DecodeStepRecordTests` margin) wait with wall-clock polls, the
 shape the house banned after two CI freezes; they predate 4y. Converting
 them to events raced against a sleeping cap is its own line item — and,
 honestly, would not have saved them under total starvation.
+
+**Amendment, 2026-09-19 — pieces 2b, 3 and the demo as built.** The
+small choices each piece took the conservative way, recorded so a
+reader finds them here and not in a diff; each is one word from being
+flipped. *Piece 2b (the MLX door, AC-289):* the declaration check is
+the core's, `ToolTable.checkDeclarations() throws(ToolDeclarationError)`
+— mind-agnostic, additive, `invoke` untouched; the MLX generator's init
+is `throws(ToolDeclarationError)` (typed throws, the precedent of
+`AIRuntime.init` and `Config.validate()`); `openReply` refuses a
+per-call table with `ReplyFailure.engine(words)` — the one case that
+names no untrue device or model condition, D-103's catch-all — BEFORE
+the heat and the verdict, pinned by one row; two TOOLS of one name are
+not refused (the lookup rule defines them). *Piece 3 (the Apple mind):*
+the adapter's `Arguments` is the vendor's `GeneratedContent`; the schema
+is built once per adapter and per CALL (the adapter carries the call's
+confirmed names, because the vendor runs the tool where no call context
+of ours can reach); an integer band renders as the whole numbers inside
+the declared band; a tool with no parameters keeps the spike's
+`@Generable` schema; the adapter never throws for a tool of ours — the
+door's `wordsForModel` goes back in every case (F-4 B), the one throw
+left being the cancellation belt after a barge; the Apple init and
+`openReply` check declarations exactly as the MLX ones do. *The demo
+(F-6 A, AC-286):* `set_timer(minutes:)` is a printed line, its band
+1…180 checked and NOT shown; the Tools switch rides on the CALL through
+the demo's `ThoughtWitness` (both minds are built with `.empty`), read
+per turn from the stored flag. *§69:* a call on a no-number sentence
+that carries NO number counts as the honest optional-parameter shape,
+not as INVENTED — the instrument's verdict was corrected and every log
+re-taken before it was kept.
+
+## D-112 — two tags: 0.3.0 the day 4z merges, 0.3.1 after the model downloads (Milestone 4z)
+
+**Date:** 2026-09-18 · **Decided by:** Ryad ("TWO tags, not one — 0.3.0
+the day 4z merges, so the diet app's slice 3b starts; 0.3.1 after the
+downloads milestone. One tag after both would hold the diet app for as
+long as the downloads take.")
+
+**Ruling.** The tool contract ships as **0.3.0** on the merge commit of
+`milestone/4z-tools`, with a tag note that names every public API break
+versus 0.2.0 (AC-282); the model-downloads milestone ships as **0.3.1**
+(or as the library numbers it) on its own merge. The diet app pins
+0.3.0 the same day and proves its loop end to end on it (M15 slices
+3a/3b), and anything that loop finds comes back as a requirement, fixed
+forward here.
+
+*Rejected:* one tag after both milestones — it holds the diet app for
+the whole downloads milestone for no gain, and an end-to-end run with
+nine real verbs is the best test the contract can get BEFORE more API is
+stacked on it. *Also recorded (Ryad, 2026-09-17):* no other session may
+touch this library again; requirements come as documents, code comes
+from here.
