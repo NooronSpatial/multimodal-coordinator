@@ -1,0 +1,3 @@
+started task 1 and exiting the process now
+  new process sees 1 task(s) in session 'probe3.bg.fixed': ["destination=/tmp/whatever"]
+  re-entry: delegate fired — status 200, file 8388608 bytes, expected 8388608

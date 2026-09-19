@@ -1,0 +1,1 @@
+*** Terminating app due to uncaught exception 'NSGenericException', reason: 'Completion handler blocks are not supported in background sessions. Use a delegate instead.'
