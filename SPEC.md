@@ -6790,9 +6790,9 @@ teach-back (AC-287). The recorded hole of F-10 B-ii (a "yes" bound to a
 name), with B-iv as the delta.
 
 
-# Milestone 5a — model downloads: progress on every engine, a transfer that survives the background, a delete that removes what was written (0.3.1) — DRAFT, not signed
+# Milestone 5a — model downloads: progress on every engine, a transfer that survives the background, a delete that removes what was written (0.3.1) — signed 2026-09-20 (D-114)
 
-*Draft for Ryad's sign-off, 2026-09-19. Nothing below is ruled until
+*Drafted 2026-09-19; signed 2026-09-20 — every fork ruled as recommended, D-114. It was written as: nothing below is ruled until
 D-114. The two forks the requirement names (F-1, F-2) and six more this
 draft found are in §204, each with one recommendation. Where a
 criterion depends on a fork it says "per F-n".*
