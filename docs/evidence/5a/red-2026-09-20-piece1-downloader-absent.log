@@ -1,0 +1,12 @@
+error: SwiftCompile normal arm64 /Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift failed with a nonzero exit code. Command line:     cd /Users/ryad/Developer
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift:189:21: [1;31merror: [1;39mcannot find type 'ModelDownloader' in scope[0;0m
+    [0;36m|[0;0m                     `- [1;31merror: [1;39mcannot find type 'ModelDownloader' in scope[0;0m
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift:223:42: [1;31merror: [1;39mcannot find type 'DownloadPlan' in scope[0;0m
+    [0;36m|[0;0m                                          `- [1;31merror: [1;39mcannot find type 'DownloadPlan' in scope[0;0m
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift:67:31: [1;31merror: [1;39mcannot find 'DownloadFailure' in scope[0;0m
+    [0;36m|[0;0m                               `- [1;31merror: [1;39mcannot find 'DownloadFailure' in scope[0;0m
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift:119:56: [1;31merror: [1;39mcannot find 'DownloadFailure' in scope[0;0m
+    [0;36m|[0;0m                                                        `- [1;31merror: [1;39mcannot find 'DownloadFailure' in scope[0;0m
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift:119:97: [1;31merror: [1;39m'_' can only appear in a pattern or on the left side of an assignment[0;0m
+    [0;36m|[0;0m                                                                                                 `- [1;31merror: [1;39m'_' can only appear in a pattern or on the left side of an assignment[0;0m
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Models/ModelDownloaderTests.swift:119:97: [1;31merror: [1;39m'_' can only appear in a pattern or on the left side of an assignment[0;0m
