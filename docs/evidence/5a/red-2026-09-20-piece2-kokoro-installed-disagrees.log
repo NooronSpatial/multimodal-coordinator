@@ -1,0 +1,19 @@
+swift test --filter "KokoroInstallTests|KokoroWeightsTests"   (first run of the rows, 2026-09-20)
+
+􀢄  Test "both files arrive under one fraction, never decreasing, 1.0 once; then it is installed" recorded an issue at KokoroInstallTests.swift:34:9: Expectation failed: weights.isInstalled()
+􀢄  Test "both files arrive under one fraction, never decreasing, 1.0 once; then it is installed" failed after 0.086 seconds with 1 issue.
+􁁛  Test "an installed Kokoro says 1.0 once and asks the server nothing" passed after 0.085 seconds.
+􀢄  Test "a truncated download is fetched again, alone" recorded an issue at KokoroInstallTests.swift:69:9: Expectation failed: weights.isInstalled()
+􀢄  Test "a truncated download is fetched again, alone" failed after 0.025 seconds with 1 issue.
+􀢄  Test "remove takes the downloads, the cast and the resume data, and leaves the app's folder" recorded an issue at KokoroInstallTests.swift:83:9: Expectation failed: weights.isInstalled()
+􀢄  Test "remove takes the downloads, the cast and the resume data, and leaves the app's folder" failed after 0.017 seconds with 1 issue.
+􀢄  Test "deleteModel retires the voice and removes the files; modelInstalled reads false" recorded an issue at KokoroInstallTests.swift:102:9: Expectation failed: await voice.modelInstalled()
+􀢄  Test "deleteModel retires the voice and removes the files; modelInstalled reads false" failed after 0.494 seconds with 1 issue.
+􁁛  Test "the download's size is known without the network: the two files' bytes" passed after 0.004 seconds.
+􀢄  Suite "AC-291/294/295 · Kokoro through the downloader" failed after 0.713 seconds with 4 issues.
+􀢄  Test run with 15 tests in 2 suites failed after 0.714 seconds with 4 issues.
+
+WHY: the downloader saw both files complete at the Source's declared sizes (the "asks nothing"
+row passed — no second request), while isInstalled()/damagedReport()/missingReport() still
+compared against the STATIC sizes (327,115,152 / 522,339). Two owners of one truth. Fixed by
+making the Source the only owner; green on the next run (15/15).

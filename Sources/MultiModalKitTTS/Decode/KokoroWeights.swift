@@ -48,16 +48,56 @@ public struct KokoroWeights: Sendable {
     public static let sourceBytes = 327_115_152
     public static let voiceBytes = 522_339
 
+    /// Where the two files come from and how big they are — the catalog
+    /// the downloader is handed (5a, D-114 F-3 = A). The library's is the
+    /// Hub mirror above; a test points it at a server of its own.
+    public struct Source: Sendable, Equatable {
+        public let modelURL: URL
+        public let voiceURL: URL
+        public let modelBytes: Int64
+        public let voiceBytes: Int64
+
+        public init(modelURL: URL, voiceURL: URL, modelBytes: Int64, voiceBytes: Int64) {
+            self.modelURL = modelURL
+            self.voiceURL = voiceURL
+            self.modelBytes = modelBytes
+            self.voiceBytes = voiceBytes
+        }
+
+        /// The mirror `mlx-audio` uses, at the sizes measured in 4q.
+        public static let hub = Source(modelURL: KokoroWeights.sourceURL, voiceURL: KokoroWeights.voiceURL,
+                                       modelBytes: Int64(KokoroWeights.sourceBytes),
+                                       voiceBytes: Int64(KokoroWeights.voiceBytes))
+    }
+
     public let directory: URL
     public let precision: Precision
+    let source: Source
+    /// The downloader the bytes go through — the library's shared
+    /// background session, or a test's own.
+    let downloader: ModelDownloader
 
     /// The app passes its own Application Support subdirectory. No default
     /// on purpose: a wrong default here writes a third of a gigabyte into
     /// someone else's folder.
     public init(directory: URL, precision: Precision = .float16) {
+        self.init(directory: directory, precision: precision, source: .hub, downloader: .shared)
+    }
+
+    /// The tests' door: a source of the test's own, on a downloader of the
+    /// test's own, so a 327 MB install is proved with two small files.
+    init(directory: URL, precision: Precision, source: Source, downloader: ModelDownloader) {
         self.directory = directory
         self.precision = precision
+        self.source = source
+        self.downloader = downloader
     }
+
+    /// What `ensure` will fetch, before it is asked — the two files'
+    /// bytes, known without the network (AC-294, F-5 = A: the library
+    /// chose these bytes, so it can pin them). The fp16 cast written
+    /// afterwards is disk, not download, and is not in this number.
+    public var expectedDownloadBytes: Int64 { source.modelBytes + source.voiceBytes }
 
     /// The ordinary place: `Application Support/Kokoro`.
     ///
@@ -83,9 +123,14 @@ public struct KokoroWeights: Sendable {
 
     /// True when this precision can speak with the network unplugged —
     /// `ModelBacked`'s meaning of installed, not "a file exists".
+    ///
+    /// The sizes are the `Source`'s, not the statics': one owner for the
+    /// byte truth, so the downloader's "complete" and this "installed"
+    /// cannot disagree — the first 5a row caught them disagreeing, with
+    /// two files complete at their declared sizes and this saying no.
     public func isInstalled() -> Bool {
-        exists(voiceFile, bytes: Self.voiceBytes)
-            && exists(sourceFile, bytes: Self.sourceBytes)
+        exists(voiceFile, bytes: Int(source.voiceBytes))
+            && exists(sourceFile, bytes: Int(source.modelBytes))
             && (precision == .float32 || FileManager.default.fileExists(atPath: modelFile.path(percentEncoded: false)))
     }
 
@@ -119,7 +164,7 @@ public struct KokoroWeights: Sendable {
     /// truncated file crashes instead of throwing. A caller that wants to
     /// warn before doing anything wants THIS, not the other.
     public func damagedReport() -> String? {
-        let lines = [(sourceFile, Self.sourceBytes), (voiceFile, Self.voiceBytes)]
+        let lines = [(sourceFile, Int(source.modelBytes)), (voiceFile, Int(source.voiceBytes))]
             .compactMap { url, expected -> String? in
                 guard let found = sizeOnDisk(url), found != expected else { return nil }
                 return "\(url.lastPathComponent): \(found) bytes, expected \(expected)"
@@ -139,7 +184,7 @@ public struct KokoroWeights: Sendable {
     public func missingReport() -> String? {
         guard !isInstalled() else { return nil }
         var lines: [String] = []
-        for (url, expected) in [(sourceFile, Self.sourceBytes), (voiceFile, Self.voiceBytes)] {
+        for (url, expected) in [(sourceFile, Int(source.modelBytes)), (voiceFile, Int(source.voiceBytes))] {
             switch sizeOnDisk(url) {
             case nil:
                 lines.append("\(url.lastPathComponent): absent")
@@ -165,18 +210,51 @@ public struct KokoroWeights: Sendable {
     /// Fetches what is missing and builds the cast copy. Idempotent.
     ///
     /// `progress` is called with a fraction while bytes arrive, so a
-    /// 327 MB wait on a phone is a bar and not a frozen screen.
+    /// 327 MB wait on a phone is a bar and not a frozen screen — one
+    /// fraction over BOTH files, by bytes, `1.0` once (AC-291).
+    ///
+    /// SINCE 5a THE BYTES GO THROUGH `ModelDownloader` (D-114 F-1 = A,
+    /// F-3 = A): the transfer runs on a background session, so it goes on
+    /// while the app is suspended or dead; a cancel keeps its resume data
+    /// beside the file and the next call resumes (F-4 = A); a second
+    /// call while one runs joins it (AC-296). Before 5a this was
+    /// `URLSession.shared`, foreground only, and a stopped download was
+    /// thrown away. A file that is present at the WRONG size — a
+    /// truncated download — is fetched again: the downloader's own
+    /// completeness check is the byte count, the same rule `isInstalled`
+    /// has always used.
+    ///
+    /// The cast runs AFTER the transfer reports `1.0`: a bar at 100 %
+    /// while fp16 is written is the honest order, because the cast is
+    /// disk work, not download. It is not reached if the process died
+    /// mid-transfer; the next `ensure` finds both files complete, asks
+    /// the network nothing, and builds it then.
     public func ensure(progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        if !exists(sourceFile, bytes: Self.sourceBytes) {
-            try await download(Self.sourceURL, to: sourceFile,
-                               bytes: Self.sourceBytes, progress: progress)
-        }
-        if !exists(voiceFile, bytes: Self.voiceBytes) {
-            try await download(Self.voiceURL, to: voiceFile,
-                               bytes: Self.voiceBytes, progress: progress)
-        }
+        try await downloader.transfer(plan, progress: progress)
         try buildCast()
+    }
+
+    /// The two files, as the downloader's plan.
+    var plan: DownloadPlan {
+        DownloadPlan(files: [
+            DownloadPlan.File(source: source.modelURL, destination: sourceFile, expectedBytes: source.modelBytes),
+            DownloadPlan.File(source: source.voiceURL, destination: voiceFile, expectedBytes: source.voiceBytes)
+        ])
+    }
+
+    /// Removes exactly what `ensure` writes (AC-295): the two downloads,
+    /// the cast copy and a half-written cast, and whatever the downloader
+    /// keeps for a resume — a transfer in flight is stopped first. The
+    /// directory itself is the app's and stays, as does anything else the
+    /// app put in it. `isInstalled()` reads `false` afterwards.
+    public func remove() async {
+        await downloader.discard(plan)
+        let files = FileManager.default
+        for url in [sourceFile, voiceFile, modelFile,
+                    directory.appending(path: "kokoro-\(precision.rawValue).partial.safetensors")] {
+            try? files.removeItem(at: url)
+        }
     }
 
     /// Casts every tensor and writes the file, through a temporary name so
@@ -194,57 +272,17 @@ public struct KokoroWeights: Sendable {
         // The cast copies are done with, and a model load starts next.
         MLX.Memory.clearCache()
     }
-
-    private func download(_ url: URL, to destination: URL, bytes: Int,
-                          progress: @escaping @Sendable (Double) -> Void) async throws {
-        let reporter = DownloadProgress(expected: bytes, report: progress)
-        let (temporary, _) = try await URLSession.shared.download(from: url, delegate: reporter)
-        let attributes = try? FileManager.default.attributesOfItem(atPath: temporary.path(percentEncoded: false))
-        let written = attributes?[.size] as? Int ?? 0
-        guard written == bytes else {
-            try? FileManager.default.removeItem(at: temporary)
-            throw KokoroWeightsFailure.incompleteDownload(
-                name: destination.lastPathComponent, got: written, expected: bytes)
-        }
-        try? FileManager.default.removeItem(at: destination)
-        try FileManager.default.moveItem(at: temporary, to: destination)
-    }
-
-    /// `@unchecked Sendable` with the house proof: both stored properties
-    /// are `let`, the closure is `@Sendable`, and nothing here mutates.
-    private final class DownloadProgress: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-        private let expected: Int
-        private let report: @Sendable (Double) -> Void
-
-        init(expected: Int, report: @escaping @Sendable (Double) -> Void) {
-            self.expected = expected
-            self.report = report
-        }
-
-        /// Required by the protocol and deliberately empty: the async call
-        /// returns its OWN temporary URL, and that is the one moved. Doing
-        /// anything here would be a second owner of the same bytes.
-        func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                        didFinishDownloadingTo location: URL) {}
-
-        func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                        didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                        totalBytesExpectedToWrite: Int64) {
-            let total = totalBytesExpectedToWrite > 0
-                ? Double(totalBytesExpectedToWrite) : Double(expected)
-            report(min(1, Double(totalBytesWritten) / total))
-        }
-    }
 }
 
+/// The decoder's own refusal. A download that arrived short used to be
+/// a case here (`incompleteDownload`); since 5a the downloader says it,
+/// as `DownloadFailure.shortFile`, with both numbers — the same sentence
+/// for every engine.
 public enum KokoroWeightsFailure: Error, CustomStringConvertible, Equatable {
-    case incompleteDownload(name: String, got: Int, expected: Int)
     case voiceFileEmpty(String)
 
     public var description: String {
         switch self {
-        case .incompleteDownload(let name, let got, let expected):
-            "\(name) arrived as \(got) bytes, expected \(expected) — not used"
         case .voiceFileEmpty(let name):
             "\(name) held no arrays — that file is not a voice"
         }
