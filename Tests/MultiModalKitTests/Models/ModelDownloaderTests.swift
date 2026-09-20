@@ -115,9 +115,16 @@ struct ModelDownloaderTests {
         try bench.serve("big.bin", bytes: size)
         bench.server.drop("big.bin", after: 262_144)
 
-        let outcome = await Result { try await bench.downloader.transfer(bench.plan(["big.bin": size])) { _ in } }
-        guard case .failure(let error) = outcome, case DownloadFailure.transferFailed(let file, _) = error else {
-            Issue.record("expected transferFailed, got \(outcome)")
+        // do/catch, not `Result { try await … }`: the async `Result` init is
+        // Swift 6.4's, and CI's toolchain is 6.3 — pushed red once, fixed forward.
+        var failure: DownloadFailure?
+        do {
+            try await bench.downloader.transfer(bench.plan(["big.bin": size])) { _ in }
+        } catch let error as DownloadFailure {
+            failure = error
+        }
+        guard case .transferFailed(let file, _)? = failure else {
+            Issue.record("expected transferFailed, got \(String(describing: failure))")
             return
         }
         #expect(file == "big.bin")
