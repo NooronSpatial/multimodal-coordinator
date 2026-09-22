@@ -298,3 +298,29 @@ final class FractionWatcher: Sendable {
         }
     }
 }
+
+/// AC-292's platform footnote (5a, piece 6): where the library's session
+/// really runs in the background, and where it cannot.
+///
+/// The simulator has no background transfer daemon — measured, not
+/// assumed: the demo's first run there failed every file at once with
+/// `NSURLErrorDomain Code=-1`, the same URL on a background session on a
+/// Mac answered `200`, and the same download in the simulator on a
+/// foreground session installed and deleted cleanly
+/// (`docs/evidence/5a/simulator-2026-09-22-background-session.md`). So
+/// the simulator gets a foreground session and loses only what that
+/// platform never had; every other platform keeps the background one.
+@Suite("AC-292 · the session is background everywhere it can be")
+struct ModelDownloadsConfigurationTests {
+    @Test("the library's session is a background session — except in the simulator, which has none")
+    func theSessionIsBackgroundWhereItCanBe() {
+        let configuration = ModelDownloads.backgroundConfiguration(identifier: "test.identifier")
+        #if targetEnvironment(simulator)
+        #expect(configuration.identifier == nil, "the simulator cannot run one, so it does not pretend to")
+        #else
+        #expect(configuration.identifier == "test.identifier")
+        #expect(configuration.sessionSendsLaunchEvents, "the system may relaunch the app to deliver events")
+        #expect(configuration.isDiscretionary == false, "a person asked for these bytes")
+        #endif
+    }
+}

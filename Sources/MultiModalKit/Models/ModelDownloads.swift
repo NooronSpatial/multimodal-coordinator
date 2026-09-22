@@ -51,10 +51,32 @@ public enum ModelDownloads {
 
     /// The session's configuration: background, not discretionary (the
     /// person asked for the bytes), launch events on, cellular as set.
+    ///
+    /// **EXCEPT IN THE SIMULATOR, and that is measured rather than
+    /// assumed.** The iOS Simulator has no background transfer daemon:
+    /// every task on a background session fails at once with
+    /// `NSURLErrorDomain Code=-1 "unknown error"`. The demo's Models
+    /// screen showed it on the first run — the ear's 149 MB died on its
+    /// first file — while the same URL on a background session on this
+    /// Mac returned `200` and 243 bytes, and the same download in the
+    /// simulator on a FOREGROUND session ran to 35 %, to `installed`,
+    /// and deleted cleanly (`docs/evidence/5a/simulator-*.md`).
+    ///
+    /// So the simulator gets a foreground session, and what it loses is
+    /// stated: a transfer there dies when the app is suspended, which is
+    /// the only thing that platform can do. A device — the platform the
+    /// milestone is FOR — keeps the background session and everything
+    /// this milestone promises. The alternative was a simulator on which
+    /// no model can be downloaded at all, which would make every
+    /// developer's first run of this library a failure.
     static func backgroundConfiguration(identifier: String = sessionIdentifier) -> URLSessionConfiguration {
+        #if targetEnvironment(simulator)
+        let configuration = URLSessionConfiguration.default
+        #else
         let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
         configuration.isDiscretionary = false
         configuration.sessionSendsLaunchEvents = true
+        #endif
         configuration.allowsCellularAccess = cellular.withLock { $0 }
         return configuration
     }

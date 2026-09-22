@@ -144,3 +144,31 @@ extension TranscribeModel {
         }
     }
 }
+
+// MARK: - the Models tab's rows (5a, AC-300)
+
+extension TranscribeModel {
+    /// Every engine this app can install, as `any ModelBacked` — the
+    /// app's OWN objects, so the Models screen reports on the same
+    /// install the pipeline uses.
+    ///
+    /// THE APPLE EAR IS HERE TOO, and its row is the honest one: the
+    /// system owns its bytes, so it shows no size, and its Delete
+    /// releases this app's reservation rather than removing a model
+    /// every other app on the phone also uses.
+    @MainActor
+    var modelRows: [ModelRow] {
+        var rows: [ModelRow] = [
+            ModelRow(name: "Whisper \(language.whisperModel)", role: "the ear",
+                     engine: whisperEngine),
+            ModelRow(name: "Apple Speech", role: "the other ear · the system's asset",
+                     engine: appleEngine),
+            ModelRow(name: LocalMind.repoID, role: "the mind", engine: localModel)
+        ]
+        if let backed = neuralVoice as? any ModelBacked {
+            rows.append(ModelRow(name: levers.voice == .kokoro ? "Kokoro" : "Qwen3 TTS",
+                                 role: "the mouth", engine: backed))
+        }
+        return rows
+    }
+}
