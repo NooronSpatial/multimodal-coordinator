@@ -341,8 +341,17 @@ public actor KokoroVoice: SpokenVoice {
         let dying = speaking
         speaking = nil
         await dying?.cancel()
+        // ONLY IF SOMETHING WAS LOADED. `clearCache()` is MLX's first call
+        // on a machine that never made one, and MLX's first call on a
+        // machine with no metallib is an ABORT, not an error (D-061,
+        // INSTRUMENTS §24). A voice that never loaded holds nothing in
+        // that cache, so retiring it — or deleting its weights (5a) —
+        // must not be the thing that wakes the GPU. CI's runner has no
+        // metallib, and the first `deleteModel` row killed the whole
+        // test process there; the fix belongs here, not on the row.
+        let wasLoaded = decoder != nil
         decoder = nil
-        MLX.Memory.clearCache()
+        if wasLoaded { MLX.Memory.clearCache() }
     }
 
     public func openUtterance() async throws -> any SynthesisRun {
