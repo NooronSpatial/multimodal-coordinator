@@ -177,57 +177,27 @@ extension LocalMindModel {
         repoID.split(separator: "/").last.map(String.init) ?? repoID
     }
 
-    /// The repository's files with their sizes in ONE request — the Hub's
-    /// tree endpoint, `GET <host>/api/models/<repo>/tree/main?recursive=true`,
-    /// which answers every file's `size` (the true size for a large file,
-    /// not its pointer's). Measured on 2026-09-19: the 4B's nine files in
-    /// 0.22 s (`docs/evidence/5a`, Fact 4), where the client's
-    /// `getFilenames` + `getFileMetadata` per file cost ten listings and
-    /// nine HEADs.
+    /// The repository's files with their sizes in ONE request, through
+    /// the core's `HubTree` — which is where this lives since the Whisper
+    /// ear needed the same listing (5a, piece 4). What stays here is the
+    /// mapping into the mind's own typed failures: a file with no size is
+    /// `InstallFailure.sizeUnknown`, which 4x's rows switch on.
     ///
-    /// ITS OWN SESSION, not `.shared`. A foreground one — this is a
-    /// question answered in a moment, not a transfer — but the library's,
-    /// ephemeral, for two reasons. The process-global `URLProtocol`
-    /// registry reaches `URLSession.shared` and nothing else, and the
-    /// network-silence proof (AC-252, `NetworkSilenceTests`) listens
-    /// there for requests a LOAD leaks; a listing is a request this
-    /// library makes on purpose, at a person's ask, and it must not be
-    /// mistaken for a leak by a suite running beside it — the full suite
-    /// went red exactly that way while this file was written. And an
-    /// ephemeral session shares no cookies and no cache with the app's
-    /// own traffic, so the answer is the server's every time.
-    static let listingSession = URLSession(configuration: .ephemeral)
-
-    static func treeSizes(host: URL, session: URLSession = listingSession) -> Sizing {
+    /// Measured on 2026-09-19: the 4B's nine files in 0.22 s, against the
+    /// vendor client's ten listings and nine HEADs (INSTRUMENTS §66).
+    static func treeSizes(host: URL, session: URLSession = HubTree.session) -> Sizing {
         { repoID, globs in
-            var components = URLComponents(url: host.appending(path: "api/models").appending(path: repoID)
-                                                .appending(path: "tree/main"),
-                                           resolvingAgainstBaseURL: false)
-            components?.queryItems = [URLQueryItem(name: "recursive", value: "true")]
-            guard let url = components?.url else { throw InstallFailure.fetchFailed("no URL for \(repoID)") }
-            let (data, response) = try await session.data(from: url)
-            if let status = (response as? HTTPURLResponse)?.statusCode, status != 200 {
-                throw InstallFailure.fetchFailed("listing \(repoID): the server answered \(status)")
-            }
-            let entries: [TreeEntry]
+            let entries: [HubTree.Entry]
             do {
-                entries = try JSONDecoder().decode([TreeEntry].self, from: data)
-            } catch {
-                throw InstallFailure.fetchFailed("listing \(repoID): \(String(describing: error))")
+                entries = try await HubTree.list(repo: repoID, host: host, session: session)
+            } catch let failure as DownloadFailure {
+                throw InstallFailure.fetchFailed(failure.description)
             }
-            return try entries.filter { $0.type == "file" }.compactMap { entry in
+            return try entries.compactMap { entry in
                 guard globs.contains(where: { fnmatch($0, entry.path, 0) == 0 }) else { return nil }
-                guard let size = entry.size else { throw InstallFailure.sizeUnknown(file: entry.path) }
+                guard let size = entry.bytes else { throw InstallFailure.sizeUnknown(file: entry.path) }
                 return InstallSize.FileSize(name: entry.path, bytes: size)
             }
         }
-    }
-
-    /// One row of the tree endpoint's answer — the three fields this
-    /// library reads, and nothing it does not.
-    private struct TreeEntry: Decodable {
-        let type: String
-        let path: String
-        let size: Int64?
     }
 }

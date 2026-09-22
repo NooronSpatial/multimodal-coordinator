@@ -65,11 +65,44 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
     /// the person picked.
     public nonisolated let language: String?
 
+    /// Where this engine's bytes come from, and what moves them (5a).
+    /// The library's Hub and shared background downloader by default; a
+    /// test hands in a loopback server and a downloader of its own.
+    ///
+    /// FULLY QUALIFIED, because WhisperKit ships an `ModelDownloader` of
+    /// its own (`ArgmaxCore`) and both are in scope here. The vendor's
+    /// is the one this milestone replaced; naming the module says which
+    /// is meant, in the file where the two meet.
+    private nonisolated let source: WhisperSource
+    private nonisolated let downloader: MultiModalKit.ModelDownloader
+
     public init(model: String = "base", language: String? = nil,
                 diagnostics: PipelineDiagnostics? = nil) {
+        self.init(model: model, language: language, diagnostics: diagnostics,
+                  source: .hub, downloader: .shared)
+    }
+
+    /// The tests' door (5a): two small files over a loopback server
+    /// prove what 142 MB would otherwise have to.
+    init(model: String, language: String?, diagnostics: PipelineDiagnostics?,
+         source: WhisperSource, downloader: MultiModalKit.ModelDownloader) {
         self.language = language
         self.model = model
         self.diagnostics = diagnostics
+        self.source = source
+        self.downloader = downloader
+    }
+
+    /// This engine's variant, its two folders — read by the live size
+    /// row, which asks the real repositories what they hold today.
+    nonisolated var modelName: String { model }
+    nonisolated var modelFolderURL: URL { localModelFolder }
+    nonisolated var tokenizerFolderURL: URL { localTokenizerFolder }
+
+    /// Every path this variant's install touches.
+    private nonisolated var catalog: WhisperCatalog {
+        WhisperCatalog(variant: model, source: source,
+                       modelFolder: localModelFolder, tokenizerFolder: localTokenizerFolder)
     }
 
     /// WhisperKit's default hub location for this model, on this device.
@@ -104,10 +137,102 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
             && files.fileExists(atPath: localTokenizerFolder.appending(path: "tokenizer_config.json").path)
     }
 
-    /// Downloads (Hugging Face, ~142 MB for `base`) and loads the pipeline.
-    /// Idempotent; the download half is skipped when the model is on disk.
+    /// Downloads (~142 MB for `base`) and loads the pipeline. Idempotent;
+    /// the download half is skipped when the model is on disk.
     public func ensureModel() async throws {
+        try await ensureModel(progress: { _ in })
+    }
+
+    /// The same work, with a byte fraction over BOTH repositories'
+    /// files — 5a's door, and the diet app's ask (AC-291).
+    ///
+    /// IT LOADS TOO, the rule `KokoroVoice` paid for: two doors into one
+    /// room must leave the room in the same state. `ensureModel()` has
+    /// always loaded the pipeline here, so this one does as well — the
+    /// fraction reaches `1.0` when the bytes are placed, and the load
+    /// follows it. `download(progress:)` is the same transfer WITHOUT
+    /// the load, the shape the mind already has.
+    public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+        try await download(progress: progress)
         _ = try await loadedPipeline()
+    }
+
+    /// The bytes, and nothing else: both repositories' files fetched and
+    /// put in place, reporting one fraction over all of them. Idempotent
+    /// — an installed variant says `1.0` once and asks the network
+    /// nothing (AC-291).
+    ///
+    /// SINCE 5a THE BYTES ARE THIS LIBRARY'S (D-114 F-3 = A): two
+    /// requests list the model and tokenizer repositories,
+    /// `ModelDownloader` moves the files into scratch folders on the
+    /// background session — so the transfer goes on while the app is
+    /// suspended or dead — and both scratches are moved into place only
+    /// when every file is complete. A stopped transfer keeps its scratch
+    /// and resume data, and the next call resumes (F-4 = A). Before 5a
+    /// the vendor fetched, in the foreground, with no number to show and
+    /// nothing to resume.
+    ///
+    /// THE TOKENIZER IS PART OF THE DOWNLOAD, not an afterthought: the
+    /// vendor's tokenizer load is local-FIRST but not local-ONLY, so a
+    /// model fetched without it would load by quietly reaching Hugging
+    /// Face. "Installed" has meant offline-capable here since the
+    /// Whisper audit, and this is what makes that true at the source.
+    public func download(progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
+        guard await !modelInstalled() else {
+            progress(1.0)
+            return
+        }
+        let catalog = catalog
+        let listing = try await catalog.list()
+        try listing.write(to: catalog.listingFile)
+        try await downloader.transfer(catalog.plan(from: listing), progress: progress)
+        try catalog.place()
+    }
+
+    /// What `ensureModel` will download, without the network (AC-294,
+    /// F-5 = A): the measured size of a variant this library names, or
+    /// the listing this device made, or `nil`. The library chose both
+    /// repositories, so the pinned numbers are honest here in a way the
+    /// mind's cannot be — and a variant nobody measured gets no guess.
+    public nonisolated func expectedDownloadBytes() -> Int64? {
+        WhisperSizes.measured[model] ?? WhisperListing.read(from: catalog.listingFile)?.totalBytes
+    }
+
+    /// Retires the loaded pipeline and removes exactly what this
+    /// variant's `ensureModel` wrote (AC-295): its model folder, its
+    /// tokenizer folder, both scratches, the resume data in them and the
+    /// listing — a transfer in flight is stopped first.
+    ///
+    /// ANOTHER VARIANT'S FOLDERS STAY, which is the whole care here:
+    /// `base` and `small` live side by side under one hub directory, and
+    /// the vendor's `huggingface/` tree holds other models still — the
+    /// diet app would not delete Whisper at all for exactly this reason.
+    /// Nothing above `openai_whisper-<variant>` is touched.
+    ///
+    /// - Throws: `DownloadFailure.couldNotPlace` naming what could not be
+    ///   removed, so a screen can say why `modelInstalled()` still reads
+    ///   true.
+    public func deleteModel() async throws {
+        let catalog = catalog
+        await held.retire()
+        isWarmed = false
+        if let listing = WhisperListing.read(from: catalog.listingFile) {
+            await downloader.discard(catalog.plan(from: listing))
+        }
+        let files = FileManager.default
+        var failures: [String] = []
+        for url in [catalog.modelFolder, catalog.tokenizerFolder,
+                    catalog.modelScratch, catalog.tokenizerScratch, catalog.listingFile]
+        where files.fileExists(atPath: url.path) {
+            do {
+                try files.removeItem(at: url)
+            } catch {
+                failures.append("\(url.lastPathComponent): \(String(describing: error))")
+            }
+        }
+        guard failures.isEmpty else {
+            throw DownloadFailure.couldNotPlace(file: model, failures.joined(separator: " · "))
+        }
     }
 
     private var isWarmed = false
@@ -230,6 +355,13 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
                 // fetched. Naming the base makes the model AND the
                 // tokenizer land in the two folders this type checks.
                 config.downloadBase = URL.documentsDirectory.appending(path: "huggingface")
+                // AND IT MAY NOT FETCH (5a). The bytes are this library's
+                // now — `ensureModel` puts them there — so the vendor is
+                // told to load and nothing else. A load that cannot find
+                // the model throws `modelNotFound` instead of quietly
+                // fetching 142 MB behind a person's back, which is
+                // D-078's doctrine made structural rather than implied.
+                config.download = false
             // Errors only. WhisperKit defaults to verbose info logging
             // ("Loading models...", "Decoding Temperature: ..."), gated once
             // at its init by verbose + logLevel. NOT verbose=false: that maps

@@ -71,6 +71,9 @@ public enum DownloadFailure: Error, Sendable, Equatable, CustomStringConvertible
     /// The bytes arrived and could not be put in place — a full disk, a
     /// directory that could not be made.
     case couldNotPlace(file: String, String)
+    /// The repository could not be listed, so no plan can be made
+    /// (`HubTree`). The words are the request's.
+    case listingFailed(repo: String, String)
 
     public var description: String {
         switch self {
@@ -80,6 +83,8 @@ public enum DownloadFailure: Error, Sendable, Equatable, CustomStringConvertible
             "\(file) arrived as \(got) bytes, expected \(expected) — not kept"
         case .couldNotPlace(let file, let words):
             "\(file) arrived but could not be put in place: \(words)"
+        case .listingFailed(let repo, let words):
+            "\(repo) could not be listed: \(words)"
         }
     }
 }
