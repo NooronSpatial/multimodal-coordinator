@@ -174,7 +174,14 @@ struct MLXInstallStateTests {
 
         let model = LocalMindModel(repoID: "nobody/Fake-Model", in: directory)
         #expect(model.weights == weights)
-        try await model.download(reporting: { _ in Issue.record("no download, no progress") })
+        let seen = Mutex<[InstallProgress]>([])
+        try await model.download(reporting: { progress in seen.withLock { $0.append(progress) } })
+        // 5a, AC-291: a true instrument says the bar is full, once — never
+        // a transfer's fractions for bytes that did not move. (4x asserted
+        // NO progress here; the requirement's "1.0 once, also when
+        // installed" is the honest reading for a screen.)
+        #expect(seen.withLock { $0 } == [InstallProgress.at(fraction: 1, bytesExpected: nil)],
+                "one 1.0, and no total invented for a tree that has no manifest and no listing")
         #expect(InstallManifest.read(in: weights) == nil)
         #expect(model.installState() == .installedUnverified)
     }

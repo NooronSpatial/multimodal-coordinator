@@ -70,10 +70,14 @@ struct MLXInstallSeamTests {
     /// allowed to return — so the cancel is delivered before the install
     /// is completed, every run.
     ///
-    /// F-2 = A is the second half of the row: the partial snapshot is
-    /// GONE from disk, not merely unblessed by a manifest.
-    @Test("a cancel after the second file leaves .absent and deletes the partial tree")
-    func aCancelDeletesThePartialTree() async throws {
+    /// The second half of the row FLIPPED in 5a (D-114 F-4 = A, reversing
+    /// D-106 F-2 = A): the partial the fetch handed back STAYS on disk —
+    /// for the next attempt to resume — and `installState()` still says
+    /// `.absent`, because a partial never lives in the weights directory.
+    /// D-106 deleted it because "resume" was a promise nobody here could
+    /// test; `MLXBackgroundInstallTests` tests it against a server that counts.
+    @Test("a cancel after the second file leaves .absent and KEEPS the partial tree for the next attempt")
+    func aCancelKeepsThePartialTree() async throws {
         let base = try InstallScratch.directory("cancel")
         defer { try? FileManager.default.removeItem(at: base) }
         let model = LocalMindModel(repoID: "nobody/Fake-Model", in: base)
@@ -100,14 +104,19 @@ struct MLXInstallSeamTests {
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(model.installState() == .absent, "never .installed, never .installedUnverified")
         #expect(FileManager.default.fileExists(atPath: model.weights.path) == false)
-        #expect(FileManager.default.fileExists(atPath: snapshot.path) == false,
-                "F-2 = A: the partial tree is deleted, so installState() cannot lie")
+        #expect(FileManager.default.fileExists(atPath: snapshot.path),
+                "F-4 = A: the partial tree is kept; installState() cannot lie about it — it is not the weights")
     }
 
     // MARK: AC-248 — the throw
 
-    /// A fetch that throws leaves the same nothing, and the error reaches
-    /// the caller TYPED. `.fetchFailed` carries the fetcher's own words
+    /// A fetch that throws leaves `.absent`, and the error reaches the
+    /// caller TYPED. The fake here plays the FOREGROUND fetcher, which
+    /// keeps D-106's rule — its partial is removed on a throw, because
+    /// its resume would be the vendor client's and is measured nowhere
+    /// (the note on `HubWeightsFetcher`); the background fetcher's throw
+    /// keeps its scratch, and `MLXBackgroundInstallTests` proves that one.
+    /// `.fetchFailed` carries the fetcher's own words
     /// verbatim, the shape D-103's F-3 = A ruled for `ReplyFailure`: the
     /// words are still there for a screen, and the case is there for a
     /// switch.
@@ -161,11 +170,12 @@ struct MLXInstallSeamTests {
         #expect(model.installState() == .absent)
         #expect(FileManager.default.fileExists(atPath: model.weights.path) == false)
         #expect(FileManager.default.fileExists(atPath: partial.path) == false,
-                "F-2 = A: the partial tree is gone, so the next attempt really does begin at zero")
+                "the foreground fetcher's rule (D-106 F-2 = A, kept for it): its partial is gone")
     }
 
-    /// F-2 = A FOR THE FETCHER THIS LIBRARY SHIPS, which is the one that
-    /// matters: every other row here drives a fake.
+    /// D-106 F-2 = A FOR THE FOREGROUND FETCHER — kept for it in 5a, and
+    /// since 5a also the body of its `discard(repoID:under:)`, which
+    /// `deleteModel()` calls. Every other row here drives a fake.
     ///
     /// The review that raised this had the arithmetic. `HubWeightsFetcher`
     /// hands the client `weights.deletingLastPathComponent()` as its
@@ -198,7 +208,7 @@ struct MLXInstallSeamTests {
         HubWeightsFetcher.discardPartialTree(repoID: repoID, under: base)
 
         #expect(FileManager.default.fileExists(atPath: partial.path) == false,
-                "F-2 = A: the client's partial tree goes, resume bookkeeping and all")
+                "the client's partial tree goes, resume bookkeeping and all")
         #expect(FileManager.default.fileExists(atPath: sibling.path),
                 "and another model's weights in the same base are never touched")
         #expect(FileManager.default.fileExists(atPath: base.path), "nor is the base itself")

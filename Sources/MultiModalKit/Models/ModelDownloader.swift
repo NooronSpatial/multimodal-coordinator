@@ -50,6 +50,10 @@ public actor ModelDownloader {
     private var transfers: [String: Transfer] = [:]
     /// Destination path → the key of the transfer it belongs to.
     private var owners: [String: String] = [:]
+    /// Tasks whose landing this actor has processed and whose completion
+    /// has not yet arrived — never adopted, never listened to again (the
+    /// note on `handle`).
+    private var landedTasks: Set<Int> = []
     /// The app's completion handler for a background wake-up (AC-297),
     /// waiting for the session to say its events are done.
     private var wakeUp: (@Sendable () -> Void)?
@@ -117,10 +121,14 @@ public actor ModelDownloader {
             guard !existing.cancelling else { return try await self.transfer(plan, progress: progress) }
             return try await wait(on: existing, key: key, progress: progress)
         }
+        // A destination discarded by a delete is a destination again.
+        relay.reinstate(transfer.files.map(\.file.destination.path))
         for index in transfer.files.indices where !transfer.files[index].done {
             let file = transfer.files[index].file
             let path = file.destination.path
-            if let running = inFlight.first(where: { $0.taskDescription == path && $0.state != .completed }) {
+            if let running = inFlight.first(where: {
+                $0.taskDescription == path && $0.state != .completed && !landedTasks.contains($0.taskIdentifier)
+            }) {
                 transfer.files[index].task = running
                 transfer.files[index].written = running.countOfBytesReceived
                 if running.countOfBytesExpectedToReceive > 0, transfer.files[index].expected == nil {
@@ -151,6 +159,16 @@ public actor ModelDownloader {
     /// themselves are the engine's to remove; it knows what it wrote.
     public func discard(_ plan: DownloadPlan) async {
         let key = plan.key
+        // TOLD BEFORE CANCELLED, and the order is the mechanism. A task
+        // whose bytes have all arrived is past cancelling: its landing is
+        // already on its way to the relay, on the session's own queue,
+        // and the relay would move the file into a scratch directory the
+        // caller is about to remove — recreating it with one small file
+        // inside. (A row deleting mid-transfer found the scratch back on
+        // disk with `config.json` in it.) So the relay is told first,
+        // and a landing for a discarded destination is left to die with
+        // its temporary file.
+        relay.discard(plan.files.map(\.destination.path))
         if let transfer = transfers.removeValue(forKey: key) {
             for file in transfer.files {
                 file.task?.cancel()
@@ -271,24 +289,39 @@ public actor ModelDownloader {
     /// no transfer to own it is a file the daemon finished for an
     /// earlier process: it is in place, and the next `transfer` finds it
     /// complete. Nothing to do.
+    ///
+    /// AND ONLY THE FILE'S OWN TASK IS HEARD. A landed task's completion
+    /// arrives AFTER its landing — after the waiters were answered — so
+    /// a caller that comes straight back (a file damaged and fetched
+    /// again; a delete and a fresh download) finds the old task still in
+    /// the session, not yet completed. It must be neither adopted nor
+    /// listened to: adopted, its completion would clear the file's task
+    /// with no landing ever to follow (a row hung for its full minute on
+    /// exactly that — `docs/evidence/5a`); listened to, its words would
+    /// move the fresh task's state. So every event names its task, the
+    /// actor keeps the identifiers of tasks whose landing it has already
+    /// processed, and a task that is not the file's current one is heard
+    /// by nobody.
     func handle(_ event: TransferRelay.Event) {
-        guard let path = event.destination else {
+        guard let (path, task) = event.speaker else {
             sessionFinishedEvents()
             return
         }
-        guard let found = locate(path) else { return }
+        if case .completed = event { landedTasks.remove(task) }
+        guard let found = locate(path), found.transfer.files[found.index].task?.taskIdentifier == task else { return }
         switch event {
-        case .wrote(_, let written, let expected):
+        case .wrote(_, _, let written, let expected):
             wrote(found, written: written, expected: expected)
-        case .landed(_, let bytes):
+        case .landed(_, _, let bytes):
+            landedTasks.insert(task)
             landed(found, bytes: bytes)
-        case .couldNotPlace(_, let words):
+        case .couldNotPlace(_, _, let words):
             fail(found.transfer, key: found.key, with: .couldNotPlace(file: found.file.name, words))
-        case .refused(_, let status):
+        case .refused(_, _, let status):
             found.transfer.files[found.index].task = nil
             fail(found.transfer, key: found.key,
                  with: .transferFailed(file: found.file.name, "the server answered \(status)"))
-        case .completed(_, let error, let resumeData):
+        case .completed(_, _, let error, let resumeData):
             completed(found, error: error, resumeData: resumeData)
         case .finishedEvents:
             break
@@ -333,7 +366,9 @@ public actor ModelDownloader {
         try? FileManager.default.removeItem(at: file.resumeDataURL)
         transfer.files[found.index].done = true
         transfer.files[found.index].written = bytes
-        transfer.files[found.index].task = nil
+        // The task stays named until its completion arrives, so that the
+        // completion is recognised as this file's — and not adopted by a
+        // transfer that comes straight back for the same destination.
         if transfer.files[found.index].expected == nil { transfer.files[found.index].expected = bytes }
         guard transfer.allComplete else {
             settleIfQuiet(transfer, key: found.key)
@@ -486,18 +521,24 @@ extension ModelDownloader {
 /// `didFinishDownloadingTo` returns.
 final class TransferRelay: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
     enum Event: Sendable {
-        case wrote(destination: String, written: Int64, expected: Int64)
-        case landed(destination: String, bytes: Int64)
-        case couldNotPlace(destination: String, words: String)
-        case refused(destination: String, status: Int)
-        case completed(destination: String, error: (any Error)?, resumeData: Data?)
+        case wrote(destination: String, task: Int, written: Int64, expected: Int64)
+        case landed(destination: String, task: Int, bytes: Int64)
+        case couldNotPlace(destination: String, task: Int, words: String)
+        case refused(destination: String, task: Int, status: Int)
+        case completed(destination: String, task: Int, error: (any Error)?, resumeData: Data?)
         case finishedEvents
 
-        /// The file the event is about — `nil` for the session's own word.
-        var destination: String? {
+        /// The file the event is about and the task that spoke — `nil`
+        /// for the session's own word. THE TASK IS CHECKED, not only the
+        /// file: a file can have had two tasks in one process — one that
+        /// landed and whose completion is still on its way, and a fresh
+        /// one for the same destination — and the words of the old one
+        /// must not move the new one's state (the note on `handle`).
+        var speaker: (destination: String, task: Int)? {
             switch self {
-            case .wrote(let path, _, _), .landed(let path, _), .couldNotPlace(let path, _),
-                 .refused(let path, _), .completed(let path, _, _): path
+            case .wrote(let path, let task, _, _), .landed(let path, let task, _),
+                 .couldNotPlace(let path, let task, _), .refused(let path, let task, _),
+                 .completed(let path, let task, _, _): (path, task)
             case .finishedEvents: nil
             }
         }
@@ -507,6 +548,17 @@ final class TransferRelay: NSObject, URLSessionDownloadDelegate, @unchecked Send
     /// The chain: each event's task awaits the previous one, so the
     /// actor hears the events in the order the session spoke them.
     private let chain = Mutex<Task<Void, Never>?>(nil)
+    /// Destinations a delete has discarded: a landing for one of these
+    /// is not moved into place (the note on `ModelDownloader.discard`).
+    private let discarded = Mutex<Set<String>>([])
+
+    func discard(_ destinations: [String]) {
+        discarded.withLock { $0.formUnion(destinations) }
+    }
+
+    func reinstate(_ destinations: [String]) {
+        discarded.withLock { $0.subtract(destinations) }
+    }
 
     private func emit(_ event: Event) {
         guard let owner else { return }
@@ -523,22 +575,27 @@ final class TransferRelay: NSObject, URLSessionDownloadDelegate, @unchecked Send
                     didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
                     totalBytesExpectedToWrite: Int64) {
         guard let path = downloadTask.taskDescription else { return }
-        emit(.wrote(destination: path, written: totalBytesWritten, expected: totalBytesExpectedToWrite))
+        emit(.wrote(destination: path, task: downloadTask.taskIdentifier,
+                    written: totalBytesWritten, expected: totalBytesExpectedToWrite))
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
         guard let path = downloadTask.taskDescription else { return }
-        emit(.wrote(destination: path, written: fileOffset, expected: expectedTotalBytes))
+        emit(.wrote(destination: path, task: downloadTask.taskIdentifier,
+                    written: fileOffset, expected: expectedTotalBytes))
     }
 
     func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
                     didFinishDownloadingTo location: URL) {
         guard let path = downloadTask.taskDescription else { return }
+        // A landing for a discarded destination dies here, with its
+        // temporary file — the scratch it would land in is being removed.
+        guard !discarded.withLock({ $0.contains(path) }) else { return }
         if let status = (downloadTask.response as? HTTPURLResponse)?.statusCode, !(200..<300).contains(status) {
             // An error page is not a model file. The temporary file is
             // left to die with this call.
-            emit(.refused(destination: path, status: status))
+            emit(.refused(destination: path, task: downloadTask.taskIdentifier, status: status))
             return
         }
         let destination = URL(fileURLWithPath: path)
@@ -549,16 +606,16 @@ final class TransferRelay: NSObject, URLSessionDownloadDelegate, @unchecked Send
             if files.fileExists(atPath: destination.path) { try files.removeItem(at: destination) }
             try files.moveItem(at: location, to: destination)
             let bytes = (try? files.attributesOfItem(atPath: destination.path)[.size] as? NSNumber)?.int64Value ?? 0
-            emit(.landed(destination: path, bytes: bytes))
+            emit(.landed(destination: path, task: downloadTask.taskIdentifier, bytes: bytes))
         } catch {
-            emit(.couldNotPlace(destination: path, words: String(describing: error)))
+            emit(.couldNotPlace(destination: path, task: downloadTask.taskIdentifier, words: String(describing: error)))
         }
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
         guard let path = task.taskDescription else { return }
         let resumeData = (error as NSError?)?.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
-        emit(.completed(destination: path, error: error, resumeData: resumeData))
+        emit(.completed(destination: path, task: task.taskIdentifier, error: error, resumeData: resumeData))
     }
 
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {

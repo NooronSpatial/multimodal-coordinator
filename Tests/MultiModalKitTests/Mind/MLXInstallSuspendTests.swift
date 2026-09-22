@@ -2,78 +2,83 @@ import Foundation
 import Testing
 @testable import MultiModalKitMLX
 
-/// AC-251 (SPEC §181/4, Aura's L6) and D-106's F-3 = A: the suspend truth
-/// is STATED, not engineered.
+/// AC-298 (SPEC §203) — the old truth updated: the mind's transfer runs
+/// on the library's BACKGROUND session, and the source says so.
 ///
-/// A background `URLSession` is what a 2.3 GB cellular download really
-/// needs, and it is a different downloader, a delegate and a re-entry
-/// path — a milestone of its own. So this library says plainly, in the
-/// contract page and in `download(reporting:)`'s doc comment, that a
-/// download dies when the app leaves the foreground, and the caller
-/// decides what to do about it.
+/// From 4x to 4z this suite guarded the opposite (AC-251, D-106's
+/// F-3 = A): it read the module's source and failed if a background
+/// session ever appeared under a doc comment that said "this download
+/// dies when the app leaves the foreground". D-114 reversed that ruling
+/// — F-1 = A, F-3 = A — and the reason is measured, not argued: the
+/// client's own background switch crashes the process
+/// (`docs/evidence/5a/probes/probe1.out.txt`), so the transfer became
+/// `ModelDownloader`'s. So the needles flip: the default fetcher must go
+/// THROUGH the downloader, the doc comment must say the transfer
+/// survives the background and what a stopped one keeps, and the Hub
+/// client's crashing switch must still appear nowhere.
 ///
 /// A STATEMENT CAN DRIFT AWAY FROM THE CODE, which is the only reason
-/// these rows exist. They read the module's OWN source files from the
-/// package directory and assert two things: that the doc still carries
-/// the sentence, and that no background session was quietly added
-/// underneath it. AC-251 asks for exactly this.
+/// these rows exist; they are cheap, and they catch the one regression a
+/// unit test cannot — somebody putting the foreground fetcher back as
+/// the default because it was simpler.
 ///
 /// The suite is skipped, with its reason on the trait, when the package
 /// sources are not where `#filePath` says they are — a binary run from
 /// somewhere else can honestly say nothing about source it cannot read.
-@Suite("AC-251 · the suspend truth, stated and not contradicted",
+@Suite("AC-298 · the transfer survives the background, and the source says so",
        .enabled(if: MLXModuleSource.isReadable,
                 "the MultiModalKitMLX sources are not readable from this run"))
 struct MLXInstallSuspendTests {
 
-    /// F-3 = A, enforced — with the needle AC-251 asks for AND the one
-    /// that can actually catch this module.
-    ///
-    /// AC-251 names `URLSessionConfiguration.background`, and that spelling
-    /// is kept because the criterion asks for it. On its own it is a guard
-    /// that cannot fire: this module never builds a `URLSession` at all.
-    /// The transfer belongs to the Hub client, and the switch there is a
-    /// PARAMETER with a safe default — `HubWeightsFetcher` gets the
-    /// foreground session by writing `HubApi(downloadBase: base)` and
-    /// naming nothing else. Turning it on is one argument, in this
-    /// module's own source, and the original needle would not have seen
-    /// it: the doc comment would have become a lie with the suite green.
-    ///
-    /// So the client's switch is the second needle. It is spelled here
-    /// and NOWHERE in `Sources/MultiModalKitMLX` — the doc comment says
-    /// "the client's background-session switch" in words for exactly that
-    /// reason, because this row reads that file too.
-    @Test("no background session is built or asked for anywhere in the MLX module")
-    func noBackgroundSessionInThisModule() throws {
+    /// F-3 = A, enforced at the one line that chooses: the default
+    /// fetcher `download(reporting:)` builds. `HubWeightsFetcher` may
+    /// stay in the module — it does, for the callers who had it — but it
+    /// may not be the default again.
+    @Test("the default fetcher is the background one, and it moves bytes through ModelDownloader")
+    func theDefaultFetcherIsTheBackgroundOne() throws {
         let sources = try MLXModuleSource.files()
         #expect(sources.count >= 5, "the scan must actually have read the module")
-        #expect(sources.keys.contains("LocalMindInstall.swift"),
-                "the file the claim is about must be among the ones scanned")
-        #expect(sources.keys.contains("WeightsFetching.swift"),
-                "and so must the file that builds the client")
+        let install = try #require(sources["LocalMindInstall.swift"])
+        #expect(install.contains("using: BackgroundWeightsFetcher())"),
+                "the default download goes through the background fetcher")
+        #expect(!install.contains("using: HubWeightsFetcher())"),
+                "and never through the foreground one — that is the regression this row exists for")
+        let fetcher = try #require(sources["BackgroundWeightsFetcher.swift"])
+        #expect(fetcher.contains("downloader.transfer("),
+                "the background fetcher hands its plan to ModelDownloader")
+        #expect(fetcher.contains("ModelDownloader"), "and names it")
+    }
+
+    /// The Hub client's switch is still the wrong door: it builds a
+    /// background session and then calls the async convenience on it,
+    /// which the system refuses with an exception (Fact 1). Turning it on
+    /// is one argument in this module's own source, and a crash on the
+    /// first download.
+    @Test("the hub client's crashing background switch is asked for nowhere in the MLX module")
+    func theClientsBackgroundSwitchIsNeverTurnedOn() throws {
+        let sources = try MLXModuleSource.files()
+        #expect(sources.keys.contains("WeightsFetching.swift"), "the file that builds the client must be scanned")
         for (name, text) in sources.sorted(by: { $0.key < $1.key }) {
-            // The words are built first because a `Comment` takes one
-            // literal, and these sentences are longer than a line.
-            let built = "\(name) builds a background session — F-3 = A says this library STATES "
-                + "the suspend truth instead, so the doc comment above it would now be a lie"
-            #expect(!text.contains("URLSessionConfiguration.background"), Comment(rawValue: built))
-            let asked = "\(name) turns the hub client's background-session flag on — the same lie, "
-                + "reached the way this module could really reach it: one argument, not a URLSession"
+            let asked = "\(name) turns the hub client's background-session flag on — "
+                + "on this OS that is NSGenericException on the first transfer, not a background download"
             #expect(!text.contains("useBackgroundSession"), Comment(rawValue: asked))
         }
     }
 
-    /// The other half: the sentence is actually there. A doc comment that
-    /// quietly disappeared would leave a caller with no warning at all,
-    /// and no test would notice — this one does.
-    @Test("the download's doc comment states what happens when the app leaves the foreground")
-    func theDocCommentCarriesTheSuspendTruth() throws {
+    /// The other half: the sentence is actually there, and it is the new
+    /// one. A doc comment that quietly kept the old truth would leave a
+    /// caller disabling its idle timer for a transfer that no longer
+    /// needs it, and telling a person to keep the app open for nothing.
+    @Test("the download's doc comment states that the transfer survives the background, and what a stopped one keeps")
+    func theDocCommentCarriesTheNewTruth() throws {
         let sources = try MLXModuleSource.files()
         let install = try #require(sources["LocalMindInstall.swift"])
-        #expect(install.contains("leaves the foreground"),
-                "AC-251: the suspend behaviour is stated in the doc comment")
-        #expect(install.contains("the partial tree is deleted"),
-                "and it says what a caller must do about it — F-2 = A means starting again")
+        #expect(install.contains("WHILE THE APP IS SUSPENDED"),
+                "AC-292: the transfer goes on while the app is suspended")
+        #expect(install.contains("resumes from there"),
+                "AC-293: what a stopped transfer keeps, and that the next call resumes")
+        #expect(!install.contains("This download\n    /// dies when the app leaves the foreground"),
+                "the 4x sentence is gone, not merely contradicted")
     }
 }
 

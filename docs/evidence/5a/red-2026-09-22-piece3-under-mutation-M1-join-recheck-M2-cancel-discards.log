@@ -1,0 +1,14 @@
+􀟈  Test run started.
+􀢄  Test "a cancel after the second file leaves .absent and KEEPS the partial tree for the next attempt" recorded an issue at MLXInstallSeamTests.swift:107:9: Expectation failed: FileManager.default.fileExists(atPath: snapshot.path)
+􀢄  Test "a cancel after the second file leaves .absent and KEEPS the partial tree for the next attempt" failed after 0.004 seconds with 1 issue.
+􀢄  Suite "AC-247/248/249/250 · a download that stops, and one that finishes" failed after 0.004 seconds with 1 issue.
+􁁛  Test "one request lists, one per file moves; one byte fraction, 1.0 once; then .installed with a manifest" passed after 0.061 seconds.
+􁁛  Test "an installed model reports one 1.0 and asks the server nothing" passed after 0.069 seconds.
+􁁛  Test "a cancel keeps the scratch and its resume data; .absent throughout; the next call resumes with a Range" passed after 0.045 seconds.
+􁁛  Test "expectedInstall makes one request and creates no weights; expectedDownloadBytes then answers offline" passed after 0.006 seconds.
+􁁛  Test "deleteModel removes the weights, the manifest, the listing and nothing beside them" passed after 0.025 seconds.
+􁁛  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" passed after 0.021 seconds.
+􀢄  Test "two concurrent downloads make one transfer, and both return installed" recorded an issue at MLXBackgroundInstallTests.swift:183:6: Caught error: the download arrived but could not be put in place: Error Domain=NSCocoaErrorDomain Code=4 "“Fake-Model.download” couldn’t be moved to “Documents” because either the former doesn’t exist, or the folder containing the latter doesn’t exist." UserInfo={NSSourceFilePathErrorKey=/var/folders/k4/g0l5qk6s0d544wbtn4tn6bdm0000gn/T/download-bench-10B1BBE6-657F-4F76-8FB0-BDEBC3046D43/Documents/Fake-Model.download, NSUserStringVariant=(
+􀢄  Test "two concurrent downloads make one transfer, and both return installed" failed after 0.037 seconds with 1 issue.
+􀢄  Suite "AC-291/293/294/295/296 · the mind through the downloader" failed after 0.267 seconds with 1 issue.
+􀢄  Test run with 9 tests in 2 suites failed after 0.267 seconds with 2 issues.

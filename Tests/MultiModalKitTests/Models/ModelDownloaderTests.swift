@@ -223,6 +223,15 @@ struct DownloadBench {
         try data.write(to: root.appending(path: "served/\(name)"))
     }
 
+    /// A served file with these exact bytes — a listing endpoint's JSON —
+    /// at a path that may be nested.
+    func serve(_ name: String, text: String) throws {
+        let file = root.appending(path: "served/\(name)")
+        try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true)
+        try Data(text.utf8).write(to: file)
+    }
+
     /// A destination already complete — as an installed model's file is.
     func place(_ name: String, bytes: Int) throws {
         let destination = root.appending(path: "landed/\(name)")
@@ -248,35 +257,42 @@ struct DownloadBench {
     }
 }
 
-/// Records fractions and says when the first one arrived — the event a
-/// test gates on instead of a delay.
+/// Records fractions and says when one arrived — the event a test gates
+/// on instead of a delay.
 final class FractionWatcher: Sendable {
     private struct State {
         var fractions: [Double] = []
-        var waiting: [CheckedContinuation<Void, Never>] = []
+        var waiting: [(atLeast: Double, continuation: CheckedContinuation<Void, Never>)] = []
     }
     private let state = Mutex(State())
 
     var fractions: [Double] { state.withLock { $0.fractions } }
 
     @Sendable func record(_ fraction: Double) {
-        let waiting = state.withLock { state -> [CheckedContinuation<Void, Never>] in
+        let woken = state.withLock { state -> [CheckedContinuation<Void, Never>] in
             state.fractions.append(fraction)
-            let waiting = state.waiting
-            state.waiting.removeAll()
-            return waiting
+            let best = state.fractions.max() ?? 0
+            let woken = state.waiting.filter { $0.atLeast <= best }.map(\.continuation)
+            state.waiting.removeAll { $0.atLeast <= best }
+            return woken
         }
-        for continuation in waiting { continuation.resume() }
+        for continuation in woken { continuation.resume() }
     }
 
-    func firstFraction() async {
+    /// Any fraction at all.
+    func firstFraction() async { await fraction(atLeast: 0) }
+
+    /// A fraction this large or larger — how a test knows the LARGE file
+    /// of a plan has bytes on disk, and not only the small ones beside
+    /// it: a cancel before the large file's first write produces no
+    /// resume data, and a row that cancelled on the small files' fraction
+    /// went red under load for exactly that (`docs/evidence/5a`).
+    func fraction(atLeast threshold: Double) async {
         await withCheckedContinuation { continuation in
             let arrived = state.withLock { state -> Bool in
-                if state.fractions.isEmpty {
-                    state.waiting.append(continuation)
-                    return false
-                }
-                return true
+                if (state.fractions.max() ?? -1) >= threshold { return true }
+                state.waiting.append((threshold, continuation))
+                return false
             }
             if arrived { continuation.resume() }
         }

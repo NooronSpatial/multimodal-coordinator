@@ -153,7 +153,9 @@ final class LoopbackFileServer: @unchecked Sendable {
     private func serve(_ client: Int32) {
         defer { close(client) }
         guard let request = readRequest(client) else { return }
-        let path = String(request.target.drop(while: { $0 == "/" }))
+        // The query is not part of the file: `tree/main?recursive=true`
+        // serves `tree/main`, the way a listing endpoint is asked.
+        let path = String(request.target.prefix { $0 != "?" }.drop(while: { $0 == "/" }))
         let file = directory.appending(path: path)
         guard let size = (try? FileManager.default.attributesOfItem(atPath: file.path)[.size] as? Int),
               let handle = try? FileHandle(forReadingFrom: file) else {
