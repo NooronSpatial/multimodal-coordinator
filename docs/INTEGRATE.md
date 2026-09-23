@@ -34,6 +34,7 @@ the two hosts a download may contact).
 | `0.1.0` | `e7993b4` | the mind's TEXT contract: `reply(to:)`, `GenerationOptions`, typed `StopReason` and `ReplyFailure`, `MindReadiness.verdict` |
 | `0.2.0` | `ee6788c` | the install (`expectedInstall()`, `download(reporting:)`, `InstallState`, `WeightsFetching`, six privacy manifests, `docs/HOSTS.md`) and the tool spike (`ReplyTool`, `ToolTable` at construction) |
 | `0.3.0` | `228b7e6` | admission and heat (`admit(needing:)`, `.tooHot`, memory pressure, `deadline`) and the tool CONTRACT (typed parameters, one door, tools per call, the confirmation flag, the band). **The tag note lists every public break versus 0.2.0** — `git show 0.3.0`. |
+| `0.3.1` | *this milestone* | model downloads: `ensureModel(progress:)`, `expectedDownloadBytes()` and `deleteModel()` on `ModelBacked` (no default implementations — every engine writes all five), one background `ModelDownloader` for every engine's bytes, `ModelDownloads.handleEvents` for the system's wake-up, resume kept across a stop, `HubTree` in the core. **The tag note lists every public break versus 0.3.0.** |
 
 Pin an exact tag. A `from:` range would let a `throws` land on an init
 you did not write `try` for.
@@ -79,28 +80,75 @@ AppleReplyGenerator()` for the mind, `AppleMind.readiness()` for step 2.
 stream of `.token` updates and one terminal (`.finished(StopReason)` or
 `.failed(ReplyFailure)`).
 
-## 2. Getting the weights (4x — "Getting the weights")
+## 2. Getting the weights (4x, 5a — "Getting the weights")
+
+Since `0.3.1` every model-backed engine answers the same five questions,
+so one screen serves all of them:
+
+```swift
+import MultiModalKit
+
+// Any engine — the ear, the mind, either mouth. This is the whole
+// vocabulary a Models screen needs.
+func row(for engine: any ModelBacked) async {
+    let here = await engine.modelInstalled()          // free: no network, ever
+    let size = engine.expectedDownloadBytes()          // bytes, or nil where nobody measured
+    try? await engine.ensureModel { fraction in        // 0…1, never decreasing, 1.0 once, last
+        print(fraction)
+    }
+    try? await engine.deleteModel()                    // exactly what ensureModel wrote
+    _ = (here, size)
+}
+```
+
+**The transfer runs on a background `URLSession`.** It continues while
+the app is suspended or dead, and a stopped one KEEPS what it can
+resume, so the next call sends a range request rather than paying
+again. Two things an app must do for that to work:
+
+```swift
+// 1 — one line in the app delegate, so the system can hand the app its
+//     finished transfers after relaunching it in the background.
+func application(_ application: UIApplication,
+                 handleEventsForBackgroundURLSession identifier: String,
+                 completionHandler: @escaping () -> Void) {
+    if !ModelDownloads.handleEvents(forBackgroundURLSession: identifier,
+                                    completionHandler: completionHandler) {
+        completionHandler()   // not ours — another session of yours
+    }
+}
+
+// 2 — optional: ask before spending a person's cellular data.
+ModelDownloads.allowCellular(false)   // BEFORE the first transfer
+```
+
+No "keep the app open" sentence is needed any more. In the **iOS
+Simulator** the library falls back to a foreground session, because the
+simulator has no background transfer daemon — a transfer there dies with
+the app, which is the only thing that platform can do.
+
+The mind keeps two extra doors, because its repository is the APP's
+choice rather than the library's:
 
 ```swift
 import MultiModalKitMLX
 
-// 1 — a model that KNOWS where its weights come from. The other
-//     initializer, LocalMindModel(weights:), never downloads anything.
 let model = LocalMindModel(repoID: "mlx-community/Qwen3-4B-4bit")
 print(model.weights)   // THE folder, never changes
 
-// 2 — the price, BEFORE a byte of the model moves. This reaches the
-//     network (~3 s of listings). Ask it once, and keep the answer.
+// The EXACT price, before a byte of the model moves: ONE request, and
+// the answer is kept beside the weights so expectedDownloadBytes() can
+// give it again offline.
 let size = try await model.expectedInstall()
 print(size.downloadBytes, size.onDiskBytes)
 
-// 3 — the download. Cancel the surrounding task to stop it.
+// The bytes WITHOUT the load — ensureModel(progress:) is fetch-then-load.
 try await model.download(reporting: { progress in
     print(progress.fraction)                     // 0…1, always a number
-    print(progress.bytesExpected ?? -1)          // nil on a FIRST install
+    print(progress.bytesExpected ?? -1)          // nil until a listing exists
 })
 
-// 4 — what is on disk now. No await: it is nonisolated, and cheap.
+// What is on disk now. No await: it is nonisolated, and cheap.
 switch model.installState() {
 case .installed, .installedUnverified: print("ready")
 case .incomplete(let files): print("repair", files)
@@ -112,9 +160,13 @@ case .absent: print("offer the download")
 try await model.download(reporting: { _ in }, using: MyFakeFetcher())
 ```
 
-A download runs in the foreground and dies when the app is suspended
-(the next milestone, 0.3.1, is about that). A cancelled or failed
-download never reports "installed".
+`ensureModel()` on the mind LOADS and never fetches: a launch-time call
+must not silently begin a 2.2 GB download. `ensureModel(progress:)` is
+the door a person's tap stands behind.
+
+An engine that keeps its files under the app's `Documents` — the ear and
+the neural mouth — takes an `installRoot:` at init, for an app whose
+models belong in a shared App Group container.
 
 ## 3. Running it safely — admission, heat, the deadline (4y — "Running it safely")
 
@@ -286,7 +338,7 @@ default closure `= { … }` folds at its brace). The words are the
 source's; the doc comments beside them say why.
 
 ```
-commit   228b7e6
+commit   eddc7f5
 
 ## MultiModalKit
   Audio/AudioEvent.swift: public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible
@@ -677,7 +729,34 @@ commit   228b7e6
   Diagnostics/ThermalPolicy.swift: public struct DefaultGenerationThermalPolicy: GenerationThermalPolicy
   Diagnostics/ThermalPolicy.swift: public init()
   Diagnostics/ThermalPolicy.swift: public func allowGeneration(thermal: ThermalState) -> Bool
+  Models/DownloadPlan.swift: public struct DownloadPlan: Sendable, Equatable
+  Models/DownloadPlan.swift: public struct File: Sendable, Equatable
+  Models/DownloadPlan.swift: public let source: URL
+  Models/DownloadPlan.swift: public let destination: URL
+  Models/DownloadPlan.swift: public let expectedBytes: Int64?
+  Models/DownloadPlan.swift: public init(source: URL, destination: URL, expectedBytes: Int64?)
+  Models/DownloadPlan.swift: public let files: [File]
+  Models/DownloadPlan.swift: public init(files: [File])
+  Models/DownloadPlan.swift: public enum DownloadFailure: Error, Sendable, Equatable, CustomStringConvertible
+  Models/DownloadPlan.swift: public var description: String
+  Models/HubTree.swift: public enum HubTree
+  Models/HubTree.swift: public struct Entry: Sendable, Equatable
+  Models/HubTree.swift: public let path: String
+  Models/HubTree.swift: public let bytes: Int64?
+  Models/HubTree.swift: public init(path: String, bytes: Int64?)
+  Models/HubTree.swift: public static let session = URLSession(configuration: .ephemeral)
+  Models/HubTree.swift: public static func list(repo: String, path: String = "", host: URL, session: URLSession = HubTree.session) async throws -> [Entry]
   Models/ModelBacked.swift: public protocol ModelBacked: Sendable
+  Models/ModelDownloader.swift: public actor ModelDownloader
+  Models/ModelDownloader.swift: public static let shared = ModelDownloader(configuration: ModelDownloads.backgroundConfiguration())
+  Models/ModelDownloader.swift: public init(sessionIdentifier: String)
+  Models/ModelDownloader.swift: public func transfer(_ plan: DownloadPlan, progress: @escaping @Sendable (Double) -> Void) async throws
+  Models/ModelDownloader.swift: public func discard(_ plan: DownloadPlan) async
+  Models/ModelDownloader.swift: public func handleEvents(completion: @escaping @Sendable () -> Void)
+  Models/ModelDownloads.swift: public enum ModelDownloads
+  Models/ModelDownloads.swift: public static let sessionIdentifier: String =
+  Models/ModelDownloads.swift: public static func allowCellular(_ allowed: Bool)
+  Models/ModelDownloads.swift: public static func handleEvents(forBackgroundURLSession identifier: String, completionHandler: @escaping @Sendable () -> Void) -> Bool
   Runtime/AIRuntime.swift: public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration
   Runtime/AIRuntime.swift: public struct Configuration: Sendable
   Runtime/AIRuntime.swift: public var consumer: AudioRingConsumer
@@ -712,6 +791,9 @@ commit   228b7e6
   Transcription/AppleSpeechEngine.swift: public init(locale: Locale = Locale(identifier: "en_US"), diagnostics: PipelineDiagnostics? = nil)
   Transcription/AppleSpeechEngine.swift: public func modelInstalled() async -> Bool
   Transcription/AppleSpeechEngine.swift: public func ensureModel() async throws
+  Transcription/AppleSpeechEngine.swift: public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws
+  Transcription/AppleSpeechEngine.swift: public nonisolated func expectedDownloadBytes() -> Int64?
+  Transcription/AppleSpeechEngine.swift: public func deleteModel() async throws
   Transcription/AppleSpeechEngine.swift: public func openRun(format: AudioStreamFormat) async throws -> any TranscriptionRun
   Transcription/TranscriptionEngine.swift: public struct AudioStreamFormat: Sendable, Equatable
   Transcription/TranscriptionEngine.swift: public var sampleRate: Double
@@ -740,6 +822,11 @@ commit   228b7e6
   Transcription/TranscriptionSession.swift: public func stop() async
 
 ## MultiModalKitMLX
+  BackgroundWeightsFetcher.swift: public struct BackgroundWeightsFetcher: WeightsFetching
+  BackgroundWeightsFetcher.swift: public init(host: URL = LocalMindModel.hubHost)
+  BackgroundWeightsFetcher.swift: public func fetch(repoID: String, into base: URL, reporting progress: @escaping @Sendable (Double) -> Void) async throws -> URL
+  BackgroundWeightsFetcher.swift: public func discard(repoID: String, under base: URL) async
+  BackgroundWeightsFetcher.swift: public static let hubHost = URL(string: "https://huggingface.co")!
   LocalMind+Admission.swift: public func admit(needing bytes: Int) async throws
   LocalMind.swift: public actor LocalMindModel: ModelBacked
   LocalMind.swift: public nonisolated let weights: URL
@@ -766,6 +853,10 @@ commit   228b7e6
   LocalMindInstall.swift: public func download( reporting progress: @escaping @Sendable (InstallProgress) -> Void ) async throws
   LocalMindInstall.swift: public func download( reporting progress: @escaping @Sendable (InstallProgress) -> Void, using fetcher: some WeightsFetching ) async throws
   LocalMindInstall.swift: public func download( progress: @escaping @Sendable (Double) -> Void =
+  LocalMindInstall.swift: public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws
+  LocalMindInstall.swift: public nonisolated func expectedDownloadBytes() -> Int64?
+  LocalMindInstall.swift: public func deleteModel() async throws
+  LocalMindInstall.swift: public func deleteModel(using fetcher: some WeightsFetching) async throws
   LocalMindInstallSize.swift: public struct InstallSize: Sendable, Equatable
   LocalMindInstallSize.swift: public struct FileSize: Sendable, Equatable
   LocalMindInstallSize.swift: public let name: String
@@ -794,9 +885,11 @@ commit   228b7e6
   MindPressure.swift: public init()
   MindPressure.swift: public func subscribe( onChange: @escaping @Sendable (MemoryPressureMonitor.Level) -> Void ) -> MemoryPressureSubscription
   WeightsFetching.swift: public protocol WeightsFetching: Sendable
+  WeightsFetching.swift: public extension WeightsFetching
   WeightsFetching.swift: public struct HubWeightsFetcher: WeightsFetching
   WeightsFetching.swift: public init()
   WeightsFetching.swift: public func fetch(repoID: String, into base: URL, reporting progress: @escaping @Sendable (Double) -> Void) async throws -> URL
+  WeightsFetching.swift: public func discard(repoID: String, under base: URL) async
   WeightsFetching.swift: public enum InstallFailure: Error, Sendable, Equatable, CustomStringConvertible
   WeightsFetching.swift: public var description: String
 
@@ -832,14 +925,23 @@ commit   228b7e6
   Decode/KokoroWeights.swift: public static let voiceURL = URL( string: "https://huggingface.co/prince-canuma/Kokoro-82M/resolve/main/voices/af_heart.safetensors")!
   Decode/KokoroWeights.swift: public static let sourceBytes = 327_115_152
   Decode/KokoroWeights.swift: public static let voiceBytes = 522_339
+  Decode/KokoroWeights.swift: public struct Source: Sendable, Equatable
+  Decode/KokoroWeights.swift: public let modelURL: URL
+  Decode/KokoroWeights.swift: public let voiceURL: URL
+  Decode/KokoroWeights.swift: public let modelBytes: Int64
+  Decode/KokoroWeights.swift: public let voiceBytes: Int64
+  Decode/KokoroWeights.swift: public init(modelURL: URL, voiceURL: URL, modelBytes: Int64, voiceBytes: Int64)
+  Decode/KokoroWeights.swift: public static let hub = Source(modelURL: KokoroWeights.sourceURL, voiceURL: KokoroWeights.voiceURL, modelBytes: Int64(KokoroWeights.sourceBytes), voiceBytes: Int64(KokoroWeights.voiceBytes))
   Decode/KokoroWeights.swift: public let directory: URL
   Decode/KokoroWeights.swift: public let precision: Precision
   Decode/KokoroWeights.swift: public init(directory: URL, precision: Precision = .float16)
+  Decode/KokoroWeights.swift: public var expectedDownloadBytes: Int64
   Decode/KokoroWeights.swift: public static func inApplicationSupport(precision: Precision = .float16) -> KokoroWeights
   Decode/KokoroWeights.swift: public func isInstalled() -> Bool
   Decode/KokoroWeights.swift: public func damagedReport() -> String?
   Decode/KokoroWeights.swift: public func missingReport() -> String?
   Decode/KokoroWeights.swift: public func ensure(progress: @escaping @Sendable (Double) -> Void =
+  Decode/KokoroWeights.swift: public func remove() async
   Decode/KokoroWeights.swift: public enum KokoroWeightsFailure: Error, CustomStringConvertible, Equatable
   Decode/KokoroWeights.swift: public var description: String
   Voice/KokoroVoice.swift: public struct KokoroColdStart: Sendable, Equatable
@@ -869,6 +971,8 @@ commit   228b7e6
   Voice/KokoroVoice.swift: public func ensureModel() async throws
   Voice/KokoroVoice.swift: public nonisolated var coldStart: KokoroColdStart
   Voice/KokoroVoice.swift: public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws
+  Voice/KokoroVoice.swift: public nonisolated func expectedDownloadBytes() -> Int64?
+  Voice/KokoroVoice.swift: public func deleteModel() async throws
   Voice/KokoroVoice.swift: public func render(on host: any PlaybackHost)
   Voice/KokoroVoice.swift: public func shutdown()
   Voice/KokoroVoice.swift: public func reportMargins(to handler: @escaping @Sendable (DecodeMargin) -> Void)
@@ -891,12 +995,16 @@ commit   228b7e6
   Voice/NeuralVoice.swift: public nonisolated let speechDecoderMode: Qwen3SpeechDecoderMode
   Voice/NeuralVoice.swift: public nonisolated let temperature: Float?
   Voice/NeuralVoice.swift: public nonisolated let seed: UInt64?
-  Voice/NeuralVoice.swift: public init(variant: TTSModelVariant = .qwen3TTS_0_6b, renderingOn host: (any PlaybackHost)? = nil, lead: Duration? = nil, multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused, speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized, temperature: Float? = nil, seed: UInt64? = nil, availableOnThisPlatform: Bool? = nil)
+  Voice/NeuralVoice.swift: public init(variant: TTSModelVariant = .qwen3TTS_0_6b, renderingOn host: (any PlaybackHost)? = nil, lead: Duration? = nil, multiCodeDecoderMode: Qwen3MultiCodeDecoderMode = .fused, speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized, temperature: Float? = nil, seed: UInt64? = nil, availableOnThisPlatform: Bool? = nil, installRoot: URL = URL.documentsDirectory)
   Voice/NeuralVoice.swift: public func reportMargins(to handler: @escaping @Sendable (DecodeMargin) -> Void)
   Voice/NeuralVoice.swift: public func shutdown()
   Voice/NeuralVoice.swift: public func render(on host: any PlaybackHost)
   Voice/NeuralVoice.swift: public func openUtterance() async throws -> any SynthesisRun
   Voice/NeuralVoice.swift: public func ensureModel() async throws
+  Voice/NeuralVoice.swift: public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws
+  Voice/NeuralVoice.swift: public func download(progress: @escaping @Sendable (Double) -> Void =
+  Voice/NeuralVoice.swift: public nonisolated func expectedDownloadBytes() -> Int64?
+  Voice/NeuralVoice.swift: public func deleteModel() async throws
   Voice/NeuralVoice.swift: public func retire() async
   Voice/NeuralVoiceErrors.swift: public struct NeuralVoiceUnavailableOnPlatform: Error, CustomStringConvertible
   Voice/NeuralVoiceErrors.swift: public let variant: TTSModelVariant
@@ -905,6 +1013,12 @@ commit   228b7e6
   Voice/NeuralVoiceErrors.swift: public struct NeuralVoiceRetired: Error, CustomStringConvertible
   Voice/NeuralVoiceErrors.swift: public init()
   Voice/NeuralVoiceErrors.swift: public var description: String
+  Voice/NeuralVoiceInstall.swift: public struct NeuralVoiceSource: Sendable, Equatable
+  Voice/NeuralVoiceInstall.swift: public let host: URL
+  Voice/NeuralVoiceInstall.swift: public let modelRepo: String
+  Voice/NeuralVoiceInstall.swift: public init(host: URL = NeuralVoiceSource.hubHost, modelRepo: String = "argmaxinc/ttskit-coreml")
+  Voice/NeuralVoiceInstall.swift: public static let hubHost = URL(string: "https://huggingface.co")!
+  Voice/NeuralVoiceInstall.swift: public static let hub = NeuralVoiceSource()
   Voice/SpokenVoice.swift: public protocol SpokenVoice: SpeechSynthesizing, ModelBacked
   Voice/VoiceLevers.swift: public struct VoiceLevers: Sendable, Equatable
   Voice/VoiceLevers.swift: public enum Voice: String, Sendable, CaseIterable
@@ -931,11 +1045,22 @@ commit   228b7e6
   WhisperEngine.swift: public actor WhisperEngine: TranscriptionEngine, ModelBacked
   WhisperEngine.swift: public nonisolated let capabilities = EngineCapabilities( emitsPartials: false, wantsWholeUtterance: true, requiredSampleRate: 16_000 )
   WhisperEngine.swift: public nonisolated let language: String?
-  WhisperEngine.swift: public init(model: String = "base", language: String? = nil, diagnostics: PipelineDiagnostics? = nil)
+  WhisperEngine.swift: public init(model: String = "base", language: String? = nil, diagnostics: PipelineDiagnostics? = nil, installRoot: URL = URL.documentsDirectory)
   WhisperEngine.swift: public nonisolated func modelInstalled() async -> Bool
   WhisperEngine.swift: public func ensureModel() async throws
+  WhisperEngine.swift: public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws
+  WhisperEngine.swift: public func download(progress: @escaping @Sendable (Double) -> Void =
+  WhisperEngine.swift: public nonisolated func expectedDownloadBytes() -> Int64?
+  WhisperEngine.swift: public func deleteModel() async throws
   WhisperEngine.swift: public nonisolated func prewarm()
   WhisperEngine.swift: public func openRun(format: AudioStreamFormat) async throws -> any TranscriptionRun
+  WhisperInstall.swift: public struct WhisperSource: Sendable, Equatable
+  WhisperInstall.swift: public let host: URL
+  WhisperInstall.swift: public let modelRepo: String
+  WhisperInstall.swift: public let tokenizerOwner: String
+  WhisperInstall.swift: public init(host: URL = WhisperSource.hubHost, modelRepo: String = "argmaxinc/whisperkit-coreml", tokenizerOwner: String = "openai")
+  WhisperInstall.swift: public static let hubHost = URL(string: "https://huggingface.co")!
+  WhisperInstall.swift: public static let hub = WhisperSource()
 
 ## MultiModalKitTesting
   BakeoffHarness.swift: public struct BakeoffMeasurement: Sendable

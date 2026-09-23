@@ -55,8 +55,21 @@ as its worst sentence.
 |---|---|---|---|---|
 | `huggingface.co` | `MultiModalKitMLX` | the mind's weights, tokenizer and config (~2.3 GB for the shipped model) | `LocalMindModel.download(reporting:)` — and **only** on a model built with `init(repoID:in:)`. | **Yes.** `LocalMindModel(weights:)` has no repo id at all: it never downloads, and `download` throws `.weightsAbsent` rather than guessing where to look. |
 | `huggingface.co` | `MultiModalKitTTS` | Kokoro's weights (`kokoro-v1_0.safetensors`, 327,115,152 bytes) and one voice (`af_heart.safetensors`, 522,339 bytes) | `KokoroWeights.ensure(progress:)`. These are the only two URL literals in `Sources/`. | **Yes.** Place both files in the directory by hand; `isInstalled()` checks name *and* exact byte count, and `ensure()` then downloads nothing. |
-| `huggingface.co` | `MultiModalKitTTS` | the other mouth's CoreML components and its tokenizer (a separate repo, ~1.1 GB + 11 MB) | `NeuralVoice.ensureModel()`, through the vendored speech kit's own hub client. | **Yes.** Pre-install into the two folders `modelInstalled()` checks; asking never fetches (D-078), and since 4x **loading** never fetches either — see the second field note below. |
-| `huggingface.co` | `MultiModalKitWhisper` | the ear's CoreML model and its tokenizer (~142 MB for `base`) | `WhisperEngine.ensureModel()`, through the vendored recogniser's own hub client. | **Yes.** Pre-install. And see the field note below: once installed, the pipeline load is pinned to the local folder so it does **not** ping for a revision. |
+| `huggingface.co` | `MultiModalKitTTS` | the other mouth's CoreML components and its tokenizer (a separate repo, 1 091 017 762 B + 11 433 112 B for the 0.6B) | `NeuralVoice.ensureModel()` / `download(progress:)` — **since 5a through this library's own downloader**, not the vendor's client. | **Yes.** Pre-install into the two folders `modelInstalled()` checks; asking never fetches (D-078), and since 4x **loading** never fetches either — see the second field note below. |
+| `huggingface.co` | `MultiModalKitWhisper` | the ear's CoreML model and its tokenizer (146 719 453 B + 2 765 132 B for `base`) | `WhisperEngine.ensureModel()` / `download(progress:)` — **since 5a through this library's own downloader**; the vendor's client is told `download: false` and may only load. | **Yes.** Pre-install. And see the field note below: once installed, the pipeline load is pinned to the local folder so it does **not** ping for a revision. |
+
+**What 5a changed about this page, in one paragraph.** The host list is
+the same — still `huggingface.co`, still only while fetching weights —
+but WHO asks changed: four of the five engines now fetch through
+`ModelDownloader` on this library's own background session, so the
+requests are this library's rather than three vendors'. Two request
+shapes are new and both are ours: `GET /api/models/<repo>/tree/main/…`
+(one listing per repository, which is what replaced ten listings and
+nine HEADs) and `GET /<repo>/resolve/main/<file>` per file, with a
+`Range` header when a stopped transfer resumes. Nothing new is sent: no
+token unless a caller supplies one, no identifier of the person, no
+query beyond `recursive=true`. `ModelDownloads.allowCellular(false)`
+stops the transfers using cellular data at all.
 | Apple's OS asset service | `MultiModalKit` | the built-in speech recogniser's model for a locale | `AssetInventory.assetInstallationRequest` inside `AppleSpeechEngine`, when the locale's model is absent. | **Partly.** The download is the OS's, not this process's — no URL exists in this repo to point elsewhere. A caller that never constructs the Apple ear never reaches it. |
 
 ### The field note that is worth more than the table

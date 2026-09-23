@@ -7226,3 +7226,49 @@ kept · CI green on the runner on every push · lint zero · INSTRUMENTS
 §70 · the demo on hardware, the phone rows Ryad's · the 0.3.1 tag on the
 merge with every API change named · `INTEGRATE.md` regenerated ·
 teach-back.
+
+## §206 — results, measured 2026-09-20…22 on `milestone/5a-downloads`
+
+Every criterion, with what was RUN and what is owed. "Phone" means
+Ryad's gate: nothing here claims a phone number. The raw logs are in
+`docs/evidence/5a/` (its README names each).
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-291 a fraction on every engine | **met** on all five — bytes over the whole plan on the four that own their files, the system's `Progress` forwarded on the Apple ear; never decreasing, `1.0` once and last, and `1.0` once for an already-installed model | `ModelDownloaderTests`, `KokoroInstallTests`, `MLXBackgroundInstallTests`, `WhisperInstallTests`, `NeuralVoiceInstallTests`, `ModelBackedContractTests` |
+| AC-292 the transfer survives the process | **met** on this Mac — a helper process enqueues on a background session and EXITS mid-transfer; the second life adopts the daemon's task and finishes it, one request at the server. The **phone** rows (lock five minutes; kill and relaunch) are **owed** | `ModelDownloaderReentryTests`, `probes/probe3.out.txt` |
+| AC-293 resume, measured in bytes | **met** — a cancel keeps the scratch and its resume data; the next call sends one `Range`, gets `206`, and the wire pays 9.4 % over the file (a 2 MB file cut at 12.5 %). `installState()` reads `.absent` throughout | `ModelDownloaderTests`, `MLXBackgroundInstallTests`, `WhisperInstallTests`, `NeuralVoiceInstallTests`, §70 |
+| AC-294 a size without the network | **met** — Kokoro 327 637 491, Whisper base 149 484 585 / small 489 252 581, the neural voice 1 102 450 874 / 2 179 559 521, all measured and pinned; the mind's cached listing, `nil` before one; the Apple ear `nil` always. `expectedInstall()` is now ONE request (135 ms against §66's 3 388 ms) | `WhisperInstallTests`, `NeuralVoiceInstallTests`, `KokoroInstallTests`, `MLXBackgroundInstallTests`, the two live rows, §70 |
+| AC-295 a delete removes what was written | **met** on the four that own their files — the tree, staging, scratch, resume data and listing go; a sibling variant, another model in the same base and the app's own file stay; a transfer in flight is cancelled first; the resident model is retired. The Apple ear releases its RESERVATION and says plainly that system assets are not this library's to remove | every engine's suite; `AppleSpeechInstallTests` |
+| AC-296 a join | **met** — two callers, ONE request, 524 288 B for a 524 288 B file; both see the fractions, both return. F-8 = A's last-waiter-out proven separately | `ModelDownloaderTests`, `MLXBackgroundInstallTests`, §70 |
+| AC-297 the re-entry door | **met, the Mac half** — the file lands with nobody tapping, while a second life holds its completion handler. The handler being CALLED rides on `urlSessionDidFinishEvents`, which macOS never sends (measured: 40 s, never called) — a **phone** row | `ModelDownloaderReentryTests` |
+| AC-298 the old truths updated | **met** — `MLXInstallSuspendTests` flipped: it now fails if the default fetcher leaves the downloader, if the vendor's crashing background flag appears, or if the doc loses the new sentence. D-114 records the reversal of D-106 F-2 and F-3 | `MLXInstallSuspendTests`, D-114 |
+| AC-299 nothing else moved | **met** — 901 tests in 131 suites green (pre-5a suites included); `HubWeightsFetcher` still conforms and is still public; the demo builds and runs | the suite |
+| AC-300 the demo, on hardware | **built and run** — the Models tab shows four rows through `any ModelBacked` with a size, a percentage and a Delete; the app delegate's one line hands the wake-up over; the full cycle (size → 35 % → installed → deleted) driven by hand on an iPhone 17 simulator. The three **phone** rows are **owed** (Ryad's gate) | `models-screen-2026-09-22.png`, `simulator-2026-09-22-background-session.md` |
+| AC-301 INSTRUMENTS §70 | **met** — four engines fetched and deleted against the real Hub with times and MB/s; the listing 25× cheaper than 4x's path; resume overhead and the join counted by the loopback server | §70, two instrument logs |
+| AC-302 the record | 20× loop **met** (see below); CI green on every push after the two fix-forwards; lint zero; the tag note and `INTEGRATE.md` are **owed** until the PR | this section |
+
+### What piece 6 found that no test could
+
+Running the demo produced the milestone's one platform fact: the **iOS
+Simulator has no background transfer daemon**. Every task on a
+background session fails at once with `NSURLErrorDomain Code=-1`, while
+the same URL on a background session on a Mac answers `200` and the same
+download in the simulator on a foreground session installs and deletes
+cleanly. `ModelDownloads.backgroundConfiguration` now falls back to a
+foreground session under `targetEnvironment(simulator)` and states what
+that loses. **This is a platform accommodation, not a fork D-114 ruled**
+— it is Ryad's to overturn, and one `#if` to remove.
+
+### The three phone rows, named
+
+Nothing on a Mac or a simulator can take these, and they are the
+requirement's own first sentence:
+
+1. Start the mind's download, lock the phone five minutes, unlock — the
+   percentage has moved.
+2. Kill the app mid-transfer, relaunch, tap again — it continues, with a
+   range request rather than the whole file.
+3. The system relaunches the app in the background when the last file
+   lands, and `ModelDownloads.handleEvents` calls the app's completion
+   handler once.
