@@ -7543,7 +7543,7 @@ that outlives the screen. *Rejected: B, C.*
 
 ## §212 — definition of done (5b)
 
-The seven forks ruled by Ryad and logged (D-115), the rejected options
+The seven forks ruled by Ryad and logged (D-116), the rejected options
 with them · red → green per AC in §210's order, each piece presented and
 explained before the next · the fake session maker before any row that
 needs it · 20× with every failing log kept · CI green on the runner on
