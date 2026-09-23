@@ -7274,7 +7274,11 @@ requirement's own first sentence:
    handler once.
 
 
-# Milestone 5b — one mind session per conversation (Runtime Phase B, continued) — DRAFT, not signed
+# Milestone 5b — one mind session per conversation (Runtime Phase B, continued) — signed 2026-09-23 (D-116)
+
+*Drafted 2026-09-23; signed the same day — every fork in §211 ruled as
+recommended, D-116. Nothing below was rewritten by the signing: the
+text that says "per F-n" now names a ruling instead of a recommendation.*
 
 ## §207 — why this exists
 
@@ -7333,9 +7337,10 @@ this gives it a conversation that remembers what it did.
 
 ## §208 — scope
 
-*Items 1–5 are written under F-1 A, F-2 A, F-3 A and F-5 B — the
-recommendations, not rulings. If Ryad rules otherwise they are rewritten
-before any code.*
+*Items 1–5 were written under F-1 A, F-2 A, F-3 A and F-5 B while they
+were recommendations; D-116 ruled all four that way, so the items stand
+as written. (The draft said: if Ryad rules otherwise they are rewritten
+before any code.)*
 
 1. **The session lives in the generator** (per F-1): born on the first
    `openReply` of a conversation, kept across turns, retired on `stop()`
@@ -7431,7 +7436,11 @@ test SEES.*
 - **AC-312 — residency is an event.** A caller can await the end of a
   warm instead of polling: the awaiting call returns when the weights are
   resident, returns at once if they already are, and is cancellable.
-  `MindProbe`'s 200 ms poll in the demo is deleted.
+  The poll this replaces is the diet app's (`prewarm`: up to 600 × 200 ms
+  on `isResident`); this repository's demo, which starts a warm and never
+  learns its end, shows the end through the new call.
+  *(Corrected at signing, D-116: the draft said "`MindProbe`'s 200 ms
+  poll in the demo is deleted" — the demo has no such poll.)*
 - **AC-313 — the MLX mind is untouched and says so.** Its prompt bytes
   for a plain question are identical to 4z's captured bytes, and the
   contract page states plainly that the kept session is the Apple mind's
@@ -7473,7 +7482,7 @@ records what it was made with and what was appended to it — the same
 standing ground `WeightsFetching` gave the install rows, and the reason
 they could be written at all.
 
-## §211 — the forks (Ryad rules)
+## §211 — the forks (ruled 2026-09-23, D-116: every one as recommended)
 
 **F-1 — WHERE THE SESSION LIVES.**
 *A:* in the generator — born on the first `openReply`, retired on

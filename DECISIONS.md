@@ -5256,3 +5256,97 @@ coordinator) where a reader needs the product.
 wrote down why: *"Read the name as a direction, not a claim."* This
 ruling does the same for the prose, and keeps the same discipline for
 the identity: the name lands on the package when the claim is true.
+
+## D-116 — 5b signed: one mind session per conversation — seven rulings, and D-057 F-2 reversed in the open (Milestone 5b)
+
+**Date:** 2026-09-23 · **Decided by:** Ryad ("sign the 5b spec, all
+forks as recommended") · **Rulings: F-1 = A, F-2 = A, F-3 = A, F-4 = A,
+F-5 = B, F-6 = A, F-7 = A** (SPEC §211).
+
+**The facts under the rulings** (SPEC §207):
+
+- The Apple mind builds a NEW `LanguageModelSession` for every reply
+  (`FoundationModelSnapshots.session(instructions:history:tools:confirmed:)`,
+  inside the stream's task). On the diet app's phone that is 5 100
+  characters of instructions and 2 154 of tool schemas prefilled again
+  every turn: 3.3–3.9 s to the first token, first turn or twentieth.
+- The past reaches the vendor as `.prompt` / `.response` TEXT.
+  `Transcript.ToolCalls` and `Transcript.ToolOutput` are written nowhere
+  in this library, so an earlier tool's sentence reads as the assistant's
+  own prose — and the phone heard "Logged 12 kg" from a turn in which no
+  tool ran.
+- The Apple model reports `modelNotReady` on this Mac (probed again
+  today). Every §210 row that is not a phone row therefore drives the
+  fake session maker (§208/6).
+
+**The rulings:**
+
+- **F-1 A — the session lives in the generator.** Born on the first
+  `openReply` of a conversation, kept across turns, retired at the end of
+  the conversation or when its identity changes. The generator already
+  makes the vendor's session and owns its life; the coordinator owns
+  MEANING — memory, tickets, the barge — and must not learn a vendor's
+  transcript shape. *Rejected:* **B**, the coordinator holds it — a
+  vendor's shape inside the actor that must stay vendor-blind; **C**, a
+  `Conversation` object the app makes and hands over — a new type in
+  every caller for a lifetime the runtime already has.
+- **F-2 A — `ReplyContext.history` is the SEED.** Used when a session is
+  born or re-seeded; ignored while a live session already holds that
+  past. The word keeps one meaning: what the mind should know that it
+  was not told this turn. *Rejected:* **B**, a new "this is a
+  continuation" field — a seam change every caller pays; **C**, keep
+  replaying it and let the generator diff — every generator becomes a
+  diffing engine.
+- **F-3 A — a re-seed replays TYPED entries:** a tool call as a tool
+  call, its output as an output. The price: `ConversationTurn` must
+  remember what ran (§208/4). *Rejected:* **B**, text only — the phone
+  already priced it: the mind imitated its tools and claimed acts it
+  never performed.
+- **F-4 A — the session is reborn on four triggers:** the identity
+  changes (instructions or tool table), a generation fails, the memory
+  bound is crossed, the vendor says its context is full. Each is
+  observable, so each is a row, and the trace names the reason.
+  *Rejected:* **B**, only on `stop()` or a caller's request — a poisoned
+  session kept for the rest of a conversation, and the phone has already
+  seen one generation fail mid-conversation (field note, 2026-09-20).
+- **F-5 B — the MLX mind's KV cache is a later milestone,** with its own
+  memory measurement. *Rejected:* **A**, the same milestone — an
+  unmeasured memory risk inside a latency fix; a cache kept beside 2.2 GB
+  is memory 4y's pressure warnings must be able to free. **The cost,
+  carried knowingly: the local mind keeps paying its whole prefill every
+  turn until then.** AC-313 pins that nothing moved there.
+- **F-6 A — a reply that is a bare tool name stays words, and is
+  RE-MEASURED after F-3 A lands.** *Rejected, until re-measured:* **B**,
+  treat it as a malformed call and retry once with a nudge — a mechanism
+  for a fault that may not survive this milestone, and a retry the
+  person pays for in latency.
+- **F-7 A — `await model.whenWarm()`:** one call; returns at once when
+  the weights are resident; cancellable. *Rejected:* **B**, an
+  `AsyncStream<Bool>` of residency — a listener that outlives the screen;
+  **C**, both — two ways to say one thing.
+
+**Reversed in the open: D-057 F-2 = A** ("one `LanguageModelSession` per
+turn, stateless"). D-088 kept it for 4r and said so; 5b ends it. D-057
+rejected a long-lived session for three reasons. None is dismissed —
+each becomes a named obligation of this milestone:
+
+| D-057's reason (2026-08-18) | where 5b must answer it |
+|---|---|
+| the budget is a hard 4 096 tokens (AC-116) | F-4's fourth trigger: the vendor's "context full" re-seeds from the bounded memory, so the next turn has room — AC-116's recovery ("the next turn starts with a fresh budget") kept by a new mechanism |
+| a barge can collide with `concurrentRequests` | AC-306: no second answer may start on a session whose last answer is still ending |
+| a cancelled turn may still spend budget | AC-306 again: what a cut answer leaves behind must never read as a finished one |
+
+What changed since 2026-08-18 is the price of "stateless": the phone
+measured it at 3.3–3.9 s a turn, and at an assistant that imitated its
+own tools.
+
+**One correction made at the signing, in the open.** AC-312's last
+sentence said "`MindProbe`'s 200 ms poll in the demo is deleted". Reading
+the code for the first piece: this repository's demo has no such poll.
+The 200 ms residency poll is the diet app's (`prewarm`, up to 600 ×
+200 ms on `isResident`). The criterion now says where the poll really is;
+what is built (F-7 A) does not change.
+
+**The order** (§212): §210's, criterion by criterion, red first — the
+fake session maker before any row that needs it; each piece presented
+and explained before the next.
