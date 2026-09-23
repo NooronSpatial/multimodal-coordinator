@@ -7246,7 +7246,7 @@ Ryad's gate: nothing here claims a phone number. The raw logs are in
 | AC-299 nothing else moved | **met** — 901 tests in 131 suites green (pre-5a suites included); `HubWeightsFetcher` still conforms and is still public; the demo builds and runs | the suite |
 | AC-300 the demo, on hardware | **built and run** — the Models tab shows four rows through `any ModelBacked` with a size, a percentage and a Delete; the app delegate's one line hands the wake-up over; the full cycle (size → 35 % → installed → deleted) driven by hand on an iPhone 17 simulator. The three **phone** rows are **owed** (Ryad's gate) | `models-screen-2026-09-22.png`, `simulator-2026-09-22-background-session.md` |
 | AC-301 INSTRUMENTS §70 | **met** — four engines fetched and deleted against the real Hub with times and MB/s; the listing 25× cheaper than 4x's path; resume overhead and the join counted by the loopback server | §70, two instrument logs |
-| AC-302 the record | 20× loop **met** (see below); CI green on every push after the two fix-forwards; lint zero; the tag note and `INTEGRATE.md` are **owed** until the PR | this section |
+| AC-302 the record | **met** — the 20× loop 20 of 20 at `901 tests in 131 suites`, identical every run, no failing log; CI green on every push after the two fix-forwards; lint zero; `INTEGRATE.md` regenerated from `Scripts/api.sh` at `eddc7f5` and `llms.txt`, `ARCHITECTURE.md`, `HOSTS.md`, `COMMANDS.md` updated. The **tag note** is owed until the merge (D-112) | `stability-2026-09-23.txt`, the runner |
 
 ### What piece 6 found that no test could
 

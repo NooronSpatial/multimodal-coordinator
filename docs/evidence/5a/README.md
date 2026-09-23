@@ -45,6 +45,7 @@ facts §199 rests on, and three of them ruled a fork.
 | `instruments-70-resume-join-counts-2026-09-22.log` | The two numbers only a counting server can give: **resume** — a 2 097 152 B file cut at 262 144 B sent 2 293 760 B across both attempts, 9.4 % overhead, one range request; **join** — two callers, 1 request, 524 288 B for a 524 288 B file. |
 | `simulator-2026-09-22-background-session.md` | What running the demo found: the iOS Simulator has no background transfer daemon (every task fails at once with `NSURLErrorDomain Code=-1`), measured in both directions, and the foreground fallback that produced. It also lists the three phone rows nobody but Ryad can take. |
 | `models-screen-2026-09-22.png` | The demo's Models screen on an iPhone 17 simulator: four rows through `any ModelBacked`, each with the size before the tap, a byte percentage and a Delete. |
+| `stability-2026-09-23.txt` | AC-302: the 20× loop on this branch, CI's shape, one line per run — **20 of 20**, `901 tests in 131 suites` every time, so there is no failing log beside this file (the loop writes each failing run's FULL output before moving on). Durations 3.4–40.9 s: the spread is the neural voice's cold load and this Mac's other work, not the suite. |
 
 ## A note on one commit message
 
