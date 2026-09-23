@@ -1,4 +1,11 @@
-# Integrating MultiModalKit — the page a developer (or an agent) reads first
+# Integrating the AI Runtime — the page a developer (or an agent) reads first
+
+*The names, once, so nothing below is ambiguous: the SPM package is
+`multimodal-coordinator`, the modules are `MultiModalKit…`, the front
+door's type is `AIRuntime`, and **the AI Runtime** is this page's name
+for the whole (D-115). The package and the modules keep their birth
+names until a major version renames them together — two apps pin them
+today.*
 
 *Written for the person or the AI agent wiring this library into an
 app. Every code block below is lifted from a contract page in

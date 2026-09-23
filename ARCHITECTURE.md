@@ -1,4 +1,9 @@
-# The map
+# The map — the AI Runtime
+
+*The SPM package is `multimodal-coordinator` and the modules are
+`MultiModalKit…`; `AIRuntime` is the front door's type and **the AI
+Runtime** is the name of the whole (D-115). The birth names stay until a
+major version renames them together.*
 
 When the overview blurs, read this page. It exists because after three
 phases the overview lived only in heads, and heads leak — against this
