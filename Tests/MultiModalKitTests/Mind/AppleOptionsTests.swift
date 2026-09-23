@@ -88,7 +88,7 @@ struct AppleOptionsTests {
     @Test("the default budget is 1024 — set even when the caller says nothing (AC-233, F-6 = A)")
     func defaultBudgetIs1024() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let vendor = FoundationModelSnapshots.vendorOptions(for: MultiModalKit.GenerationOptions())
+        let vendor = AppleSession.vendorOptions(for: MultiModalKit.GenerationOptions())
         #expect(vendor.maximumResponseTokens == 1024)
         #expect(AppleReplyGenerator.defaultTokenBudget == 1024)
         #expect(vendor.sampling == nil, "no sampling asked for: the vendor's default")
@@ -98,7 +98,7 @@ struct AppleOptionsTests {
     @Test("a per-call budget reaches maximumResponseTokens (AC-233)")
     func perCallBudgetReachesTheVendor() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let vendor = FoundationModelSnapshots.vendorOptions(
+        let vendor = AppleSession.vendorOptions(
             for: MultiModalKit.GenerationOptions(maxTokens: 256))
         #expect(vendor.maximumResponseTokens == 256)
     }
@@ -106,7 +106,7 @@ struct AppleOptionsTests {
     @Test("temperature 0 is .greedy (AC-234)")
     func zeroTemperatureIsGreedy() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let vendor = FoundationModelSnapshots.vendorOptions(
+        let vendor = AppleSession.vendorOptions(
             for: MultiModalKit.GenerationOptions(temperature: 0))
         #expect(vendor.sampling == .greedy)
         #expect(vendor.temperature == 0)
@@ -115,10 +115,10 @@ struct AppleOptionsTests {
     @Test("a seed is .random(top: 50, seed:) (AC-234)")
     func seedIsSeededRandom() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let vendor = FoundationModelSnapshots.vendorOptions(
+        let vendor = AppleSession.vendorOptions(
             for: MultiModalKit.GenerationOptions(temperature: 0.5, seed: 42))
-        #expect(vendor.sampling == .random(top: FoundationModelSnapshots.seededTopK, seed: 42))
-        #expect(FoundationModelSnapshots.seededTopK == 50)
+        #expect(vendor.sampling == .random(top: AppleSession.seededTopK, seed: 42))
+        #expect(AppleSession.seededTopK == 50)
         // Binary-exact: 0.5 survives Float → Double unchanged.
         #expect(vendor.temperature == 0.5)
     }
@@ -126,7 +126,7 @@ struct AppleOptionsTests {
     @Test("temperature 0 beside a seed: greedy wins — there is no randomness to seed")
     func greedyWinsOverASeed() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let vendor = FoundationModelSnapshots.vendorOptions(
+        let vendor = AppleSession.vendorOptions(
             for: MultiModalKit.GenerationOptions(temperature: 0, seed: 42))
         #expect(vendor.sampling == .greedy)
     }
@@ -134,7 +134,7 @@ struct AppleOptionsTests {
     @Test("a temperature alone is passed through, and sampling stays the vendor's")
     func temperatureAlonePassesThrough() {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let vendor = FoundationModelSnapshots.vendorOptions(
+        let vendor = AppleSession.vendorOptions(
             for: MultiModalKit.GenerationOptions(temperature: 0.25))
         #expect(vendor.temperature == 0.25)
         #expect(vendor.sampling == nil)

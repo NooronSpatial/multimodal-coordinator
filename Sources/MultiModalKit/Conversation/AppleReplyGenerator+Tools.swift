@@ -38,12 +38,14 @@ struct AppleToolNoArguments {}
 
 // MARK: - the adapter
 
-/// One `ReplyTool`, wearing the vendor's protocol, for ONE call: it
-/// carries the call's confirmed names (F-10 B-ii) because the vendor
-/// runs the tool where no call context of ours can reach. Internal so
-/// the unit tests can instantiate it and call it directly (the scripted
-/// snapshot source cannot execute a vendor tool, so the adapter's shape
-/// is proved on the adapter, not through the seam).
+/// One `ReplyTool`, wearing the vendor's protocol. It holds the
+/// DECLARATION — what the model is shown — and reads the body it runs and
+/// the yes it honours from its `route`, because the vendor runs the tool
+/// where no call context of ours can reach, and since 5b one session (so
+/// one set of adapters) serves a whole conversation (see `ToolRoute`).
+/// Internal so the unit tests can instantiate it and call it directly
+/// (the scripted snapshot source cannot execute a vendor tool, so the
+/// adapter's shape is proved on the adapter, not through the seam).
 @available(macOS 26.0, iOS 26.0, *)
 struct AppleToolAdapter: Tool {
     /// The vendor's own typed tree. `GeneratedContent` is what the model
@@ -53,10 +55,12 @@ struct AppleToolAdapter: Tool {
     typealias Arguments = GeneratedContent
     typealias Output = String
 
+    /// The declaration the model is shown: name, words, parameters.
     let tool: ReplyTool
-    /// The tool names the person has said yes to, for this call only
-    /// (`GenerationOptions.confirmedTools`, F-10 B-ii).
-    let confirmed: Set<String>
+    /// This answer's table (whose body runs) and this answer's yes
+    /// (`GenerationOptions.confirmedTools`, F-10 B-ii) — read at the
+    /// moment the model calls, never captured at birth.
+    let route: ToolRoute
     /// The schema the model is SHOWN, built once per adapter from the
     /// declaration (AC-270).
     let parameters: GenerationSchema
@@ -66,10 +70,16 @@ struct AppleToolAdapter: Tool {
     /// The library's own check runs first, where the table is handed
     /// over (F-13 d: `ToolTable.checkDeclarations`), so a validated table
     /// never reaches this throw; it stays as the vendor's second line.
-    init(_ tool: ReplyTool, confirmed: Set<String> = []) throws {
+    init(_ tool: ReplyTool, route: ToolRoute) throws {
         self.tool = tool
-        self.confirmed = confirmed
+        self.route = route
         self.parameters = try Self.schema(for: tool)
+    }
+
+    /// One tool with one fixed yes — the adapter as 4w and 4z built it,
+    /// for the tests that knock on a single adapter directly.
+    init(_ tool: ReplyTool, confirmed: Set<String> = []) throws {
+        try self.init(tool, route: ToolRoute(ToolTable([tool]), confirmed: confirmed))
     }
 
     /// The model's name for it — `ReplyTool.name`, verbatim. The
@@ -131,10 +141,10 @@ struct AppleToolAdapter: Tool {
     /// being generated; the answer goes back to the MODEL, not to us.
     ///
     /// THROUGH THE DOOR (F-13 g): the body is reachable no other way, so
-    /// the adapter builds a one-tool table and knocks with the model's
-    /// typed answer read by kind (AC-269) and the call's confirmed names
-    /// (F-10 B-ii). The door strips, checks, bands, flags, shields and
-    /// caps; this function judges nothing.
+    /// the adapter knocks on THIS answer's table (the route's, 5b) with
+    /// the model's typed answer read by kind (AC-269) and THIS answer's
+    /// confirmed names (F-10 B-ii). The door strips, checks, bands,
+    /// flags, shields and caps; this function judges nothing.
     ///
     /// ANSWERED IN WORDS, NEVER THROWN (F-4 = B, AC-276): whatever the
     /// door decided — the answer, a refusal, a thrown body, a missing
@@ -153,8 +163,9 @@ struct AppleToolAdapter: Tool {
     /// feeding it to a model nobody is listening to. The one throw left
     /// in this function is that `CancellationError`.
     func call(arguments: GeneratedContent) async throws -> String {
-        let outcome = await ToolTable([tool]).invoke(tool.name, arguments: ToolArguments(arguments),
-                                                     confirmed: confirmed)
+        let now = route.now
+        let outcome = await now.table.invoke(tool.name, arguments: ToolArguments(arguments),
+                                             confirmed: now.confirmed)
         try Task.checkCancellation()
         return outcome.wordsForModel
     }
@@ -166,9 +177,10 @@ extension AppleToolAdapter {
     /// the table's order, and `[]` for `.empty`. `[]` is the vendor's
     /// own default for `tools:`, so the session built from it is EXACTLY
     /// the one built before 4w (AC-227: a mind with no tools pays nothing
-    /// for this file — measured, see `AppleReplyGenerator.session`).
+    /// for this file — measured, see `AppleSession.entries`).
     static func adapters(for table: ToolTable, confirmed: Set<String> = []) throws -> [any Tool] {
-        try table.tools.map { try AppleToolAdapter($0, confirmed: confirmed) }
+        let route = ToolRoute(table, confirmed: confirmed)
+        return try table.tools.map { try AppleToolAdapter($0, route: route) }
     }
 }
 

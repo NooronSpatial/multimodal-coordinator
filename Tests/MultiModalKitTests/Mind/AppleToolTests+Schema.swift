@@ -95,7 +95,7 @@ extension AppleToolTests {
         #expect(try AppleToolAdapter.adapters(for: .empty).isEmpty)
         let generator = try AppleReplyGenerator()
         #expect(generator.tools.isEmpty)
-        let source = generator.source as? FoundationModelSnapshots
+        let source = generator.source as? SessionKeeper
         #expect(source?.tools.isEmpty == true, "the real source was built with no tools")
     }
 
@@ -113,7 +113,7 @@ extension AppleToolTests {
         #expect(adapters.map(\.description) == ["reads today's session", "reads the sky"])
         let generator = try AppleReplyGenerator(instructions: "speak briefly", tools: table)
         #expect(generator.tools.tools.map(\.name) == ["session", "weather"])
-        let source = generator.source as? FoundationModelSnapshots
+        let source = generator.source as? SessionKeeper
         #expect(source?.tools.tools.map(\.name) == ["session", "weather"])
     }
 
@@ -124,14 +124,14 @@ extension AppleToolTests {
                                 requiresConfirmation: false) { _ in "" }
         let timer = ReplyTool(name: "set_timer", description: "sets", parameters: [],
                               requiresConfirmation: false) { _ in "" }
-        let source = FoundationModelSnapshots(tools: ToolTable([session]))
+        let source = SessionKeeper(maker: AppleSessionMaker(), tools: ToolTable([session]))
         #expect(source.resolvedTools(for: GenerationOptions()).tools.map(\.name) == ["session"],
                 "nil: the default table")
         let replaced = source.resolvedTools(for: GenerationOptions(tools: ToolTable([timer])))
         #expect(replaced.tools.map(\.name) == ["set_timer"], "a table on the call replaces the default for that call")
         #expect(source.resolvedTools(for: GenerationOptions(tools: .empty)).isEmpty,
                 ".empty on the call: no tool this turn")
-        let none = FoundationModelSnapshots(tools: .empty)
+        let none = SessionKeeper(maker: AppleSessionMaker(), tools: .empty)
         let given = none.resolvedTools(for: GenerationOptions(tools: ToolTable([timer])))
         #expect(given.tools.map(\.name) == ["set_timer"], "a generator with no table calls the call's tool")
     }
