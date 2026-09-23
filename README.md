@@ -1,8 +1,15 @@
-# MultiModalCoordinator
+# The AI Runtime
 
-A coordination library for on-device AI streaming, built in public — phase by
-phase, every design decision logged, every claim checkable in the tests.
-Lost in the code? [ARCHITECTURE.md](ARCHITECTURE.md) is the one-page map.
+*The SPM package is `multimodal-coordinator` and the core module is
+`MultiModalKit` — the names it was born with, kept because two apps pin
+them. **The AI Runtime** is what it is: `AIRuntime` is the type an app
+builds, and the name this page uses for the thing as a whole (D-115).
+The package and the modules are renamed once, at a major version, when
+the runtime can do everything the name claims.*
+
+An on-device AI runtime, built in public — phase by phase, every design
+decision logged, every claim checkable in the tests. Lost in the code?
+[ARCHITECTURE.md](ARCHITECTURE.md) is the one-page map.
 
 **What it is now:** a microphone becomes speech events, speech events become
 text, text becomes a *conversation* — one that answers out loud and stops the

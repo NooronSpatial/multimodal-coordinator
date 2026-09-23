@@ -1,4 +1,6 @@
-# MultiModalKit (multimodal-coordinator)
+# The AI Runtime (SPM package: multimodal-coordinator; modules: MultiModalKit…)
+
+> Names, once: the package and modules keep their birth names because two apps pin them; `AIRuntime` is the front door's type; "the AI Runtime" is the name of the whole (D-115). A major version renames package and modules together, when the runtime can do everything the name claims.
 
 > An on-device voice assistant for iOS/macOS in three organs — ear (speech to text), mind (a language model), mouth (text to speech) — and a coordinator that runs the turn loop with barge-in. Swift 6, strict concurrency, zero runtime dependencies in the core module. Apache-2.0. Nothing leaves the device after the weights are on disk.
 
