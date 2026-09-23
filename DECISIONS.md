@@ -5408,3 +5408,50 @@ put to Ryad before any code, not decided on the way.
 entry's number: §208/1 (the seam grows by one door and one case; the
 class), §208/4 (the record's road is `.toolRan`), §208/5 (the rule under
 the triggers), AC-306 (a barge re-seeds) and its test-matrix row.
+
+## D-118 — the memory's bound against a kept session, and the road a re-seed is reported on (Milestone 5b)
+
+**Date:** 2026-09-23 · **Decided by:** Ryad (two answers) · **Rulings:
+F-12 = C, F-13 = A** (SPEC §211, "found after signing").
+
+**The fact that raised F-12.** The diet app runs `maxMemoryTurns: 4`
+(its `TalkSession`, chosen because "the library replays every
+remembered turn into a new session"). Under the signed AC-308 a session
+could hold only the memory's window, so the moment the memory was full
+and dropped its oldest turn, the session no longer matched it and was
+rebuilt — every turn from the sixth on. The milestone would have helped
+four turns in nineteen.
+
+- **F-12 C — the session keeps its past; the bound decides what a
+  RE-SEED carries.** A kept session is continued while the memory's
+  window is its newest turns, however many older ones it still holds. It
+  is rebuilt on the other triggers (identity, failure, a cut answer,
+  `stop()`, `clearMemory()`) and at the vendor's 4 096-token wall: full
+  before any word — re-seed from the memory and ask again, once; full
+  after a word — the turn fails as AC-116 does today, and the next turn
+  re-seeds. A memory switched off (`maxMemoryTurns: 0`) re-seeds every
+  turn with no past, because that is the app's choice (D-027).
+  *Rejected:* **A**, exactly the memory as signed — the win lost at the
+  bound; **B**, rebuild in steps with the newest half — a rebuild about
+  every second turn at the diet app's bound, and a model shown less than
+  the app allowed. **The costs, carried knowingly:** (1) for the Apple
+  mind, `maxMemoryTurns` and `maxMemoryCharacters` stop capping what the
+  model sees between re-seeds — they cap what a re-seed costs, which is
+  what the diet app chose four for; (2) a long conversation reaches the
+  wall, around turn 25 at the coach's sizes, and pays one slow turn
+  there; (3) if the phone shows the vendor does NOT reuse its work inside
+  a session, C is the worst of the three, because the prompt only grows
+  — AC-315 measures exactly that, and A is the fall-back.
+- **F-13 A — a re-seed is reported as a new `HealthEvent` case,** through
+  an optional `diagnostics:` handed to the generator at init — `nil`
+  reports nothing, byte-for-byte today's generator (the D-028 / D-059
+  precedent). The diet app logs every health event as text, so its trace
+  shows re-seeds with no change on its side. *Rejected:* **B**, the
+  generator's own event stream — a second road every app must wire;
+  **C**, signposts only — invisible in the app's own trace, which is
+  where the phone rows are read. *The cost:* a new case in a public
+  enum; neither app switches over `HealthEvent` (checked 2026-09-23).
+
+**Amended in place**, each marked with this entry's number: AC-307 (the
+road), AC-308 (the bound bounds the re-seed; the wall) and its
+test-matrix row.
