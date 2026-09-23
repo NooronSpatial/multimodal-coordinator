@@ -5209,3 +5209,50 @@ against a loopback server that answers `Range` and counts bytes; then
 Kokoro (the smallest catalog); the mind through the seam; Whisper; the
 neural voice and the Apple engine; the demo. Tag 0.3.1 on the merge
 (D-112).
+
+## D-115 — the name: "the AI Runtime" in prose now, the package and the modules at a major version (naming)
+
+**Date:** 2026-09-23 · **Decided by:** Ryad ("prose now, the rest
+later") · **Ruling: A.**
+
+**The question.** Should `multimodal-coordinator` / `MultiModalKit`
+become "AI Runtime" everywhere?
+
+**Measured first, because the three levels cost differently:**
+
+| level | what it is | inside this repo | outside |
+|---|---:|---|---|
+| the prose | README, ARCHITECTURE, INTEGRATE, `llms.txt` | 4 files | nothing |
+| the package identity | `multimodal-coordinator` | 20 occurrences in 6 files | the diet app pins `"identity": "multimodal-coordinator"`; Aura pins the URL |
+| the module names | `MultiModalKit…` | **508 occurrences in 214 files** | 13 imports in the diet app, more in Aura — a hard break |
+| the type | `AIRuntime` | already named | — |
+
+**Ruling A — the prose now, once, with the birth names stated beside
+it.** The four reader-facing pages call the thing **the AI Runtime**;
+each says in one paragraph that the SPM package is
+`multimodal-coordinator` and the modules are `MultiModalKit…`, so
+nothing is ambiguous for a caller or an agent. No source file, no
+manifest, no repository setting moves.
+
+**The package and the modules are renamed ONCE, at a major version, when
+the runtime can do what the name claims** — `AIRuntime`'s own doc still
+says it *cannot see and has no model router*. Then repo, package,
+modules and both apps move in one afternoon, with a tag note.
+
+*Rejected — everything now:* it spends a day on a label while the diet
+app's coach is measurably broken (5b), and it names the runtime before
+it can see or route. A package that asserts what its code does not do is
+the one thing this project's method refuses.
+
+*Rejected — the modules now behind an `@_exported` shim:* it works, and
+it buys two names for one thing in every document, the geography table
+and every new file, for as long as the shim lives.
+
+*Rejected — leave the name alone:* the type is already `AIRuntime` by
+D-093 F-5, and the documents were describing the mechanism (a
+coordinator) where a reader needs the product.
+
+**The precedent this follows.** D-093 F-5 took the type's name early and
+wrote down why: *"Read the name as a direction, not a claim."* This
+ruling does the same for the prose, and keeps the same discipline for
+the identity: the name lands on the package when the claim is true.
