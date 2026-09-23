@@ -10,20 +10,21 @@
 ## The contract pages (one per milestone, fact-checked against the source)
 - ARCHITECTURE.md § "The mind's text contract (4v)" — reply(to:), GenerationOptions, StopReason, ReplyFailure, MindReadiness.
 - ARCHITECTURE.md § "Getting the weights (4x)" — expectedInstall(), download(reporting:), InstallState, WeightsFetching, the privacy manifests.
+- ARCHITECTURE.md § "Model downloads (5a)" — ModelBacked's five questions, ModelDownloader on a background session, ModelDownloads.handleEvents, what a stopped transfer keeps, what a delete removes.
 - ARCHITECTURE.md § "Running it safely (4y)" — admit(needing:), heat at the door, memory pressure, the deadline, what is measured.
 - ARCHITECTURE.md § "The tool contract (4z)" — ReplyTool with typed parameters, the door (strip → check → band → flag → shield → cap → words), tools per call, the confirmation flag, what each mind shows the model.
 - ARCHITECTURE.md § "Where is …? — the geography table" — file for every seam.
 
 ## The record (the repo is the memory)
-- SPEC.md — every milestone's scope, acceptance criteria (AC-nnn) and test matrix; §198 is 4z's results.
-- DECISIONS.md — every ruling (D-nnn) with the options it rejected; D-110 is the tool contract's thirteen forks.
-- INSTRUMENTS.md — every measurement with its methodology; §67 the tool spike, §68 memory under a cut, §69 the tool contract's cost and accuracy.
+- SPEC.md — every milestone's scope, acceptance criteria (AC-nnn) and test matrix; §198 is 4z's results, §206 is 5a's.
+- DECISIONS.md — every ruling (D-nnn) with the options it rejected; D-110 is the tool contract's thirteen forks, D-114 the downloads' eight (and the reversal of D-106's F-2 and F-3).
+- INSTRUMENTS.md — every measurement with its methodology; §67 the tool spike, §68 memory under a cut, §69 the tool contract's cost and accuracy, §70 what a download costs and what a resume pays.
 - COMMANDS.md — the instruments and demos (`swift run bakeoff …`), and how to run the tests.
 - docs/HOSTS.md — the two hosts a download may contact, and what a request carries.
 - docs/evidence/<milestone>/ — raw logs: red tests, mutation runs, the 20× loops.
 
 ## Tags
-- 0.1.0 (e7993b4) the text contract · 0.2.0 (ee6788c) the install and the tool spike · 0.3.0 (228b7e6) admission, heat, and the tool contract. Pin an exact tag; `git show 0.3.0` lists every public break versus 0.2.0.
+- 0.1.0 (e7993b4) the text contract · 0.2.0 (ee6788c) the install and the tool spike · 0.3.0 (228b7e6) admission, heat, and the tool contract · 0.3.1 model downloads (a percentage, a background transfer that resumes, a delete — on every engine). Pin an exact tag; `git show <tag>` lists every public break versus the one before.
 
 ## Rules for an agent working near this library
 - Requirements come as documents; code comes from this repository's own owner session. Do not push branches here from another project's session.

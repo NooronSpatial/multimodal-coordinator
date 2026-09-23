@@ -1,0 +1,11 @@
+swift test --filter "MLXBackgroundInstallTests|ModelDownloaderTests|KokoroInstallTests"   (2026-09-22, after the cancel row's wait was fixed)
+
+􀢄  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" recorded an issue at MLXBackgroundInstallTests.swift:181:9: Expectation failed: !FileManager.default.fileExists(atPath: bench.scratch.path)
+􀢄  Test run with 21 tests in 3 suites failed after 0.395 seconds with 1 issue.
+
+WHY: discard() cancelled the plan's tasks and the fetcher removed the scratch — but a task whose
+bytes had all arrived (a 32-byte config.json) was past cancelling: its didFinishDownloadingTo was
+already on its way to the relay on the session's own queue, and the relay moved the file into the
+scratch, recreating the directory with one small file inside. Fixed by marking the destinations
+discarded in the relay BEFORE cancelling; a landing for a discarded destination is left to die
+with its temporary file, and a later transfer of the same files reinstates them. Green after.

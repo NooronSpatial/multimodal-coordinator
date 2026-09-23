@@ -1,5 +1,6 @@
 import Foundation
 import Testing
+@testable import MultiModalKit
 
 #if canImport(MultiModalKitTTS)
 @testable import MultiModalKitTTS
@@ -200,11 +201,12 @@ struct KokoroWeightsTests {
 
     /// Fact 7. The failure says the numbers, because "download failed" is
     /// not something a person can act on and "arrived as 12 bytes,
-    /// expected 327,115,152" is.
+    /// expected 327,115,152" is. Since 5a the sentence is the downloader's
+    /// (`DownloadFailure.shortFile`), the same one for every engine.
     @Test("an incomplete download names both sizes")
     func incompleteDownloadNamesBothSizes() {
-        let failure = KokoroWeightsFailure.incompleteDownload(
-            name: "kokoro-v1_0.safetensors", got: 12, expected: 327_115_152)
+        let failure = DownloadFailure.shortFile(
+            file: "kokoro-v1_0.safetensors", got: 12, expected: 327_115_152)
         #expect(failure.description.contains("12"))
         #expect(failure.description.contains("327115152"))
     }

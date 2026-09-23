@@ -5136,3 +5136,76 @@ generated appendix.
 **Found while writing it:** four constructions on the 4v and 4y contract
 pages built a generator without `try` — stale since piece 2b's throwing
 init. Fixed in the same change. That is the page's job: it drifts first.
+
+## D-114 — 5a signed: model downloads, and eight rulings — one library-owned background downloader, the reversal of D-106's F-2 and F-3 (Milestone 5a)
+
+**Date:** 2026-09-20 · **Decided by:** Ryad ("you rec approved. start")
+· **Rulings: F-1 = A, F-2 = A, F-3 = A, F-4 = A, F-5 = A, F-6 = A,
+F-7 = A, F-8 = A** (SPEC §204).
+
+**The facts under the rulings** (SPEC §199, `docs/evidence/5a/probes/`):
+the vendors' `useBackgroundSession` switch CRASHES on this OS — the Hub
+client calls the async `download(for:)` on a background session, and
+the system refuses it with "Completion handler blocks are not supported
+in background sessions"; a background session with a DELEGATE works in
+a plain process, cancel-with-resume-data round-trips to a `206`; a new
+process re-attaches to the old process's transfer by identifier; and
+the Hub's tree endpoint lists a repository with sizes in one request.
+
+- **F-1 A — a background `URLSession` with a delegate and a re-entry
+  door.** The transfer runs while the app is suspended or dead.
+  *Rejected:* a foreground session with resume data — it resumes after
+  a kill but STOPS when the phone locks; half the requirement for
+  two-thirds of the work.
+- **F-2 A — progress is a closure per call, `(Double) -> Void`.**
+  Kokoro's and the mind's shape already, and the requirement's own
+  words. *Rejected:* an `AsyncStream<Double>` from the engine — a
+  caller builds one from the closure in three lines; the reverse is not
+  true.
+- **F-3 A — one library-owned downloader in the core, for all four
+  downloadable engines.** The vendors still LOAD; the mind's bytes go
+  through the `WeightsFetching` seam as a new default conformer;
+  `HubWeightsFetcher` stays public, documented as foreground-only.
+  *Rejected:* keeping the vendors' downloaders — they cannot meet AC-2
+  at all (the crash, and no re-entry path).
+- **F-4 A — a stopped transfer keeps what can be resumed, on a cancel
+  AND on a failure.** One rule; a dropped connection at 90 % of 2.2 GB
+  is when resume matters most. Partials never live in the weights tree,
+  so `installState()` cannot lie either way. *Rejected:* keep on a
+  cancel only (two rules); discard always (D-106 F-2 A as it stood —
+  the requirement's "keeps the partial" unmet). **This reverses D-106
+  F-2 A**, which itself named "a later milestone for someone who can
+  test it on a train"; Fact 2 and the loopback server are that test.
+- **F-5 A — a size without the network: static where the LIBRARY chose
+  the bytes, the cached listing where the APP chose the repository,
+  `nil` before that.** *Rejected:* the app passes its own number — the
+  library cannot honestly pin a repository it did not choose, but it
+  can honestly remember one it listed.
+- **F-6 A — `ensureModel(progress:)` and `deleteModel()` go on
+  `ModelBacked`; all five engines conform honestly.** The neural voice's
+  bytes go through the library's downloader under the vendor's own
+  `downloadPatterns`; the Apple engine forwards the system's fraction
+  and releases its reservation. *Rejected:* the neural voice keeping the
+  vendor's transfer (a second mechanism to explain); a second protocol
+  for the diet app's three (the requirement says every engine).
+- **F-7 A — the mind's argument-less `ensureModel()` stays load-only.**
+  `ensureModel(progress:)` is the door that fetches, then loads.
+  *Rejected:* making it fetch — a launch-time call that silently began
+  a 2.2 GB download would break D-078's doctrine (a person's action
+  stands behind a fetch).
+- **F-8 A — a join stops when the LAST waiter cancels;** each cancelled
+  caller throws `CancellationError` at once. *Rejected:* any waiter's
+  cancel stopping it for everyone — a join a stranger can kill is not a
+  join.
+
+**Also reversed: D-106 F-3 A** ("the suspend truth is STATED, not
+engineered"), which named a background `URLSession` as "a milestone of
+its own". This is it. `MLXInstallSuspendTests`, which reads the source
+and fails if a background session appears, flips to fail if the
+transfer runs on a foreground one.
+
+**The order of pieces** (SPEC §205): the downloader first, red first,
+against a loopback server that answers `Range` and counts bytes; then
+Kokoro (the smallest catalog); the mind through the seam; Whisper; the
+neural voice and the Apple engine; the demo. Tag 0.3.1 on the merge
+(D-112).

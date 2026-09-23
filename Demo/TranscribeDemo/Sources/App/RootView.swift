@@ -28,6 +28,9 @@ struct RootView: View {
     // inside it: it probes a SYSTEM service, touches nothing on the
     // pipeline, and leaves with the milestone-gating numbers (AC-110/111).
     @State private var mindProbe = MindProbe()
+    /// The Models tab's rows (5a, AC-300), built from the app's OWN
+    /// engines so the screen reports on the objects the pipeline uses.
+    @State private var models = ModelsState()
     private let launch = LaunchOnce()
 
     var body: some View {
@@ -36,6 +39,8 @@ struct RootView: View {
                 .tabItem { Label("Chat", systemImage: "bubble.left.and.bubble.right") }
             BenchTab(model: model, mindProbe: mindProbe)
                 .tabItem { Label("Bench", systemImage: "gauge.with.needle") }
+            ModelsTab(models: models)
+                .tabItem { Label("Models", systemImage: "arrow.down.circle") }
             SettingsTab(model: model)
                 .tabItem { Label("Settings", systemImage: "slider.horizontal.3") }
         }
@@ -55,6 +60,11 @@ struct RootView: View {
                 // Both models are asked about at launch: the transcriber's
                 // and the voice's. Asking never downloads either.
                 { await model.checkModel() },
+                // The Models tab's rows: the app's own engines, as
+                // `any ModelBacked`. Built here rather than in the tab so
+                // the screen and the pipeline cannot disagree about which
+                // objects they are talking about.
+                { await models.adopt(model.modelRows) },
                 // ↓ MUST PRECEDE THE MIND. Swapping these two lines is a
                 //   memory bug that looks like nothing.
                 { await model.checkVoice() },

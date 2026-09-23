@@ -1,0 +1,12 @@
+swift test --filter WhisperInstallTests, with the plan mutated to fetch the MODEL repository only
+(WhisperCatalog.plan: `DownloadPlan(files: model)` instead of `model + tokenizer`) — 2026-09-22.
+
+􀢄  "both repositories arrive under one fraction; then installed, with the tokenizer" recorded an issue at WhisperInstallTests.swift:41:9: Expectation failed: await bench.engine.modelInstalled()
+􀢄  ... :45:9: Expectation failed: bench.exists("tokenizer/tokenizer.json")
+􀢄  ... :46:9: Expectation failed: bench.exists("tokenizer/config.json")
+􀢄  "an installed variant reports one 1.0 and asks the server nothing" recorded an issue at :60:9: Expectation failed: seen.fractions == [1.0]
+
+WHY THIS MUTATION: the tokenizer is a SEPARATE repository, and the vendor's tokenizer load is
+local-FIRST but not local-ONLY — a model fetched without it loads by quietly reaching Hugging
+Face. That is the exact fault the Whisper audit found and `modelInstalled()` was widened for; the
+mutation puts it back, and the rows convict it. Restored, green.

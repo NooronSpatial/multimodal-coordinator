@@ -222,12 +222,24 @@ let package = Package(
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
             ]
         ),
+        // THE APP THAT DIED (5a, AC-292/AC-297). A test cannot kill itself
+        // and come back, so this small executable plays the first life: it
+        // enqueues a file on a background session and EXITS mid-transfer;
+        // the test then opens the same session and proves the file lands.
+        // A test target may depend on an executable target, and SwiftPM
+        // builds it beside the test bundle, which is where the test looks.
+        .executableTarget(
+            name: "DownloadHelper",
+            dependencies: ["MultiModalKit"]
+        ),
         .testTarget(
             name: "MultiModalKitTests",
             dependencies: [
                 "MultiModalKit", "MultiModalKitTesting",
                 "MultiModalKitWhisper", "MultiModalKitTTS",
                 "MultiModalKitMLX", "MultiModalKitBench",
+                // The helper process for the re-entry rows (above).
+                "DownloadHelper",
                 // DECLARED, not borrowed. `SynthesizerConformanceTests`
                 // imports TTSKit to name `.stepped` and `.fused`, and that
                 // import worked only through transitive module visibility —

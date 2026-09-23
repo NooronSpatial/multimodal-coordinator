@@ -6788,3 +6788,487 @@ name; a question for the ledger, not decided here).
 ending, AC-272 (c), AC-281's phone rows, AC-286's per-turn line. The
 teach-back (AC-287). The recorded hole of F-10 B-ii (a "yes" bound to a
 name), with B-iv as the delta.
+
+
+# Milestone 5a — model downloads: progress on every engine, a transfer that survives the background, a delete that removes what was written (0.3.1) — signed 2026-09-20 (D-114)
+
+*Drafted 2026-09-19; signed 2026-09-20 — every fork ruled as recommended, D-114. It was written as: nothing below is ruled until
+D-114. The two forks the requirement names (F-1, F-2) and six more this
+draft found are in §204, each with one recommendation. Where a
+criterion depends on a fork it says "per F-n".*
+
+## §199 — the requirement, and what this Mac measured before writing it
+
+The ask is the diet app's document of 2026-09-17 (its file
+`model-downloads.md`, in its repo; it is not copied here). Three facts
+about the library's downloads shape what its Models page can promise:
+
+```
+                    today (0.3.0)                          the ask
+   ─────────────────────────────────────────────────────────────────────────
+   Whisper          WhisperKit fetches; NO progress;        a percentage
+                    foreground only
+   the MLX mind     download { $0.fraction } — the         a percentage that
+                    Hub client counts FILES; foreground     survives the
+                    only; a stopped download is DELETED     background and
+                    (D-106 F-2 A, F-3 A)                    resumes
+   Kokoro           our URLSession; bytes progress;         (the same)
+                    foreground only; the partial is
+                    thrown away
+   sizes            expectedInstall(): ten listings +       a number OFFLINE,
+                    nine HEADs, ~3 s, network               before the tap
+   delete           nothing — the app removes folders       deleteModel() on
+                    whose layout is the library's           every engine
+```
+
+Its five criteria, in one line each (the library's numbers are §202's):
+
+| theirs | in one sentence |
+|---|---|
+| AC-1 | `ensureModel(progress:)` on every `ModelBacked`, Kokoro's `(Double) -> Void` shape; the argument-less form stays |
+| AC-2 | a download goes on in the background and RESUMES after a suspension or a relaunch; partial files are kept |
+| AC-3 | a size before the tap that costs no network |
+| AC-4 | `deleteModel()` on every engine: retire the resident model, remove exactly what `ensureModel` wrote, leave shared things alone |
+| AC-5 | a second `ensureModel` joins the running one; a cancel stops the download and keeps the partial |
+
+**What this milestone reverses, in the open.** D-106 ruled F-2 = A (a
+stopped download deletes its partial tree) and F-3 = A (the suspend
+truth is stated, not engineered), and both rulings said the same thing
+about the future: *"a milestone of its own"*, *"for someone who can test
+it on a train"*. This is that milestone. D-114 will record the reversal
+with the reason; the source-reading test that guards F-3 A today
+(`MLXInstallSuspendTests`) flips to guard the new truth.
+
+### Three facts, measured on this Mac before a line was designed
+
+Small programs, run on macOS 26.6.1 with Swift 6.4, against a local
+HTTP server that answers `Range` requests. Their sources and outputs
+are in `docs/evidence/5a/probes/`.
+
+**Fact 1 — the vendors' background switch CRASHES.** The Hub client the
+MLX mind and WhisperKit download with (swift-transformers 1.3.3 over
+swift-huggingface 0.9.0) has a `useBackgroundSession` flag. It builds a
+background `URLSession` and then calls the async convenience
+`session.download(for:delegate:)` on it. On this OS that raises
+`NSGenericException` — *"Completion handler blocks are not supported in
+background sessions. Use a delegate instead."* — and the process
+terminates. So "flip the vendors' switch" is not an option; a
+background transfer has to be a downloader this library owns.
+
+**Fact 2 — a background session with a delegate works in a plain
+process, and resume works.** An 8 MB file, cancelled after 3.74 MB
+(57 delegate writes) with `cancel(byProducingResumeData:)` → 7,611
+bytes of resume data → a new session resumed it: the server saw
+`Range: bytes=3735552-`, answered `206`, and the file arrived complete
+(8,388,608 bytes).
+
+**Fact 3 — a NEW process picks up a transfer the OLD process started.**
+Process A enqueued the file in a background session with a fixed
+identifier and exited after 0.5 s. Process B, started 2 s later with
+the same identifier, saw one task (its `taskDescription` intact), got
+`didFinishDownloadingTo`, and the file was complete. The transfer ran
+while no process of ours was alive. That is the relaunch path, and it
+is testable HERE, with a helper process — not only on a train.
+
+**Fact 4 — one request lists a repository with sizes.** The Hub's tree
+endpoint (`/api/models/<repo>/tree/main/<path>?recursive=true`) returns
+every file with its byte size in ONE call: the 4B mind's nine weight
+files (2,278,969,756 bytes) in 0.22 s; Whisper `base`'s nineteen model
+files (146,719,453 bytes) plus its three tokenizer files (2,765,132
+bytes); the neural voice's 0.6B folder, forty files, 1,316,011,614
+bytes — MORE than TTSKit fetches, because two quantisations sit side by
+side and the vendor's `downloadPatterns` picks one per component (the
+static number is measured under those patterns when its piece is
+built). Today's `expectedInstall()` makes ten listings and nine HEADs
+for the same answer.
+
+## §200 — scope
+
+*Items 1–4 are written under F-1 A, F-3 A and F-4 A — the
+recommendations, not rulings.*
+
+1. **One downloader, in the core.** `ModelDownloader` — one actor over
+   ONE background `URLSession` per process, moving a *plan* (a list of
+   files: source URL, destination, expected bytes) and reporting one
+   byte-based fraction across the whole plan. Every file of a plan is
+   enqueued at once, so the system daemon holds the whole job even if
+   the app dies. Foundation only; the core keeps zero dependencies.
+2. **Four catalogs, one rule.** Each downloadable engine knows its own
+   files and hands the downloader a plan: Kokoro's two static URLs; the
+   mind's repository listing (through the `WeightsFetching` seam 4x
+   made, as a new default conformer); Whisper's model folder plus its
+   tokenizer files; the neural voice's files under the vendor's own
+   globs (per F-6). The vendors still LOAD; they no longer fetch.
+3. **Resume, and what a stopped transfer leaves.** A cancel keeps the
+   resume data beside the destination; the next `ensureModel` resumes
+   from it (per F-4). "Installed" never changes meaning: partial bytes
+   live in a scratch directory, never in the tree `modelInstalled()`
+   reads.
+4. **The re-entry door.** One static call the app's delegate hands the
+   system's wake-up to (`application(_:handleEventsForBackgroundURLSession:
+   completionHandler:)`), and one process-wide session identifier.
+5. **`ensureModel(progress:)` on `ModelBacked`** (per F-2 and F-6) —
+   the closure receives bytes-based fractions on the four downloadable
+   engines and the system's own fraction on the Apple engine. No
+   default implementation: a fake instrument is worse than none.
+6. **`deleteModel()` on `ModelBacked`** (per F-6): retire what is
+   resident, cancel a transfer in flight, remove exactly what this
+   engine's `ensureModel` writes — a sibling variant, a stranger's
+   folder, the app's own directory stay.
+7. **A size without the network** (per F-5): one question on every
+   engine that returns the library's static number, or the cached
+   listing, or `nil` — never a guess; the exact question stays on the
+   mind and now costs one request.
+8. **Joins and cancels** (per F-8): a second `ensureModel` while one
+   runs waits on the same transfer and sees the same fractions.
+9. **The old truths updated:** the contract pages that say "this
+   download dies when the app leaves the foreground" and "a stopped
+   download leaves nothing" are rewritten; the test that reads the
+   source for a background session flips.
+10. **Measured (INSTRUMENTS §70):** the three transfers on this Mac
+    through the new downloader; the resume overhead in bytes over the
+    wire; the join; the listing's cost against the old path.
+11. **The demo:** the TranscribeDemo's model screen shows a byte
+    percentage for each engine it has, a Delete, and its app delegate
+    hands the wake-up to the library — the proof a reader runs on
+    hardware. The phone rows (lock five minutes; kill and relaunch) are
+    Ryad's gate.
+12. **The tag:** 0.3.1 on the merge (D-112), its note listing every API
+    change against 0.3.0; `docs/INTEGRATE.md` regenerated (D-113).
+
+## §201 — non-goals
+
+- **Integrity beyond size.** A file is complete when its byte count
+  matches the listing (Kokoro's rule since 4q). Hash checking against
+  the Hub's `sha256` is knowable from the same listing and is named as
+  a later step, not built.
+- **A download queue across engines.** Two engines downloading at once
+  share the session; nothing orders them. The app decides.
+- **Cellular policy.** The session allows cellular by default (the
+  system's default). One knob to turn it off is exposed; the WARNING is
+  the app's screen.
+- **The Apple engine's bytes.** The system moves them; the library
+  forwards the system's fraction and releases its reservation on
+  delete. Whether the OS then removes the asset is the OS's.
+- **Updating a model in place** (a repository that changed). A listing
+  that disagrees with an installed tree is reported, not acted on.
+- **Two processes downloading the same plan** (an app and its
+  extension). One process per plan.
+
+## §202 — the design, as it runs
+
+### One transfer, from the tap to the file
+
+```
+  app: ensureModel(progress:)
+        │
+        ▼
+  engine builds a PLAN ──────────────────► listing (1 request) or static
+        │   [ (source, destination, bytes) … ]      ▲ cached for AC-3
+        ▼
+  ModelDownloader.transfer(plan, progress)          ← one actor, one background session
+        │
+        ├─ file complete on disk (size matches)  → skip
+        ├─ <file>.resume beside it               → downloadTask(withResumeData:)
+        └─ else                                  → downloadTask(with: source)
+        │           (all enqueued AT ONCE; taskDescription = the file's relative path)
+        ▼
+  the system daemon moves the bytes — app in front, app suspended, app dead
+        │
+        ├─ didWriteData ─────────► Σ written / Σ expected ──► progress(fraction)
+        ├─ didFinishDownloadingTo ─► moved to destination (synchronously, in the delegate)
+        └─ didCompleteWithError ──► resume data written beside the destination, or the error
+        │
+        ▼ (all files landed)
+  engine FINISHES: the mind's manifest + swap · Kokoro's fp16 cast · Whisper/neural: nothing
+        │
+        ▼
+  progress(1.0) · return
+```
+
+### The same transfer, when the app dies
+
+```
+  process 1: plan enqueued ── app killed ──► the daemon keeps going
+                                                    │
+  process 2 (relaunched by the system, or by a person):
+     AppDelegate.handleEventsForBackgroundURLSession ─► ModelDownloads.handleEvents(…)
+                                                    │  the library re-creates the session
+                                                    │  with its identifier; the delegate
+                                                    │  finds the tasks; files land; the
+                                                    │  app's completion handler is called
+     a person taps Download again ─► ensureModel(progress:) reads the plan file in the
+                                     scratch directory, sees which files are complete,
+                                     enqueues only the rest, finishes → 1.0
+```
+
+The plan file (`plan.json` in the scratch directory) is what makes the
+second process able to answer "where was I": the file list, each
+file's expected bytes and its relative path — the same string the task
+carries as `taskDescription`.
+
+### The three catalogs, and where the bytes land
+
+```
+  Kokoro       static: 2 URLs, 2 sizes (327,115,152 + 522,339)  → Application Support/Kokoro/
+               finish: the fp16 cast (already written, 4q)
+  the mind     tree(repoID) filtered by weightGlobs               → <base>/<name>.download/ (scratch)
+               finish: completeInstall(movingFrom:) — .incoming, manifest, swap (unchanged, 4x)
+  Whisper      tree(argmaxinc/whisperkit-coreml, openai_whisper-<v>) → Documents/huggingface/models/…/openai_whisper-<v>/
+               + tree(openai/whisper-<v>) ∩ {config, tokenizer, tokenizer_config}.json → …/models/openai/whisper-<v>/
+               finish: nothing — WhisperKit loads from modelFolder, the tokenizer local-first by file
+  neural voice tree(argmaxinc/ttskit-coreml) ∩ the vendor's downloadPatterns (per F-6) → …/ttskit-coreml/qwen3_tts/…
+               + the tokenizer repo's three JSON files
+```
+
+The destinations are the folders `modelInstalled()` already reads, so
+"installed" is answered by the same code as before, and a delete
+removes exactly the plan's files (plus the scratch directory and the
+resume data).
+
+### The one island
+
+`URLSession` calls its delegate on a serial queue of its own, and the
+temporary file it hands `didFinishDownloadingTo` is deleted when that
+call returns. So the delegate is a small `@unchecked Sendable` class:
+one `Mutex`-guarded map from task to plan entry, and one synchronous
+`moveItem` inside that callback. Everything else — the plan, the
+waiters, the fractions — is the actor's. Written down as §4.1 asks.
+
+## §203 — acceptance criteria
+
+*4z ended at AC-290; this milestone starts at AC-291. Each says what a
+test SEES.*
+
+- **AC-291 — a fraction on every engine.** `ensureModel(progress:)` on
+  `ModelBacked` (per F-6). On the four downloadable engines the closure
+  receives Σ bytes written / Σ bytes expected over the whole plan:
+  values in 0…1, never decreasing within one transfer, and exactly one
+  `1.0` before the call returns — also for a model that was already
+  installed (one `1.0`, nothing else: a true instrument). The Apple
+  engine forwards the system's `Progress.fractionCompleted`. The
+  argument-less `ensureModel()` stays (per F-7 for the mind).
+- **AC-292 — the transfer survives the process.** The plan runs on a
+  background session (per F-1 A). A helper process enqueues a plan and
+  exits; the test process re-attaches through the library's door and
+  sees every file land, complete. (Fact 3's shape, as a test.)
+- **AC-293 — resume, measured in bytes.** A transfer cancelled
+  mid-file keeps its resume data beside the destination (per F-4); the
+  next `ensureModel` resumes it: the loopback server sees a `Range`
+  request and answers `206`, and the bytes over the wire across both
+  attempts are the file's size plus one partial — never twice the
+  file. `installState()` on the mind reads `.absent` throughout (the
+  scratch directory is not the weights).
+- **AC-294 — a size without the network.** Every engine answers a
+  bytes question with no request and no throw (per F-5): the static
+  numbers for Kokoro, Whisper `base`/`small` and the neural voice's
+  variants; the mind's cached listing after any listing, `nil` before.
+  The mind's exact `expectedInstall()` makes ONE request.
+- **AC-295 — a delete removes what was written.** After
+  `deleteModel()`: `modelInstalled()` false (the four downloadable
+  engines); every file the plan wrote gone, the scratch and resume
+  data gone; a sibling variant's folder, a stranger's file under the
+  same root and the app's own directory untouched; a transfer in
+  flight cancelled first; the resident model retired (the mind's
+  `retire()`, the voices' `retire()`, Whisper's holder). The Apple
+  engine releases its locale reservation and reports what
+  `AssetInventory` then says — the one engine whose "installed" the
+  library does not own.
+- **AC-296 — a join.** Two concurrent `ensureModel(progress:)` on one
+  engine make ONE transfer (the loopback server counts one request per
+  file); both closures see the fractions; both return together. Per
+  F-8, the cancel rule.
+- **AC-297 — the re-entry door.** `ModelDownloads.handleEvents(…)`
+  answers whether the identifier is the library's; when it is, the
+  app's completion handler is called once, after the session reports
+  its events done — observed as an event, never polled.
+- **AC-298 — the old truths updated.** `MLXInstallSuspendTests` now
+  fails if the mind's transfer runs on a FOREGROUND session;
+  `WeightsFetching`'s "a conformer that throws cleans up" is rewritten
+  per F-4; the 4v/4x paragraphs on the suspend truth are rewritten;
+  D-114 records the reversal of D-106 F-2 and F-3.
+- **AC-299 — nothing else moved.** Every pre-5a test green; the demo
+  builds; `HubWeightsFetcher` still conforms (per F-3); no codename in
+  the repo.
+- **AC-300 — the demo, on hardware.** The model screen shows a byte
+  percentage per engine and a Delete; the app delegate hands the
+  wake-up over. Phone rows: lock five minutes → the percentage moved;
+  kill mid-download, relaunch, tap → it continues. Ryad's gate.
+- **AC-301 — INSTRUMENTS §70.** On this Mac: each engine's transfer
+  time and MB/s through the new downloader; the resume overhead
+  (bytes over the wire ÷ file size); the join; the listing's time
+  against the old ten listings and nine HEADs.
+- **AC-302 — the record.** 20× with every failing log kept; CI green on
+  the runner; lint zero; the 0.3.1 tag note naming every API change
+  against 0.3.0; `INTEGRATE.md` regenerated.
+
+### Test matrix
+
+| criterion | planned test (file · row) | kind |
+|---|---|---|
+| AC-291 | `ModelDownloaderTests` · "fractions never decrease and end at one"; "an installed model reports one 1.0"; per engine: `KokoroInstallTests`, `MLXDownloadTests` (through the new fetcher), `WhisperInstallTests`, `NeuralVoiceInstallTests` · the same two rows against the loopback server; `AppleSpeechInstallTests` · the forwarded fraction (OS-gated) | loopback |
+| AC-292 | `ModelDownloaderReentryTests` · "a plan started by another process lands here" — the helper executable (`download-helper`) enqueues and exits; the test re-attaches | loopback + helper process |
+| AC-293 | `ModelDownloaderTests` · "a cancel keeps resume data"; "the next transfer sends Range and gets 206"; "bytes over the wire ≤ size + one partial"; `MLXDownloadTests` · "`.absent` throughout" | loopback (the server counts bytes) |
+| AC-294 | `InstallSizeTests` · the static numbers pinned; `MLXInstallSizeTests` · "nil before a listing, cached after"; "one request" (the fake tree counts) | scripted |
+| AC-295 | one row per engine · "delete removes the plan's files and nothing beside them"; "a transfer in flight is cancelled first"; "the resident model is retired" | loopback + disk |
+| AC-296 | `ModelDownloaderTests` · "two callers, one transfer"; per F-8 · "the last waiter's cancel stops it" or "any waiter's cancel stops it" | loopback |
+| AC-297 | `ModelDownloaderReentryTests` · "the app's completion handler is called once, after the events" | loopback + helper process |
+| AC-298 | `MLXInstallSuspendTests` (flipped) · source read; doc rows by review | source |
+| AC-299 | the suite; `git grep` | — |
+| AC-300 | the demo; the phone rows | hardware |
+| AC-301 | `swift run bakeoff downloads` | Mac bakeoff |
+| AC-302 | `loop20.sh`; the runner; the tag | — |
+
+**The loopback server** is test support: a small HTTP/1.1 listener on
+`127.0.0.1` (Network.framework, no dependency) that serves files from a
+directory, answers `Range` with `206`, and COUNTS bytes and requests —
+so AC-293's "never twice the file" and AC-296's "one request per file"
+are numbers read from the server, not beliefs. Waits are events
+(continuations resumed by the delegate), never polls.
+
+**A risk named now:** whether GitHub's macOS runner allows background
+sessions in a test process is unknown until the first push. If it does
+not, the background rows become Mac-only (skipped on CI, said so in the
+log) and the rest of the suite runs the same delegate code on a
+`.default` session. Reported, not hidden.
+
+## §204 — the forks (Ryad rules)
+
+**F-1 — THE BACKGROUND TRANSFER (the requirement's fork).**
+*A:* a background `URLSession` with a delegate and a re-entry door —
+the transfer runs while the app is suspended or dead. *B:* a foreground
+session with resume data — resumes after a kill, but the transfer STOPS
+the moment the phone locks (AC-2's first row is not met).
+**Recommendation: A.** Fact 1 says A must be our own downloader; Facts
+2 and 3 say the pieces work on this Mac and are testable here. B is
+half the requirement for two-thirds of the work. *Rejected: B.*
+
+**F-2 — WHERE PROGRESS LIVES (the requirement's fork).**
+*A:* a closure per call, `(Double) -> Void` — Kokoro's shape today, the
+mind's `download(reporting:)` shape, the requirement's own words.
+*B:* an `AsyncStream<Double>` from the engine.
+**Recommendation: A.** One shape already public on two engines; a
+caller that wants a stream builds one from the closure in three lines,
+the reverse is not true. *Rejected: B.*
+
+**F-3 — WHO MOVES THE BYTES.**
+*A:* one library-owned downloader for all four downloadable engines;
+the vendors still load, the mind's goes through the `WeightsFetching`
+seam as a new default conformer, `HubWeightsFetcher` stays public and
+documented as foreground-only. *B:* keep the vendors' downloaders and
+add progress, delete and size around them. Fact 1: B cannot meet AC-2
+at all — the vendors' background path crashes and has no re-entry.
+**Recommendation: A.** One mechanism, four catalogs; the thing Ryad
+explains cold is one actor. *Rejected: B.*
+
+**F-4 — WHAT A STOPPED TRANSFER LEAVES BEHIND** (reverses D-106 F-2 A).
+*A:* on a cancel AND on a failure, keep what can be resumed (the resume
+data and the daemon's partial), nothing else; the next attempt resumes.
+*B:* keep on a cancel only; a failure discards. *C:* D-106 as it stands
+— discard always (AC-5's "keeps the partial" not met).
+**Recommendation: A.** One rule, and the honest one: a dropped
+connection at 90 % of 2.2 GB is exactly when resume matters most.
+`installState()` cannot lie either way — partials never live in the
+weights tree. *Rejected: B, C.*
+
+**F-5 — THE SIZE WITHOUT THE NETWORK.**
+*A:* a static number where the LIBRARY chose the bytes (Kokoro's two
+files; Whisper's variants; the neural voice's variants — measured and
+pinned when each piece is built, with a test that reads the listing
+and fails when the repository moved), the cached listing where the APP chose the
+repository (the mind, after any listing), and `nil` before that. *B:*
+the app passes its own number at init.
+**Recommendation: A.** The library cannot honestly pin a repository it
+did not choose; it can honestly remember one it listed. *Rejected: B.*
+
+**F-6 — THE NEURAL VOICE AND THE APPLE ENGINE.** The requirement says
+"every model-backed engine"; the diet app uses three of five.
+*A:* both new members go on `ModelBacked`; all five conform honestly —
+the neural voice's bytes through the library's downloader under the
+vendor's own `downloadPatterns` (so the file set cannot drift from what
+TTSKit loads); the Apple engine forwards the system's fraction and
+releases its reservation. *B:* the neural voice keeps the vendor's
+transfer with the vendor's file-count `Progress` (foreground, no
+resume, said so on its page). *C:* the two members go on a second
+protocol adopted by the three only.
+**Recommendation: A.** One downloader for everything that downloads is
+the deep-module answer, and the neural voice's catalog is one glob list
+read from the vendor. Its phone rows have no consumer asking; they are
+owed, not promised. *Rejected: B, C.*
+
+**F-7 — THE MIND'S ARGUMENT-LESS `ensureModel()`.** Today it LOADS and
+throws `.weightsAbsent` if the weights are missing; Whisper's and
+Kokoro's fetch. *A:* it stays as it is — `ensureModel(progress:)` is
+the door that fetches then loads, and the contract page says the two
+doors differ. *B:* it fetches too, like the others.
+**Recommendation: A.** The requirement says the argument-less form
+stays, and a launch-time `ensureModel()` that silently began a 2.2 GB
+download would break D-078's doctrine — a person's action stands behind
+a fetch. *Rejected: B.*
+
+**F-8 — THE JOIN'S CANCEL RULE.**
+*A:* the transfer stops when the LAST waiter cancels; each cancelled
+caller throws `CancellationError` at once. *B:* any waiter's cancel
+stops it for everyone.
+**Recommendation: A.** A join that a stranger's cancel can kill is not
+a join; the Models page and a background prefetch must be able to wait
+on one transfer without owning it. *Rejected: B.*
+
+## §205 — definition of done (5a)
+
+The eight forks ruled by Ryad and logged (D-114), the rejected options
+with them · the probes' sources and outputs in `docs/evidence/5a/` · red
+→ green per AC in §203's order, each piece presented and explained
+before the next (the downloader first, then Kokoro — the smallest
+catalog — then the mind through the seam, then Whisper, then the neural
+voice and the Apple engine, then the demo) · 20× with every failing log
+kept · CI green on the runner on every push · lint zero · INSTRUMENTS
+§70 · the demo on hardware, the phone rows Ryad's · the 0.3.1 tag on the
+merge with every API change named · `INTEGRATE.md` regenerated ·
+teach-back.
+
+## §206 — results, measured 2026-09-20…22 on `milestone/5a-downloads`
+
+Every criterion, with what was RUN and what is owed. "Phone" means
+Ryad's gate: nothing here claims a phone number. The raw logs are in
+`docs/evidence/5a/` (its README names each).
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-291 a fraction on every engine | **met** on all five — bytes over the whole plan on the four that own their files, the system's `Progress` forwarded on the Apple ear; never decreasing, `1.0` once and last, and `1.0` once for an already-installed model | `ModelDownloaderTests`, `KokoroInstallTests`, `MLXBackgroundInstallTests`, `WhisperInstallTests`, `NeuralVoiceInstallTests`, `ModelBackedContractTests` |
+| AC-292 the transfer survives the process | **met** on this Mac — a helper process enqueues on a background session and EXITS mid-transfer; the second life adopts the daemon's task and finishes it, one request at the server. The **phone** rows (lock five minutes; kill and relaunch) are **owed** | `ModelDownloaderReentryTests`, `probes/probe3.out.txt` |
+| AC-293 resume, measured in bytes | **met** — a cancel keeps the scratch and its resume data; the next call sends one `Range`, gets `206`, and the wire pays 9.4 % over the file (a 2 MB file cut at 12.5 %). `installState()` reads `.absent` throughout | `ModelDownloaderTests`, `MLXBackgroundInstallTests`, `WhisperInstallTests`, `NeuralVoiceInstallTests`, §70 |
+| AC-294 a size without the network | **met** — Kokoro 327 637 491, Whisper base 149 484 585 / small 489 252 581, the neural voice 1 102 450 874 / 2 179 559 521, all measured and pinned; the mind's cached listing, `nil` before one; the Apple ear `nil` always. `expectedInstall()` is now ONE request (135 ms against §66's 3 388 ms) | `WhisperInstallTests`, `NeuralVoiceInstallTests`, `KokoroInstallTests`, `MLXBackgroundInstallTests`, the two live rows, §70 |
+| AC-295 a delete removes what was written | **met** on the four that own their files — the tree, staging, scratch, resume data and listing go; a sibling variant, another model in the same base and the app's own file stay; a transfer in flight is cancelled first; the resident model is retired. The Apple ear releases its RESERVATION and says plainly that system assets are not this library's to remove | every engine's suite; `AppleSpeechInstallTests` |
+| AC-296 a join | **met** — two callers, ONE request, 524 288 B for a 524 288 B file; both see the fractions, both return. F-8 = A's last-waiter-out proven separately | `ModelDownloaderTests`, `MLXBackgroundInstallTests`, §70 |
+| AC-297 the re-entry door | **met, the Mac half** — the file lands with nobody tapping, while a second life holds its completion handler. The handler being CALLED rides on `urlSessionDidFinishEvents`, which macOS never sends (measured: 40 s, never called) — a **phone** row | `ModelDownloaderReentryTests` |
+| AC-298 the old truths updated | **met** — `MLXInstallSuspendTests` flipped: it now fails if the default fetcher leaves the downloader, if the vendor's crashing background flag appears, or if the doc loses the new sentence. D-114 records the reversal of D-106 F-2 and F-3 | `MLXInstallSuspendTests`, D-114 |
+| AC-299 nothing else moved | **met** — 901 tests in 131 suites green (pre-5a suites included); `HubWeightsFetcher` still conforms and is still public; the demo builds and runs | the suite |
+| AC-300 the demo, on hardware | **built and run** — the Models tab shows four rows through `any ModelBacked` with a size, a percentage and a Delete; the app delegate's one line hands the wake-up over; the full cycle (size → 35 % → installed → deleted) driven by hand on an iPhone 17 simulator. The three **phone** rows are **owed** (Ryad's gate) | `models-screen-2026-09-22.png`, `simulator-2026-09-22-background-session.md` |
+| AC-301 INSTRUMENTS §70 | **met** — four engines fetched and deleted against the real Hub with times and MB/s; the listing 25× cheaper than 4x's path; resume overhead and the join counted by the loopback server | §70, two instrument logs |
+| AC-302 the record | **met** — the 20× loop 20 of 20 at `901 tests in 131 suites`, identical every run, no failing log; CI green on every push after the two fix-forwards; lint zero; `INTEGRATE.md` regenerated from `Scripts/api.sh` at `eddc7f5` and `llms.txt`, `ARCHITECTURE.md`, `HOSTS.md`, `COMMANDS.md` updated. The **tag note** is owed until the merge (D-112) | `stability-2026-09-23.txt`, the runner |
+
+### What piece 6 found that no test could
+
+Running the demo produced the milestone's one platform fact: the **iOS
+Simulator has no background transfer daemon**. Every task on a
+background session fails at once with `NSURLErrorDomain Code=-1`, while
+the same URL on a background session on a Mac answers `200` and the same
+download in the simulator on a foreground session installs and deletes
+cleanly. `ModelDownloads.backgroundConfiguration` now falls back to a
+foreground session under `targetEnvironment(simulator)` and states what
+that loses. **This is a platform accommodation, not a fork D-114 ruled**
+— it is Ryad's to overturn, and one `#if` to remove.
+
+### The three phone rows, named
+
+Nothing on a Mac or a simulator can take these, and they are the
+requirement's own first sentence:
+
+1. Start the mind's download, lock the phone five minutes, unlock — the
+   percentage has moved.
+2. Kill the app mid-transfer, relaunch, tap again — it continues, with a
+   range request rather than the whole file.
+3. The system relaunches the app in the background when the last file
+   lands, and `ModelDownloads.handleEvents` calls the app's completion
+   handler once.

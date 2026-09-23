@@ -1,0 +1,19 @@
+MMK_LIVE_HUB=1 swift test --filter NeuralVoiceInstallLiveTests        (2026-09-22, before the fix)
+
+􀢄  "each variant still costs what this library says it costs" recorded an issue with 1 argument
+    variant → Qwen3-TTS-0.6B: Expectation failed: listed.totalBytes == NeuralVoiceSizes.measured(for: variant)
+􀄵  Qwen3-TTS-0.6B: the repositories now hold 1102450874 bytes — re-measure with today's date
+􀄵  Qwen3-TTS-1.7B: the repositories now hold 2179559521 bytes — re-measure with today's date
+􀢄  Test run with 2 tests in 2 suites failed after 0.423 seconds with 2 issues.
+
+WHY: the first pair of numbers in NeuralVoiceSizes was measured with the download patterns
+RECONSTRUCTED BY HAND (speech_decoder at "W8A16"); the vendor's own default is
+"W8A16-multifunction". The 0.6B was out by 474,698 bytes and the 1.7B by ~113 MB. The live row
+asks the real repositories through TTSKitConfig.downloadPatterns — the vendor's own globs — and
+convicted both before they reached a commit. Same day, a unit row hard-coded the same wrong
+quantisation in a path and went red for the same reason; it now reads the quantisation out of the
+vendor's pattern too. SPEC §118's lesson, twice in one afternoon: ask the vendor, never write down
+where its files ought to be.
+
+After the correction (the numbers above), green:
+  "each variant still costs what this library says it costs" with 2 test cases passed.

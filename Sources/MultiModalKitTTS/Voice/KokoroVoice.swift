@@ -284,6 +284,24 @@ public actor KokoroVoice: SpokenVoice {
         try await warmKernels()
     }
 
+    /// What `ensureModel` will download, without the network (5a, AC-294,
+    /// F-5 = A): the library chose these two files, so it can pin their
+    /// bytes. The fp16 cast is disk, not download, and is not counted.
+    public nonisolated func expectedDownloadBytes() -> Int64? { weights.expectedDownloadBytes }
+
+    /// Retires this voice and removes what `ensureModel` wrote (5a,
+    /// AC-295): the two downloads, the cast, the downloader's resume data
+    /// — a transfer in flight is stopped first — and nothing else in the
+    /// app's directory. `modelInstalled()` reads `false` afterwards.
+    ///
+    /// RETIRED MEANS TERMINAL, as `retire()` is (D-079): a voice whose
+    /// weights are gone cannot speak again, and a download after a delete
+    /// is a fresh voice — the same rule a lever change already follows.
+    public func deleteModel() async throws {
+        await retire()
+        await weights.remove()
+    }
+
     // MARK: - speaking
 
     /// Renders replies on `host` from now on. Settable rather than fixed
@@ -323,8 +341,17 @@ public actor KokoroVoice: SpokenVoice {
         let dying = speaking
         speaking = nil
         await dying?.cancel()
+        // ONLY IF SOMETHING WAS LOADED. `clearCache()` is MLX's first call
+        // on a machine that never made one, and MLX's first call on a
+        // machine with no metallib is an ABORT, not an error (D-061,
+        // INSTRUMENTS §24). A voice that never loaded holds nothing in
+        // that cache, so retiring it — or deleting its weights (5a) —
+        // must not be the thing that wakes the GPU. CI's runner has no
+        // metallib, and the first `deleteModel` row killed the whole
+        // test process there; the fix belongs here, not on the row.
+        let wasLoaded = decoder != nil
         decoder = nil
-        MLX.Memory.clearCache()
+        if wasLoaded { MLX.Memory.clearCache() }
     }
 
     public func openUtterance() async throws -> any SynthesisRun {

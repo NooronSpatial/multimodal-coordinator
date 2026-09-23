@@ -334,28 +334,31 @@ extension LocalMindModel {
     /// the bytes arrive. Such a tree stays `.installedUnverified` until
     /// it is fetched again.
     ///
-    /// **THE SUSPEND TRUTH (AC-251, D-106's F-3 = A).** This download
-    /// dies when the app leaves the foreground. It runs on an ordinary
-    /// foreground `URLSession` — the client's background-session switch
-    /// is left off, at its default — so the moment a person locks the
-    /// phone or switches app, the system suspends this process and the
-    /// transfer stops. There is no background session and no resume.
+    /// **THE TRANSFER GOES ON WHILE THE APP IS SUSPENDED (5a, AC-292;
+    /// D-114 F-1 = A, F-3 = A — reversing D-106's F-3 = A).** The bytes
+    /// move through `ModelDownloader`, on the library's background
+    /// `URLSession`: the system's daemon carries them while the app is
+    /// in front, locked away, or dead, and the app's delegate hands the
+    /// wake-up to `ModelDownloads.handleEvents`. From 4v to 4z this ran
+    /// on the client's foreground session and died when the app left the
+    /// foreground — the sentence D-106 had this library STATE instead of
+    /// engineer, and the reason it named this milestone.
     ///
-    /// What a caller must do about it: keep the screen alive while the
-    /// weights come down — an idle timer disabled, and a person told why
-    /// — or start the download again. Starting again is always safe, and
-    /// with the fetcher this library ships it begins at zero:
-    /// the partial tree is deleted, and the client's resume bookkeeping
-    /// lives inside that tree and goes with it (`HubWeightsFetcher`). A
-    /// caller that brings its OWN fetcher decides that for itself; the
-    /// protocol asks it to clear what it wrote.
+    /// **WHAT A STOPPED TRANSFER LEAVES (AC-293; F-4 = A — reversing
+    /// D-106's F-2 = A).** A cancel, a lost connection, a killed app: the
+    /// scratch directory beside the weights keeps every complete file
+    /// and the resume data of each unfinished one, and the next call
+    /// resumes from there — one request to list, a `Range` request per
+    /// unfinished file, never the whole file twice. `installState()`
+    /// reads the weights directory and nothing else, so it says `.absent`
+    /// throughout and cannot be lied to by a partial. `deleteModel()` is
+    /// what removes the scratch. `MLXInstallSuspendTests` reads this
+    /// module's source and fails if the default transfer ever leaves
+    /// the downloader.
     ///
-    /// That is D-106's F-3 = A, ruled and not merely settled for: a
-    /// background `URLSession` is what a 2.3 GB cellular download really
-    /// needs, and it is a different downloader, a delegate and a re-entry
-    /// path — a milestone of its own, not a bullet in this one.
-    /// `MLXInstallSuspendTests` reads this module's source and fails if a
-    /// background session ever appears underneath this paragraph.
+    /// A caller that brings its OWN fetcher (AC-249) decides for itself
+    /// what its stopped transfer leaves; the protocol says what it may
+    /// keep, and where.
     ///
     /// - Throws: `ReplyFailure.unavailable(.weightsAbsent)` when this
     ///   model has no repository to fetch from; `CancellationError` when
@@ -363,7 +366,7 @@ extension LocalMindModel {
     public func download(
         reporting progress: @escaping @Sendable (InstallProgress) -> Void
     ) async throws {
-        try await download(reporting: progress, using: HubWeightsFetcher())
+        try await download(reporting: progress, using: BackgroundWeightsFetcher())
     }
 
     /// The download, with the fetcher handed in — Aura's seam (AC-249),
@@ -384,13 +387,14 @@ extension LocalMindModel {
     /// the package.
     ///
     /// WHAT A STOPPED DOWNLOAD LEAVES BEHIND is the other half (AC-247,
-    /// AC-248, F-2 = A): nothing that pretends. On a cancel or a throw the
-    /// partial tree goes, so `installState()` answers `.absent` — or, when
-    /// a caller's own earlier tree was already there, the `.incomplete`
-    /// it already was. The cost is that a person who cancels at 90% pays
-    /// again; B, keep-and-resume, was rejected because "resume" is a
-    /// promise that must be tested on a bad network and this Mac cannot
-    /// do that honestly.
+    /// AC-248): nothing that PRETENDS — and, since 5a, everything that
+    /// can be resumed (F-4 = A). `installState()` answers `.absent` — or,
+    /// when a caller's own earlier tree was already there, the
+    /// `.incomplete` it already was — because a partial never lives in
+    /// the weights directory; it lives in the fetcher's own scratch, and
+    /// the next attempt starts from it. D-106 chose to delete it because
+    /// "resume" was a promise nobody here could test; `MLXDownloadTests`
+    /// now tests it against a loopback server that counts bytes.
     ///
     /// THAT SECOND HALF IS A MECHANISM, NOT A HOPE, and the 4x review had
     /// to take it apart before it was. A caller's tree is never destroyed
@@ -402,23 +406,42 @@ extension LocalMindModel {
     /// shapes that used to get through.
     ///
     /// THE DELETING IS SPLIT IN TWO, and a review had to find out why.
-    /// This function can only remove what it can NAME: the weights tree,
-    /// and the directory a fetch RETURNED. A fetch that THROWS returns no
-    /// path at all — and going looking for one is the mistake
+    /// This function can only remove what it can NAME: the weights tree
+    /// it created, and the directory a fetch RETURNED — and only when
+    /// putting that directory in place FAILED. A fetch that THROWS
+    /// returns no path at all — and going looking for one is the mistake
     /// `HubWeightsFetcher`'s own note records, where code moved a folder
-    /// because it found a `config.json` in it. So the throw path is the
-    /// conformer's own to clean, `WeightsFetching` says so as a
-    /// requirement, and the fetcher this library ships keeps it.
+    /// because it found a `config.json` in it. So what a stopped fetch
+    /// leaves is the conformer's own — kept, since F-4 = A, for the next
+    /// attempt — and `WeightsFetching` says so.
+    ///
+    /// THE JOIN (AC-296): two callers, one transfer. The downloader joins
+    /// a second `transfer` of the same files to the first, so two
+    /// concurrent calls here get the SAME scratch back. The first to
+    /// reach `completeInstall` moves it into place; the second finds the
+    /// scratch gone and the install complete — the reentrancy law, asked
+    /// of the disk — and returns as the success it is, not as a
+    /// `.couldNotComplete` over a directory somebody else finished.
     public func download(
         reporting progress: @escaping @Sendable (InstallProgress) -> Void,
         using fetcher: some WeightsFetching
     ) async throws {
-        guard !modelInstalled() else { return }
+        guard !modelInstalled() else {
+            // AC-291: a true instrument. The bar is full, and it says so
+            // once — never a transfer's fractions for bytes that did not
+            // move.
+            progress(InstallProgress.at(fraction: 1, bytesExpected: expectedBytes() ?? listedBytes()))
+            return
+        }
         guard let repoID else { throw ReplyFailure.unavailable(.weightsAbsent) }
-        // AC-240: the expected total is a manifest's, when an earlier
-        // install left one (a re-install after `.incomplete`); on a first
-        // install there is no number, and none is invented.
-        let expected = expectedBytes()
+        // AC-240 / AC-294: the expected total — a manifest's, when an
+        // earlier install left one (a re-install after `.incomplete`), or
+        // a listing this model made (`expectedInstall()`, or an earlier
+        // attempt). Read once, LAZILY, on the first fraction: the fetcher
+        // this library ships writes its listing before its first byte
+        // moves, so even a first-ever install knows its total by then.
+        // When neither exists the byte fields stay nil — none is invented.
+        let expected = LazyTotal { [self] in expectedBytes() ?? listedBytes() }
         // WHOSE TREE IS IT — read BEFORE the fetch, because after it the
         // answer is about a directory this download may have made. It is
         // the whole of the deletion guard: a tree that was already there
@@ -431,28 +454,65 @@ extension LocalMindModel {
                 repoID: repoID,
                 into: weights.deletingLastPathComponent()
             ) { fraction in
-                progress(InstallProgress.at(fraction: fraction, bytesExpected: expected))
+                progress(InstallProgress.at(fraction: fraction, bytesExpected: expected.value))
             }
         } catch {
             // No snapshot path to name: a fetcher that threw never said
             // where it was working, and guessing at a directory to delete
             // is exactly the mistake `HubWeightsFetcher`'s note records —
             // that code once moved a folder because it found a
-            // `config.json` in it. So F-2 = A's other half is the
-            // FETCHER's: `WeightsFetching` requires a conformer that
-            // throws to remove what it wrote, and the shipped one does.
+            // `config.json` in it. What it keeps is its own (F-4 = A).
             // Everything this side can still name — a weights tree this
             // download created — is removed below.
             discardPartialInstall(snapshot: nil, keeping: treeWasAlreadyThere)
             throw error is CancellationError ? error : InstallFailure.fetchFailed(words(for: error))
         }
+        // The join's second caller (AC-296): the reentrancy law, asked of
+        // the disk after the await.
+        if !FileManager.default.fileExists(atPath: snapshot.path), installState() == .installed {
+            progress(InstallProgress.at(fraction: 1, bytesExpected: expected.value))
+            return
+        }
         do {
             try completeInstall(movingFrom: snapshot)
+        } catch is CancellationError {
+            // F-4 = A: a cancel keeps the fetched directory where the
+            // fetcher left it; the next attempt finds every file complete
+            // and asks the network for nothing.
+            throw CancellationError()
         } catch {
             discardPartialInstall(snapshot: snapshot, keeping: treeWasAlreadyThere)
-            throw error is CancellationError ? error
-                : InstallFailure.couldNotComplete(words(for: error))
+            throw InstallFailure.couldNotComplete(words(for: error))
         }
+    }
+
+    /// A number read once, when first asked for, and remembered —
+    /// `expected` above, whose source may not exist until the fetcher
+    /// has listed. `Sendable` by the lock, and the read is a small file.
+    private final class LazyTotal: Sendable {
+        private let read: @Sendable () -> Int64?
+        private let cached = Mutex<(loaded: Bool, total: Int64?)>((false, nil))
+
+        init(_ read: @escaping @Sendable () -> Int64?) { self.read = read }
+
+        var value: Int64? {
+            cached.withLock { state in
+                if !state.loaded {
+                    state.total = read()
+                    state.loaded = state.total != nil   // nil is asked again: the listing may land later
+                }
+                return state.total
+            }
+        }
+    }
+
+    /// The listing's total, when this model has made one (`expectedInstall()`
+    /// or a download attempt) — the size without the network (AC-294,
+    /// F-5 = A). `nil` before any listing: the app chose this repository,
+    /// and the library does not guess at bytes it never read.
+    nonisolated func listedBytes() -> Int64? {
+        guard let repoID else { return nil }
+        return WeightsListing.read(for: repoID, under: weights.deletingLastPathComponent())?.totalBytes
     }
 
     /// The error's own words. `String(describing:)` and not
@@ -704,5 +764,74 @@ extension LocalMindModel {
         progress: @escaping @Sendable (Double) -> Void = { _ in }
     ) async throws {
         try await download(reporting: { progress($0.fraction) })
+    }
+
+    // MARK: - the 5a doors: fetch-then-load, the size, the delete
+
+    /// Puts the weights on disk, reporting a byte fraction, and LOADS them
+    /// (5a, AC-291; the requirement's AC-1). The other door,
+    /// `ensureModel()`, stays load-only and throws `.weightsAbsent` when
+    /// there is nothing to load (D-114 F-7 = A): a launch-time call that
+    /// quietly began a 2.2 GB download would break D-078's doctrine — a
+    /// person's action stands behind a fetch, and this is that action's
+    /// door. `download(reporting:)` is the same transfer with bytes in
+    /// its progress and without the load.
+    public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+        try await download(reporting: { progress($0.fraction) })
+        _ = try await ensureModelLoaded()
+    }
+
+    /// What the download will cost, WITHOUT the network (5a, AC-294,
+    /// F-5 = A): the total of the listing this model made — through
+    /// `expectedInstall()`, or a download attempt — and `nil` before any.
+    /// The app chose this repository, so the library cannot pin its
+    /// bytes the way it pins Kokoro's; it can honestly remember a listing
+    /// it made, and does, beside the weights. `expectedInstall()` is the
+    /// exact question, one request.
+    public nonisolated func expectedDownloadBytes() -> Int64? { listedBytes() }
+
+    /// Retires the resident model and removes what this model's downloads
+    /// wrote (5a, AC-295): the weights tree and its manifest, the
+    /// staging beside it, the fetcher's scratch and resume data — a
+    /// transfer in flight is stopped first — and the listing. Everything
+    /// else under the same directory is somebody else's and stays: this
+    /// demo keeps Whisper's weights beside the mind's. `installState()`
+    /// reads `.absent` afterwards, and `modelInstalled()` false.
+    ///
+    /// A model built with `init(weights:)` — a tree dropped in by hand —
+    /// has no repository and no fetcher; its tree is still THIS model's,
+    /// named at init, and a delete removes it. A caller that wants such a
+    /// tree kept does not call this on it.
+    ///
+    /// - Throws: `InstallFailure.couldNotDelete` when something named
+    ///   here could not be removed — the disk's words — so a screen can
+    ///   say why `modelInstalled()` still reads true.
+    public func deleteModel() async throws {
+        try await deleteModel(using: BackgroundWeightsFetcher())
+    }
+
+    /// The delete, with the fetcher handed in — the tests' door, and a
+    /// caller's whose own fetcher keeps something between attempts.
+    public func deleteModel(using fetcher: some WeightsFetching) async throws {
+        await retire()
+        let base = weights.deletingLastPathComponent()
+        if let repoID {
+            await fetcher.discard(repoID: repoID, under: base)
+        }
+        let files = FileManager.default
+        var failures: [String] = []
+        let named = [weights,
+                     base.appending(path: weights.lastPathComponent + ".incoming"),
+                     repoID.map { WeightsListing.location(for: $0, under: base) }].compactMap { $0 }
+        for url in named where files.fileExists(atPath: url.path) {
+            do {
+                try files.removeItem(at: url)
+            } catch {
+                failures.append("\(url.lastPathComponent): \(words(for: error))")
+            }
+        }
+        guard failures.isEmpty else {
+            throw InstallFailure.couldNotDelete(failures.joined(separator: " · "))
+        }
     }
 }

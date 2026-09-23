@@ -63,25 +63,86 @@ public final class AppleSpeechEngine: TranscriptionEngine, ModelBacked, Sendable
     /// the spike watched it die with "final state: Network Error"). Safe to
     /// call again: an already-installed model returns immediately.
     public func ensureModel() async throws {
+        try await ensureModel(progress: { _ in })
+    }
+
+    /// The same work, reporting the SYSTEM's fraction (5a, AC-291;
+    /// D-114 F-6 = A).
+    ///
+    /// THE ONE ENGINE WHOSE BYTES ARE NOT THIS LIBRARY'S. Every other
+    /// `ModelBacked` moves its own files through `ModelDownloader`; this
+    /// one asks the operating system to install a speech asset, and the
+    /// system decides where the bytes go, when they move and whether
+    /// they are shared with other apps. So the fraction here is
+    /// forwarded, not computed: `AssetInstallationRequest` reports a
+    /// `Progress`, and this observes it — an EVENT, through key-value
+    /// observation, never a poll — for as long as the install runs.
+    ///
+    /// The last word is still `1.0` exactly once, like every other
+    /// engine: an already-installed model says it and asks the system
+    /// for nothing.
+    public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws {
         try await reserveLocaleIfNeeded()
         let transcriber = SpeechTranscriber(
             locale: locale, transcriptionOptions: [],
             reportingOptions: [.volatileResults], attributeOptions: [])
         switch await AssetInventory.status(forModules: [transcriber]) {
         case .installed:
+            progress(1.0)
             return
         case .unsupported:
             throw TranscriptionFailure.modelNotInstalled
         default:
             do {
                 guard let request = try await AssetInventory
-                    .assetInstallationRequest(supporting: [transcriber]) else { return }
+                    .assetInstallationRequest(supporting: [transcriber]) else {
+                    progress(1.0)
+                    return
+                }
+                // Held for the call's lifetime and released after it: an
+                // observation that outlived its progress would report a
+                // fraction nobody is waiting for.
+                let watch = request.progress.observe(\.fractionCompleted, options: [.new]) { reported, _ in
+                    let fraction = min(1, max(0, reported.fractionCompleted))
+                    if fraction < 1 { progress(fraction) }
+                }
+                defer { watch.invalidate() }
                 try await request.downloadAndInstall()
+                progress(1.0)
             } catch let failure as TranscriptionFailure {
                 throw failure
             } catch {
                 throw TranscriptionFailure.assetDownloadFailed(String(describing: error))
             }
+        }
+    }
+
+    /// The system owns these bytes, so this library cannot count them
+    /// (AC-294, F-5 = A): `nil`, always, and no guess. A caller that
+    /// wants a number for a system asset asks the system.
+    public nonisolated func expectedDownloadBytes() -> Int64? { nil }
+
+    /// Releases this engine's hold on the locale's assets (AC-295).
+    ///
+    /// AND SAYS PLAINLY WHAT IT CANNOT DO. The other four engines delete
+    /// files they wrote; this one wrote none. Speech assets are the
+    /// operating system's, installed per LOCALE and shared with every
+    /// app on the device, so removing them here would be removing
+    /// somebody else's model — the exact thing every other `deleteModel`
+    /// in this library refuses to do. What this call owns is the
+    /// RESERVATION (`AssetInventory.reserve`, taken lazily by
+    /// `ensureModel`), and that is what it gives back; afterwards
+    /// `modelInstalled()` reports whatever the system then says, which
+    /// on most devices is still `true`.
+    ///
+    /// - Throws: `TranscriptionFailure.engineFailed` when the system
+    ///   refuses to release the reservation.
+    public func deleteModel() async throws {
+        let reserved = await AssetInventory.reservedLocales
+        guard reserved.contains(where: { $0.identifier(.bcp47) == locale.identifier(.bcp47) }) else { return }
+        guard await AssetInventory.release(reservedLocale: locale) else {
+            throw TranscriptionFailure.engineFailed(
+                "the system would not release the reservation for \(locale.identifier(.bcp47))")
         }
     }
 

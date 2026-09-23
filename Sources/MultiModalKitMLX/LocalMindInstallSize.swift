@@ -1,5 +1,4 @@
 import Foundation
-import Hub
 import MultiModalKit
 
 // THE SIZE, BEFORE ANYTHING IS FETCHED (4x, SPEC §181/1, AC-245, AC-246;
@@ -9,7 +8,11 @@ import MultiModalKit
 // download a person pays for cannot be offered on a library whose only
 // honest answer is "I will tell you the total once the bytes have
 // arrived". The number IS knowable in advance: the Hub lists a repo's
-// file names, and one HEAD per file gives each file's size.
+// files with their sizes — in 4x through the client, a listing and a
+// HEAD per file; since 5a in ONE request to the tree endpoint
+// (`treeSizes`, `BackgroundWeightsFetcher.swift`), and the answer is
+// kept beside the weights so the next time costs nothing (AC-294,
+// D-114 F-5 = A).
 //
 // F-5 = A puts the question on `LocalMindModel`, beside `installState()`
 // and `download` — one object owns the weights. Rejected: putting it on
@@ -110,25 +113,28 @@ extension LocalMindModel {
         _ globs: [String]
     ) async throws -> [InstallSize.FileSize]
 
-    /// What installing this model will cost — **this makes network
-    /// calls.**
+    /// What installing this model will cost — **this makes ONE network
+    /// call** (5a; AC-294).
     ///
-    /// The name says so, and so does this sentence, because a caller that
-    /// puts it on a screen's `onAppear` will make a couple of small
-    /// requests per file every time that screen appears. Ask it once,
-    /// when a person is about to be shown "this needs 2.3 GB", and keep
-    /// the answer.
+    /// The name says so, and so does this sentence: a caller that puts it
+    /// on a screen's `onAppear` makes one small request every time that
+    /// screen appears. `expectedDownloadBytes()` is the free question —
+    /// the last listing's total, kept beside the weights — and the one a
+    /// screen asks on appear; this is the exact one, asked when a person
+    /// is about to be shown "this needs 2.3 GB".
     ///
-    /// It fetches NOTHING (AC-246): the requests are a repository listing
-    /// and a metadata HEAD per file (`hubSizes` has the exact count and
-    /// why it is not one). No weights are downloaded, no directory is
-    /// created, and `installState()` is the same afterwards as before.
+    /// It fetches NOTHING (AC-246): the request is the repository's tree,
+    /// with every file's size in it. No weights are downloaded, no
+    /// directory is created, and `installState()` is the same afterwards
+    /// as before. What it does write is the listing, one small JSON
+    /// BESIDE the weights directory — never in it.
     ///
     /// The number will drift the day the model is re-quantised — it is
-    /// read from the repository every time, never cached in this library.
-    /// Measured against the real repository on 2026-09-10 and written into
-    /// INSTRUMENTS §66 with that date: nine files, 2 173 MB, asked in
-    /// 3 388 ms, and zero bytes fetched by the asking. `bakeoff
+    /// read from the repository on every call; only the free question
+    /// reads the copy. 4x measured the client's way on 2026-09-10
+    /// (INSTRUMENTS §66: nine files, 2 173 MB, asked in 3 388 ms — ten
+    /// listings and nine HEADs); 5a measured the tree endpoint at 0.22 s
+    /// for the same nine files (SPEC §199, Fact 4). `bakeoff
     /// install-size` is how to take the number again.
     ///
     /// - Throws: `ReplyFailure.unavailable(.weightsAbsent)` when this
@@ -138,7 +144,7 @@ extension LocalMindModel {
     ///   learned, because a total that quietly leaves the 2 GB file out
     ///   would be worse than no total at all.
     public func expectedInstall() async throws -> InstallSize {
-        try await expectedInstall(asking: Self.hubSizes)
+        try await expectedInstall(asking: Self.treeSizes(host: Self.hubHost))
     }
 
     /// The question, with the metadata source handed in — the shape every
@@ -150,52 +156,14 @@ extension LocalMindModel {
     /// number a total about a different set of files. Real repositories
     /// make it matter too: a Qwen-shaped repo carries `.bin` copies of
     /// the same weights, which this download never fetches.
+    ///
+    /// AND THE ANSWER IS KEPT (5a, F-5 = A): the listing is written beside
+    /// the weights, where `expectedDownloadBytes()` reads it with the
+    /// network unplugged and a download's progress reads its total.
     func expectedInstall(asking sizes: Sizing) async throws -> InstallSize {
         guard let repoID else { throw ReplyFailure.unavailable(.weightsAbsent) }
-        let listed = try await sizes(repoID, Self.weightGlobs)
-        return InstallSize(files: listed.filter { Self.matchesWeightGlob($0.name) })
-    }
-
-    /// The real one: the repository's listing, then one HEAD per file.
-    ///
-    /// TWO CALLS PER FILE, NOT ONE, and the reason is the client's shape
-    /// rather than a choice. Its metadata value carries a `size` but no
-    /// file NAME — the location it does carry is a CDN URL for anything
-    /// stored as a large file — and the only public way to tie a size back
-    /// to a name is to ask for one file at a time, by name. Pairing a
-    /// bulk listing with a bulk metadata call by position would depend on
-    /// two unordered sets landing in the same order, which is not a thing
-    /// to bet a person's data allowance on.
-    ///
-    /// THE COUNT, CORRECTED. This comment said "nine listings and nine
-    /// HEADs" for a nine-file model, and a review counted the calls in
-    /// the client instead of trusting the sentence: the loop below makes
-    /// ONE listing, and then `getFileMetadata(from:matching:)` makes its
-    /// OWN listing before every HEAD. So nine files cost TEN listings and
-    /// nine HEADs. All are small, and this is asked once — but the number
-    /// a doc comment gives is a number somebody will plan around, so it
-    /// says what the code does. (SPEC §180's "a nine-file model costs
-    /// nine HEADs" reads on the HEADs alone and is still true of them; it
-    /// is silent about the listings, which is a note for the spec, not a
-    /// change to make here.)
-    ///
-    /// NONISOLATED BY CONSTRUCTION: this is a plain `@Sendable` closure,
-    /// so the client's non-`Sendable` metadata values never cross an
-    /// actor boundary — only the `FileSize` values it maps them into do.
-    static let hubSizes: Sizing = { repoID, globs in
-        // The client's download base is left at its default and never
-        // touched: nothing here downloads, so nothing here writes a
-        // directory. That is AC-246 in one line.
-        let hub = HubApi()
-        var sizes: [InstallSize.FileSize] = []
-        for name in try await hub.getFilenames(from: repoID, matching: globs) {
-            // The name IS the glob here, so exactly one file answers.
-            let metadata = try await hub.getFileMetadata(from: repoID, matching: [name])
-            guard let bytes = metadata.first?.size else {
-                throw InstallFailure.sizeUnknown(file: name)
-            }
-            sizes.append(InstallSize.FileSize(name: name, bytes: Int64(bytes)))
-        }
-        return sizes
+        let listing = try await WeightsListing.list(repoID: repoID, asking: sizes)
+        try listing.write(for: repoID, under: weights.deletingLastPathComponent())
+        return InstallSize(files: listing.files.map { InstallSize.FileSize(name: $0.key, bytes: $0.value) })
     }
 }

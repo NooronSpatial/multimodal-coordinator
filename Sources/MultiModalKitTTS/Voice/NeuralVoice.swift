@@ -158,7 +158,45 @@ public actor NeuralVoice: SpokenVoice {
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 seed: UInt64? = nil,
-                availableOnThisPlatform: Bool? = nil) {
+                availableOnThisPlatform: Bool? = nil,
+                installRoot: URL = URL.documentsDirectory) {
+        self.init(variant: variant, renderingOn: host, lead: lead,
+                  multiCodeDecoderMode: multiCodeDecoderMode, speechDecoderMode: speechDecoderMode,
+                  temperature: temperature, seed: seed,
+                  availableOnThisPlatform: availableOnThisPlatform,
+                  source: .hub, downloader: .shared, installRoot: installRoot)
+    }
+
+    /// Where this voice's bytes come from, and what moves them (5a).
+    /// FULLY QUALIFIED: TTSKit ships a `ModelDownloader` of its own
+    /// (`ArgmaxCore`), and both are in scope here — the vendor's is the
+    /// one this milestone replaced, so the module says which is meant.
+    private nonisolated let source: NeuralVoiceSource
+    private nonisolated let downloader: MultiModalKit.ModelDownloader
+    /// Where the vendor's folder layout starts — the app's `Documents`,
+    /// always, except under test. The paths BELOW it are the vendor's
+    /// and are never a test's to choose: what a row redirects is the
+    /// root, so it does not write a gigabyte's worth of fixtures into a
+    /// person's own model folders while proving a delete.
+    nonisolated let installRoot: URL
+
+    /// The tests' door (5a): a loopback server and a downloader of the
+    /// test's own, so a gigabyte's worth of promises is proved on a few
+    /// kilobytes.
+    init(variant: TTSModelVariant,
+         renderingOn host: (any PlaybackHost)?,
+         lead: Duration?,
+         multiCodeDecoderMode: Qwen3MultiCodeDecoderMode,
+         speechDecoderMode: Qwen3SpeechDecoderMode,
+         temperature: Float?,
+         seed: UInt64?,
+         availableOnThisPlatform: Bool?,
+         source: NeuralVoiceSource,
+         downloader: MultiModalKit.ModelDownloader,
+         installRoot: URL) {
+        self.source = source
+        self.downloader = downloader
+        self.installRoot = installRoot
         self.variant = variant
         self.platformVerdict = availableOnThisPlatform
         self.providedHost = host
@@ -264,8 +302,105 @@ public actor NeuralVoice: SpokenVoice {
     /// of what an opt-in module is for (D-045 F-4). The pipeline stays
     /// in here.
     public func ensureModel() async throws {
-        // The holder does the caching now; this only asks for it.
+        try await ensureModel(progress: { _ in })
+    }
+
+    /// The same work, with a byte fraction over every file the VENDOR's
+    /// own globs name (5a, AC-291; D-114 F-3 = A, F-6 = A).
+    ///
+    /// Until 5a this voice had no download of its own: the vendor fetched
+    /// ~1.1 GB in the foreground, counting files, with nothing to resume
+    /// and no way to delete. Now two requests list the model and
+    /// tokenizer repositories, `ModelDownloader` moves the files on the
+    /// background session, and the six component directories are placed
+    /// only when every file is complete — per directory, because the
+    /// other variant's six sit in the same tree (`NeuralVoiceInstall`).
+    ///
+    /// IT LOADS TOO, the rule two doors into one room must keep: the
+    /// fraction reaches `1.0` when the bytes are placed, and the vendor's
+    /// pipeline load follows it.
+    public func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws {
+        try await download(progress: progress)
         _ = try await loadedPipeline()
+    }
+
+    /// The bytes, and nothing else. Idempotent — an installed variant
+    /// says `1.0` once and asks the network nothing.
+    public func download(progress: @escaping @Sendable (Double) -> Void = { _ in }) async throws {
+        guard platformVerdict ?? variant.isAvailableOnCurrentPlatform else {
+            throw NeuralVoiceUnavailableOnPlatform(variant: variant)
+        }
+        guard !isRetired else { throw NeuralVoiceRetired() }
+        guard await !modelInstalled() else {
+            progress(1.0)
+            return
+        }
+        let catalog = catalog
+        let listing = try await catalog.list()
+        try listing.write(to: catalog.listingFile)
+        try await downloader.transfer(catalog.plan(from: listing), progress: progress)
+        // THE REENTRANCY LAW. Every await above released the actor, and a
+        // `retire()` may have landed: placing a gigabyte for a voice that
+        // can never speak again is work nobody asked for.
+        guard !isRetired else { throw NeuralVoiceRetired() }
+        try catalog.place()
+    }
+
+    /// What `ensureModel` will download, without the network (AC-294,
+    /// F-5 = A): the measured size of this variant, or the listing this
+    /// device made. Both repositories are the vendor's and named in this
+    /// library, so the numbers can be pinned.
+    public nonisolated func expectedDownloadBytes() -> Int64? {
+        NeuralVoiceSizes.measured(for: variant)
+            ?? NeuralVoiceListing.read(from: catalog.listingFile)?.totalBytes
+    }
+
+    /// Retires this voice and removes what its variant's download wrote
+    /// (AC-295): its six component directories, its scratch and its
+    /// listing — a transfer in flight is stopped first.
+    ///
+    /// THE OTHER VARIANT'S SIX DIRECTORIES STAY, and so does the
+    /// TOKENIZER while any variant still needs it: the vendor hard-wires
+    /// one tokenizer repository for every variant, so removing it here
+    /// would break a voice this call was never asked about. When no other
+    /// variant is left, it goes too — 11 MB a person would otherwise
+    /// keep forever after deleting "the voice".
+    ///
+    /// RETIRED MEANS TERMINAL (D-079): a voice whose weights are gone
+    /// cannot speak again, and a download after a delete is a fresh voice.
+    ///
+    /// - Throws: `DownloadFailure.couldNotPlace` naming what could not be
+    ///   removed, so a screen can say why `modelInstalled()` still reads
+    ///   true.
+    public func deleteModel() async throws {
+        let catalog = catalog
+        await retire()
+        if let listing = NeuralVoiceListing.read(from: catalog.listingFile) {
+            await downloader.discard(catalog.plan(from: listing))
+        }
+        var doomed = catalog.variantDirectories
+        doomed.append(contentsOf: [catalog.modelScratch, catalog.listingFile])
+        if !catalog.anotherVariantIsInstalled() {
+            doomed.append(contentsOf: [catalog.tokenizerFolder, catalog.tokenizerScratch])
+        }
+        let files = FileManager.default
+        var failures: [String] = []
+        for url in doomed where files.fileExists(atPath: url.path) {
+            do {
+                try files.removeItem(at: url)
+            } catch {
+                failures.append("\(url.lastPathComponent): \(String(describing: error))")
+            }
+        }
+        guard failures.isEmpty else {
+            throw DownloadFailure.couldNotPlace(file: variant.description, failures.joined(separator: " · "))
+        }
+    }
+
+    /// Every path this variant's install touches.
+    nonisolated var catalog: NeuralVoiceCatalog {
+        NeuralVoiceCatalog(variant: variant, source: source, modelRoot: localModelRoot,
+                           familyFolder: localModelFolder, tokenizerFolder: localTokenizerFolder)
     }
 
     /// Loads once, then reuses. The variant's own logging reports the

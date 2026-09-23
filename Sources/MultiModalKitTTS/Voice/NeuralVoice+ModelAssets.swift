@@ -32,8 +32,7 @@ extension NeuralVoice {
     /// nothing, and throw `modelNotFound` on a machine that has the
     /// weights.
     nonisolated var localModelRoot: URL {
-        URL.documentsDirectory
-            .appending(path: "huggingface/models/argmaxinc/ttskit-coreml")
+        installRoot.appending(path: "huggingface/models/argmaxinc/ttskit-coreml")
     }
 
     /// The component directory each variant's weights live in
@@ -56,7 +55,7 @@ extension NeuralVoice {
     /// audit named, rebuilt by the property whose comment below says it
     /// exists to prevent it (SPEC §118).
     nonisolated var localTokenizerFolder: URL {
-        URL.documentsDirectory
+        installRoot
             .appending(path: "huggingface/models")
             .appending(path: variant.tokenizerRepo)
     }

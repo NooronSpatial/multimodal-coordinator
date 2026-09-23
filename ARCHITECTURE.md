@@ -1234,142 +1234,40 @@ already replaced whatever was there. That happens before this library is
 asked anything. `WeightsFetching` tells a conformer not to do it. Past
 that line, this library protects nothing.
 
-### The suspend truth (F-3 = A)
+### The suspend truth (F-3 = A) — SUPERSEDED by 5a
 
-**What IS verified, and what is reasoning from it — the two are not the
-same size here.**
+**Everything this section said was true of 4x, and 5a made it false on
+purpose.** It is kept as a heading rather than deleted because the
+sentence it carried — *"a download dies when the app leaves the
+foreground, and this library has nothing to stop it"* — was in the
+contract page, in a doc comment and in two source-reading tests, and a
+reader who met it anywhere deserves to be told where it went.
 
-| the claim | how it stands |
+D-106 ruled F-2 = A (a stopped download deletes its partial) and
+F-3 = A (the suspend truth is stated, not engineered), and both rulings
+named the same future: *"a milestone of its own"*. **D-114 is that
+milestone**, and it reverses both:
+
+| 4x said | 5a does |
 |---|---|
-| there is no background session | **verified in the source.** `HubWeightsFetcher.fetch` builds `HubApi(downloadBase: base)`, and the vendored `HubApi.init` leaves `useBackgroundSession` at its default of `false`. A test in `MLXInstallSuspendTests.swift` fails if either that flag or `URLSessionConfiguration.background` ever appears in `Sources/MultiModalKitMLX` |
-| an ordinary session's transfer stops when iOS suspends the process | reasoning from the platform, not from a run here |
-| what the awaiting call sees afterwards | **not measured.** INSTRUMENTS §66's own closing block says the same: the download's duration, its behaviour on a bad connection, and what a suspend does to it were not measured |
+| the transfer dies when the app leaves the foreground | it runs on a background `URLSession`; the system's daemon carries it while the app is suspended or dead |
+| a stopped download deletes its partial tree | a stopped transfer KEEPS what it can resume; the next call sends a range request (§70: 9.4 % overhead, not 100 %) |
+| a killed process leaves bytes nothing can see or delete | partials live in a scratch the engine names, and `deleteModel()` removes it |
+| no background session anywhere in the module — two tests read the source to keep it so | the same two tests, flipped: they now fail if the default fetcher leaves `ModelDownloader`, or if the doc loses the new sentence |
+| a caller needs a keep-awake and an always-visible restart button | neither; the demo's Models screen has no "keep the app open" line at all |
 
-So the honest headline is: **on iOS, a download is expected to die when
-the app leaves the foreground, and this library has nothing to stop it.**
-On macOS an app that is not frontmost is not suspended, so the same
-sentence does not apply there — and the live tests in this repo run on
-this Mac, which is part of why nobody here has watched a real suspend.
+The one thing 4x's reasoning had exactly right is why it could not be
+tested then: *"resume is a promise that must be tested on a bad
+network"*. 5a tests it against a loopback server that counts bytes, and
+a helper process that plays the app that died — see **Model downloads
+(5a)** below, and INSTRUMENTS §70.
 
-`try await model.download(reporting:)` can only end three ways —
-returning, throwing `CancellationError`, or throwing an `InstallFailure`.
-A transfer killed by the system would arrive as `.fetchFailed(String)`,
-because that is what wraps anything the fetcher throws. It is equally
-possible the call simply stays suspended with the process and reports no
-progress again. Nobody here has watched it.
-
-**So what should a download screen do? Not a short stall timer.** If the
-progress unit really is one file, a first install of this model reports
-about NINE times — and one of those gaps, `model.safetensors`, is
-2 263 022 529 of the 2 278 969 756 bytes. That is more than 99% of the
-wait spent in a single silence, which on a phone is many minutes. **No
-safe threshold has been measured, so this page will not invent one.**
-Keep the restart button on the screen at all times instead of arming it
-from a timer. If you do add a timer, measure it in tens of minutes, and
-have it say "still working" rather than "stalled".
-
-**What a caller must do about it, corrected.** Disabling the idle timer
-only stops the screen going to sleep on its own. It does NOT stop a
-person locking the phone or switching app, which is the case the
-headline above names. So a keep-awake is worth having, and it is not
-enough on its own. The download screen needs a restart button that is
-always there, not only a progress bar.
-
-**"Starting again begins at zero" — with a boundary.** That is true when
-the fetch RETURNED or THREW. The cleanup runs on those two paths:
-`HubWeightsFetcher.fetch` removes the client's tree from its own
-`catch`, and `download` removes what it can name after the fetch
-returns.
-
-A process the system suspends and then TERMINATES runs neither. What it
-leaves is this. The client's tree stays where it was being written.
-`HubWeightsFetcher`'s doc names that place: `base/models/<owner>/<name>`.
-Here `base` is `model.weights.deletingLastPathComponent()`. The client's
-own per-file bookkeeping lives inside that same tree. And if the kill
-landed inside `completeInstall`, a `<weights>.incoming` sibling stays
-too.
-
-**Three things follow, and the third is the one nobody expects.**
-
-1. **The bytes are not gone, and `installState()` cannot see them.** Up
-   to the whole 2.3 GB can be sitting at
-   `Documents/models/<owner>/<name>` while `installState()` answers
-   `.absent`.
-2. **They are not excluded from backup.** The exclusion flag is set by
-   `excludeWeightsFromBackup()`, on `model.weights`, on the last line of
-   a SUCCESSFUL install. A tree that a kill left behind was never
-   flagged, and it is not `model.weights`, so nothing flags it. That is
-   the L7 bill — 2.3 GB of cache inside a person's iCloud backup — being
-   paid by exactly the failure the backup section below does not cover.
-   Read the two sections together: the flag protects a finished install,
-   not a dead one.
-3. **A Delete Model button on `model.weights` removes none of it.**
-
-So a caller that wants D-106's ruling honoured after a kill has to
-delete the leftovers itself, at launch, before offering the download
-again. Neither path is public API, so both are built by hand:
-
-```swift
-let files = FileManager.default
-let parent = model.weights.deletingLastPathComponent()   // Documents
-
-// 1 — the fetcher client's tree. NOT `parent`, which is the person's
-//     whole Documents folder, and NOT `parent/models`, where other
-//     models live beside this one.
-try? files.removeItem(at: parent.appending(path: "models/mlx-community/Qwen3-4B-4bit"))
-
-// 2 — a staging sibling a kill left mid-install.
-try? files.removeItem(
-    at: parent.appending(path: model.weights.lastPathComponent + ".incoming"))
-```
-
-**Read that first path twice.** An unbounded version of the same line,
-in a review probe, deleted a person's whole Documents folder — the same
-mistake `aFetcherThatReturnsTheBaseKeepsIt` now holds shut inside the
-library.
-
-**What happens if you leave the leftovers instead: less certain than
-this page said before.** The client keeps per-file bookkeeping in that
-tree, and `WeightsFetching`'s own note says its next run "reuses a file
-whose commit hash still matches" — so finished files are not fetched
-again. Whether the file it was in the MIDDLE of resumes by byte range or
-restarts is not something this repo has read out of the client or
-watched. Either way it is some form of option B, the one D-106 rejected,
-arriving by accident rather than by design. And either way one file is
-2 263 022 529 of the 2 278 969 756 bytes, so the saving is small next to
-the risk of a cache nobody counts.
-
-**Can a caller keep this off mobile data? Not through this library.**
-No file in `Sources/` sets `allowsCellularAccess`,
-`allowsExpensiveNetworkAccess` or `allowsConstrainedNetworkAccess`, and
-`Sources/MultiModalKitMLX` builds no `URLSession` at all — the hub
-client makes its own, at its defaults. So a download started on mobile
-data runs on mobile data, and 2.3 GB can go that way, including by
-accident if a screen offers the button with no check. The only lever
-this library gives is the seam: a caller that must be Wi-Fi-only
-conforms its own `WeightsFetching` with a session it configures, and
-passes it to `download(reporting:using:)`. Guarding the tap with `NWPathMonitor` on
-the caller's side is the cheaper half of the same answer.
-
-**This is a stated limit, not an engineered solution**, and Ryad ruled it
-that way (D-106, F-3 = A). A background `URLSession` is what a 2.3 GB
-cellular download really needs, and it is a different downloader, a
-delegate and a re-entry path — a milestone of its own, not a bullet in
-this one.
-
-A statement can drift away from the code, so two rows in
-`MLXInstallSuspendTests.swift` read this module's own source: one fails
-if the doc comment loses the sentence, the other fails if
-`URLSessionConfiguration.background` or the client's
-`useBackgroundSession` flag ever appears anywhere in
-`Sources/MultiModalKitMLX`. That is AC-251's second half.
-
-One thing about that scan is worth knowing. AC-251 asked it to look for
-`URLSessionConfiguration.background`. That string could never appear
-here, because this module builds no `URLSession` at all — so on its own
-the scan would pass forever and prove nothing. The string that CAN
-appear is the hub client's own `useBackgroundSession` flag, which is why
-the test looks for both.
+**What did NOT change.** The hub client's own `useBackgroundSession`
+flag is still never turned on, and a test still fails if it appears: it
+builds a background session and then calls the async convenience on it,
+which raises `NSGenericException` on this OS and kills the process
+(`docs/evidence/5a/probes/probe1.out.txt`). That measurement is the
+reason 5a wrote its own downloader instead of flipping a vendor switch.
 
 ### The backup flag (L7, AC-250)
 
@@ -2524,6 +2422,143 @@ separate switch, and why the demo keeps it off.
 - **One tool per round on the demo; four rounds on the MLX mind** — the
   cap stands (F-13 h), priced in §69.
 
+## Model downloads (5a)
+
+The section above is what the mind can DO. This one is how anything
+gets onto the phone in the first place — and how it comes off. It is
+written for the caller with a Models screen: a row per engine, a size
+before the tap, a percentage while the bytes move, and a Delete (SPEC
+§199–206, D-114; the diet app's requirement, `model-downloads.md`).
+
+**The short codes.** `AC-nnn` is a criterion in `SPEC.md`; `F-n` is a
+fork of milestone 5a ruled in **D-114** — F-1 A (a background
+`URLSession` with a delegate), F-2 A (progress as a closure), F-3 A
+(one library-owned downloader for every engine), F-4 A (a stopped
+transfer keeps what it can resume — reversing D-106's F-2), F-5 A (a
+static size where the library chose the bytes, a cached listing where
+the app did), F-6 A (the members on `ModelBacked`, all five engines),
+F-7 A (the mind's argument-less `ensureModel()` stays load-only), F-8 A
+(a join stops when the LAST waiter cancels). D-114 also reverses
+D-106's F-3 — "the suspend truth is STATED, not engineered" — which is
+what this whole section is.
+
+### The five questions, one vocabulary
+
+```swift
+protocol ModelBacked: Sendable {
+    func modelInstalled() async -> Bool                                   // free, never downloads
+    func ensureModel() async throws                                       // fetch (and load)
+    func ensureModel(progress: @escaping @Sendable (Double) -> Void) async throws
+    func expectedDownloadBytes() -> Int64?                                // no network, never a guess
+    func deleteModel() async throws                                       // exactly what ensureModel wrote
+}
+```
+
+No default implementations, deliberately: a `deleteModel()` that did
+nothing would let a conformer look finished while doing nothing. All
+five engines write all five.
+
+| engine | its bytes | size before the tap | delete removes |
+|---|---|---|---|
+| Whisper | two repositories (model + tokenizer) | measured: base 149 484 585, small 489 252 581 | that variant's two folders, scratches, listing |
+| the MLX mind | one repository the APP names | the listing this device made, else `nil` | the tree, staging, scratch, resume data, listing |
+| Kokoro | two static files | 327 637 491 | the downloads, the fp16 cast, resume data |
+| the neural voice | the VENDOR's globs, two repositories | 0.6B 1 102 450 874, 1.7B 2 179 559 521 | its six component directories; the shared tokenizer only when no variant is left |
+| the Apple ear | the SYSTEM's | `nil`, always | nothing — it releases the locale RESERVATION |
+
+### The life of one transfer
+
+```
+  ensureModel(progress:)
+        │
+        ▼  the engine's CATALOG builds a plan
+  DownloadPlan [ (source, destination, expected bytes) … ]
+        │        destinations in a SCRATCH beside the final folder — never in it
+        ▼
+  ModelDownloader           one actor · ONE background URLSession per process
+        ├─ a file already complete on disk       → skipped, no request
+        ├─ a daemon task from an earlier life    → ADOPTED by its description
+        ├─ <file>.resume beside it               → downloadTask(withResumeData:)
+        └─ the rest                              → downloadTask(with:)     all enqueued at once
+        │
+        ▼  the system daemon moves the bytes — app in front, suspended, or dead
+  the relay (the delegate)   moves each landed file synchronously, emits ordered events
+        │
+        ▼  Σ written / Σ expected → progress(fraction), never decreasing
+  every file complete → the engine PLACES the scratch → 1.0, once, last
+```
+
+**Why a scratch and not the final folder.** `modelInstalled()` reads the
+final folder and nothing else, so a transfer that stopped at 90 % cannot
+be read as an install. That failure is not hypothetical: a field report
+had a truncated 1.1 GB voice reported installed and then failing to load
+with a CoreML parse error.
+
+**The one island.** `URLSession` calls its delegate on its own serial
+queue, and the temporary file it hands over dies when that call returns.
+So the delegate is a small `@unchecked Sendable` class that moves the
+file synchronously and emits an event; the events reach the actor
+through a chain of tasks, each awaiting the one before, so the order the
+daemon spoke in is the order the actor hears.
+
+### What a stopped transfer leaves (F-4 = A)
+
+A cancel, a lost connection, a killed app: the scratch keeps every
+complete file and the resume data of each unfinished one, and the next
+call resumes. Measured (§70): a 2 MB file cut at 12.5 % pays **9.4 %**
+over the wire across both attempts, one range request. Under D-106's
+old rule — delete the partial — the same cancel paid **100 %** again.
+
+`installState()` on the mind says `.absent` throughout, because a
+partial never lives where it looks. `deleteModel()` is what removes a
+scratch.
+
+### The re-entry door
+
+```swift
+func application(_ application: UIApplication,
+                 handleEventsForBackgroundURLSession identifier: String,
+                 completionHandler: @escaping () -> Void) {
+    if !ModelDownloads.handleEvents(forBackgroundURLSession: identifier,
+                                    completionHandler: completionHandler) {
+        completionHandler()   // not ours — another session of yours
+    }
+}
+```
+
+One line. The library re-creates its session, the daemon hands over
+every landing it held, the files are moved into place, and the app's
+handler is called once the session says its events are done.
+
+### The proofs
+
+- **A counting loopback server**, not a fake transport: every row moves
+  real bytes over a real socket, and the server counts requests, range
+  requests and bytes — so "one request per file", "resumed at N" and
+  "never twice the file" are numbers, not beliefs.
+- **A helper process** plays the app that died: it enqueues on a
+  background session and exits mid-transfer; the test's second life
+  adopts the daemon's task and finishes it.
+- **Opt-in live rows** (`MMK_LIVE_HUB=1`) re-read the real repositories
+  and go red when a pinned size drifts. One has already convicted a
+  number of mine before it shipped.
+
+### What this does NOT do
+
+- **The Apple ear's assets are not ours to delete.** They are the
+  system's, per locale, shared with every app; `deleteModel()` releases
+  this app's reservation and says so.
+- **No integrity beyond size.** A file is complete when its byte count
+  matches the listing. Hashes are knowable from the same listing and are
+  a later step.
+- **No queue across engines.** Two engines downloading at once share the
+  session; nothing orders them. The app decides.
+- **The simulator has no background transfer daemon** — measured. The
+  library falls back to a foreground session there, and a transfer dies
+  with the app, which is the only thing that platform can do.
+- **The phone rows are owed** (AC-300): five minutes locked, a kill and
+  a relaunch, and the system's background wake-up.
+
 ## The rails — cross-cutting, everything rides on them
 
 ```
@@ -2637,6 +2672,14 @@ variable, and every fault of that afternoon was findable in one command
 | The mind's TEXT contract — options, stop reasons, failures (4v) | `Conversation/ReplyContract.swift` |
 | Can this mind run here? — the pure verdict over a device report | `Conversation/MindReadiness.swift` |
 | The install, size-checked; the manifest and byte progress | `MultiModalKitMLX/LocalMindInstall.swift` |
+| The five questions every model-backed engine answers (5a) | `Models/ModelBacked.swift` |
+| ONE downloader — a plan, a background session, resume, the join (5a) | `Models/ModelDownloader.swift`, `Models/DownloadPlan.swift` |
+| The app delegate's one line for the system's wake-up (5a) | `Models/ModelDownloads.swift` |
+| One request lists a repository WITH sizes (5a) | `Models/HubTree.swift` |
+| The mind's bytes through the downloader, and the kept listing (5a) | `MultiModalKitMLX/BackgroundWeightsFetcher.swift` |
+| The ear's two repositories, its scratches and its measured sizes (5a) | `MultiModalKitWhisper/WhisperInstall.swift` |
+| The neural voice's six variant directories and the SHARED tokenizer (5a) | `MultiModalKitTTS/Voice/NeuralVoiceInstall.swift` |
+| A Models screen: size, percentage, Delete, through `any ModelBacked` (5a) | `Demo/TranscribeDemo/Sources/Views/ModelsTab.swift`, `Model/ModelsState.swift` |
 | What an install will COST, asked before a byte moves (4x) | `MultiModalKitMLX/LocalMindInstallSize.swift` |
 | The install seam a caller can fake, and the typed install failure (4x) | `MultiModalKitMLX/WeightsFetching.swift` |
 | Which hosts this library can contact, and what a request carries (4x) | `docs/HOSTS.md` |

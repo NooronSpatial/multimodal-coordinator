@@ -1,0 +1,15 @@
+MMK_LIVE_HUB=1 swift test --filter WhisperInstallLiveTests        (2026-09-22, this Mac, real huggingface.co)
+
+AC-294 · the measured variants, against the real repositories
+  "base and small still cost what this library says they cost" with 2 test cases passed after 0.401 seconds.
+  Test run with 1 test in 1 suite passed.
+
+The numbers the row compared against WhisperSizes.measured, read the same day from the tree
+endpoint of BOTH repositories (argmaxinc/whisperkit-coreml + openai/whisper-<variant>):
+
+  base    19 model files  146,719,453 B  +  3 tokenizer files  2,765,132 B  =  149,484,585 B
+  small   19 model files  486,487,465 B  +  3 tokenizer files  2,765,116 B  =  489,252,581 B
+
+This is the only row in the suite that touches the network, and it is opt-in (MMK_LIVE_HUB=1) so
+CI stays hermetic. It exists to go RED the day either repository is re-converted and the pinned
+numbers go stale — a size nobody measured is not a size.

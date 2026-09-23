@@ -1,0 +1,2 @@
+(1) delegate saw 57 writes, 3735552 bytes before the cancel; resume data: 7611 bytes (via completion), 7611 bytes (via error)
+(2) resumed at offset 3735552, status 206, finished file 8388608 bytes (expected 8388608) → COMPLETE

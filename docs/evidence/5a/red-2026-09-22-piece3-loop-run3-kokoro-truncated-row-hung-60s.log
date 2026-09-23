@@ -1,0 +1,123 @@
+Building for debugging...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 1]
+[1 / 31] MLX
+warning: missing creator for mutated node: ('/Users/ryad/Developer/multimodal-coordinator/.build/out/Products/Debug/mlx-swift_Cmlx.bundle/Contents/MacOS')
+Build complete! (1.56 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-247/248/249/250 · a download that stops, and one that finishes" started.
+􀟈  Suite "AC-247 · a failure after the fetch, over a tree that was already there" started.
+􀟈  Suite "AC-291/293/294/295/296 · the mind through the downloader" started.
+􀟈  Suite "AC-292/297 · the app that died, and the one that came back" started.
+􀟈  Suite "AC-291/294/295 · Kokoro through the downloader" started.
+􀟈  Test "a failure after the move over a caller's tree keeps that tree, and never locks the model out" started.
+􀟈  Test "a caller's fake drives a complete install, with progress and a manifest" started.
+􀟈  Test "a tap in the second life adopts the transfer the first life started" started.
+􀟈  Test "both files arrive under one fraction, never decreasing, 1.0 once; then it is installed" started.
+􀟈  Test "one request lists, one per file moves; one byte fraction, 1.0 once; then .installed with a manifest" started.
+􀟈  Suite "AC-291/293/296 · the downloader against a counting server" started.
+􀟈  Test "fractions never decrease and end at exactly one 1.0; every file lands complete" started.
+􁁛  Test "a caller's fake drives a complete install, with progress and a manifest" passed after 0.006 seconds.
+􀟈  Test "a cancel after the second file leaves .absent and KEEPS the partial tree for the next attempt" started.
+􁁛  Test "a cancel after the second file leaves .absent and KEEPS the partial tree for the next attempt" passed after 0.001 seconds.
+􀟈  Test "a fetch that throws leaves .absent, and the error is typed and switchable" started.
+􁁛  Test "a fetch that throws leaves .absent, and the error is typed and switchable" passed after 0.003 seconds.
+􀟈  Test "the shipped fetcher's cleanup deletes its own tree, and only its own" started.
+􁁛  Test "the shipped fetcher's cleanup deletes its own tree, and only its own" passed after 0.002 seconds.
+􀟈  Test "a fetcher that hands back the download base never loses the base, or a sibling" started.
+􁁛  Test "a failure after the move over a caller's tree keeps that tree, and never locks the model out" passed after 0.018 seconds.
+􀟈  Test "a move that fails never touches the tree it was going to replace" started.
+􁁛  Test "a fetcher that hands back the download base never loses the base, or a sibling" passed after 0.004 seconds.
+􀟈  Test "a failure after the move leaves .absent, not a tree pretending to be installed" started.
+􁁛  Test "a failure after the move leaves .absent, not a tree pretending to be installed" passed after 0.003 seconds.
+􀟈  Test "a failed re-download never deletes a tree it did not create" started.
+􁁛  Test "a move that fails never touches the tree it was going to replace" passed after 0.006 seconds.
+􀟈  Test "a fetcher that names the weights tree by another spelling never sends it to staging" started.
+􁁛  Test "a failed re-download never deletes a tree it did not create" passed after 0.004 seconds.
+􀟈  Test "a download that fails LATE never deletes the install another one just finished" started.
+􁁛  Test "a fetcher that names the weights tree by another spelling never sends it to staging" passed after 0.005 seconds.
+􀟈  Test "a racing download that fails AFTER its fetch never deletes the finished install" started.
+􁁛  Test "a download that fails LATE never deletes the install another one just finished" passed after 0.004 seconds.
+􀟈  Test "an existing complete install survives a later re-download, untouched" started.
+􁁛  Test "an existing complete install survives a later re-download, untouched" passed after 0.005 seconds.
+􀟈  Test "the backup flag is set by a download, and restored by the next one" started.
+􁁛  Test "a racing download that fails AFTER its fetch never deletes the finished install" passed after 0.008 seconds.
+􁁛  Suite "AC-247 · a failure after the fetch, over a tree that was already there" passed after 0.039 seconds.
+􁁛  Test "the backup flag is set by a download, and restored by the next one" passed after 0.008 seconds.
+􁁛  Suite "AC-247/248/249/250 · a download that stops, and one that finishes" passed after 0.044 seconds.
+􁁛  Test "both files arrive under one fraction, never decreasing, 1.0 once; then it is installed" passed after 0.054 seconds.
+􀟈  Test "an installed Kokoro says 1.0 once and asks the server nothing" started.
+􁁛  Test "fractions never decrease and end at exactly one 1.0; every file lands complete" passed after 0.054 seconds.
+􀟈  Test "a plan whose files are already complete reports one 1.0 and asks the server nothing" started.
+􁁛  Test "a plan whose files are already complete reports one 1.0 and asks the server nothing" passed after 0.036 seconds.
+􀟈  Test "a file that lands short of its declared size is refused and not kept" started.
+􁁛  Test "an installed Kokoro says 1.0 once and asks the server nothing" passed after 0.050 seconds.
+􀟈  Test "a truncated download is fetched again, alone" started.
+􁁛  Test "a file that lands short of its declared size is refused and not kept" passed after 0.015 seconds.
+􀟈  Test "a cancel keeps resume data; the next transfer sends Range, gets 206, and never pays twice" started.
+􁁛  Test "one request lists, one per file moves; one byte fraction, 1.0 once; then .installed with a manifest" passed after 0.148 seconds.
+􀟈  Test "an installed model reports one 1.0 and asks the server nothing" started.
+􁁛  Test "a cancel keeps resume data; the next transfer sends Range, gets 206, and never pays twice" passed after 0.041 seconds.
+􀟈  Test "a dropped connection keeps resume data too (F-4 A), on a foreground session" started.
+􁁛  Test "a dropped connection keeps resume data too (F-4 A), on a foreground session" passed after 0.007 seconds.
+􀟈  Test "two callers, one transfer: one request per file, both see the fractions, both return" started.
+􁁛  Test "a tap in the second life adopts the transfer the first life started" passed after 0.163 seconds.
+􀟈  Test "the file lands without a tap, while the wake-up's completion handler is held" started.
+􁁛  Test "two callers, one transfer: one request per file, both see the fractions, both return" passed after 0.022 seconds.
+􀟈  Test "F-8 A: the transfer stops when the LAST waiter cancels, not the first" started.
+􁁛  Test "an installed model reports one 1.0 and asks the server nothing" passed after 0.031 seconds.
+􀟈  Test "a cancel keeps the scratch and its resume data; .absent throughout; the next call resumes with a Range" started.
+􁁛  Test "F-8 A: the transfer stops when the LAST waiter cancels, not the first" passed after 0.023 seconds.
+􁁛  Suite "AC-291/293/296 · the downloader against a counting server" passed after 0.202 seconds.
+􁁛  Test "the file lands without a tap, while the wake-up's completion handler is held" passed after 0.059 seconds.
+􁁛  Suite "AC-292/297 · the app that died, and the one that came back" passed after 0.223 seconds.
+􁁛  Test "a cancel keeps the scratch and its resume data; .absent throughout; the next call resumes with a Range" passed after 0.046 seconds.
+􀟈  Test "expectedInstall makes one request and creates no weights; expectedDownloadBytes then answers offline" started.
+􁁛  Test "expectedInstall makes one request and creates no weights; expectedDownloadBytes then answers offline" passed after 0.006 seconds.
+􀟈  Test "deleteModel removes the weights, the manifest, the listing and nothing beside them" started.
+􁁛  Test "deleteModel removes the weights, the manifest, the listing and nothing beside them" passed after 0.023 seconds.
+􀟈  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" started.
+􁁛  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" passed after 0.017 seconds.
+􀟈  Test "two concurrent downloads make one transfer, and both return installed" started.
+􁁛  Test "two concurrent downloads make one transfer, and both return installed" passed after 0.030 seconds.
+􀙟  Test "ensureModel(progress:) on an installed model: one 1.0, then resident" skipped: "set MMK_MLX_MODEL and run Scripts/metallib.sh to make this row real"
+􁁛  Suite "AC-291/293/294/295/296 · the mind through the downloader" passed after 0.305 seconds.
+􀢄  Test "a truncated download is fetched again, alone" recorded an issue at KokoroInstallTests.swift:58:6: Time limit was exceeded: 60.000 seconds
+􀢄  Test "a truncated download is fetched again, alone" failed after 63.900 seconds with 1 issue.
+􀄵  /// The failure 4q's byte count exists for — a present, truncated
+􀄵  /// file — is now repaired by the same rule: the downloader treats a
+􀄵  /// wrong-sized file as not there, fetches THAT file, and leaves the
+􀄵  /// good one alone.
+􀟈  Test "remove takes the downloads, the cast and the resume data, and leaves the app's folder" started.
+􁁛  Test "remove takes the downloads, the cast and the resume data, and leaves the app's folder" passed after 0.048 seconds.
+􀟈  Test "deleteModel retires the voice and removes the files; modelInstalled reads false" started.
+􁁛  Test "deleteModel retires the voice and removes the files; modelInstalled reads false" passed after 0.016 seconds.
+􀟈  Test "the download's size is known without the network: the two files' bytes" started.
+􁁛  Test "the download's size is known without the network: the two files' bytes" passed after 0.004 seconds.
+􀢄  Suite "AC-291/294/295 · Kokoro through the downloader" failed after 64.075 seconds with 1 issue.
+􀄵  /// AC-291, AC-294, AC-295 for the Kokoro voice (5a, D-114 F-3 = A, F-5 = A,
+􀄵  /// F-6 = A): the smallest catalog — two files, two sizes — through the
+􀄵  /// downloader, against the counting loopback server.
+􀄵  ///
+􀄵  /// The real files are 327 MB; these rows point `KokoroWeights.Source` at
+􀄵  /// two small files of the test's own, declared at their true sizes, so
+􀄵  /// every promise about the install is proved on real bytes over a real
+􀄵  /// socket without a third of a gigabyte. `.float32`, so the fp16 cast —
+􀄵  /// 4q's work, tested there — is not in the way: at fp32 the download IS
+􀄵  /// the model file.
+􀢄  Test run with 37 tests in 6 suites failed after 64.075 seconds with 1 issue.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
+
+WHY (found after): the row lands both files, truncates model.bin, and calls ensure() again at once.
+The first task's didFinishDownloadingTo had been processed (the waiters answered) but its
+didCompleteWithError had not yet arrived — so getAllTasks() still listed it, state != .completed,
+and the second transfer ADOPTED it as model.bin's task. Its completion then cleared the file's task
+with no landing ever to follow: the transfer waited for its full minute. Fixed in ModelDownloader:
+every relay event names its task; the actor keeps the identifiers of tasks whose landing it has
+processed, never adopts one of those, and hears only a file's CURRENT task. 14 loop runs green after
+(one run took 16 s: the background session's daemon stalled two rows at once, then delivered —
+a daemon pause, not a test's wait; both rows passed).
