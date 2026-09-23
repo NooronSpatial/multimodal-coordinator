@@ -7344,8 +7344,12 @@ before any code.)*
 
 1. **The session lives in the generator** (per F-1): born on the first
    `openReply` of a conversation, kept across turns, retired on `stop()`
-   or when its identity changes. The `ReplyGenerating` seam does not
-   change shape.
+   or when its identity changes. ~~The `ReplyGenerating` seam does not
+   change shape.~~ *Amended by D-117:* the seam grows by one door with a
+   default that does nothing — `endConversation()`, which the coordinator
+   calls on `stop()` and `clearMemory()` (F-9 A) — and `ReplyUpdate` by
+   one case, `.toolRan` (F-8 A). `AppleReplyGenerator` becomes a
+   `final class`, because it now has identity (F-11 A).
 2. **A reply appends.** With a live session, a turn prefills only the new
    utterance and that turn's tool outputs. `ReplyContext.history` becomes
    what a session is SEEDED with — on the first turn and on a re-seed —
@@ -7357,11 +7361,15 @@ before any code.)*
 4. **The memory remembers tools.** `ConversationTurn` carries what ran in
    that turn — the tool's name, its arguments and its result — so a
    re-seed can rebuild a typed transcript instead of prose. A turn with
-   no tool is unchanged.
+   no tool is unchanged. *(D-117 F-8 A: the record reaches the coordinator
+   as `.toolRan` on the reply stream, at the moment the tool ran.)*
 5. **The session is reborn honestly**, and the trace says so: when the
    instructions or the tool table for a call differ from the session's,
    when a generation fails, when `maxMemoryTurns` is crossed, or when the
    vendor says its context is full. The last turns survive the re-seed.
+   *(D-117 F-10 A adds the rule under all of these: a session is kept
+   only after an answer the vendor finished itself. A barge, a deadline
+   or a refusal also means the next turn re-seeds.)*
 6. **A seam a test can drive** — the Apple session becomes a value this
    library's tests and a caller's can fake, the shape `WeightsFetching`
    has (AC-249). Without it, none of §210 can be proven on a Mac with no
@@ -7413,9 +7421,14 @@ test SEES.*
   ran, the session's transcript holds a tool-call entry and a tool-output
   entry naming that tool and carrying its result — never an assistant
   text entry containing the tool's sentence as prose.
-- **AC-306 — a barge leaves the session usable.** A reply cancelled
-  inside the 600 ms window: the next turn uses the SAME session, and the
-  cancelled turn's partial reply does not appear as a completed response.
+- **AC-306 — a barge never poisons the conversation** *(amended by
+  D-117 F-10 A)*. A reply cancelled inside the 600 ms window: the next
+  turn is served by a NEW session seeded from the memory, in which the
+  cancelled turn is marked interrupted — never a completed response —
+  and the cancelled session answers nothing more. *The signed text
+  said the next turn uses the SAME session; the vendor cannot promise
+  that — a live session only grows by answering, and what it keeps of
+  a cancelled answer is undocumented and unseen on this Mac.*
 - **AC-307 — a failure re-seeds, and says so.** A generation failure on
   turn N: turn N+1 is served by a NEW session seeded from the memory, the
   old one is released, and a diagnostics event records the re-seed with
@@ -7464,7 +7477,7 @@ test SEES.*
 | AC-303 | `AppleSessionTests` · "ten turns, one session"; "turn ten's prompt is the utterance only" | scripted, fake session maker |
 | AC-304 | `AppleSessionTests` · "instructions and tools are given once" | scripted |
 | AC-305 | `AppleSessionTests` · "a tool's answer is a tool-output entry, not prose"; a mutation row that replays prose and shows the transcript's shape change | scripted |
-| AC-306 | `AppleSessionTests` · "a barge keeps the session"; `TurnCoordinatorTests`' existing barge rows re-run | scripted, `ManualClock` |
+| AC-306 | `AppleSessionTests` · "a barge re-seeds, and the cut turn is written interrupted"; "the cut session answers nothing more"; `TurnCoordinatorTests`' existing barge rows re-run | scripted, `ManualClock` |
 | AC-307 | `AppleSessionTests` · "a failure re-seeds and the trace says why" | scripted |
 | AC-308 | `AppleSessionTests` · "the bound survives a re-seed, typed" | scripted |
 | AC-309 | `AppleSessionTests` · "per-call instructions get their own session" | scripted |
@@ -7549,6 +7562,35 @@ shape `pressureLevels` has. *C:* both.
 **Recommendation: A.** The app's question is "tell me when I may stop
 showing the spinner", which is one await. A stream invites a listener
 that outlives the screen. *Rejected: B, C.*
+
+**Found after signing — four forks the draft missed** (reading the code
+for piece 1, 2026-09-23). Ruled the same day as recommended, **D-117**.
+
+**F-8 — HOW THE MEMORY LEARNS A TOOL RAN** (AC-311). The Apple vendor
+runs a tool inside its own stream; the seam carried tokens and one
+ending, so nothing outside could hear it. *A:* a new `ReplyUpdate` case,
+`.toolRan`, sent at the moment the tool ran. *B:* `ReplyRun.toolRuns()`,
+read after the end. **Ruled A.** *Rejected: B* — a second channel to
+order against the stream, and a default of `[]` that lets a mind forget.
+
+**F-9 — HOW THE MIND HEARS THE CONVERSATION ENDED** (AC-310). *A:* one
+new door on `ReplyGenerating`, `endConversation()`, default does nothing,
+called by the coordinator on `stop()` and `clearMemory()`. *B:* no door;
+the mind notices a new conversation at its next turn. **Ruled A.**
+*Rejected: B* — AC-310 false as written, a session alive while the app
+sits idle.
+
+**F-10 — WHICH SESSION ANSWERS AFTER A BARGE** (AC-306). *A:* a new
+one, seeded from the memory — a session is kept only after an answer the
+vendor finished itself. *B:* the same one, as signed. *C:* the same one,
+unless the vendor's transcript shows it kept part of the cut answer.
+**Ruled A.** *Rejected: B* — rests on vendor behaviour nobody here has
+seen; *C* — the most code, built on entries nobody here has seen.
+
+**F-11 — THE GENERATOR'S TYPE** (§208/1). *A:* `final class` — it holds
+a conversation, so it has identity. *B:* stay a struct whose copies
+share a hidden reference. **Ruled A.** *Rejected: B* — a struct that
+behaves like a class.
 
 ## §212 — definition of done (5b)
 

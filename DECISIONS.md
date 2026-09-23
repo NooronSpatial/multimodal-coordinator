@@ -5350,3 +5350,61 @@ what is built (F-7 A) does not change.
 **The order** (§212): §210's, criterion by criterion, red first — the
 fake session maker before any row that needs it; each piece presented
 and explained before the next.
+
+## D-117 — four forks the signed spec missed, found reading the code for piece 1, ruled as recommended (Milestone 5b)
+
+**Date:** 2026-09-23 · **Decided by:** Ryad (four answers, one per
+question) · **Rulings: F-8 = A, F-9 = A, F-10 = A, F-11 = A** (SPEC §211,
+the block "found after signing").
+
+**Why they exist.** The spec was drafted from the diet app's two
+documents and one function. Reading the rest of the path before the
+first test showed four places where it promised something the seam could
+not carry, or rested on vendor behaviour nobody here can see. They were
+put to Ryad before any code, not decided on the way.
+
+- **F-8 A — a tool's run travels as a new `ReplyUpdate` case, `.toolRan`.**
+  The Apple vendor runs a tool inside its own stream, and the seam
+  carried tokens and one ending, so AC-311's field had no source. The
+  mind now says, at the moment the tool ran and in the same stream as
+  the tokens: the tool's name, the arguments as the door read them, and
+  the words the model was given. *Rejected:* **B**, `ReplyRun.toolRuns()`
+  read after the end — a second channel whose order against the stream
+  must be argued, and a default of `[]` that lets a tool-running mind
+  forget to report. *The cost:* a new case in a public enum; a `switch`
+  over `ReplyUpdate` outside this library stops compiling. Neither app
+  has one — both call `reply(to:)` (checked 2026-09-23). The MLX mind
+  does not send it in 5b (F-5 B).
+- **F-9 A — the seam grows one door: `endConversation()`, whose default
+  does nothing.** The coordinator calls it in `stop()` and
+  `clearMemory()`; the session is released at once. §208/1's "the seam
+  does not change shape" and AC-310's "retired on `stop()`" could not
+  both be true — the only thing the coordinator could call on a mind was
+  `openReply`. *Rejected:* **B**, no door, the mind notices a new
+  conversation at its next turn — AC-310 false as written, and a session
+  alive while the app sits idle.
+- **F-10 A — a session is kept only after an answer the vendor finished
+  itself.** After a barge, a deadline, a failure or a refusal, the next
+  turn is served by a new session seeded from the memory, where a cut
+  turn is written as interrupted. A live session only grows by answering
+  — this library cannot add, edit or remove an entry — and what the
+  vendor keeps of a cancelled answer is undocumented and cannot be seen
+  on this Mac. The rule also closes D-057's `concurrentRequests` worry by
+  construction: no answer ever starts on a session whose last answer is
+  still ending. *Rejected:* **B**, the same session after a barge (AC-306
+  as signed) — correctness resting on unseen vendor behaviour; **C**,
+  read the vendor's transcript after each cancel and re-seed only if it
+  kept part of the cut answer — the most code, built on entries nobody
+  here has seen. *The cost:* the turn after a barge pays today's full
+  prefill, once.
+- **F-11 A — `AppleReplyGenerator` becomes a `final class`.** It holds a
+  conversation now (F-1 A), so it has identity, and the type says so:
+  `let b = a` is visibly the same conversation. *Rejected:* **B**, stay a
+  struct whose copies share one conversation through a hidden reference
+  — a struct that behaves like a class. Source-compatible for both apps:
+  they build it with `init` and pass it as `any ReplyGenerating`.
+
+**What these amend in the signed spec**, each marked in place with this
+entry's number: §208/1 (the seam grows by one door and one case; the
+class), §208/4 (the record's road is `.toolRan`), §208/5 (the rule under
+the triggers), AC-306 (a barge re-seeds) and its test-matrix row.
