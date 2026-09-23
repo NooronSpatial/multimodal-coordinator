@@ -1,0 +1,55 @@
+Building for debugging...
+scratch root: /var/folders/k4/g0l5qk6s0d544wbtn4tn6bdm0000gn/T/mmk-downloads-916747A2-7DD7-4D73-ABC1-DD3E0B2DB2A0
+mind: mlx-community/Qwen3-0.6B-4bit · neural voice: skipped (--voice to include)
+
+── Whisper base
+   size before the tap: 149484585 bytes
+   10%
+   20%
+   30%
+   40%
+   50%
+   60%
+   70%
+   80%
+   90%
+   100%
+   transferred in 14132 ms · installed: true
+   deleted in 17 ms · installed after: false
+── Kokoro
+   size before the tap: 327637491 bytes
+   10%
+   20%
+   30%
+   40%
+   50%
+   60%
+   70%
+   80%
+   90%
+   100%
+   transferred in 14269 ms · installed: true
+   deleted in 72 ms · installed after: false
+── mlx-community/Qwen3-0.6B-4bit
+   listed 9 files in 135 ms
+   size before the tap: 351383618 bytes
+   10%
+   20%
+   30%
+   40%
+   50%
+   60%
+   70%
+   80%
+   90%
+   100%
+   transferred in 13732 ms · installed: true
+   deleted in 52 ms · installed after: false
+
+| engine | size before the tap | listed in | transferred in | MB/s | deleted in | installed after |
+|---|---:|---:|---:|---:|---:|---|
+| Whisper base | 149 MB | — | 14132 ms | 10.6 | 17 ms | gone |
+| Kokoro | 328 MB | — | 14269 ms | 23.0 | 72 ms | gone |
+| mlx-community/Qwen3-0.6B-4bit | 351 MB | 135 ms | 13732 ms | 25.6 | 52 ms | gone |
+
+Every figure is this Mac, this connection, 2026-09-22.

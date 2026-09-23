@@ -1,0 +1,4 @@
+􀟈  Test run started.
+§70 resume · file 2097152 B · sent 2293760 B across both attempts · overhead 9.4% · resumed at 262144 B
+§70 join · 2 callers · 1 request(s) · 524288 B sent · file 524288 B
+􁁛  Test run with 16 tests in 3 suites passed after 0.291 seconds.

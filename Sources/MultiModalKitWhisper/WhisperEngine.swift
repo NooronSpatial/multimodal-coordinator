@@ -75,17 +75,31 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
     /// is meant, in the file where the two meet.
     private nonisolated let source: WhisperSource
     private nonisolated let downloader: MultiModalKit.ModelDownloader
+    /// Where the vendor's folder layout starts — the app's `Documents`,
+    /// always, except under test and in the bake-off. The paths BELOW it
+    /// are the vendor's and are never a caller's to choose; what is
+    /// redirected is the root, so a measurement does not land 149 MB in
+    /// a person's own model folder.
+    nonisolated let installRoot: URL
 
+    /// - Parameter installRoot: where the vendor's folder layout starts.
+    ///   The app's `Documents` by default, which is where a person can
+    ///   also drop the folder by hand over USB. An app that keeps its
+    ///   models in a shared App Group container — so an extension can
+    ///   read them — passes that container here; the paths BELOW this
+    ///   root are the vendor's and are never a caller's to choose.
     public init(model: String = "base", language: String? = nil,
-                diagnostics: PipelineDiagnostics? = nil) {
+                diagnostics: PipelineDiagnostics? = nil,
+                installRoot: URL = URL.documentsDirectory) {
         self.init(model: model, language: language, diagnostics: diagnostics,
-                  source: .hub, downloader: .shared)
+                  source: .hub, downloader: .shared, installRoot: installRoot)
     }
 
     /// The tests' door (5a): two small files over a loopback server
     /// prove what 142 MB would otherwise have to.
     init(model: String, language: String?, diagnostics: PipelineDiagnostics?,
-         source: WhisperSource, downloader: MultiModalKit.ModelDownloader) {
+         source: WhisperSource, downloader: MultiModalKit.ModelDownloader, installRoot: URL) {
+        self.installRoot = installRoot
         self.language = language
         self.model = model
         self.diagnostics = diagnostics
@@ -107,7 +121,7 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
 
     /// WhisperKit's default hub location for this model, on this device.
     private nonisolated var localModelFolder: URL {
-        URL.documentsDirectory
+        installRoot
             .appending(path: "huggingface/models/argmaxinc/whisperkit-coreml")
             .appending(path: "openai_whisper-\(model)")
     }
@@ -115,7 +129,7 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
     /// WhisperKit's default cache for the tokenizer — a SEPARATE asset from
     /// the model, downloaded alongside it on first install.
     private nonisolated var localTokenizerFolder: URL {
-        URL.documentsDirectory
+        installRoot
             .appending(path: "huggingface/models/openai")
             .appending(path: "whisper-\(model)")
     }
@@ -354,7 +368,7 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
                 // of false, so the bake-off skipped the model it had just
                 // fetched. Naming the base makes the model AND the
                 // tokenizer land in the two folders this type checks.
-                config.downloadBase = URL.documentsDirectory.appending(path: "huggingface")
+                config.downloadBase = installRoot.appending(path: "huggingface")
                 // AND IT MAY NOT FETCH (5a). The bytes are this library's
                 // now — `ensureModel` puts them there — so the vendor is
                 // told to load and nothing else. A load that cannot find

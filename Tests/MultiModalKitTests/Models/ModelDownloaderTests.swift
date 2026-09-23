@@ -100,6 +100,12 @@ struct ModelDownloaderTests {
         #expect(counts.rangeRequests == 1, "the second attempt asked for a Range")
         #expect((counts.firstRangeOffset ?? 0) > 0, "from where the first one stopped")
         #expect(counts.bytesSent < 2 * size, "never twice the file: \(counts.bytesSent) of \(size)")
+        // INSTRUMENTS §70's resume number, counted by the server rather
+        // than believed: what a cancel-and-resume really costs over the
+        // wire, as a fraction of the file.
+        print("§70 resume · file \(size) B · sent \(counts.bytesSent) B across both attempts · "
+              + "overhead \(String(format: "%.1f", Double(counts.bytesSent) / Double(size) * 100 - 100))% · "
+              + "resumed at \(counts.firstRangeOffset ?? 0) B")
         #expect(bench.sizeOnDisk("big.bin") == size, "complete")
         #expect(!bench.resumeDataExists("big.bin"), "the resume data is spent")
     }
@@ -158,6 +164,10 @@ struct ModelDownloaderTests {
         #expect(one.fractions.last == 1.0)
         #expect(two.fractions.last == 1.0)
         #expect(bench.sizeOnDisk("a.bin") == 524_288)
+        // INSTRUMENTS §70's join number: two callers, and what the
+        // server was asked for.
+        print("§70 join · 2 callers · \(bench.server.counts(for: "a.bin").requests) request(s) · "
+              + "\(bench.server.counts(for: "a.bin").bytesSent) B sent · file 524288 B")
     }
 
     @Test("F-8 A: the transfer stops when the LAST waiter cancels, not the first")

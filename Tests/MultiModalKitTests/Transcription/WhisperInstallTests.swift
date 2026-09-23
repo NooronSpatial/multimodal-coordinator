@@ -17,12 +17,12 @@ import Testing
 /// tokenizer that is fetched as part of "installed" rather than left to
 /// a silent load-time fetch.
 ///
-/// THE ENGINE'S OWN FOLDERS ARE UNDER `Documents`, named by the vendor's
-/// layout, so these rows cannot point them at a temporary directory —
-/// they use a variant name no repository has (`mmk-test-<uuid>`), let
-/// the engine build its real paths, and delete them afterwards. A
-/// stranger's folder beside them is written by hand and asserted
-/// untouched.
+/// THE VENDOR'S LAYOUT, UNDER THE BENCH'S OWN ROOT. The paths below the
+/// root are the vendor's and no row chooses them; the root itself is
+/// redirected, so these rows never write into a person's real model
+/// folders. The variant name is unique per bench as well, so two rows
+/// running together cannot collide. A stranger's folder beside the
+/// model is written by hand and asserted untouched.
 @Suite("AC-291/294/295 · Whisper through the downloader", .serialized, .timeLimit(.minutes(1)))
 struct WhisperInstallTests {
 
@@ -254,11 +254,12 @@ struct WhisperBench {
         downloader = ModelDownloader(
             configuration: .background(withIdentifier: "whisper-bench.\(UUID().uuidString)"))
         engine = WhisperEngine(model: variant, language: nil, diagnostics: nil,
-                               source: WhisperSource(host: host), downloader: downloader)
-        modelFolder = URL.documentsDirectory
+                               source: WhisperSource(host: host), downloader: downloader,
+                               installRoot: root)
+        modelFolder = root
             .appending(path: "huggingface/models/argmaxinc/whisperkit-coreml")
             .appending(path: "openai_whisper-\(variant)")
-        tokenizerFolder = URL.documentsDirectory
+        tokenizerFolder = root
             .appending(path: "huggingface/models/openai")
             .appending(path: "whisper-\(variant)")
 
@@ -272,16 +273,10 @@ struct WhisperBench {
         server.stop()
         let downloader = downloader
         Task { await downloader.invalidate() }
-        for url in [modelFolder, tokenizerFolder,
-                    modelFolder.deletingLastPathComponent()
-                        .appending(path: modelFolder.lastPathComponent + ".download"),
-                    modelFolder.deletingLastPathComponent()
-                        .appending(path: modelFolder.lastPathComponent + ".listing.json"),
-                    tokenizerFolder.deletingLastPathComponent()
-                        .appending(path: tokenizerFolder.lastPathComponent + ".download"),
-                    modelFolder.deletingLastPathComponent().appending(path: "openai_whisper-stranger")] {
-            try? FileManager.default.removeItem(at: url)
-        }
+        // Everything this bench wrote — the vendor's layout included —
+        // is under its own root, so one removal takes all of it and
+        // nothing of the person's own (the neural voice's bench learned
+        // this the hard way, reading a real install as its own).
         try? FileManager.default.removeItem(at: root)
     }
 

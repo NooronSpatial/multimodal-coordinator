@@ -158,12 +158,13 @@ public actor NeuralVoice: SpokenVoice {
                 speechDecoderMode: Qwen3SpeechDecoderMode = .latencyOptimized,
                 temperature: Float? = nil,
                 seed: UInt64? = nil,
-                availableOnThisPlatform: Bool? = nil) {
+                availableOnThisPlatform: Bool? = nil,
+                installRoot: URL = URL.documentsDirectory) {
         self.init(variant: variant, renderingOn: host, lead: lead,
                   multiCodeDecoderMode: multiCodeDecoderMode, speechDecoderMode: speechDecoderMode,
                   temperature: temperature, seed: seed,
                   availableOnThisPlatform: availableOnThisPlatform,
-                  source: .hub, downloader: .shared, installRoot: URL.documentsDirectory)
+                  source: .hub, downloader: .shared, installRoot: installRoot)
     }
 
     /// Where this voice's bytes come from, and what moves them (5a).

@@ -5643,3 +5643,113 @@ ten seconds of a spinner, and nothing here asked for more than one.
 **What was NOT measured.** The Apple mind's twenty sentences (model not
 ready on this Mac); anything on the phone; the argument accuracy under
 sampling (every row here is greedy); a `slot` declared as a choice.
+
+## 70. What a download costs — four engines through one downloader, and what a resume really pays (5a, AC-301)
+
+**What was asked.** 5a moved every engine's bytes onto one background
+downloader and promised three things a person can feel: a size before
+the tap, a percentage while the bytes move, and a resume that does not
+pay twice. Each of those is a number, and a number nobody measured is a
+claim.
+
+**Machine and commands.** Ryad's Mac, 2026-09-22, on a home connection.
+Two instruments, because the two kinds of number need different ones:
+
+```bash
+swift run bakeoff downloads            # wall-clock and throughput, real Hub
+swift test --filter ModelDownloaderTests   # byte counts, loopback server
+```
+
+The raw runs are `docs/evidence/5a/instruments-70-downloads-2026-09-22.log`
+and `…-resume-join-counts-2026-09-22.log`.
+
+### Four engines, fetched and deleted for real
+
+Everything below landed in a scratch root under the temporary directory
+and was deleted at the end of its own row, so no model anybody was using
+was touched.
+
+| engine | size before the tap | listed in | transferred in | MB/s | deleted in | installed after |
+|---|---:|---:|---:|---:|---:|---|
+| Whisper base | 149 MB | — | 14 132 ms | 10.6 | 17 ms | gone |
+| Kokoro | 328 MB | — | 14 269 ms | 23.0 | 72 ms | gone |
+| mlx-community/Qwen3-0.6B-4bit | 351 MB | 135 ms | 13 732 ms | 25.6 | 52 ms | gone |
+
+A second run the same afternoon: 14 086 / 15 307 / 10 394 ms and
+10.6 / 21.4 / 33.8 MB/s — the same shape, one home connection's spread.
+
+**Whisper is the slow one, and its file count is why.** 149 MB in 22
+files across two repositories against 351 MB in 9 files: the ear pays
+more round trips for less data. That is a fact about the repository
+layout, not about the downloader, and it is the reason the ear's bar
+moves in more, smaller steps than the mind's.
+
+**The delete is not free, and it is not slow either.** 17–85 ms to
+retire what was resident, stop anything in flight and remove a
+directory tree. A screen can do it on a tap without a spinner.
+
+### The size before the tap, and what it used to cost
+
+| question | 4x, INSTRUMENTS §66 | 5a | how |
+|---|---:|---:|---|
+| the mind's exact size | **3 388 ms** | **135 ms** | ten listings and nine HEADs → one tree request |
+| Whisper, Kokoro, the neural voice | not possible | **0 ms** | measured once, pinned in the library (F-5 = A) |
+
+**25× faster for the one engine that must ask**, and free for the three
+whose repositories the library itself chose. The screen in the demo
+shows all four sizes the moment it appears, offline — which is what
+AC-294 asked for and what the diet app's Models page could not do at
+all.
+
+The pinned numbers are a fact about a known pair of repositories at a
+known date, so they drift: an opt-in live row (`MMK_LIVE_HUB=1`) re-reads
+the real repositories and goes red when they move. It has already done
+its job once — see the note below.
+
+### What a resume really pays
+
+The wire counts come from the loopback server, because only a server
+that counts can answer this honestly:
+
+| what | number |
+|---|---|
+| file | 2 097 152 B |
+| cancelled at | 262 144 B (12.5 %) |
+| sent across BOTH attempts | 2 293 760 B |
+| **overhead of resuming** | **9.4 %** |
+| range requests on the second attempt | 1 |
+
+The overhead is the partial that was already on disk when the cancel
+landed — the bytes paid for once and then resumed past. It is bounded by
+where the stop happened, not by the file's size: a transfer cut at 90 %
+pays ~10 % again, not 190 %. Under D-106's old rule — delete the
+partial, start at zero — the same cancel cost **100 %** again.
+
+**And the join costs nothing at all.** Two callers asking for the same
+file at the same time: **1 request, 524 288 B sent, one file of
+524 288 B**. The second caller pays zero bytes and sees the same
+fractions.
+
+### What this section does not claim
+
+- **Nothing here is a phone number.** Every figure is a Mac on one home
+  connection. The phone rows — lock the screen five minutes, kill the
+  app mid-transfer, the system's background wake-up — are AC-300 and are
+  Ryad's to take.
+- **The simulator is not a device for this.** It has no background
+  transfer daemon; the measurement and the fallback it produced are in
+  `docs/evidence/5a/simulator-2026-09-22-background-session.md`.
+- **The neural voice's 1.1 GB was not fetched** in these runs
+  (`--voice` includes it); its pinned size was re-read against the real
+  repositories by the live row instead.
+- **The MB/s column is a connection, not a library.** It is here so the
+  durations can be read, not as a claim about throughput.
+
+**One number in this milestone was wrong before it shipped**, and the
+instrument that caught it belongs in this section. The neural voice's
+pinned sizes were first measured with the vendor's download patterns
+reconstructed by hand — `speech_decoder` at `W8A16`, where the vendor's
+own default is `W8A16-multifunction`. The 0.6B was out by 474 698 bytes
+and the 1.7B by ~113 MB. Asking `TTSKitConfig.downloadPatterns` instead
+of writing the globs down convicted both
+(`docs/evidence/5a/red-2026-09-22-piece5-neural-sizes-measured-by-hand-were-wrong.log`).

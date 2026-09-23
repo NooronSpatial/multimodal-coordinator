@@ -36,6 +36,7 @@ if arguments.count > 1, arguments[1] == "cushion-sweep" { await runCushionSweep(
 if arguments.count > 1, arguments[1] == "voice-install" { await runVoiceInstall() }
 if arguments.count > 1, arguments[1] == "voice-kokoro" { await runVoiceKokoro(arguments) }
 if arguments.count > 1, arguments[1] == "graph-probe" { await runGraphProbe(arguments) }
+if arguments.count > 1, arguments[1] == "downloads" { await runDownloads(arguments) }
 
 let positional = arguments.dropFirst().filter { !$0.hasPrefix("--") }
 let wavPath = positional.count > 0 ? positional[positional.startIndex] : "Fixtures/ryad-en.wav"
