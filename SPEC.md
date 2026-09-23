@@ -7433,9 +7433,21 @@ test SEES.*
   turn N: turn N+1 is served by a NEW session seeded from the memory, the
   old one is released, and a diagnostics event records the re-seed with
   its reason.
-- **AC-308 — the bound still bounds.** With `maxMemoryTurns` = 4 and six
-  turns done, the session (or its re-seed) carries the last four turns
-  and not the first two, with their tool calls still typed (AC-305).
+  *(D-118 F-13 A: the event is a new `HealthEvent` case, reported
+  through an optional `diagnostics:` handed to the generator at init;
+  `nil` reports nothing, byte-for-byte today's generator.)*
+- **AC-308 — the bound bounds the re-seed** *(amended by D-118 F-12 C)*.
+  With `maxMemoryTurns` = 4 and six turns done, a RE-SEED carries the last
+  four turns and not the first two, with their tool calls still typed
+  (AC-305). A kept session is continued while the memory's window is its
+  newest turns, however many older ones it still holds; a memory switched
+  off (`maxMemoryTurns` = 0) re-seeds every turn with no past. The
+  vendor's context full BEFORE any word: the turn is re-seeded from the
+  memory and asked again, once, and the person hears one answer; full
+  AFTER a word: the turn fails as AC-116 does today, and the next turn
+  re-seeds. *The signed text said the session itself carries the last
+  four; at the diet app's bound of four, every turn after the fifth would
+  have paid today's prefill.*
 - **AC-309 — per-call instructions or tools get their own session.** A
   call whose `options.instructions` or `options.tools` differ from the
   live session's identity is served by a new session, and the
@@ -7479,7 +7491,7 @@ test SEES.*
 | AC-305 | `AppleSessionTests` · "a tool's answer is a tool-output entry, not prose"; a mutation row that replays prose and shows the transcript's shape change | scripted |
 | AC-306 | `AppleSessionTests` · "a barge re-seeds, and the cut turn is written interrupted"; "the cut session answers nothing more"; `TurnCoordinatorTests`' existing barge rows re-run | scripted, `ManualClock` |
 | AC-307 | `AppleSessionTests` · "a failure re-seeds and the trace says why" | scripted |
-| AC-308 | `AppleSessionTests` · "the bound survives a re-seed, typed" | scripted |
+| AC-308 | `AppleSessionTests` · "a re-seed carries the bound, typed"; "the session keeps what the window dropped"; "memory off re-seeds every turn"; "full before a word: asked again once"; "full after a word: fails, next re-seeds" | scripted |
 | AC-309 | `AppleSessionTests` · "per-call instructions get their own session" | scripted |
 | AC-310 | `AppleSessionTests` · "stop retires the session" | scripted |
 | AC-311 | `ConversationMemoryTests` · the new field, the bound unchanged | scripted |
@@ -7591,6 +7603,22 @@ seen; *C* — the most code, built on entries nobody here has seen.
 a conversation, so it has identity. *B:* stay a struct whose copies
 share a hidden reference. **Ruled A.** *Rejected: B* — a struct that
 behaves like a class.
+
+**F-12 — WHEN THE MEMORY IS FULL** (AC-308). The diet app's bound is four
+turns; under the signed AC-308 the session could hold only the memory's
+window, so every turn after the fifth would rebuild. *A:* exactly the
+memory, as signed. *B:* rebuild in steps, with the newest half. *C:* the
+session keeps its past; the bound decides only what a re-seed carries;
+re-seed at the vendor's 4 096-token wall, asking again once if no word
+was said. **Ruled C (D-118).** *Rejected: A* — the win would cover 4
+turns of 19 at the diet app's bound; *B* — a rebuild about every second
+turn, and a model shown less than the app allowed.
+
+**F-13 — WHERE A RE-SEED IS REPORTED** (AC-307). *A:* a new `HealthEvent`
+case, through an optional `diagnostics:` given to the generator. *B:* the
+generator's own event stream. *C:* signposts only. **Ruled A (D-118).**
+*Rejected: B* — a second road every app must wire; *C* — invisible in the
+app's own trace, where the phone rows are read.
 
 ## §212 — definition of done (5b)
 
