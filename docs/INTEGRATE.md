@@ -34,7 +34,7 @@ the two hosts a download may contact).
 | `0.1.0` | `e7993b4` | the mind's TEXT contract: `reply(to:)`, `GenerationOptions`, typed `StopReason` and `ReplyFailure`, `MindReadiness.verdict` |
 | `0.2.0` | `ee6788c` | the install (`expectedInstall()`, `download(reporting:)`, `InstallState`, `WeightsFetching`, six privacy manifests, `docs/HOSTS.md`) and the tool spike (`ReplyTool`, `ToolTable` at construction) |
 | `0.3.0` | `228b7e6` | admission and heat (`admit(needing:)`, `.tooHot`, memory pressure, `deadline`) and the tool CONTRACT (typed parameters, one door, tools per call, the confirmation flag, the band). **The tag note lists every public break versus 0.2.0** — `git show 0.3.0`. |
-| `0.3.1` | *this milestone* | model downloads: `ensureModel(progress:)`, `expectedDownloadBytes()` and `deleteModel()` on `ModelBacked` (no default implementations — every engine writes all five), one background `ModelDownloader` for every engine's bytes, `ModelDownloads.handleEvents` for the system's wake-up, resume kept across a stop, `HubTree` in the core. **The tag note lists every public break versus 0.3.0.** |
+| `0.3.1` | `145c0dd` | model downloads: `ensureModel(progress:)`, `expectedDownloadBytes()` and `deleteModel()` on `ModelBacked` (no default implementations — every engine writes all five), one background `ModelDownloader` for every engine's bytes, `ModelDownloads.handleEvents` for the system's wake-up, resume kept across a stop, `HubTree` in the core. **The tag note lists every public break versus 0.3.0** — three of them — `git show 0.3.1`. |
 
 Pin an exact tag. A `from:` range would let a `throws` land on an init
 you did not write `try` for.
@@ -338,7 +338,7 @@ default closure `= { … }` folds at its brace). The words are the
 source's; the doc comments beside them say why.
 
 ```
-commit   eddc7f5
+commit   145c0dd
 
 ## MultiModalKit
   Audio/AudioEvent.swift: public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible
