@@ -97,7 +97,7 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     }
 
     func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
+                   instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         let identity = Identity(instructions: instructions, tools: resolvedTools(for: context.options))
         // The session is chosen and made INSIDE the stream's task, never
         // in `openReply`: the coordinator awaits `openReply` inline on its
@@ -109,11 +109,11 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                 do {
                     let lease = try self.lease(for: identity, history: context.history)
                     var answer = ""
-                    for try await snapshot in lease.session.respond(to: context.transcript,
-                                                                    tools: identity.tools,
-                                                                    options: context.options) {
-                        answer = snapshot
-                        continuation.yield(snapshot)
+                    for try await update in lease.session.respond(to: context.transcript,
+                                                                  tools: identity.tools,
+                                                                  options: context.options) {
+                        if case .snapshot(let snapshot) = update { answer = snapshot }
+                        continuation.yield(update)
                         try Task.checkCancellation()
                     }
                     // Checked once more AFTER the stream: an answer the

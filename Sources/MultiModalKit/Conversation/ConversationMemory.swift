@@ -159,11 +159,19 @@ public struct ConversationTurn: Sendable, Equatable {
     /// is what stops the mind from saying "as I explained" about a
     /// sentence the person heard half of.
     public let interrupted: Bool
+    /// The tools the mind used in this exchange, in order (5b, D-116
+    /// F-3 A, D-117 F-8 A) — so a re-seed replays a tool call as a tool
+    /// call and its output as an output, never as the assistant's prose.
+    /// Empty for an exchange that used none, which is every exchange
+    /// before 5b and every one from the MLX mind today (F-5 B).
+    public let tools: [ToolUse]
 
-    public init(said: String, replied: String, interrupted: Bool = false) {
+    public init(said: String, replied: String, interrupted: Bool = false,
+                tools: [ToolUse] = []) {
         self.said = said
         self.replied = replied
         self.interrupted = interrupted
+        self.tools = tools
     }
 
     /// What this exchange costs against `maxCharacters`.

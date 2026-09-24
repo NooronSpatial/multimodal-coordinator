@@ -96,6 +96,8 @@ private func determinismAsk(mind: MLXReplyGenerator, prompt: String,
             case .token(let token):
                 if firstToken == nil { firstToken = start.duration(to: clock.now) }
                 text += token
+            case .toolRan:
+                break   // the probe compares WORDS across runs; a tool is not one
             case .finished(let stop):
                 return .reply(text: text, stop: stop,
                               firstToken: firstToken ?? .zero, total: start.duration(to: clock.now))

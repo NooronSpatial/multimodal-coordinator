@@ -62,7 +62,7 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
     func release() { counts.withLock { $0.released = true } }
 
     func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
+                   instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
                 switch plan {
@@ -86,16 +86,16 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
     /// how they END.
     private func yieldAll(
         _ all: [String],
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation
     ) {
         for snapshot in all {
-            continuation.yield(snapshot)
+            continuation.yield(.snapshot(snapshot))
             counts.withLock { $0.yielded += 1 }
         }
     }
 
     private func spinUntilCancelled(
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation
     ) async {
         for _ in 0..<100_000 {
             if Task.isCancelled {
@@ -112,9 +112,9 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
     private func defyTheGate(
         before: String,
         after: String,
-        into continuation: AsyncThrowingStream<String, any Error>.Continuation
+        into continuation: AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation
     ) async {
-        continuation.yield(before)
+        continuation.yield(.snapshot(before))
         counts.withLock { $0.yielded += 1 }
         // Hold at the gate. Cancellation is RECORDED here (the
         // deterministic cancel-propagation fact) but NOT obeyed
@@ -129,7 +129,7 @@ final class ScriptedSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable 
         }
         if !opened { counts.withLock { $0.capExhausted = true } }
         // THE DEFIANT YIELD, after the test's cancel returned.
-        continuation.yield(after)
+        continuation.yield(.snapshot(after))
         counts.withLock { $0.yielded += 1 }
         continuation.finish()
     }

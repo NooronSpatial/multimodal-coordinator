@@ -29,7 +29,7 @@ struct AppleSessionTests {
                            options: MultiModalKit.GenerationOptions = MultiModalKit.GenerationOptions()) async throws {
             let reply = try await generator.reply(
                 to: ReplyContext(transcript: said, history: memory.turns, options: options))
-            memory.record(ConversationTurn(said: said, replied: reply.text))
+            memory.record(ConversationTurn(said: said, replied: reply.text, tools: reply.tools))
         }
 
         @available(macOS 26.0, iOS 26.0, *)

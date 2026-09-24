@@ -13,7 +13,8 @@
 // at that door, not left to the model.
 //
 // What did NOT change, on purpose: F-1 = B (the run executes the tool
-// itself; the coordinator never sees a call), the exact-name lookup, and
+// itself; the coordinator never runs one — since 5b it hears of each use
+// after the fact, D-120), the exact-name lookup, and
 // `String` as the answer both minds feed back verbatim (F-3 = A). A tool
 // with no parameters is the spike's tool, unchanged (AC-283).
 

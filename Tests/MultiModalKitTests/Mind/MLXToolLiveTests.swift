@@ -103,6 +103,9 @@ struct MLXToolLiveTests {
                 if firstWordAfterAnswer == nil, calledAt.withLock({ $0 }) != nil {
                     firstWordAfterAnswer = clock.now
                 }
+            case .toolRan(let use):
+                // D-116 F-5 B: the MLX mind is 5b's non-goal, and says so.
+                Issue.record("the MLX mind sends no .toolRan in 5b (F-5 B) — it sent \(use.name)")
             case .finished(let reason): stop = reason
             case .failed(let failure): Issue.record("the reply failed: \(failure)")
             }

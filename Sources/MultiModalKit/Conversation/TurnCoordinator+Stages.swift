@@ -33,6 +33,9 @@ extension TurnCoordinator {
                 await live.synthesisRun?.feed(token)
             }
 
+        case .toolRan:
+            break   // RED SKELETON (5b piece 2): not yet kept on the turn
+
         case .finished:
             // The stop reason is the TEXT caller's concern (4v); a spoken
             // reply ends the same way whether the model stopped or the

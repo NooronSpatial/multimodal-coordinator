@@ -14,9 +14,11 @@
 //
 // The vendor EXECUTES the tool itself, inside `streamResponse`, and then
 // continues the reply — which is exactly why 4w's F-1 = B was ruled: the
-// run never sees a call, the seam stays "tokens, then one terminal", and
-// this file's whole job is to make ONE `ReplyTool` look like ONE vendor
-// `Tool`. Since 4z the tool has PARAMETERS, so this file also does the
+// run never has to execute a call, and this file's whole job is to make
+// ONE `ReplyTool` look like ONE vendor `Tool`. (Since 5b the run REPORTS
+// each use after the fact — `ReplyUpdate.toolRan`, D-120 — so the stream
+// is no longer "tokens, then one terminal"; who runs a tool is
+// unchanged.) Since 4z the tool has PARAMETERS, so this file also does the
 // two translations the spike deferred: the app's declaration becomes
 // the schema the model is SHOWN, and the model's typed answer becomes
 // the `ToolArguments` the door reads. The door itself — strip, check,

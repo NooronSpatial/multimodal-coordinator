@@ -292,15 +292,22 @@ struct ToolSpikeTests {
         #expect(await rig.bench.box.events == expected)
     }
 
-    /// THE COMPILER IS THE ASSERTION (the `ReplyContractTests` pattern):
-    /// F-1 = B promised `ReplyUpdate` would not grow a case for tools.
-    /// Add one and, under warnings-as-errors, this switch stops compiling.
-    @Test("F-1 = B: ReplyUpdate is still .token / .finished / .failed")
-    func replyUpdateLearnedNothing() {
-        let every: [ReplyUpdate] = [.token("t"), .finished(.complete), .failed(.busy)]
+    /// THE COMPILER IS THE ASSERTION (the `ReplyContractTests` pattern).
+    /// F-1 = B (D-101) promised `ReplyUpdate` would not grow a case for
+    /// tools, and this switch was written to stop compiling if it did. In
+    /// 5b it did, and it did its job: `.toolRan` went back to Ryad, who
+    /// kept it and amended F-1 = B (D-120). The rule about WHO runs a tool
+    /// stands — the mind, never the coordinator; the stream's shape is now
+    /// tokens, tool RECORDS after the fact, one terminal. Add another case
+    /// and this stops compiling again, reopening the same conversation.
+    @Test("D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run")
+    func replyUpdateLearnedOnlyRecords() {
+        let use = ToolUse(name: "session", arguments: .empty,
+                          outcome: ToolCallOutcome(result: .success("green")))
+        let every: [ReplyUpdate] = [.token("t"), .toolRan(use), .finished(.complete), .failed(.busy)]
         for update in every {
             switch update {
-            case .token, .finished, .failed:
+            case .token, .toolRan, .finished, .failed:
                 break
             }
         }

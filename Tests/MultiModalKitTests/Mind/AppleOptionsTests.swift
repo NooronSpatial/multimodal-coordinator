@@ -25,10 +25,10 @@ final class RecordingSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable
     func refuse(with verdict: MindUnavailable?) { door.withLock { $0 = verdict } }
 
     func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
+                   instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         asks.withLock { $0.append(Ask(instructions: instructions, options: context.options)) }
         return AsyncThrowingStream { continuation in
-            continuation.yield("ok")
+            continuation.yield(.snapshot("ok"))
             continuation.finish()
         }
     }

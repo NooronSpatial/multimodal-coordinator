@@ -56,6 +56,15 @@ public enum TurnEvent: Sendable, Equatable {
 /// values.
 public enum ReplyUpdate: Sendable, Equatable {
     case token(String)
+    /// A tool ran during this reply (5b, D-117 F-8 A): what the model
+    /// called, with what, and what the door did. Sent when the mind SAW
+    /// it — the vendor does not say where in its text a tool was called,
+    /// so its place among the tokens is the order this library observed,
+    /// not a position in the sentence. Never after the terminal. The voice
+    /// path keeps it on the turn (`ConversationTurn.tools`); a text caller
+    /// finds it on `Reply.tools`. The MLX mind does not send it in 5b
+    /// (D-116 F-5 B).
+    case toolRan(ToolUse)
     case finished(StopReason)
     case failed(ReplyFailure)
 }

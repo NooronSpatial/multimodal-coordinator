@@ -101,7 +101,7 @@ final class AppleSession: MindSession {
     }
 
     func respond(to prompt: String, tools: ToolTable,
-                 options: GenerationOptions) -> AsyncThrowingStream<String, any Error> {
+                 options: GenerationOptions) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         let vendor = Self.vendorOptions(for: options)
         // Set BEFORE the vendor can call a tool: the adapters were made at
         // the session's birth, and must run THIS call's bodies with THIS
@@ -111,7 +111,7 @@ final class AppleSession: MindSession {
             let task = Task {
                 do {
                     for try await snapshot in self.session.streamResponse(to: prompt, options: vendor) {
-                        continuation.yield(snapshot.content)
+                        continuation.yield(.snapshot(snapshot.content))
                         try Task.checkCancellation()
                     }
                     continuation.finish()
@@ -177,17 +177,22 @@ final class ToolRoute: Sendable {
     struct Now: Sendable {
         let table: ToolTable
         let confirmed: Set<String>
+        /// Where this answer hears that a tool ran (5b, D-117 F-8 A).
+        let report: @Sendable (ToolUse) -> Void
     }
 
     private let slot: Mutex<Now>
 
-    init(_ table: ToolTable, confirmed: Set<String> = []) {
-        slot = Mutex(Now(table: table, confirmed: confirmed))
+    init(_ table: ToolTable, confirmed: Set<String> = [],
+         report: @escaping @Sendable (ToolUse) -> Void = { _ in }) {
+        slot = Mutex(Now(table: table, confirmed: confirmed, report: report))
     }
 
-    /// The answer about to start: its table (whose bodies run) and its yes.
-    func set(_ table: ToolTable, confirmed: Set<String>) {
-        slot.withLock { $0 = Now(table: table, confirmed: confirmed) }
+    /// The answer about to start: its table (whose bodies run), its yes,
+    /// and where it hears of each use.
+    func set(_ table: ToolTable, confirmed: Set<String>,
+             report: @escaping @Sendable (ToolUse) -> Void = { _ in }) {
+        slot.withLock { $0 = Now(table: table, confirmed: confirmed, report: report) }
     }
 
     var now: Now { slot.withLock { $0 } }

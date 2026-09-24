@@ -22,7 +22,8 @@ protocol ReplySnapshotStreaming: Sendable {
     var unavailable: MindUnavailable? { get }
     /// Opens one generation and returns its CUMULATIVE snapshots — the
     /// whole reply so far, again and again, which is the shape Apple's
-    /// API actually has (SPEC §71, measured in INSTRUMENTS §22).
+    /// API actually has (SPEC §71, measured in INSTRUMENTS §22) — with a
+    /// `.toolRan` among them for every tool the model used (5b).
     ///
     /// `instructions` are the RESOLVED ones for this call (AC-232: the
     /// caller's per-call text over the generator's own), passed beside
@@ -30,7 +31,7 @@ protocol ReplySnapshotStreaming: Sendable {
     /// record exactly what the generator decided; the sampling and the
     /// budget ride on `context.options` and the real source maps them.
     func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error>
+                   instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error>
 }
 
 // The REAL source is `SessionKeeper` over `AppleSessionMaker` (5b):
@@ -381,8 +382,10 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await snapshot in source.snapshots(for: context, instructions: instructions) {
+                for try await update in source.snapshots(for: context, instructions: instructions) {
                     guard let self else { return }
+                    // RED SKELETON (5b piece 2): a tool's record is not yet passed on.
+                    guard case .snapshot(let snapshot) = update else { continue }
                     // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under
                     // one lock step.
                     //

@@ -62,6 +62,10 @@ final class FakeSession: MindSession {
     enum Plan: Sendable {
         /// These cumulative snapshots, then the answer ends on its own.
         case answers([String])
+        /// These updates in order — snapshots and tool uses — then the
+        /// answer ends on its own. What a real session streams when the
+        /// model uses a tool (5b piece 2).
+        case steps([MindSessionUpdate])
         /// Nothing, until the listener goes away — an answer a barge or a
         /// deadline will cut before its first word. It never finishes on
         /// its own, so it can never be mistaken for a finished answer.
@@ -73,7 +77,7 @@ final class FakeSession: MindSession {
     private let log = Mutex<[Asked]>([])
     /// A held answer's continuation, KEPT so the stream stays open until
     /// its reader is cancelled — never ended early by being dropped.
-    private let held = Mutex<[AsyncThrowingStream<String, any Error>.Continuation]>([])
+    private let held = Mutex<[AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation]>([])
 
     init(script: @escaping @Sendable (String) -> Plan, signals: ToolSpikeTests.Signals?) {
         self.script = script
@@ -83,13 +87,16 @@ final class FakeSession: MindSession {
     var asked: [Asked] { log.withLock { $0 } }
 
     func respond(to prompt: String, tools: ToolTable,
-                 options: GenerationOptions) -> AsyncThrowingStream<String, any Error> {
+                 options: GenerationOptions) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         log.withLock { $0.append(Asked(prompt: prompt, tools: tools, options: options)) }
         let plan = script(prompt)
-        let stream = AsyncThrowingStream<String, any Error> { continuation in
+        let stream = AsyncThrowingStream<MindSessionUpdate, any Error> { continuation in
             switch plan {
             case .answers(let snapshots):
-                for snapshot in snapshots { continuation.yield(snapshot) }
+                for snapshot in snapshots { continuation.yield(.snapshot(snapshot)) }
+                continuation.finish()
+            case .steps(let updates):
+                for update in updates { continuation.yield(update) }
                 continuation.finish()
             case .holdsUntilCut:
                 // Held open; the stream ends when its reader is cancelled
@@ -132,4 +139,53 @@ final class InstantUtterance: SynthesisRun {
     }
 
     func cancel() async { out.finish() }
+}
+
+/// The coordinator with its real memory, a mind under test and a mouth
+/// that speaks at once — driven by EVENTS: `say` returns when the turn's
+/// `completed` was heard, never after a guess about time.
+struct CoordinatorRig {
+    let coordinator: TurnCoordinator<ContinuousClock>
+    let signals = ToolSpikeTests.Signals()
+    private let listener: Broadcast<TurnEvent>.Listener
+    private let audio: AsyncStream<AudioEvent>
+    private let audioIn: AsyncStream<AudioEvent>.Continuation
+    private let transcripts: AsyncStream<TranscriptEvent>
+    private let transcriptsIn: AsyncStream<TranscriptEvent>.Continuation
+
+    /// Memory bounds wide open unless a row is about the bound.
+    init(mind: any ReplyGenerating, maxMemoryTurns: Int = 64, maxMemoryCharacters: Int = 64_000) async throws {
+        coordinator = try TurnCoordinator(
+            replyGenerator: mind, synthesizer: InstantMouth(),
+            config: .init(maxMemoryTurns: maxMemoryTurns, maxMemoryCharacters: maxMemoryCharacters))
+        listener = await coordinator.listen()
+        (audio, audioIn) = AsyncStream.makeStream(of: AudioEvent.self)
+        (transcripts, transcriptsIn) = AsyncStream.makeStream(of: TranscriptEvent.self)
+    }
+
+    /// The loop and the event forwarder, as children of the test's group.
+    func start(in group: inout TaskGroup<Void>) {
+        let coordinator = coordinator, audio = audio, transcripts = transcripts
+        let listener = listener, signals = signals
+        group.addTask { await coordinator.run(audio: audio, transcripts: transcripts) }
+        group.addTask {
+            for await event in listener.events { signals.send(ToolSpikeTests.name(of: event)) }
+        }
+    }
+
+    /// One utterance — its onset, then its final — and the wait for its
+    /// turn to complete. Utterance `n` is turn `n` while no turn barges.
+    func say(_ text: String, utterance: Int) async -> Bool {
+        let frames = utterance * 96_000
+        audioIn.yield(.speechStarted(utterance: utterance, at: TurnCoordinatorTests.t(frames)))
+        transcriptsIn.yield(.final(text, utterance: utterance, at: TurnCoordinatorTests.t(frames + 960)))
+        return await signals.heard("completed:\(utterance)")
+    }
+
+    /// The inputs end and the loop stops; the group then drains.
+    func end() async {
+        audioIn.finish()
+        transcriptsIn.finish()
+        await coordinator.stop()
+    }
 }

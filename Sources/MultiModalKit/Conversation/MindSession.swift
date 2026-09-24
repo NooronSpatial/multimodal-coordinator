@@ -22,6 +22,17 @@
 // turn, whether the session still holds what the memory holds (D-118
 // F-12 C) and whether its last answer finished on its own (D-117 F-10 A).
 
+/// What one answer of a session streams (5b): the answer so far, and —
+/// the moment it happens — each tool the model used (D-117 F-8 A).
+public enum MindSessionUpdate: Sendable, Equatable {
+    /// The whole answer so far: CUMULATIVE, again and again (the Apple
+    /// API's shape, SPEC §71).
+    case snapshot(String)
+    /// A tool ran during this answer — sent once it has run, before the
+    /// words it answered go back to the model.
+    case toolRan(ToolUse)
+}
+
 /// ONE SESSION WITH A MIND — what a conversation keeps between turns.
 ///
 /// A session holds what it was born with (the instructions, the tools'
@@ -31,8 +42,9 @@
 /// rather than being repaired (D-117 F-10 A).
 public protocol MindSession: Sendable {
     /// Answers `prompt`, which the session appends to what it holds, and
-    /// streams the answer as CUMULATIVE snapshots — the whole answer so
-    /// far, again and again (the Apple API's shape, SPEC §71).
+    /// streams the answer (`MindSessionUpdate`): CUMULATIVE snapshots —
+    /// the whole answer so far, again and again (the Apple API's shape,
+    /// SPEC §71) — and a `.toolRan` for every tool the model used.
     ///
     /// `tools` is the table whose BODIES this answer runs. Its
     /// declarations are the ones the session was made with — the keeper
@@ -43,7 +55,7 @@ public protocol MindSession: Sendable {
     /// `options.confirmedTools` is THIS call's yes and no other's (4z,
     /// D-110 F-10 B-ii: a yes is bound to the call that carries it).
     func respond(to prompt: String, tools: ToolTable,
-                 options: GenerationOptions) -> AsyncThrowingStream<String, any Error>
+                 options: GenerationOptions) -> AsyncThrowingStream<MindSessionUpdate, any Error>
 }
 
 /// Makes sessions. The Apple mind's is `AppleSessionMaker`; a test's is a

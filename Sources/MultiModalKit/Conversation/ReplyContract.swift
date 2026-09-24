@@ -279,14 +279,22 @@ public enum MindUnavailable: Error, Sendable, Equatable, CustomStringConvertible
 
 // MARK: - the whole reply (F-4 = A)
 
-/// One complete reply: the text, and why it stopped there.
+/// One complete reply: the text, why it stopped there, and the tools it
+/// used on the way.
 public struct Reply: Sendable, Equatable {
     public let text: String
     public let stop: StopReason
+    /// Every tool the mind used during this reply, in the order it sent
+    /// them (`ReplyUpdate.toolRan`, 5b). A text caller that keeps its own
+    /// history puts these on its `ConversationTurn`, so a re-seed replays
+    /// them as tool calls and not as prose (D-116 F-3 A). Empty for a
+    /// reply that used none — and always, today, from the MLX mind.
+    public let tools: [ToolUse]
 
-    public init(text: String, stop: StopReason) {
+    public init(text: String, stop: StopReason, tools: [ToolUse] = []) {
         self.text = text
         self.stop = stop
+        self.tools = tools
     }
 }
 
@@ -334,6 +342,8 @@ private func drainWholeReply(_ run: any ReplyRun) async throws -> Reply {
         switch update {
         case .token(let token):
             text += token
+        case .toolRan:
+            break   // RED SKELETON (5b piece 2): not yet collected
         case .finished(let stop):
             return Reply(text: text, stop: stop)
         case .failed(let failure):
