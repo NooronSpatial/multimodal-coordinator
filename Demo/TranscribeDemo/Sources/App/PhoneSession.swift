@@ -186,6 +186,7 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
                     text += token
                 case .failed(let why): failure = why.description; sawTerminal = true
                 case .finished: sawTerminal = true
+                case .toolRan: break   // forwarded below like every update (5b); the report is words
                 }
                 out.yield(update)
             }
