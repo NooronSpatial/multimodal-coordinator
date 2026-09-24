@@ -7646,3 +7646,151 @@ INSTRUMENTS §71 · the contract page updated (ARCHITECTURE, and the
 is true after this) · `INTEGRATE.md` and its generated appendix
 regenerated · the tag note naming every API change · the phone rows
 named as owed, not claimed · teach-back.
+
+## §213 — piece R: the reply retry (added by D-121) — DRAFT, not signed
+
+*From the diet app's requirement (`reply-retry.md`, 2026-09-24): R-1, one
+retry of the writing after a tool ran, no tool run twice; R-2, a name for
+the vendor's unnamed failure. Its acceptance criteria are theirs, renumbered
+here, and three rows are this library's own. Nothing below is ruled until
+Ryad signs it.*
+
+### Why
+
+```
+ thinking ─▶ tool A answers ✓ ─▶ tool B answers ✓ ─▶ FAILED generationFailed(
+              "… GenerationError Code=-1 … com.apple.tokengeneration Code=10 …")
+                                                      the person hears: nothing
+```
+
+Twice on the diet app's phone (0.3.0, 0.3.1; iPhone 17e, iOS 26) the Apple
+mind did everything right — the right tools, true answers through the door —
+and then the vendor failed while writing the reply, with an error nothing
+public names. Today that error reaches a caller as `ReplyFailure.engine`
+with the vendor's words, which an app can only match as a string.
+
+### The vendor fact the design must stand on — measured FIRST, on the phone
+
+Every `LanguageModelSession.respond` / `streamResponse` takes a prompt (read
+from the SDK, 2026-09-24). There is no call that says "write the reply
+again". So the retry must re-ask, and what the model does when re-asked is
+not a thing this Mac can see (`modelNotReady`). **PROBE-R**, before any code
+that depends on it: the demo, on Ryad's iPhone, wraps the real Apple session
+so the first answer fails the moment its first tool has answered (a fault
+the probe injects; the vendor's own cannot be summoned), then retries per
+F-18 and records: how many times each tool body ran, whether a reply was
+spoken, and what the retry cost in milliseconds.
+
+### Scope (written under the recommendations of F-15…F-20)
+
+1. **One retry, inside the keeper** (F-15 A, F-17 A): when the conversation's
+   answer throws the new unnamed failure (item 3) AFTER at least one tool ran
+   and BEFORE any word was said, the keeper asks again once, and the run,
+   the coordinator and a text caller see one answer.
+2. **The re-ask replays the turn** (F-18 A): a fresh session seeded from the
+   same history, the same prompt, the tools in the schema (F-16 A) — and a
+   call that repeats one already made in this turn (same name, same
+   arguments as the door read them) is answered from its record: the body
+   does not run again. A new call goes through the door as usual.
+3. **A name for the unnamed failure** (R-2, F-20): a new `ReplyFailure`
+   case carrying the vendor's words, for exactly the errors this library
+   cannot name today — a `GenerationError` case the SDK does not publish
+   (`@unknown default`), or a vendor error that is neither a
+   `GenerationError` nor a `ToolCallError`. The library's own failures (the
+   tripwire, a tool's typed failure) and every named vendor case keep their
+   names.
+4. **The retry is on the trace**: a `HealthEvent` for each retry, through the
+   same `diagnostics:` as 3a.
+
+### Non-goals
+
+- Retrying anything else: a failure before any tool ran (the person can say
+  it again; nothing is saved), any named failure, a refusal, a deadline.
+- A second retry (F-15 A).
+- The bare-tool-name reply (D-116 F-6 A stands: re-measured, not retried).
+- A retry in the MLX mind (F-5 B: no such failure has been seen there).
+
+### Acceptance criteria (AC-317 … AC-323)
+
+- **AC-317 — one reply, one body run** *(theirs: AC-1)*. A session that
+  fails the first write after a tool round and succeeds the second gives ONE
+  reply; the turn completes; the tool's body ran once (counted).
+- **AC-318 — no third try** *(theirs: AC-2)*. A session that fails both
+  writes ends the turn with the named failure (AC-322), once.
+- **AC-319 — what is never retried** *(theirs: AC-3, widened)*. No retry
+  when no tool ran, when a word was already said (F-19 A), or when the
+  failure is named (`.tooHot`, `.contextWindowExceeded`, `.unavailable`,
+  `.busy`, a refusal).
+- **AC-320 — a barge during the retry** *(theirs: AC-4)*. It cancels the
+  retry like any reply; the tool's write stands; nothing runs twice.
+- **AC-321 — the retry is seen** *(theirs: AC-5)*. One `HealthEvent` per
+  retry, naming it.
+- **AC-322 — the unnamed failure has a name** *(R-2)*. The new case carries
+  the vendor's words; every error item 3 lists reaches a caller as it; no
+  other error does.
+- **AC-323 — the phone** *(PROBE-R, Ryad's gate)*. With the fault injected on
+  the iPhone: the body ran once, a reply was spoken, and the retry's cost is
+  recorded.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-317 | `AppleRetryTests` · "one retry, one reply, one body run" | fake session maker + a counted tool |
+| AC-318 | `AppleRetryTests` · "two failures: the named failure, once" | fake |
+| AC-319 | `AppleRetryTests` · "no tool ran" · "a word was said" · one row per named failure | fake |
+| AC-320 | `AppleRetryTests` · "a barge during the retry" (through the coordinator) | fake + coordinator rig |
+| AC-321 | `AppleRetryTests` · "the retry is on the health road" | fake + `HealthLog` |
+| AC-322 | `AppleFailureTableTests` · the new rows for each arm | scripted source |
+| AC-323 | PROBE-R in the demo | phone |
+
+### The forks (Ryad rules)
+
+**F-15 — HOW MANY RETRIES.** *A:* one. *B:* up to N. **Recommendation: A** —
+the diet app's view too: a second unnamed failure in one turn is a pattern
+to surface, not to hide behind more waiting.
+
+**F-16 — THE TOOLS DURING THE RETRY.** *A:* in the schema; a repeat of a
+call already made this turn is answered from its record, a new call runs.
+*B:* no tools — the model may only write. *C:* in the schema, bodies live.
+**Recommendation: A** — the model keeps its tools (the diet app's view),
+and R-1's hard rule holds by construction: a repeat never reaches a body.
+*C violates R-1* (a write could run twice); *B* changes what the model may
+do mid-turn, and a transcript full of calls to tools it no longer has is
+a shape nobody has measured.
+
+**F-17 — WHERE IT LIVES.** *A:* in the session keeper (the Apple mind's).
+*B:* in the coordinator (every mind). **Recommendation: A** — the failure is
+the Apple vendor's, the keeper already holds the records and the sessions,
+and a text caller (`reply(to:)`) gets the retry too; the coordinator must
+not learn a vendor's transcript (D-116 F-1 A's reason).
+
+**F-18 — HOW THE WRITING IS ASKED AGAIN.** *A:* replay the turn — a fresh
+session from the same history, the same prompt, repeats answered from
+records. *B:* seed the tool calls and outputs into the new session and ask
+with the same words again (the question appears twice in the transcript).
+*C:* seed them and ask with an empty prompt (the vendor's behaviour
+unknown). **Recommendation: A**, confirmed or overturned by PROBE-R — the
+only shape that neither shows the model its question twice nor leans on an
+unmeasured empty prompt.
+
+**F-19 — A FAILURE AFTER A WORD WAS SAID.** *A:* no retry — the turn fails
+with the named failure, as today. *B:* retry anyway. **Recommendation: A** —
+the person has heard part of an answer; a second, different answer after
+it is a stutter the app cannot explain. The diet app's two failures came
+before any word.
+
+**F-20 — THE NEW CASE'S NAME.** *A:* `ReplyFailure.unexplained(String)` —
+"the vendor failed and gave no reason this library can name". *B:*
+`ReplyFailure.vendor(String)`. **Recommendation: A** — it says what an app
+needs to know (no reason was given), where B says only who failed.
+
+### Definition of done
+
+§212's, plus: PROBE-R run on the phone before F-18 is final; the tag note
+names the new `ReplyFailure` case as a change for every caller that
+switches over it. **The diet app does, exhaustively, in two places**
+(`MindMacroEstimator.translate`, `AddFoodDraft` — checked 2026-09-24):
+both stop compiling until they handle the new case. That is R-2's own
+point — the app wants to speak a sentence for it — and the tag note says
+so, so the break is expected rather than found.
