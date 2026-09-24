@@ -120,6 +120,24 @@ public struct ReplyContext: Sendable, Equatable {
 public protocol ReplyGenerating: Sendable {
     /// Opens one reply. Throws when generation cannot start at all.
     func openReply(to context: ReplyContext) async throws -> any ReplyRun
+
+    /// The conversation is over (5b, D-117 F-9 A): let go of whatever was
+    /// kept for it. The coordinator calls this from `stop()` and from
+    /// `clearMemory()`; the Apple mind releases the session it kept
+    /// (D-116 F-1 A), so nothing the vendor holds for it outlives the
+    /// conversation, and the next turn starts a new one.
+    ///
+    /// The default does nothing — right for every mind that keeps nothing
+    /// between replies, and it is why every generator written before 5b
+    /// still compiles. **A generator that WRAPS another must pass this
+    /// on**: the default would swallow it, and the wrapped mind would
+    /// keep a conversation that ended.
+    func endConversation() async
+}
+
+extension ReplyGenerating {
+    /// Nothing kept, nothing to let go of.
+    public func endConversation() async {}
 }
 
 extension ReplyGenerating {

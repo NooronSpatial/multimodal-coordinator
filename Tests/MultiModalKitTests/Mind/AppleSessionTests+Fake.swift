@@ -70,6 +70,11 @@ final class FakeSession: MindSession {
         /// deadline will cut before its first word. It never finishes on
         /// its own, so it can never be mistaken for a finished answer.
         case holdsUntilCut
+        /// One snapshot, then held until the listener goes away — an
+        /// answer a barge cuts after its first words were spoken.
+        case snapshotThenHold(String)
+        /// The answer fails before its first word, with these words.
+        case fails(String)
     }
 
     let script: @Sendable (String) -> Plan
@@ -102,11 +107,23 @@ final class FakeSession: MindSession {
                 // Held open; the stream ends when its reader is cancelled
                 // (`AsyncThrowingStream` finishes a cancelled `next()`).
                 self.held.withLock { $0.append(continuation) }
+            case .snapshotThenHold(let snapshot):
+                continuation.yield(.snapshot(snapshot))
+                self.held.withLock { $0.append(continuation) }
+            case .fails(let words):
+                continuation.finish(throwing: FakeSessionFailure(words: words))
             }
         }
         signals?.send("asked:\(prompt)")
         return stream
     }
+}
+
+/// The error a fake answer fails with — its words are what the trace
+/// must carry (AC-307).
+struct FakeSessionFailure: Error, CustomStringConvertible {
+    let words: String
+    var description: String { words }
 }
 
 /// A mouth that speaks at once: `started` with the first token, `finished`
@@ -176,10 +193,27 @@ struct CoordinatorRig {
     /// One utterance — its onset, then its final — and the wait for its
     /// turn to complete. Utterance `n` is turn `n` while no turn barges.
     func say(_ text: String, utterance: Int) async -> Bool {
-        let frames = utterance * 96_000
-        audioIn.yield(.speechStarted(utterance: utterance, at: TurnCoordinatorTests.t(frames)))
-        transcriptsIn.yield(.final(text, utterance: utterance, at: TurnCoordinatorTests.t(frames + 960)))
+        begin(text, utterance: utterance)
         return await signals.heard("completed:\(utterance)")
+    }
+
+    /// One utterance, and NO wait — for a row that acts while the turn is
+    /// still thinking or speaking.
+    func begin(_ text: String, utterance: Int) {
+        onset(utterance: utterance)
+        final(text, utterance: utterance)
+    }
+
+    /// Only the onset: with no barge window, an onset while the mind is
+    /// thinking or speaking IS a barge.
+    func onset(utterance: Int) {
+        audioIn.yield(.speechStarted(utterance: utterance, at: TurnCoordinatorTests.t(utterance * 96_000)))
+    }
+
+    /// Only the final, for an utterance whose onset was already heard.
+    func final(_ text: String, utterance: Int) {
+        transcriptsIn.yield(.final(text, utterance: utterance,
+                                   at: TurnCoordinatorTests.t(utterance * 96_000 + 960)))
     }
 
     /// The inputs end and the loop stops; the group then drains.

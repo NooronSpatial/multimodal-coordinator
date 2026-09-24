@@ -23,6 +23,8 @@ extension TranscribeModel {
                                   // words (D-059's road exists for listeners
                                   // OUTSIDE one conversation; this screen IS
                                   // the conversation)
+        case .mindSessionSeeded: break   // 5b's trace; this demo builds its
+                                         // Apple mind without diagnostics
         }
     }
 

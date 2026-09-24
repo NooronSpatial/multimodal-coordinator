@@ -36,12 +36,24 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     /// The generator's own table — the one a call runs with when its
     /// options carry none (4z, D-110 F-2 = A).
     let tools: ToolTable
+    /// Where each session's birth is reported, with its reason (D-118
+    /// F-13 A); `nil` reports nothing.
+    let diagnostics: PipelineDiagnostics?
     private let state = Mutex(State())
 
-    init(maker: any MindSessionMaking, tools: ToolTable) {
+    init(maker: any MindSessionMaking, tools: ToolTable, diagnostics: PipelineDiagnostics? = nil) {
         self.maker = maker
         self.tools = tools
+        self.diagnostics = diagnostics
     }
+
+    /// Whether the conversation holds a session right now — for the rows
+    /// that prove one was released (AC-307, AC-310).
+    var holdsSession: Bool { state.withLock { $0.kept != nil } }
+
+    /// The conversation is over (D-117 F-9 A).
+    /// RED SKELETON (5b piece 3a): nothing is released yet.
+    func endConversation() {}
 
     /// What a session shows the model and cannot change once born: its
     /// instructions and its tools' declarations (`ToolTable`'s `==`

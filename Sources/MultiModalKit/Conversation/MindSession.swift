@@ -71,3 +71,27 @@ public protocol MindSessionMaking: Sendable {
     func makeSession(instructions: String?, tools: ToolTable,
                      seed: [ConversationTurn]) throws -> any MindSession
 }
+
+/// Why a conversation's session was BORN (5b, D-118 F-13 A) — reported as
+/// `HealthEvent.mindSessionSeeded` when the generator was given
+/// diagnostics. Every birth is one full prefill of the instructions, the
+/// tool schemas and the past: the cost 5b exists to pay once per
+/// conversation, so each one says why it was paid again.
+public enum SessionSeedReason: Sendable, Equatable {
+    /// The conversation had no session: its first turn, or the first
+    /// after `endConversation()`.
+    case newConversation
+    /// The session's last answer had not finished on its own when this
+    /// call came — cut by a barge or a deadline, or still running (D-117
+    /// F-10 A: a session is kept only after an answer the vendor finished
+    /// itself).
+    case lastAnswerUnfinished
+    /// The session's last answer failed; the words are the failure's.
+    case lastAnswerFailed(String)
+    /// The memory no longer holds what the session holds: it forgot, or
+    /// it wrote the last turn differently — a cut reply marked
+    /// interrupted, an answer it would not keep.
+    case memoryChanged
+    /// The vendor said the session is full — its context window.
+    case contextFull
+}

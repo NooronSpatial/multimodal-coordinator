@@ -21,6 +21,11 @@ public enum HealthEvent: Sendable, Equatable {
     /// tripwire alarm rides, as that ruling promised and the 4f review
     /// found missing (the correction entry above D-059 tells that story).
     case turnFailed(turn: Int, failure: TurnFailure)
+    /// The mind's kept session was built from the memory, and why (5b,
+    /// D-118 F-13 A) — reported by a generator that was handed this
+    /// diagnostics seam at init. `turns` is how many remembered turns the
+    /// new session was seeded with: the size of the prefill it paid.
+    case mindSessionSeeded(SessionSeedReason, turns: Int)
 }
 
 /// The injected diagnostics seam (D-026 F5): owned by the consumer, handed
@@ -100,5 +105,12 @@ public final class PipelineDiagnostics: Sendable {
     /// injected = byte-for-byte identical behavior, the D-028 precedent.
     public func noteTurnFailed(turn: Int, failure: TurnFailure) {
         broadcast.publish(.turnFailed(turn: turn, failure: failure))
+    }
+
+    /// One session born, one event (5b, D-118 F-13 A): the Apple mind's
+    /// session keeper reports here when the generator was handed this
+    /// seam. Not handed = byte-for-byte today's generator.
+    public func noteMindSessionSeeded(_ reason: SessionSeedReason, turns: Int) {
+        broadcast.publish(.mindSessionSeeded(reason, turns: turns))
     }
 }

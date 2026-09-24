@@ -239,7 +239,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// It does NOT touch the ledger. The thought in flight is the person's
     /// current sentence, and dropping it here would answer a question they
     /// are still in the middle of asking.
-    public func clearMemory() { memory.clear() }
+    ///
+    /// `async` since 5b: forgetting the past also ends the conversation
+    /// the mind kept (`ReplyGenerating.endConversation`, D-117 F-9 A).
+    /// From outside the actor every call already awaits, so no call site
+    /// changes.
+    public func clearMemory() async { memory.clear() }
 
     /// Moves one finished exchange out of the ledger's care and into the
     /// memory (4r, F-5 = A).

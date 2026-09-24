@@ -32,6 +32,13 @@ protocol ReplySnapshotStreaming: Sendable {
     /// budget ride on `context.options` and the real source maps them.
     func snapshots(for context: ReplyContext,
                    instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error>
+    /// The conversation is over (5b, D-117 F-9 A): the keeper lets its
+    /// session go. A scripted source keeps nothing — the default.
+    func endConversation()
+}
+
+extension ReplySnapshotStreaming {
+    func endConversation() {}
 }
 
 // The REAL source is `SessionKeeper` over `AppleSessionMaker` (5b):
@@ -203,13 +210,19 @@ public final class AppleReplyGenerator: ReplyGenerating {
     /// default is the Apple model's; a test — this library's or a
     /// caller's — hands a fake that writes down what it was asked, which
     /// is how every 5b row runs on a machine with no Apple model.
+    ///
+    /// `diagnostics` is where each session's birth is reported, with its
+    /// reason (5b, D-118 F-13 A) — the health road an app already
+    /// listens to. `nil` reports nothing: byte-for-byte the generator
+    /// before 5b (the D-028 / D-059 precedent).
     public init(instructions: String? = nil,
                 spokenRefusal: String = "I can't answer that.",
                 tools: ToolTable = .empty,
                 sessions: any MindSessionMaking = AppleSessionMaker(),
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-                clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+                clock: any Clock<Duration> = ContinuousClock(),
+                diagnostics: PipelineDiagnostics? = nil) throws(ToolDeclarationError) {
         // A DEFAULT table no mind can show is refused HERE, where it is
         // handed over (F-13 d, AC-289) — typed, naming the tool and the
         // parameter — never inside a reply, where the vendor's own refusal
@@ -222,7 +235,7 @@ public final class AppleReplyGenerator: ReplyGenerating {
         self.thermal = thermal
         self.thermalPolicy = thermalPolicy
         self.clock = clock
-        self.source = SessionKeeper(maker: sessions, tools: tools)
+        self.source = SessionKeeper(maker: sessions, tools: tools, diagnostics: diagnostics)
     }
 
     /// The seam a test reaches through (@testable), never a caller: a
@@ -254,6 +267,13 @@ public final class AppleReplyGenerator: ReplyGenerating {
         self.thermalPolicy = thermalPolicy
         self.clock = clock
         self.source = source
+    }
+
+    /// The conversation is over (5b, D-117 F-9 A): the session kept for it
+    /// is released, and the next turn starts a new one. The coordinator
+    /// calls this from `stop()` and `clearMemory()`.
+    public func endConversation() async {
+        source.endConversation()
     }
 
     /// The verdict, read fresh every time — `AppleMind.readiness()` under

@@ -95,6 +95,13 @@ struct ThoughtWitness: ReplyGenerating {
         return WitnessedRun(wrapped: run, heard: context.transcript,
                             mind: mindLabel, report: onTurn)
     }
+
+    /// PASSED ON (5b, D-117 F-9 A): a wrapper that kept the protocol's
+    /// do-nothing default would swallow the end of the conversation, and
+    /// the Apple mind inside would keep a session nobody will ask again.
+    func endConversation() async {
+        await wrapped.endConversation()
+    }
 }
 
 /// One turn, as it really happened, for sharing off the phone.
