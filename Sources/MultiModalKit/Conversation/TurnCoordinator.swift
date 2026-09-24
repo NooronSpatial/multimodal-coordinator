@@ -244,7 +244,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// the mind kept (`ReplyGenerating.endConversation`, D-117 F-9 A).
     /// From outside the actor every call already awaits, so no call site
     /// changes.
-    public func clearMemory() async { memory.clear() }
+    public func clearMemory() async {
+        memory.clear()
+        await replyGenerator.endConversation()
+    }
 
     /// Moves one finished exchange out of the ledger's care and into the
     /// memory (4r, F-5 = A).
@@ -398,6 +401,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         broadcast.finish()
         await dying?.replyRun?.cancel()    // optimization, after the guarantee
         await dying?.synthesisRun?.cancel()
+        // The conversation is over for the mind too (5b, D-117 F-9 A): what
+        // it kept for this conversation — the Apple mind's session — is let
+        // go, and nothing the vendor holds for it outlives `stop()`.
+        await replyGenerator.endConversation()
     }
 
     /// No more triggers can arrive and no turn is in flight.

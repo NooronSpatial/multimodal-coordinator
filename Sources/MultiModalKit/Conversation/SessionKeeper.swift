@@ -13,11 +13,15 @@
 //       otherwise ─▶ SEED a new one from the history (F-2 A), and it
 //                    becomes the conversation's               (F-4 A)
 //
-// Piece 1 of 5b. The window rule of D-118 F-12 C (a kept session may hold
-// MORE than the memory's window), the vendor's context wall, the health
-// report and `endConversation` are later pieces; until then "holds exactly
-// the history" is equality, and every one of those cases re-seeds — which
-// is today's cost, never a wrong answer.
+// And when the conversation's session ENDS (piece 3a): an answer that
+// did not finish on its own lets it go at once, `endConversation()` lets
+// it go and moves the ticket on, and every birth of the conversation's
+// session is reported with its reason (`SessionSeedReason`, D-118 F-13 A).
+//
+// Still to come (piece 3b): the window rule of D-118 F-12 C — a kept
+// session may hold MORE than the memory's window — and the vendor's
+// context wall. Until then "holds exactly the history" is equality, and
+// every such case re-seeds: today's cost, never a wrong answer.
 
 import Synchronization
 
@@ -51,9 +55,17 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     /// that prove one was released (AC-307, AC-310).
     var holdsSession: Bool { state.withLock { $0.kept != nil } }
 
-    /// The conversation is over (D-117 F-9 A).
-    /// RED SKELETON (5b piece 3a): nothing is released yet.
-    func endConversation() {}
+    /// The conversation is over (D-117 F-9 A): its session is let go, and
+    /// the ticket moves on in the SAME lock step, so an answer still
+    /// running for the old conversation can change nothing when it ends.
+    /// The next turn is a new conversation's first.
+    func endConversation() {
+        state.withLock { state in
+            state.issued += 1
+            state.kept = nil
+            state.ending = nil
+        }
+    }
 
     /// What a session shows the model and cannot change once born: its
     /// instructions and its tools' declarations (`ToolTable`'s `==`
@@ -77,11 +89,14 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         var holds: [ConversationTurn]
         /// True from the moment an answer starts until it FINISHES ON ITS
         /// OWN (D-117 F-10 A). An answer that ends any other way — a
-        /// barge, a deadline, a failure — never lowers it, so the session
-        /// is never asked again: a live session only grows by answering,
-        /// and what the vendor keeps of a cut answer is unknown. It is
-        /// also what keeps a second answer from ever starting on a session
-        /// still busy with the first (the vendor's `concurrentRequests`).
+        /// barge, a deadline, a failure — never lowers it: the session is
+        /// let go instead (`ended`), because a live session only grows by
+        /// answering and what the vendor keeps of a cut answer is unknown.
+        /// A cut reaches the keeper when its task sees the cancel, which
+        /// may be after the next call has come — `busy` is what that call
+        /// finds, and it seeds anew. It is also what keeps a second answer
+        /// from ever starting on a session still busy with the first (the
+        /// vendor's `concurrentRequests`).
         var busy: Bool
     }
 
@@ -89,6 +104,10 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         var kept: Kept?
         /// The last ticket handed out.
         var issued = 0
+        /// Why the conversation's last session was let go, for the next
+        /// birth to report (D-118 F-13 A). `nil` after `endConversation()`
+        /// and before the first turn: the next birth is a new conversation.
+        var ending: SessionSeedReason?
     }
 
     /// Which session answers one call, and whether it is the
@@ -118,14 +137,16 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         // conversation (AC-115, measured: 1839 ms cold vs ~280 ms warm).
         return AsyncThrowingStream { continuation in
             let task = Task {
+                var lease: Lease?
                 do {
-                    let lease = try self.lease(for: identity, history: context.history)
+                    let leased = try self.lease(for: identity, history: context.history)
+                    lease = leased
                     // The answer as the memory will write it: its words, and
                     // every tool it used (5b piece 2) — or a turn that used
                     // one would look like a changed history, and re-seed.
                     var answer = ""
                     var used: [ToolUse] = []
-                    for try await update in lease.session.respond(to: context.transcript,
+                    for try await update in leased.session.respond(to: context.transcript,
                                                                   tools: identity.tools,
                                                                   options: context.options) {
                         switch update {
@@ -152,10 +173,14 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                     // the redundancy, never pretend each line is
                     // load-bearing alone.
                     try Task.checkCancellation()
-                    self.finished(lease, turn: ConversationTurn(said: context.transcript, replied: answer,
-                                                                tools: used))
+                    self.finished(leased, turn: ConversationTurn(said: context.transcript, replied: answer,
+                                                                 tools: used))
                     continuation.finish()
                 } catch {
+                    // Let go BEFORE the stream says so: the run, the
+                    // coordinator and a text caller all hear of a failure
+                    // after this line, so nothing kept outlives it (AC-307).
+                    self.ended(lease, by: error)
                     continuation.finish(throwing: error)
                 }
             }
@@ -173,9 +198,10 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         enum Decision {
             case aside
             case keep(any MindSession, ticket: Int)
-            case seed(ticket: Int)
+            case seed(ticket: Int, because: SessionSeedReason)
         }
         let decision: Decision = state.withLock { state in
+            let reason: SessionSeedReason
             if var kept = state.kept {
                 // AC-309: a call that shows the model other instructions
                 // or other tools is answered aside; the conversation's own
@@ -186,10 +212,14 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                     state.kept = kept
                     return .keep(kept.session, ticket: kept.ticket)
                 }
+                reason = kept.busy ? .lastAnswerUnfinished : .memoryChanged
+            } else {
+                reason = state.ending ?? .newConversation
             }
+            state.ending = nil
             state.issued += 1
             state.kept = nil
-            return .seed(ticket: state.issued)
+            return .seed(ticket: state.issued, because: reason)
         }
 
         switch decision {
@@ -199,7 +229,7 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
             let session = try maker.makeSession(instructions: identity.instructions,
                                                 tools: identity.tools, seed: history)
             return Lease(session: session, ticket: nil)
-        case .seed(let ticket):
+        case .seed(let ticket, let reason):
             let session = try maker.makeSession(instructions: identity.instructions,
                                                 tools: identity.tools, seed: history)
             let installed = state.withLock { state -> Bool in
@@ -211,6 +241,10 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                                   holds: history, busy: true)
                 return true
             }
+            // Reported outside the lock, and only for the conversation's
+            // own session: an aside, or a seeding that lost the race to a
+            // newer one, is not this conversation's (D-118 F-13 A).
+            if installed { diagnostics?.noteMindSessionSeeded(reason, turns: history.count) }
             return Lease(session: session, ticket: installed ? ticket : nil)
         }
     }
@@ -225,14 +259,39 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         guard let ticket = lease.ticket else { return }
         // Half a turn — no words and no tool (D-119 keeps an act). The
         // memory will not keep it and the session did, so the two can
-        // never agree again: the session stays busy, and the next call
-        // seeds a new one.
-        guard let remembered = turn.remembered else { return }
+        // never agree again: let it go now, and say why.
+        guard let remembered = turn.remembered else {
+            release(ticket, because: .memoryChanged)
+            return
+        }
         state.withLock { state in
             guard var kept = state.kept, kept.ticket == ticket else { return }
             kept.holds.append(remembered)
             kept.busy = false
             state.kept = kept
+        }
+    }
+
+    /// The answer did NOT finish on its own: the session is let go at once
+    /// (AC-307), and the next birth will say why. A cancelled task is a
+    /// cut — a barge, a deadline, a listener gone — whatever error the
+    /// vendor raised on the way out; anything else is a failure, in its
+    /// own words.
+    private func ended(_ lease: Lease?, by error: any Error) {
+        guard let ticket = lease?.ticket else { return }
+        let reason: SessionSeedReason = Task.isCancelled || error is CancellationError
+            ? .lastAnswerUnfinished
+            : .lastAnswerFailed(String(describing: error))
+        release(ticket, because: reason)
+    }
+
+    /// Lets go of the conversation's session if it is still the one this
+    /// ticket leased — an older ending changes nothing (the ticket law).
+    private func release(_ ticket: Int, because reason: SessionSeedReason) {
+        state.withLock { state in
+            guard state.kept?.ticket == ticket else { return }
+            state.kept = nil
+            state.ending = reason
         }
     }
 }
