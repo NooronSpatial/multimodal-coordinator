@@ -7647,13 +7647,13 @@ is true after this) · `INTEGRATE.md` and its generated appendix
 regenerated · the tag note naming every API change · the phone rows
 named as owed, not claimed · teach-back.
 
-## §213 — piece R: the reply retry (added by D-121) — DRAFT, not signed
+## §213 — piece R: the reply retry (added by D-121) — signed 2026-09-24 (D-122)
 
 *From the diet app's requirement (`reply-retry.md`, 2026-09-24): R-1, one
 retry of the writing after a tool ran, no tool run twice; R-2, a name for
 the vendor's unnamed failure. Its acceptance criteria are theirs, renumbered
-here, and three rows are this library's own. Nothing below is ruled until
-Ryad signs it.*
+here, and three rows are this library's own. Signed 2026-09-24, every fork
+ruled as recommended (D-122); F-18 A stands until PROBE-R says otherwise.*
 
 ### Why
 

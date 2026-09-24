@@ -5575,3 +5575,38 @@ schema, where it lives) and the one vendor fact that must be measured on
 the phone before it can be designed: every `respond` / `streamResponse`
 takes a prompt, so "write the reply again, no tool run twice" has no
 direct call in the vendor's API.
+
+## D-122 — §213 signed: the reply retry's six forks ruled as recommended; piece 3a signed off (Milestone 5b)
+
+**Date:** 2026-09-24 · **Decided by:** Ryad ("signed off all and all
+recommendations approved") · **Rulings: F-15 = A, F-16 = A, F-17 = A,
+F-18 = A, F-19 = A, F-20 = A** (SPEC §213). Piece 3a (`4b94c34`) signed off
+in the same message.
+
+- **F-15 A — one retry.** *Rejected: B, up to N* — a second unnamed failure
+  in one turn is a pattern to surface, not to hide behind more waiting.
+- **F-16 A — the tools stay in the schema during the retry; a repeat of a
+  call already made this turn is answered from its record, a new call
+  runs.** R-1's hard rule (no write runs twice) holds by construction.
+  *Rejected: B, no tools* — changes what the model may do mid-turn, on a
+  transcript shape nobody has measured; *C, bodies live* — a write could
+  run twice.
+- **F-17 A — it lives in the session keeper.** *Rejected: B, the
+  coordinator* — it must not learn a vendor's transcript (D-116 F-1 A's
+  reason), and a text caller would not get the retry.
+- **F-18 A — the writing is asked again by replaying the turn**: a fresh
+  session seeded from the same history, the same prompt, repeats answered
+  from records. *Rejected: B, seed the calls and outputs and ask the same
+  words again* — the question shown twice; *C, an empty prompt* — the
+  vendor's behaviour unknown. **Stands until PROBE-R says otherwise**: the
+  vendor's API only re-asks (every `respond` / `streamResponse` takes a
+  prompt), and what the model does when re-asked is the phone's to show —
+  this Mac still reports `modelNotReady` (probed again 2026-09-24).
+- **F-19 A — no retry once a word was said.** *Rejected: B, retry anyway*
+  — a second, different answer after words the person heard is a stutter.
+- **F-20 A — the new case is `ReplyFailure.unexplained(String)`.**
+  *Rejected: B, `.vendor(String)`* — it says who failed, not what an app
+  needs to know: that no reason was given.
+
+**The order from here:** PROBE-R (built in the demo, run on Ryad's iPhone),
+then the retry piece red → green, then 3b.
