@@ -5526,3 +5526,52 @@ same way.
 against every ruling they touch, not only the spec they sit in — D-117
 listed the cost of a public enum case to callers and missed the cost to
 a ruling. The test caught what the reading did not.
+
+## D-121 — the diet app's reply retry becomes a piece of 5b, next; 5b's non-goal "a named vendor failure" is reversed (Milestone 5b)
+
+**Date:** 2026-09-24 · **Decided by:** Ryad ("a new piece of 5b, next") ·
+**Ruling: A.**
+
+**Where it came from.** The diet app wrote a requirement the same day
+(its `docs/library-requirements/reply-retry.md`, and its own D-121: "1.0.2
+waits for the library's reply retry"). Twice on its phone (0.3.0 and
+0.3.1, iPhone 17e, iOS 26) the Apple mind ran its tools, the tools
+answered truly, and then the vendor failed at the moment of writing the
+reply with an error that has no public name (`tokengeneration Code=10`):
+the turn ended, and the person heard nothing. It asks for **R-1**, one
+retry of the writing inside the turn, after a tool ran, with no tool run
+twice; and **R-2**, a named failure for "the vendor failed without saying
+why". It reached this session through Ryad, as "send me the tag message"
+— and there was no tag and nothing built. That was said plainly before
+this ruling.
+
+- **A — a new piece of 5b, next.** It sits on what 5b built: the library
+  records every tool use itself (piece 2), so a retry can be rebuilt from
+  the library's own records without trusting what the vendor kept after
+  its failure; piece 3a gives it the failure path and the health road.
+  The diet app's 1.0.2 waits for 5b's merge (0.4.0), which also brings
+  the kept session — whose phone gate (AC-315) is still owed.
+- *Rejected:* **B**, a 0.3.2 hotfix off the 0.3.1 tag — the fastest to the
+  store, but it needs its own copy of piece 2's tool records, writes the
+  retry twice, and the two branches conflict where 5b merges; **C**, the
+  diet app ships 1.0.2 with its header fix alone and the retry waits — its
+  own D-121 rejected that (two store reviews within days).
+
+**Reversed in the open: 5b §209's non-goal** "a `ReplyFailure` case for
+'the vendor failed without saying why' — a different milestone's paper
+cut; it changes a public enum for every caller." The question named the
+failure beside the retry, and the ruling takes both into 5b. The case's
+name and exactly which errors it covers are the new piece's spec, not
+this entry.
+
+**What does NOT change:** D-116 F-6 A. The bare-tool-name reply is a
+different fault (a reply that is only a tool's name, not a vendor error
+after tools ran); it stays words, re-measured now that typed tool calls
+have landed.
+
+**Next:** the piece's spec — its criteria, its forks (the diet app's
+document names three: how many retries, whether the tools stay in the
+schema, where it lives) and the one vendor fact that must be measured on
+the phone before it can be designed: every `respond` / `streamResponse`
+takes a prompt, so "write the reply again, no tool run twice" has no
+direct call in the vendor's API.
