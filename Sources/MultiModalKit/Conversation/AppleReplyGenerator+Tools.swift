@@ -166,8 +166,14 @@ struct AppleToolAdapter: Tool {
     /// in this function is that `CancellationError`.
     func call(arguments: GeneratedContent) async throws -> String {
         let now = route.now
-        let outcome = await now.table.invoke(tool.name, arguments: ToolArguments(arguments),
-                                             confirmed: now.confirmed)
+        let read = ToolArguments(arguments)
+        let outcome = await now.table.invoke(tool.name, arguments: read, confirmed: now.confirmed)
+        // REPORTED FIRST (5b, D-117 F-8 A): the door has decided and the
+        // body has run or been refused — an act, whatever becomes of its
+        // answer. It goes into THIS answer's stream, where the run passes
+        // it on while the run lives; a barged answer's record dies there,
+        // with its words.
+        now.report(ToolUse(name: tool.name, arguments: read, outcome: outcome))
         try Task.checkCancellation()
         return outcome.wordsForModel
     }
@@ -216,6 +222,33 @@ extension ToolArguments {
     init(_ content: GeneratedContent) {
         guard case .structure(let properties, _) = content.kind else { self = .empty; return }
         self = ToolArguments(properties.mapValues(ToolValue.init))
+    }
+}
+
+// MARK: - the door's words, back in the vendor's (the replay, 5b)
+
+@available(macOS 26.0, iOS 26.0, *)
+extension GeneratedContent {
+    /// A remembered call's arguments in the vendor's typed tree — the
+    /// inverse of `ToolArguments.init(_:)` above, so a re-seed shows the
+    /// model its own call (5b, D-116 F-3 A, AC-305). Object keys are
+    /// written sorted: one set of arguments, one rendering.
+    init(replaying arguments: ToolArguments) {
+        self.init(replaying: .object(arguments.values))
+    }
+
+    init(replaying value: ToolValue) {
+        switch value {
+        case .null: self.init(kind: .null)
+        case .boolean(let flag): self.init(kind: .bool(flag))
+        case .number(let number): self.init(kind: .number(number))
+        case .string(let text): self.init(kind: .string(text))
+        case .array(let elements):
+            self.init(kind: .array(elements.map { GeneratedContent(replaying: $0) }))
+        case .object(let fields):
+            self.init(kind: .structure(properties: fields.mapValues { GeneratedContent(replaying: $0) },
+                                       orderedKeys: fields.keys.sorted()))
+        }
     }
 }
 

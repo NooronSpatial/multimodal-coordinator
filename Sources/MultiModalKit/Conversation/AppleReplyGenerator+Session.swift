@@ -79,9 +79,13 @@ final class AppleSession: MindSession {
     /// byte-identical to the pre-4w `init(transcript:)` one (AC-227's
     /// Mac half).
     ///
-    /// The seed is TEXT today, one `.prompt` and one `.response` per
-    /// remembered turn, with "…" marking a reply the person cut off.
-    /// Typed tool entries are 5b's next piece (F-3 A, AC-305).
+    /// Each remembered turn is a `.prompt`, then — when it used tools —
+    /// the TYPED calls and their outputs (5b, D-116 F-3 A, AC-305), then a
+    /// `.response` with the mind's words and "…" marking a reply the
+    /// person cut off. A turn with no tool replays exactly as it did
+    /// before 5b. A turn where a tool ran and the mind said nothing keeps
+    /// its act (D-119) and an empty response — the vendor's own shape
+    /// when the model says nothing after a tool.
     static func entries(instructions: String?, seed: [ConversationTurn]) -> [Transcript.Entry] {
         var entries: [Transcript.Entry] = []
         if let instructions {
@@ -89,9 +93,10 @@ final class AppleSession: MindSession {
                 segments: [.text(Transcript.TextSegment(content: instructions))],
                 toolDefinitions: [])))
         }
-        for turn in seed {
+        for (index, turn) in seed.enumerated() {
             entries.append(.prompt(Transcript.Prompt(
                 segments: [.text(Transcript.TextSegment(content: turn.said))])))
+            entries.append(contentsOf: toolEntries(turn.tools, turn: index))
             entries.append(.response(Transcript.Response(
                 assetIDs: [],
                 segments: [.text(Transcript.TextSegment(
@@ -100,14 +105,40 @@ final class AppleSession: MindSession {
         return entries
     }
 
+    /// A turn's tools as the vendor writes them when the model uses some:
+    /// ONE tool-calls entry holding every call, then one output per call,
+    /// the output carrying its call's id. The call shows the model its own
+    /// arguments; the output is exactly what the model was told
+    /// (`wordsForModel`) — a refusal included. Nothing for a turn with no
+    /// tool.
+    static func toolEntries(_ uses: [ToolUse], turn: Int) -> [Transcript.Entry] {
+        guard !uses.isEmpty else { return [] }
+        let ids = uses.indices.map { "turn-\(turn)-tool-\($0)" }
+        let calls = zip(ids, uses).map { id, use in
+            Transcript.ToolCall(id: id, toolName: use.name,
+                                arguments: GeneratedContent(replaying: use.arguments))
+        }
+        var entries: [Transcript.Entry] = [.toolCalls(Transcript.ToolCalls(id: "turn-\(turn)-tools", calls))]
+        for (id, use) in zip(ids, uses) {
+            entries.append(.toolOutput(Transcript.ToolOutput(
+                id: id, toolName: use.name,
+                segments: [.text(Transcript.TextSegment(content: use.outcome.wordsForModel))])))
+        }
+        return entries
+    }
+
     func respond(to prompt: String, tools: ToolTable,
                  options: GenerationOptions) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         let vendor = Self.vendorOptions(for: options)
-        // Set BEFORE the vendor can call a tool: the adapters were made at
-        // the session's birth, and must run THIS call's bodies with THIS
-        // call's yes (4z F-10 B-ii).
-        route.set(tools, confirmed: options.confirmedTools)
         return AsyncThrowingStream { continuation in
+            // Set BEFORE the vendor can call a tool — this builder runs
+            // before `respond` returns. The adapters were made at the
+            // session's birth, and must run THIS call's bodies with THIS
+            // call's yes (4z F-10 B-ii), and report each use into THIS
+            // answer's stream (D-117 F-8 A).
+            self.route.set(tools, confirmed: options.confirmedTools) { use in
+                continuation.yield(.toolRan(use))
+            }
             let task = Task {
                 do {
                     for try await snapshot in self.session.streamResponse(to: prompt, options: vendor) {

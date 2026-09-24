@@ -44,7 +44,11 @@ struct AppleSessionToolTests {
             case .toolCalls: "toolCalls"
             case .toolOutput: "toolOutput"
             case .response: "response"
-            @unknown default: "unknown"
+            // `default`, not `@unknown default`: the macOS 27 SDK adds
+            // `.reasoning` (27 only), a KNOWN case there that
+            // `@unknown default` does not cover — a warning on 27, an error
+            // under warnings-as-errors. `default` holds on both SDKs.
+            default: "other"
             }
         }
     }

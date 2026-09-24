@@ -384,39 +384,9 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
             do {
                 for try await update in source.snapshots(for: context, instructions: instructions) {
                     guard let self else { return }
-                    // RED SKELETON (5b piece 2): a tool's record is not yet passed on.
-                    guard case .snapshot(let snapshot) = update else { continue }
-                    // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under
-                    // one lock step.
-                    //
-                    // TWO GUARDS keep a dead run silent, and mutation
-                    // testing measured their overlap rather than assuming
-                    // it: this flag re-read, AND the stream `cancel()` has
-                    // already finished — a finished AsyncStream drops every
-                    // later yield. Remove the flag alone: masked, tests
-                    // stay green. Remove the finish alone: three tests red.
-                    // Remove both: three tests red. So the FINISH is the
-                    // primary guard and this flag is the belt — kept
-                    // because the finish lives in someone else's method,
-                    // and the 4b precedent is to record redundancy, not
-                    // pretend each line is load-bearing alone.
-                    //
-                    // THE CLOCK'S FLAG is the third guard (4y, AC-264): a
-                    // snapshot that arrives after the deadline was reached
-                    // is not spoken. The loop goes on — not `return` — so
-                    // the cancelled stream hands back its nil and the
-                    // worker concludes below; `return` is the cancel()
-                    // path's, where NO terminal is owed.
-                    let token: String? = try self.state.withLock { guarded in
-                        guard !guarded.retired, !guarded.deadlineReached else { return nil }
-                        let suffix = try guarded.differ.advance(to: snapshot)
-                        return suffix.isEmpty ? nil : suffix
-                    }
-                    guard let token else {
-                        if self.state.withLock({ $0.retired }) { return }
-                        continue
-                    }
-                    self.out.yield(.token(token))
+                    // One update through the latch (`pass`). `false` is the
+                    // cancel() path: the run retired and NO terminal is owed.
+                    guard try self.pass(update) else { return }
                 }
                 // The stream ran out — the vendor's own end, or the end
                 // the deadline's cancel gave it. `concludeStream` reads
@@ -431,6 +401,58 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         // that fires always finds a worker to cancel.
         if let deadline = context.options.deadline {
             arm(deadline, on: clock)
+        }
+    }
+
+    // MARK: one update, through the latch
+
+    /// ONE update from the source, through the latch — the worker's loop
+    /// body, moved out whole when 5b gave it a second kind of update (the
+    /// initialiser was already at the lint's complexity line, 4y). Returns
+    /// `false` when the run has retired: the cancel() path, where nothing
+    /// more is said and no terminal is owed.
+    private func pass(_ update: MindSessionUpdate) throws -> Bool {
+        switch update {
+        case .toolRan(let use):
+            // A RECORD, after the fact (D-117 F-8 A, D-120): the tool has
+            // already run, so it is passed on while the run lives — even
+            // past the clock's flag, which silences WORDS that were not
+            // said in time; an act that happened is not a word. Only this
+            // worker yields, and it yields the terminal too, so a record can
+            // never follow the terminal (the class comment's rule). The
+            // `retired` read is the belt; the stream `cancel()` finished is
+            // the guard, exactly as for a token below.
+            guard !state.withLock({ $0.retired }) else { return false }
+            out.yield(.toolRan(use))
+            return true
+        case .snapshot(let snapshot):
+            // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under one lock
+            // step.
+            //
+            // TWO GUARDS keep a dead run silent, and mutation testing
+            // measured their overlap rather than assuming it: this flag
+            // re-read, AND the stream `cancel()` has already finished — a
+            // finished AsyncStream drops every later yield. Remove the flag
+            // alone: masked, tests stay green. Remove the finish alone:
+            // three tests red. Remove both: three tests red. So the FINISH
+            // is the primary guard and this flag is the belt — kept because
+            // the finish lives in someone else's method, and the 4b
+            // precedent is to record redundancy, not pretend each line is
+            // load-bearing alone.
+            //
+            // THE CLOCK'S FLAG is the third guard (4y, AC-264): a snapshot
+            // that arrives after the deadline was reached is not spoken. The
+            // loop goes on — `true` — so the cancelled stream hands back
+            // its nil and the worker concludes; `false` is the cancel()
+            // path's, where NO terminal is owed.
+            let token: String? = try state.withLock { guarded in
+                guard !guarded.retired, !guarded.deadlineReached else { return nil }
+                let suffix = try guarded.differ.advance(to: snapshot)
+                return suffix.isEmpty ? nil : suffix
+            }
+            guard let token else { return !state.withLock { $0.retired } }
+            out.yield(.token(token))
+            return true
         }
     }
 

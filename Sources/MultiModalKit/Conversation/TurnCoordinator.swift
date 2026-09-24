@@ -70,6 +70,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// already forwards to the mouth — nothing new is intercepted, and
         /// a turn nobody remembers simply drops it with the ticket.
         var generated = ""
+        /// The tools the mind used in this turn, as it reported them
+        /// (5b, `ReplyUpdate.toolRan`) — kept beside the words for the same
+        /// reason, and remembered with them, so a re-seed replays a call as
+        /// a call (D-116 F-3 A). The coordinator only KEEPS these: it never
+        /// runs, approves or routes a tool (D-120).
+        var used: [ToolUse] = []
     }
 
     /// AC-61: the legal-transition table. The funnel checks every change
@@ -247,7 +253,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     func remember(_ live: LiveTurn, interrupted: Bool) -> Bool {
         memory.record(ConversationTurn(said: ledger.text,
                                        replied: live.generated,
-                                       interrupted: interrupted))
+                                       interrupted: interrupted,
+                                       tools: live.used))
     }
 
     /// Adds a listener. It hears everything published from now on (D-012).

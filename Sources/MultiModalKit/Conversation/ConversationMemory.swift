@@ -74,7 +74,9 @@ public struct ConversationMemory: Sendable, Equatable {
     /// **Both halves or nothing.** A question with no answer, or an answer
     /// with no question, is worse for a model than silence — it invites
     /// the mind to fill the gap. A turn the mind answered with zero tokens
-    /// is therefore not an exchange and is not kept.
+    /// is therefore not an exchange and is not kept — UNLESS a tool ran in
+    /// it (5b, D-119 F-14 A): an act is an answer, and an act that really
+    /// happened must not vanish from the conversation.
     ///
     /// Then the two bounds, in this order and for a reason: the depth is a
     /// count and cannot be affected by trimming, so it goes first; the
@@ -174,8 +176,13 @@ public struct ConversationTurn: Sendable, Equatable {
         self.tools = tools
     }
 
-    /// What this exchange costs against `maxCharacters`.
-    public var characters: Int { said.count + replied.count }
+    /// What this exchange costs against `maxCharacters`: its words, and
+    /// every tool it used (`ToolUse.characters`) — D-092 priced the memory
+    /// by the character because a replay costs by the character, and a
+    /// replayed tool output is characters (D-119).
+    public var characters: Int {
+        said.count + replied.count + tools.reduce(0) { $0 + $1.characters }
+    }
 
     /// This exchange as a memory keeps it — both halves trimmed — or `nil`
     /// when it is half a turn.
@@ -184,7 +191,9 @@ public struct ConversationTurn: Sendable, Equatable {
     /// detokenizer really does yield a lone space; trimming also keeps
     /// invisible characters from spending the budget. And a question with
     /// no answer, or an answer with no question, is worse for a model than
-    /// silence, so it is not an exchange at all.
+    /// silence, so it is not an exchange at all — unless a tool ran in it:
+    /// then the act is the answer, and silence after it is still an
+    /// exchange (5b, D-119 F-14 A).
     ///
     /// ONE rule for two readers (5b): `ConversationMemory.record` keeps
     /// what this returns, and the session keeper writes a finished answer
@@ -194,7 +203,8 @@ public struct ConversationTurn: Sendable, Equatable {
     var remembered: ConversationTurn? {
         let said = said.trimmingCharacters(in: .whitespacesAndNewlines)
         let replied = replied.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !said.isEmpty, !replied.isEmpty else { return nil }
-        return ConversationTurn(said: said, replied: replied, interrupted: interrupted)
+        // The answer half is the words OR the acts (D-119 F-14 A).
+        guard !said.isEmpty, !replied.isEmpty || !tools.isEmpty else { return nil }
+        return ConversationTurn(said: said, replied: replied, interrupted: interrupted, tools: tools)
     }
 }

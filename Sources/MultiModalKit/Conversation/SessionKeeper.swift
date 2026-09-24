@@ -108,11 +108,18 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
             let task = Task {
                 do {
                     let lease = try self.lease(for: identity, history: context.history)
+                    // The answer as the memory will write it: its words, and
+                    // every tool it used (5b piece 2) — or a turn that used
+                    // one would look like a changed history, and re-seed.
                     var answer = ""
+                    var used: [ToolUse] = []
                     for try await update in lease.session.respond(to: context.transcript,
                                                                   tools: identity.tools,
                                                                   options: context.options) {
-                        if case .snapshot(let snapshot) = update { answer = snapshot }
+                        switch update {
+                        case .snapshot(let snapshot): answer = snapshot
+                        case .toolRan(let use): used.append(use)
+                        }
                         continuation.yield(update)
                         try Task.checkCancellation()
                     }
@@ -133,7 +140,8 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                     // the redundancy, never pretend each line is
                     // load-bearing alone.
                     try Task.checkCancellation()
-                    self.finished(lease, turn: ConversationTurn(said: context.transcript, replied: answer))
+                    self.finished(lease, turn: ConversationTurn(said: context.transcript, replied: answer,
+                                                                tools: used))
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -196,15 +204,17 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     }
 
     /// The answer FINISHED ON ITS OWN — the only way a session becomes
-    /// answerable again (D-117 F-10 A). It now holds this turn too,
-    /// written the way the memory writes it (`ConversationTurn.remembered`),
-    /// so the next call's history can be compared with it exactly.
+    /// answerable again (D-117 F-10 A). It now holds this turn too — its
+    /// words AND its tools — written the way the memory writes it
+    /// (`ConversationTurn.remembered`), so the next call's history can be
+    /// compared with it exactly.
     private func finished(_ lease: Lease, turn: ConversationTurn) {
         // Made aside for one call: the conversation never held it.
         guard let ticket = lease.ticket else { return }
-        // Half a turn — an empty answer. The memory will not keep it and
-        // the session did, so the two can never agree again: the session
-        // stays busy, and the next call seeds a new one.
+        // Half a turn — no words and no tool (D-119 keeps an act). The
+        // memory will not keep it and the session did, so the two can
+        // never agree again: the session stays busy, and the next call
+        // seeds a new one.
         guard let remembered = turn.remembered else { return }
         state.withLock { state in
             guard var kept = state.kept, kept.ticket == ticket else { return }

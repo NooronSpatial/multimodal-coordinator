@@ -1,0 +1,25 @@
+# 5b piece 2 — mutation M5, never committed, reverted (the keeper compared byte-for-byte after)
+# command: swift test --filter AppleSessionToolTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4)
+#
+# M5  SessionKeeper writes a finished answer WITHOUT its tools (the tools: used argument dropped)
+#     convicted by: "ten turns that each use a tool, through the coordinator: still one session"
+#     — maker.made.count → 10: every turn that used a tool looked like a changed history and re-seeded.
+#     This is the one piece-2 row that passed against the skeleton (everything dropped tools alike),
+#     so it is the one that needed a mutation to prove it can fail.
+
+􁁛  Test "a remembered tool call is replayed as a CALL and an OUTPUT, not as prose (AC-305)" passed after 0.001 seconds.
+􁁛  Test "a turn with no tool replays exactly as before (AC-305's other half)" passed after 0.001 seconds.
+􁁛  Test "a turn where a tool ran and the mind said nothing replays the act (D-119)" passed after 0.001 seconds.
+􁁛  Test "a vendor session born with a typed tool call holds it (the vendor fact under AC-305)" passed after 0.015 seconds.
+􁁛  Test "the adapter reports each use to the answer in progress (D-117 F-8 A)" passed after 0.001 seconds.
+􁁛  Test "a refused call is reported too: the model was told something (D-117 F-8 A)" passed after 0.001 seconds.
+􁁛  Test "the Apple mind sends .toolRan on the reply stream when a tool ran (D-117 F-8 A)" passed after 0.001 seconds.
+􁁛  Test "a text caller finds the tools on Reply (D-117 F-8 A)" passed after 0.001 seconds.
+􁁛  Test "the coordinator keeps what ran on the turn it belongs to (AC-311)" passed after 0.001 seconds.
+􁁛  Test "a turn where a tool ran and the mind said nothing is remembered through the coordinator (D-119)" passed after 0.001 seconds.
+􀢄  Test "ten turns that each use a tool, through the coordinator: still one session (AC-303 with tools)" recorded an issue at AppleSessionToolTests.swift:231:9: Expectation failed: maker.made.count == 1
+􀄵  maker.made.count == 1 → false
+􀄵    maker.made.count → 10
+􀢄  Test "ten turns that each use a tool, through the coordinator: still one session (AC-303 with tools)" failed after 0.003 seconds with 1 issue.
+􀢄  Suite "AC-305/311 · a tool call is a tool call" failed after 0.022 seconds with 1 issue.
+􀢄  Test run with 11 tests in 1 suite failed after 0.023 seconds with 1 issue.

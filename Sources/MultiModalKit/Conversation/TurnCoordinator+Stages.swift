@@ -33,8 +33,15 @@ extension TurnCoordinator {
                 await live.synthesisRun?.feed(token)
             }
 
-        case .toolRan:
-            break   // RED SKELETON (5b piece 2): not yet kept on the turn
+        case .toolRan(let use):
+            // A record, after the fact (D-120): the mind ran the tool; the
+            // turn only KEEPS what it did, to remember it with the words.
+            // Kept for as long as the turn lives — even after the reply's
+            // terminal, where a late TOKEN is noise: an act that happened
+            // is not a word (the run passes records past its clock for the
+            // same reason, D-119). A dead turn's record stopped at the
+            // ticket above.
+            current?.used.append(use)
 
         case .finished:
             // The stop reason is the TEXT caller's concern (4v); a spoken
@@ -51,9 +58,10 @@ extension TurnCoordinator {
                 // silence — so the ledger is emptied (D-040 F-2).
                 //
                 // Nothing is remembered: an exchange with no answer is not
-                // an exchange, and the memory refuses it on its own. The
-                // attempt is made anyway so this arm and the spoken one
-                // say the same thing, and the refusal lives in ONE place.
+                // an exchange, and the memory refuses it on its own — unless
+                // a tool ran, because an act is an answer (5b, D-119 F-14 A).
+                // The attempt is made either way so this arm and the spoken
+                // one say the same thing, and the rule lives in ONE place.
                 remember(live, interrupted: false)
                 current = nil
                 ledger.clear()

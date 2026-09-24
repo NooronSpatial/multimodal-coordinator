@@ -332,20 +332,22 @@ extension ReplyGenerating {
     }
 }
 
-/// Concatenates tokens until the terminal. `CancellationError` is the
+/// Concatenates tokens until the terminal, and keeps every tool the mind
+/// used on the way (5b, `ReplyUpdate.toolRan`). `CancellationError` is the
 /// only way out that is not the run's own doing.
 private func drainWholeReply(_ run: any ReplyRun) async throws -> Reply {
     var text = ""
+    var tools: [ToolUse] = []
     for await update in run.updates {
         // The ticket, re-checked after every wait (§4.1's reentrancy law).
         try Task.checkCancellation()
         switch update {
         case .token(let token):
             text += token
-        case .toolRan:
-            break   // RED SKELETON (5b piece 2): not yet collected
+        case .toolRan(let use):
+            tools.append(use)
         case .finished(let stop):
-            return Reply(text: text, stop: stop)
+            return Reply(text: text, stop: stop, tools: tools)
         case .failed(let failure):
             throw failure
         }
