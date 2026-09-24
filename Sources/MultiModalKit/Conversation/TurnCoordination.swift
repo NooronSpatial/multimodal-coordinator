@@ -79,10 +79,13 @@ public protocol ReplyRun: Sendable {
 /// `Chat.Message`, Apple's `Transcript.Entry` — and a flat string would
 /// force each of them to reconstruct it by parsing.
 ///
-/// **D-057 F-2 is not reversed by this.** The mind still gets one
-/// stateless session per turn. What travels here is assembled by us and
-/// visible, which is precisely what that ruling asked for; only its
-/// CONTENTS have grown.
+/// **D-057 F-2 was not reversed by 4r** — what travels here is assembled
+/// by us and visible, which is what that ruling asked for. **5b reversed
+/// it, in the open (D-116):** the Apple mind now keeps one session for
+/// the conversation, and `history` is the SEED a session is born with
+/// (F-2 A) — read when a session is made or re-seeded, and not replayed
+/// into one that already holds that past. Still assembled by us, still
+/// visible, still bounded by `ConversationMemory`.
 public struct ReplyContext: Sendable, Equatable {
     /// The thought being answered NOW — the ledger's whole text.
     public let transcript: String

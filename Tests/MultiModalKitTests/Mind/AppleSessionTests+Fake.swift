@@ -16,14 +16,19 @@ final class FakeSessionMaker: MindSessionMaking {
         let seed: [ConversationTurn]
     }
 
-    /// How every session this maker makes answers a prompt: its cumulative
-    /// snapshots, in order. The default names the prompt it answers, so a
-    /// test can read the conversation back.
-    let answer: @Sendable (String) -> [String]
+    /// How every session this maker makes answers a prompt. The default
+    /// names the prompt it answers, so a test can read the conversation
+    /// back.
+    let script: @Sendable (String) -> FakeSession.Plan
+    /// Where a session announces "asked:<prompt>" — the EVENT a test waits
+    /// on before it cuts an answer, never a guess about timing.
+    let signals: ToolSpikeTests.Signals?
     private let record = Mutex<[(made: Made, session: FakeSession)]>([])
 
-    init(answer: @escaping @Sendable (String) -> [String] = { ["Answer to \($0)."] }) {
-        self.answer = answer
+    init(signals: ToolSpikeTests.Signals? = nil,
+         script: @escaping @Sendable (String) -> FakeSession.Plan = { .answers(["Answer to \($0)."]) }) {
+        self.signals = signals
+        self.script = script
     }
 
     var unavailable: MindUnavailable? { nil }
@@ -35,7 +40,7 @@ final class FakeSessionMaker: MindSessionMaking {
 
     func makeSession(instructions: String?, tools: ToolTable,
                      seed: [ConversationTurn]) throws -> any MindSession {
-        let session = FakeSession(answer: answer)
+        let session = FakeSession(script: script, signals: signals)
         record.withLock {
             $0.append((Made(instructions: instructions, tools: tools, seed: seed), session))
         }
@@ -54,11 +59,25 @@ final class FakeSession: MindSession {
         let options: GenerationOptions
     }
 
-    let answer: @Sendable (String) -> [String]
-    private let log = Mutex<[Asked]>([])
+    enum Plan: Sendable {
+        /// These cumulative snapshots, then the answer ends on its own.
+        case answers([String])
+        /// Nothing, until the listener goes away — an answer a barge or a
+        /// deadline will cut before its first word. It never finishes on
+        /// its own, so it can never be mistaken for a finished answer.
+        case holdsUntilCut
+    }
 
-    init(answer: @escaping @Sendable (String) -> [String]) {
-        self.answer = answer
+    let script: @Sendable (String) -> Plan
+    let signals: ToolSpikeTests.Signals?
+    private let log = Mutex<[Asked]>([])
+    /// A held answer's continuation, KEPT so the stream stays open until
+    /// its reader is cancelled — never ended early by being dropped.
+    private let held = Mutex<[AsyncThrowingStream<String, any Error>.Continuation]>([])
+
+    init(script: @escaping @Sendable (String) -> Plan, signals: ToolSpikeTests.Signals?) {
+        self.script = script
+        self.signals = signals
     }
 
     var asked: [Asked] { log.withLock { $0 } }
@@ -66,11 +85,20 @@ final class FakeSession: MindSession {
     func respond(to prompt: String, tools: ToolTable,
                  options: GenerationOptions) -> AsyncThrowingStream<String, any Error> {
         log.withLock { $0.append(Asked(prompt: prompt, tools: tools, options: options)) }
-        let snapshots = answer(prompt)
-        return AsyncThrowingStream { continuation in
-            for snapshot in snapshots { continuation.yield(snapshot) }
-            continuation.finish()
+        let plan = script(prompt)
+        let stream = AsyncThrowingStream<String, any Error> { continuation in
+            switch plan {
+            case .answers(let snapshots):
+                for snapshot in snapshots { continuation.yield(snapshot) }
+                continuation.finish()
+            case .holdsUntilCut:
+                // Held open; the stream ends when its reader is cancelled
+                // (`AsyncThrowingStream` finishes a cancelled `next()`).
+                self.held.withLock { $0.append(continuation) }
+            }
         }
+        signals?.send("asked:\(prompt)")
+        return stream
     }
 }
 

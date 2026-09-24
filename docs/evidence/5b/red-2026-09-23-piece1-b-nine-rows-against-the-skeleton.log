@@ -1,0 +1,133 @@
+# 5b piece 1 — RED, all nine rows against the keeper's skeleton (a fresh session per reply)
+# command: swift test --filter AppleSessionTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors)
+# 7 red for the right reason (sessions made per reply). 2 pass against the skeleton by construction and are
+# proven by mutation after green: the cut-answer row (the skeleton never keeps) and the yes row (the route is already in).
+
+Building for debugging...
+`- /Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Mind/AppleOptionsTests.swift:94:87: note: expanded code originates here
+    +--- macro expansion #expect ---------------------------------------
+    +-------------------------------------------------------------------
+
+
+`- /Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Mind/AppleOptionsTests.swift:111:44: note: expanded code originates here
+    +--- macro expansion #expect ---------------------------------------
+    +-------------------------------------------------------------------
+
+
+`- /Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Mind/AppleOptionsTests.swift:120:84: note: expanded code originates here
+    +--- macro expansion #expect ---------------------------------------
+    +-------------------------------------------------------------------
+
+
+`- /Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Mind/AppleOptionsTests.swift:131:44: note: expanded code originates here
+    +--- macro expansion #expect ---------------------------------------
+    +-------------------------------------------------------------------
+
+
+`- /Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Mind/AppleOptionsTests.swift:140:40: note: expanded code originates here
+    +--- macro expansion #expect ---------------------------------------
+    +-------------------------------------------------------------------
+
+
+Build complete! (9.88 sec)
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-303/304/306/309 · one session for many turns" started.
+􀟈  Test "ten turns, one session (AC-303)" started.
+􀢄  Test "ten turns, one session (AC-303)" recorded an issue at AppleSessionTests.swift:57:9: Expectation failed: maker.made.count == 1
+􀄵  one full prefill for the conversation, not one per turn
+􀄵  maker.made.count == 1 → false
+􀄵    maker.made.count → 10
+􀢄  Test "ten turns, one session (AC-303)" failed after 0.002 seconds with 1 issue.
+􀟈  Test "turn ten sends the model its new words and nothing else (AC-303)" started.
+􀢄  Test "turn ten sends the model its new words and nothing else (AC-303)" recorded an issue at AppleSessionTests.swift:68:9: Expectation failed: maker.sessions.count == 1
+􀄵  maker.sessions.count == 1 → false
+􀄵    maker.sessions.count → 10
+􀢄  Test "turn ten sends the model its new words and nothing else (AC-303)" recorded an issue at AppleSessionTests.swift:70:9: Expectation failed: session.asked.map(\.prompt) == (1...10).map { "question \($0)" }
+􀄵  each turn asked the SAME session, in order
+􀄵  session.asked.map(\.prompt) == (1...10).map { "question \($0)" } → false
+􀄵    session.asked.map(\.prompt) → ["question 1"]
+􀄵    (1...10).map { "question \($0)" } → ["question 1", "question 2", "question 3", "question 4", "question 5", "question 6", "question 7", "question 8", "question 9", "question 10"]
+􀢄  Test "turn ten sends the model its new words and nothing else (AC-303)" recorded an issue at AppleSessionTests.swift:72:9: Expectation failed: session.asked.last?.prompt == "question 10"
+􀄵  turn ten: its own words — not the instructions, not the schemas, not the nine turns before
+􀄵  session.asked.last?.prompt == "question 10" → false
+􀄵    session.asked.last?.prompt → "question 1"
+􀄵      some → "question 1"
+􀄵      some → "question 10"
+􀢄  Test "turn ten sends the model its new words and nothing else (AC-303)" failed after 0.001 seconds with 3 issues.
+􀟈  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" started.
+􀢄  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" recorded an issue at AppleSessionTests.swift:109:9: Expectation failed: maker.made.count == 1
+􀄵  the memory the coordinator really keeps lets the session continue
+􀄵  maker.made.count == 1 → false
+􀄵    maker.made.count → 10
+􀢄  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" recorded an issue at AppleSessionTests.swift:111:9: Expectation failed: maker.sessions.first?.asked.map(\.prompt) == (0..<10).map { "question \($0)" }
+􀄵  maker.sessions.first?.asked.map(\.prompt) == (0..<10).map { "question \($0)" } → false
+􀄵    maker.sessions.first?.asked.map(\.prompt) → ["question 0"]
+􀄵      some → ["question 0"]
+􀄵    (0..<10).map { "question \($0)" } → ["question 0", "question 1", "question 2", "question 3", "question 4", "question 5", "question 6", "question 7", "question 8", "question 9"]
+􀢄  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" failed after 0.001 seconds with 2 issues.
+􀟈  Test "the instructions and the tools are given once, at the session's birth (AC-304)" started.
+􀢄  Test "the instructions and the tools are given once, at the session's birth (AC-304)" recorded an issue at AppleSessionTests.swift:124:9: Expectation failed: maker.made == [FakeSessionMaker.Made(instructions: "speak briefly",
+                                                     tools: Self.logWeight, seed: [])]
+􀄵  born once, with the instructions, the table, and no past yet
+􀄵  maker.made == [FakeSessionMaker.Made(instructions: "speak briefly",
+                                                        tools: Self.logWeight, seed: [])] → false
+􀄵    maker.made → [MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: []), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 4", replied: "Answer to question 4.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 4", replied: "Answer to question 4.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 5", replied: "Answer to question 5.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 4", replied: "Answer to question 4.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 5", replied: "Answer to question 5.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 6", replied: "Answer to question 6.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 4", replied: "Answer to question 4.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 5", replied: "Answer to question 5.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 6", replied: "Answer to question 6.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 7", replied: "Answer to question 7.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 4", replied: "Answer to question 4.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 5", replied: "Answer to question 5.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 6", replied: "Answer to question 6.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 7", replied: "Answer to question 7.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 8", replied: "Answer to question 8.", interrupted: false)]), MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [MultiModalKit.ConversationTurn(said: "question 1", replied: "Answer to question 1.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 2", replied: "Answer to question 2.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 3", replied: "Answer to question 3.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 4", replied: "Answer to question 4.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 5", replied: "Answer to question 5.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 6", replied: "Answer to question 6.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 7", replied: "Answer to question 7.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 8", replied: "Answer to question 8.", interrupted: false), MultiModalKit.ConversationTurn(said: "question 9", replied: "Answer to question 9.", interrupted: false)])]
+􀄵    [FakeSessionMaker.Made(instructions: "speak briefly",
+                                                          tools: Self.logWeight, seed: [])] → [MultiModalKitTests.FakeSessionMaker.Made(instructions: Optional("speak briefly"), tools: MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), seed: [])]
+􀢄  Test "the instructions and the tools are given once, at the session's birth (AC-304)" recorded an issue at AppleSessionTests.swift:131:9: Expectation failed: maker.sessions.first?.asked.count == 10
+􀄵  // The table still travels with each answer — for its BODIES, so a
+􀄵  // table rebuilt per call runs that call's closures. What the model
+􀄵  // is shown was given once: the session never received another
+􀄵  // declaration, because it has no door for one.
+􀄵  maker.sessions.first?.asked.count == 10 → false
+􀄵    maker.sessions.first?.asked.count → 1
+􀄵      some → 1
+􀄵      some → 10
+􀢄  Test "the instructions and the tools are given once, at the session's birth (AC-304)" failed after 0.008 seconds with 2 issues.
+􀟈  Test "the same table on every call keeps one session (AC-304, the demo's shape)" started.
+􀢄  Test "the same table on every call keeps one session (AC-304, the demo's shape)" recorded an issue at AppleSessionTests.swift:150:9: Expectation failed: maker.made.count == 1
+􀄵  maker.made.count == 1 → false
+􀄵    maker.made.count → 3
+􀢄  Test "the same table on every call keeps one session (AC-304, the demo's shape)" failed after 0.001 seconds with 1 issue.
+􀄵  /// The demo's shape (`ThoughtWitness`): the generator is built with NO
+􀄵  /// table and every call carries the same one on its options. The
+􀄵  /// session's identity is what it was BORN with, compared by value — so
+􀄵  /// a table that rides on every call is not "another table" every call.
+􀟈  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" started.
+􁁛  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" passed after 0.001 seconds.
+􀟈  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" started.
+􁁛  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" passed after 0.001 seconds.
+􀟈  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" started.
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:232:9: Expectation failed: maker.made.map(\.instructions) == ["speak briefly", "reply as JSON"]
+􀄵  maker.made.map(\.instructions) == ["speak briefly", "reply as JSON"] → false
+􀄵    maker.made.map(\.instructions) → [Optional("speak briefly"), Optional("speak briefly"), Optional("reply as JSON"), Optional("speak briefly")]
+􀄵    ["speak briefly", "reply as JSON"] → [Optional("speak briefly"), Optional("reply as JSON")]
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:234:9: Expectation failed: maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"]
+􀄵  the conversation went on in its own session, undisturbed
+􀄵  maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"] → false
+􀄵    maker.sessions.first?.asked.map(\.prompt) → ["question 1"]
+􀄵      some → ["question 1"]
+􀄵      some → ["question 1", "question 2", "question 3"]
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:236:9: Expectation failed: maker.sessions.last?.asked.map(\.prompt) == ["summarise today"]
+􀄵  maker.sessions.last?.asked.map(\.prompt) == ["summarise today"] → false
+􀄵    maker.sessions.last?.asked.map(\.prompt) → ["question 3"]
+􀄵      some → ["question 3"]
+􀄵      some → ["summarise today"]
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" failed after 0.001 seconds with 3 issues.
+􀟈  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" started.
+􀢄  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:253:9: Expectation failed: maker.made.map(\.tools) == [Self.logWeight, .empty]
+􀄵  maker.made.map(\.tools) == [Self.logWeight, .empty] → false
+􀄵    maker.made.map(\.tools) → [MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), MultiModalKit.ToolTable(tools: []), MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))])]
+􀄵    [Self.logWeight, .empty] → [MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), MultiModalKit.ToolTable(tools: [])]
+􀢄  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:254:9: Expectation failed: maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"]
+􀄵  maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"] → false
+􀄵    maker.sessions.first?.asked.map(\.prompt) → ["question 1"]
+􀄵      some → ["question 1"]
+􀄵      some → ["question 1", "question 2", "question 3"]
+􀢄  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" failed after 0.001 seconds with 2 issues.
+􀢄  Suite "AC-303/304/306/309 · one session for many turns" failed after 0.017 seconds with 14 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.017 seconds with 14 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

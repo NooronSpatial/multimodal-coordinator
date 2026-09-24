@@ -86,15 +86,13 @@ public struct ConversationMemory: Sendable, Equatable {
     ///   whether to forget the words elsewhere relies on it (F-5 = A).
     @discardableResult
     public mutating func record(_ turn: ConversationTurn) -> Bool {
-        // Whitespace is not words — the ledger's rule, met again, because
-        // a detokenizer really does yield a lone space. Trimming here also
-        // keeps invisible characters from spending the budget.
-        let said = turn.said.trimmingCharacters(in: .whitespacesAndNewlines)
-        let replied = turn.replied.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !said.isEmpty, !replied.isEmpty else { return false }
+        // Both halves or nothing, trimmed — `remembered` below, the ONE
+        // place that rule lives, because since 5b the session keeper must
+        // write a turn exactly the way this memory does (it continues a
+        // session only while the two agree).
+        guard let turn = turn.remembered else { return false }
 
-        kept.append(ConversationTurn(said: said, replied: replied,
-                                     interrupted: turn.interrupted))
+        kept.append(turn)
 
         // The depth. Oldest first, so what remains is a SUFFIX — and at
         // zero that takes the exchange just appended, which is the whole
@@ -170,4 +168,25 @@ public struct ConversationTurn: Sendable, Equatable {
 
     /// What this exchange costs against `maxCharacters`.
     public var characters: Int { said.count + replied.count }
+
+    /// This exchange as a memory keeps it — both halves trimmed — or `nil`
+    /// when it is half a turn.
+    ///
+    /// Whitespace is not words — the ledger's rule, met again, because a
+    /// detokenizer really does yield a lone space; trimming also keeps
+    /// invisible characters from spending the budget. And a question with
+    /// no answer, or an answer with no question, is worse for a model than
+    /// silence, so it is not an exchange at all.
+    ///
+    /// ONE rule for two readers (5b): `ConversationMemory.record` keeps
+    /// what this returns, and the session keeper writes a finished answer
+    /// the same way — it continues a session only while what the session
+    /// holds equals what the memory holds, so the two must never format a
+    /// turn differently.
+    var remembered: ConversationTurn? {
+        let said = said.trimmingCharacters(in: .whitespacesAndNewlines)
+        let replied = replied.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !said.isEmpty, !replied.isEmpty else { return nil }
+        return ConversationTurn(said: said, replied: replied, interrupted: interrupted)
+    }
 }
