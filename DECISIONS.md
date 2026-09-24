@@ -5484,3 +5484,45 @@ text — up to `ToolTable.answerCap` (4 000) characters each. Not counting
 it would let a re-seed carry many of them into the vendor's 4 096-token
 wall, which D-118's re-seed exists to stay clear of. If Ryad reads it
 otherwise, it becomes a fork.
+
+## D-120 — `.toolRan` amends D-101's 4w F-1 = B, which D-117 did not say: the rule about who runs a tool stays, the promise about the stream's shape ends (Milestone 5b)
+
+**Date:** 2026-09-24 · **Decided by:** Ryad · **Ruling: keep D-117 F-8 A,
+and amend D-101's F-1 = B.**
+
+**How it was found — by the machine, not by the fork.** D-117 put F-8 to
+Ryad without saying that its option A breaks a promise he made in 4w.
+D-101 ruled the tool spike's F-1 = B: *the run executes tools itself,
+the coordinator never sees a call, and the seam's promise "tokens, then
+one terminal" stays exactly true.* A test pinned it on purpose
+(`ToolSpikeTests`, "the compiler is the assertion"): an exhaustive switch
+over `ReplyUpdate` that stops compiling if the enum grows a case. Adding
+`.toolRan` in piece 2 stopped it compiling — which is what it was built
+to do — and the question went back to Ryad before any row was written.
+
+**The ruling.** F-1 = B had two halves, and they are separated:
+
+- **Kept — who runs a tool.** The mind, always: the Apple vendor inside
+  its stream, the MLX run in its loop, the scripted mind in its script.
+  The coordinator never executes, approves or routes a call, and holds
+  no switch over tool names (§3's registration rule).
+- **Ended — the stream's shape.** The stream is now tokens, tool
+  RECORDS, then one terminal. A record arrives after the tool has run,
+  so the coordinator can keep it on the turn and a re-seed can replay it
+  typed (D-116 F-3 A) — which is the whole point of 5b's second face.
+
+*Rejected:* **D-117 F-8 B** instead — `ReplyRun.toolRuns()` read after
+the end, leaving F-1 = B whole — for F-8's original reasons: a second
+channel whose order against the stream must be argued, and a default of
+`[]` that lets a tool-running mind forget to report.
+
+**Amended in place:** 4z's non-goal line "a second seam: the coordinator
+never sees a call" (SPEC, marked D-120). **The pinning test** is
+rewritten, not deleted: it now pins `.token / .toolRan / .finished /
+.failed`, so the next case anyone adds reopens this conversation the
+same way.
+
+**The lesson, for the method.** A fork's options must be checked
+against every ruling they touch, not only the spec they sit in — D-117
+listed the cost of a public enum case to callers and missed the cost to
+a ruling. The test caught what the reading did not.

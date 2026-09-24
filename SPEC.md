@@ -6050,6 +6050,9 @@ fork otherwise, they are rewritten before any code.*
 - A second seam: the coordinator never sees a call (4w's F-1 = B, ruled
   in D-101). (F-10 C would reopen this line; if ruled, §194 changes
   with it.)
+  *(Amended by D-120, 5b: the coordinator still never RUNS or approves a
+  call, but it now learns after the fact that one ran — `.toolRan`,
+  D-117 F-8 A — so a re-seed can replay it typed.)*
 - Push or pull of the day's facts (§172a's first Phase B fork) — a later
   milestone's.
 - **A new runtime dependency.** `Package.swift`'s dependency list does
