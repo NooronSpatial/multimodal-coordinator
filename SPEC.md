@@ -7458,6 +7458,11 @@ test SEES.*
   the tool name, arguments and result for a turn in which a tool ran, and
   nothing extra for a turn in which none did. `ConversationMemory`'s
   bound and its existing behaviour are unchanged.
+  *(D-119 F-14 A: a turn in which a tool ran and the mind said nothing
+  IS an exchange — the act is the answer — and is kept; its replay is the
+  prompt, the tool call and its output. Stated with it, from D-092 and
+  not a new ruling: a tool's record counts against `maxCharacters`,
+  because a replayed tool output is characters a re-seed pays for.)*
 - **AC-312 — residency is an event.** A caller can await the end of a
   warm instead of polling: the awaiting call returns when the weights are
   resident, returns at once if they already are, and is cancellable.
@@ -7619,6 +7624,12 @@ case, through an optional `diagnostics:` given to the generator. *B:* the
 generator's own event stream. *C:* signposts only. **Ruled A (D-118).**
 *Rejected: B* — a second road every app must wire; *C* — invisible in the
 app's own trace, where the phone rows are read.
+
+**F-14 — A TURN WHERE A TOOL RAN AND THE MIND SAID NOTHING** (AC-311).
+*A:* keep it — the act is the answer. *B:* refuse it, as 4r's "both
+halves or nothing" does today. **Ruled A (D-119).** *Rejected: B* — an
+act that really happened would vanish from the conversation, the failure
+5b exists to end, from the other side.
 
 ## §212 — definition of done (5b)
 

@@ -5455,3 +5455,32 @@ four turns in nineteen.
 **Amended in place**, each marked with this entry's number: AC-307 (the
 road), AC-308 (the bound bounds the re-seed; the wall) and its
 test-matrix row.
+
+## D-119 — a turn where a tool ran and the mind said nothing is kept: the act is the answer (Milestone 5b)
+
+**Date:** 2026-09-24 · **Decided by:** Ryad · **Ruling: F-14 = A** (SPEC
+§211, "found after signing").
+
+**The question, found writing piece 2.** 4r's memory keeps "both halves
+or nothing": a turn the mind answered with no words is not an exchange,
+and is refused. Before 5b a turn could not be anything else. Now it can:
+the model calls `log_weight`, the body runs, the weight is logged — and
+the mind says nothing. Refused, that act would vanish from the
+conversation (and the coordinator empties the ledger on a zero-token
+turn, so the person's words go with it).
+
+- **F-14 A — keep it.** An exchange is the person's words AND the mind's
+  answer, where the answer is its words OR its acts. The replay is the
+  prompt, the tool call and its output, and a response with no words.
+  A turn with no tool is unchanged. *Rejected:* **B**, refuse it as today
+  — an act that really happened, missing from what the next turn knows:
+  the failure 5b exists to end, seen from the other side.
+
+**Stated with it, and NOT a new ruling — it follows from D-092:** a
+tool's record (its name, its arguments, the words the model was given)
+counts against `maxCharacters`. D-092 priced memory in characters
+because a replay costs by the character, and a tool output is replayed
+text — up to `ToolTable.answerCap` (4 000) characters each. Not counting
+it would let a re-seed carry many of them into the vendor's 4 096-token
+wall, which D-118's re-seed exists to stay clear of. If Ryad reads it
+otherwise, it becomes a fork.
