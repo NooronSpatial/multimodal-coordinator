@@ -27,6 +27,10 @@ struct BenchTab: View {
     /// its rows.
     @State private var memoryProbe = MemoryProbe()
     @State private var showMemoryProbe = false
+    /// 5b, PROBE-R (SPEC §213): the reply retry's vendor fact, measured on
+    /// the phone before its code — owned here for `MemoryProbe`'s reason.
+    @State private var retryProbe = RetryProbe()
+    @State private var showRetryProbe = false
 
     var body: some View {
         NavigationStack {
@@ -147,6 +151,16 @@ struct BenchTab: View {
                     }
                     .disabled(model.isListening)
                 }
+                // PROBE-R (5b, §213): what the Apple model does when a reply
+                // is asked again after its tool ran — F-18's evidence.
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showRetryProbe = true
+                    } label: {
+                        Label("Retry probe", systemImage: "arrow.clockwise")
+                    }
+                    .disabled(model.isListening)
+                }
                 // THE SHIELD PROBE (4g, AC-119).
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -175,6 +189,7 @@ struct BenchTab: View {
                         .navigationTitle("Mind probe")
                 }
             }
+            .retryProbeSheet($showRetryProbe, probe: retryProbe)
             .sheet(isPresented: $showMemoryProbe) {
                 NavigationStack {
                     List {
