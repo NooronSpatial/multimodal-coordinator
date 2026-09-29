@@ -275,14 +275,25 @@ public actor LocalMindModel: ModelBacked {
         // used to live here are all the holder's now — and it does the
         // re-check for every waiter, not only for the one that won.
         let source = weights
-        let container = try await held.value {
-            try await loadModelContainer(
-                from: source, using: #huggingFaceTokenizerLoader())
+        // The warm's watch hears the load begin and end, whichever way it
+        // ends (AC-312): a load that fails is the end a waiter must hear
+        // too, or `whenWarm()` would wait for a load that is over.
+        warm.loadBegan()
+        let container: ModelContainer
+        do {
+            container = try await held.value {
+                try await loadModelContainer(
+                    from: source, using: #huggingFaceTokenizerLoader())
+            }
+        } catch {
+            warm.loadEnded(resident: await held.isResident)
+            throw error
         }
         // The mirror, from the holder's OWN answer after the await — a
         // retire that landed during the load has already emptied it.
         let nowResident = await held.isResident
         resident.withLock { $0 = nowResident }
+        warm.loadEnded(resident: nowResident)
         return container
     }
 
@@ -293,20 +304,46 @@ public actor LocalMindModel: ModelBacked {
 
     // MARK: 5b — the warm's end, as an event (AC-312, D-124 F-21 B)
 
-    /// The warm, watched (RED skeleton: not wired yet).
+    /// The warm, watched: this actor reports every load's begin and end
+    /// and every retire into it; `MLXReplyGenerator.prewarm()` raises the
+    /// ask before its hop here, and `startPrewarm` lowers it.
     nonisolated let warm = WarmWatch()
 
     /// Returns when the weights are resident — `true` — or when there is
-    /// nothing left to wait for — `false` (RED skeleton).
+    /// nothing left to wait for — `false`: the load or warm in flight
+    /// ended without them, or nothing is resident and nothing is loading
+    /// (AC-312, D-124 F-21 B). At once when already resident. Cancelled,
+    /// at once with what is true then. It starts no work: a warm is the
+    /// app's decision (`prewarm()`), and a failed one's reason is the
+    /// door's to say (`readiness()`, the next turn's typed failure).
+    ///
+    /// The event that replaces a poll on `isResident` — the diet app's, up
+    /// to 600 × 200 ms. `prewarm()` then `await whenWarm()` is safe back to
+    /// back: the ask is raised before `prewarm()` returns.
+    ///
+    /// NONISOLATED, on purpose: asking when the warm ends must not queue
+    /// behind the warm itself on this actor.
     public nonisolated func whenWarm() async -> Bool {
         await warm.whenWarm()
     }
 
     /// Start the warm-up, at most one at a time.
+    ///
+    /// EVERY CALL CONSUMES ONE ASK (AC-312): `prewarm()` raised it before
+    /// its hop here, and it is lowered exactly once — at once when a warm
+    /// is already running (this ask rides on that one, whose own ask keeps
+    /// `whenWarm()` waiting), or when the warm this call starts is over,
+    /// however it ends.
     func startPrewarm(instructions: String?, maxTokens: Int) {
-        guard warmTask == nil else { return }
+        guard warmTask == nil else {
+            warm.askEnded()
+            return
+        }
         warmTask = Task { [weak self] in
             guard let self else { return }
+            // Lowered on every way out of this warm — resident already, a
+            // load that failed, a retire's cancel, the throwaway token done.
+            defer { self.warm.askEnded() }
             // The residency half of this guard used to be a synchronous
             // read of a stored property; the holder owns that state now, so
             // it is asked here instead. Same meaning: an already-resident
@@ -344,6 +381,7 @@ public actor LocalMindModel: ModelBacked {
         // the hand-written version never had.
         await held.retire()
         resident.withLock { $0 = false }
+        warm.retired()
     }
 
     /// The model's context window in tokens — `max_position_embeddings`
@@ -698,6 +736,10 @@ extension MLXReplyGenerator {
         let model = source.model
         let instructions = source.instructions
         let maxTokens = source.maxTokens
+        // THE ASK FIRST (AC-312): raised here, synchronously, BEFORE the
+        // hop — so `prewarm()` then `await model.whenWarm()` can never find
+        // "nothing loading" in the gap. `startPrewarm` lowers it.
+        model.warm.asked()
         // The hop is unavoidable — `prewarm()` is synchronous so it
         // matches `AppleReplyGenerator.prewarm()` — but it does nothing
         // except hand the work to the ACTOR, which owns the handle and

@@ -107,6 +107,36 @@ struct MLXResidencyTests {
         #expect(watch.isWarming, "and the warm itself goes on: cancelling a wait cancels no work")
     }
 
+    // Added at GREEN, each for a path no row above reached.
+
+    @Test("resident while a warm is still asked for: true at once, not after the warm (AC-312)")
+    func residentWinsOverAPendingAsk() async {
+        let watch = WarmWatch()
+        watch.asked()
+        watch.loadBegan()
+        watch.loadEnded(resident: true)
+        #expect(await Self.answer(Task { await watch.whenWarm() }) == true)
+    }
+
+    @Test("a load in flight with no warm asked — a turn's own — is waited for too (AC-312)")
+    func aTurnsOwnLoadIsWaitedFor() async {
+        let watch = WarmWatch()
+        watch.loadBegan()
+        let (task, registered) = await Self.waiting(on: watch)
+        #expect(registered)
+        watch.loadEnded(resident: true)
+        #expect(await Self.answer(task) == true)
+    }
+
+    @Test("after a retire the weights are gone: false at once (AC-312)")
+    func aRetireAnswersFalse() async {
+        let watch = WarmWatch()
+        watch.loadBegan()
+        watch.loadEnded(resident: true)
+        watch.retired()
+        #expect(await watch.whenWarm() == false)
+    }
+
     // MARK: - the model's wiring (no weights: a real warm that fails at the door)
 
     static func modelWithoutWeights() -> LocalMindModel {
@@ -118,6 +148,18 @@ struct MLXResidencyTests {
     @Test("the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)")
     func theModelAnswersFalseAtOnce() async {
         #expect(await Self.modelWithoutWeights().whenWarm() == false)
+    }
+
+    /// The model cannot be made resident without weights, so the load's
+    /// report is made by hand — the retire is the model's own.
+    @Test("the model's retire tells the watch: resident, retired, false (AC-312)")
+    func theModelsRetireTellsTheWatch() async {
+        let model = Self.modelWithoutWeights()
+        model.warm.loadBegan()
+        model.warm.loadEnded(resident: true)
+        #expect(await model.whenWarm() == true)
+        await model.retire()
+        #expect(await model.whenWarm() == false)
     }
 
     @Test("the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)")
