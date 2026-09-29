@@ -260,6 +260,15 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     /// "Before any word" is no snapshot with anything in it — whitespace
     /// included: what the run has emitted is the text it compares every
     /// later snapshot against, and a retry starts that text from nothing.
+    ///
+    /// `!Task.isCancelled` IS A BELT, NOT A GUARD — measured (mutation M19,
+    /// docs/evidence/5b): with it gone every row stays green, because a
+    /// cut reaches this keeper as a `CancellationError`, which the table
+    /// reads as `.cut` before anything else, or as a stream that simply
+    /// ends. It stays for the vendor this Mac cannot run: if the real
+    /// session raises an error of its OWN when its answer is cut, that
+    /// error has no name — and without this line a barged turn whose tool
+    /// had run would be asked again.
     private func retryable(_ error: any Error, after answer: Answer) -> String? {
         guard !Task.isCancelled, !answer.used.isEmpty, answer.words.isEmpty,
               case .failed(.unexplained(let words)) = AppleEnding(error) else { return nil }

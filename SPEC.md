@@ -7826,3 +7826,36 @@ switches over it. **The diet app does, exhaustively, in two places**
 both stop compiling until they handle the new case. That is R-2's own
 point — the app wants to speak a sentence for it — and the tag note says
 so, so the break is expected rather than found.
+
+### As built (5c0af8e, 2026-09-29) — details decided inside the signed scope
+
+Built under D-123 (before PROBE-R). None of these is a fork: each has one
+defensible answer inside the rulings above. They are listed so that
+nothing was decided silently, and each can be changed in review.
+
+- **The words.** `.unexplained(words)` carries `String(describing: error)`,
+  the vendor's own words, whole. Its `description` is "the model failed
+  without a reason this library can name: <words>". The same words ride on
+  `.lastAnswerFailed` and on the new event.
+- **The event** is `HealthEvent.mindReplyRetried(after: String)`, the
+  failure's words. The fresh session is reported beside it, as every birth
+  is (`mindSessionSeeded(.lastAnswerFailed(words), turns:)`).
+- **Named, so not unexplained:** this library's `ToolDeclarationError`
+  (`.engine`, the door's own words) and the vendor's
+  `GenerationSchema.SchemaError` (`.engine`, the pre-5b words). R-2 covers
+  only errors that nothing names.
+- **"Before any word"** means no snapshot with anything in it, whitespace
+  included. The run compares every snapshot with the text it has emitted,
+  and a retry starts from nothing, so even a lone space rules a retry out.
+- **One table, two readers.** The failure table became a value
+  (`AppleEnding`). The run reports from it, and the keeper asks again from
+  the same table, so the two cannot disagree. The keeper is therefore
+  gated on OS 26, like the rest of the Apple mind.
+- **What the retried session holds.** After a retry, the keeper records
+  what the answering session holds, repeats included. The next turn
+  continues that session only if it repeated every call the memory
+  remembers; otherwise the next turn re-seeds (`.memoryChanged`). The
+  memory stays the truth.
+- **Repeats are not new acts.** A call answered from its record reaches
+  the vendor's transcript, but not the run: `.toolRan` was already sent
+  when the tool really ran.

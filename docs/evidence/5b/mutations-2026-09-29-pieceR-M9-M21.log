@@ -1,0 +1,121 @@
+# 5b piece R — mutations M9…M21 against GREEN 5c0af8e (SPEC §213; D-122 F-15…F-20 A)
+# Each mutation breaks ONE rule in the source, rebuilds, and runs:
+#   swift test --skip-build --filter 'AppleRetryTests|AppleFailureTableTests|AppleSession'   (51 tests in 5 suites)
+# then reverts with git checkout. Runner: an exact-string replace per mutation (it must match once).
+# This Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors.
+# RESULT: 12 of 13 killed. M19 SURVIVED, as expected: the !Task.isCancelled belt in retryable — no row can
+# reach it, because a cut arrives as CancellationError (read as .cut first) or as a stream that simply ends.
+# It is kept for the real vendor, which this Mac cannot run, and documented beside the line (the M4 precedent).
+# The guards green at RED are shown to have teeth here: M9 (named failures), M16 (a named case keeps its name).
+
+## M9 — retry ANY failure after a tool, not only the unnamed one
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - no retry for a failure with a name (AC-319)
+􀢄  Test run with 51 tests in 5 suites failed after 0.033 seconds with 7 issues.
+reverted: yes
+
+## M10 — retry even when no tool ran
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - a failure re-seeds the next turn from the memory, and the trace says why (AC-307)
+  - no retry when no tool ran: nothing was saved, the person can say it again (AC-319)
+􀢄  Test run with 51 tests in 5 suites failed after 0.021 seconds with 3 issues.
+reverted: yes
+
+## M11 — retry even after a word was said
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - no retry once a word was said: a second answer would be a stutter (AC-319, F-19 A)
+􀢄  Test run with 51 tests in 5 suites failed after 0.019 seconds with 1 issue.
+reverted: yes
+
+## M12 — the retry runs the bodies live (no records)
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)
+  - one retry, one reply, one body run (AC-317)
+  - through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)
+  - two failures: the named failure, once — no third try (AC-318)
+􀢄  Test run with 51 tests in 5 suites failed after 0.020 seconds with 4 issues.
+reverted: yes
+
+## M13 — a repeat is passed on as a new act
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)
+  - one retry, one reply, one body run (AC-317)
+  - through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)
+􀢄  Test run with 51 tests in 5 suites failed after 0.019 seconds with 3 issues.
+reverted: yes
+
+## M14 — no limit: a third ask when the retry fails too
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - two failures: the named failure, once — no third try (AC-318)
+􀢄  Test run with 51 tests in 5 suites failed after 0.019 seconds with 2 issues.
+reverted: yes
+
+## M15 — the unnamed failure keeps its old name (.engine)
+file: Sources/MultiModalKit/Conversation/AppleReplyGenerator+Failures.swift
+KILLED — red rows:
+  - a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)
+  - an error the vendor's enum does not own is .unexplained, with its words (AC-322)
+  - no retry once a word was said: a second answer would be a stutter (AC-319, F-19 A)
+  - no retry when no tool ran: nothing was saved, the person can say it again (AC-319)
+  - one retry, one health event naming it, beside the fresh session's birth (AC-321)
+  - one retry, one reply, one body run (AC-317)
+  - through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)
+  - two failures: the named failure, once — no third try (AC-318)
+􀢄  Test run with 51 tests in 5 suites failed after 31.296 seconds with 17 issues.
+reverted: yes
+
+## M16 — a named vendor case (.rateLimited/.concurrentRequests) loses its name
+file: Sources/MultiModalKit/Conversation/AppleReplyGenerator+Failures.swift
+KILLED — red rows:
+  - a caller can COUNT: two scripted .busy runs are two
+  - no retry for a failure with a name (AC-319)
+  - no vendor case with a name becomes .unexplained (AC-322)
+  - rate limiting and a concurrent request are both .busy
+􀢄  Test run with 51 tests in 5 suites failed after 0.020 seconds with 9 issues.
+reverted: yes
+
+## M17 — the retry is not reported on the health road
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - one retry, one health event naming it, beside the fresh session's birth (AC-321)
+  - two failures: the named failure, once — no third try (AC-318)
+􀢄  Test run with 51 tests in 5 suites failed after 0.019 seconds with 2 issues.
+reverted: yes
+
+## M18 — the retry is seeded from nothing instead of the same history
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - one retry, one reply, one body run (AC-317)
+􀢄  Test run with 51 tests in 5 suites failed after 0.020 seconds with 1 issue.
+reverted: yes
+
+## M19 — the belt: a cut answer is not excluded from the retry
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 51 tests in 5 suites passed after 0.019 seconds.
+reverted: yes
+
+## M20 — finished records the retry's NEW acts, not what its session holds
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)
+􀢄  Test run with 51 tests in 5 suites failed after 0.019 seconds with 1 issue.
+reverted: yes
+
+## M21 — the table ignores its records (the door runs the body again)
+file: Sources/MultiModalKit/Conversation/ReplyTool.swift
+KILLED — red rows:
+  - a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)
+  - one retry, one reply, one body run (AC-317)
+  - through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)
+  - two failures: the named failure, once — no third try (AC-318)
+􀢄  Test run with 51 tests in 5 suites failed after 0.020 seconds with 4 issues.
+reverted: yes
+
+source tree after the run: clean
