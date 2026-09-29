@@ -136,6 +136,23 @@ struct AppleSessionWindowTests {
         #expect(log.seeds.last == .mindSessionSeeded(.contextFull, turns: 2), "the next turn re-seeds, and says why")
     }
 
+    /// Added at GREEN: a KEPT session can hold exactly the window too
+    /// (bound four, two turns). The row above only reaches a fresh one, so
+    /// without this nothing tells "held more" from "held as much".
+    @Test("full in a kept session that holds just the window: no re-ask (F-22 B)")
+    func fullInAKeptSessionHoldingTheWindowIsNotAskedAgain() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let maker = FakeSessionMaker(script: FakeSessionMaker.script("question 3", asks: [
+            .callsThen([], .fails(Self.wall))]))
+        let generator = try AppleReplyGenerator(sessions: maker, thermal: StillThermometer())
+        var talk = Self.bounded(4)
+        try await talk.turns(2, with: generator)
+        await #expect(throws: ReplyFailure.contextWindowExceeded) {
+            try await talk.turn("question 3", with: generator)
+        }
+        #expect(maker.made.count == 1, "continued while holding exactly the window: a re-seed would be the same size")
+    }
+
     @Test("full in a session just seeded from the window: no re-ask, the turn fails as AC-116 does (F-22 B)")
     func fullInAFreshSessionIsNotAskedAgain() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }

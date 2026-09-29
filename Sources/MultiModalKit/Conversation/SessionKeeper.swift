@@ -7,9 +7,10 @@
 //           └─ yes ─▶ a session ASIDE, made for this call; the
 //                     conversation's is not touched          (AC-309)
 //       the kept session's last answer finished on its own,
-//       AND it holds exactly the history this call brings?
+//       AND the history this call brings is its NEWEST turns?
 //           └─ yes ─▶ CONTINUE it: the model is sent the new words only
-//                                                             (AC-303)
+//                     (AC-303) — however many older turns it still
+//                     holds that the memory's bound dropped (F-12 C)
 //       otherwise ─▶ SEED a new one from the history (F-2 A), and it
 //                    becomes the conversation's               (F-4 A)
 //
@@ -27,10 +28,13 @@
 //            write runs twice. Never a third ask (F-15 A); never after a
 //            word (F-19 A); never for a failure with a name.
 //
-// Still to come (piece 3b): the window rule of D-118 F-12 C — a kept
-// session may hold MORE than the memory's window — and the vendor's
-// context wall. Until then "holds exactly the history" is equality, and
-// every such case re-seeds: today's cost, never a wrong answer.
+// And at the vendor's WALL (piece 3b, AC-308; D-118 F-12 C, D-124 F-22 B):
+// a session kept past the memory's window grows until its context is
+// full. Full before any word, in a session that held MORE than the window:
+// it is let go, and the turn is asked again once in a session born from
+// the window alone — the same one ask as the retry, repeats answered from
+// their records. Full after a word, or in a session that held just the
+// window: the turn fails as AC-116 does, and the next turn is re-seeded.
 
 import Synchronization
 
@@ -129,6 +133,11 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     private struct Lease {
         let session: any MindSession
         let ticket: Int?
+        /// The session holds MORE turns than this call's history — a kept
+        /// session continued past the memory's window (F-12 C). Only then
+        /// can a re-seed from the window be smaller, so only then is the
+        /// wall worth one more ask (D-124 F-22 B).
+        var outgrew = false
     }
 
     var unavailable: MindUnavailable? { maker.unavailable }
@@ -161,15 +170,20 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                     do {
                         try await self.ask(current, context, tools: identity.tools, into: &answer, continuation)
                     } catch {
-                        // R-1 (§213): the ONE retry, or the error as it was.
-                        guard let words = self.retryable(error, after: answer) else { throw error }
+                        // The ONE re-ask — §213's retry or the wall's — or
+                        // the error as it was.
+                        guard let reask = self.reask(after: error, answer, in: current) else { throw error }
                         self.ended(current, by: error)
                         lease = nil
-                        self.diagnostics?.noteMindReplyRetried(after: words)
+                        if case .unexplained(let words) = reask {
+                            self.diagnostics?.noteMindReplyRetried(after: words)
+                        }
                         // F-18 A: a fresh session from the SAME history,
-                        // the same words. F-16 A: the tools stay in the
-                        // schema, and every call the first ask RAN is a
-                        // record a repeat is answered from.
+                        // the same words — for the wall, the memory's
+                        // window, which is what makes it smaller. F-16 A:
+                        // the tools stay in the schema, and every call the
+                        // first ask RAN is a record a repeat is answered
+                        // from.
                         current = try self.lease(for: identity, history: context.history)
                         lease = current
                         answer = Answer(records: answer.used)
@@ -183,11 +197,12 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                     //
                     // THE BELT, NOT THE GUARD — measured, not assumed
                     // (mutation M4, docs/evidence/5b): with this line gone
-                    // every row stays green, because equality already
+                    // every row stays green, because the rule already
                     // refuses that session. The memory writes such a turn
                     // as INTERRUPTED, or refuses it when no word got
-                    // through, so the next history never equals what the
-                    // session holds. Kept because it costs one check and
+                    // through, so the next history's newest turn is never
+                    // the one the session holds last (equality in 3a, the
+                    // window rule since 3b). Kept because it costs one check and
                     // makes the rule hold without leaning on how the
                     // memory writes a cut turn — the 4b precedent: record
                     // the redundancy, never pretend each line is
@@ -250,16 +265,30 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         }
     }
 
-    /// The words of a failure §213 asks again for — or `nil`, and the
-    /// error ends the answer as it always did. Exactly one case (R-1): the
-    /// vendor failed with no reason this library can name (R-2), after at
-    /// least one tool RAN and before any word, and the answer was not cut.
-    /// Never on a retry — the retry's own failure ends the turn (F-15 A),
-    /// because this is read only where the FIRST ask throws.
+    /// Why an answer is asked again — at most once in a turn.
+    private enum Reask {
+        /// §213 R-1: no reason the library can name, after a tool ran.
+        case unexplained(String)
+        /// AC-308: the vendor's context is full, in a session that outgrew
+        /// the memory's window.
+        case wall
+    }
+
+    /// Whether the FIRST ask's failure is asked again — or `nil`, and the
+    /// error ends the answer as it always did. Read only where the first
+    /// ask throws, so never a third ask (F-15 A). Two cases, both before
+    /// any word and neither on a cut answer:
+    ///
+    /// - §213 R-1: the vendor failed with no reason this library can name
+    ///   (R-2) after at least one tool RAN. Never for a failure with a name.
+    /// - AC-308 at the wall: the context is full, and the session held more
+    ///   than the memory's window (`outgrew`), so a re-seed from the window
+    ///   is smaller. A session that held just the window would meet the
+    ///   same wall with the same past (D-124 F-22 B).
     ///
     /// "Before any word" is no snapshot with anything in it — whitespace
     /// included: what the run has emitted is the text it compares every
-    /// later snapshot against, and a retry starts that text from nothing.
+    /// later snapshot against, and a re-ask starts that text from nothing.
     ///
     /// `!Task.isCancelled` IS A BELT, NOT A GUARD — measured (mutation M19,
     /// docs/evidence/5b): with it gone every row stays green, because a
@@ -269,10 +298,13 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     /// session raises an error of its OWN when its answer is cut, that
     /// error has no name — and without this line a barged turn whose tool
     /// had run would be asked again.
-    private func retryable(_ error: any Error, after answer: Answer) -> String? {
-        guard !Task.isCancelled, !answer.used.isEmpty, answer.words.isEmpty,
-              case .failed(.unexplained(let words)) = AppleEnding(error) else { return nil }
-        return words
+    private func reask(after error: any Error, _ answer: Answer, in lease: Lease) -> Reask? {
+        guard !Task.isCancelled, answer.words.isEmpty else { return nil }
+        switch AppleEnding(error) {
+        case .failed(.unexplained(let words)) where !answer.used.isEmpty: return .unexplained(words)
+        case .failed(.contextWindowExceeded) where lease.outgrew: return .wall
+        default: return nil
+        }
     }
 
     // MARK: - the rule
@@ -284,7 +316,7 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     private func lease(for identity: Identity, history: [ConversationTurn]) throws -> Lease {
         enum Decision {
             case aside
-            case keep(any MindSession, ticket: Int)
+            case keep(any MindSession, ticket: Int, outgrew: Bool)
             case seed(ticket: Int, because: SessionSeedReason)
         }
         let decision: Decision = state.withLock { state in
@@ -294,10 +326,10 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                 // or other tools is answered aside; the conversation's own
                 // session — whatever state it is in — is not touched.
                 guard kept.identity == identity else { return .aside }
-                if !kept.busy, kept.holds == history {
+                if !kept.busy, Self.continues(kept.holds, with: history) {
                     kept.busy = true
                     state.kept = kept
-                    return .keep(kept.session, ticket: kept.ticket)
+                    return .keep(kept.session, ticket: kept.ticket, outgrew: kept.holds.count > history.count)
                 }
                 reason = kept.busy ? .lastAnswerUnfinished : .memoryChanged
             } else {
@@ -310,8 +342,8 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         }
 
         switch decision {
-        case .keep(let session, let ticket):
-            return Lease(session: session, ticket: ticket)
+        case .keep(let session, let ticket, let outgrew):
+            return Lease(session: session, ticket: ticket, outgrew: outgrew)
         case .aside:
             let session = try maker.makeSession(instructions: identity.instructions,
                                                 tools: identity.tools, seed: history)
@@ -334,6 +366,21 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
             if installed { diagnostics?.noteMindSessionSeeded(reason, turns: history.count) }
             return Lease(session: session, ticket: installed ? ticket : nil)
         }
+    }
+
+    /// THE WINDOW RULE (D-118 F-12 C): a kept session is continued while
+    /// the history a call brings — the memory's window — is its NEWEST
+    /// turns, however many older ones it still holds. The memory's bound
+    /// then decides only what a RE-SEED carries, and a conversation longer
+    /// than the bound keeps one session until the vendor's wall.
+    ///
+    /// An empty window continues only a session that holds nothing: a
+    /// memory switched off (`maxMemoryTurns` 0) keeps no past, and a
+    /// session holding one would show the model a past the app chose not
+    /// to keep — so with memory off, every turn is re-seeded with none.
+    static func continues(_ holds: [ConversationTurn], with window: [ConversationTurn]) -> Bool {
+        guard !window.isEmpty else { return holds.isEmpty }
+        return holds.count >= window.count && holds.suffix(window.count).elementsEqual(window)
     }
 
     /// The answer FINISHED ON ITS OWN — the only way a session becomes
@@ -362,13 +409,18 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     /// The answer did NOT finish on its own: the session is let go at once
     /// (AC-307), and the next birth will say why. A cancelled task is a
     /// cut — a barge, a deadline, a listener gone — whatever error the
-    /// vendor raised on the way out; anything else is a failure, in its
-    /// own words.
+    /// vendor raised on the way out; the vendor's full context is the wall
+    /// (AC-308); anything else is a failure, in its own words.
     private func ended(_ lease: Lease?, by error: any Error) {
         guard let ticket = lease?.ticket else { return }
-        let reason: SessionSeedReason = Task.isCancelled || error is CancellationError
-            ? .lastAnswerUnfinished
-            : .lastAnswerFailed(String(describing: error))
+        let reason: SessionSeedReason
+        if Task.isCancelled || error is CancellationError {
+            reason = .lastAnswerUnfinished
+        } else if AppleEnding(error) == .failed(.contextWindowExceeded) {
+            reason = .contextFull   // AC-308: the next birth says it was the wall
+        } else {
+            reason = .lastAnswerFailed(String(describing: error))
+        }
         release(ticket, because: reason)
     }
 

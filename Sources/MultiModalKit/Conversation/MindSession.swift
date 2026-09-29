@@ -92,6 +92,10 @@ public enum SessionSeedReason: Sendable, Equatable {
     /// it wrote the last turn differently — a cut reply marked
     /// interrupted, an answer it would not keep.
     case memoryChanged
-    /// The vendor said the session is full — its context window.
+    /// The vendor said the session is full — its context window (AC-308).
+    /// When no word had been said and the full session held more than the
+    /// memory's window, the same turn was asked again in this new session,
+    /// born from the window alone; otherwise that turn failed, and this is
+    /// the next one.
     case contextFull
 }
