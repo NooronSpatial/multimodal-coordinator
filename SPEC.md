@@ -7955,3 +7955,118 @@ One session on Ryad's iPhone, after the merge:
 The tag 0.4.0 was made on Ryad's word right after the merge (`ed1d6b4`), before this
 session (D-125); its note calls these rows owed. Since then, three of the four are done
 (2026-09-29): **AC-315 is the one left.**
+
+
+# Milestone 5c — the typed turn failure (R-3) — DRAFT, for Ryad's sign-off
+
+*Drafted 2026-09-29 from the diet app's requirement R-3 (its D-143), as Ryad
+relayed it: "ReplyFailure.unexplained reaches only reply(to:) callers … the
+app can switch on the ReplyFailure from a turn's failure, on both roads and
+on the health road. The shape is yours." Their AC-6…AC-9
+(`docs/library-requirements/reply-retry.md` in the diet app) were NOT read
+by this session: the criteria below are written from that summary. If
+theirs ask for more, the spec grows by a D-entry before any code.*
+
+## §215 — why
+
+```
+ a reply fails ──▶ ReplyFailure (typed)          reply(to:) callers switch on the TYPE ✓
+     │
+     ├─ mid-stream   TurnCoordinator+Stages       .generationFailed(failure.description)  ← a String
+     ├─ at the open  TurnCoordinator+Transcripts  .generationFailed(String(describing:))  ← a String
+     └─ the health road   HealthEvent.turnFailed(turn:, failure:) — the same String
+```
+
+In a conversation (the diet app's Talk) every reply failure reaches the app
+as WORDS. 0.4.0 named the vendor's silent failure (`ReplyFailure.unexplained`,
+§213 R-2) so the app could speak its own sentence for it — and both of the
+diet app's field failures happened in Talk, where the name arrives as a
+string. AC-242 (4v) put "the description where the bare string went": the
+right step then, because `TurnFailure` predates the typed failures. This
+milestone gives the conversation the type the text caller already has.
+
+## §216 — scope (written under F-23 A, the recommendation)
+
+1. **`TurnFailure.generationFailed` carries the `ReplyFailure`** instead of
+   its words. The words are not lost: they are the payload's `description`,
+   exactly the string the case carried before (AC-242's words).
+2. **Both roads and the health road are typed at once**: mid-stream (a
+   run's `.failed(ReplyFailure)`), at the open (`openReply` throwing a
+   `ReplyFailure`), and `HealthEvent.turnFailed`, which carries the same
+   `TurnFailure`.
+3. **An error that is not a `ReplyFailure`** — a caller's own generator may
+   throw anything at the open — becomes `.engine(<its words>)`, the words
+   the string carried before. A `TurnFailure` thrown at the open passes
+   through unchanged, as today. `.unexplained` stays the VENDOR's unnamed
+   failure (R-2's definition); a caller's error is not that.
+4. **The scripted test mind follows**: `failOnOpen(String)` and
+   `blockThenFailOnOpen(String)` keep their `String` and throw
+   `.generationFailed(.engine(reason))` — the same words, now typed.
+
+## §217 — non-goals
+
+- **How a turn failure prints.** `TurnFailure` does not become
+  `CustomStringConvertible`; a log that interpolates it prints the typed
+  case. An app shows its own sentence, or the payload's `description`.
+- **Synthesis and transcription failures** keep their own cases
+  (`synthesisFailed(String)`, `transcriptionFailed`) — R-3 is about the mind.
+- **No retry in the coordinator** (5b F-17 A stands: the retry is the Apple
+  keeper's).
+
+## §218 — acceptance criteria (AC-324 … AC-330)
+
+- **AC-324 — mid-stream, typed.** A reply that fails mid-stream with a
+  `ReplyFailure` ends its turn with `.generationFailed(<that value>)` —
+  equal as a value, `.unexplained(words)` included.
+- **AC-325 — at the open, typed.** `openReply` throwing a `ReplyFailure`
+  (`.tooHot`, `.unavailable`, …) ends the turn with `.generationFailed(<that
+  value>)`.
+- **AC-326 — the health road, typed.** `HealthEvent.turnFailed` carries the
+  same typed value as the turn event.
+- **AC-327 — a foreign error keeps its words.** A non-`ReplyFailure` error at
+  the open ends the turn with `.generationFailed(.engine(<its words>))`; a
+  `TurnFailure` thrown at the open passes through unchanged.
+- **AC-328 — the words did not move.** For every row above, the payload's
+  `description` is the string the turn carried before 5c.
+- **AC-329 — the diet app's case, end to end.** The Apple mind whose retry
+  fails too (§213 AC-318) ends a Talk turn with
+  `.generationFailed(.unexplained(words))`, on the turn event and on the
+  health road (fake session maker, through the coordinator).
+- **AC-330 — nothing else moved.** Every other test green, the demos build,
+  CI green, lint zero; the tag note names the break.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-324, AC-326 | `TypedTurnFailureTests` · "mid-stream: the turn carries the reply's failure, typed" · "the health road carries the same value" | scripted mind, `fail(reply:with:)` |
+| AC-325 | `TypedTurnFailureTests` · "at the open: typed" | a generator that throws a `ReplyFailure` at the open |
+| AC-327 | `TypedTurnFailureTests` · "a foreign error keeps its words" · "a TurnFailure at the open passes unchanged" | scripted |
+| AC-328 | the seven existing rows that compared a string, re-pinned on the typed value AND on its words | existing tests |
+| AC-329 | `TypedTurnFailureTests` · "the unnamed failure reaches Talk typed" | `FakeSessionMaker` + `CoordinatorRig` |
+| AC-330 | the suite; the demos | — |
+
+## §219 — the fork (Ryad rules)
+
+**F-23 — WHERE THE TYPE RIDES.**
+*A:* `TurnFailure.generationFailed(ReplyFailure)` — the payload becomes the
+typed failure; one case, one meaning; the words are its `description`.
+*B:* a new case beside it — `replyFailed(ReplyFailure)` for typed failures,
+`generationFailed(String)` kept for everything else.
+*C:* keep the string and add a typed side channel — a new
+`TurnEvent`/`HealthEvent` case carrying the `ReplyFailure` beside the old one.
+**Recommendation: A.** Every road becomes typed at once and the string was
+always the failure's own description (AC-242), so nothing is lost. B's hidden
+cost: a `switch` with a `default:` that caught every reply failure under
+`.generationFailed` would silently stop seeing the typed ones — a behaviour
+change the compiler cannot flag. C publishes one fact twice, on two roads an
+app must keep in step. All three break an exhaustive switch somewhere; A
+breaks the one the diet app asked to change.
+
+## §220 — definition of done (5c)
+
+The fork ruled and logged · red → green per AC · the seven string rows
+re-pinned · mutations on both roads and the health road · 20× · CI green ·
+lint zero · INTEGRATE (rule 12 and the appendix), the contract page and
+llms.txt updated · the tag note naming the break · the diet app's AC-6…AC-9
+checked against this spec when their text is available.
