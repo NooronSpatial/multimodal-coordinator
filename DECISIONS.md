@@ -5806,3 +5806,39 @@ vanished in that run is not known; the fix does not need to know.
 only once per file per transfer; a fresh download's failure is reported as
 today. The restart pays the bytes the lost partial held — they are gone
 either way.
+
+## D-130 — §222 signed: the stale resume's trigger is exact — restart only when nothing is left to resume from
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("Sign, exact trigger") ·
+**Ruling:** §222 signed. The file restarts from zero, once, only when a task
+started from resume data fails (not a cancel) and the failure carries NO
+fresh resume data. A resumed task that fails WITH fresh resume data keeps
+it and fails as today, so the next attempt resumes from the new point.
+
+- *Rejected:* restart on ANY failure of a resumed task — simpler, but a
+  failure that hands back fresh resume data is progress, and a restart from
+  zero would throw it away.
+
+## D-131 — a correction to D-129's premise, by measurement: the lock-out is resume data nothing can read
+
+**Date:** 2026-09-29 · **Recorded by the builder, for Ryad** — no new ruling;
+D-129 (F-24 A) and D-130 (the exact trigger) stand.
+
+**What D-129 said.** "A RESUMED task that fails keeps its stale resume data,
+so every later attempt resumes from it and fails the same way — until the
+person deletes the model." That was read from the code, not measured.
+
+**What was measured, before the fix** (`red-2026-09-29-the-stale-resume.log`):
+a partial removed CLEANLY from the download daemon's folder before the
+resume is refetched by the SYSTEM ITSELF — the row passed on 5a's code. So
+run 13's `NSPOSIXErrorDomain Code=2` was a race inside the daemon, in the
+middle of a resume, and not the everyday case. The lock-out that is real:
+resume data nothing can read — a `.resume` cut short by a kill mid-write,
+or one an older system wrote. The resumed task fails with no fresh data
+("unsupported URL"), and every later attempt failed the same way.
+
+**Why the ruling stands.** Its trigger — a resumed task that fails with no
+fresh resume data — is exactly both cases: the unreadable file, and the
+daemon's race. What changed is the story told about it: SPEC §221 and the
+5c evidence README are corrected in the open, and #59's description (merged)
+carries a correction note.

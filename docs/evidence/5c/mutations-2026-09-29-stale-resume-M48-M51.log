@@ -1,0 +1,39 @@
+# §222 — mutations M48…M51 against GREEN fdcf3df (AC-331…AC-333; D-129 F-24 A, D-130)
+# Each mutation breaks ONE rule, rebuilds, and runs:
+#   swift test --skip-build --filter 'ModelDownloaderStaleResumeTests|ModelDownloaderTests'   (12 tests in 3 suites)
+# then reverts with git checkout. This Mac: macOS 26.6.1, Xcode 27, Swift 6.4.
+# RESULT: 2 of 4 killed — M48 (a restart despite FRESH resume data: D-130's exact trigger, AC-333) and M51 (the
+# 'from resume' mark never set: no restart at all). Two SURVIVE, as BELTS, each documented beside its line:
+#  * M49 (no once-guard): 'once' is already structural — a restart clears fromResume, so the restarted task
+#    cannot trigger a second restart. The flag says it outright.
+#  * M50 (the stale data left in place by the restart): a landing removes it, a failure with fresh data
+#    overwrites it; the removal only saves the next transfer one wasted resume attempt.
+
+## M48 — restart even when the failure handed back FRESH resume data
+file: Sources/MultiModalKit/Models/ModelDownloader.swift
+KILLED — red rows:
+  - a resumed task that fails with fresh resume data keeps it, and fails as today (AC-333)
+􀢄  Test run with 12 tests in 3 suites failed after 0.150 seconds with 3 issues.
+reverted: yes
+
+## M49 — restart without the once-guard
+file: Sources/MultiModalKit/Models/ModelDownloader.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 12 tests in 3 suites passed after 0.563 seconds.
+reverted: yes
+
+## M50 — the restart leaves the stale resume data in place
+file: Sources/MultiModalKit/Models/ModelDownloader.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 12 tests in 3 suites passed after 0.151 seconds.
+reverted: yes
+
+## M51 — a task started from resume data is never marked so
+file: Sources/MultiModalKit/Models/ModelDownloader.swift
+KILLED — red rows:
+  - a restart that fails too ends the transfer — no third attempt (AC-332)
+  - resume data nothing can read: the file restarts once from the start, and lands (AC-331)
+􀢄  Test run with 12 tests in 3 suites failed after 0.157 seconds with 2 issues.
+reverted: yes
+
+source tree after the run: clean

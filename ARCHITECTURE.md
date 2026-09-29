@@ -2527,6 +2527,16 @@ old rule — delete the partial — the same cancel paid **100 %** again.
 partial never lives where it looks. `deleteModel()` is what removes a
 scratch.
 
+**When there is nothing left to resume from** (§222, D-129…D-131): a
+resumed task that fails and hands back no fresh resume data drops the stale
+data and fetches that file from the start — once; a second failure ends
+the plan. The fraction pauses while the file refetches what it lost, and
+never steps back. Measured first: a partial the system loses cleanly is
+refetched by the system itself; the case this closes is resume data
+nothing can read (a `.resume` cut short by a kill mid-write), which before
+the fix failed every later attempt the same way — and the daemon's own
+race, seen once in a 20× loop (5c, run 13).
+
 ### The re-entry door
 
 ```swift

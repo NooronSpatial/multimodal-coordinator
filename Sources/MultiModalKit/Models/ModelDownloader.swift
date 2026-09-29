@@ -141,6 +141,7 @@ public actor ModelDownloader {
             let task: URLSessionDownloadTask
             if let resumeData = try? Data(contentsOf: file.resumeDataURL) {
                 task = session.downloadTask(withResumeData: resumeData)
+                transfer.files[index].fromResume = true
             } else {
                 task = session.downloadTask(with: file.source)
             }
@@ -397,22 +398,20 @@ public actor ModelDownloader {
             settleIfQuiet(transfer, key: found.key)
             return
         }
+        // THE STALE RESUME (§222; D-129 F-24 A, D-130): a task started FROM
+        // resume data failed and handed back nothing fresh — there is
+        // nothing left to resume from (resume data no one can read; the
+        // daemon's partial lost mid-resume, run 13). Kept, that data would
+        // fail every later attempt the same way. So it is dropped and the
+        // file fetched from the start — ONCE: a second failure ends the
+        // plan below. A failure WITH fresh resume data was written above
+        // and is progress, kept for the next attempt as before.
+        let state = transfer.files[found.index]
+        if resumeData == nil, state.fromResume, !state.restarted {
+            restart(found)
+            return
+        }
         fail(transfer, key: found.key, with: .transferFailed(file: found.file.name, String(describing: error)))
-    }
-
-    /// A file, found by its destination: the transfer it belongs to and
-    /// its index there.
-    private struct Located {
-        let transfer: Transfer
-        let key: String
-        let index: Int
-        var file: DownloadPlan.File { transfer.files[index].file }
-    }
-
-    private func locate(_ path: String) -> Located? {
-        guard let key = owners[path], let transfer = transfers[key],
-              let index = transfer.files.firstIndex(where: { $0.file.destination.path == path }) else { return nil }
-        return Located(transfer: transfer, key: key, index: index)
     }
 
     /// One file's failure ends the plan for its waiters. The other files'
@@ -433,6 +432,45 @@ public actor ModelDownloader {
     }
 }
 
+// MARK: - a file found by its destination, and the stale resume's restart
+
+extension ModelDownloader {
+    /// A file, found by its destination: the transfer it belongs to and
+    /// its index there.
+    private struct Located {
+        let transfer: Transfer
+        let key: String
+        let index: Int
+        var file: DownloadPlan.File { transfer.files[index].file }
+    }
+
+    private func locate(_ path: String) -> Located? {
+        guard let key = owners[path], let transfer = transfers[key],
+              let index = transfer.files.firstIndex(where: { $0.file.destination.path == path }) else { return nil }
+        return Located(transfer: transfer, key: key, index: index)
+    }
+
+    /// The file again, from its first byte: the stale resume data removed,
+    /// a fresh task named for the same destination. The bytes it had
+    /// counted go back to zero; `wrote` reports only upward, so the
+    /// waiters' fraction pauses until the file passes its old mark — it
+    /// never steps back (AC-291).
+    private func restart(_ found: Located) {
+        let file = found.file
+        // A BELT, measured (mutation M50): a restart that lands removes the
+        // resume data anyway, and one that fails with fresh data overwrites
+        // it. This saves only the next transfer one wasted resume attempt.
+        try? FileManager.default.removeItem(at: file.resumeDataURL)
+        let task = session.downloadTask(with: file.source)
+        task.taskDescription = file.destination.path
+        found.transfer.files[found.index].task = task
+        found.transfer.files[found.index].written = 0
+        found.transfer.files[found.index].fromResume = false
+        found.transfer.files[found.index].restarted = true
+        task.resume()
+    }
+}
+
 // MARK: - one transfer's state (actor-isolated, never leaves the actor)
 
 extension ModelDownloader {
@@ -443,6 +481,14 @@ extension ModelDownloader {
         var written: Int64 = 0
         var expected: Int64?
         var done = false
+        /// This file's task was started from resume data (§222).
+        var fromResume = false
+        /// This file was already fetched again from the start, once (§222).
+        /// A BELT, measured (mutation M49): with it gone every row stays
+        /// green, because a restart clears `fromResume`, so the restarted
+        /// task can never trigger a second one. Kept to say "once" outright
+        /// rather than leave it to that coupling.
+        var restarted = false
     }
 
     /// One caller of `transfer`, waiting.
@@ -508,117 +554,5 @@ extension ModelDownloader {
         private static func sizeOnDisk(_ url: URL) -> Int64? {
             (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.int64Value
         }
-    }
-}
-
-// MARK: - the relay: the delegate, turned into ordered events
-
-/// The session's delegate. `@unchecked Sendable` with the proof from the
-/// file's header: `URLSession` calls it on ONE serial queue; its only
-/// state is the task chain under a `Mutex` and a weak owner; the one
-/// piece of work it does itself — moving the landed file — is
-/// synchronous and must be, because the temporary file dies when
-/// `didFinishDownloadingTo` returns.
-final class TransferRelay: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
-    enum Event: Sendable {
-        case wrote(destination: String, task: Int, written: Int64, expected: Int64)
-        case landed(destination: String, task: Int, bytes: Int64)
-        case couldNotPlace(destination: String, task: Int, words: String)
-        case refused(destination: String, task: Int, status: Int)
-        case completed(destination: String, task: Int, error: (any Error)?, resumeData: Data?)
-        case finishedEvents
-
-        /// The file the event is about and the task that spoke — `nil`
-        /// for the session's own word. THE TASK IS CHECKED, not only the
-        /// file: a file can have had two tasks in one process — one that
-        /// landed and whose completion is still on its way, and a fresh
-        /// one for the same destination — and the words of the old one
-        /// must not move the new one's state (the note on `handle`).
-        var speaker: (destination: String, task: Int)? {
-            switch self {
-            case .wrote(let path, let task, _, _), .landed(let path, let task, _),
-                 .couldNotPlace(let path, let task, _), .refused(let path, let task, _),
-                 .completed(let path, let task, _, _): (path, task)
-            case .finishedEvents: nil
-            }
-        }
-    }
-
-    weak var owner: ModelDownloader?
-    /// The chain: each event's task awaits the previous one, so the
-    /// actor hears the events in the order the session spoke them.
-    private let chain = Mutex<Task<Void, Never>?>(nil)
-    /// Destinations a delete has discarded: a landing for one of these
-    /// is not moved into place (the note on `ModelDownloader.discard`).
-    private let discarded = Mutex<Set<String>>([])
-
-    func discard(_ destinations: [String]) {
-        discarded.withLock { $0.formUnion(destinations) }
-    }
-
-    func reinstate(_ destinations: [String]) {
-        discarded.withLock { $0.subtract(destinations) }
-    }
-
-    private func emit(_ event: Event) {
-        guard let owner else { return }
-        chain.withLock { previous in
-            let earlier = previous
-            previous = Task {
-                await earlier?.value
-                await owner.handle(event)
-            }
-        }
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didWriteData bytesWritten: Int64, totalBytesWritten: Int64,
-                    totalBytesExpectedToWrite: Int64) {
-        guard let path = downloadTask.taskDescription else { return }
-        emit(.wrote(destination: path, task: downloadTask.taskIdentifier,
-                    written: totalBytesWritten, expected: totalBytesExpectedToWrite))
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didResumeAtOffset fileOffset: Int64, expectedTotalBytes: Int64) {
-        guard let path = downloadTask.taskDescription else { return }
-        emit(.wrote(destination: path, task: downloadTask.taskIdentifier,
-                    written: fileOffset, expected: expectedTotalBytes))
-    }
-
-    func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask,
-                    didFinishDownloadingTo location: URL) {
-        guard let path = downloadTask.taskDescription else { return }
-        // A landing for a discarded destination dies here, with its
-        // temporary file — the scratch it would land in is being removed.
-        guard !discarded.withLock({ $0.contains(path) }) else { return }
-        if let status = (downloadTask.response as? HTTPURLResponse)?.statusCode, !(200..<300).contains(status) {
-            // An error page is not a model file. The temporary file is
-            // left to die with this call.
-            emit(.refused(destination: path, task: downloadTask.taskIdentifier, status: status))
-            return
-        }
-        let destination = URL(fileURLWithPath: path)
-        let files = FileManager.default
-        do {
-            try files.createDirectory(at: destination.deletingLastPathComponent(),
-                                      withIntermediateDirectories: true)
-            if files.fileExists(atPath: destination.path) { try files.removeItem(at: destination) }
-            try files.moveItem(at: location, to: destination)
-            let bytes = (try? files.attributesOfItem(atPath: destination.path)[.size] as? NSNumber)?.int64Value ?? 0
-            emit(.landed(destination: path, task: downloadTask.taskIdentifier, bytes: bytes))
-        } catch {
-            emit(.couldNotPlace(destination: path, task: downloadTask.taskIdentifier, words: String(describing: error)))
-        }
-    }
-
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: (any Error)?) {
-        guard let path = task.taskDescription else { return }
-        let resumeData = (error as NSError?)?.userInfo[NSURLSessionDownloadTaskResumeData] as? Data
-        emit(.completed(destination: path, task: task.taskIdentifier, error: error, resumeData: resumeData))
-    }
-
-    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        emit(.finishedEvents)
     }
 }

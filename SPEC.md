@@ -8104,5 +8104,82 @@ the same way, until the model is deleted. That is a 5a bug in 0.3.1 and
 that run is not known. Kept with its full log
 (`stability-2026-09-29-run13-FAILED.log`); its fix is Ryad's to rule.
 
+*Corrected by measurement, §222 (D-131): "every later attempt fails the same
+way" was an inference the code did not bear out for a LOST PARTIAL — removed
+cleanly before a resume, the system refetches it by itself. The lock-out
+that is real is resume data nothing can read. Run 13's POSIX 2 was a race
+inside the daemon; the fix covers both.*
+
 **Not checked:** the diet app's AC-6…AC-9, whose text this session never
 read (D-128); the spec was built from Ryad's summary of R-3.
+
+
+# The stale resume (a 5a bug found by 5c's loop) — signed 2026-09-29 (D-130)
+
+*Ruled in D-129 (the order, and F-24 A); this section only turns the ruling
+into rows.*
+
+## §222 — the fix
+
+```
+ stop mid-file ──▶ resume data kept (5a F-4 A)      ──▶ next attempt RESUMES from it
+                                                          │
+                     the system's partial is GONE ────────┤ fails (run 13: POSIX 2)
+                                                          ▼
+ today:  the stale data stays → every later attempt fails the same way, until a delete
+ D-129:  drop the stale data → download that file from the start, ONCE → it lands
+```
+
+**The trigger, exactly:** a task started FROM resume data ends with an error
+that is not a cancel, and the failure carries NO fresh resume data (there is
+nothing left to resume from — the data is stale). A resumed task that fails
+WITH fresh resume data keeps it, and fails as today: the next attempt
+resumes from the new point. A fresh download's failure is reported as today.
+
+**As measured before the fix (D-131).** A partial removed cleanly from the
+download daemon's folder before the resume is refetched by the SYSTEM — that
+row passed on 5a's code and stays as a guard. The lock-out that is real:
+resume data nothing can read (a `.resume` cut short by a kill mid-write, or
+one an older system wrote) — the resumed task fails with no fresh data
+("unsupported URL"), and before the fix every later attempt failed the same
+way. Run 13's POSIX 2 was a race inside the daemon, mid-resume. The ruled
+trigger covers both.
+
+**What the person sees:** the transfer goes on. The fraction PAUSES while
+the file refetches the part it lost, and never steps back: `wrote` already
+reports only upward (AC-291 holds as it is).
+
+### Acceptance criteria (AC-331 … AC-334)
+
+- **AC-331 — a lost partial restarts once, and the file lands.** After a
+  stop, the system's partial is removed; the next transfer's resume fails,
+  the file is downloaded from the start, and the transfer finishes whole;
+  no resume data is left; the fraction never steps back.
+- **AC-332 — once, never a loop.** If the restart fails too, the transfer
+  fails with `.transferFailed` — no third attempt.
+- **AC-333 — fresh resume data is not stale.** A resumed task that fails
+  with fresh resume data keeps it and fails as today.
+- **AC-334 — nothing else moved.** 5a's resume rows (a cancel keeps resume
+  data; the next transfer sends one Range and never pays twice) stay green.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-331 | `ModelDownloaderTests` · "a resume whose partial is gone restarts the file once, and it lands" | loopback server, background session, the partial deleted on purpose |
+| AC-332 | `ModelDownloaderTests` · "a restart that fails too ends the transfer — no third attempt" | loopback server, foreground session (a background one retries a drop for days) |
+| AC-333 | `ModelDownloaderTests` · "a resumed task that fails with fresh resume data keeps it" | foreground session |
+| AC-334 | 5a's resume rows, unchanged | — |
+
+## §223 — results (§222), measured 2026-09-29 on `fix/stale-resume`
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-331 nothing to resume from: the file restarts once, and lands | **met** — resume data nothing can read now restarts the file and it lands whole, the stale data gone, the fraction never stepping back. Measured alongside: a partial the system loses CLEANLY is refetched by the system itself (a guard; D-131) | `ModelDownloaderStaleResumeTests`, mutation M51 |
+| AC-332 once, never a loop | **met** — the restart dropped too: one failure, two requests from the start, no third | `ModelDownloaderStaleResumeTests`; "once" is structural (M49 survives as a belt) |
+| AC-333 fresh resume data is not stale | **met** — kept, and the transfer fails as before | `ModelDownloaderStaleResumeTests`, mutation M48 |
+| AC-334 nothing else moved | **met** — 5a's resume rows green; the whole suite green; the 20× loop 20 of 20 at `979 tests in 141 suites`, no failing log; lint zero | the suite, `stability-2026-09-29-stale-resume.txt` |
+
+**What it corrected:** D-129's premise (D-131) — the lock-out is resume data
+nothing can read, not a lost partial; run 13 was a race inside the download
+daemon.

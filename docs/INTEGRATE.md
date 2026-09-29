@@ -113,7 +113,9 @@ func row(for engine: any ModelBacked) async {
 **The transfer runs on a background `URLSession`.** It continues while
 the app is suspended or dead, and a stopped one KEEPS what it can
 resume, so the next call sends a range request rather than paying
-again. Two things an app must do for that to work:
+again. If there turns out to be nothing left to resume from, that file is
+fetched from the start once, by itself — the bar pauses, it never steps
+back (§222). Two things an app must do for that to work:
 
 ```swift
 // 1 — one line in the app delegate, so the system can hand the app its
