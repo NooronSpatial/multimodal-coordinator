@@ -5649,3 +5649,23 @@ Ryad's word after it.
 
 **Unchanged:** a design fork found while finishing is still Ryad's — it is
 asked, not decided.
+
+## D-124 — two forks found while finishing 5b, ruled as recommended: `whenWarm()` answers a Bool; a context-full re-ask only when it can help (Milestone 5b)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad (asked under D-123's rule: a
+fork found while finishing is asked, not decided) · **Rulings: F-21 = B,
+F-22 = B** (SPEC §211, "found while finishing").
+
+- **F-21 B — `whenWarm() -> Bool`** (AC-312). `true` as soon as the weights
+  are resident; `false` when the load in flight ends without them, or at
+  once when nothing is resident and nothing is loading. It starts no work;
+  cancelled, it returns at once with what is true then. *Rejected: A, wait
+  until resident* — a failed warm (not installed, not enough memory,
+  retired) leaves the app waiting, the hang the diet app's 120 s poll cap
+  existed to prevent; *C, start the load and throw* — `ensureModel()`
+  already is that call, and a warm is the app's decision (`prewarm()`).
+- **F-22 B — the context-full re-ask only when the failing session held
+  more than the memory's window** (AC-308). A session just seeded from
+  that same window fails at once, as AC-116 does today. *Rejected: A,
+  always ask again once* — the same past and the same question meet the
+  same wall, and the person waits one more prefill to hear the failure.

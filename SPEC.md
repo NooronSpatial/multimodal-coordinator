@@ -7451,6 +7451,11 @@ test SEES.*
   re-seeds. *The signed text said the session itself carries the last
   four; at the diet app's bound of four, every turn after the fifth would
   have paid today's prefill.*
+  *(D-124 F-22 B: the re-ask happens only when the failing session held
+  MORE than the memory's window, so the re-seed is really smaller. A
+  session just seeded from that same window fails at once, as AC-116 does
+  today — a re-seed with the same past and the same question meets the
+  same wall.)*
 - **AC-309 — per-call instructions or tools get their own session.** A
   call whose `options.instructions` or `options.tools` differ from the
   live session's identity is served by a new session, and the
@@ -7474,6 +7479,11 @@ test SEES.*
   learns its end, shows the end through the new call.
   *(Corrected at signing, D-116: the draft said "`MindProbe`'s 200 ms
   poll in the demo is deleted" — the demo has no such poll.)*
+  *(D-124 F-21 B: `whenWarm() -> Bool`. It returns `true` as soon as the
+  weights are resident, and `false` when the load in flight ends without
+  them — or at once when nothing is resident and nothing is loading. It
+  never starts work itself; a failed load's reason is the door's to say.
+  Cancelled, it returns at once with what is true then.)*
 - **AC-313 — the MLX mind is untouched and says so.** Its prompt bytes
   for a plain question are identical to 4z's captured bytes, and the
   contract page states plainly that the kept session is the Apple mind's
@@ -7633,6 +7643,28 @@ app's own trace, where the phone rows are read.
 halves or nothing" does today. **Ruled A (D-119).** *Rejected: B* — an
 act that really happened would vanish from the conversation, the failure
 5b exists to end, from the other side.
+
+**Found while finishing (D-123) — two forks the spec left open**, asked
+and ruled 2026-09-29 as recommended, **D-124**.
+
+**F-21 — WHAT `whenWarm()` DOES WHEN THE WEIGHTS NEVER ARRIVE** (AC-312).
+The AC says it returns when resident, at once if already, and is
+cancellable; it said nothing about a load that fails or no load at all.
+*A:* wait until resident, however long; the caller's cancel is its
+timeout. *B:* `-> Bool` — `true` when resident, `false` when the load ends
+without the weights or when nothing is loading. *C:* start the load if
+none runs and throw its typed failure — `ensureModel()` under a new name.
+**Ruled B.** *Rejected: A* — a failed warm leaves the app waiting, the
+hang its poll's 120 s cap existed to prevent; *C* — it starts work, and
+`ensureModel()` already is that call.
+
+**F-22 — THE CONTEXT-FULL RE-ASK WHEN A RE-SEED CANNOT HELP** (AC-308).
+The re-ask was written for a kept session that grew past the memory's
+window. A session just seeded from that same window would be re-seeded
+identically. *A:* always ask again once, as written. *B:* ask again only
+when the failing session held more than the window. **Ruled B.**
+*Rejected: A* — the same past and the same question meet the same wall,
+and the person waits one more prefill to hear the failure.
 
 ## §212 — definition of done (5b)
 
