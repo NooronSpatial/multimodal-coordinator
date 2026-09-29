@@ -390,9 +390,31 @@ public enum ToolDeclarationError: Error, Sendable, Equatable, CustomStringConver
 /// run must do with a model's request, written once.
 public struct ToolTable: Sendable, Equatable {
     public let tools: [ReplyTool]
+    /// Calls already made THIS TURN, answered from their record instead of
+    /// the door (5b §213, F-16 A). Empty on every table an app builds; set
+    /// only by `replaying(_:)`, for the Apple mind's one retry. Not part of
+    /// what the model is shown, so not part of `==`.
+    let records: [ToolUse]
 
     public init(_ tools: [ReplyTool] = []) {
         self.tools = tools
+        self.records = []
+    }
+
+    private init(_ tools: [ReplyTool], records: [ToolUse]) {
+        self.tools = tools
+        self.records = records
+    }
+
+    /// This table, answering a repeat of a call already made from its
+    /// RECORD (5b §213 item 2, F-16 A): the same name and the same
+    /// arguments as a use in `records` get that use's outcome, and
+    /// neither the door's checks nor the body run again — R-1's hard rule,
+    /// no write runs twice, held by construction. Any other call goes
+    /// through the door as usual. What the model is SHOWN is unchanged
+    /// (`==`), so a retry keeps its tools in the schema.
+    func replaying(_ records: [ToolUse]) -> ToolTable {
+        ToolTable(tools, records: records)
     }
 
     /// No tools at all — the shape every generator had before 4w, and
@@ -485,6 +507,12 @@ public struct ToolTable: Sendable, Equatable {
     public func invoke(_ name: String,
                        arguments: ToolArguments,
                        confirmed: Set<String> = []) async -> ToolCallOutcome {
+        // A repeat of a call already made THIS TURN, asked by the Apple
+        // mind's one retry (5b §213, F-16 A): answered from its record,
+        // before any check and any body — nothing below runs twice.
+        if let record = records.first(where: { $0.answers(name, arguments) }) {
+            return record.outcome
+        }
         guard let tool = self[name] else {
             return ToolCallOutcome(result: .failure(ToolCallFailure(tool: name, reason: .unknownTool)))
         }

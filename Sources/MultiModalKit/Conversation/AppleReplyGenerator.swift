@@ -560,94 +560,17 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         out.finish()
     }
 
-    /// Every way the stream can THROW, mapped onto one honest ending. The
-    /// arms lived as `catch` clauses in `init` until 4y's cancellation
-    /// arm tipped that initialiser past the lint's complexity line; they
-    /// moved here whole, comments and all, and the mapping is unchanged.
+    /// Every way the stream can THROW, mapped onto one honest ending — the
+    /// failure table, which since 5b is a value (`AppleEnding`, in
+    /// `AppleReplyGenerator+Failures.swift`) so the session keeper reads
+    /// the SAME table when it decides whether to ask again (§213). The
+    /// arms lived here as `catch` clauses until then, and before 4y inside
+    /// `init`; they moved whole, comments and all.
     private func settle(streamError error: any Error) {
-        switch error {
-        case is CancellationError:
-            // The worker was cancelled while parked on the stream —
-            // the deadline's doing (`expire`) or a `cancel()`; the
-            // latch tells them apart and the second owes no terminal.
-            concludeStream()
-        case let revision as SnapshotRevision:
-            // The tripwire fired: the model rewrote text that may
-            // already be in the room. One honest failure, showing
-            // both sides — never the wrong words, spoken (D-058).
-            report(.failed(.engine("the model revised text already emitted — "
-                + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\"")))
-        case let error as LanguageModelSession.GenerationError:
-            settle(generation: error)
-        case let error as LanguageModelSession.ToolCallError:
-            // A tool the model called THREW (4w, AC-225). The adapter
-            // let the throw through, the vendor ended the stream with
-            // this error, and the run ends the way the scripted mind's
-            // `.failsReply` does: one `.failed(.engine(_))` carrying
-            // the SAME `ToolCallFailure` sentence every mind writes.
-            // This ending is the INTERIM one — whether the adapter
-            // should catch instead and let the model speak (the MLX
-            // run's ending) is an open fork, Ryad's, written up at
-            // `AppleReplyRun.toolFailure`. This arm stays under either
-            // ruling: the vendor can raise the error on its own.
-            report(.failed(.engine(Self.toolFailure(from: error).description)))
-        default:
-            report(.failed(.engine("reply generation failed: \(error)")))
-        }
-    }
-
-    /// AC-114, and since 4v AC-236's table (SPEC §175/3): every case
-    /// reaches an honest outcome, none is swallowed, every failure is a
-    /// case a caller can count, and the enum being NON-frozen is handled
-    /// rather than hoped away.
-    ///
-    /// Two cases END the turn instead of failing it (D-057 F-4 = A, and
-    /// since D-104 with a name): `guardrailViolation` and `refusal` are a
-    /// supervised model DOING ITS JOB, and silence would make that look
-    /// like a bug. The person hears one short sentence; the turn ends
-    /// normally as `.finished(.refused)`; the words stay out of the
-    /// transcript's failure path.
-    ///
-    /// No mapping reads `Context.debugDescription` into a test-visible
-    /// promise: it is an unlocalised string Apple may change (the spec's
-    /// own warning). The CASE decides; the description only rides along
-    /// in the failure text for a human to read.
-    private func settle(generation error: LanguageModelSession.GenerationError) {
-        switch error {
-        case .guardrailViolation, .refusal:
-            // RULED (D-104, SPEC §178 F-7 = C): a refusal is how a reply
-            // ENDS. Both vendor cases land on the same one row.
-            speakRefusalAndFinish()
-        case .exceededContextWindowSize:
-            report(.failed(.contextWindowExceeded))
-        case .assetsUnavailable:
-            // The Simulator lesson (INSTRUMENTS §22): availability can
-            // vouch for assets the model manager then cannot produce. The
-            // table's row is `.unavailable` (SPEC §175/3), and the verdict
-            // inside it is `.unknown` with the vendor's own word: the
-            // vendor said "assets unavailable" and nothing about WHY. It
-            // is not `.modelDownloading` — that sentence promises "try
-            // later", and on the very Simulator that taught this lesson
-            // the assets never arrive (the 4v review's finding).
-            report(.failed(.unavailable(.unknown(Self.assetsUnavailableWords))))
-        case .unsupportedLanguageOrLocale:
-            report(.failed(.unsupportedLanguage))
-        case .rateLimited, .concurrentRequests:
-            // Both are "the engine is serving another request" to a
-            // caller that counts. `concurrentRequests` is ALSO a
-            // coordination bug on our side — the keeper never asks a
-            // session that is still answering (D-117 F-10 A; before 5b,
-            // sessions were per-turn) — so a second request on one
-            // session should be impossible; the caller's remedy is the
-            // same either way: later.
-            report(.failed(.busy))
-        case .unsupportedGuide, .decodingFailure:
-            // No guide is ever sent (the mind returns text, §176) and a
-            // decoding failure has no caller-side remedy: the honest rest.
-            report(.failed(.engine("generation failed: \(error.localizedDescription)")))
-        @unknown default:
-            report(.failed(.engine("generation failed with a case this library "
-                + "does not know yet: \(error.localizedDescription)")))
+        switch AppleEnding(error) {
+        case .cut: concludeStream()
+        case .refused: speakRefusalAndFinish()
+        case .failed(let failure): report(.failed(failure))
         }
     }
 

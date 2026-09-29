@@ -18,6 +18,15 @@
 // it go and moves the ticket on, and every birth of the conversation's
 // session is reported with its reason (`SessionSeedReason`, D-118 F-13 A).
 //
+// And ONCE, an answer is asked again (piece R, SPEC §213; D-122):
+//
+//     ask 1 ── a tool RAN ── the vendor fails with no name, no word yet
+//        └─▶ ask 2: a FRESH session from the same history, the same words
+//            (F-18 A); a repeat of a call already made is answered from
+//            its RECORD (F-16 A) — so the person hears one answer and no
+//            write runs twice. Never a third ask (F-15 A); never after a
+//            word (F-19 A); never for a failure with a name.
+//
 // Still to come (piece 3b): the window rule of D-118 F-12 C — a kept
 // session may hold MORE than the memory's window — and the vendor's
 // context wall. Until then "holds exactly the history" is equality, and
@@ -35,6 +44,11 @@ import Synchronization
 /// one lock step, nothing suspends under the lock, and a session is MADE
 /// outside it (a vendor's session may be slow to make, and nothing else
 /// should wait behind that).
+///
+/// Gated on the Apple mind's OS since piece R: whether to ask again is
+/// read from the Apple failure table (`AppleEnding`) — the same one the
+/// run reports from — and the keeper is the Apple mind's (F-17 A).
+@available(macOS 26.0, iOS 26.0, *)
 final class SessionKeeper: ReplySnapshotStreaming, Sendable {
     let maker: any MindSessionMaking
     /// The generator's own table — the one a call runs with when its
@@ -137,24 +151,30 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
         // conversation (AC-115, measured: 1839 ms cold vs ~280 ms warm).
         return AsyncThrowingStream { continuation in
             let task = Task {
+                // The session answering NOW — the first ask's, or the
+                // retry's: the one `ended` lets go of if anything throws.
                 var lease: Lease?
                 do {
-                    let leased = try self.lease(for: identity, history: context.history)
-                    lease = leased
-                    // The answer as the memory will write it: its words, and
-                    // every tool it used (5b piece 2) — or a turn that used
-                    // one would look like a changed history, and re-seed.
-                    var answer = ""
-                    var used: [ToolUse] = []
-                    for try await update in leased.session.respond(to: context.transcript,
-                                                                  tools: identity.tools,
-                                                                  options: context.options) {
-                        switch update {
-                        case .snapshot(let snapshot): answer = snapshot
-                        case .toolRan(let use): used.append(use)
-                        }
-                        continuation.yield(update)
-                        try Task.checkCancellation()
+                    var current = try self.lease(for: identity, history: context.history)
+                    lease = current
+                    var answer = Answer()
+                    do {
+                        try await self.ask(current, context, tools: identity.tools, into: &answer, continuation)
+                    } catch {
+                        // R-1 (§213): the ONE retry, or the error as it was.
+                        guard let words = self.retryable(error, after: answer) else { throw error }
+                        self.ended(current, by: error)
+                        lease = nil
+                        self.diagnostics?.noteMindReplyRetried(after: words)
+                        // F-18 A: a fresh session from the SAME history,
+                        // the same words. F-16 A: the tools stay in the
+                        // schema, and every call the first ask RAN is a
+                        // record a repeat is answered from.
+                        current = try self.lease(for: identity, history: context.history)
+                        lease = current
+                        answer = Answer(records: answer.used)
+                        try await self.ask(current, context, tools: identity.tools.replaying(answer.records),
+                                           into: &answer, continuation)
                     }
                     // Checked once more AFTER the stream: an answer the
                     // vendor finished but its listener abandoned (a barge
@@ -173,8 +193,11 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
                     // the redundancy, never pretend each line is
                     // load-bearing alone.
                     try Task.checkCancellation()
-                    self.finished(leased, turn: ConversationTurn(said: context.transcript, replied: answer,
-                                                                 tools: used))
+                    // What the answering session HOLDS: after a retry, its
+                    // repeats too — so the next turn continues it only if
+                    // it repeated every call the memory remembers.
+                    self.finished(current, turn: ConversationTurn(said: context.transcript,
+                                                                  replied: answer.words, tools: answer.held))
                     continuation.finish()
                 } catch {
                     // Let go BEFORE the stream says so: the run, the
@@ -186,6 +209,61 @@ final class SessionKeeper: ReplySnapshotStreaming, Sendable {
             }
             continuation.onTermination = { _ in task.cancel() }
         }
+    }
+
+    // MARK: - one ask
+
+    /// One answer as it streams, as the keeper must know it.
+    private struct Answer {
+        /// The words so far — the last snapshot.
+        var words = ""
+        /// The tools that RAN in this ask, passed on to the run as they ran.
+        var used: [ToolUse] = []
+        /// Every call the session holds from this ask, in order — a repeat
+        /// answered from its record included (§213's retry).
+        var held: [ToolUse] = []
+        /// The calls a repeat is answered from: the first ask's, on the
+        /// retry; none otherwise.
+        var records: [ToolUse] = []
+    }
+
+    /// Asks `lease`'s session the call's words and streams its answer on.
+    /// A tool use that repeats a record was answered from it — the run
+    /// heard of that act when it RAN, in the first ask — so it is held, and
+    /// not passed on twice.
+    private func ask(_ lease: Lease, _ context: ReplyContext, tools: ToolTable, into answer: inout Answer,
+                     _ continuation: AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation) async throws {
+        for try await update in lease.session.respond(to: context.transcript, tools: tools,
+                                                      options: context.options) {
+            switch update {
+            case .snapshot(let snapshot):
+                answer.words = snapshot
+                continuation.yield(update)
+            case .toolRan(let use):
+                answer.held.append(use)
+                if !answer.records.contains(where: { $0.answers(use.name, use.arguments) }) {
+                    answer.used.append(use)
+                    continuation.yield(update)
+                }
+            }
+            try Task.checkCancellation()
+        }
+    }
+
+    /// The words of a failure §213 asks again for — or `nil`, and the
+    /// error ends the answer as it always did. Exactly one case (R-1): the
+    /// vendor failed with no reason this library can name (R-2), after at
+    /// least one tool RAN and before any word, and the answer was not cut.
+    /// Never on a retry — the retry's own failure ends the turn (F-15 A),
+    /// because this is read only where the FIRST ask throws.
+    ///
+    /// "Before any word" is no snapshot with anything in it — whitespace
+    /// included: what the run has emitted is the text it compares every
+    /// later snapshot against, and a retry starts that text from nothing.
+    private func retryable(_ error: any Error, after answer: Answer) -> String? {
+        guard !Task.isCancelled, !answer.used.isEmpty, answer.words.isEmpty,
+              case .failed(.unexplained(let words)) = AppleEnding(error) else { return nil }
+        return words
     }
 
     // MARK: - the rule

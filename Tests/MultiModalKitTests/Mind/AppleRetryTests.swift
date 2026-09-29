@@ -77,7 +77,10 @@ struct AppleRetryTests {
         let maker = FakeSessionMaker(script: Self.asks(Self.failThenAnswer))
         let generator = try AppleReplyGenerator(tools: Self.logWeight(ledger), sessions: maker,
                                                 thermal: StillThermometer())
-        let reply = try await generator.reply(to: ReplyContext(transcript: "log 84 kilos"))
+        // A past, so "the same history" is a fact a row can see: an empty
+        // one cannot tell a retry seeded from it from one seeded from nothing.
+        let before = [ConversationTurn(said: "good morning", replied: "Morning.")]
+        let reply = try await generator.reply(to: ReplyContext(transcript: "log 84 kilos", history: before))
 
         #expect(reply.text == "Logged 84 kg.", "ONE answer — the retry's")
         #expect(ledger.bodyRuns == 1, "the write ran once; the retry's repeat was answered from its record")
@@ -85,7 +88,7 @@ struct AppleRetryTests {
         #expect(maker.made.count == 2, "the retry ran in a fresh session (F-18 A)")
         #expect(maker.sessions.map { $0.asked.map(\.prompt) } == [["log 84 kilos"], ["log 84 kilos"]],
                 "the same words, asked again")
-        #expect(maker.made.map(\.seed) == [[], []], "seeded from the same history")
+        #expect(maker.made.map(\.seed) == [before, before], "seeded from the same history")
     }
 
     @Test("through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)")

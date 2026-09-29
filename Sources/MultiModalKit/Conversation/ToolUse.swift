@@ -51,6 +51,17 @@ public struct ToolUse: Sendable, Equatable {
     }
 }
 
+extension ToolUse {
+    /// Whether this record answers a call of `name` with `arguments` — a
+    /// REPEAT: the same name, the same arguments as the door read them (5b
+    /// §213 item 2). One rule, two readers: the table that answers a
+    /// repeat from its record (`ToolTable.replaying`), and the keeper that
+    /// does not pass a repeat on as a new act.
+    func answers(_ name: String, _ arguments: ToolArguments) -> Bool {
+        self.name == name && self.arguments == arguments
+    }
+}
+
 // MARK: - arguments as the replay writes them
 
 extension ToolArguments {
