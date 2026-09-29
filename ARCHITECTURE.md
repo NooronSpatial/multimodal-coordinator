@@ -2564,6 +2564,188 @@ handler is called once the session says its events are done.
 - **The phone rows are owed** (AC-300): five minutes locked, a kill and
   a relaunch, and the system's background wake-up.
 
+## One mind session per conversation (5b)
+
+The sections above are what the mind can do in ONE reply. This one is
+what it keeps BETWEEN replies. It is written for the caller whose coach
+talks for twenty turns with fifteen tools and 5 100 characters of rules,
+and wants two things: the first word of turn two sooner than turn one's,
+and a mind that calls a tool every time one is asked for (SPEC §207–213,
+D-116…D-124; the diet app's two field notes, 2026-09-20 and 09-22, and
+its requirement `reply-retry.md`).
+
+**The short codes.** `AC-nnn` is a criterion in `SPEC.md`; `F-n` is a
+fork of milestone 5b — F-1…F-7 ruled in **D-116**, F-8…F-11 in
+**D-117**, F-12…F-13 in **D-118**, F-14 in **D-119**, F-15…F-20 (the
+retry) in **D-122**, F-21…F-22 in **D-124**. **D-116 reverses D-057
+F-2 in the open**: the Apple mind no longer builds a fresh vendor
+session for every reply. **D-123** set the order: finish, merge, then
+one phone session — so the phone rows at the end of this page are OWED,
+not claimed.
+
+### Why one mechanism fixes two faults
+
+```
+ before 5b, every turn:   new LanguageModelSession(instructions + 15 schemas + the past AS PROSE)
+                          └─ 3.3–3.9 s to the first token, turn one or turn twenty
+                          └─ the past says "Logged 12 kg" as the ASSISTANT's words,
+                             so the model learns to say it — and stops calling the tool
+
+ since 5b:                turn 1   make(instructions, tools, seed)  ─▶ respond("log 84 kilos")
+                          turn 2                                      respond("and a coffee")
+                          turn N                                      respond(<the new words only>)
+                                   ↑ made ONCE per conversation       ↑ a tool call stays a TOOL CALL
+```
+
+A session that lives for the conversation prefills its instructions and
+schemas once, and owns a transcript in which a tool call is a tool call.
+
+### The seam — a session a test can fake
+
+```swift
+public protocol MindSession: Sendable {
+    func respond(to prompt: String, tools: ToolTable,
+                 options: GenerationOptions) -> AsyncThrowingStream<MindSessionUpdate, any Error>
+}
+public protocol MindSessionMaking: Sendable {
+    var unavailable: MindUnavailable? { get }
+    func makeSession(instructions: String?, tools: ToolTable,
+                     seed: [ConversationTurn]) throws -> any MindSession
+}
+public enum MindSessionUpdate { case snapshot(String), toolRan(ToolUse) }
+```
+
+`AppleSessionMaker` is the real maker and the default of
+`AppleReplyGenerator(…, sessions:)`. A caller's test hands its own fake —
+this library's 5b rows all do, because the Apple model reports
+`modelNotReady` on the Mac they were written on. `AppleReplyGenerator` is
+a `final class` now (F-11 A): it holds a conversation, so `let b = a` is
+the SAME conversation. A caller that wants an unrelated one-shot answer
+makes another generator.
+
+### The keeper's rule — which session answers a call
+
+```
+ a call arrives ─▶ other instructions or other tool declarations?  ─▶ a session ASIDE (AC-309)
+                   the kept session's last answer finished on its own,
+                   AND this call's history is its NEWEST turns?        ─▶ CONTINUE it (AC-303)
+                   otherwise                                           ─▶ SEED a new one from the
+                                                                          history (F-2 A)
+```
+
+- **The history is the SEED** (F-2 A). `ReplyContext.history` is what a
+  new session is born with, and is not replayed into a session that
+  already holds it.
+- **The window rule** (F-12 C, AC-308). A kept session may hold MORE than
+  the memory's bound: it is continued while the memory's window is its
+  newest turns, however many older ones it still holds. The bound decides
+  only what a re-seed carries. A memory switched off (`maxMemoryTurns` 0)
+  re-seeds every turn with no past. The window must MATCH, not merely
+  fit: a caller that passes an edited past gets a new session.
+- **A session is kept only after an answer the vendor finished itself**
+  (F-10 A). A barge, a deadline or a failure lets it go at once, and the
+  next turn is seeded from the memory — where a cut turn is marked
+  interrupted (AC-306, AC-307).
+- **Every birth says why** (F-13 A): hand the generator `diagnostics:`
+  and each one arrives as `HealthEvent.mindSessionSeeded(reason, turns:)`
+  — `.newConversation`, `.lastAnswerUnfinished`, `.lastAnswerFailed(words)`,
+  `.memoryChanged`, `.contextFull`. `nil` reports nothing.
+
+### A tool call is a tool call (F-3 A, F-8 A)
+
+```
+ the vendor runs log_weight ─▶ .toolRan(ToolUse) on the reply stream ─▶ ConversationTurn.tools
+                                                                   └─▶ Reply.tools (a text caller)
+ a re-seed replays it as Transcript.ToolCalls + Transcript.ToolOutput — never as the assistant's prose
+```
+
+- `ReplyUpdate.toolRan(ToolUse)` is new (D-117 F-8 A; D-120 amends
+  D-101's promise that the stream is only tokens and one terminal).
+  `ToolUse` carries the name, the arguments as the door read them, and
+  what the door did. It is sent when the mind SAW the tool run — its place
+  among the tokens is the order this library observed, not a position in
+  the sentence.
+- A turn where a tool ran and the mind said nothing is KEPT (D-119): the
+  act is the answer. A tool's record counts against `maxCharacters`.
+
+### The conversation's end — one door (F-9 A)
+
+`ReplyGenerating.endConversation()` — the coordinator calls it from
+`stop()` and `clearMemory()` (which is `async` now). The Apple mind lets
+its session go; the default does nothing. **A generator that WRAPS
+another must forward it**, or the wrapped mind keeps a conversation that
+ended.
+
+### The vendor's wall (F-12 C, F-22 B)
+
+```
+ context full BEFORE any word:
+    the session held MORE than the memory's window ─▶ let go; the turn is asked again ONCE
+                                                       in a session born from the window alone
+    it held just the window                         ─▶ the turn fails .contextWindowExceeded
+ context full AFTER a word                          ─▶ the turn fails; the next turn re-seeds
+```
+
+Either way the next birth reports `.contextFull`.
+
+### The reply retry (§213, D-122)
+
+Twice on the diet app's phone the Apple mind ran its tools, the tools
+answered truly, and then the vendor failed while WRITING the reply, with
+an error nothing public names. The person heard nothing.
+
+```
+ ask 1 ── log_weight(84) RUNS ✓ ── fails: no reason, no word yet
+    └─▶ ask 2 — ONE retry (F-15 A): a FRESH session from the same history, the same words (F-18 A)
+          log_weight(84) again ─▶ answered from its RECORD — the body does not run (F-16 A)
+          "Logged 84 kg."      ─▶ the person hears ONE answer
+```
+
+- **The failure has a name now** (R-2, F-20 A): `ReplyFailure.unexplained(words)`
+  — a `GenerationError` case the SDK does not publish, or a vendor error
+  that is neither a `GenerationError` nor a `ToolCallError`. This library's
+  own failures and every named vendor case keep their names. **An app that
+  switches over `ReplyFailure` exhaustively stops compiling until it
+  handles the new case** — on purpose: the point is to speak a sentence
+  for it.
+- Never retried: no tool ran, a word was already said (F-19 A), a failure
+  with a name, a cut answer. Never a third ask. At most ONE re-ask per
+  turn, whatever the reason — the retry's or the wall's.
+- Seen as `HealthEvent.mindReplyRetried(after: words)`, beside the fresh
+  session's birth (`.lastAnswerFailed`).
+- **The vendor fact under it is the phone's to show** (PROBE-R, AC-323):
+  every `respond`/`streamResponse` takes a prompt, so the retry RE-ASKS.
+  What the real model does when re-asked is measured by the demo's Retry
+  probe on a phone — owed, by D-123.
+
+### The warm's end — an event (F-7 A, F-21 B)
+
+`LocalMindModel.whenWarm() -> Bool` — `true` when the weights are
+resident; `false` when the load in flight ends without them, or at once
+when nothing is resident and nothing is loading. At once when already
+resident; cancellable; it starts no work. `prewarm()` then
+`await whenWarm()` is safe back to back: the ask is raised before
+`prewarm()` returns. It replaces a poll on `isResident`.
+
+### What the MLX mind does (AC-313)
+
+**Nothing new, and it says so.** The kept session is the APPLE mind's
+today. The MLX mind still renders its whole prompt every turn — its
+bytes for a plain question are the 4z bytes, pinned by
+`MLXPlainPromptTests` — and it does not send `.toolRan`. A KV cache kept
+across turns is a later milestone with its own memory measurement
+(F-5 B): 2.2 GB of weights leave little room to guess.
+
+### What is measured, and what is owed
+
+- **Measured on this Mac** (INSTRUMENTS §71, `swift run bakeoff session`):
+  what one turn prefills with a fresh session and with a kept one, in
+  characters, and the re-seed's cost.
+- **Owed — the phone** (D-123): AC-315 (turn two's first token with the
+  coach's 5 100 characters and 15 tools; twenty turns that call their
+  tools every time), AC-323 (PROBE-R: the retry on the real model),
+  AC-316's "the demo runs" on a device.
+
 ## The rails — cross-cutting, everything rides on them
 
 ```
@@ -2697,6 +2879,13 @@ variable, and every fault of that afternoon was findable in one command
 | Heat at the door — the second moment, and its `.critical`-only default (4y) | `Diagnostics/ThermalPolicy.swift` — `GenerationThermalPolicy` |
 | The deadline — one writer for the stream, the sleeper cancelled with the race (4y) | `MultiModalKitMLX/MLXReplyGenerator.swift`, `Conversation/AppleReplyGenerator.swift` |
 | What the doors refuse, as an error rather than a trap (AC-241) | `Runtime/AIRuntime.swift`, `Conversation/TurnCoordinator+Config.swift` |
+| The mind's SESSION seam — a session a test can fake (5b) | `Conversation/MindSession.swift` |
+| Which session answers a call — continue, seed, aside; the window rule; the one re-ask (5b) | `Conversation/SessionKeeper.swift` |
+| The Apple session — typed replay of tool calls, this answer's tools (5b) | `Conversation/AppleReplyGenerator+Session.swift` |
+| The Apple failure table as one value — the run and the keeper read it (5b) | `Conversation/AppleReplyGenerator+Failures.swift` |
+| One use of a tool, as a record; a repeat answered from it (5b) | `Conversation/ToolUse.swift`, `Conversation/ReplyTool.swift` — `ToolTable.replaying` |
+| The warm's end as an event — `whenWarm()` (5b) | `MultiModalKitMLX/WarmWatch.swift`, `MultiModalKitMLX/LocalMind.swift` |
+| The retry's vendor fact, measured on a phone — PROBE-R (5b) | `Demo/TranscribeDemo/Sources/Instruments/RetryProbe.swift` |
 | The pipeline wired for real — through the door | `Demo/TranscribeDemo/Sources/Model/TranscribeModel+Pipeline.swift`, `Sources/AudioDemo/AudioDemo.swift` |
 
 ## The shape in numbers — generated, never typed
