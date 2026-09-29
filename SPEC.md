@@ -7925,4 +7925,5 @@ One session on Ryad's iPhone, after the merge:
 4. **5a's AC-300**, still owed: lock five minutes mid-download; kill and
    relaunch mid-transfer; the system's background wake-up.
 
-Then the tag 0.4.0 — on Ryad's word (D-123).
+The tag 0.4.0 was made on Ryad's word right after the merge (`ed1d6b4`), before this
+session (D-125). The rows above stay owed; the tag note says so.
