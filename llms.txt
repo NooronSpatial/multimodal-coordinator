@@ -34,5 +34,5 @@
 - Design forks are the owner's to rule: present options with trade-offs and one recommendation; never decide one.
 - SPEC first, then tests (red before green, waits on events never on time), then code; 20× before a test phase is done; never rewrite history.
 - Both generator inits throw; GenerationOptions.tools nil ≠ .empty; a number is a number (one ToolValue case); isRequired and requiresConfirmation have no default; the confirmation "yes" binds to a tool NAME.
-- One AppleReplyGenerator is one conversation (a final class since 5b); a generator that wraps another must forward endConversation(); ReplyUpdate and ReplyFailure grew (.toolRan, .unexplained) — an exhaustive switch must handle them.
+- One AppleReplyGenerator is one conversation (a final class since 5b); a generator that wraps another must forward endConversation(); ReplyUpdate and ReplyFailure grew (.toolRan, .unexplained) — an exhaustive switch must handle them; since 5c TurnFailure.generationFailed carries the ReplyFailure (it carried a String).
 - Measured claims live in INSTRUMENTS.md; a Mac number is the shape, the phone decides.
