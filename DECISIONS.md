@@ -5694,3 +5694,43 @@ or lint configuration changed).
 
 - *Rejected:* waiting for the phone session, as D-123 planned — it holds
   the diet app's release until then.
+
+## D-126 — F-18 A confirmed on the phone by PROBE-R, and kept; C measured faster and not adopted (Milestone 5b)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("Keep A") · **Ruling:** F-18
+= A stands — now on evidence, as D-122 required ("stands until PROBE-R says
+otherwise").
+
+**The evidence** (`docs/evidence/5b/probe-r-2026-09-29-iphone.md`,
+INSTRUMENTS §72): three trials on Ryad's iPhone, the Apple model
+`available`. Each trial ran the tool once and failed the turn on purpose,
+then asked again three ways.
+
+- **A — replay** (what 0.4.0 does): no body ran twice in 3 of 3 — the
+  model called `log_weight` AGAIN every time, and every repeat was answered
+  from its record; a reply every time. First word after the re-ask: 6 714,
+  2 831, 1 368 ms.
+- **B — seeded, same words:** "I already logged 84 kilos" — the question
+  shown twice reads to the model as a person repeating themselves. It
+  re-called the tool in 2 of 3.
+- **C — seeded, empty prompt:** the fastest — 2 791, 681, 683 ms — with no
+  re-call and natural wording. The empty prompt worked 3 of 3, on one
+  phone and one OS.
+
+**What it confirms beyond F-18:** F-16 A. The model re-calls a tool it has
+already called (5 of 6 re-asks across A and B); without the records each
+of those is a second write.
+
+- *Rejected again:* **C** — faster by roughly 0.7 to 2 s warm, but it rests
+  on an undocumented empty prompt measured on one phone and one OS, and it
+  needs a new session shape (a seed ending at a tool's output): new code
+  for a path that runs only after the vendor has already failed once.
+  **B** — the wording.
+- **Revisit when** the diet app's trace shows `mindReplyRetried` more than
+  rarely: then the retry's latency is worth buying, and C's numbers are
+  here.
+
+**What PROBE-R did not measure: the trigger.** The injected fault came back
+as a `ToolCallError` (the vendor wraps a tool's throw), which the library
+NAMES and does not retry. The probe measured the re-ask; the vendor's own
+unnamed failure cannot be summoned, and the field will show it.
