@@ -7247,7 +7247,7 @@ Ryad's gate: nothing here claims a phone number. The raw logs are in
 | AC-297 the re-entry door | **met, the Mac half** — the file lands with nobody tapping, while a second life holds its completion handler. The handler being CALLED rides on `urlSessionDidFinishEvents`, which macOS never sends (measured: 40 s, never called) — a **phone** row | `ModelDownloaderReentryTests` |
 | AC-298 the old truths updated | **met** — `MLXInstallSuspendTests` flipped: it now fails if the default fetcher leaves the downloader, if the vendor's crashing background flag appears, or if the doc loses the new sentence. D-114 records the reversal of D-106 F-2 and F-3 | `MLXInstallSuspendTests`, D-114 |
 | AC-299 nothing else moved | **met** — 901 tests in 131 suites green (pre-5a suites included); `HubWeightsFetcher` still conforms and is still public; the demo builds and runs | the suite |
-| AC-300 the demo, on hardware | **built and run** — the Models tab shows four rows through `any ModelBacked` with a size, a percentage and a Delete; the app delegate's one line hands the wake-up over; the full cycle (size → 35 % → installed → deleted) driven by hand on an iPhone 17 simulator. The three **phone** rows are **owed** (Ryad's gate) | `models-screen-2026-09-22.png`, `simulator-2026-09-22-background-session.md` |
+| AC-300 the demo, on hardware | **built and run** — the Models tab shows four rows through `any ModelBacked` with a size, a percentage and a Delete; the app delegate's one line hands the wake-up over; the full cycle (size → 35 % → installed → deleted) driven by hand on an iPhone 17 simulator. The three **phone** rows: **done on Ryad's iPhone, 2026-09-29** — his report; no numbers were recorded (`docs/evidence/5b/phone-session-2026-09-29.md`) | `models-screen-2026-09-22.png`, `simulator-2026-09-22-background-session.md` |
 | AC-301 INSTRUMENTS §70 | **met** — four engines fetched and deleted against the real Hub with times and MB/s; the listing 25× cheaper than 4x's path; resume overhead and the join counted by the loopback server | §70, two instrument logs |
 | AC-302 the record | **met** — the 20× loop 20 of 20 at `901 tests in 131 suites`, identical every run, no failing log; CI green on every push after the two fix-forwards; lint zero; `INTEGRATE.md` regenerated from `Scripts/api.sh` at `eddc7f5` and `llms.txt`, `ARCHITECTURE.md`, `HOSTS.md`, `COMMANDS.md` updated. The **tag note** is owed until the merge (D-112) | `stability-2026-09-23.txt`, the runner |
 
@@ -7275,6 +7275,9 @@ requirement's own first sentence:
 3. The system relaunches the app in the background when the last file
    lands, and `ModelDownloads.handleEvents` calls the app's completion
    handler once.
+
+*All three done on Ryad's iPhone, 2026-09-29 — reported as done; no
+numbers, and no phone model or iOS version, were recorded (`docs/evidence/5b/phone-session-2026-09-29.md`).*
 
 
 # Milestone 5b — one mind session per conversation (Runtime Phase B, continued) — signed 2026-09-23 (D-116)
@@ -7881,11 +7884,11 @@ maker: the Apple model reports `modelNotReady` on this Mac.
 | AC-309 per-call identity, its own session | **met** | `AppleSessionTests`, `AppleSessionEndingTests` |
 | AC-310 `stop()` retires it | **met** — `stop()` and `clearMemory()` end the conversation; a new one starts from no past | `AppleSessionEndingTests` |
 | AC-311 the memory carries what ran | **met** — `ConversationTurn.tools`; an act with no words is kept (D-119); the bound unchanged | `ConversationMemoryTests+Tools` |
-| AC-312 residency is an event *(D-124 F-21 B)* | **met on this Mac, scripted** — `whenWarm() -> Bool` true at once / when the weights arrive, false when the warm ends without them or nothing is loading, cancellable; the model's wiring on a model with no weights; the ask raised before `prewarm()`'s hop (read from the code). The demo shows the warm's end (compiled). The **live** row needs `MMK_MLX_MODEL` and skips here, saying so | `MLXResidencyTests`, mutations M31…M42 |
+| AC-312 residency is an event *(D-124 F-21 B)* | **met on this Mac, scripted** — `whenWarm() -> Bool` true at once / when the weights arrive, false when the warm ends without them or nothing is loading, cancellable; the model's wiring on a model with no weights; the ask raised before `prewarm()`'s hop (read from the code). The demo shows the warm's end (compiled; run on Ryad's iPhone 2026-09-29, his report). The **live** row needs `MMK_MLX_MODEL` and skips here, saying so | `MLXResidencyTests`, mutations M31…M42 |
 | AC-313 the MLX mind untouched | **met** — `MLXPlainPromptTests` is unchanged since `main`; the contract page says the kept session is the Apple mind's today | `git diff main`, ARCHITECTURE.md |
 | AC-314 INSTRUMENTS §71 | **met, in characters** — 8 644 fixed characters re-read every turn before 5b; 21–30 per turn after turn one with a kept session; 181 807 against 9 127 over twenty turns. The vendor's token count was asked and refused here (`modelNotReady`) | §71, `instruments-71-session-2026-09-29.log` |
 | AC-315 the phone | **OWED** (D-123) — turn two's first token; twenty turns that call their tools | — |
-| AC-316 nothing else moved | **met on this Mac** — 970 tests in 139 suites green, the 20× loop 20 of 20 at `970 tests in 139 suites`, no failing log; CI green on the latest push; lint zero; the demo compiles (signing off). **Owed:** the demo running on a device, and one CI run that hung (below) | the suite, `stability-2026-09-29.txt`, `ci-hang-2026-09-29.md` |
+| AC-316 nothing else moved | **met** — 970 tests in 139 suites green, the 20× loop 20 of 20 at `970 tests in 139 suites`, no failing log; CI green on the latest push; lint zero; the demo compiles, and **ran on Ryad's iPhone** (2026-09-29, his report — built and signed in Xcode's own build, so the Kokoro bundle signed there). Still open: one CI run that hung (below) | the suite, `stability-2026-09-29.txt`, `ci-hang-2026-09-29.md` |
 | AC-317 one reply, one body run | **met** — text caller and coordinator | `AppleRetryTests` |
 | AC-318 no third try | **met** | `AppleRetryTests`, mutation M14 |
 | AC-319 what is never retried | **met** — no tool, a word said, seven named failures, a door failure | `AppleRetryTests`, mutations M9–M11 |
@@ -7921,11 +7924,11 @@ One session on Ryad's iPhone, after the merge:
 2. **AC-315** — the diet app on `main`: turn two's first token against
    3.4 s, with its 5 100 characters and 15 tools; twenty turns of the
    coach's script, a tool called every time one is asked for.
-3. **AC-316, the device half** — the demo runs; the Settings tab shows the
-   local mind's warm end (AC-312's demo half); the Kokoro bundle signs in
-   Xcode's own build.
-4. **5a's AC-300**, still owed: lock five minutes mid-download; kill and
-   relaunch mid-transfer; the system's background wake-up.
+3. ~~**AC-316, the device half**~~ — **done 2026-09-29** (Ryad's report,
+   `docs/evidence/5b/phone-session-2026-09-29.md`).
+4. ~~**5a's AC-300**~~ — **done 2026-09-29**, all three rows (Ryad's report,
+   the same file).
 
 The tag 0.4.0 was made on Ryad's word right after the merge (`ed1d6b4`), before this
-session (D-125). The rows above stay owed; the tag note says so.
+session (D-125); its note calls these rows owed. Since then, three of the four are done
+(2026-09-29): **AC-315 is the one left.**
