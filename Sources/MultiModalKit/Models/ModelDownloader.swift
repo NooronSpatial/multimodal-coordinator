@@ -457,6 +457,9 @@ extension ModelDownloader {
     /// never steps back (AC-291).
     private func restart(_ found: Located) {
         let file = found.file
+        // A BELT, measured (mutation M50): a restart that lands removes the
+        // resume data anyway, and one that fails with fresh data overwrites
+        // it. This saves only the next transfer one wasted resume attempt.
         try? FileManager.default.removeItem(at: file.resumeDataURL)
         let task = session.downloadTask(with: file.source)
         task.taskDescription = file.destination.path
@@ -481,6 +484,10 @@ extension ModelDownloader {
         /// This file's task was started from resume data (§222).
         var fromResume = false
         /// This file was already fetched again from the start, once (§222).
+        /// A BELT, measured (mutation M49): with it gone every row stays
+        /// green, because a restart clears `fromResume`, so the restarted
+        /// task can never trigger a second one. Kept to say "once" outright
+        /// rather than leave it to that coupling.
         var restarted = false
     }
 
