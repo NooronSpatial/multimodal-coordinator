@@ -291,6 +291,17 @@ public actor LocalMindModel: ModelBacked {
         get async { await held.isResident }
     }
 
+    // MARK: 5b — the warm's end, as an event (AC-312, D-124 F-21 B)
+
+    /// The warm, watched (RED skeleton: not wired yet).
+    nonisolated let warm = WarmWatch()
+
+    /// Returns when the weights are resident — `true` — or when there is
+    /// nothing left to wait for — `false` (RED skeleton).
+    public nonisolated func whenWarm() async -> Bool {
+        await warm.whenWarm()
+    }
+
     /// Start the warm-up, at most one at a time.
     func startPrewarm(instructions: String?, maxTokens: Int) {
         guard warmTask == nil else { return }
