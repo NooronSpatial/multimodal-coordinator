@@ -73,10 +73,16 @@ The problem the whole library exists for is one boundary:
 ```
 
 ```
-swift test   →   356 tests in 47 suites, green, run 20× before any milestone closes
+swift test   →   green, and run 20× before any milestone closes
                  (deterministic core; gated engine and speaker suites run real
                   models and real audio where installed, and skip honestly where not)
 ```
+
+The count is not typed on this page. `Scripts/shape.sh` runs the suite
+and prints it, and the last section of [ARCHITECTURE.md](ARCHITECTURE.md),
+*The shape in numbers*, carries that output with the commit it ran at.
+This line said 356 while the suite nearly tripled — a number a person
+keeps in prose drifts (AC-210).
 
 The deterministic core runs on fake time and fake audio: same result on any
 machine, under any load. No sleeps, no "wait a bit and hope", no count-based
@@ -184,7 +190,7 @@ library nothing**, and that is now demonstrated rather than claimed.
 
 ```bash
 swift build
-swift test                          # 356 tests, deterministic
+swift test                          # deterministic (count: ARCHITECTURE.md)
 swift run audio-demo                # terminal: the pump deciding, live
 swift run audio-demo whisper --talk # …and talking back
 swift run bakeoff                   # the transcription bake-off (WER)
@@ -249,53 +255,78 @@ three different bugs can be told apart at a glance.
 
 ## Status
 
-Phases 1–3 complete. Phase 4 complete through milestone **4h**: the
-conversation runs on a Mac and on an iPhone, with two transcription engines,
-two speech synthesizers **and two minds** behind their seams — every seam in
-the library now has two real implementations rather than one and a promise.
+**On `main`, every milestone through 5b is merged** — phases 1–3, phase 4
+from 4a to 4z, then 5a and 5b. The conversation runs on a Mac and on an
+iPhone, with two transcription engines, two minds and three mouths behind
+their seams. Five tags an app can pin:
 
-The second mind is local: Qwen3 through MLX, weights on the device. Measured
-on an iPhone across a 38-turn conversation — 291–315 ms to the first spoken
-word, 2288 MB peak, no memory growth after the third turn, nothing over the
-network once the weights are on disk.
+| Tag | Milestones | What it added |
+|---|---|---|
+| **0.1.0** | up to 4v | the spine, the front door (`AIRuntime`, 4t) and the mind's text contract (4v) |
+| **0.2.0** | 4x, 4w | the model's size before a byte moves; an install that cannot destroy a working model; a first tool |
+| **0.3.0** | 4y, 4z | admission, heat at the door, memory pressure that cancels, a deadline; the tool contract |
+| **0.3.1** | 5a | model downloads: a percentage on every engine, a transfer that survives the background, a delete |
+| **0.4.0** | 5b | the Apple mind keeps one session per conversation; a reply that fails for no named reason after a tool ran is asked again, once |
+
+**0.4.0 was tagged before its phone session, on purpose** (D-125). That
+session is next. If it overturns the retry's design, the fix ships as
+0.4.1 — a pushed tag is never moved.
+
+**What changed after 4h, measured on the phone.** All the local models fit
+at once: the Whisper ear, the 4B mind and the Qwen3 voice worked together
+with 934 MB to spare ([INSTRUMENTS.md](INSTRUMENTS.md) §29). Nineteen
+minutes and 58 turns showed **no decay** — first word, median 323 ms over
+the first ten turns and 317 ms over the last ten — and free memory fell by
+7 MB (§40). The mind now sees the earlier turns of the conversation (4r).
+And the default mouth changed: **Kokoro-82M** replaced the Qwen3 voice,
+about **six times faster** on the same phone (§55, D-084).
 
 **Open, and named rather than buried:**
 
-- The neural voice is unpleasant. Kept deliberately (D-050) as the seam's
-  second implementation; making it pleasant is deferred, with the levers
-  already measured and rejected written down so the next attempt does not
-  repeat them.
-- A reply rendered on the **capture** engine — so the platform's echo canceller
-  can see it — is SOLVED on iOS (4g): the shield matrix measured the graph
-  arrangement, the canceller took an audible tone from the disease's 1.0 down
-  to 0.004–0.08, and a field conversation on the loudspeaker no longer barges
-  itself. Two honest residues: Apple's mouth (via `write()`) still self-barges
-  INTERMITTENTLY — suspects and instruments recorded, investigation open — and
-  the fallback-loudly path (AC-123) is not built.
-- AC-102 still owes an iPhone stop-latency number and a thermal number. The
-  phone gets hot; how hot has not been written down. 4h narrowed this a
-  little without closing it: 38 turns of local inference showed no latency
-  decay, which is evidence about that length and no argument at all about a
-  twenty-minute session.
-- The local 4B mind (2239 MB) and the neural voice (1112 MB) **cannot run
-  together** — measured, and iOS kills the app near 3351 MB. The demo refuses
-  the pair by name instead of dying. That is a guard, not a cure; the cure is
-  an open fork.
-- The neural decode's **batching pin** (`concurrentWorkerCount = 1`) is still
-  untested, and the `TTSDecoding` seam does not change that: the fault it
-  prevents lives in the vendor's own branching, which a scripted decoder
-  cannot reproduce. Its guarantee rests on reading TTSKit's source.
+- **The newest promises still owe their phone rows.** One session is
+  planned for them (SPEC §214): the retry probe (AC-323); turn two's first
+  token and twenty turns that call their tools (AC-315); the demo running
+  on a device (AC-316); and 5a's three — a download that keeps going while
+  the phone is locked for five minutes, a killed app that resumes with a
+  range request, and the system waking the app when the last file lands
+  (AC-300). 4z's live tool rows for the Apple mind are owed too (SPEC §198).
+- **One CI run never finished** (5b, piece R): twelve silent minutes,
+  cancelled by hand. Its re-run passed, and so did the whole suite on a
+  one-thread pool. Not explained yet; the log is kept (SPEC §214).
+- **Kokoro's clean result is a Mac number.** No silent gaps and WER 0.000
+  over ten draws (§57) — but on a Mac, where it decodes faster than on the
+  phone. Until the phone repeats it, the cushion built for the Qwen3 voice
+  stays (D-084). That voice stays too, behind the lever: it sounds good to
+  the ear now (§42), but on the phone it decodes slower than it speaks
+  (§55).
+- **Self-barge is cured on one mouth, not on all.** Since 4g every reply
+  plays through the capture engine, where the echo canceller can see it
+  (D-060). What still leaked is told apart by how long it lasts, not how
+  loud it is (§43), so a 600 ms barge window stopped it on the Qwen3 voice
+  — and a real interruption still landed *"immediately"* (D-071, §45).
+  Kokoro's first field session heard no echo (D-087). Apple's mouth still
+  cuts itself sometimes: its 22 kHz resampling path is the convicted
+  suspect, and its leak has never been timed (§45). The loud fallback for a
+  device where that graph cannot start (AC-123) is still not built.
+- **Heat is measured now, and it arrives fast.** The phone reached
+  `serious` about two minutes into a session and did not come back down in
+  nineteen minutes (§40). Still owed: the cool-down curve after stopping —
+  the one attempt was spoiled by the phone's hotspot — and the phone's stop
+  latency, from a barge to silence (AC-102).
+- **English first.** Arabic was started — the ear measured, a first
+  conversation held on the phone (§62–§63) — and then parked (D-100). The
+  default mouth pronounces English only (D-084).
+- The Qwen3 voice's **batching pin** (`concurrentWorkerCount = 1`) is still
+  untested; its guarantee rests on reading TTSKit's source.
 - `graph-probe`'s control case — detach after `engine.stop()` — **does not
-  reproduce on a plain Mac engine** (INSTRUMENTS §20). The abort that cost 4e
-  an afternoon needed voice processing or a session teardown, so that one
-  case still needs a phone.
-- ~~A liveness hole (D-055)~~ **— found, measured, and CLOSED before the
-  merge.** A reply could be stranded, fully decoded and silent, if the
-  playback lead was larger than the whole reply and the token stream closed
-  after the last decode. Three separate places were answering one question
-  and one of them asked a smaller version of it; they now go through a
-  single funnel (D-055 = B, INSTRUMENTS §21). Found by the adversarial
-  review of the TTS seam, which is the argument for D-041 in one line.
+  reproduce on a plain Mac engine** (§20). It needed voice processing or a
+  session teardown, so that one case still needs a phone.
 
-See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md) — D-045…D-060 carry
-phase 4's rulings.
+**Taken back since the last update:** *"The local 4B mind (2239 MB) and the
+neural voice (1112 MB) cannot run together."* The 1112 MB was a Mac's
+count. CoreML memory-maps its weights, so on the phone the voice costs
+111 MB (§29). What survives is the order: the voice loads before the mind,
+while the phone has the most memory free.
+
+See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md): D-029…D-113 carry
+the rulings from 4a to 4z, D-114 carries 5a's, and D-116…D-125 carry 5b's.
