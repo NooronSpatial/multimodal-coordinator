@@ -281,3 +281,21 @@ struct CoordinatorRig {
         await coordinator.stop()
     }
 }
+
+extension FakeSessionMaker {
+    /// A script in which `prompt`'s asks follow `plans` in order — its first
+    /// ask, then its re-ask — while every other prompt, and any ask after
+    /// the plans run out, is answered plainly (5b piece 3b).
+    static func script(_ prompt: String,
+                       asks plans: [FakeSession.Plan]) -> @Sendable (String) -> FakeSession.Plan {
+        let asked = Mutex(0)
+        return { said in
+            guard said == prompt else { return .answers(["Answer to \(said)."]) }
+            let index = asked.withLock { index in
+                defer { index += 1 }
+                return index
+            }
+            return index < plans.count ? plans[index] : .answers(["Answer to \(said)."])
+        }
+    }
+}
