@@ -8106,3 +8106,52 @@ that run is not known. Kept with its full log
 
 **Not checked:** the diet app's AC-6…AC-9, whose text this session never
 read (D-128); the spec was built from Ryad's summary of R-3.
+
+
+# The stale resume (a 5a bug found by 5c's loop) — DRAFT, for Ryad's sign-off
+
+*Ruled in D-129 (the order, and F-24 A); this section only turns the ruling
+into rows.*
+
+## §222 — the fix
+
+```
+ stop mid-file ──▶ resume data kept (5a F-4 A)      ──▶ next attempt RESUMES from it
+                                                          │
+                     the system's partial is GONE ────────┤ fails (run 13: POSIX 2)
+                                                          ▼
+ today:  the stale data stays → every later attempt fails the same way, until a delete
+ D-129:  drop the stale data → download that file from the start, ONCE → it lands
+```
+
+**The trigger, exactly:** a task started FROM resume data ends with an error
+that is not a cancel, and the failure carries NO fresh resume data (there is
+nothing left to resume from — the data is stale). A resumed task that fails
+WITH fresh resume data keeps it, and fails as today: the next attempt
+resumes from the new point. A fresh download's failure is reported as today.
+
+**What the person sees:** the transfer goes on. The fraction PAUSES while
+the file refetches the part it lost, and never steps back: `wrote` already
+reports only upward (AC-291 holds as it is).
+
+### Acceptance criteria (AC-331 … AC-334)
+
+- **AC-331 — a lost partial restarts once, and the file lands.** After a
+  stop, the system's partial is removed; the next transfer's resume fails,
+  the file is downloaded from the start, and the transfer finishes whole;
+  no resume data is left; the fraction never steps back.
+- **AC-332 — once, never a loop.** If the restart fails too, the transfer
+  fails with `.transferFailed` — no third attempt.
+- **AC-333 — fresh resume data is not stale.** A resumed task that fails
+  with fresh resume data keeps it and fails as today.
+- **AC-334 — nothing else moved.** 5a's resume rows (a cancel keeps resume
+  data; the next transfer sends one Range and never pays twice) stay green.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-331 | `ModelDownloaderTests` · "a resume whose partial is gone restarts the file once, and it lands" | loopback server, background session, the partial deleted on purpose |
+| AC-332 | `ModelDownloaderTests` · "a restart that fails too ends the transfer — no third attempt" | loopback server, foreground session (a background one retries a drop for days) |
+| AC-333 | `ModelDownloaderTests` · "a resumed task that fails with fresh resume data keeps it" | foreground session |
+| AC-334 | 5a's resume rows, unchanged | — |
