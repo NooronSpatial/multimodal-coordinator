@@ -108,6 +108,13 @@ struct SettingsTab: View {
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .textSelection(.enabled)
                         }
+                        // 5b, AC-312: the warm's end, heard — not polled.
+                        if let warmth = model.mindAssets.warmth {
+                            Text(warmth)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         if let fraction = model.mindAssets.downloadProgress {
                             ProgressView(value: fraction)
                         } else if model.mindAssets.unavailable?.contains("not downloaded") == true {
@@ -125,7 +132,7 @@ struct SettingsTab: View {
                         // not sufficient (the Simulator lied, INSTRUMENTS
                         // §22); a failed first turn still tells the truth.
                         Text(model.mindAssets.unavailable
-                             ?? "on-device model ready · answers are spoken, one session per turn")
+                             ?? "on-device model ready · answers are spoken, one session per conversation")
                             .font(.caption2)
                             .foregroundStyle(model.mindAssets.unavailable == nil
                                              ? AnyShapeStyle(.secondary)

@@ -24,4 +24,13 @@ final class MindAssetsState {
     /// Why the local mind cannot be used here, or nil.
     var unavailable: String?
 
+    /// How the local mind's warm ENDED (5b, AC-312): this demo started a
+    /// warm and never learned its end until the library could say it —
+    /// `LocalMindModel.whenWarm()`, one await, no poll. `nil` before the
+    /// first warm.
+    var warmth: String?
+
+    /// Which warm `warmth` speaks for — the ticket law (§4.1) at demo
+    /// scale: an answer for a warm that a newer one replaced is dropped.
+    var warmTicket = 0
 }

@@ -225,6 +225,7 @@ extension TranscribeModel {
             out += "\(MLXRuntime.peakMemoryBytes / 1_048_576) MB\n"
         }
         if let why = mindAssets.unavailable { out += "mind unavailable: \(why)\n" }
+        if let warmth = mindAssets.warmth { out += "local mind: \(warmth)\n" }
         if let status = mindAssets.downloadStatus { out += "download: \(status)\n" }
         out += "weights expected at: \(localModel.weights.path)\n"
         out += "\nNOTE: the `mind:` line under each turn is the brain that\n"
@@ -395,6 +396,24 @@ extension TranscribeModel {
         await localModel.retire()
     }
 
+    /// THE WARM'S END, SHOWN (5b, AC-312). `prewarm()` raises its ask
+    /// before it returns, so `whenWarm()` right after it cannot miss the
+    /// warm; the answer is one await — the event that replaced the diet
+    /// app's 200 ms poll. A newer warm makes this one's answer stale.
+    private func showWarmEnd() {
+        mindAssets.warmTicket += 1
+        let ticket = mindAssets.warmTicket
+        mindAssets.warmth = "warming the local mind…"
+        let model = localModel
+        Task {
+            let warm = await model.whenWarm()
+            guard ticket == mindAssets.warmTicket else { return }
+            mindAssets.warmth = warm
+                ? "warm: the weights are resident"
+                : "not warm: the warm ended without the weights"
+        }
+    }
+
     /// The other half of `retireLocalMind()`: back in the foreground, warm
     /// the mind again so the next reply does not pay for the retirement.
     func rewarmMind() {
@@ -435,6 +454,7 @@ extension TranscribeModel {
                 do {
                     try localMind.prewarm()   // the measured 1.7 s load, paid off-turn
                     mindAssets.unavailable = nil
+                    showWarmEnd()
                 } catch {
                     // 4z (AC-289): the app's OWN table cannot be shown —
                     // the library's sentence on the caption, and the
