@@ -21,9 +21,12 @@
 /// ## The name, and what it does NOT yet do (D-093, F-5)
 ///
 /// `AIRuntime` is the destination's name, taken early by ruling. Today it
-/// composes a voice conversation and nothing else: it **cannot see, cannot
-/// call a tool, has no permission layer and no model router.** Read the
-/// name as a direction, not a claim.
+/// composes a voice conversation: its mind may call the tools the app
+/// grants (4z), and the Apple mind keeps one session for the conversation
+/// (5b). It **cannot see, has no permission layer beyond a per-call yes
+/// for a flagged tool, and no model router.** Read the name as a
+/// direction, not a claim. (Re-checked for 5b, SPEC §212: the list said
+/// "cannot call a tool" from 4t until here, which 4z had made false.)
 ///
 /// ## The three rules it turns from comments into mechanism
 ///

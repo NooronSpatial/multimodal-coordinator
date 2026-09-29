@@ -1,0 +1,102 @@
+# 5b piece 1 — four mutations, never committed, each reverted (both files compared byte-for-byte after)
+# command per mutation: swift test --filter AppleSessionTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4)
+#
+# M1  SessionKeeper: the busy guard removed        (if !kept.busy, kept.holds == history  →  if kept.holds == history)
+#     convicted by: "a session whose answer was cut is never asked again..." (AC-306's core)
+# M2  AppleToolAdapter: the yes captured at birth   (route → a copy of the route's state at init)
+#     convicted by: "a tool made once for the session honours each answer's own yes"
+# M3  SessionKeeper: the identity guard removed     (the .aside line deleted)
+#     convicted by: both AC-309 rows
+# M4  SessionKeeper: the check AFTER the stream removed (try Task.checkCancellation() before finished(...))
+#     SURVIVES — nine of nine green. It is a belt: equality is the primary guard. An answer the vendor
+#     finished but whose listener was cut is written by the memory as interrupted (or refused, when no
+#     word got through), so the next history never equals what the session holds. Kept, and said so.
+
+################ M1-busy-guard-removed
+􁁛  Test "ten turns, one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "turn ten sends the model its new words and nothing else (AC-303)" passed after 0.001 seconds.
+􁁛  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "the instructions and the tools are given once, at the session's birth (AC-304)" passed after 0.001 seconds.
+􁁛  Test "the same table on every call keeps one session (AC-304, the demo's shape)" passed after 0.001 seconds.
+􁁛  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" passed after 0.001 seconds.
+􀢄  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" recorded an issue at AppleSessionTests.swift:209:9: Expectation failed: maker.made.count == 2
+􀄵  maker.made.count == 2 → false
+􀄵    maker.made.count → 1
+􀢄  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" recorded an issue at AppleSessionTests.swift:211:9: Expectation failed: maker.sessions.first?.asked.map(\.prompt) == ["question 1"]
+􀄵  maker.sessions.first?.asked.map(\.prompt) == ["question 1"] → false
+􀄵    maker.sessions.first?.asked.map(\.prompt) → ["question 1", "question 1 question 2"]
+􀄵      some → ["question 1", "question 1 question 2"]
+􀄵      some → ["question 1"]
+􀢄  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" failed after 0.003 seconds with 2 issues.
+􁁛  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􁁛  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􀢄  Suite "AC-303/304/306/309 · one session for many turns" failed after 0.008 seconds with 2 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.008 seconds with 2 issues.
+
+################ M2-yes-captured-at-birth
+􁁛  Test "ten turns, one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "turn ten sends the model its new words and nothing else (AC-303)" passed after 0.001 seconds.
+􁁛  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "the instructions and the tools are given once, at the session's birth (AC-304)" passed after 0.001 seconds.
+􁁛  Test "the same table on every call keeps one session (AC-304, the demo's shape)" passed after 0.001 seconds.
+􀢄  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" recorded an issue at AppleSessionTests.swift:179:9: Expectation failed: first == "Deleted."
+􀄵  first == "Deleted." → false
+􀄵    first → "tool 'delete_meal' needs the person's confirmation: ask them, and call it again once they have said yes"
+􀢄  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" recorded an issue at AppleSessionTests.swift:182:9: Expectation failed: runs.withLock { $0 } == 1
+􀄵  runs.withLock { $0 } == 1 → false
+􀄵    runs.withLock { $0 } → 0
+􀢄  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" failed after 0.001 seconds with 2 issues.
+􁁛  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" passed after 0.001 seconds.
+􁁛  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􁁛  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􀢄  Suite "AC-303/304/306/309 · one session for many turns" failed after 0.006 seconds with 2 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.006 seconds with 2 issues.
+
+################ M3-identity-guard-removed
+􁁛  Test "ten turns, one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "turn ten sends the model its new words and nothing else (AC-303)" passed after 0.001 seconds.
+􁁛  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "the instructions and the tools are given once, at the session's birth (AC-304)" passed after 0.001 seconds.
+􁁛  Test "the same table on every call keeps one session (AC-304, the demo's shape)" passed after 0.001 seconds.
+􁁛  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" passed after 0.001 seconds.
+􁁛  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" passed after 0.001 seconds.
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:232:9: Expectation failed: maker.made.map(\.instructions) == ["speak briefly", "reply as JSON"]
+􀄵  maker.made.map(\.instructions) == ["speak briefly", "reply as JSON"] → false
+􀄵    maker.made.map(\.instructions) → [Optional("speak briefly"), Optional("speak briefly")]
+􀄵    ["speak briefly", "reply as JSON"] → [Optional("speak briefly"), Optional("reply as JSON")]
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:234:9: Expectation failed: maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"]
+􀄵  maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"] → false
+􀄵    maker.sessions.first?.asked.map(\.prompt) → ["question 1", "question 2", "summarise today"]
+􀄵      some → ["question 1", "question 2", "summarise today"]
+􀄵      some → ["question 1", "question 2", "question 3"]
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:236:9: Expectation failed: maker.sessions.last?.asked.map(\.prompt) == ["summarise today"]
+􀄵  maker.sessions.last?.asked.map(\.prompt) == ["summarise today"] → false
+􀄵    maker.sessions.last?.asked.map(\.prompt) → ["question 3"]
+􀄵      some → ["question 3"]
+􀄵      some → ["summarise today"]
+􀢄  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" failed after 0.001 seconds with 3 issues.
+􀢄  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:253:9: Expectation failed: maker.made.map(\.tools) == [Self.logWeight, .empty]
+􀄵  maker.made.map(\.tools) == [Self.logWeight, .empty] → false
+􀄵    maker.made.map(\.tools) → [MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))])]
+􀄵    [Self.logWeight, .empty] → [MultiModalKit.ToolTable(tools: [MultiModalKit.ReplyTool(name: "log_weight", description: "records today\'s weight", parameters: [MultiModalKit.ToolParameter(name: "kg", description: "the weight in kilograms", kind: MultiModalKit.ToolParameter.Kind.number, isRequired: true, range: nil, showsRange: false)], requiresConfirmation: false, body: (Function))]), MultiModalKit.ToolTable(tools: [])]
+􀢄  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" recorded an issue at AppleSessionTests.swift:254:9: Expectation failed: maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"]
+􀄵  maker.sessions.first?.asked.map(\.prompt) == ["question 1", "question 2", "question 3"] → false
+􀄵    maker.sessions.first?.asked.map(\.prompt) → ["question 1", "question 2", "no tools for this one"]
+􀄵      some → ["question 1", "question 2", "no tools for this one"]
+􀄵      some → ["question 1", "question 2", "question 3"]
+􀢄  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" failed after 0.003 seconds with 2 issues.
+􀢄  Suite "AC-303/304/306/309 · one session for many turns" failed after 0.009 seconds with 5 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.009 seconds with 5 issues.
+
+################ M4-after-stream-check-removed
+􁁛  Test "ten turns, one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "turn ten sends the model its new words and nothing else (AC-303)" passed after 0.001 seconds.
+􁁛  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" passed after 0.001 seconds.
+􁁛  Test "the instructions and the tools are given once, at the session's birth (AC-304)" passed after 0.001 seconds.
+􁁛  Test "the same table on every call keeps one session (AC-304, the demo's shape)" passed after 0.001 seconds.
+􁁛  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" passed after 0.001 seconds.
+􁁛  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" passed after 0.001 seconds.
+􁁛  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􁁛  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􁁛  Suite "AC-303/304/306/309 · one session for many turns" passed after 0.005 seconds.
+􁁛  Test run with 9 tests in 1 suite passed after 0.005 seconds.

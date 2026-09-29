@@ -192,7 +192,7 @@ struct AppleToolTests {
 
     // MARK: the vendor facts the session builder's comment cites (AC-227)
 
-    /// `AppleReplyGenerator.session` says two measured things about the
+    /// `AppleSession.entries` says two measured things about the
     /// vendor; these two tests are the machine guarding them (§2/3), so
     /// a vendor update that changes either turns a comment's "measured"
     /// into a red instead of a stale sentence. Neither needs the model
@@ -215,7 +215,7 @@ struct AppleToolTests {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
         let table = ToolTable([ReplyTool(name: "session", description: "reads today's session",
                                          parameters: [], requiresConfirmation: false) { _ in "" }])
-        // Written EMPTY here, exactly as `AppleReplyGenerator.session` writes it.
+        // Written EMPTY here, exactly as `AppleSession.entries` writes it.
         let transcript = Transcript(entries: [.instructions(Transcript.Instructions(
             segments: [.text(Transcript.TextSegment(content: "speak briefly"))],
             toolDefinitions: []))])

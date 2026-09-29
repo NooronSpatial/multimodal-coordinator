@@ -95,6 +95,13 @@ struct ThoughtWitness: ReplyGenerating {
         return WitnessedRun(wrapped: run, heard: context.transcript,
                             mind: mindLabel, report: onTurn)
     }
+
+    /// PASSED ON (5b, D-117 F-9 A): a wrapper that kept the protocol's
+    /// do-nothing default would swallow the end of the conversation, and
+    /// the Apple mind inside would keep a session nobody will ask again.
+    func endConversation() async {
+        await wrapped.endConversation()
+    }
 }
 
 /// One turn, as it really happened, for sharing off the phone.
@@ -186,6 +193,7 @@ final class WitnessedRun: ReplyRun, @unchecked Sendable {
                     text += token
                 case .failed(let why): failure = why.description; sawTerminal = true
                 case .finished: sawTerminal = true
+                case .toolRan: break   // forwarded below like every update (5b); the report is words
                 }
                 out.yield(update)
             }

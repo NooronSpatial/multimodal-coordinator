@@ -1,0 +1,119 @@
+# 5b piece 4 — RED: the warm's end is an event (AC-312; D-116 F-7 A, D-124 F-21 B)
+# command: swift test --skip-build --filter "MLXResidency|MLXPrewarmOrderTests"   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors)
+# Against a skeleton with the shape — WarmWatch (asked/askEnded/loadBegan/loadEnded/retired, isWarming,
+# whenWarm, waitersSeen) and LocalMindModel.whenWarm() — and none of the judgment: the watch answers false
+# at once and records nothing, the model reports nothing into it, prewarm() raises no ask.
+# Expected RED: at once when resident, true when the weights arrive, false when the warm ends without them,
+# an ask keeps it waiting, cancellable, the model's warm answers its waiter, the ask before the hop (read
+# from the code). Expected GREEN here, as GUARDS: 'false at once when nothing is resident and nothing is
+# loading' — the watch's and the model's; a skeleton answering false passes them, and a mutation after
+# GREEN must show their teeth (answering 'true at once', or waiting).
+# The live row SKIPS on this Mac and says so: no MMK_MLX_MODEL. Every event wait is capped at 10 s.
+
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-312 · prewarm() raises the ask before its hop" started.
+􀟈  Suite "AC-312 · the warm's end is an event" started.
+􀟈  Suite "AC-312 · a real warm's end, when this machine has the model" started.
+􀟈  Test "in prewarm(), the ask comes before the Task that hops to the model" started.
+􀟈  Test "the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)" started.
+􀟈  Test "cancellable: a cancelled wait returns at once, with what is true then (AC-312)" started.
+􀟈  Test "false when the warm ends without the weights — the spinner always stops (D-124 F-21 B)" started.
+􀟈  Test "returns at once when the weights are already resident (AC-312)" started.
+􀟈  Test "an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)" started.
+􀟈  Test "a waiter is answered true when the load in flight ends with the weights (AC-312)" started.
+􀟈  Test "the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)" started.
+􀟈  Test "false at once when nothing is resident and nothing is loading (D-124 F-21 B)" started.
+􀟈  Test "prewarm(), then whenWarm(): true once the real weights are resident — and at once after (AC-312)" started.
+SKIPPED (no MMK_MLX_MODEL or no shader library) — set MMK_MLX_MODEL and run Scripts/metallib.sh to make this test REAL
+􀢄  Test "returns at once when the weights are already resident (AC-312)" recorded an issue at MLXResidencyTests.swift:56:9: Expectation failed: await watch.whenWarm() == true
+􀄵  await watch.whenWarm() == true → <not evaluated>
+􀢄  Test "returns at once when the weights are already resident (AC-312)" failed after 0.001 seconds with 1 issue.
+􁁛  Test "false at once when nothing is resident and nothing is loading (D-124 F-21 B)" passed after 0.001 seconds.
+􁁛  Test "prewarm(), then whenWarm(): true once the real weights are resident — and at once after (AC-312)" passed after 0.001 seconds.
+􁁛  Suite "AC-312 · a real warm's end, when this machine has the model" passed after 0.001 seconds.
+􁁛  Test "the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)" passed after 0.001 seconds.
+􀢄  Test "an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)" recorded an issue at MLXResidencyTests.swift:91:9: Expectation failed: watch.isWarming
+􀄵  asked and not over is warming
+􀄵  watch.isWarming → false
+􀄵    watch → MultiModalKitMLX.WarmWatch
+􀄵      waitersSeen → MultiModalKitMLX.ThresholdWatch
+􀄵        state → ()
+􀄵    isWarming → false
+􀢄  Test "in prewarm(), the ask comes before the Task that hops to the model" recorded an issue at MLXResidencyTests.swift:153:23: Expectation failed: body.range(of: "model.warm.asked()")
+􀄵  prewarm() must raise the ask
+􀄵  body.range(of: "model.warm.asked()") → nil
+􀄵    body → " {
+             guard let source = source as? MLXTokenSource else { return }
+             let model = source.model
+             let instructions = source.instructions
+             let maxTokens = source.maxTokens
+             // The hop is unavoidable — `prewarm()` is synchronous so it
+             // matches `AppleReplyGenerator.prewarm()` — but it does nothing
+             // except hand the work to the ACTOR, which owns the handle and
+             // can cancel it. Nothing long-running is left un-owned here.
+             Task { await model.startPrewarm(instructions: instructions,
+                                             maxTokens: maxTokens) }
+         }
+     
+         /// The second mind, ready to answer.
+         ///
+         /// - Parameters:
+         ///   - model: the weights, held for the whole conversation.
+         ///   - instructions: how to speak. TEXT belongs to the app, never the
+         ///     library (D-027, and D-057's F-3 for the first mind).
+         ///   - maxTokens: a spoken reply that runs forever is a bug, not a
+         ///     feature. 1024 since 4v (D-103 F-6 = A, AC-233): the cap is a
+         ///     ceiling, not a target — voice replies are short by instruction
+         ///     and the barge-in ends a runaway, while a text caller's whole
+         ///     document needs the room.
+         ///   - tools: what this mind may CALL while it answers (4w, F-2 = A,
+         ///     D-101): handed here, at construction, because tools are policy
+         ///     the app grants — never to the coordinator, which must not
+         ///     learn a `switch` over them. Empty by default, and an empty
+         ///     table leaves the prompt and the loop exactly as they were
+         ///     (AC-227). The run executes a call itself and asks again with
+         ///     the answer (F-1 = B); a name no tool has is answered to the
+         ///     model in words (F-4 = B); at most `ToolRounds.cap` rounds per
+         ///     reply.
+         ///   - thermal: the thermometer (4y, AC-260). The system's by default;
+         ///     a test scripts one.
+         ///   - thermalPolicy: whether a reply may be generated at that hea"
+􀢄  Test "in prewarm(), the ask comes before the Task that hops to the model" failed after 0.003 seconds with 1 issue.
+􀢄  Suite "AC-312 · prewarm() raises the ask before its hop" failed after 0.003 seconds with 1 issue.
+􀄵  /// The claim that makes `prewarm(); await model.whenWarm()` safe is about
+􀄵  /// ORDER inside one function: the ask is raised before the hop to the
+􀄵  /// model's actor, so a `whenWarm()` right after `prewarm()` can never find
+􀄵  /// "nothing loading" in the gap. A race cannot be asked for on cue, so the
+􀄵  /// order is read from the code — the AC-251 / AC-263 shape.
+􀢄  Test "an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)" recorded an issue at MLXResidencyTests.swift:93:9: Expectation failed: registered
+􀄵  registered → <not evaluated>
+􀢄  Test "cancellable: a cancelled wait returns at once, with what is true then (AC-312)" recorded an issue at MLXResidencyTests.swift:104:9: Expectation failed: registered
+􀄵  registered → <not evaluated>
+􀢄  Test "the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)" recorded an issue at MLXResidencyTests.swift:128:9: Expectation failed: registered
+􀄵  the ask is raised: the waiter waits for the warm
+􀄵  registered → <not evaluated>
+􀢄  Test "cancellable: a cancelled wait returns at once, with what is true then (AC-312)" recorded an issue at MLXResidencyTests.swift:107:9: Expectation failed: watch.isWarming
+􀄵  and the warm itself goes on: cancelling a wait cancels no work
+􀄵  watch.isWarming → false
+􀄵    watch → MultiModalKitMLX.WarmWatch
+􀄵      waitersSeen → MultiModalKitMLX.ThresholdWatch
+􀄵        state → ()
+􀄵    isWarming → false
+􀢄  Test "the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)" failed after 10.356 seconds with 1 issue.
+􀢄  Test "an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)" failed after 10.355 seconds with 2 issues.
+􀢄  Test "false when the warm ends without the weights — the spinner always stops (D-124 F-21 B)" recorded an issue at MLXResidencyTests.swift:75:9: Expectation failed: registered
+􀄵  registered → <not evaluated>
+􀢄  Test "cancellable: a cancelled wait returns at once, with what is true then (AC-312)" failed after 10.356 seconds with 2 issues.
+􀢄  Test "a waiter is answered true when the load in flight ends with the weights (AC-312)" recorded an issue at MLXResidencyTests.swift:64:9: Expectation failed: registered
+􀄵  a warm is asked for: the call WAITS, it does not answer at once
+􀄵  registered → <not evaluated>
+􀢄  Test "a waiter is answered true when the load in flight ends with the weights (AC-312)" recorded an issue at MLXResidencyTests.swift:67:9: Expectation failed: await Self.answer(task) == true
+􀄵  await Self.answer(task) == true → <not evaluated>
+􀢄  Test "false when the warm ends without the weights — the spinner always stops (D-124 F-21 B)" failed after 10.356 seconds with 1 issue.
+􀢄  Test "a waiter is answered true when the load in flight ends with the weights (AC-312)" failed after 10.356 seconds with 2 issues.
+􀢄  Suite "AC-312 · the warm's end is an event" failed after 10.357 seconds with 9 issues.
+􀢄  Test run with 10 tests in 3 suites failed after 10.357 seconds with 10 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

@@ -1,0 +1,100 @@
+# 5b piece 4 — mutations M31…M42 against GREEN 970df5b (AC-312; D-116 F-7 A, D-124 F-21 B)
+# Each mutation breaks ONE rule, rebuilds, runs: swift test --skip-build --filter 'MLXResidency|MLXPrewarmOrderTests'
+# then reverts with git checkout. This Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors.
+#
+# FIRST RUN — read it with these corrections:
+#  * M32 (a cancel answers nothing) HUNG: the waiter stayed parked for ever, and the test helper waited on it
+#    inside a task group, so the run passed its one-minute limit and did not end. It was KILLED BY HAND after
+#    about three minutes. The runner then printed 'SURVIVED (masked)' because the killed process had printed
+#    no failure line — THAT LINE IS WRONG: a test that never finishes is red. The helper was the weakness.
+#  * M42 (waits when nothing is on its way) was killed by the one-minute time limit (64 s), not by a check.
+#  * M40 (the catch path of ensureModelLoaded) SURVIVED, as expected: without weights or the shader library the
+#    door refuses before a load begins, so no row on this Mac reaches it. Documented beside the line.
+#  * M35 (startPrewarm's riding ask not lowered) was NOT RUN: it needs a warm that cannot finish while a second
+#    prewarm arrives, and only real weights give that deterministically.
+# FIX: the helper now races the waiter with two unstructured tasks (test support), and every scripted
+# whenWarm() goes through it — a waiter nobody answers fails its row in 10 s.
+# SECOND RUN (M32 and M42 alone, with the fixed helper): both KILLED in about 10 s.
+# RESULT: 7 of 8 run mutations killed; M40 survives by design of this Mac; M35 not run.
+
+=================== FIRST RUN ===================
+## M31 — resident is not answered at once while a warm is still asked
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+KILLED — red rows:
+  - resident while a warm is still asked for: true at once, not after the warm (AC-312)
+􀢄  Test run with 14 tests in 3 suites failed after 10.383 seconds with 1 issue.
+reverted: yes
+
+## M32 — a cancel answers nothing
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+SURVIVED (masked) — every row green
+
+reverted: yes
+
+## M33 — a warm that ends without the weights answers nothing
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+KILLED — red rows:
+  - an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)
+  - false when the warm ends without the weights — the spinner always stops (D-124 F-21 B)
+  - the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)
+􀢄  Test run with 14 tests in 3 suites failed after 10.442 seconds with 3 issues.
+reverted: yes
+
+## M34 — prewarm() raises no ask
+file: Sources/MultiModalKitMLX/LocalMind.swift
+KILLED — red rows:
+  - in prewarm(), the ask comes before the Task that hops to the model
+􀢄  Test run with 14 tests in 3 suites failed after 0.113 seconds with 1 issue.
+reverted: yes
+
+## M37 — the model's retire does not tell the watch
+file: Sources/MultiModalKitMLX/LocalMind.swift
+KILLED — red rows:
+  - the model's retire tells the watch: resident, retired, false (AC-312)
+􀢄  Test run with 14 tests in 3 suites failed after 0.111 seconds with 1 issue.
+reverted: yes
+
+## M39 — a load in flight does not count as warming
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+KILLED — red rows:
+  - a load in flight with no warm asked — a turn's own — is waited for too (AC-312)
+􀢄  Test run with 14 tests in 3 suites failed after 10.275 seconds with 2 issues.
+reverted: yes
+
+## M40 — a failed load is not reported (the catch path)
+file: Sources/MultiModalKitMLX/LocalMind.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 14 tests in 3 suites passed after 0.107 seconds.
+reverted: yes
+
+## M42 — whenWarm waits even when nothing is on its way
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+KILLED — red rows:
+  - after a retire the weights are gone: false at once (AC-312)
+  - false at once when nothing is resident and nothing is loading (D-124 F-21 B)
+  - the model's retire tells the watch: resident, retired, false (AC-312)
+  - the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)
+􀢄  Test run with 14 tests in 3 suites failed after 63.999 seconds with 4 issues.
+reverted: yes
+
+source tree after the run: clean
+
+=================== SECOND RUN: M32 and M42 with the fail-fast helper ===================
+## M32 — a cancel answers nothing
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+KILLED — red rows:
+  - cancellable: a cancelled wait returns at once, with what is true then (AC-312)
+􀢄  Test run with 14 tests in 3 suites failed after 10.655 seconds with 1 issue.
+reverted: yes
+
+## M42 — whenWarm waits even when nothing is on its way
+file: Sources/MultiModalKitMLX/WarmWatch.swift
+KILLED — red rows:
+  - after a retire the weights are gone: false at once (AC-312)
+  - false at once when nothing is resident and nothing is loading (D-124 F-21 B)
+  - the model's retire tells the watch: resident, retired, false (AC-312)
+  - the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)
+􀢄  Test run with 14 tests in 3 suites failed after 10.350 seconds with 4 issues.
+reverted: yes
+
+source tree after the run: clean

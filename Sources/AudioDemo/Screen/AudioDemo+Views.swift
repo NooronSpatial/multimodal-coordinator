@@ -49,6 +49,12 @@ extension AudioDemo {
                 // D-059: the health-side record of a dead turn — the road
                 // the mind's tripwire alarm rides.
                 await screen.log("🩺 turn \(turn) FAILED: \(failure)")
+            case .mindSessionSeeded(let reason, let turns):
+                // 5b: every full prefill of the mind, and why it was paid.
+                await screen.log("🩺 mind session seeded with \(turns) turn(s): \(reason)")
+            case .mindReplyRetried(let words):
+                // 5b §213: an answer asked again after its tools ran.
+                await screen.log("🩺 mind answer asked again after: \(words)")
             }
         }
     }

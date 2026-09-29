@@ -38,7 +38,7 @@ import Testing
 /// source cancels its session task). A source that never finishes on its
 /// own is exactly the slow reply AC-264 is about.
 final class HeldSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable {
-    private let hand = Mutex<AsyncThrowingStream<String, any Error>.Continuation?>(nil)
+    private let hand = Mutex<AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation?>(nil)
     private let cancelled = Mutex(false)
     let signals = RunSignals()
 
@@ -52,7 +52,7 @@ final class HeldSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable {
     var sawCancellation: Bool { cancelled.withLock { $0 } }
 
     func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
+                   instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error> {
         AsyncThrowingStream { continuation in
             hand.withLock { $0 = continuation }
             continuation.onTermination = { [self] reason in
@@ -64,7 +64,7 @@ final class HeldSnapshotSource: ReplySnapshotStreaming, @unchecked Sendable {
     }
 
     /// The test's hand on the vendor: one more cumulative snapshot.
-    func push(_ snapshot: String) { hand.withLock { $0 }?.yield(snapshot) }
+    func push(_ snapshot: String) { hand.withLock { $0 }?.yield(.snapshot(snapshot)) }
     /// The vendor's own ending.
     func finish() { hand.withLock { $0 }?.finish() }
 }

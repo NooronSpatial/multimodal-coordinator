@@ -98,6 +98,7 @@ struct MLXMindLiveTests {
             case .token(let token):
                 if firstTokenAt == nil { firstTokenAt = clock.now }
                 spoken += token
+            case .toolRan: break   // no tools on this mind here
             case .finished, .failed: terminals.append(update)
             }
         }

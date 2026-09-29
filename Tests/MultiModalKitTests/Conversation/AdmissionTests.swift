@@ -275,7 +275,9 @@ struct AdmissionSeamTests {
     }
 
     /// `ReplyFailure` gained `.tooHot(ThermalState)` and nothing else; a
-    /// refusal is still NOT here (D-104).
+    /// refusal is still NOT here (D-104). 5b later added `.unexplained`
+    /// (§213 R-2, D-122 F-20 A) — named in the list below so the switch
+    /// still reaches every case; 4y's claim is about 4y.
     @Test("ReplyFailure gained .tooHot — and still has no .refused (D-104)")
     func replyFailureGainedTooHot() {
         let every: [ReplyFailure] = [.contextWindowExceeded,
@@ -283,11 +285,12 @@ struct AdmissionSeamTests {
                                      .unsupportedLanguage,
                                      .busy,
                                      .tooHot(.critical),
-                                     .engine("the rest")]
+                                     .engine("the rest"),
+                                     .unexplained("no reason given")]
         for failure in every {
             switch failure {
             case .contextWindowExceeded, .unavailable, .unsupportedLanguage,
-                 .busy, .tooHot, .engine:
+                 .busy, .tooHot, .engine, .unexplained:
                 break
             }
         }

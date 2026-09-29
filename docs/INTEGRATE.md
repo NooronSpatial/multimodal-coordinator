@@ -43,6 +43,8 @@ the two hosts a download may contact).
 | `0.3.0` | `228b7e6` | admission and heat (`admit(needing:)`, `.tooHot`, memory pressure, `deadline`) and the tool CONTRACT (typed parameters, one door, tools per call, the confirmation flag, the band). **The tag note lists every public break versus 0.2.0** — `git show 0.3.0`. |
 | `0.3.1` | `145c0dd` | model downloads: `ensureModel(progress:)`, `expectedDownloadBytes()` and `deleteModel()` on `ModelBacked` (no default implementations — every engine writes all five), one background `ModelDownloader` for every engine's bytes, `ModelDownloads.handleEvents` for the system's wake-up, resume kept across a stop, `HubTree` in the core. **The tag note lists every public break versus 0.3.0** — three of them — `git show 0.3.1`. |
 
+| `0.4.0` | *not tagged yet* | one mind session per conversation (5b): the Apple mind keeps ONE vendor session across turns (`MindSession`, `MindSessionMaking`, `AppleSessionMaker`; `AppleReplyGenerator` is a `final class` with `sessions:` and `diagnostics:`), tool calls replayed as tool calls (`ReplyUpdate.toolRan`, `ToolUse`, `Reply.tools`, `ConversationTurn.tools`), `ReplyGenerating.endConversation()`, the reply retry and `ReplyFailure.unexplained`, `HealthEvent.mindSessionSeeded` / `.mindReplyRetried`, `LocalMindModel.whenWarm()`. **The tag waits for the phone session (D-123)**; its note will list every public break versus 0.3.1. |
+
 Pin an exact tag. A `from:` range would let a `throws` land on an init
 you did not write `try` for.
 
@@ -285,7 +287,53 @@ await runtime.run { session in
 The runtime allocates nothing at construction; `run` starts the loop and
 tears everything down in order when its task is cancelled.
 
-## The rules — ten lines
+## 6. One session per conversation, and the retry (5b — "One mind session per conversation")
+
+The Apple mind keeps ONE vendor session for the conversation: turn one
+prefills the instructions and the tool schemas, every later turn sends
+the new words only. Nothing to call — it is how `AppleReplyGenerator`
+answers now. What a caller sees and can use:
+
+```swift
+// Hand it diagnostics to SEE every session's birth and every retry.
+let health = PipelineDiagnostics()
+let mind = try AppleReplyGenerator(instructions: rules, tools: coachTools,
+                                   diagnostics: health)
+for await event in health.health().events {
+    switch event {
+    case .mindSessionSeeded(let why, let turns): print("prefilled again (\(why)), \(turns) turns")
+    case .mindReplyRetried(let words): print("asked again after: \(words)")
+    default: break
+    }
+}
+
+// A text caller keeps its own past — pass it; the tools that ran come back.
+let reply = try await mind.reply(to: ReplyContext(transcript: said, history: past))
+past.append(ConversationTurn(said: said, replied: reply.text, tools: reply.tools))
+
+// The conversation is over: let the session go (the coordinator does this
+// itself on stop() and clearMemory()).
+await mind.endConversation()
+```
+
+- **One generator is one conversation.** It is a `final class` now. An
+  unrelated one-shot question (an estimator, a summary) gets its own
+  generator, or per-call `options.instructions` / `options.tools`, which
+  are answered by a session made ASIDE for that call.
+- **`ReplyFailure.unexplained(words)`** is new: the vendor failed and
+  gave no reason this library can name. When a tool had run and no word
+  had been said, the mind has ALREADY asked again once, answering any
+  repeat of a call from its record, so no write ran twice. An app that
+  switches over `ReplyFailure` exhaustively must add the case — say your
+  own sentence for it.
+- **Your tests can stand in for the Apple model**: conform to
+  `MindSessionMaking` and hand it as `sessions:`.
+- **The MLX mind** keeps no session yet (its KV cache is a later
+  milestone); it gains `await model.whenWarm()` — `true` once the
+  weights are resident, `false` when the warm ended without them — in
+  place of a poll on `isResident`.
+
+## The rules — twelve lines
 
 1. **Both generator inits throw** (`throws(ToolDeclarationError)`): a
    default table no mind can show is refused where it is handed over.
@@ -313,6 +361,12 @@ tears everything down in order when its task is cancelled.
 10. **Measured claims live in `INSTRUMENTS.md`**; the numbers here (4B:
     +419 ms per idle tool, 0.74 ms per parameter character, one round
     ≈ 2.65 s) are this Mac's shape — the phone decides.
+11. **A generator that WRAPS another must forward `endConversation()`.**
+    The protocol's default does nothing, so a wrapper that forgets it
+    keeps the wrapped mind's conversation alive after it ended.
+12. **`ReplyUpdate` and `ReplyFailure` grew in 5b** (`.toolRan`,
+    `.unexplained`). A `switch` without `default` over either stops
+    compiling until it handles the new case — which is the point.
 
 ## For an AI agent integrating this library
 
@@ -345,7 +399,7 @@ default closure `= { … }` folds at its brace). The words are the
 source's; the doc comments beside them say why.
 
 ```
-commit   145c0dd
+commit   356fda6
 
 ## MultiModalKit
   Audio/AudioEvent.swift: public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible
@@ -464,9 +518,13 @@ commit   145c0dd
   Concurrency/StopSignal.swift: public var isOn: Bool
   Concurrency/StopSignal.swift: public func signal()
   Concurrency/StopSignal.swift: public func wait() async
+  Conversation/AppleReplyGenerator+Session.swift: public struct AppleSessionMaker: MindSessionMaking
+  Conversation/AppleReplyGenerator+Session.swift: public init()
+  Conversation/AppleReplyGenerator+Session.swift: public var unavailable: MindUnavailable?
+  Conversation/AppleReplyGenerator+Session.swift: public func makeSession(instructions: String?, tools: ToolTable, seed: [ConversationTurn]) throws -> any MindSession
   Conversation/AppleReplyGenerator.swift: public enum AppleMind
   Conversation/AppleReplyGenerator.swift: public static func readiness() -> MindUnavailable?
-  Conversation/AppleReplyGenerator.swift: public struct AppleReplyGenerator: ReplyGenerating
+  Conversation/AppleReplyGenerator.swift: public final class AppleReplyGenerator: ReplyGenerating
   Conversation/AppleReplyGenerator.swift: public static let defaultTokenBudget = 1024
   Conversation/AppleReplyGenerator.swift: public let instructions: String?
   Conversation/AppleReplyGenerator.swift: public let spokenRefusal: String
@@ -474,7 +532,8 @@ commit   145c0dd
   Conversation/AppleReplyGenerator.swift: public let thermal: any ThermalStateProviding
   Conversation/AppleReplyGenerator.swift: public let thermalPolicy: any GenerationThermalPolicy
   Conversation/AppleReplyGenerator.swift: public let clock: any Clock<Duration>
-  Conversation/AppleReplyGenerator.swift: public init(instructions: String? = nil, spokenRefusal: String = "I can't answer that.", tools: ToolTable = .empty, thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError)
+  Conversation/AppleReplyGenerator.swift: public init(instructions: String? = nil, spokenRefusal: String = "I can't answer that.", tools: ToolTable = .empty, sessions: any MindSessionMaking = AppleSessionMaker(), thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock(), diagnostics: PipelineDiagnostics? = nil) throws(ToolDeclarationError)
+  Conversation/AppleReplyGenerator.swift: public func endConversation() async
   Conversation/AppleReplyGenerator.swift: public static var availability: MindUnavailable?
   Conversation/AppleReplyGenerator.swift: public func prewarm()
   Conversation/AppleReplyGenerator.swift: public func openReply(to context: ReplyContext) async throws -> any ReplyRun
@@ -504,7 +563,8 @@ commit   145c0dd
   Conversation/ConversationMemory.swift: public let said: String
   Conversation/ConversationMemory.swift: public let replied: String
   Conversation/ConversationMemory.swift: public let interrupted: Bool
-  Conversation/ConversationMemory.swift: public init(said: String, replied: String, interrupted: Bool = false)
+  Conversation/ConversationMemory.swift: public let tools: [ToolUse]
+  Conversation/ConversationMemory.swift: public init(said: String, replied: String, interrupted: Bool = false, tools: [ToolUse] = [])
   Conversation/ConversationMemory.swift: public var characters: Int
   Conversation/LatencyReporter.swift: public protocol LatencyReporter: Sendable
   Conversation/MindReadiness.swift: public struct OSVersion: Sendable, Hashable, Comparable, CustomStringConvertible
@@ -535,6 +595,10 @@ commit   145c0dd
   Conversation/MindReadiness.swift: public init(floor: OSVersion, memoryBytes: Int)
   Conversation/MindReadiness.swift: public enum MindReadiness
   Conversation/MindReadiness.swift: public static func verdict(for report: DeviceReport, needs: MindNeeds) -> MindUnavailable?
+  Conversation/MindSession.swift: public enum MindSessionUpdate: Sendable, Equatable
+  Conversation/MindSession.swift: public protocol MindSession: Sendable
+  Conversation/MindSession.swift: public protocol MindSessionMaking: Sendable
+  Conversation/MindSession.swift: public enum SessionSeedReason: Sendable, Equatable
   Conversation/PlaybackLead.swift: public struct PlaybackLead: Sendable
   Conversation/PlaybackLead.swift: public let target: Duration
   Conversation/PlaybackLead.swift: public private(set) var queuedAudio: Duration = .zero
@@ -562,7 +626,8 @@ commit   145c0dd
   Conversation/ReplyContract.swift: public struct Reply: Sendable, Equatable
   Conversation/ReplyContract.swift: public let text: String
   Conversation/ReplyContract.swift: public let stop: StopReason
-  Conversation/ReplyContract.swift: public init(text: String, stop: StopReason)
+  Conversation/ReplyContract.swift: public let tools: [ToolUse]
+  Conversation/ReplyContract.swift: public init(text: String, stop: StopReason, tools: [ToolUse] = [])
   Conversation/ReplyContract.swift: public func reply(to context: ReplyContext) async throws -> Reply
   Conversation/ReplyTool.swift: public enum ToolValue: Sendable, Equatable
   Conversation/ReplyTool.swift: public init(stringLiteral value: String)
@@ -644,6 +709,12 @@ commit   145c0dd
   Conversation/SpeechPhraser.swift: public init(config: Config = Config())
   Conversation/SpeechPhraser.swift: public mutating func feed(_ token: String) -> [String]
   Conversation/SpeechPhraser.swift: public mutating func flush() -> String?
+  Conversation/ToolUse.swift: public struct ToolUse: Sendable, Equatable
+  Conversation/ToolUse.swift: public let name: String
+  Conversation/ToolUse.swift: public let arguments: ToolArguments
+  Conversation/ToolUse.swift: public let outcome: ToolCallOutcome
+  Conversation/ToolUse.swift: public init(name: String, arguments: ToolArguments, outcome: ToolCallOutcome)
+  Conversation/ToolUse.swift: public var characters: Int
   Conversation/TranscriptLedger.swift: public struct TranscriptLedger: Sendable, Equatable
   Conversation/TranscriptLedger.swift: public let maxPieces: Int
   Conversation/TranscriptLedger.swift: public init(maxPieces: Int = 16)
@@ -664,6 +735,7 @@ commit   145c0dd
   Conversation/TurnCoordination.swift: public let options: GenerationOptions
   Conversation/TurnCoordination.swift: public init(transcript: String, history: [ConversationTurn] = [], options: GenerationOptions = GenerationOptions())
   Conversation/TurnCoordination.swift: public protocol ReplyGenerating: Sendable
+  Conversation/TurnCoordination.swift: public func endConversation() async
   Conversation/TurnCoordination.swift: public func openReply(to transcript: String) async throws -> any ReplyRun
   Conversation/TurnCoordination.swift: public enum SynthesisUpdate: Sendable, Equatable
   Conversation/TurnCoordination.swift: public protocol SynthesisRun: Sendable
@@ -688,7 +760,7 @@ commit   145c0dd
   Conversation/TurnCoordinator.swift: public var currentUtterance: Int
   Conversation/TurnCoordinator.swift: public var currentContext: String
   Conversation/TurnCoordinator.swift: public var currentMemory: [ConversationTurn]
-  Conversation/TurnCoordinator.swift: public func clearMemory()
+  Conversation/TurnCoordinator.swift: public func clearMemory() async
   Conversation/TurnCoordinator.swift: public func listen() -> Broadcast<TurnEvent>.Listener
   Conversation/TurnCoordinator.swift: public func run( audio: AsyncStream<AudioEvent>, transcripts: AsyncStream<TranscriptEvent> ) async
   Conversation/TurnCoordinator.swift: public func interrupt() async
@@ -716,6 +788,8 @@ commit   145c0dd
   Diagnostics/PipelineDiagnostics.swift: public func noteSettlingRefusal(utterance: Int, thermal: ThermalState)
   Diagnostics/PipelineDiagnostics.swift: public func noteListenerLoss(listenerID: Int, totalDropped: Int)
   Diagnostics/PipelineDiagnostics.swift: public func noteTurnFailed(turn: Int, failure: TurnFailure)
+  Diagnostics/PipelineDiagnostics.swift: public func noteMindSessionSeeded(_ reason: SessionSeedReason, turns: Int)
+  Diagnostics/PipelineDiagnostics.swift: public func noteMindReplyRetried(after words: String)
   Diagnostics/PipelineSignposter.swift: public struct PipelineSignposter: Sendable
   Diagnostics/PipelineSignposter.swift: public struct Span
   Diagnostics/PipelineSignposter.swift: public func measure<T>(_ name: StaticString, _ body: () throws -> T) rethrows -> T
@@ -845,6 +919,7 @@ commit   145c0dd
   LocalMind.swift: public func ensureModel() async throws
   LocalMind.swift: public func ensureModelLoaded() async throws -> ModelContainer
   LocalMind.swift: public var isResident: Bool
+  LocalMind.swift: public nonisolated func whenWarm() async -> Bool
   LocalMind.swift: public func retire() async
   LocalMind.swift: public func prewarm()
   LocalMind.swift: public init(model: LocalMindModel, instructions: String? = nil, maxTokens: Int = 1024, tools: ToolTable = .empty, thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError)

@@ -68,7 +68,7 @@ private func mindOffRun(_ label: String, _ mind: any ReplyGenerating,
                     text += piece
                     pieces += 1
                 case .failed(let why): failure = why.description
-                case .finished: break
+                case .toolRan, .finished: break   // this instrument times words
                 }
             }
             let total = start.duration(to: clock.now)

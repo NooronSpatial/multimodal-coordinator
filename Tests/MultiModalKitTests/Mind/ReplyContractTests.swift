@@ -173,6 +173,10 @@ struct ReplyContractTests {
     /// above reads nothing about `ReplyFailure` and cannot fail. What
     /// can fail is the switch below — add `.refused` back and, under
     /// warnings-as-errors, this file stops compiling.
+    ///
+    /// It did stop compiling once, ON PURPOSE (5b §213 R-2, D-122 F-20 A):
+    /// `.unexplained` was added, and this switch — the shape the diet app
+    /// has in two places — broke exactly as the tag note says theirs will.
     @Test("ReplyFailure has no .refused case any more — D-104")
     func replyFailureLostItsRefusal() {
         let every: [ReplyFailure] = [.contextWindowExceeded,
@@ -183,16 +187,18 @@ struct ReplyContractTests {
                                      // refused DOOR is a failure — no run
                                      // exists — unlike a refused ANSWER.
                                      .tooHot(.critical),
-                                     .engine("the rest")]
+                                     .engine("the rest"),
+                                     // 5b §213 R-2: the vendor gave no reason.
+                                     .unexplained("tokengeneration Code=10")]
         for failure in every {
             switch failure {
             case .contextWindowExceeded, .unavailable, .unsupportedLanguage,
-                 .busy, .tooHot, .engine:
+                 .busy, .tooHot, .engine, .unexplained:
                 break
             }
         }
         // Not a count of the literal — a count of what the switch
-        // above accepted, one arm per case, all six reached.
+        // above accepted, one arm per case, all seven reached.
         #expect(every.map(String.init(describing:)).count == every.count)
     }
 

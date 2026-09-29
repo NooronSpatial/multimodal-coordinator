@@ -1,0 +1,65 @@
+# 5b piece 3b — RED: the memory's bound against a kept session (AC-308; D-118 F-12 C, D-124 F-22 B)
+# command: swift test --skip-build --filter AppleSessionWindowTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors)
+# No skeleton needed: the rows use only what exists. Against the keeper as 3a left it — a session continues
+# only when it holds EXACTLY the history (equality), and every failure is .lastAnswerFailed.
+# Expected RED: the window rule (six turns at a bound of four, one session), the wall before a word (asked
+# again in a session born from the window), the wall after a word (fails, next turn .contextFull), the wall
+# in a fresh session (no re-ask; the next birth says .contextFull).
+# Expected GREEN here, as GUARDS: 'a re-seed carries the bound, typed' — piece 1 already seeds from the memory's
+# window, so AC-308's first clause was true before 3b; 'memory off re-seeds every turn' — equality already
+# refused a session holding a past when the memory holds none. The window rule must keep both true: its
+# empty-window clause is what the second guards (a mutation after GREEN shows it).
+
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-308 · the memory's bound against a kept session" started.
+􀟈  Test "the session keeps what the window dropped: six turns at a bound of four, one session (AC-308)" started.
+􀢄  Test "the session keeps what the window dropped: six turns at a bound of four, one session (AC-308)" recorded an issue at AppleSessionWindowTests.swift:44:9: Expectation failed: maker.made.count == 1
+􀄵  the memory's window is the session's newest turns: continued, never rebuilt at the bound
+􀄵  maker.made.count == 1 → false
+􀄵    maker.made.count → 2
+􀢄  Test "the session keeps what the window dropped: six turns at a bound of four, one session (AC-308)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "a re-seed carries the bound, typed: the last four turns with their tools, not the first two (AC-308)" started.
+􁁛  Test "a re-seed carries the bound, typed: the last four turns with their tools, not the first two (AC-308)" passed after 0.001 seconds.
+􀟈  Test "memory off re-seeds every turn with no past (AC-308)" started.
+􁁛  Test "memory off re-seeds every turn with no past (AC-308)" passed after 0.001 seconds.
+􀟈  Test "full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)" started.
+􀢄  Test "full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)" recorded an issue at AppleSessionWindowTests.swift:95:6: Caught error: the conversation exceeded the model's context window
+􀢄  Test "full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)" failed after 0.001 seconds with 1 issue.
+􀄵  /// A bound of two and three turns on one session: it holds three, the
+􀄵  /// window two. Turn four meets the wall before any word — after a tool
+􀄵  /// ran — and is asked again in a session born from the window alone.
+􀟈  Test "full after a word: the turn fails, and the next turn re-seeds (AC-308)" started.
+􀢄  Test "full after a word: the turn fails, and the next turn re-seeds (AC-308)" recorded an issue at AppleSessionWindowTests.swift:133:9: Expectation failed: maker.made.count == 1
+􀄵  no second ask once a word was said
+􀄵  maker.made.count == 1 → false
+􀄵    maker.made.count → 2
+􀢄  Test "full after a word: the turn fails, and the next turn re-seeds (AC-308)" recorded an issue at AppleSessionWindowTests.swift:136:9: Expectation failed: log.seeds.last == .mindSessionSeeded(.contextFull, turns: 2)
+􀄵  the next turn re-seeds, and says why
+􀄵  log.seeds.last == .mindSessionSeeded(.contextFull, turns: 2) → false
+􀄵    log.seeds.last → .mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: \"forged: 4096 tokens\", underlyingErrors: [], errorDescriptionOverride: nil))"), turns: 2)
+􀄵      some → .mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: \"forged: 4096 tokens\", underlyingErrors: [], errorDescriptionOverride: nil))"), turns: 2)
+􀄵        mindSessionSeeded → (MultiModalKit.SessionSeedReason.lastAnswerFailed("exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: \"forged: 4096 tokens\", underlyingErrors: [], errorDescriptionOverride: nil))"), turns: 2)
+􀄵          .0 → .lastAnswerFailed("exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: \"forged: 4096 tokens\", underlyingErrors: [], errorDescriptionOverride: nil))")
+􀄵            lastAnswerFailed → "exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: "forged: 4096 tokens", underlyingErrors: [], errorDescriptionOverride: nil))"
+􀄵          turns → 2
+􀄵    .mindSessionSeeded(.contextFull, turns: 2) → .mindSessionSeeded(MultiModalKit.SessionSeedReason.contextFull, turns: 2)
+􀄵      some → .mindSessionSeeded(MultiModalKit.SessionSeedReason.contextFull, turns: 2)
+􀄵        mindSessionSeeded → (MultiModalKit.SessionSeedReason.contextFull, turns: 2)
+􀄵          .0 → .contextFull
+􀄵          turns → 2
+􀢄  Test "full after a word: the turn fails, and the next turn re-seeds (AC-308)" failed after 0.001 seconds with 2 issues.
+􀟈  Test "full in a session just seeded from the window: no re-ask, the turn fails as AC-116 does (F-22 B)" started.
+􀢄  Test "full in a session just seeded from the window: no re-ask, the turn fails as AC-116 does (F-22 B)" recorded an issue at AppleSessionWindowTests.swift:154:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                              .mindSessionSeeded(.contextFull, turns: 0)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.contextFull, turns: 0)] → false
+􀄵    log.seeds → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("exceededContextWindowSize(FoundationModels.LanguageModelSession.GenerationError.Context(debugDescription: \"forged: 4096 tokens\", underlyingErrors: [], errorDescriptionOverride: nil))"), turns: 0)]
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0),
+                                   .mindSessionSeeded(.contextFull, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.contextFull, turns: 0)]
+􀢄  Test "full in a session just seeded from the window: no re-ask, the turn fails as AC-116 does (F-22 B)" failed after 0.001 seconds with 1 issue.
+􀢄  Suite "AC-308 · the memory's bound against a kept session" failed after 0.006 seconds with 5 issues.
+􀢄  Test run with 6 tests in 1 suite failed after 0.006 seconds with 5 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

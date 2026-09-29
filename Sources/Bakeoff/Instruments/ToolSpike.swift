@@ -369,6 +369,8 @@ private func toolSpikeAsk(mind: MLXReplyGenerator, question: String,
                     outcome.callToFirstWordAfter = entered.duration(to: clock.now)
                 }
                 outcome.text += token
+            case .toolRan:
+                break   // the spike reads its stub's own record (`stub.enteredAt`)
             case .finished(let stop):
                 outcome.stop = stop
             case .failed(let failure):

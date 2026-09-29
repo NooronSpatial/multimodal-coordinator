@@ -64,6 +64,8 @@ struct AppleToolLiveTests {
             case .token(let token):
                 if timed.firstToken == nil { timed.firstToken = start.duration(to: clock.now) }
                 timed.text += token
+            case .toolRan:
+                break   // the stub counts its own calls; 5b's record is read in AppleSessionTests
             case .finished, .failed:
                 timed.terminal = update
             }

@@ -90,14 +90,59 @@ struct AppleFailureTableTests {
         }
     }
 
-    @Test("an error the vendor's enum does not own is .engine with its words")
-    func foreignErrorIsEngine() async throws {
+    // MARK: - AC-322 (5b §213 R-2, D-122 F-20 A): the unnamed failure has a name
+
+    /// Until 5b this row read `.engine("reply generation failed: …")` — the
+    /// string the diet app could only match as a string, twice, after its
+    /// tools had run (`tokengeneration Code=10`). The words are kept whole;
+    /// the CASE is what changed.
+    @Test("an error the vendor's enum does not own is .unexplained, with its words (AC-322)")
+    func foreignErrorIsUnexplained() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
-        let failure = try await Self.failure(after: NSError(domain: "test", code: 7))
-        guard case .engine(let words)? = failure else {
-            Issue.record("expected .engine, got \(String(describing: failure))"); return
+        let error = NSError(domain: "com.apple.tokengeneration", code: 10)
+        let failure = try await Self.failure(after: error)
+        #expect(failure == .unexplained(String(describing: error)))
+    }
+
+    @Test("this library's own failures keep their names: a declaration the vendor refuses is .engine (AC-322)")
+    func ownFailuresKeepTheirNames() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let declaration = ToolDeclarationError.duplicateParameter(tool: "log_weight", parameter: "kg")
+        let schema = GenerationSchema.SchemaError.duplicateProperty(
+            schema: "log_weight", property: "kg", context: .init(debugDescription: "forged"))
+        #expect(try await Self.failure(after: declaration) == .engine(declaration.description))
+        let refused = try await Self.failure(after: schema)
+        guard case .engine? = refused else {
+            Issue.record("expected .engine for the vendor's schema refusal, got \(String(describing: refused))")
+            return
         }
-        #expect(words.contains("reply generation failed"))
+    }
+
+    @Test("no vendor case with a name becomes .unexplained (AC-322)")
+    func namedCasesAreNeverUnexplained() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let named: [LanguageModelSession.GenerationError] = [
+            .exceededContextWindowSize(Self.forged()), .assetsUnavailable(Self.forged()),
+            .unsupportedGuide(Self.forged()), .unsupportedLanguageOrLocale(Self.forged()),
+            .decodingFailure(Self.forged()), .rateLimited(Self.forged()),
+            .concurrentRequests(Self.forged())]
+        for error in named {
+            let failure = try await Self.failure(after: error)
+            if case .unexplained? = failure { Issue.record("\(error) has a name, and lost it") }
+        }
+    }
+
+    @Test("the tripwire keeps its name: a revised text is .engine, never .unexplained (AC-322)")
+    func tripwireKeepsItsName() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let run = try await AppleReplyGenerator(
+            source: ScriptedSnapshotSource(.snapshots(["The answer is yes", "The answer is no"])))
+            .openReply(to: "anything")
+        let updates = await ReplyConformanceKit.drain(run)
+        guard case .failed(.engine(let words))? = updates.last else {
+            Issue.record("expected the tripwire's .engine, got \(String(describing: updates.last))"); return
+        }
+        #expect(words.contains("revised text already emitted"))
     }
 
     // MARK: - D-104 (F-7 = C): a refusal is SPOKEN, and it is how the reply ENDS

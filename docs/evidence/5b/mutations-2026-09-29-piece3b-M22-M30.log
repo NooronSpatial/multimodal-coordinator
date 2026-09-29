@@ -1,0 +1,87 @@
+# 5b piece 3b — mutations M22…M30 against GREEN 1d5e2bd (AC-308; D-118 F-12 C, D-124 F-22 B)
+# Each mutation breaks ONE rule, rebuilds, and runs:
+#   swift test --skip-build --filter 'AppleSessionWindowTests|AppleRetryTests|AppleFailureTableTests|AppleSession'
+# then reverts with git checkout. (M27 was not run: removing 'before any word' is M11's mutation, same line.)
+# This Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors.
+#
+# FIRST RUN: 7 of 8 killed. M24 SURVIVED — a REAL GAP, not a belt: with the suffix check gone ('continue any
+# session that holds at least as many turns as the window') every row stayed green. The window must MATCH the
+# session's newest turns; a caller handing an edited past would talk to a session with a different past.
+# FIX: a row added — 'a history that is not the session's newest turns re-seeds' (AppleSessionWindowTests).
+# SECOND RUN (M24 alone, with the row): KILLED. Both runs below, in that order.
+# The two guards green at RED show their teeth here: M23 (memory off) — the window rule's empty-window clause.
+
+=================== FIRST RUN ===================
+## M22 — the window rule becomes equality again
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - full after a word: the turn fails, and the next turn re-seeds (AC-308)
+  - full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)
+  - the session keeps what the window dropped: six turns at a bound of four, one session (AC-308)
+􀢄  Test run with 58 tests in 6 suites failed after 0.020 seconds with 3 issues.
+reverted: yes
+
+## M23 — memory off: a session holding a past is continued
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - memory off re-seeds every turn with no past (AC-308)
+􀢄  Test run with 58 tests in 6 suites failed after 0.020 seconds with 2 issues.
+reverted: yes
+
+## M24 — any session long enough is continued (no suffix check)
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 58 tests in 6 suites passed after 0.028 seconds.
+reverted: yes
+
+## M25 — the wall is asked again in ANY session (F-22 B off)
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - full in a kept session that holds just the window: no re-ask (F-22 B)
+  - full in a session just seeded from the window: no re-ask, the turn fails as AC-116 does (F-22 B)
+  - no retry for a failure with a name (AC-319)
+􀢄  Test run with 58 tests in 6 suites failed after 0.020 seconds with 5 issues.
+reverted: yes
+
+## M26 — the wall has no reason of its own (.lastAnswerFailed)
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - full after a word: the turn fails, and the next turn re-seeds (AC-308)
+  - full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)
+  - full in a session just seeded from the window: no re-ask, the turn fails as AC-116 does (F-22 B)
+􀢄  Test run with 58 tests in 6 suites failed after 0.020 seconds with 3 issues.
+reverted: yes
+
+## M28 — outgrew counts a session holding exactly the window
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - full in a kept session that holds just the window: no re-ask (F-22 B)
+􀢄  Test run with 58 tests in 6 suites failed after 0.020 seconds with 2 issues.
+reverted: yes
+
+## M29 — the wall is never asked again
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)
+􀢄  Test run with 58 tests in 6 suites failed after 0.019 seconds with 1 issue.
+reverted: yes
+
+## M30 — the wall's re-ask is reported as the retry
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - full before a word, in a session that outgrew the window: re-seeded and asked again once (AC-308)
+  - one retry, one health event naming it, beside the fresh session's birth (AC-321)
+􀢄  Test run with 58 tests in 6 suites failed after 0.019 seconds with 2 issues.
+reverted: yes
+
+source tree after the run: clean
+
+=================== SECOND RUN: M24 with the new row ===================
+## M24 — any session long enough is continued (no suffix check)
+file: Sources/MultiModalKit/Conversation/SessionKeeper.swift
+KILLED — red rows:
+  - a history that is not the session's newest turns re-seeds: the window must match, not just fit (AC-308)
+􀢄  Test run with 59 tests in 6 suites failed after 0.021 seconds with 3 issues.
+reverted: yes
+
+source tree after the run: clean

@@ -109,7 +109,9 @@ extension TurnCoordinator {
             // no answer half. The memory refuses it, `remember` says so,
             // and the words stay in the ledger to join the next thought.
             // Clearing unconditionally would make the person's question
-            // vanish between two turns.
+            // vanish between two turns. (Since 5b, D-119: if a tool already
+            // RAN, the act is the answer — the memory keeps the turn, marked
+            // interrupted, and the words are answered by what was done.)
             if remember(dying, interrupted: true) { ledger.clear() }
         }
         transition(to: .listening, turn: turn)

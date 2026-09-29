@@ -1,0 +1,155 @@
+# 5b piece 3a — RED: when a session ends (AC-306 through the coordinator, AC-307, AC-310; D-117 F-9 A, F-10 A; D-118 F-13 A)
+# command: swift test --filter AppleSessionEndingTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors)
+# Against a skeleton with the shape — SessionSeedReason, HealthEvent.mindSessionSeeded, the generator's
+# diagnostics:, ReplyGenerating.endConversation() with its do-nothing default, clearMemory() async —
+# and none of the judgment: the keeper reports nothing, releases nothing, and endConversation does nothing.
+# 9 of 9 red, each on the trace being empty or a session still held. (Swift Testing prints the operand of a
+# negated expectation oddly; the value underneath is holdsSession → true.)
+
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-306/307/310 · when a session ends" started.
+􀟈  Test "a failure re-seeds the next turn from the memory, and the trace says why (AC-307)" started.
+􀢄  Test "a failure re-seeds the next turn from the memory, and the trace says why (AC-307)" recorded an issue at AppleSessionEndingTests.swift:78:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                              .mindSessionSeeded(.lastAnswerFailed("the model fell over"), turns: 1)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.lastAnswerFailed("the model fell over"), turns: 1)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0),
+                                   .mindSessionSeeded(.lastAnswerFailed("the model fell over"), turns: 1)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("the model fell over"), turns: 1)]
+􀢄  Test "a failure re-seeds the next turn from the memory, and the trace says why (AC-307)" failed after 0.003 seconds with 1 issue.
+􀟈  Test "a failed session is let go at once, before the next turn exists (AC-307)" started.
+􀢄  Test "a failed session is let go at once, before the next turn exists (AC-307)" recorded an issue at AppleSessionEndingTests.swift:92:9: Expectation failed: !keeper.holdsSession
+􀄵  nothing kept for a session that failed
+􀄵  !keeper.holdsSession → true
+􀄵    keeper.holdsSession → false
+􀄵      keeper → MultiModalKit.SessionKeeper
+􀄵        maker → MultiModalKitTests.FakeSessionMaker
+􀄵          signals → nil
+􀄵          record → ()
+􀄵        tools → ToolTable(tools: [])
+􀄵          tools → []
+􀄵        diagnostics → nil
+􀄵        state → ()
+􀄵      holdsSession → true
+􀢄  Test "a failed session is let go at once, before the next turn exists (AC-307)" failed after 0.002 seconds with 1 issue.
+􀟈  Test "an answer the memory will not keep lets the session go, and the trace says why" started.
+􀢄  Test "an answer the memory will not keep lets the session go, and the trace says why" recorded an issue at AppleSessionEndingTests.swift:107:9: Expectation failed: !keeper.holdsSession
+􀄵  the session holds a turn the memory refused: they can never agree
+􀄵  !keeper.holdsSession → true
+􀄵    keeper.holdsSession → false
+􀄵      keeper → MultiModalKit.SessionKeeper
+􀄵        maker → MultiModalKitTests.FakeSessionMaker
+􀄵          signals → nil
+􀄵          record → ()
+􀄵        tools → ToolTable(tools: [])
+􀄵          tools → []
+􀄵        diagnostics → MultiModalKit.PipelineDiagnostics
+􀄵          some → MultiModalKit.PipelineDiagnostics
+􀄵            thermal → StillThermometer()
+􀄵            signposts → PipelineSignposter(poster: os.OSSignposter(logHandle: <OS_os_log: 0x10558e3b0>))
+􀄵              poster → OSSignposter(logHandle: <OS_os_log: 0x10558e3b0>)
+􀄵                logHandle → <OS_os_log: 0x10558e3b0>
+􀄵            broadcast → MultiModalKit.Broadcast<MultiModalKit.HealthEvent>
+􀄵              bufferCapacity → 64
+􀄵              state → ()
+􀄵              onListenerDrop → nil
+􀄵            lastSettling → MultiModalKit.PipelineDiagnostics.(unknown context at $112257ec8).LastCount
+􀄵              store → ()
+􀄵        state → ()
+􀄵      holdsSession → true
+􀢄  Test "an answer the memory will not keep lets the session go, and the trace says why" recorded an issue at AppleSessionEndingTests.swift:110:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                              .mindSessionSeeded(.memoryChanged, turns: 0)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.memoryChanged, turns: 0)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0),
+                                   .mindSessionSeeded(.memoryChanged, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.memoryChanged, turns: 0)]
+􀢄  Test "an answer the memory will not keep lets the session go, and the trace says why" failed after 0.003 seconds with 2 issues.
+􀟈  Test "a barge re-seeds the next turn from the memory, the cut turn marked interrupted (AC-306)" started.
+􀢄  Test "a barge re-seeds the next turn from the memory, the cut turn marked interrupted (AC-306)" recorded an issue at AppleSessionEndingTests.swift:148:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                              .mindSessionSeeded(.lastAnswerUnfinished, turns: 1)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.lastAnswerUnfinished, turns: 1)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0),
+                                   .mindSessionSeeded(.lastAnswerUnfinished, turns: 1)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerUnfinished, turns: 1)]
+􀢄  Test "a barge re-seeds the next turn from the memory, the cut turn marked interrupted (AC-306)" failed after 0.001 seconds with 1 issue.
+􀄵  /// The first answer says "Let me" and holds; the next onset barges it
+􀄵  /// (no barge window: an onset while speaking IS a barge). The memory
+􀄵  /// keeps the cut turn, marked interrupted — and that is what the next
+􀄵  /// session is born holding.
+􀟈  Test "stop() lets the conversation's session go (AC-310)" started.
+􀢄  Test "stop() lets the conversation's session go (AC-310)" recorded an issue at AppleSessionEndingTests.swift:166:9: Expectation failed: !keeper.holdsSession
+􀄵  after stop(), no session is held
+􀄵  !keeper.holdsSession → true
+􀄵    keeper.holdsSession → false
+􀄵      keeper → MultiModalKit.SessionKeeper
+􀄵        maker → MultiModalKitTests.FakeSessionMaker
+􀄵          signals → nil
+􀄵          record → ()
+􀄵        tools → ToolTable(tools: [])
+􀄵          tools → []
+􀄵        diagnostics → nil
+􀄵        state → ()
+􀄵      holdsSession → true
+􀢄  Test "stop() lets the conversation's session go (AC-310)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "a new conversation on the same generator starts a new session, from no past (AC-310)" started.
+􀢄  Test "a new conversation on the same generator starts a new session, from no past (AC-310)" recorded an issue at AppleSessionEndingTests.swift:186:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                              .mindSessionSeeded(.newConversation, turns: 0)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.newConversation, turns: 0)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0),
+                                   .mindSessionSeeded(.newConversation, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0)]
+􀢄  Test "a new conversation on the same generator starts a new session, from no past (AC-310)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "clearMemory() ends the conversation's session too (AC-310)" started.
+􀢄  Test "clearMemory() ends the conversation's session too (AC-310)" recorded an issue at AppleSessionEndingTests.swift:203:13: Expectation failed: !keeper.holdsSession
+􀄵  forgetting the past lets its session go
+􀄵  !keeper.holdsSession → true
+􀄵    keeper.holdsSession → false
+􀄵      keeper → MultiModalKit.SessionKeeper
+􀄵        maker → MultiModalKitTests.FakeSessionMaker
+􀄵          signals → nil
+􀄵          record → ()
+􀄵        tools → ToolTable(tools: [])
+􀄵          tools → []
+􀄵        diagnostics → MultiModalKit.PipelineDiagnostics
+􀄵          some → MultiModalKit.PipelineDiagnostics
+􀄵            thermal → StillThermometer()
+􀄵            signposts → PipelineSignposter(poster: os.OSSignposter(logHandle: <OS_os_log: 0x10558e3b0>))
+􀄵              poster → OSSignposter(logHandle: <OS_os_log: 0x10558e3b0>)
+􀄵                logHandle → <OS_os_log: 0x10558e3b0>
+􀄵            broadcast → MultiModalKit.Broadcast<MultiModalKit.HealthEvent>
+􀄵              bufferCapacity → 64
+􀄵              state → ()
+􀄵              onListenerDrop → nil
+􀄵            lastSettling → MultiModalKit.PipelineDiagnostics.(unknown context at $112257ec8).LastCount
+􀄵              store → ()
+􀄵        state → ()
+􀄵      holdsSession → true
+􀢄  Test "clearMemory() ends the conversation's session too (AC-310)" recorded an issue at AppleSessionEndingTests.swift:209:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                              .mindSessionSeeded(.newConversation, turns: 0)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.newConversation, turns: 0)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0),
+                                   .mindSessionSeeded(.newConversation, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0)]
+􀢄  Test "clearMemory() ends the conversation's session too (AC-310)" failed after 0.001 seconds with 2 issues.
+􀟈  Test "a continued turn reports nothing: only a session's birth is reported (D-118 F-13 A)" started.
+􀢄  Test "a continued turn reports nothing: only a session's birth is reported (D-118 F-13 A)" recorded an issue at AppleSessionEndingTests.swift:224:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0)]
+􀢄  Test "a continued turn reports nothing: only a session's birth is reported (D-118 F-13 A)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "a session made aside is not the conversation's, and is not reported (AC-309, D-118)" started.
+􀢄  Test "a session made aside is not the conversation's, and is not reported (AC-309, D-118)" recorded an issue at AppleSessionEndingTests.swift:240:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0)]
+􀄵  log.seeds == [.mindSessionSeeded(.newConversation, turns: 0)] → false
+􀄵    log.seeds → []
+􀄵    [.mindSessionSeeded(.newConversation, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0)]
+􀢄  Test "a session made aside is not the conversation's, and is not reported (AC-309, D-118)" failed after 0.001 seconds with 1 issue.
+􀢄  Suite "AC-306/307/310 · when a session ends" failed after 0.013 seconds with 11 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.013 seconds with 11 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

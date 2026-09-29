@@ -233,6 +233,8 @@ final class MemoryProbe {
                     // A reply with no token at all. Rare, and it must not
                     // be recorded as a fast one.
                     return Outcome(failure: "finished with no token")
+                case .toolRan:
+                    break   // not a word: the clock keeps running to the first token
                 }
             }
             return Outcome(failure: "the stream ended without a token")

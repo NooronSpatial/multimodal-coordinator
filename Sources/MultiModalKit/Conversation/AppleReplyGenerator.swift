@@ -22,7 +22,8 @@ protocol ReplySnapshotStreaming: Sendable {
     var unavailable: MindUnavailable? { get }
     /// Opens one generation and returns its CUMULATIVE snapshots — the
     /// whole reply so far, again and again, which is the shape Apple's
-    /// API actually has (SPEC §71, measured in INSTRUMENTS §22).
+    /// API actually has (SPEC §71, measured in INSTRUMENTS §22) — with a
+    /// `.toolRan` among them for every tool the model used (5b).
     ///
     /// `instructions` are the RESOLVED ones for this call (AC-232: the
     /// caller's per-call text over the generator's own), passed beside
@@ -30,164 +31,22 @@ protocol ReplySnapshotStreaming: Sendable {
     /// record exactly what the generator decided; the sampling and the
     /// budget ride on `context.options` and the real source maps them.
     func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error>
+                   instructions: String?) -> AsyncThrowingStream<MindSessionUpdate, any Error>
+    /// The conversation is over (5b, D-117 F-9 A): the keeper lets its
+    /// session go. A scripted source keeps nothing — the default.
+    func endConversation()
 }
 
-/// The REAL stream: one `LanguageModelSession` per reply (D-057 F-2 = A),
-/// carrying the instructions the generator resolved (F-3 = A, and since
-/// 4v the caller's per-call ones when given — AC-232).
-@available(macOS 26.0, iOS 26.0, *)
-struct FoundationModelSnapshots: ReplySnapshotStreaming {
-
-    /// The tools this mind was GIVEN at construction — the DEFAULT table
-    /// (4z, F-2 = A): a call whose options carry a table replaces it for
-    /// that call, `.empty` on the call means no tools that turn, and
-    /// `nil` means this one. The coordinator never hands a table.
-    let tools: ToolTable
-
-    init(tools: ToolTable = .empty) {
-        self.tools = tools
-    }
-
-    var unavailable: MindUnavailable? { AppleMind.readiness() }
-
-    func snapshots(for context: ReplyContext,
-                   instructions: String?) -> AsyncThrowingStream<String, any Error> {
-        // The session is born INSIDE the stream's task, not in `openReply`:
-        // the coordinator awaits `openReply` inline on its one serial loop,
-        // and a model warm-up in that window is 4e's blocker 3 one seam
-        // over — the first turn freezing the whole conversation (AC-115,
-        // measured: 1839 ms cold vs ~280 ms warm).
-        AsyncThrowingStream { continuation in
-            let task = Task {
-                let options = Self.vendorOptions(for: context.options)
-                do {
-                    let session = try self.session(instructions: instructions,
-                                                   history: context.history,
-                                                   tools: self.resolvedTools(for: context.options),
-                                                   confirmed: context.options.confirmedTools)
-                    for try await snapshot in session.streamResponse(to: context.transcript,
-                                                                     options: options) {
-                        continuation.yield(snapshot.content)
-                        try Task.checkCancellation()
-                    }
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
-                }
-            }
-            continuation.onTermination = { _ in task.cancel() }
-        }
-    }
-
-    /// The caller's levers, in the vendor's words (AC-233, AC-234). Pure
-    /// and static so a test can read what a given `GenerationOptions`
-    /// becomes without a model in the room.
-    ///
-    /// - the budget is ALWAYS set: `maxTokens ?? 1024` (F-6 = A — the
-    ///   cap is a ceiling, not a target). Before 4v the Apple mind set no
-    ///   cap at all.
-    /// - temperature `0` asks for `.greedy` — the vendor's own name for
-    ///   "no randomness", so the same question twice gives the same bytes
-    ///   (the probe AC-234 measures). Greedy has no randomness to seed,
-    ///   so it wins over a seed given beside it.
-    /// - a seed asks for `.random(top: 50, seed:)` — TOP-K sampling: the
-    ///   model picks among its 50 likeliest next tokens. (The vendor's
-    ///   other mode, `.random(probabilityThreshold:seed:)`, is top-p,
-    ///   also called "nucleus" sampling; this mind does not use it.)
-    ///   Fifty is a conventional width and is NOT what AC-234 needs; the
-    ///   SEED is — it is what makes "seed + 0.6 twice" give identical
-    ///   text. The number is here so the seed has a mode to ride on, not
-    ///   because it was tuned.
-    /// - `temperature` is passed when given, widened `Float → Double`
-    ///   (the vendor's type). `nil` everything else leaves the vendor's
-    ///   defaults untouched: `GenerationOptions()` IS the default value
-    ///   of `streamResponse(options:)`, so a field left `nil` here is the
-    ///   same as not asking.
-    static func vendorOptions(for options: GenerationOptions) -> FoundationModels.GenerationOptions {
-        var sampling: FoundationModels.GenerationOptions.SamplingMode?
-        if options.temperature == 0 {
-            sampling = .greedy
-        } else if let seed = options.seed {
-            sampling = .random(top: Self.seededTopK, seed: seed)
-        }
-        return FoundationModels.GenerationOptions(
-            sampling: sampling,
-            temperature: options.temperature.map(Double.init),
-            maximumResponseTokens: options.maxTokens ?? AppleReplyGenerator.defaultTokenBudget)
-    }
-
-    /// The `top` of `.random(top:seed:)` when a seed is given — see
-    /// `vendorOptions`: a conventional value, not a measured one.
-    static let seededTopK = 50
-
-    /// One session, built from a transcript WE assembled (4r, F-1 = B).
-    ///
-    /// Apple's native shape for "what was said before" is
-    /// `Transcript.Entry`, so the history is mapped onto it rather than
-    /// flattened into the prompt — a flattened past is a past the model
-    /// has to parse, and it is exactly the loss the seam was widened to
-    /// avoid.
-    ///
-    /// **Still one session per turn (D-057 F-2 = A).** The session is not
-    /// kept between replies and carries no state we did not put in it;
-    /// only the entries it is born with have grown.
-    ///
-    /// The current thought is deliberately NOT an entry here —
-    /// `streamResponse(to:)` supplies it — or the model would be shown the
-    /// question twice.
-    ///
-    /// **The tools ride on the session (4w, AC-223).** The vendor has ONE
-    /// `transcript:` initialiser, `init(model:tools:transcript:)`, with
-    /// `tools` defaulting to `[]`; it executes them itself mid-reply
-    /// (F-1 = B). A mind with NO tools hands it `[]` — the vendor's own
-    /// default, so the call before 4w (`init(transcript:)`) and this one
-    /// build the SAME session: measured on 2026-09-11, the two sessions'
-    /// transcripts are byte-identical. That is AC-227's Mac half, "no
-    /// difference by construction"; the phone number is Ryad's gate
-    /// (§172c).
-    ///
-    /// `toolDefinitions: []` on the instructions entry, ALWAYS: the
-    /// vendor fills that list itself from the tools it was handed
-    /// (measured the same day: `tools: [session]` with `[]` written here
-    /// yields an instructions entry whose `toolDefinitions` is
-    /// `["session"]`), so a definition written here would only repeat
-    /// what it already knows. Also measured: writing one anyway does NOT
-    /// double it — the vendor keeps one — so the reason to leave it empty
-    /// is "the vendor owns that list", not a fear of a doubled prompt.
-    /// The table THIS call runs with (AC-275, F-2 = A): the call's when
-    /// the options carry one — `.empty` meaning no tool this turn — and
-    /// the default table otherwise. One rule, the same the scripted mind
-    /// and the MLX run apply; a session is born per reply, so the vendor
-    /// sees exactly this call's list.
-    func resolvedTools(for options: GenerationOptions) -> ToolTable {
-        options.tools ?? tools
-    }
-
-    private func session(instructions: String?,
-                         history: [ConversationTurn],
-                         tools: ToolTable,
-                         confirmed: Set<String>) throws -> LanguageModelSession {
-        var entries: [Transcript.Entry] = []
-        if let instructions {
-            entries.append(.instructions(Transcript.Instructions(
-                segments: [.text(Transcript.TextSegment(content: instructions))],
-                toolDefinitions: [])))
-        }
-        for turn in history {
-            entries.append(.prompt(Transcript.Prompt(
-                segments: [.text(Transcript.TextSegment(content: turn.said))])))
-            entries.append(.response(Transcript.Response(
-                assetIDs: [],
-                segments: [.text(Transcript.TextSegment(
-                    content: turn.replied + (turn.interrupted ? "…" : "")))])))
-        }
-        // One call for both shapes: `.empty` maps to `[]`, which is the
-        // vendor's default and the pre-4w session (see above).
-        return LanguageModelSession(tools: try AppleToolAdapter.adapters(for: tools, confirmed: confirmed),
-                                    transcript: Transcript(entries: entries))
-    }
+extension ReplySnapshotStreaming {
+    func endConversation() {}
 }
+
+// The REAL source is `SessionKeeper` over `AppleSessionMaker` (5b):
+// one vendor session kept for a conversation, where until 5b this file
+// built one per reply (`FoundationModelSnapshots`, D-057 F-2 = A —
+// reversed in the open by D-116). The transcript it is born with is
+// `AppleSession.entries`; the vendor's levers are
+// `AppleSession.vendorOptions`.
 
 // MARK: - the door (SPEC §175/5 — the Apple verdicts, typed)
 
@@ -280,8 +139,19 @@ struct StillThermometer: ThermalStateProviding {
 /// measured answering `.available` and then failing every generation
 /// (INSTRUMENTS §22). So `openReply` refuses honestly when the enum says
 /// no, and a generation that fails anyway becomes one honest `.failed`.
+///
+/// **ONE GENERATOR IS ONE CONVERSATION (5b).** Since D-116 F-1 A it keeps
+/// ONE vendor session across turns, so the instructions, the tool schemas
+/// and the past are prefilled once instead of on every reply. That is
+/// state, so the type is a `final class` (D-117 F-11 A): `let b = a` is
+/// the same conversation, visibly. A caller that wants an unrelated
+/// one-shot question answered — no past, not this conversation's —
+/// makes another generator; the diet app's estimator already does.
+/// `Sendable` without a lock of its own: every stored property is a
+/// `let` of a `Sendable` type, and the one piece that changes — the kept
+/// session — lives behind the keeper's `Mutex`.
 @available(macOS 26.0, iOS 26.0, *)
-public struct AppleReplyGenerator: ReplyGenerating {
+public final class AppleReplyGenerator: ReplyGenerating {
 
     /// The budget when the caller sets none (F-6 = A: 1024 for everyone,
     /// a ceiling, not a target). Before 4v this mind set no cap at all.
@@ -336,12 +206,23 @@ public struct AppleReplyGenerator: ReplyGenerating {
 
     let source: any ReplySnapshotStreaming
 
+    /// `sessions` makes the vendor's sessions (5b, SPEC §208/6): the
+    /// default is the Apple model's; a test — this library's or a
+    /// caller's — hands a fake that writes down what it was asked, which
+    /// is how every 5b row runs on a machine with no Apple model.
+    ///
+    /// `diagnostics` is where each session's birth is reported, with its
+    /// reason (5b, D-118 F-13 A) — the health road an app already
+    /// listens to. `nil` reports nothing: byte-for-byte the generator
+    /// before 5b (the D-028 / D-059 precedent).
     public init(instructions: String? = nil,
                 spokenRefusal: String = "I can't answer that.",
                 tools: ToolTable = .empty,
+                sessions: any MindSessionMaking = AppleSessionMaker(),
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
-                clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
+                clock: any Clock<Duration> = ContinuousClock(),
+                diagnostics: PipelineDiagnostics? = nil) throws(ToolDeclarationError) {
         // A DEFAULT table no mind can show is refused HERE, where it is
         // handed over (F-13 d, AC-289) — typed, naming the tool and the
         // parameter — never inside a reply, where the vendor's own refusal
@@ -354,13 +235,15 @@ public struct AppleReplyGenerator: ReplyGenerating {
         self.thermal = thermal
         self.thermalPolicy = thermalPolicy
         self.clock = clock
-        self.source = FoundationModelSnapshots(tools: tools)
+        self.source = SessionKeeper(maker: sessions, tools: tools, diagnostics: diagnostics)
     }
 
-    /// The seam a test reaches through (@testable), never a caller. The
-    /// scripted sources behind it cannot execute a vendor tool, so the
-    /// table is recorded here for a test to read back and reaches no
-    /// session — the adapter is proved on its own (`AppleToolTests`).
+    /// The seam a test reaches through (@testable), never a caller: a
+    /// scripted snapshot source in place of the keeper, for the rows that
+    /// are about ONE reply's run (its latch, its deadline, its failures).
+    /// The scripted sources cannot execute a vendor tool, so the table is
+    /// recorded here for a test to read back and reaches no session — the
+    /// adapter is proved on its own (`AppleToolTests`).
     ///
     /// The thermometer here defaults to a STILL one reading `.nominal`,
     /// not the room's: the 4y review caught the scripted mind defaulting
@@ -384,6 +267,13 @@ public struct AppleReplyGenerator: ReplyGenerating {
         self.thermalPolicy = thermalPolicy
         self.clock = clock
         self.source = source
+    }
+
+    /// The conversation is over (5b, D-117 F-9 A): the session kept for it
+    /// is released, and the next turn starts a new one. The coordinator
+    /// calls this from `stop()` and `clearMemory()`.
+    public func endConversation() async {
+        source.endConversation()
     }
 
     /// The verdict, read fresh every time — `AppleMind.readiness()` under
@@ -512,39 +402,11 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
 
         let task = Task { [weak self] in
             do {
-                for try await snapshot in source.snapshots(for: context, instructions: instructions) {
+                for try await update in source.snapshots(for: context, instructions: instructions) {
                     guard let self else { return }
-                    // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under
-                    // one lock step.
-                    //
-                    // TWO GUARDS keep a dead run silent, and mutation
-                    // testing measured their overlap rather than assuming
-                    // it: this flag re-read, AND the stream `cancel()` has
-                    // already finished — a finished AsyncStream drops every
-                    // later yield. Remove the flag alone: masked, tests
-                    // stay green. Remove the finish alone: three tests red.
-                    // Remove both: three tests red. So the FINISH is the
-                    // primary guard and this flag is the belt — kept
-                    // because the finish lives in someone else's method,
-                    // and the 4b precedent is to record redundancy, not
-                    // pretend each line is load-bearing alone.
-                    //
-                    // THE CLOCK'S FLAG is the third guard (4y, AC-264): a
-                    // snapshot that arrives after the deadline was reached
-                    // is not spoken. The loop goes on — not `return` — so
-                    // the cancelled stream hands back its nil and the
-                    // worker concludes below; `return` is the cancel()
-                    // path's, where NO terminal is owed.
-                    let token: String? = try self.state.withLock { guarded in
-                        guard !guarded.retired, !guarded.deadlineReached else { return nil }
-                        let suffix = try guarded.differ.advance(to: snapshot)
-                        return suffix.isEmpty ? nil : suffix
-                    }
-                    guard let token else {
-                        if self.state.withLock({ $0.retired }) { return }
-                        continue
-                    }
-                    self.out.yield(.token(token))
+                    // One update through the latch (`pass`). `false` is the
+                    // cancel() path: the run retired and NO terminal is owed.
+                    guard try self.pass(update) else { return }
                 }
                 // The stream ran out — the vendor's own end, or the end
                 // the deadline's cancel gave it. `concludeStream` reads
@@ -559,6 +421,58 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         // that fires always finds a worker to cancel.
         if let deadline = context.options.deadline {
             arm(deadline, on: clock)
+        }
+    }
+
+    // MARK: one update, through the latch
+
+    /// ONE update from the source, through the latch — the worker's loop
+    /// body, moved out whole when 5b gave it a second kind of update (the
+    /// initialiser was already at the lint's complexity line, 4y). Returns
+    /// `false` when the run has retired: the cancel() path, where nothing
+    /// more is said and no terminal is owed.
+    private func pass(_ update: MindSessionUpdate) throws -> Bool {
+        switch update {
+        case .toolRan(let use):
+            // A RECORD, after the fact (D-117 F-8 A, D-120): the tool has
+            // already run, so it is passed on while the run lives — even
+            // past the clock's flag, which silences WORDS that were not
+            // said in time; an act that happened is not a word. Only this
+            // worker yields, and it yields the terminal too, so a record can
+            // never follow the terminal (the class comment's rule). The
+            // `retired` read is the belt; the stream `cancel()` finished is
+            // the guard, exactly as for a token below.
+            guard !state.withLock({ $0.retired }) else { return false }
+            out.yield(.toolRan(use))
+            return true
+        case .snapshot(let snapshot):
+            // THE DIFF, WITH ITS TRIPWIRE (D-058), computed under one lock
+            // step.
+            //
+            // TWO GUARDS keep a dead run silent, and mutation testing
+            // measured their overlap rather than assuming it: this flag
+            // re-read, AND the stream `cancel()` has already finished — a
+            // finished AsyncStream drops every later yield. Remove the flag
+            // alone: masked, tests stay green. Remove the finish alone:
+            // three tests red. Remove both: three tests red. So the FINISH
+            // is the primary guard and this flag is the belt — kept because
+            // the finish lives in someone else's method, and the 4b
+            // precedent is to record redundancy, not pretend each line is
+            // load-bearing alone.
+            //
+            // THE CLOCK'S FLAG is the third guard (4y, AC-264): a snapshot
+            // that arrives after the deadline was reached is not spoken. The
+            // loop goes on — `true` — so the cancelled stream hands back
+            // its nil and the worker concludes; `false` is the cancel()
+            // path's, where NO terminal is owed.
+            let token: String? = try state.withLock { guarded in
+                guard !guarded.retired, !guarded.deadlineReached else { return nil }
+                let suffix = try guarded.differ.advance(to: snapshot)
+                return suffix.isEmpty ? nil : suffix
+            }
+            guard let token else { return !state.withLock { $0.retired } }
+            out.yield(.token(token))
+            return true
         }
     }
 
@@ -646,92 +560,17 @@ final class AppleReplyRun: ReplyRun, @unchecked Sendable {
         out.finish()
     }
 
-    /// Every way the stream can THROW, mapped onto one honest ending. The
-    /// arms lived as `catch` clauses in `init` until 4y's cancellation
-    /// arm tipped that initialiser past the lint's complexity line; they
-    /// moved here whole, comments and all, and the mapping is unchanged.
+    /// Every way the stream can THROW, mapped onto one honest ending — the
+    /// failure table, which since 5b is a value (`AppleEnding`, in
+    /// `AppleReplyGenerator+Failures.swift`) so the session keeper reads
+    /// the SAME table when it decides whether to ask again (§213). The
+    /// arms lived here as `catch` clauses until then, and before 4y inside
+    /// `init`; they moved whole, comments and all.
     private func settle(streamError error: any Error) {
-        switch error {
-        case is CancellationError:
-            // The worker was cancelled while parked on the stream —
-            // the deadline's doing (`expire`) or a `cancel()`; the
-            // latch tells them apart and the second owes no terminal.
-            concludeStream()
-        case let revision as SnapshotRevision:
-            // The tripwire fired: the model rewrote text that may
-            // already be in the room. One honest failure, showing
-            // both sides — never the wrong words, spoken (D-058).
-            report(.failed(.engine("the model revised text already emitted — "
-                + "was: \"\(revision.emitted)\" now: \"\(revision.snapshot)\"")))
-        case let error as LanguageModelSession.GenerationError:
-            settle(generation: error)
-        case let error as LanguageModelSession.ToolCallError:
-            // A tool the model called THREW (4w, AC-225). The adapter
-            // let the throw through, the vendor ended the stream with
-            // this error, and the run ends the way the scripted mind's
-            // `.failsReply` does: one `.failed(.engine(_))` carrying
-            // the SAME `ToolCallFailure` sentence every mind writes.
-            // This ending is the INTERIM one — whether the adapter
-            // should catch instead and let the model speak (the MLX
-            // run's ending) is an open fork, Ryad's, written up at
-            // `AppleReplyRun.toolFailure`. This arm stays under either
-            // ruling: the vendor can raise the error on its own.
-            report(.failed(.engine(Self.toolFailure(from: error).description)))
-        default:
-            report(.failed(.engine("reply generation failed: \(error)")))
-        }
-    }
-
-    /// AC-114, and since 4v AC-236's table (SPEC §175/3): every case
-    /// reaches an honest outcome, none is swallowed, every failure is a
-    /// case a caller can count, and the enum being NON-frozen is handled
-    /// rather than hoped away.
-    ///
-    /// Two cases END the turn instead of failing it (D-057 F-4 = A, and
-    /// since D-104 with a name): `guardrailViolation` and `refusal` are a
-    /// supervised model DOING ITS JOB, and silence would make that look
-    /// like a bug. The person hears one short sentence; the turn ends
-    /// normally as `.finished(.refused)`; the words stay out of the
-    /// transcript's failure path.
-    ///
-    /// No mapping reads `Context.debugDescription` into a test-visible
-    /// promise: it is an unlocalised string Apple may change (the spec's
-    /// own warning). The CASE decides; the description only rides along
-    /// in the failure text for a human to read.
-    private func settle(generation error: LanguageModelSession.GenerationError) {
-        switch error {
-        case .guardrailViolation, .refusal:
-            // RULED (D-104, SPEC §178 F-7 = C): a refusal is how a reply
-            // ENDS. Both vendor cases land on the same one row.
-            speakRefusalAndFinish()
-        case .exceededContextWindowSize:
-            report(.failed(.contextWindowExceeded))
-        case .assetsUnavailable:
-            // The Simulator lesson (INSTRUMENTS §22): availability can
-            // vouch for assets the model manager then cannot produce. The
-            // table's row is `.unavailable` (SPEC §175/3), and the verdict
-            // inside it is `.unknown` with the vendor's own word: the
-            // vendor said "assets unavailable" and nothing about WHY. It
-            // is not `.modelDownloading` — that sentence promises "try
-            // later", and on the very Simulator that taught this lesson
-            // the assets never arrive (the 4v review's finding).
-            report(.failed(.unavailable(.unknown(Self.assetsUnavailableWords))))
-        case .unsupportedLanguageOrLocale:
-            report(.failed(.unsupportedLanguage))
-        case .rateLimited, .concurrentRequests:
-            // Both are "the engine is serving another request" to a
-            // caller that counts. `concurrentRequests` is ALSO a
-            // coordination bug on our side — sessions are per-turn
-            // (D-057 F-2), so a second request on one session should be
-            // impossible — but the caller's remedy is the same: later.
-            report(.failed(.busy))
-        case .unsupportedGuide, .decodingFailure:
-            // No guide is ever sent (the mind returns text, §176) and a
-            // decoding failure has no caller-side remedy: the honest rest.
-            report(.failed(.engine("generation failed: \(error.localizedDescription)")))
-        @unknown default:
-            report(.failed(.engine("generation failed with a case this library "
-                + "does not know yet: \(error.localizedDescription)")))
+        switch AppleEnding(error) {
+        case .cut: concludeStream()
+        case .refused: speakRefusalAndFinish()
+        case .failed(let failure): report(.failed(failure))
         }
     }
 

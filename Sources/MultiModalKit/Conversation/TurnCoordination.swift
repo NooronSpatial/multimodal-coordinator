@@ -56,6 +56,15 @@ public enum TurnEvent: Sendable, Equatable {
 /// values.
 public enum ReplyUpdate: Sendable, Equatable {
     case token(String)
+    /// A tool ran during this reply (5b, D-117 F-8 A): what the model
+    /// called, with what, and what the door did. Sent when the mind SAW
+    /// it — the vendor does not say where in its text a tool was called,
+    /// so its place among the tokens is the order this library observed,
+    /// not a position in the sentence. Never after the terminal. The voice
+    /// path keeps it on the turn (`ConversationTurn.tools`); a text caller
+    /// finds it on `Reply.tools`. The MLX mind does not send it in 5b
+    /// (D-116 F-5 B).
+    case toolRan(ToolUse)
     case finished(StopReason)
     case failed(ReplyFailure)
 }
@@ -79,10 +88,13 @@ public protocol ReplyRun: Sendable {
 /// `Chat.Message`, Apple's `Transcript.Entry` — and a flat string would
 /// force each of them to reconstruct it by parsing.
 ///
-/// **D-057 F-2 is not reversed by this.** The mind still gets one
-/// stateless session per turn. What travels here is assembled by us and
-/// visible, which is precisely what that ruling asked for; only its
-/// CONTENTS have grown.
+/// **D-057 F-2 was not reversed by 4r** — what travels here is assembled
+/// by us and visible, which is what that ruling asked for. **5b reversed
+/// it, in the open (D-116):** the Apple mind now keeps one session for
+/// the conversation, and `history` is the SEED a session is born with
+/// (F-2 A) — read when a session is made or re-seeded, and not replayed
+/// into one that already holds that past. Still assembled by us, still
+/// visible, still bounded by `ConversationMemory`.
 public struct ReplyContext: Sendable, Equatable {
     /// The thought being answered NOW — the ledger's whole text.
     public let transcript: String
@@ -108,6 +120,24 @@ public struct ReplyContext: Sendable, Equatable {
 public protocol ReplyGenerating: Sendable {
     /// Opens one reply. Throws when generation cannot start at all.
     func openReply(to context: ReplyContext) async throws -> any ReplyRun
+
+    /// The conversation is over (5b, D-117 F-9 A): let go of whatever was
+    /// kept for it. The coordinator calls this from `stop()` and from
+    /// `clearMemory()`; the Apple mind releases the session it kept
+    /// (D-116 F-1 A), so nothing the vendor holds for it outlives the
+    /// conversation, and the next turn starts a new one.
+    ///
+    /// The default does nothing — right for every mind that keeps nothing
+    /// between replies, and it is why every generator written before 5b
+    /// still compiles. **A generator that WRAPS another must pass this
+    /// on**: the default would swallow it, and the wrapped mind would
+    /// keep a conversation that ended.
+    func endConversation() async
+}
+
+extension ReplyGenerating {
+    /// Nothing kept, nothing to let go of.
+    public func endConversation() async {}
 }
 
 extension ReplyGenerating {

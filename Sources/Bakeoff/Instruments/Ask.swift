@@ -158,6 +158,7 @@ private final class AskSession {
                     said += piece
                     FileHandle.standardOutput.write(Data(piece.utf8))   // AS IT ARRIVES
                 case .failed(let why): print("\n  ✗ \(why)")
+                case .toolRan(let use): print("\n  ⚙︎ \(use.name) → \(use.outcome.wordsForModel)")
                 case .finished: break
                 }
             }

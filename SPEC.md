@@ -6050,6 +6050,9 @@ fork otherwise, they are rewritten before any code.*
 - A second seam: the coordinator never sees a call (4w's F-1 = B, ruled
   in D-101). (F-10 C would reopen this line; if ruled, §194 changes
   with it.)
+  *(Amended by D-120, 5b: the coordinator still never RUNS or approves a
+  call, but it now learns after the fact that one ran — `.toolRan`,
+  D-117 F-8 A — so a re-seed can replay it typed.)*
 - Push or pull of the day's facts (§172a's first Phase B fork) — a later
   milestone's.
 - **A new runtime dependency.** `Package.swift`'s dependency list does
@@ -7272,3 +7275,654 @@ requirement's own first sentence:
 3. The system relaunches the app in the background when the last file
    lands, and `ModelDownloads.handleEvents` calls the app's completion
    handler once.
+
+
+# Milestone 5b — one mind session per conversation (Runtime Phase B, continued) — signed 2026-09-23 (D-116)
+
+*Drafted 2026-09-23; signed the same day — every fork in §211 ruled as
+recommended, D-116. Nothing below was rewritten by the signing: the
+text that says "per F-n" now names a ruling instead of a recommendation.*
+
+## §207 — why this exists
+
+The diet app measured its coach on a real phone (iPhone 17e, iOS 26,
+library 0.3.0) and wrote two documents. They describe one fault with two
+faces.
+
+**Face one: every turn pays for the whole prompt again.**
+
+```
+ speech ended ─0.3 s─▶ ear FINAL ─0.5 s (gate)─▶ thinking ─3.4 s─▶ first token ─▶ speaking
+                                                            ↑
+                                        instructions 5 100 chars + 15 tool schemas
+                                        2 154 chars + 8 turns of history — EVERY TURN
+```
+
+3.3–3.9 s to the first token, first turn or twentieth, tool or no tool.
+The app can cut its own prompt (shorter rules, memory 4, a read tool for
+the rulebook) and buy 1.5–2 s. **The rest is structural**: the library
+builds a NEW `LanguageModelSession` for every reply
+(`AppleReplyGenerator.session(instructions:history:tools:confirmed:)`,
+called inside the stream's task), so the instructions and the tool
+schemas are prefilled again on every turn.
+
+**Face two: the mind stops calling tools and imitates their answers.**
+Turn 18 called `log_weight` and answered "Logged 84 kg, was 84." Turn 19,
+`"log 12 kilos."` — **no tool body ran** — and the reply was "Logged 12
+kg, was 12." Turns 20–21 answered "Meal logged successfully." with
+nothing logged; turns 22–25 spoke the bare tool NAME out loud.
+
+The cause is in this library, one function up from the latency: history
+reaches the vendor as `.prompt` / `.response` TEXT entries. An earlier
+turn's reply — which *was* a tool's sentence — arrives as ordinary
+assistant prose, so the model learns *"user says log X → assistant says
+Logged X"* and skips the call. Nothing in the transcript says a tool was
+ever called, because `Transcript.ToolCalls` and `Transcript.ToolOutput`
+are never written.
+
+**That is not slowness. It is the assistant claiming an act it never
+performed** — the one failure this project's whole method exists to
+refuse. The app now audits every reply against the tool bodies that ran
+and writes "Nothing was changed" on the screen (its D-111), but the
+mouth has already spoken.
+
+**Why the same milestone fixes both.** A session that lives for the
+conversation prefills its instructions and schemas once, AND owns a
+transcript in which a tool call is a tool call. One mechanism, two
+symptoms.
+
+**Where this sits in the runtime.** `AIRuntime`'s own doc says it owns
+**sequence** and no policy. Who owns the mind's session across a
+conversation — the generator or the coordinator — is a sequence and
+ownership question, which is why it is the runtime's and not an app's.
+Phase A gave the runtime one composed way to run; Phase B gave it tools;
+this gives it a conversation that remembers what it did.
+
+## §208 — scope
+
+*Items 1–5 were written under F-1 A, F-2 A, F-3 A and F-5 B while they
+were recommendations; D-116 ruled all four that way, so the items stand
+as written. (The draft said: if Ryad rules otherwise they are rewritten
+before any code.)*
+
+1. **The session lives in the generator** (per F-1): born on the first
+   `openReply` of a conversation, kept across turns, retired on `stop()`
+   or when its identity changes. ~~The `ReplyGenerating` seam does not
+   change shape.~~ *Amended by D-117:* the seam grows by one door with a
+   default that does nothing — `endConversation()`, which the coordinator
+   calls on `stop()` and `clearMemory()` (F-9 A) — and `ReplyUpdate` by
+   one case, `.toolRan` (F-8 A). `AppleReplyGenerator` becomes a
+   `final class`, because it now has identity (F-11 A).
+2. **A reply appends.** With a live session, a turn prefills only the new
+   utterance and that turn's tool outputs. `ReplyContext.history` becomes
+   what a session is SEEDED with — on the first turn and on a re-seed —
+   and is not replayed into a session that already holds it (per F-2).
+3. **A tool call is a tool call in the transcript** (per F-3): the
+   library writes `Transcript.ToolCalls` and `Transcript.ToolOutput`
+   entries, so the model sees that a tool ran and what it answered. This
+   is what the imitation measured the cost of.
+4. **The memory remembers tools.** `ConversationTurn` carries what ran in
+   that turn — the tool's name, its arguments and its result — so a
+   re-seed can rebuild a typed transcript instead of prose. A turn with
+   no tool is unchanged. *(D-117 F-8 A: the record reaches the coordinator
+   as `.toolRan` on the reply stream, at the moment the tool ran.)*
+5. **The session is reborn honestly**, and the trace says so: when the
+   instructions or the tool table for a call differ from the session's,
+   when a generation fails, when `maxMemoryTurns` is crossed, or when the
+   vendor says its context is full. The last turns survive the re-seed.
+   *(D-117 F-10 A adds the rule under all of these: a session is kept
+   only after an answer the vendor finished itself. A barge, a deadline
+   or a refusal also means the next turn re-seeds.)*
+6. **A seam a test can drive** — the Apple session becomes a value this
+   library's tests and a caller's can fake, the shape `WeightsFetching`
+   has (AC-249). Without it, none of §210 can be proven on a Mac with no
+   Apple model.
+7. **The warm's end is an event, not a poll** (the diet app's field note,
+   2026-09-22): the app polls `isResident` every 200 ms during a warm.
+   The mind gains a way to await residency — `pressureLevels` already has
+   the shape.
+8. **Measured (INSTRUMENTS §71)**: what a turn prefills with and without
+   a kept session, on this Mac where a model runs; the phone's number is
+   Ryad's gate.
+
+## §209 — non-goals
+
+- **The MLX mind's KV cache across turns** (per F-5 B). It is the same
+  idea one vendor over, and it interacts with 4y's memory work: a cache
+  kept beside 2.2 GB of weights is memory a pressure warning must be able
+  to free. It gets its own milestone and its own measurement. Until
+  then the MLX mind re-renders its prompt every turn, as it does today,
+  and this spec says so rather than implying otherwise.
+- **A retry for a malformed reply** (the field note's third question: a
+  reply that is exactly a tool's name). F-3 A may remove the cause; a
+  retry built before the re-measure would be a mechanism for a fault
+  nobody has re-observed.
+- **A `ReplyFailure` case for "the vendor failed without saying why"**
+  (the field note's other question). Real, and a different milestone's
+  paper cut — it changes a public enum for every caller.
+- **Any change to the coordinator's tickets, the barge window, the
+  phraser, the mouths, admission, heat, or the download work.**
+- **Prompt caching the library does not own.** The vendor's own prefix
+  cache is the mechanism; this library keeps one session so the vendor
+  can use it, and claims nothing about how.
+- **A conversation that survives the app's death.** The session is a
+  run's, not a document.
+
+## §210 — acceptance criteria
+
+*5a ended at AC-302; this milestone starts at AC-303. Each says what a
+test SEES.*
+
+- **AC-303 — one session for many turns.** Ten turns through one
+  generator build **one** session (the fake session maker counts), and
+  turn ten's prompt carries the new utterance only — not the
+  instructions, not the tool schemas, not the earlier turns.
+- **AC-304 — the instructions and the tools are registered once.** The
+  session is made with the resolved instructions and the resolved tool
+  table; no later turn re-sends either.
+- **AC-305 — a tool call is a tool call.** After a turn in which a tool
+  ran, the session's transcript holds a tool-call entry and a tool-output
+  entry naming that tool and carrying its result — never an assistant
+  text entry containing the tool's sentence as prose.
+- **AC-306 — a barge never poisons the conversation** *(amended by
+  D-117 F-10 A)*. A reply cancelled inside the 600 ms window: the next
+  turn is served by a NEW session seeded from the memory, in which the
+  cancelled turn is marked interrupted — never a completed response —
+  and the cancelled session answers nothing more. *The signed text
+  said the next turn uses the SAME session; the vendor cannot promise
+  that — a live session only grows by answering, and what it keeps of
+  a cancelled answer is undocumented and unseen on this Mac.*
+- **AC-307 — a failure re-seeds, and says so.** A generation failure on
+  turn N: turn N+1 is served by a NEW session seeded from the memory, the
+  old one is released, and a diagnostics event records the re-seed with
+  its reason.
+  *(D-118 F-13 A: the event is a new `HealthEvent` case, reported
+  through an optional `diagnostics:` handed to the generator at init;
+  `nil` reports nothing, byte-for-byte today's generator.)*
+- **AC-308 — the bound bounds the re-seed** *(amended by D-118 F-12 C)*.
+  With `maxMemoryTurns` = 4 and six turns done, a RE-SEED carries the last
+  four turns and not the first two, with their tool calls still typed
+  (AC-305). A kept session is continued while the memory's window is its
+  newest turns, however many older ones it still holds; a memory switched
+  off (`maxMemoryTurns` = 0) re-seeds every turn with no past. The
+  vendor's context full BEFORE any word: the turn is re-seeded from the
+  memory and asked again, once, and the person hears one answer; full
+  AFTER a word: the turn fails as AC-116 does today, and the next turn
+  re-seeds. *The signed text said the session itself carries the last
+  four; at the diet app's bound of four, every turn after the fifth would
+  have paid today's prefill.*
+  *(D-124 F-22 B: the re-ask happens only when the failing session held
+  MORE than the memory's window, so the re-seed is really smaller. A
+  session just seeded from that same window fails at once, as AC-116 does
+  today — a re-seed with the same past and the same question meets the
+  same wall.)*
+- **AC-309 — per-call instructions or tools get their own session.** A
+  call whose `options.instructions` or `options.tools` differ from the
+  live session's identity is served by a new session, and the
+  conversation's own session is not disturbed by it.
+- **AC-310 — `stop()` retires it.** After the runtime stops, no session
+  is held; a new conversation starts a new one.
+- **AC-311 — the memory carries what ran.** `ConversationTurn` records
+  the tool name, arguments and result for a turn in which a tool ran, and
+  nothing extra for a turn in which none did. `ConversationMemory`'s
+  bound and its existing behaviour are unchanged.
+  *(D-119 F-14 A: a turn in which a tool ran and the mind said nothing
+  IS an exchange — the act is the answer — and is kept; its replay is the
+  prompt, the tool call and its output. Stated with it, from D-092 and
+  not a new ruling: a tool's record counts against `maxCharacters`,
+  because a replayed tool output is characters a re-seed pays for.)*
+- **AC-312 — residency is an event.** A caller can await the end of a
+  warm instead of polling: the awaiting call returns when the weights are
+  resident, returns at once if they already are, and is cancellable.
+  The poll this replaces is the diet app's (`prewarm`: up to 600 × 200 ms
+  on `isResident`); this repository's demo, which starts a warm and never
+  learns its end, shows the end through the new call.
+  *(Corrected at signing, D-116: the draft said "`MindProbe`'s 200 ms
+  poll in the demo is deleted" — the demo has no such poll.)*
+  *(D-124 F-21 B: `whenWarm() -> Bool`. It returns `true` as soon as the
+  weights are resident, and `false` when the load in flight ends without
+  them — or at once when nothing is resident and nothing is loading. It
+  never starts work itself; a failed load's reason is the door's to say.
+  Cancelled, it returns at once with what is true then.)*
+- **AC-313 — the MLX mind is untouched and says so.** Its prompt bytes
+  for a plain question are identical to 4z's captured bytes, and the
+  contract page states plainly that the kept session is the Apple mind's
+  today.
+- **AC-314 — INSTRUMENTS §71.** On this Mac: what one turn prefills with
+  a fresh session and with a kept one, counted in characters and in the
+  vendor's tokens where it will say; the re-seed's cost; and the number
+  this library CANNOT take — the phone's first-token latency — named as
+  owed.
+- **AC-315 — the phone.** Turn two's first token arrives in well under
+  half of today's 3.4 s with the same 5 100 characters of instructions
+  and 15 tools; and twenty turns of the coach's real script call a tool
+  every time one is asked for, with no imitated answer. Ryad's gate.
+- **AC-316 — nothing else moved.** Every pre-5b test green; the demo
+  builds and runs; CI green; lint zero.
+
+### Test matrix
+
+| criterion | planned test (file · row) | kind |
+|---|---|---|
+| AC-303 | `AppleSessionTests` · "ten turns, one session"; "turn ten's prompt is the utterance only" | scripted, fake session maker |
+| AC-304 | `AppleSessionTests` · "instructions and tools are given once" | scripted |
+| AC-305 | `AppleSessionTests` · "a tool's answer is a tool-output entry, not prose"; a mutation row that replays prose and shows the transcript's shape change | scripted |
+| AC-306 | `AppleSessionTests` · "a barge re-seeds, and the cut turn is written interrupted"; "the cut session answers nothing more"; `TurnCoordinatorTests`' existing barge rows re-run | scripted, `ManualClock` |
+| AC-307 | `AppleSessionTests` · "a failure re-seeds and the trace says why" | scripted |
+| AC-308 | `AppleSessionTests` · "a re-seed carries the bound, typed"; "the session keeps what the window dropped"; "memory off re-seeds every turn"; "full before a word: asked again once"; "full after a word: fails, next re-seeds" | scripted |
+| AC-309 | `AppleSessionTests` · "per-call instructions get their own session" | scripted |
+| AC-310 | `AppleSessionTests` · "stop retires the session" | scripted |
+| AC-311 | `ConversationMemoryTests` · the new field, the bound unchanged | scripted |
+| AC-312 | `MLXResidencyTests` · "awaiting a warm returns when resident"; "returns at once when already resident"; "cancellable" | scripted + live (model-gated) |
+| AC-313 | `MLXPlainPromptTests` (unchanged bytes); the contract page | scripted · review |
+| AC-314 | `swift run bakeoff session` | Mac bakeoff |
+| AC-315 | the diet app on Ryad's phone | phone |
+| AC-316 | the suite; the demo; the runner | — |
+
+**The fake session maker** is this milestone's instrument. The Apple
+model does not run on this Mac, so every row above drives a fake that
+records what it was made with and what was appended to it — the same
+standing ground `WeightsFetching` gave the install rows, and the reason
+they could be written at all.
+
+## §211 — the forks (ruled 2026-09-23, D-116: every one as recommended)
+
+**F-1 — WHERE THE SESSION LIVES.**
+*A:* in the generator — born on the first `openReply`, retired on
+`stop()`. *B:* in the coordinator, which already owns the memory.
+*C:* a new `Conversation` object the app creates and hands to the
+runtime.
+**Recommendation: A.** The generator already creates the vendor's
+session object and owns its lifetime; the coordinator owns MEANING
+(memory, tickets, the barge) and must not learn a vendor's transcript
+shape. C adds a type to every caller for a lifetime the runtime already
+has. *Rejected: B, C.*
+
+**F-2 — WHAT `ReplyContext.history` MEANS ONCE A SESSION PERSISTS.**
+*A:* it is the SEED — used when a session is born or re-seeded, ignored
+while a live session already holds that past. *B:* the coordinator stops
+sending it and a new field says "this is a continuation". *C:* keep
+sending it and let the generator diff the two.
+**Recommendation: A.** The seam does not change, no call site moves, and
+the word "history" keeps one meaning: what the mind should know that it
+was not told this turn. C makes every generator a diffing engine.
+*Rejected: B, C.*
+
+**F-3 — WHAT A RE-SEED REPLAYS.**
+*A:* typed entries — a tool call as a tool call, its output as an output.
+*B:* text only, today's shape.
+**Recommendation: A**, and the phone has already priced B: the mind
+imitated tool answers and claimed acts it never performed. The cost of A
+is that `ConversationTurn` must remember what ran (§208/4).
+*Rejected: B.*
+
+**F-4 — WHEN THE SESSION IS REBORN.**
+*A:* on four triggers — the identity changes (instructions or tool
+table), a generation fails, the memory bound is crossed, the vendor says
+its context is full. *B:* only on `stop()` or an explicit caller request.
+**Recommendation: A.** B leaves a poisoned session in place for the rest
+of a conversation, and the phone has already seen one generation fail
+mid-conversation (the field note of 2026-09-20). Each trigger is
+observable, so each is a row. *Rejected: B.*
+
+**F-5 — THE MLX MIND'S TURN.**
+*A:* the same milestone — a KV cache kept across turns with the shared
+prefix. *B:* a later milestone, with its own memory measurement; 5b is
+the Apple mind's, and says so.
+**Recommendation: B.** The measured pain is the Apple mind's — it is
+what the diet app runs. A KV cache kept beside 2.2 GB of weights is
+memory that 4y's pressure warnings must be able to free, which is a
+measurement, not a line of code. Doing both at once would put an
+unmeasured memory risk inside a latency fix. *Rejected: A.* The cost is
+named: the local mind keeps paying its prefill until then.
+
+**F-6 — THE REPLY THAT IS A BARE TOOL NAME** (the field note's third
+question).
+*A:* leave it as words, and RE-MEASURE after F-3 A lands — the imitation
+may have been the cause. *B:* treat it as a malformed tool call and retry
+once with a nudge.
+**Recommendation: A.** B is a mechanism for a fault that may not survive
+this milestone, and a retry the person pays for in latency.
+*Rejected: B, until re-measured.*
+
+**F-7 — HOW A CALLER AWAITS A WARM** (§208/7).
+*A:* `await model.whenWarm()` — one call, returns at once when already
+resident, cancellable. *B:* an `AsyncStream<Bool>` of residency, the
+shape `pressureLevels` has. *C:* both.
+**Recommendation: A.** The app's question is "tell me when I may stop
+showing the spinner", which is one await. A stream invites a listener
+that outlives the screen. *Rejected: B, C.*
+
+**Found after signing — four forks the draft missed** (reading the code
+for piece 1, 2026-09-23). Ruled the same day as recommended, **D-117**.
+
+**F-8 — HOW THE MEMORY LEARNS A TOOL RAN** (AC-311). The Apple vendor
+runs a tool inside its own stream; the seam carried tokens and one
+ending, so nothing outside could hear it. *A:* a new `ReplyUpdate` case,
+`.toolRan`, sent at the moment the tool ran. *B:* `ReplyRun.toolRuns()`,
+read after the end. **Ruled A.** *Rejected: B* — a second channel to
+order against the stream, and a default of `[]` that lets a mind forget.
+
+**F-9 — HOW THE MIND HEARS THE CONVERSATION ENDED** (AC-310). *A:* one
+new door on `ReplyGenerating`, `endConversation()`, default does nothing,
+called by the coordinator on `stop()` and `clearMemory()`. *B:* no door;
+the mind notices a new conversation at its next turn. **Ruled A.**
+*Rejected: B* — AC-310 false as written, a session alive while the app
+sits idle.
+
+**F-10 — WHICH SESSION ANSWERS AFTER A BARGE** (AC-306). *A:* a new
+one, seeded from the memory — a session is kept only after an answer the
+vendor finished itself. *B:* the same one, as signed. *C:* the same one,
+unless the vendor's transcript shows it kept part of the cut answer.
+**Ruled A.** *Rejected: B* — rests on vendor behaviour nobody here has
+seen; *C* — the most code, built on entries nobody here has seen.
+
+**F-11 — THE GENERATOR'S TYPE** (§208/1). *A:* `final class` — it holds
+a conversation, so it has identity. *B:* stay a struct whose copies
+share a hidden reference. **Ruled A.** *Rejected: B* — a struct that
+behaves like a class.
+
+**F-12 — WHEN THE MEMORY IS FULL** (AC-308). The diet app's bound is four
+turns; under the signed AC-308 the session could hold only the memory's
+window, so every turn after the fifth would rebuild. *A:* exactly the
+memory, as signed. *B:* rebuild in steps, with the newest half. *C:* the
+session keeps its past; the bound decides only what a re-seed carries;
+re-seed at the vendor's 4 096-token wall, asking again once if no word
+was said. **Ruled C (D-118).** *Rejected: A* — the win would cover 4
+turns of 19 at the diet app's bound; *B* — a rebuild about every second
+turn, and a model shown less than the app allowed.
+
+**F-13 — WHERE A RE-SEED IS REPORTED** (AC-307). *A:* a new `HealthEvent`
+case, through an optional `diagnostics:` given to the generator. *B:* the
+generator's own event stream. *C:* signposts only. **Ruled A (D-118).**
+*Rejected: B* — a second road every app must wire; *C* — invisible in the
+app's own trace, where the phone rows are read.
+
+**F-14 — A TURN WHERE A TOOL RAN AND THE MIND SAID NOTHING** (AC-311).
+*A:* keep it — the act is the answer. *B:* refuse it, as 4r's "both
+halves or nothing" does today. **Ruled A (D-119).** *Rejected: B* — an
+act that really happened would vanish from the conversation, the failure
+5b exists to end, from the other side.
+
+**Found while finishing (D-123) — two forks the spec left open**, asked
+and ruled 2026-09-29 as recommended, **D-124**.
+
+**F-21 — WHAT `whenWarm()` DOES WHEN THE WEIGHTS NEVER ARRIVE** (AC-312).
+The AC says it returns when resident, at once if already, and is
+cancellable; it said nothing about a load that fails or no load at all.
+*A:* wait until resident, however long; the caller's cancel is its
+timeout. *B:* `-> Bool` — `true` when resident, `false` when the load ends
+without the weights or when nothing is loading. *C:* start the load if
+none runs and throw its typed failure — `ensureModel()` under a new name.
+**Ruled B.** *Rejected: A* — a failed warm leaves the app waiting, the
+hang its poll's 120 s cap existed to prevent; *C* — it starts work, and
+`ensureModel()` already is that call.
+
+**F-22 — THE CONTEXT-FULL RE-ASK WHEN A RE-SEED CANNOT HELP** (AC-308).
+The re-ask was written for a kept session that grew past the memory's
+window. A session just seeded from that same window would be re-seeded
+identically. *A:* always ask again once, as written. *B:* ask again only
+when the failing session held more than the window. **Ruled B.**
+*Rejected: A* — the same past and the same question meet the same wall,
+and the person waits one more prefill to hear the failure.
+
+## §212 — definition of done (5b)
+
+The seven forks ruled by Ryad and logged (D-116), the rejected options
+with them · red → green per AC in §210's order, each piece presented and
+explained before the next · the fake session maker before any row that
+needs it · 20× with every failing log kept · CI green on the runner on
+every push · lint zero · `docs/evidence/5b/` with the raw runs ·
+INSTRUMENTS §71 · the contract page updated (ARCHITECTURE, and the
+`AIRuntime` doc's "what it does not yet do" list re-checked against what
+is true after this) · `INTEGRATE.md` and its generated appendix
+regenerated · the tag note naming every API change · the phone rows
+named as owed, not claimed · teach-back.
+
+## §213 — piece R: the reply retry (added by D-121) — signed 2026-09-24 (D-122)
+
+*From the diet app's requirement (`reply-retry.md`, 2026-09-24): R-1, one
+retry of the writing after a tool ran, no tool run twice; R-2, a name for
+the vendor's unnamed failure. Its acceptance criteria are theirs, renumbered
+here, and three rows are this library's own. Signed 2026-09-24, every fork
+ruled as recommended (D-122); F-18 A stands until PROBE-R says otherwise.*
+
+### Why
+
+```
+ thinking ─▶ tool A answers ✓ ─▶ tool B answers ✓ ─▶ FAILED generationFailed(
+              "… GenerationError Code=-1 … com.apple.tokengeneration Code=10 …")
+                                                      the person hears: nothing
+```
+
+Twice on the diet app's phone (0.3.0, 0.3.1; iPhone 17e, iOS 26) the Apple
+mind did everything right — the right tools, true answers through the door —
+and then the vendor failed while writing the reply, with an error nothing
+public names. Today that error reaches a caller as `ReplyFailure.engine`
+with the vendor's words, which an app can only match as a string.
+
+### The vendor fact the design must stand on — measured FIRST, on the phone
+
+Every `LanguageModelSession.respond` / `streamResponse` takes a prompt (read
+from the SDK, 2026-09-24). There is no call that says "write the reply
+again". So the retry must re-ask, and what the model does when re-asked is
+not a thing this Mac can see (`modelNotReady`). **PROBE-R**, before any code
+that depends on it: the demo, on Ryad's iPhone, wraps the real Apple session
+so the first answer fails the moment its first tool has answered (a fault
+the probe injects; the vendor's own cannot be summoned), then retries per
+F-18 and records: how many times each tool body ran, whether a reply was
+spoken, and what the retry cost in milliseconds.
+
+### Scope (written under the recommendations of F-15…F-20)
+
+1. **One retry, inside the keeper** (F-15 A, F-17 A): when the conversation's
+   answer throws the new unnamed failure (item 3) AFTER at least one tool ran
+   and BEFORE any word was said, the keeper asks again once, and the run,
+   the coordinator and a text caller see one answer.
+2. **The re-ask replays the turn** (F-18 A): a fresh session seeded from the
+   same history, the same prompt, the tools in the schema (F-16 A) — and a
+   call that repeats one already made in this turn (same name, same
+   arguments as the door read them) is answered from its record: the body
+   does not run again. A new call goes through the door as usual.
+3. **A name for the unnamed failure** (R-2, F-20): a new `ReplyFailure`
+   case carrying the vendor's words, for exactly the errors this library
+   cannot name today — a `GenerationError` case the SDK does not publish
+   (`@unknown default`), or a vendor error that is neither a
+   `GenerationError` nor a `ToolCallError`. The library's own failures (the
+   tripwire, a tool's typed failure) and every named vendor case keep their
+   names.
+4. **The retry is on the trace**: a `HealthEvent` for each retry, through the
+   same `diagnostics:` as 3a.
+
+### Non-goals
+
+- Retrying anything else: a failure before any tool ran (the person can say
+  it again; nothing is saved), any named failure, a refusal, a deadline.
+- A second retry (F-15 A).
+- The bare-tool-name reply (D-116 F-6 A stands: re-measured, not retried).
+- A retry in the MLX mind (F-5 B: no such failure has been seen there).
+
+### Acceptance criteria (AC-317 … AC-323)
+
+- **AC-317 — one reply, one body run** *(theirs: AC-1)*. A session that
+  fails the first write after a tool round and succeeds the second gives ONE
+  reply; the turn completes; the tool's body ran once (counted).
+- **AC-318 — no third try** *(theirs: AC-2)*. A session that fails both
+  writes ends the turn with the named failure (AC-322), once.
+- **AC-319 — what is never retried** *(theirs: AC-3, widened)*. No retry
+  when no tool ran, when a word was already said (F-19 A), or when the
+  failure is named (`.tooHot`, `.contextWindowExceeded`, `.unavailable`,
+  `.busy`, a refusal).
+- **AC-320 — a barge during the retry** *(theirs: AC-4)*. It cancels the
+  retry like any reply; the tool's write stands; nothing runs twice.
+- **AC-321 — the retry is seen** *(theirs: AC-5)*. One `HealthEvent` per
+  retry, naming it.
+- **AC-322 — the unnamed failure has a name** *(R-2)*. The new case carries
+  the vendor's words; every error item 3 lists reaches a caller as it; no
+  other error does.
+- **AC-323 — the phone** *(PROBE-R, Ryad's gate)*. With the fault injected on
+  the iPhone: the body ran once, a reply was spoken, and the retry's cost is
+  recorded.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-317 | `AppleRetryTests` · "one retry, one reply, one body run" | fake session maker + a counted tool |
+| AC-318 | `AppleRetryTests` · "two failures: the named failure, once" | fake |
+| AC-319 | `AppleRetryTests` · "no tool ran" · "a word was said" · one row per named failure | fake |
+| AC-320 | `AppleRetryTests` · "a barge during the retry" (through the coordinator) | fake + coordinator rig |
+| AC-321 | `AppleRetryTests` · "the retry is on the health road" | fake + `HealthLog` |
+| AC-322 | `AppleFailureTableTests` · the new rows for each arm | scripted source |
+| AC-323 | PROBE-R in the demo | phone |
+
+### The forks (Ryad rules)
+
+**F-15 — HOW MANY RETRIES.** *A:* one. *B:* up to N. **Recommendation: A** —
+the diet app's view too: a second unnamed failure in one turn is a pattern
+to surface, not to hide behind more waiting.
+
+**F-16 — THE TOOLS DURING THE RETRY.** *A:* in the schema; a repeat of a
+call already made this turn is answered from its record, a new call runs.
+*B:* no tools — the model may only write. *C:* in the schema, bodies live.
+**Recommendation: A** — the model keeps its tools (the diet app's view),
+and R-1's hard rule holds by construction: a repeat never reaches a body.
+*C violates R-1* (a write could run twice); *B* changes what the model may
+do mid-turn, and a transcript full of calls to tools it no longer has is
+a shape nobody has measured.
+
+**F-17 — WHERE IT LIVES.** *A:* in the session keeper (the Apple mind's).
+*B:* in the coordinator (every mind). **Recommendation: A** — the failure is
+the Apple vendor's, the keeper already holds the records and the sessions,
+and a text caller (`reply(to:)`) gets the retry too; the coordinator must
+not learn a vendor's transcript (D-116 F-1 A's reason).
+
+**F-18 — HOW THE WRITING IS ASKED AGAIN.** *A:* replay the turn — a fresh
+session from the same history, the same prompt, repeats answered from
+records. *B:* seed the tool calls and outputs into the new session and ask
+with the same words again (the question appears twice in the transcript).
+*C:* seed them and ask with an empty prompt (the vendor's behaviour
+unknown). **Recommendation: A**, confirmed or overturned by PROBE-R — the
+only shape that neither shows the model its question twice nor leans on an
+unmeasured empty prompt.
+
+**F-19 — A FAILURE AFTER A WORD WAS SAID.** *A:* no retry — the turn fails
+with the named failure, as today. *B:* retry anyway. **Recommendation: A** —
+the person has heard part of an answer; a second, different answer after
+it is a stutter the app cannot explain. The diet app's two failures came
+before any word.
+
+**F-20 — THE NEW CASE'S NAME.** *A:* `ReplyFailure.unexplained(String)` —
+"the vendor failed and gave no reason this library can name". *B:*
+`ReplyFailure.vendor(String)`. **Recommendation: A** — it says what an app
+needs to know (no reason was given), where B says only who failed.
+
+### Definition of done
+
+§212's, plus: PROBE-R run on the phone before F-18 is final; the tag note
+names the new `ReplyFailure` case as a change for every caller that
+switches over it. **The diet app does, exhaustively, in two places**
+(`MindMacroEstimator.translate`, `AddFoodDraft` — checked 2026-09-24):
+both stop compiling until they handle the new case. That is R-2's own
+point — the app wants to speak a sentence for it — and the tag note says
+so, so the break is expected rather than found.
+
+### As built (5c0af8e, 2026-09-29) — details decided inside the signed scope
+
+Built under D-123 (before PROBE-R). None of these is a fork: each has one
+defensible answer inside the rulings above. They are listed so that
+nothing was decided silently, and each can be changed in review.
+
+- **The words.** `.unexplained(words)` carries `String(describing: error)`,
+  the vendor's own words, whole. Its `description` is "the model failed
+  without a reason this library can name: <words>". The same words ride on
+  `.lastAnswerFailed` and on the new event.
+- **The event** is `HealthEvent.mindReplyRetried(after: String)`, the
+  failure's words. The fresh session is reported beside it, as every birth
+  is (`mindSessionSeeded(.lastAnswerFailed(words), turns:)`).
+- **Named, so not unexplained:** this library's `ToolDeclarationError`
+  (`.engine`, the door's own words) and the vendor's
+  `GenerationSchema.SchemaError` (`.engine`, the pre-5b words). R-2 covers
+  only errors that nothing names.
+- **"Before any word"** means no snapshot with anything in it, whitespace
+  included. The run compares every snapshot with the text it has emitted,
+  and a retry starts from nothing, so even a lone space rules a retry out.
+- **One table, two readers.** The failure table became a value
+  (`AppleEnding`). The run reports from it, and the keeper asks again from
+  the same table, so the two cannot disagree. The keeper is therefore
+  gated on OS 26, like the rest of the Apple mind.
+- **What the retried session holds.** After a retry, the keeper records
+  what the answering session holds, repeats included. The next turn
+  continues that session only if it repeated every call the memory
+  remembers; otherwise the next turn re-seeds (`.memoryChanged`). The
+  memory stays the truth.
+- **Repeats are not new acts.** A call answered from its record reaches
+  the vendor's transcript, but not the run: `.toolRan` was already sent
+  when the tool really ran.
+
+## §214 — results, measured 2026-09-23…29 on `milestone/5b-session`
+
+Every criterion, with what was RUN and what is owed. "Phone" means
+Ryad's gate, and by **D-123** the phone comes after the merge, in one
+session: nothing here claims a phone number. The raw logs are in
+`docs/evidence/5b/`. Every AC-303…AC-322 row drives the fake session
+maker: the Apple model reports `modelNotReady` on this Mac.
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-303 one session for many turns | **met** — ten turns, one session made; turn ten sends its own words only; the same through the coordinator, with and without tools | `AppleSessionTests`, `AppleSessionToolTests`, mutation M5 (a finished turn written without its tools re-seeds every tool turn) |
+| AC-304 instructions and tools once | **met** — given at the session's birth, never re-sent | `AppleSessionTests` |
+| AC-305 a tool call is a tool call | **met** — a re-seed replays `Transcript.ToolCalls` + `ToolOutput`, never prose; a turn with no tool replays exactly as before; an act with no words replays the act | `AppleSessionToolTests` |
+| AC-306 a barge never poisons *(amended, D-117 F-10 A)* | **met** — the next turn is a NEW session seeded from the memory, the cut turn marked interrupted; the cut session answers nothing more | `AppleSessionEndingTests`, `AppleSessionTests` |
+| AC-307 a failure re-seeds, and says so | **met** — released at once; the next birth is `mindSessionSeeded(.lastAnswerFailed(words), …)` | `AppleSessionEndingTests` |
+| AC-308 the bound bounds the re-seed *(amended, D-118 F-12 C, D-124 F-22 B)* | **met** — the window rule (six turns at a bound of four, one session); the window must MATCH, not only fit; memory off re-seeds every turn; the wall re-asked once only when the session outgrew the window; after a word the turn fails and the next re-seeds with `.contextFull` | `AppleSessionWindowTests` (8 rows), mutations M22…M30 |
+| AC-309 per-call identity, its own session | **met** | `AppleSessionTests`, `AppleSessionEndingTests` |
+| AC-310 `stop()` retires it | **met** — `stop()` and `clearMemory()` end the conversation; a new one starts from no past | `AppleSessionEndingTests` |
+| AC-311 the memory carries what ran | **met** — `ConversationTurn.tools`; an act with no words is kept (D-119); the bound unchanged | `ConversationMemoryTests+Tools` |
+| AC-312 residency is an event *(D-124 F-21 B)* | **met on this Mac, scripted** — `whenWarm() -> Bool` true at once / when the weights arrive, false when the warm ends without them or nothing is loading, cancellable; the model's wiring on a model with no weights; the ask raised before `prewarm()`'s hop (read from the code). The demo shows the warm's end (compiled). The **live** row needs `MMK_MLX_MODEL` and skips here, saying so | `MLXResidencyTests`, mutations M31…M42 |
+| AC-313 the MLX mind untouched | **met** — `MLXPlainPromptTests` is unchanged since `main`; the contract page says the kept session is the Apple mind's today | `git diff main`, ARCHITECTURE.md |
+| AC-314 INSTRUMENTS §71 | **met, in characters** — 8 644 fixed characters re-read every turn before 5b; 21–30 per turn after turn one with a kept session; 181 807 against 9 127 over twenty turns. The vendor's token count was asked and refused here (`modelNotReady`) | §71, `instruments-71-session-2026-09-29.log` |
+| AC-315 the phone | **OWED** (D-123) — turn two's first token; twenty turns that call their tools | — |
+| AC-316 nothing else moved | **met on this Mac** — 970 tests in 139 suites green, the 20× loop 20 of 20 at `970 tests in 139 suites`, no failing log; CI green on the latest push; lint zero; the demo compiles (signing off). **Owed:** the demo running on a device, and one CI run that hung (below) | the suite, `stability-2026-09-29.txt`, `ci-hang-2026-09-29.md` |
+| AC-317 one reply, one body run | **met** — text caller and coordinator | `AppleRetryTests` |
+| AC-318 no third try | **met** | `AppleRetryTests`, mutation M14 |
+| AC-319 what is never retried | **met** — no tool, a word said, seven named failures, a door failure | `AppleRetryTests`, mutations M9–M11 |
+| AC-320 a barge during the retry | **met** — cancels it; the write stands, once; the act is remembered | `AppleRetryTests` |
+| AC-321 the retry is seen | **met** — one `mindReplyRetried(after:)` per retry | `AppleRetryTests`, mutation M17 |
+| AC-322 the unnamed failure has a name | **met** — `.unexplained(words)` for a foreign vendor error; the library's own failures and every named case keep their names | `AppleFailureTableTests`, mutations M15–M16 |
+| AC-323 the phone (PROBE-R) | **OWED** (D-123) — built in the demo (Bench → Retry probe), not yet run | `RetryProbe.swift` |
+
+### What the milestone found that it did not plan to
+
+- **Two real gaps, found by mutation, not by review.** M24: a keeper that
+  continued any session holding *enough* turns passed every row — a row
+  now proves the window must *match*. M32: a cancel that answers nothing
+  made a test helper hang the whole run — the helper now fails in 10 s.
+- **One CI run never finished** (run 36579409889, piece R): twelve silent
+  minutes, cancelled by hand. The next run on a superset commit passed,
+  the same commit re-run on CI passed (attempt 2), and the whole suite passed
+  with a one-thread cooperative pool. Not explained yet; kept with its
+  log (`ci-hang-2026-09-29.md`).
+- **The vendor's own token count fails here with the SAME shape as the
+  diet app's unnamed failure** (`GenerationError Code=-1`, an NSError no
+  case names) — which is the shape `ReplyFailure.unexplained` exists for.
+- **Stale truths corrected on the way:** the demo's Apple caption said
+  "one session per turn"; `AIRuntime`'s doc said it "cannot call a tool"
+  (false since 4z).
+
+### The phone session, named (D-123)
+
+One session on Ryad's iPhone, after the merge:
+
+1. **PROBE-R** — demo, Bench tab → toolbar "Retry probe" → Run → share the
+   trace. Confirms or reopens F-18 A (AC-323).
+2. **AC-315** — the diet app on `main`: turn two's first token against
+   3.4 s, with its 5 100 characters and 15 tools; twenty turns of the
+   coach's script, a tool called every time one is asked for.
+3. **AC-316, the device half** — the demo runs; the Settings tab shows the
+   local mind's warm end (AC-312's demo half); the Kokoro bundle signs in
+   Xcode's own build.
+4. **5a's AC-300**, still owed: lock five minutes mid-download; kill and
+   relaunch mid-transfer; the system's background wake-up.
+
+Then the tag 0.4.0 — on Ryad's word (D-123).

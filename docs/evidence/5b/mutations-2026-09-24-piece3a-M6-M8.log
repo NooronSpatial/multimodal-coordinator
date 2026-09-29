@@ -1,0 +1,71 @@
+# 5b piece 3a — two mutations, never committed, each reverted (both files compared byte-for-byte after)
+# command per mutation: swift test --filter AppleSessionEndingTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4)
+#
+# M6  TurnCoordinator.stop() does not call endConversation()
+#     convicted by both AC-310 rows: the session is still held after stop(), and the second conversation's
+#     session is reported as .memoryChanged instead of .newConversation.
+# M8  SessionKeeper: a failed answer is not let go at once (the ended(...) call removed)
+#     convicted by both AC-307 rows: the keeper still holds it, and the next birth says .lastAnswerUnfinished
+#     (it only found the session busy) instead of .lastAnswerFailed("the model fell over").
+#
+# NOT run, and why: raising the ticket inside endConversation() matters only when the conversation ends while
+# a NEW session is being made (between the decision and the install). The fake makes sessions synchronously,
+# so no row can land an ending in that window; the line is there by the ticket law (§4.1), not by a row.
+
+################ M6-stop-does-not-end-the-conversation
+􁁛  Test "a failure re-seeds the next turn from the memory, and the trace says why (AC-307)" passed after 0.001 seconds.
+􁁛  Test "a failed session is let go at once, before the next turn exists (AC-307)" passed after 0.001 seconds.
+􁁛  Test "an answer the memory will not keep lets the session go, and the trace says why" passed after 0.001 seconds.
+􁁛  Test "a barge re-seeds the next turn from the memory, the cut turn marked interrupted (AC-306)" passed after 0.001 seconds.
+􀢄  Test "stop() lets the conversation's session go (AC-310)" recorded an issue at AppleSessionEndingTests.swift:166:9: Expectation failed: !keeper.holdsSession
+􀄵  !keeper.holdsSession → true
+􀄵    keeper.holdsSession → false
+􀄵      keeper → MultiModalKit.SessionKeeper
+􀄵        maker → MultiModalKitTests.FakeSessionMaker
+􀄵          signals → nil
+􀄵          record → ()
+􀄵        tools → ToolTable(tools: [])
+􀄵          tools → []
+􀄵        diagnostics → nil
+􀄵        state → ()
+􀄵      holdsSession → true
+􀢄  Test "stop() lets the conversation's session go (AC-310)" failed after 0.003 seconds with 1 issue.
+􀢄  Test "a new conversation on the same generator starts a new session, from no past (AC-310)" recorded an issue at AppleSessionEndingTests.swift:186:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.newConversation, turns: 0)] → false
+􀄵    log.seeds → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.memoryChanged, turns: 0)]
+                                   .mindSessionSeeded(.newConversation, turns: 0)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0)]
+􀢄  Test "a new conversation on the same generator starts a new session, from no past (AC-310)" failed after 0.002 seconds with 1 issue.
+􁁛  Test "clearMemory() ends the conversation's session too (AC-310)" passed after 0.001 seconds.
+􁁛  Test "a continued turn reports nothing: only a session's birth is reported (D-118 F-13 A)" passed after 0.001 seconds.
+􁁛  Test "a session made aside is not the conversation's, and is not reported (AC-309, D-118)" passed after 0.001 seconds.
+􀢄  Suite "AC-306/307/310 · when a session ends" failed after 0.010 seconds with 2 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.010 seconds with 2 issues.
+
+################ M8-a-failure-is-not-released-at-once
+􀢄  Test "a failure re-seeds the next turn from the memory, and the trace says why (AC-307)" recorded an issue at AppleSessionEndingTests.swift:78:9: Expectation failed: log.seeds == [.mindSessionSeeded(.newConversation, turns: 0),
+                                 .mindSessionSeeded(.lastAnswerFailed("the model fell over"), turns: 1)] → false
+􀄵    log.seeds → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerUnfinished, turns: 1)]
+                                   .mindSessionSeeded(.lastAnswerFailed("the model fell over"), turns: 1)] → [MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.newConversation, turns: 0), MultiModalKit.HealthEvent.mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("the model fell over"), turns: 1)]
+􀢄  Test "a failure re-seeds the next turn from the memory, and the trace says why (AC-307)" failed after 0.003 seconds with 1 issue.
+􀢄  Test "a failed session is let go at once, before the next turn exists (AC-307)" recorded an issue at AppleSessionEndingTests.swift:92:9: Expectation failed: !keeper.holdsSession
+􀄵  !keeper.holdsSession → true
+􀄵    keeper.holdsSession → false
+􀄵      keeper → MultiModalKit.SessionKeeper
+􀄵        maker → MultiModalKitTests.FakeSessionMaker
+􀄵          signals → nil
+􀄵          record → ()
+􀄵        tools → ToolTable(tools: [])
+􀄵          tools → []
+􀄵        diagnostics → nil
+􀄵        state → ()
+􀄵      holdsSession → true
+􀢄  Test "a failed session is let go at once, before the next turn exists (AC-307)" failed after 0.002 seconds with 1 issue.
+􁁛  Test "an answer the memory will not keep lets the session go, and the trace says why" passed after 0.001 seconds.
+􁁛  Test "a barge re-seeds the next turn from the memory, the cut turn marked interrupted (AC-306)" passed after 0.001 seconds.
+􁁛  Test "stop() lets the conversation's session go (AC-310)" passed after 0.001 seconds.
+􁁛  Test "a new conversation on the same generator starts a new session, from no past (AC-310)" passed after 0.001 seconds.
+􁁛  Test "clearMemory() ends the conversation's session too (AC-310)" passed after 0.001 seconds.
+􁁛  Test "a continued turn reports nothing: only a session's birth is reported (D-118 F-13 A)" passed after 0.001 seconds.
+􁁛  Test "a session made aside is not the conversation's, and is not reported (AC-309, D-118)" passed after 0.001 seconds.
+􀢄  Suite "AC-306/307/310 · when a session ends" failed after 0.009 seconds with 2 issues.
+􀢄  Test run with 9 tests in 1 suite failed after 0.009 seconds with 2 issues.

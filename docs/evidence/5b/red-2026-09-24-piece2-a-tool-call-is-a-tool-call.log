@@ -1,0 +1,228 @@
+# 5b piece 2 — RED: a tool call is a tool call (AC-305, AC-311; D-117 F-8 A, D-119 F-14 A), against the skeleton
+# command: swift test --filter 'AppleSessionToolTests|ConversationMemoryTests|AppleSessionTests|ToolSpikeTests'
+# (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors — the Xcode 27 drift)
+# The skeleton carries the SHAPE — ToolUse, ReplyUpdate.toolRan, Reply.tools, ConversationTurn.tools,
+# MindSessionUpdate, the route's reporter — and none of the judgment. 13 rows red, each for the right reason;
+# the regression guards (a plain turn, silence without an act, a replay with no tool) and every piece-1 row green.
+# Full suite on the same skeleton before these rows: 911 tests, 132 suites, green.
+
+
+/Users/ryad/Developer/multimodal-coordinator/Tests/MultiModalKitTests/Mind/AppleSessionToolTests.swift:41:13: warning: switch must be exhaustive
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite ToolSpikeTests started.
+􀟈  Suite ConversationMemoryTests started.
+􀟈  Suite "AC-305/311 · a tool call is a tool call" started.
+􀟈  Suite "AC-303/304/306/309 · one session for many turns" started.
+􀟈  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" started.
+􀟈  Test "an exchange the mind answered with silence is not recorded" started.
+􀟈  Test "two memories holding the same conversation are equal" started.
+􀟈  Test "a completed exchange carries no mark" started.
+􀟈  Test "an ordinary exchange cannot reach the cliff at the shipped bound" started.
+􀟈  Test "whitespace on either side is not an exchange" started.
+􀟈  Test "clearing forgets everything and stays usable" started.
+􀟈  Test "the budget is paid in whole exchanges" started.
+􀟈  Test "the shipped bound is the measured one, and it clears both limits" started.
+􀟈  Test "the next exchange evicts the oversized one, and the bound holds again" started.
+􀟈  Test "a depth of zero remembers nothing and says so" started.
+􀟈  Test "past the depth, the oldest whole exchange is dropped" started.
+􀟈  Test "an exchange too large to fit alone is kept alone, over budget" started.
+􀟈  Test "the person's words and the mind's stay apart" started.
+􀟈  Test "a turn with neither words nor a tool is still refused (4r's rule, unchanged)" started.
+􀟈  Test "an exchange with no tool is kept exactly as before (AC-311)" started.
+􀟈  Test "a turn where a tool ran and the mind said nothing is kept: the act is the answer (D-119)" started.
+􀟈  Test "an exchange in which a tool ran keeps what ran (AC-311)" started.
+􀟈  Test "a tool's record counts against the budget (D-119, from D-092)" started.
+􀟈  Test "an interrupted exchange is kept, and says so" started.
+􀟈  Test "the budget bites while the depth still has room" started.
+􀟈  Test "an exchange with no question is not recorded" started.
+􀟈  Test "record says whether the memory took the exchange" started.
+􀟈  Test "a remembered tool call is replayed as a CALL and an OUTPUT, not as prose (AC-305)" started.
+􀟈  Test "ten turns, one session (AC-303)" started.
+􀢄  Test "a turn where a tool ran and the mind said nothing is kept: the act is the answer (D-119)" recorded an issue at ConversationMemoryTests+Tools.swift:45:9: Expectation failed: kept
+􀄵  an act is an answer
+􀄵  kept → <not evaluated>
+􁁛  Test "an exchange too large to fit alone is kept alone, over budget" passed after 0.003 seconds.
+􁁛  Test "an exchange with no question is not recorded" passed after 0.003 seconds.
+􁁛  Test "the budget is paid in whole exchanges" passed after 0.003 seconds.
+􁁛  Test "two memories holding the same conversation are equal" passed after 0.003 seconds.
+􁁛  Test "the budget bites while the depth still has room" passed after 0.003 seconds.
+􁁛  Test "record says whether the memory took the exchange" passed after 0.003 seconds.
+􁁛  Test "a turn with neither words nor a tool is still refused (4r's rule, unchanged)" passed after 0.003 seconds.
+􁁛  Test "a completed exchange carries no mark" passed after 0.004 seconds.
+􁁛  Test "the next exchange evicts the oversized one, and the bound holds again" passed after 0.004 seconds.
+􁁛  Test "the shipped bound is the measured one, and it clears both limits" passed after 0.004 seconds.
+􁁛  Test "clearing forgets everything and stays usable" passed after 0.003 seconds.
+􁁛  Test "past the depth, the oldest whole exchange is dropped" passed after 0.004 seconds.
+􁁛  Test "whitespace on either side is not an exchange" passed after 0.004 seconds.
+􁁛  Test "an exchange the mind answered with silence is not recorded" passed after 0.004 seconds.
+􁁛  Test "an exchange with no tool is kept exactly as before (AC-311)" passed after 0.004 seconds.
+􁁛  Test "an ordinary exchange cannot reach the cliff at the shipped bound" passed after 0.004 seconds.
+􁁛  Test "the person's words and the mind's stay apart" passed after 0.004 seconds.
+􁁛  Test "a depth of zero remembers nothing and says so" passed after 0.004 seconds.
+􁁛  Test "an interrupted exchange is kept, and says so" passed after 0.004 seconds.
+􀢄  Test "a tool's record counts against the budget (D-119, from D-092)" recorded an issue at ConversationMemoryTests+Tools.swift:65:9: Expectation failed: turn.characters == 4 + Self.logged.characters
+􀄵  turn.characters == 4 + Self.logged.characters → false
+􀄵    turn.characters → 4
+􀄵    4 + Self.logged.characters → 36
+􁁛  Test "ten turns, one session (AC-303)" passed after 0.004 seconds.
+􀟈  Test "turn ten sends the model its new words and nothing else (AC-303)" started.
+􁁛  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" passed after 0.005 seconds.
+􀟈  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" started.
+􀢄  Test "a tool's record counts against the budget (D-119, from D-092)" recorded an issue at ConversationMemoryTests+Tools.swift:72:9: Expectation failed: memory.turns.map(\.said) == ["q2"]
+􀄵  the tool's words were counted, so the oldest went
+􀄵  memory.turns.map(\.said) == ["q2"] → false
+􀄵    memory.turns.map(\.said) → ["q1", "q2"]
+􀢄  Test "a tool's record counts against the budget (D-119, from D-092)" failed after 0.005 seconds with 2 issues.
+􀄵  /// Stated with D-119, from D-092: the memory is priced by the
+􀄵  /// character because a replay costs by the character, and a replayed
+􀄵  /// tool output is characters — up to `ToolTable.answerCap` of them.
+􁁛  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" passed after 0.001 seconds.
+􀟈  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" started.
+􁁛  Test "turn ten sends the model its new words and nothing else (AC-303)" passed after 0.001 seconds.
+􀟈  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" started.
+􀢄  Test "a remembered tool call is replayed as a CALL and an OUTPUT, not as prose (AC-305)" recorded an issue at AppleSessionToolTests.swift:64:9: Expectation failed: Self.kinds(entries) == ["prompt", "toolCalls", "toolOutput", "response"]
+􀄵  Self.kinds(entries) == ["prompt", "toolCalls", "toolOutput", "response"] → false
+􀄵    Self.kinds(entries) → ["prompt", "response"]
+􀢄  Test "a remembered tool call is replayed as a CALL and an OUTPUT, not as prose (AC-305)" failed after 0.006 seconds with 1 issue.
+􀟈  Test "a turn with no tool replays exactly as before (AC-305's other half)" started.
+􁁛  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" passed after 0.001 seconds.
+􀟈  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" started.
+􁁛  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" passed after 0.001 seconds.
+􀟈  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" started.
+􁁛  Test "a turn with no tool replays exactly as before (AC-305's other half)" passed after 0.001 seconds.
+􀟈  Test "a turn where a tool ran and the mind said nothing replays the act (D-119)" started.
+􀢄  Test "an exchange in which a tool ran keeps what ran (AC-311)" recorded an issue at ConversationMemoryTests+Tools.swift:24:9: Expectation failed: memory.turns.first?.tools == [Self.logged]
+􀄵  the name, the arguments and the outcome, whole
+􀄵  memory.turns.first?.tools == [Self.logged] → false
+􀄵    memory.turns.first?.tools → []
+􀄵      some → []
+􀄵    [Self.logged] → [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))]
+􀄵      some → [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))]
+􀢄  Test "a turn where a tool ran and the mind said nothing replays the act (D-119)" recorded an issue at AppleSessionToolTests.swift:100:9: Expectation failed: Self.kinds(entries) == ["prompt", "toolCalls", "toolOutput", "response"]
+􀄵  Self.kinds(entries) == ["prompt", "toolCalls", "toolOutput", "response"] → false
+􀄵    Self.kinds(entries) → ["prompt", "response"]
+􀢄  Test "an exchange in which a tool ran keeps what ran (AC-311)" failed after 0.008 seconds with 1 issue.
+􀢄  Test "a turn where a tool ran and the mind said nothing replays the act (D-119)" failed after 0.001 seconds with 1 issue.
+􀄵  /// D-119 F-14 A: the act is the answer. The replay is the prompt, the
+􀄵  /// call and its output — and a response with no words, the shape the
+􀄵  /// vendor writes when the model says nothing after a tool.
+􀢄  Test "a turn where a tool ran and the mind said nothing is kept: the act is the answer (D-119)" recorded an issue at ConversationMemoryTests+Tools.swift:46:9: Expectation failed: memory.turns == [ConversationTurn(said: "log 84 kilos", replied: "", tools: [Self.logged])]
+􀄵  memory.turns == [ConversationTurn(said: "log 84 kilos", replied: "", tools: [Self.logged])] → false
+􀄵    memory.turns → []
+􀄵    [ConversationTurn(said: "log 84 kilos", replied: "", tools: [Self.logged])] → [MultiModalKit.ConversationTurn(said: "log 84 kilos", replied: "", interrupted: false, tools: [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))])]
+􁁛  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" passed after 0.001 seconds.
+􀢄  Test "a turn where a tool ran and the mind said nothing is kept: the act is the answer (D-119)" failed after 0.008 seconds with 2 issues.
+􀄵  /// D-119 F-14 A. The model called `log_weight`, the weight was logged,
+􀄵  /// and the mind said nothing. Refused, the act would vanish from the
+􀄵  /// conversation — the failure 5b exists to end, from the other side.
+􀟈  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" started.
+􀟈  Test "a vendor session born with a typed tool call holds it (the vendor fact under AC-305)" started.
+􀢄  Suite ConversationMemoryTests failed after 0.009 seconds with 5 issues.
+􀄵  /// THE MEMORY'S RULES, PROVEN SYNCHRONOUSLY (4r, D-088, AC-191..AC-194).
+􀄵  ///
+􀄵  /// No clock, no actor, no tasks — the ledger's precedent, for the ledger's
+􀄵  /// reason: bounds that are raced for are bounds nobody can defend. Every
+􀄵  /// fact here is a value in and a value out.
+􀄵  ///
+􀄵  /// What this suite does NOT cover is where the coordinator calls `record`.
+􀄵  /// That is a pipeline question with its own tests; these are the rules the
+􀄵  /// type owes whoever calls it.
+􁁛  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" passed after 0.001 seconds.
+􀟈  Test "D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run" started.
+􁁛  Test "ten turns through the coordinator, on the memory it really keeps: one session (AC-303)" passed after 0.003 seconds.
+􀟈  Test "the instructions and the tools are given once, at the session's birth (AC-304)" started.
+􁁛  Test "the instructions and the tools are given once, at the session's birth (AC-304)" passed after 0.001 seconds.
+􀟈  Test "the same table on every call keeps one session (AC-304, the demo's shape)" started.
+􁁛  Test "the same table on every call keeps one session (AC-304, the demo's shape)" passed after 0.001 seconds.
+􁁛  Test "D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run" passed after 0.001 seconds.
+􀟈  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" started.
+􀟈  Test "ToolTable: exact name, nil for a stranger, both failures typed" started.
+􁁛  Test "ToolTable: exact name, nil for a stranger, both failures typed" passed after 0.001 seconds.
+􁁛  Suite ToolSpikeTests passed after 0.011 seconds.
+􁁛  Test "a tool made once for the session honours each answer's own yes (4z F-10 B-ii, kept by 5b)" passed after 0.001 seconds.
+􀟈  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" started.
+􁁛  Test "a session whose answer was cut is never asked again, even when the history still matches (AC-306)" passed after 0.001 seconds.
+􀟈  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" started.
+􁁛  Test "a call with other instructions gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􀟈  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" started.
+􁁛  Test "a call with another table gets a session of its own; the conversation's is not disturbed (AC-309)" passed after 0.001 seconds.
+􁁛  Suite "AC-303/304/306/309 · one session for many turns" passed after 0.014 seconds.
+􀢄  Test "a vendor session born with a typed tool call holds it (the vendor fact under AC-305)" recorded an issue at AppleSessionToolTests.swift:110:9: Expectation failed: Self.kinds(session.session.transcript) == ["instructions", "prompt", "toolCalls", "toolOutput", "response"]
+􀄵  Self.kinds(session.session.transcript) == ["instructions", "prompt", "toolCalls", "toolOutput", "response"] → false
+􀄵    Self.kinds(session.session.transcript) → ["instructions", "prompt", "response"]
+􀢄  Test "a vendor session born with a typed tool call holds it (the vendor fact under AC-305)" failed after 0.081 seconds with 1 issue.
+􀄵  /// The vendor fact under the replay: a session BORN with typed tool
+􀄵  /// entries holds them. Built, never asked — no model needed.
+􀟈  Test "the adapter reports each use to the answer in progress (D-117 F-8 A)" started.
+􀢄  Test "the adapter reports each use to the answer in progress (D-117 F-8 A)" recorded an issue at AppleSessionToolTests.swift:128:9: Expectation failed: heard.withLock { $0 } == [ToolUse(name: "log_weight", arguments: ["kg": 84],
+                                                  outcome: ToolCallOutcome(result: .success("Logged 84 kg.")))]
+􀄵  heard.withLock { $0 } == [ToolUse(name: "log_weight", arguments: ["kg": 84],
+                                                     outcome: ToolCallOutcome(result: .success("Logged 84 kg.")))] → false
+􀄵    heard.withLock { $0 } → []
+􀄵    [ToolUse(name: "log_weight", arguments: ["kg": 84],
+                                                       outcome: ToolCallOutcome(result: .success("Logged 84 kg.")))] → [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))]
+􀢄  Test "the adapter reports each use to the answer in progress (D-117 F-8 A)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "a refused call is reported too: the model was told something (D-117 F-8 A)" started.
+􀢄  Test "a refused call is reported too: the model was told something (D-117 F-8 A)" recorded an issue at AppleSessionToolTests.swift:146:9: Expectation failed: heard.withLock { $0 } == [ToolUse(name: "delete_meal", arguments: .empty,
+                                                  outcome: ToolCallOutcome(result: .failure(refusal)))]
+􀄵  heard.withLock { $0 } == [ToolUse(name: "delete_meal", arguments: .empty,
+                                                     outcome: ToolCallOutcome(result: .failure(refusal)))] → false
+􀄵    heard.withLock { $0 } → []
+􀄵    [ToolUse(name: "delete_meal", arguments: .empty,
+                                                       outcome: ToolCallOutcome(result: .failure(refusal)))] → [MultiModalKit.ToolUse(name: "delete_meal", arguments: MultiModalKit.ToolArguments(values: [:]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.failure(tool 'delete_meal' needs the person's confirmation: ask them, and call it again once they have said yes), stripped: [], coerced: [], cut: false))]
+􀢄  Test "a refused call is reported too: the model was told something (D-117 F-8 A)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "the Apple mind sends .toolRan on the reply stream when a tool ran (D-117 F-8 A)" started.
+􀢄  Test "the Apple mind sends .toolRan on the reply stream when a tool ran (D-117 F-8 A)" recorded an issue at AppleSessionToolTests.swift:158:9: Expectation failed: updates == [.toolRan(Self.logged), .token("Logged 84 kg."), .finished(.unreported)]
+􀄵  updates == [.toolRan(Self.logged), .token("Logged 84 kg."), .finished(.unreported)] → false
+􀄵    updates → [MultiModalKit.ReplyUpdate.token("Logged 84 kg."), MultiModalKit.ReplyUpdate.finished(MultiModalKit.StopReason.unreported)]
+􀄵    [.toolRan(Self.logged), .token("Logged 84 kg."), .finished(.unreported)] → [MultiModalKit.ReplyUpdate.toolRan(MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))), MultiModalKit.ReplyUpdate.token("Logged 84 kg."), MultiModalKit.ReplyUpdate.finished(MultiModalKit.StopReason.unreported)]
+􀢄  Test "the Apple mind sends .toolRan on the reply stream when a tool ran (D-117 F-8 A)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "a text caller finds the tools on Reply (D-117 F-8 A)" started.
+􀢄  Test "a text caller finds the tools on Reply (D-117 F-8 A)" recorded an issue at AppleSessionToolTests.swift:167:9: Expectation failed: reply == Reply(text: "Logged 84 kg.", stop: .unreported, tools: [Self.logged])
+􀄵  reply == Reply(text: "Logged 84 kg.", stop: .unreported, tools: [Self.logged]) → false
+􀄵    reply → Reply(text: "Logged 84 kg.", stop: MultiModalKit.StopReason.unreported, tools: [])
+􀄵      text → "Logged 84 kg."
+􀄵      stop → .unreported
+􀄵      tools → []
+􀄵    Reply(text: "Logged 84 kg.", stop: .unreported, tools: [Self.logged]) → Reply(text: "Logged 84 kg.", stop: MultiModalKit.StopReason.unreported, tools: [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))])
+􀄵      text → "Logged 84 kg."
+􀄵      stop → .unreported
+􀄵      tools → [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))]
+􀢄  Test "a text caller finds the tools on Reply (D-117 F-8 A)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "the coordinator keeps what ran on the turn it belongs to (AC-311)" started.
+􀢄  Test "the coordinator keeps what ran on the turn it belongs to (AC-311)" recorded an issue at AppleSessionToolTests.swift:190:9: Expectation failed: memory == [
+            ConversationTurn(said: "log 84 kilos", replied: "Logged 84 kg.", tools: [Self.logged]),
+            ConversationTurn(said: "thanks", replied: "You are welcome.")
+        ]
+􀄵  the tool is on ITS turn, and a turn with none carries none
+􀄵  memory == [
+               ConversationTurn(said: "log 84 kilos", replied: "Logged 84 kg.", tools: [Self.logged]),
+               ConversationTurn(said: "thanks", replied: "You are welcome.")
+           ] → false
+􀄵    memory → [MultiModalKit.ConversationTurn(said: "log 84 kilos", replied: "Logged 84 kg.", interrupted: false, tools: []), MultiModalKit.ConversationTurn(said: "thanks", replied: "You are welcome.", interrupted: false, tools: [])]
+􀄵    [
+                 ConversationTurn(said: "log 84 kilos", replied: "Logged 84 kg.", tools: [Self.logged]),
+                 ConversationTurn(said: "thanks", replied: "You are welcome.")
+             ] → [MultiModalKit.ConversationTurn(said: "log 84 kilos", replied: "Logged 84 kg.", interrupted: false, tools: [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))]), MultiModalKit.ConversationTurn(said: "thanks", replied: "You are welcome.", interrupted: false, tools: [])]
+􀢄  Test "the coordinator keeps what ran on the turn it belongs to (AC-311)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "a turn where a tool ran and the mind said nothing is remembered through the coordinator (D-119)" started.
+􀢄  Test "a turn where a tool ran and the mind said nothing is remembered through the coordinator (D-119)" recorded an issue at AppleSessionToolTests.swift:209:9: Expectation failed: memory == [ConversationTurn(said: "log 84 kilos", replied: "", tools: [Self.logged])]
+􀄵  memory == [ConversationTurn(said: "log 84 kilos", replied: "", tools: [Self.logged])] → false
+􀄵    memory → []
+􀄵    [ConversationTurn(said: "log 84 kilos", replied: "", tools: [Self.logged])] → [MultiModalKit.ConversationTurn(said: "log 84 kilos", replied: "", interrupted: false, tools: [MultiModalKit.ToolUse(name: "log_weight", arguments: MultiModalKit.ToolArguments(values: ["kg": 84]), outcome: MultiModalKit.ToolCallOutcome(result: Swift.Result<Swift.String, MultiModalKit.ToolCallFailure>.success("Logged 84 kg."), stripped: [], coerced: [], cut: false))])]
+􀢄  Test "a turn where a tool ran and the mind said nothing is remembered through the coordinator (D-119)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "ten turns that each use a tool, through the coordinator: still one session (AC-303 with tools)" started.
+􀢄  Test "ten turns that each use a tool, through the coordinator: still one session (AC-303 with tools)" recorded an issue at AppleSessionToolTests.swift:230:9: Expectation failed: remembered == 10
+􀄵  every turn kept its tool
+􀄵  remembered == 10 → false
+􀄵    remembered → 0
+􀢄  Test "ten turns that each use a tool, through the coordinator: still one session (AC-303 with tools)" failed after 0.001 seconds with 1 issue.
+􀄵  /// The keeper writes a finished answer the way the memory does —
+􀄵  /// tools included — or every turn that used one would look like a
+􀄵  /// changed history and re-seed.
+􀢄  Suite "AC-305/311 · a tool call is a tool call" failed after 0.098 seconds with 10 issues.
+􀢄  Test run with 50 tests in 4 suites failed after 0.099 seconds with 15 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

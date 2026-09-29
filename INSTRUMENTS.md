@@ -5753,3 +5753,86 @@ own default is `W8A16-multifunction`. The 0.6B was out by 474 698 bytes
 and the 1.7B by ~113 MB. Asking `TTSKitConfig.downloadPatterns` instead
 of writing the globs down convicted both
 (`docs/evidence/5a/red-2026-09-22-piece5-neural-sizes-measured-by-hand-were-wrong.log`).
+
+## 71. What one turn prefills — a fresh session every turn, and the kept one (5b, AC-314)
+
+**What was asked.** 5b keeps one Apple session for a conversation, so a
+turn stops re-reading the instructions, the tool schemas and the past
+(SPEC §207: 3.3–3.9 s to the first token on the diet app's phone, turn
+one or turn twenty). The time is the phone's to measure (AC-315). What
+this Mac CAN say is how much text each turn hands the model before its
+first word, before and after — the thing the time is spent on.
+
+**Machine and command.** This Mac, 2026-09-29; the Apple model reports
+`modelNotReady` here.
+
+```bash
+swift run bakeoff session            # --turns=20 --memory=4 are the defaults
+```
+
+The raw run is `docs/evidence/5b/instruments-71-session-2026-09-29.log`.
+
+**What is counted.** Characters of what this library HANDS the vendor:
+the instructions; each tool's declaration as the vendor's own schema
+(the `GenerationSchema` JSON, built the way the Apple adapter builds it);
+the remembered turns as the memory prices them (`ConversationTurn
+.characters`, D-092 — a tool's name, arguments and answer included); and
+the new words. A turn's OWN tool outputs are read mid-answer in both
+worlds alike, so they are in neither column.
+
+**The conversation.** Shaped like the diet app's coach: 5 100 characters
+of rules, fifteen tools, a memory of four turns, twenty turns in which
+two of every three call a tool. The text is synthetic; the sizes are
+the point.
+
+| | characters |
+|---|---:|
+| instructions | 5 100 |
+| fifteen tool schemas (JSON) | 3 544 |
+| **the fixed part a fresh session re-reads every turn** | **8 644** |
+| the memory's window at its bound (four turns) | 456–539 |
+
+| turn | fresh session (before 5b) | kept session (5b) |
+|---:|---:|---:|
+| 1 | 8 665 | 8 665 |
+| 2 | 8 768 | 30 |
+| 3 | 8 935 | 21 |
+| 5 and later | 9 121–9 204 | 21–30 |
+| **all twenty** | **181 807** | **9 127 (−94 %)** |
+
+**Turn one costs the same either way; every later turn costs the new
+words.** Before 5b, turn twenty re-read 9 131 characters to answer 30.
+With a kept session it reads the 30. Across twenty turns the model reads
+**~20× less** before it can start answering.
+
+**A re-seed pays the old price, once.** A barge, a failure, the wall or
+a new conversation seeds a new session from the memory: 9 131
+characters at a full memory of four turns — what EVERY pre-5b turn paid.
+The health road names each one (`HealthEvent.mindSessionSeeded`), so a
+trace shows how often a conversation pays it.
+
+**The fixed part dominates.** 8 644 of turn twenty's 9 131 characters
+are instructions and schemas; the four remembered turns are ~5 %. That
+is why the kept session, not a smaller memory, is the fix: the diet app
+could cut its prompt and buy 1.5–2 s (its own estimate), but only a kept
+session stops paying the rest on every turn.
+
+### What this section does not claim
+
+- **No time, and no tokens.** Characters are not milliseconds. The
+  vendor's own token count (`SystemLanguageModel.tokenCount`, macOS
+  26.4) was ASKED and refused here — `GenerationError Code=-1` wrapping
+  `ModelManagerError Code=1026`, the model not being ready. (That error's
+  shape — a `GenerationError` domain with no case the SDK names — is the
+  same shape as the diet app's unnamed failure, which is what
+  `ReplyFailure.unexplained` now names.)
+- **The kept column is a floor.** A continued session still adds the
+  vendor's own markers around each new prompt and response, which this
+  library cannot see.
+- **The schemas are ours, not the diet app's.** Its fifteen schemas
+  measured 2 154 characters on its phone; these synthetic ones render to
+  3 544. The shape holds either way: a fixed part paid once, not twenty
+  times.
+- **Owed — the phone (AC-315, D-123):** turn two's first token with the
+  coach's real 5 100 characters and 15 tools, and twenty turns that call
+  a tool every time one is asked for.

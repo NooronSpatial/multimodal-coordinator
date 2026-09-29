@@ -1,0 +1,42 @@
+# INSTRUMENTS §71 raw run — swift run bakeoff session (5b, AC-314)
+# this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; commit 297043b + the instrument (uncommitted at run time)
+# SystemLanguageModel availability here: modelNotReady — characters only; the vendor refused the token count.
+
+# bakeoff session — what one turn prefills, fresh and kept (INSTRUMENTS §71, 5b AC-314)
+
+instructions: 5100 characters · tools: 15, 3544 characters of schema (JSON) · memory: 4 turns · turns: 20
+fixed part a fresh session pays every turn: 8644 characters
+
+| turn | window | fresh session (before 5b) | kept session (5b) | saved |
+|---:|---:|---:|---:|---:|
+| 1 | 0 turns, 0 ch | 8665 | 8665 | 0 % |
+| 2 | 1 turns, 94 ch | 8768 | 30 | 99 % |
+| 3 | 2 turns, 270 ch | 8935 | 21 | 99 % |
+| 4 | 3 turns, 363 ch | 9028 | 21 | 99 % |
+| 5 | 4 turns, 457 ch | 9131 | 30 | 99 % |
+| 6 | 4 turns, 539 ch | 9204 | 21 | 99 % |
+| 7 | 4 turns, 456 ch | 9121 | 21 | 99 % |
+| 8 | 4 turns, 457 ch | 9131 | 30 | 99 % |
+| 9 | 4 turns, 539 ch | 9204 | 21 | 99 % |
+| 10 | 4 turns, 456 ch | 9121 | 21 | 99 % |
+| 11 | 4 turns, 457 ch | 9131 | 30 | 99 % |
+| 12 | 4 turns, 539 ch | 9204 | 21 | 99 % |
+| 13 | 4 turns, 456 ch | 9121 | 21 | 99 % |
+| 14 | 4 turns, 457 ch | 9131 | 30 | 99 % |
+| 15 | 4 turns, 539 ch | 9204 | 21 | 99 % |
+| 16 | 4 turns, 456 ch | 9121 | 21 | 99 % |
+| 17 | 4 turns, 457 ch | 9131 | 30 | 99 % |
+| 18 | 4 turns, 539 ch | 9204 | 21 | 99 % |
+| 19 | 4 turns, 456 ch | 9121 | 21 | 99 % |
+| 20 | 4 turns, 457 ch | 9131 | 30 | 99 % |
+| **all 20** | | **181807** | **9127** | **94 %** |
+
+a RE-SEED (a barge, a failure, the wall, a new conversation) pays what every pre-5b turn paid: 9131 characters at a full memory of 4 turns.
+
+the vendor's tokens (SystemLanguageModel.tokenCount) — availability: unavailable(FoundationModels.SystemLanguageModel.Availability.UnavailableReason.modelNotReady)
+  the vendor will not say here: Error Domain=FoundationModels.LanguageModelSession.GenerationError Code=-1 "(null)" UserInfo={NSMultipleUnderlyingErrorsKey=(
+    "Error Domain=ModelManagerServices.ModelManagerError Code=1026 \"(null)\" UserInfo={NSMultipleUnderlyingErrorsKey=(\n)}"
+)}
+
+OWED — the number this Mac cannot take (AC-315, Ryad's gate): turn two's FIRST TOKEN on the phone,
+with the same 5 100 characters and 15 tools. The characters above are what it no longer re-reads.

@@ -37,6 +37,15 @@ if arguments.count > 1, arguments[1] == "voice-install" { await runVoiceInstall(
 if arguments.count > 1, arguments[1] == "voice-kokoro" { await runVoiceKokoro(arguments) }
 if arguments.count > 1, arguments[1] == "graph-probe" { await runGraphProbe(arguments) }
 if arguments.count > 1, arguments[1] == "downloads" { await runDownloads(arguments) }
+if arguments.count > 1, arguments[1] == "session" {
+    // 5b, AC-314 (INSTRUMENTS §71): what one turn prefills, fresh and kept.
+    if #available(macOS 26.0, *) {
+        await runSession(arguments)
+    } else {
+        print("session: NOT RUN — the Apple mind's schemas need macOS 26, this Mac is older.")
+        exit(2)
+    }
+}
 
 let positional = arguments.dropFirst().filter { !$0.hasPrefix("--") }
 let wavPath = positional.count > 0 ? positional[positional.startIndex] : "Fixtures/ryad-en.wav"
