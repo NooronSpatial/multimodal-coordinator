@@ -53,31 +53,32 @@ func sessionTools() -> ToolTable {
     func text(_ name: String, _ words: String) -> ToolParameter {
         ToolParameter(name: name, description: words, kind: .string, isRequired: true)
     }
-    let declared: [(String, String, [ToolParameter])] = [
-        ("log_weight", "Records today's body weight in the person's log.", [number("kg", "The weight in kilograms.")]),
-        ("log_food", "Records one food or drink the person had.",
-         [text("item", "What they ate or drank, in their words."), number("grams", "How much, in grams.")]),
-        ("log_water", "Records water the person drank.", [number("ml", "How much, in millilitres.")]),
-        ("log_sleep", "Records last night's sleep.", [number("hours", "How long they slept, in hours.")]),
-        ("log_steps", "Records today's step count.", [number("steps", "The number of steps.")]),
-        ("log_mood", "Records how the person feels right now.", [number("score", "From 1 (low) to 5 (great).")]),
-        ("log_exercise", "Records one exercise session.",
-         [text("kind", "What they did."), number("minutes", "For how long, in minutes.")]),
-        ("get_today", "Returns everything logged today, with totals.", []),
-        ("get_week", "Returns the last seven days, one line per day.", []),
-        ("get_goal", "Returns the person's current goals.", []),
-        ("set_goal", "Sets one daily goal.",
-         [text("kind", "calories, protein, water or steps."), number("value", "The daily target.")]),
-        ("edit_entry", "Changes the amount of one logged entry.",
-         [text("id", "The entry to change."), number("value", "The new amount.")]),
-        ("delete_entry", "Deletes one logged entry.", [text("id", "The entry to delete.")]),
-        ("undo_last", "Undoes the last thing that was logged.", []),
-        ("get_rules", "Returns the full coaching rulebook, for questions about how the coach works.", [])
-    ]
-    return ToolTable(declared.map { name, words, parameters in
+    func tool(_ name: String, _ words: String, _ parameters: [ToolParameter]) -> ReplyTool {
         ReplyTool(name: name, description: words, parameters: parameters,
                   requiresConfirmation: false) { _ in "Done." }
-    })
+    }
+    return ToolTable([
+        tool("log_weight", "Records today's body weight in the person's log.",
+             [number("kg", "The weight in kilograms.")]),
+        tool("log_food", "Records one food or drink the person had.",
+             [text("item", "What they ate or drank, in their words."), number("grams", "How much, in grams.")]),
+        tool("log_water", "Records water the person drank.", [number("ml", "How much, in millilitres.")]),
+        tool("log_sleep", "Records last night's sleep.", [number("hours", "How long they slept, in hours.")]),
+        tool("log_steps", "Records today's step count.", [number("steps", "The number of steps.")]),
+        tool("log_mood", "Records how the person feels right now.", [number("score", "From 1 (low) to 5 (great).")]),
+        tool("log_exercise", "Records one exercise session.",
+             [text("kind", "What they did."), number("minutes", "For how long, in minutes.")]),
+        tool("get_today", "Returns everything logged today, with totals.", []),
+        tool("get_week", "Returns the last seven days, one line per day.", []),
+        tool("get_goal", "Returns the person's current goals.", []),
+        tool("set_goal", "Sets one daily goal.",
+             [text("kind", "calories, protein, water or steps."), number("value", "The daily target.")]),
+        tool("edit_entry", "Changes the amount of one logged entry.",
+             [text("id", "The entry to change."), number("value", "The new amount.")]),
+        tool("delete_entry", "Deletes one logged entry.", [text("id", "The entry to delete.")]),
+        tool("undo_last", "Undoes the last thing that was logged.", []),
+        tool("get_rules", "Returns the full coaching rulebook, for questions about how the coach works.", [])
+    ])
 }
 
 /// One turn of the script: what the person said, the tool that ran (if
@@ -148,11 +149,12 @@ func runSession(_ arguments: [String]) async {
     var schemas: [GenerationSchema] = []
     for tool in tools.tools {
         guard let schema = try? sessionSchema(for: tool),
-              let json = try? encoder.encode(schema) else {
+              let json = try? encoder.encode(schema),
+              let text = String(bytes: json, encoding: .utf8) else {
             print("could not render \(tool.name)'s schema"); exit(1)
         }
         schemas.append(schema)
-        schemaCharacters += String(decoding: json, as: UTF8.self).count
+        schemaCharacters += text.count
     }
     let fixed = instructions.count + schemaCharacters
 
