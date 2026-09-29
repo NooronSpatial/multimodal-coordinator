@@ -2561,8 +2561,9 @@ handler is called once the session says its events are done.
 - **The simulator has no background transfer daemon** — measured. The
   library falls back to a foreground session there, and a transfer dies
   with the app, which is the only thing that platform can do.
-- **The phone rows are owed** (AC-300): five minutes locked, a kill and
-  a relaunch, and the system's background wake-up.
+- **The phone rows** (AC-300) — five minutes locked, a kill and a
+  relaunch, and the system's background wake-up — were done on Ryad's
+  iPhone on 2026-09-29 (his report; no numbers recorded).
 
 ## One mind session per conversation (5b)
 
@@ -2713,10 +2714,12 @@ an error nothing public names. The person heard nothing.
   turn, whatever the reason — the retry's or the wall's.
 - Seen as `HealthEvent.mindReplyRetried(after: words)`, beside the fresh
   session's birth (`.lastAnswerFailed`).
-- **The vendor fact under it is the phone's to show** (PROBE-R, AC-323):
+- **The vendor fact under it, shown on the phone** (PROBE-R, AC-323):
   every `respond`/`streamResponse` takes a prompt, so the retry RE-ASKS.
-  What the real model does when re-asked is measured by the demo's Retry
-  probe on a phone — owed, by D-123.
+  On Ryad's iPhone the replay held 3 of 3 — the model re-called the tool
+  every time, each repeat answered from its record, a reply every time
+  (INSTRUMENTS §72, D-126). A seeded session with an empty prompt was
+  faster and is recorded, not adopted.
 
 ### The warm's end — an event (F-7 A, F-21 B)
 
@@ -2741,10 +2744,11 @@ across turns is a later milestone with its own memory measurement
 - **Measured on this Mac** (INSTRUMENTS §71, `swift run bakeoff session`):
   what one turn prefills with a fresh session and with a kept one, in
   characters, and the re-seed's cost.
-- **Owed — the phone** (D-123): AC-315 (turn two's first token with the
-  coach's 5 100 characters and 15 tools; twenty turns that call their
-  tools every time), AC-323 (PROBE-R: the retry on the real model),
-  AC-316's "the demo runs" on a device.
+- **Taken on the phone** (2026-09-29): PROBE-R (AC-323, §72), and the
+  demo on a device (AC-316).
+- **Owed — the phone**: AC-315 — turn two's first token with the coach's
+  5 100 characters and 15 tools, and twenty turns that call their tools
+  every time.
 
 ## The rails — cross-cutting, everything rides on them
 
