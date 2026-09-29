@@ -5734,3 +5734,20 @@ of those is a second write.
 as a `ToolCallError` (the vendor wraps a tool's throw), which the library
 NAMES and does not retry. The probe measured the re-ask; the vendor's own
 unnamed failure cannot be summoned, and the field will show it.
+
+## D-127 — 5b's teach-back is skipped, and AC-315 is taken later from a TestFlight trace (Milestone 5b)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("I do this AC-315 — the diet
+app on the phone — later and we skip teach-back") · **Ruling:** the 5b
+teach-back is skipped. AC-315 — turn two's first token and twenty turns
+that call their tools — is measured later, from Ryad's Details trace after
+the diet app's next TestFlight build (the diet app said so the same day).
+
+**What it changes.** §212's definition of done ends with "teach-back";
+that item is not met, by this ruling. The method's own definition of done —
+a component is finished when Ryad can explain it cold — is therefore open
+for 5b's core (the keeper's rule, the window rule, the retry), and this
+entry says so rather than letting the gap go unnamed.
+
+- *Rejected:* the teach-back as planned — one question at a time, decision
+  by decision, before the milestone closes.

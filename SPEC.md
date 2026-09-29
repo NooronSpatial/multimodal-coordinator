@@ -7832,6 +7832,11 @@ both stop compiling until they handle the new case. That is R-2's own
 point — the app wants to speak a sentence for it — and the tag note says
 so, so the break is expected rather than found.
 
+*Corrected 2026-09-29, by the diet app: only `MindMacroEstimator.translate`
+switches over `ReplyFailure`. `AddFoodDraft` switches over the app's own
+`MacroEstimateFailure` and did not break. The "check" of 2026-09-24 read the
+wrong enum; the tag note does not name the app's switches, so it stands.*
+
 ### As built (5c0af8e, 2026-09-29) — details decided inside the signed scope
 
 Built under D-123 (before PROBE-R). None of these is a fork: each has one
@@ -7896,6 +7901,24 @@ maker: the Apple model reports `modelNotReady` on this Mac.
 | AC-321 the retry is seen | **met** — one `mindReplyRetried(after:)` per retry | `AppleRetryTests`, mutation M17 |
 | AC-322 the unnamed failure has a name | **met** — `.unexplained(words)` for a foreign vendor error; the library's own failures and every named case keep their names | `AppleFailureTableTests`, mutations M15–M16 |
 | AC-323 the phone (PROBE-R) | **met** (2026-09-29, Ryad's iPhone) — with the fault injected, the tool's body ran ONCE and a reply was spoken in 3 of 3; the re-ask's first word 1 368–6 714 ms. F-18 A kept (D-126) | §72, `probe-r-2026-09-29-iphone.md` |
+
+### Known limits, written down (2026-09-29)
+
+Found during 5b, named nowhere until now — facts, not rulings:
+
+- **The scripted test mind never sends `.toolRan`.** `ScriptedReplyGenerator`
+  (MultiModalKitTesting) runs a scripted tool through the door and records
+  it for a test to read (`toolCalls`), but its stream carries no `.toolRan`:
+  a caller testing tool records THROUGH THE COORDINATOR with it sees none.
+- **A barge that lands WHILE a tool's body runs drops that tool's record.**
+  The body runs to its end (4z F-5 A) and its write stands, but its record
+  is reported into an answer that is already dead, and the run drops it
+  (`AppleToolAdapter.call`: "a barged answer's record dies there"). The
+  memory never learns that act, so the next turn's model does not know the
+  write happened.
+- **Only real weights on a Mac can take:** the `whenWarm()` live row
+  (`MMK_MLX_MODEL`), and mutation M35 (a warm that cannot finish while a
+  second prewarm arrives).
 
 ### What the milestone found that it did not plan to
 
