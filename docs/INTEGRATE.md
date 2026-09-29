@@ -399,7 +399,7 @@ default closure `= { … }` folds at its brace). The words are the
 source's; the doc comments beside them say why.
 
 ```
-commit   145c0dd
+commit   356fda6
 
 ## MultiModalKit
   Audio/AudioEvent.swift: public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible
@@ -518,9 +518,13 @@ commit   145c0dd
   Concurrency/StopSignal.swift: public var isOn: Bool
   Concurrency/StopSignal.swift: public func signal()
   Concurrency/StopSignal.swift: public func wait() async
+  Conversation/AppleReplyGenerator+Session.swift: public struct AppleSessionMaker: MindSessionMaking
+  Conversation/AppleReplyGenerator+Session.swift: public init()
+  Conversation/AppleReplyGenerator+Session.swift: public var unavailable: MindUnavailable?
+  Conversation/AppleReplyGenerator+Session.swift: public func makeSession(instructions: String?, tools: ToolTable, seed: [ConversationTurn]) throws -> any MindSession
   Conversation/AppleReplyGenerator.swift: public enum AppleMind
   Conversation/AppleReplyGenerator.swift: public static func readiness() -> MindUnavailable?
-  Conversation/AppleReplyGenerator.swift: public struct AppleReplyGenerator: ReplyGenerating
+  Conversation/AppleReplyGenerator.swift: public final class AppleReplyGenerator: ReplyGenerating
   Conversation/AppleReplyGenerator.swift: public static let defaultTokenBudget = 1024
   Conversation/AppleReplyGenerator.swift: public let instructions: String?
   Conversation/AppleReplyGenerator.swift: public let spokenRefusal: String
@@ -528,7 +532,8 @@ commit   145c0dd
   Conversation/AppleReplyGenerator.swift: public let thermal: any ThermalStateProviding
   Conversation/AppleReplyGenerator.swift: public let thermalPolicy: any GenerationThermalPolicy
   Conversation/AppleReplyGenerator.swift: public let clock: any Clock<Duration>
-  Conversation/AppleReplyGenerator.swift: public init(instructions: String? = nil, spokenRefusal: String = "I can't answer that.", tools: ToolTable = .empty, thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError)
+  Conversation/AppleReplyGenerator.swift: public init(instructions: String? = nil, spokenRefusal: String = "I can't answer that.", tools: ToolTable = .empty, sessions: any MindSessionMaking = AppleSessionMaker(), thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock(), diagnostics: PipelineDiagnostics? = nil) throws(ToolDeclarationError)
+  Conversation/AppleReplyGenerator.swift: public func endConversation() async
   Conversation/AppleReplyGenerator.swift: public static var availability: MindUnavailable?
   Conversation/AppleReplyGenerator.swift: public func prewarm()
   Conversation/AppleReplyGenerator.swift: public func openReply(to context: ReplyContext) async throws -> any ReplyRun
@@ -558,7 +563,8 @@ commit   145c0dd
   Conversation/ConversationMemory.swift: public let said: String
   Conversation/ConversationMemory.swift: public let replied: String
   Conversation/ConversationMemory.swift: public let interrupted: Bool
-  Conversation/ConversationMemory.swift: public init(said: String, replied: String, interrupted: Bool = false)
+  Conversation/ConversationMemory.swift: public let tools: [ToolUse]
+  Conversation/ConversationMemory.swift: public init(said: String, replied: String, interrupted: Bool = false, tools: [ToolUse] = [])
   Conversation/ConversationMemory.swift: public var characters: Int
   Conversation/LatencyReporter.swift: public protocol LatencyReporter: Sendable
   Conversation/MindReadiness.swift: public struct OSVersion: Sendable, Hashable, Comparable, CustomStringConvertible
@@ -589,6 +595,10 @@ commit   145c0dd
   Conversation/MindReadiness.swift: public init(floor: OSVersion, memoryBytes: Int)
   Conversation/MindReadiness.swift: public enum MindReadiness
   Conversation/MindReadiness.swift: public static func verdict(for report: DeviceReport, needs: MindNeeds) -> MindUnavailable?
+  Conversation/MindSession.swift: public enum MindSessionUpdate: Sendable, Equatable
+  Conversation/MindSession.swift: public protocol MindSession: Sendable
+  Conversation/MindSession.swift: public protocol MindSessionMaking: Sendable
+  Conversation/MindSession.swift: public enum SessionSeedReason: Sendable, Equatable
   Conversation/PlaybackLead.swift: public struct PlaybackLead: Sendable
   Conversation/PlaybackLead.swift: public let target: Duration
   Conversation/PlaybackLead.swift: public private(set) var queuedAudio: Duration = .zero
@@ -616,7 +626,8 @@ commit   145c0dd
   Conversation/ReplyContract.swift: public struct Reply: Sendable, Equatable
   Conversation/ReplyContract.swift: public let text: String
   Conversation/ReplyContract.swift: public let stop: StopReason
-  Conversation/ReplyContract.swift: public init(text: String, stop: StopReason)
+  Conversation/ReplyContract.swift: public let tools: [ToolUse]
+  Conversation/ReplyContract.swift: public init(text: String, stop: StopReason, tools: [ToolUse] = [])
   Conversation/ReplyContract.swift: public func reply(to context: ReplyContext) async throws -> Reply
   Conversation/ReplyTool.swift: public enum ToolValue: Sendable, Equatable
   Conversation/ReplyTool.swift: public init(stringLiteral value: String)
@@ -698,6 +709,12 @@ commit   145c0dd
   Conversation/SpeechPhraser.swift: public init(config: Config = Config())
   Conversation/SpeechPhraser.swift: public mutating func feed(_ token: String) -> [String]
   Conversation/SpeechPhraser.swift: public mutating func flush() -> String?
+  Conversation/ToolUse.swift: public struct ToolUse: Sendable, Equatable
+  Conversation/ToolUse.swift: public let name: String
+  Conversation/ToolUse.swift: public let arguments: ToolArguments
+  Conversation/ToolUse.swift: public let outcome: ToolCallOutcome
+  Conversation/ToolUse.swift: public init(name: String, arguments: ToolArguments, outcome: ToolCallOutcome)
+  Conversation/ToolUse.swift: public var characters: Int
   Conversation/TranscriptLedger.swift: public struct TranscriptLedger: Sendable, Equatable
   Conversation/TranscriptLedger.swift: public let maxPieces: Int
   Conversation/TranscriptLedger.swift: public init(maxPieces: Int = 16)
@@ -718,6 +735,7 @@ commit   145c0dd
   Conversation/TurnCoordination.swift: public let options: GenerationOptions
   Conversation/TurnCoordination.swift: public init(transcript: String, history: [ConversationTurn] = [], options: GenerationOptions = GenerationOptions())
   Conversation/TurnCoordination.swift: public protocol ReplyGenerating: Sendable
+  Conversation/TurnCoordination.swift: public func endConversation() async
   Conversation/TurnCoordination.swift: public func openReply(to transcript: String) async throws -> any ReplyRun
   Conversation/TurnCoordination.swift: public enum SynthesisUpdate: Sendable, Equatable
   Conversation/TurnCoordination.swift: public protocol SynthesisRun: Sendable
@@ -742,7 +760,7 @@ commit   145c0dd
   Conversation/TurnCoordinator.swift: public var currentUtterance: Int
   Conversation/TurnCoordinator.swift: public var currentContext: String
   Conversation/TurnCoordinator.swift: public var currentMemory: [ConversationTurn]
-  Conversation/TurnCoordinator.swift: public func clearMemory()
+  Conversation/TurnCoordinator.swift: public func clearMemory() async
   Conversation/TurnCoordinator.swift: public func listen() -> Broadcast<TurnEvent>.Listener
   Conversation/TurnCoordinator.swift: public func run( audio: AsyncStream<AudioEvent>, transcripts: AsyncStream<TranscriptEvent> ) async
   Conversation/TurnCoordinator.swift: public func interrupt() async
@@ -770,6 +788,8 @@ commit   145c0dd
   Diagnostics/PipelineDiagnostics.swift: public func noteSettlingRefusal(utterance: Int, thermal: ThermalState)
   Diagnostics/PipelineDiagnostics.swift: public func noteListenerLoss(listenerID: Int, totalDropped: Int)
   Diagnostics/PipelineDiagnostics.swift: public func noteTurnFailed(turn: Int, failure: TurnFailure)
+  Diagnostics/PipelineDiagnostics.swift: public func noteMindSessionSeeded(_ reason: SessionSeedReason, turns: Int)
+  Diagnostics/PipelineDiagnostics.swift: public func noteMindReplyRetried(after words: String)
   Diagnostics/PipelineSignposter.swift: public struct PipelineSignposter: Sendable
   Diagnostics/PipelineSignposter.swift: public struct Span
   Diagnostics/PipelineSignposter.swift: public func measure<T>(_ name: StaticString, _ body: () throws -> T) rethrows -> T
@@ -899,6 +919,7 @@ commit   145c0dd
   LocalMind.swift: public func ensureModel() async throws
   LocalMind.swift: public func ensureModelLoaded() async throws -> ModelContainer
   LocalMind.swift: public var isResident: Bool
+  LocalMind.swift: public nonisolated func whenWarm() async -> Bool
   LocalMind.swift: public func retire() async
   LocalMind.swift: public func prewarm()
   LocalMind.swift: public init(model: LocalMindModel, instructions: String? = nil, maxTokens: Int = 1024, tools: ToolTable = .empty, thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError)
