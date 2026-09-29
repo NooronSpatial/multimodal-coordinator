@@ -1,0 +1,44 @@
+# §222 — RED: the stale resume (AC-331…AC-333; D-129 F-24 A, D-130), on the downloader as 5a left it
+# command: swift test --skip-build --filter ModelDownloaderStaleResumeTests   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4)
+# MEASURED FIRST, and it corrected the premise: a partial removed CLEANLY from the daemon's folder before the
+# resume is REFETCHED BY THE SYSTEM ITSELF — that row passes on today's code (a guard now, it says what the
+# platform does). So run 13's POSIX 2 was a race inside the daemon, and 'a lost partial locks the download out'
+# was an inference the code did not bear out. The real lock-out: resume data NOTHING can read (a .resume cut
+# short by a kill mid-write) — the resumed task fails with no fresh data ('unsupported URL'), the stale file
+# stays, and every later attempt fails the same way. RED: that row, and 'once, never a loop'. GREEN guards:
+# the cleanly lost partial (the system's own refetch) and fresh resume data being kept (AC-333).
+
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-331…AC-333 · a stale resume restarts its file once" started.
+􀟈  Test "a partial the system lost before the resume: the system refetches it, and the file lands (AC-331, measured)" started.
+􁁛  Test "a partial the system lost before the resume: the system refetches it, and the file lands (AC-331, measured)" passed after 0.036 seconds.
+􀟈  Test "resume data nothing can read: the file restarts once from the start, and lands (AC-331)" started.
+􀢄  Test "resume data nothing can read: the file restarts once from the start, and lands (AC-331)" recorded an issue at ModelDownloaderStaleResumeTests.swift:93:6: Caught error: the download of big.bin failed: Error Domain=NSURLErrorDomain Code=-1002 "unsupported URL" UserInfo={NSUnderlyingError=0x729c29890 {Error Domain=kCFErrorDomainCFNetwork Code=-1002 "(null)"}, _NSURLErrorFailingURLSessionTaskErrorKey=LocalDownloadTask <B0D4497B-C959-4023-A9CA-CE7794DF9AB9>.<3>, _NSURLErrorRelatedURLSessionTaskErrorKey=(
+    "LocalDownloadTask <B0D4497B-C959-4023-A9CA-CE7794DF9AB9>.<3>"
+), NSLocalizedDescription=unsupported URL}
+􀢄  Test "resume data nothing can read: the file restarts once from the start, and lands (AC-331)" failed after 0.008 seconds with 1 issue.
+􀄵  /// THE LOCK-OUT, as it really is: resume data nothing can read — a
+􀄵  /// `.resume` cut short by a kill mid-write, or one an older system
+􀄵  /// wrote. The resumed task fails with no fresh data; before the fix the
+􀄵  /// stale file stayed, and every later attempt failed the same way.
+􀟈  Test "a restart that fails too ends the transfer — no third attempt (AC-332)" started.
+􀢄  Test "a restart that fails too ends the transfer — no third attempt (AC-332)" recorded an issue at ModelDownloaderStaleResumeTests.swift:137:9: Expectation failed: counts.requests - counts.rangeRequests == 2
+􀄵  the first attempt and ONE restart from the start — never a third: Counts(requests: 1, rangeRequests: 0, bytesSent: 131072, firstRangeOffset: nil)
+􀄵  counts.requests - counts.rangeRequests == 2 → false
+􀄵    counts.requests - counts.rangeRequests → 1
+􀢄  Test "a restart that fails too ends the transfer — no third attempt (AC-332)" failed after 0.004 seconds with 1 issue.
+􀄵  /// Resume data nothing can resume from — the same trigger as a lost
+􀄵  /// partial (a resumed task fails with no fresh data), made on a
+􀄵  /// FOREGROUND session: a background one retries a dropped connection on
+􀄵  /// its own for days, so the restart's own failure is reachable only
+􀄵  /// here (5a's precedent) — and a foreground session was measured to
+􀄵  /// refetch a merely MISSING partial by itself, so the data is spoiled
+􀄵  /// instead of its file removed.
+􀟈  Test "a resumed task that fails with fresh resume data keeps it, and fails as today (AC-333)" started.
+􁁛  Test "a resumed task that fails with fresh resume data keeps it, and fails as today (AC-333)" passed after 0.005 seconds.
+􀢄  Suite "AC-331…AC-333 · a stale resume restarts its file once" failed after 0.054 seconds with 2 issues.
+􀢄  Test run with 4 tests in 1 suite failed after 0.054 seconds with 2 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
