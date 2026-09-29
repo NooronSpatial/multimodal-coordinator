@@ -43,7 +43,7 @@ the two hosts a download may contact).
 | `0.3.0` | `228b7e6` | admission and heat (`admit(needing:)`, `.tooHot`, memory pressure, `deadline`) and the tool CONTRACT (typed parameters, one door, tools per call, the confirmation flag, the band). **The tag note lists every public break versus 0.2.0** — `git show 0.3.0`. |
 | `0.3.1` | `145c0dd` | model downloads: `ensureModel(progress:)`, `expectedDownloadBytes()` and `deleteModel()` on `ModelBacked` (no default implementations — every engine writes all five), one background `ModelDownloader` for every engine's bytes, `ModelDownloads.handleEvents` for the system's wake-up, resume kept across a stop, `HubTree` in the core. **The tag note lists every public break versus 0.3.0** — three of them — `git show 0.3.1`. |
 
-| `0.4.0` | *not tagged yet* | one mind session per conversation (5b): the Apple mind keeps ONE vendor session across turns (`MindSession`, `MindSessionMaking`, `AppleSessionMaker`; `AppleReplyGenerator` is a `final class` with `sessions:` and `diagnostics:`), tool calls replayed as tool calls (`ReplyUpdate.toolRan`, `ToolUse`, `Reply.tools`, `ConversationTurn.tools`), `ReplyGenerating.endConversation()`, the reply retry and `ReplyFailure.unexplained`, `HealthEvent.mindSessionSeeded` / `.mindReplyRetried`, `LocalMindModel.whenWarm()`. **The tag waits for the phone session (D-123)**; its note will list every public break versus 0.3.1. |
+| `0.4.0` | `ed1d6b4` | one mind session per conversation (5b): the Apple mind keeps ONE vendor session across turns (`MindSession`, `MindSessionMaking`, `AppleSessionMaker`; `AppleReplyGenerator` is a `final class` with `sessions:` and `diagnostics:`), tool calls replayed as tool calls (`ReplyUpdate.toolRan`, `ToolUse`, `Reply.tools`, `ConversationTurn.tools`), `ReplyGenerating.endConversation()`, the reply retry and `ReplyFailure.unexplained`, `HealthEvent.mindSessionSeeded` / `.mindReplyRetried`, `LocalMindModel.whenWarm()`. **The tag note lists every public break versus 0.3.1 — four of them** — `git show 0.4.0`. Tagged right after the merge, BEFORE the phone session (D-125): its phone rows are owed, and the note says so. |
 
 Pin an exact tag. A `from:` range would let a `throws` land on an init
 you did not write `try` for.
@@ -399,7 +399,7 @@ default closure `= { … }` folds at its brace). The words are the
 source's; the doc comments beside them say why.
 
 ```
-commit   356fda6
+commit   ed1d6b4
 
 ## MultiModalKit
   Audio/AudioEvent.swift: public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible

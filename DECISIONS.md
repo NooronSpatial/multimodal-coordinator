@@ -5669,3 +5669,28 @@ F-22 = B** (SPEC §211, "found while finishing").
   that same window fails at once, as AC-116 does today. *Rejected: A,
   always ask again once* — the same past and the same question meet the
   same wall, and the person waits one more prefill to hear the failure.
+
+## D-125 — the tag 0.4.0 is made before the phone session, on Ryad's word (Milestone 5b)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("merged. make the tag") ·
+**Ruling:** 0.4.0 is an annotated tag on the merge commit `ed1d6b4` (PR
+#54), made right after the merge — BEFORE the phone session.
+
+**What it changes.** D-123 said the tag waits for Ryad's word after the
+phone session. He gave the word before it. The phone rows stay owed —
+AC-315, AC-323 (PROBE-R), AC-316's device half, and 5a's AC-300 — and the
+tag note says so in its last paragraph.
+
+**What it trades.** The diet app, whose 1.0.2 waits on this tag (D-121),
+can pin it now. The cost: the tag names code whose phone rows are not
+taken. If the phone overturns the retry's vendor fact (F-18 A), the fix
+goes forward in a patch (0.4.1); a pushed tag is never moved.
+
+**Why the tag names tested code.** Ryad merged while the branch head's
+last CI run was still going. The tagged tree is byte-for-byte the code CI
+passed at `356fda6`, the commit the 20× loop ran on: everything after it
+is documentation (checked — no Swift file, package manifest, CI workflow
+or lint configuration changed).
+
+- *Rejected:* waiting for the phone session, as D-123 planned — it holds
+  the diet app's release until then.
