@@ -5751,3 +5751,32 @@ entry says so rather than letting the gap go unnamed.
 
 - *Rejected:* the teach-back as planned — one question at a time, decision
   by decision, before the milestone closes.
+
+## D-128 — 5c signed: a turn's failure carries the typed ReplyFailure (F-23 A) (Milestone 5c)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("Sign, F-23 A") · **Ruling:**
+SPEC §215–§220 signed; **F-23 = A** — `TurnFailure.generationFailed` carries
+the `ReplyFailure` itself, on both roads (mid-stream, at the open) and on
+the health road; a foreign error at the open becomes `.engine` with the
+words it carried before.
+
+**Where it came from.** The diet app's R-3 (its D-143), relayed by Ryad:
+0.4.0 named the vendor's unnamed failure (`.unexplained`), but in a
+conversation every reply failure reaches the app as a string, and both of
+its field failures happened in Talk.
+
+- **A — the payload becomes the typed failure.** One case, one meaning;
+  every road typed at once; the old string was always the failure's own
+  `description` (AC-242), so the words are kept.
+- *Rejected:* **B**, a new `replyFailed(ReplyFailure)` beside
+  `generationFailed(String)` — a `switch` with a `default:` that caught
+  every reply failure would silently stop seeing the typed ones, and no
+  compiler would say so; **C**, a typed side channel beside the string —
+  one fact on two roads an app must keep in step.
+
+**Reversed in the open: AC-242's "the description goes where the string
+went"** (4v, D-103) — the right step while `TurnFailure` predated the typed
+failures; the typed value now goes where the description went.
+
+**Known when signing:** the diet app's own AC-6…AC-9 were not read by this
+session; the spec was written from Ryad's summary and says so.

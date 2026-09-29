@@ -7957,7 +7957,7 @@ session (D-125); its note calls these rows owed. Since then, three of the four a
 (2026-09-29): **AC-315 is the one left.**
 
 
-# Milestone 5c — the typed turn failure (R-3) — DRAFT, for Ryad's sign-off
+# Milestone 5c — the typed turn failure (R-3) — signed 2026-09-29 (D-128)
 
 *Drafted 2026-09-29 from the diet app's requirement R-3 (its D-143), as Ryad
 relayed it: "ReplyFailure.unexplained reaches only reply(to:) callers … the
@@ -8046,7 +8046,7 @@ milestone gives the conversation the type the text caller already has.
 | AC-329 | `TypedTurnFailureTests` · "the unnamed failure reaches Talk typed" | `FakeSessionMaker` + `CoordinatorRig` |
 | AC-330 | the suite; the demos | — |
 
-## §219 — the fork (Ryad rules)
+## §219 — the fork (ruled 2026-09-29, D-128: A, as recommended)
 
 **F-23 — WHERE THE TYPE RIDES.**
 *A:* `TurnFailure.generationFailed(ReplyFailure)` — the payload becomes the
