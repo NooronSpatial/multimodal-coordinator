@@ -5610,3 +5610,42 @@ in the same message.
 
 **The order from here:** PROBE-R (built in the demo, run on Ryad's iPhone),
 then the retry piece red → green, then 3b.
+
+## D-123 — the order changes: finish 5b, merge, then one phone session (Milestone 5b)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("finish first everything and
+merge into main after i will test it in the phone") · **Ruling:** the rest
+of 5b — piece R, 3b, 4 and 5 — is built, the 20× loop is run, and the PR
+is merged on green CI. The phone comes after, in one session.
+
+**What it changes:**
+
+- **D-122's order.** D-122 said PROBE-R on the phone first, then the retry
+  piece. Now the retry is built on F-18 A before PROBE-R has run. F-18 A
+  still stands "until PROBE-R says otherwise" — only the order moved. If
+  the phone overturns it, the fix goes forward: a new D-entry and a change
+  on main, never a rewrite.
+- **§212's gate "each piece presented and explained before the next".**
+  Pieces R, 3b, 4 and 5 are presented together, in the PR, instead of one
+  HALT each. The teach-back stays owed, as it already was for 1 to 3a.
+- **The phone rows run together, after the merge:** PROBE-R (AC-323),
+  AC-315 (turn two's first token, twenty turns that call their tools),
+  AC-316's "the demo runs" on a device (it was only compiled, with signing
+  off), and 5a's AC-300.
+
+- *Rejected:* **the signed order** — PROBE-R first, then each piece with
+  its own HALT. It is the safer order for F-18, and it costs a phone
+  session and a sign-off per piece.
+
+**What the ruling trades.** It buys one phone session instead of several,
+and a merge that does not wait on the phone. It costs this: the retry's
+vendor fact (what the Apple model does when re-asked after its tool ran)
+is measured after the code that depends on it is on main.
+
+**Not in the ruling, so not done: the tag 0.4.0.** The ruling names the
+merge, not the tag. The tag is what the diet app pins, and the phone
+session is what shows the retry on the real model, so the tag waits for
+Ryad's word after it.
+
+**Unchanged:** a design fork found while finishing is still Ryad's — it is
+asked, not decided.
