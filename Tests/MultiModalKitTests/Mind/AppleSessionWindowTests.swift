@@ -45,6 +45,31 @@ struct AppleSessionWindowTests {
                 "the memory's window is the session's newest turns: continued, never rebuilt at the bound")
     }
 
+    /// Added after mutation M24 survived: with the suffix check gone —
+    /// "continue any session that holds at least as many turns" — every
+    /// row above stayed green. The window must MATCH the session's newest
+    /// turns, not merely fit: a caller that hands its own past, edited, is
+    /// talking about a conversation the session never had.
+    @Test("a history that is not the session's newest turns re-seeds: the window must match, not just fit (AC-308)")
+    func aDifferentPastReseeds() async throws {
+        guard #available(macOS 26.0, iOS 26.0, *) else { return }
+        let log = HealthLog()
+        let maker = FakeSessionMaker()
+        let generator = try AppleReplyGenerator(sessions: maker, thermal: StillThermometer(),
+                                                diagnostics: log.diagnostics)
+        var talk = Self.bounded(4)
+        try await talk.turns(3, with: generator)
+        // The same length, a different last turn.
+        var edited = talk.memory.turns
+        edited[edited.count - 1] = ConversationTurn(said: "question 3", replied: "Something else.")
+        _ = try await generator.reply(to: ReplyContext(transcript: "question 4", history: edited))
+        await log.close()
+
+        #expect(maker.made.count == 2, "the session's past is not the caller's: re-seeded")
+        #expect(maker.made.last?.seed == edited)
+        #expect(log.seeds.last == .mindSessionSeeded(.memoryChanged, turns: 3))
+    }
+
     @Test("a re-seed carries the bound, typed: the last four turns with their tools, not the first two (AC-308)")
     func aReseedCarriesTheBound() async throws {
         guard #available(macOS 26.0, iOS 26.0, *) else { return }
