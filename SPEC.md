@@ -8070,3 +8070,39 @@ re-pinned · mutations on both roads and the health road · 20× · CI green ·
 lint zero · INTEGRATE (rule 12 and the appendix), the contract page and
 llms.txt updated · the tag note naming the break · the diet app's AC-6…AC-9
 checked against this spec when their text is available.
+
+## §221 — results, measured 2026-09-29 on `milestone/5c-typed-turn-failure`
+
+Every criterion, with what was RUN. The raw logs are in `docs/evidence/5c/`.
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-324 mid-stream, typed | **met** — the Apple mind's `.unexplained` ends the turn as `.generationFailed(.unexplained(words))`, equal as a value | `TypedTurnFailureTests`, mutation M43 |
+| AC-325 at the open, typed | **met** — a refusal at the mind's door is the turn's failure as it is; the older admission row re-pinned on the typed value | `TypedTurnFailureTests`, `AdmissionTests`, mutation M44 |
+| AC-326 the health road, typed | **met** — `HealthEvent.turnFailed` carries the same value as the turn event | `TypedTurnFailureTests`, mutation M47 |
+| AC-327 a foreign error keeps its words | **met** — a caller's own error becomes `.engine(<its words>)`; a `TurnFailure` thrown at the open passes through | `TypedTurnFailureTests`, mutations M45, M46 |
+| AC-328 the words did not move | **met** — the payload's `description` is the string the turn carried before; the six rows whose failures are `.engine` compare the same words | `TypedTurnFailureTests`, the re-pinned rows |
+| AC-329 the diet app's case, end to end | **met** — the Apple mind's retry fails too, and the conversation sees `.generationFailed(.unexplained(words))` on the turn event and the health road | `TypedTurnFailureTests` |
+| AC-330 nothing else moved | **met for 5c's code** — 975 tests in 140 suites; the 20× loop **19 of 20**: run 13 failed in a 5a downloader test, not in 5c's code (below); lint zero; the demo compiles | the suite, `stability-2026-09-29.txt` |
+
+**What the milestone found:** AC-265's source guard (4y) caught the first
+green run — a comment in a coordinator file named the mind's heat refusal
+by its case name, which the voice path must not learn. The comment was
+reworded; the guard did its job. And the 4v contract page's failure table
+still said `.engine` for a vendor case added later — stale since 5b's
+R-2 — corrected here with the unnamed foreign error's row.
+
+**What the 20× loop found, outside 5c.** Run 13 failed in 5a's
+`WhisperInstallTests` ("a stopped transfer … resumes next time"): the resume
+failed with `NSPOSIXErrorDomain Code=2` from the background download
+daemon — the partial file its resume data points at was gone. Reading the
+downloader shows why that matters beyond one run: a RESUMED task that fails
+keeps its stale resume data (`ModelDownloader` removes it only when the file
+lands, or on a delete), so every later attempt resumes from it and fails
+the same way, until the model is deleted. That is a 5a bug in 0.3.1 and
+0.4.0, found here, not caused here; why the daemon's partial vanished in
+that run is not known. Kept with its full log
+(`stability-2026-09-29-run13-FAILED.log`); its fix is Ryad's to rule.
+
+**Not checked:** the diet app's AC-6…AC-9, whose text this session never
+read (D-128); the spec was built from Ryad's summary of R-3.
