@@ -464,8 +464,8 @@ limit, `.notEligible`, that only the Apple mind produces.
 | `.deviceCannotRun(.simulator / .noGPU / .notEligible)` | never | the same |
 | `.unknown(String)` | no promise | the vendor stated no cause, so this library states none |
 
-**`Reply`** — `{ text: String, stop: StopReason }`. What `reply(to:)`
-returns.
+**`Reply`** — `{ text: String, stop: StopReason, tools: [ToolUse] }`. What
+`reply(to:)` returns; `tools` since 5b — every tool that ran, in order.
 
 **All four are `Equatable`, and that is the point of typing them at
 all.** `ReplyFailure`, `StopReason`, `MindUnavailable` and `Reply` all
@@ -475,10 +475,18 @@ carry `description`, so the same value a switch reads is the sentence a
 screen shows — and `.engine(_)`'s description is the words with no
 prefix at all, which is how every pre-4v test kept its meaning (AC-242).
 
+**Since 5c a conversation sees the same value** (D-128, F-23 A).
+`TurnFailure.generationFailed` carries the `ReplyFailure` itself — a run's
+mid-stream failure, a refusal at the mind's door, and on the health road
+(`HealthEvent.turnFailed`) — where until then the coordinator put its
+description (AC-242). A caller's own error at the open arrives as `.engine`
+with the words it always had; a `TurnFailure` thrown at the open passes
+through unchanged.
+
 ### The failure table
 
 The Apple mind, `Conversation/AppleReplyGenerator.swift`. Its vendor
-error has nine named cases and is not frozen, so there is a tenth row:
+error has nine named cases and is not frozen, so there are two more rows:
 
 | the vendor said | the caller sees |
 |---|---|
@@ -491,7 +499,8 @@ error has nine named cases and is not frozen, so there is a tenth row:
 | `concurrentRequests` | `.failed(.busy)` |
 | `unsupportedGuide` | `.failed(.engine(_))` — no guide is ever sent (§176) |
 | `decodingFailure` | `.failed(.engine(_))` — no caller-side remedy |
-| a case added after this was written | `.failed(.engine(_))`, naming it — the `@unknown default`, AC-114's lesson |
+| a case added after this was written | `.failed(.unexplained(_))`, with the vendor's words — the `@unknown default`, AC-114's lesson (`.engine` until 5b's R-2) |
+| an error that is neither a `GenerationError` nor a `ToolCallError` — the phone's `tokengeneration Code=10` | `.failed(.unexplained(_))`, with its words — after a tool ran and before any word, the mind has asked again once first (§213) |
 
 Two rows of that table are not failures at all. `guardrailViolation` and
 `refusal` are a supervised model doing its job: the run speaks the app's

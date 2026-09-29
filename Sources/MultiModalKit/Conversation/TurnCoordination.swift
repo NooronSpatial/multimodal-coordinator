@@ -18,7 +18,13 @@ public enum TurnState: Sendable, Equatable {
 /// The ways a turn really fails. A turn's failure ends the TURN, never the
 /// coordinator (AC-65) — the next utterance starts the next turn clean.
 public enum TurnFailure: Error, Sendable, Equatable {
-    case generationFailed(String)
+    /// The mind's reply failed — mid-stream or at the open — and WHY, typed
+    /// (5c, D-128 F-23 A): the same `ReplyFailure` a `reply(to:)` caller
+    /// catches, so a conversation can switch on `.unexplained` too. Until
+    /// 5c this carried the failure's words (AC-242); they are the
+    /// payload's `description` now, unchanged. An error a generator throws
+    /// that is not a `ReplyFailure` arrives as `.engine` with its words.
+    case generationFailed(ReplyFailure)
     case synthesisFailed(String)
     case transcriptionFailed(TranscriptionFailure)
     /// The platform took the audio away mid-turn — a call, Siri, a route

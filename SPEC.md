@@ -7832,6 +7832,11 @@ both stop compiling until they handle the new case. That is R-2's own
 point — the app wants to speak a sentence for it — and the tag note says
 so, so the break is expected rather than found.
 
+*Corrected 2026-09-29, by the diet app: only `MindMacroEstimator.translate`
+switches over `ReplyFailure`. `AddFoodDraft` switches over the app's own
+`MacroEstimateFailure` and did not break. The "check" of 2026-09-24 read the
+wrong enum; the tag note does not name the app's switches, so it stands.*
+
 ### As built (5c0af8e, 2026-09-29) — details decided inside the signed scope
 
 Built under D-123 (before PROBE-R). None of these is a fork: each has one
@@ -7897,6 +7902,24 @@ maker: the Apple model reports `modelNotReady` on this Mac.
 | AC-322 the unnamed failure has a name | **met** — `.unexplained(words)` for a foreign vendor error; the library's own failures and every named case keep their names | `AppleFailureTableTests`, mutations M15–M16 |
 | AC-323 the phone (PROBE-R) | **met** (2026-09-29, Ryad's iPhone) — with the fault injected, the tool's body ran ONCE and a reply was spoken in 3 of 3; the re-ask's first word 1 368–6 714 ms. F-18 A kept (D-126) | §72, `probe-r-2026-09-29-iphone.md` |
 
+### Known limits, written down (2026-09-29)
+
+Found during 5b, named nowhere until now — facts, not rulings:
+
+- **The scripted test mind never sends `.toolRan`.** `ScriptedReplyGenerator`
+  (MultiModalKitTesting) runs a scripted tool through the door and records
+  it for a test to read (`toolCalls`), but its stream carries no `.toolRan`:
+  a caller testing tool records THROUGH THE COORDINATOR with it sees none.
+- **A barge that lands WHILE a tool's body runs drops that tool's record.**
+  The body runs to its end (4z F-5 A) and its write stands, but its record
+  is reported into an answer that is already dead, and the run drops it
+  (`AppleToolAdapter.call`: "a barged answer's record dies there"). The
+  memory never learns that act, so the next turn's model does not know the
+  write happened.
+- **Only real weights on a Mac can take:** the `whenWarm()` live row
+  (`MMK_MLX_MODEL`), and mutation M35 (a warm that cannot finish while a
+  second prewarm arrives).
+
 ### What the milestone found that it did not plan to
 
 - **Two real gaps, found by mutation, not by review.** M24: a keeper that
@@ -7932,3 +7955,154 @@ One session on Ryad's iPhone, after the merge:
 The tag 0.4.0 was made on Ryad's word right after the merge (`ed1d6b4`), before this
 session (D-125); its note calls these rows owed. Since then, three of the four are done
 (2026-09-29): **AC-315 is the one left.**
+
+
+# Milestone 5c — the typed turn failure (R-3) — signed 2026-09-29 (D-128)
+
+*Drafted 2026-09-29 from the diet app's requirement R-3 (its D-143), as Ryad
+relayed it: "ReplyFailure.unexplained reaches only reply(to:) callers … the
+app can switch on the ReplyFailure from a turn's failure, on both roads and
+on the health road. The shape is yours." Their AC-6…AC-9
+(`docs/library-requirements/reply-retry.md` in the diet app) were NOT read
+by this session: the criteria below are written from that summary. If
+theirs ask for more, the spec grows by a D-entry before any code.*
+
+## §215 — why
+
+```
+ a reply fails ──▶ ReplyFailure (typed)          reply(to:) callers switch on the TYPE ✓
+     │
+     ├─ mid-stream   TurnCoordinator+Stages       .generationFailed(failure.description)  ← a String
+     ├─ at the open  TurnCoordinator+Transcripts  .generationFailed(String(describing:))  ← a String
+     └─ the health road   HealthEvent.turnFailed(turn:, failure:) — the same String
+```
+
+In a conversation (the diet app's Talk) every reply failure reaches the app
+as WORDS. 0.4.0 named the vendor's silent failure (`ReplyFailure.unexplained`,
+§213 R-2) so the app could speak its own sentence for it — and both of the
+diet app's field failures happened in Talk, where the name arrives as a
+string. AC-242 (4v) put "the description where the bare string went": the
+right step then, because `TurnFailure` predates the typed failures. This
+milestone gives the conversation the type the text caller already has.
+
+## §216 — scope (written under F-23 A, the recommendation)
+
+1. **`TurnFailure.generationFailed` carries the `ReplyFailure`** instead of
+   its words. The words are not lost: they are the payload's `description`,
+   exactly the string the case carried before (AC-242's words).
+2. **Both roads and the health road are typed at once**: mid-stream (a
+   run's `.failed(ReplyFailure)`), at the open (`openReply` throwing a
+   `ReplyFailure`), and `HealthEvent.turnFailed`, which carries the same
+   `TurnFailure`.
+3. **An error that is not a `ReplyFailure`** — a caller's own generator may
+   throw anything at the open — becomes `.engine(<its words>)`, the words
+   the string carried before. A `TurnFailure` thrown at the open passes
+   through unchanged, as today. `.unexplained` stays the VENDOR's unnamed
+   failure (R-2's definition); a caller's error is not that.
+4. **The scripted test mind follows**: `failOnOpen(String)` and
+   `blockThenFailOnOpen(String)` keep their `String` and throw
+   `.generationFailed(.engine(reason))` — the same words, now typed.
+
+## §217 — non-goals
+
+- **How a turn failure prints.** `TurnFailure` does not become
+  `CustomStringConvertible`; a log that interpolates it prints the typed
+  case. An app shows its own sentence, or the payload's `description`.
+- **Synthesis and transcription failures** keep their own cases
+  (`synthesisFailed(String)`, `transcriptionFailed`) — R-3 is about the mind.
+- **No retry in the coordinator** (5b F-17 A stands: the retry is the Apple
+  keeper's).
+
+## §218 — acceptance criteria (AC-324 … AC-330)
+
+- **AC-324 — mid-stream, typed.** A reply that fails mid-stream with a
+  `ReplyFailure` ends its turn with `.generationFailed(<that value>)` —
+  equal as a value, `.unexplained(words)` included.
+- **AC-325 — at the open, typed.** `openReply` throwing a `ReplyFailure`
+  (`.tooHot`, `.unavailable`, …) ends the turn with `.generationFailed(<that
+  value>)`.
+- **AC-326 — the health road, typed.** `HealthEvent.turnFailed` carries the
+  same typed value as the turn event.
+- **AC-327 — a foreign error keeps its words.** A non-`ReplyFailure` error at
+  the open ends the turn with `.generationFailed(.engine(<its words>))`; a
+  `TurnFailure` thrown at the open passes through unchanged.
+- **AC-328 — the words did not move.** For every row above, the payload's
+  `description` is the string the turn carried before 5c.
+- **AC-329 — the diet app's case, end to end.** The Apple mind whose retry
+  fails too (§213 AC-318) ends a Talk turn with
+  `.generationFailed(.unexplained(words))`, on the turn event and on the
+  health road (fake session maker, through the coordinator).
+- **AC-330 — nothing else moved.** Every other test green, the demos build,
+  CI green, lint zero; the tag note names the break.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-324, AC-326 | `TypedTurnFailureTests` · "mid-stream: the turn carries the reply's failure, typed" · "the health road carries the same value" | scripted mind, `fail(reply:with:)` |
+| AC-325 | `TypedTurnFailureTests` · "at the open: typed" | a generator that throws a `ReplyFailure` at the open |
+| AC-327 | `TypedTurnFailureTests` · "a foreign error keeps its words" · "a TurnFailure at the open passes unchanged" | scripted |
+| AC-328 | the seven existing rows that compared a string, re-pinned on the typed value AND on its words | existing tests |
+| AC-329 | `TypedTurnFailureTests` · "the unnamed failure reaches Talk typed" | `FakeSessionMaker` + `CoordinatorRig` |
+| AC-330 | the suite; the demos | — |
+
+## §219 — the fork (ruled 2026-09-29, D-128: A, as recommended)
+
+**F-23 — WHERE THE TYPE RIDES.**
+*A:* `TurnFailure.generationFailed(ReplyFailure)` — the payload becomes the
+typed failure; one case, one meaning; the words are its `description`.
+*B:* a new case beside it — `replyFailed(ReplyFailure)` for typed failures,
+`generationFailed(String)` kept for everything else.
+*C:* keep the string and add a typed side channel — a new
+`TurnEvent`/`HealthEvent` case carrying the `ReplyFailure` beside the old one.
+**Recommendation: A.** Every road becomes typed at once and the string was
+always the failure's own description (AC-242), so nothing is lost. B's hidden
+cost: a `switch` with a `default:` that caught every reply failure under
+`.generationFailed` would silently stop seeing the typed ones — a behaviour
+change the compiler cannot flag. C publishes one fact twice, on two roads an
+app must keep in step. All three break an exhaustive switch somewhere; A
+breaks the one the diet app asked to change.
+
+## §220 — definition of done (5c)
+
+The fork ruled and logged · red → green per AC · the seven string rows
+re-pinned · mutations on both roads and the health road · 20× · CI green ·
+lint zero · INTEGRATE (rule 12 and the appendix), the contract page and
+llms.txt updated · the tag note naming the break · the diet app's AC-6…AC-9
+checked against this spec when their text is available.
+
+## §221 — results, measured 2026-09-29 on `milestone/5c-typed-turn-failure`
+
+Every criterion, with what was RUN. The raw logs are in `docs/evidence/5c/`.
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-324 mid-stream, typed | **met** — the Apple mind's `.unexplained` ends the turn as `.generationFailed(.unexplained(words))`, equal as a value | `TypedTurnFailureTests`, mutation M43 |
+| AC-325 at the open, typed | **met** — a refusal at the mind's door is the turn's failure as it is; the older admission row re-pinned on the typed value | `TypedTurnFailureTests`, `AdmissionTests`, mutation M44 |
+| AC-326 the health road, typed | **met** — `HealthEvent.turnFailed` carries the same value as the turn event | `TypedTurnFailureTests`, mutation M47 |
+| AC-327 a foreign error keeps its words | **met** — a caller's own error becomes `.engine(<its words>)`; a `TurnFailure` thrown at the open passes through | `TypedTurnFailureTests`, mutations M45, M46 |
+| AC-328 the words did not move | **met** — the payload's `description` is the string the turn carried before; the six rows whose failures are `.engine` compare the same words | `TypedTurnFailureTests`, the re-pinned rows |
+| AC-329 the diet app's case, end to end | **met** — the Apple mind's retry fails too, and the conversation sees `.generationFailed(.unexplained(words))` on the turn event and the health road | `TypedTurnFailureTests` |
+| AC-330 nothing else moved | **met for 5c's code** — 975 tests in 140 suites; the 20× loop **19 of 20**: run 13 failed in a 5a downloader test, not in 5c's code (below); lint zero; the demo compiles | the suite, `stability-2026-09-29.txt` |
+
+**What the milestone found:** AC-265's source guard (4y) caught the first
+green run — a comment in a coordinator file named the mind's heat refusal
+by its case name, which the voice path must not learn. The comment was
+reworded; the guard did its job. And the 4v contract page's failure table
+still said `.engine` for a vendor case added later — stale since 5b's
+R-2 — corrected here with the unnamed foreign error's row.
+
+**What the 20× loop found, outside 5c.** Run 13 failed in 5a's
+`WhisperInstallTests` ("a stopped transfer … resumes next time"): the resume
+failed with `NSPOSIXErrorDomain Code=2` from the background download
+daemon — the partial file its resume data points at was gone. Reading the
+downloader shows why that matters beyond one run: a RESUMED task that fails
+keeps its stale resume data (`ModelDownloader` removes it only when the file
+lands, or on a delete), so every later attempt resumes from it and fails
+the same way, until the model is deleted. That is a 5a bug in 0.3.1 and
+0.4.0, found here, not caused here; why the daemon's partial vanished in
+that run is not known. Kept with its full log
+(`stability-2026-09-29-run13-FAILED.log`); its fix is Ryad's to rule.
+
+**Not checked:** the diet app's AC-6…AC-9, whose text this session never
+read (D-128); the spec was built from Ryad's summary of R-3.

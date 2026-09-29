@@ -71,8 +71,11 @@ extension TurnCoordinator {
 
         case .failed(let failure):
             let dying = current
-            // The description goes where the string went (AC-242).
-            failTurn(turn, with: .generationFailed(failure.description))
+            // THE TYPED VALUE goes where the description went (5c, D-128
+            // F-23 A; AC-242 reversed in the open): a conversation can
+            // switch on `.unexplained` exactly as a text caller does, and
+            // the words are still the payload's `description`.
+            failTurn(turn, with: .generationFailed(failure))
             await dying?.synthesisRun?.cancel()
         }
     }

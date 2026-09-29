@@ -222,6 +222,10 @@ final class InstantUtterance: SynthesisRun {
 struct CoordinatorRig {
     let coordinator: TurnCoordinator<ContinuousClock>
     let signals = ToolSpikeTests.Signals()
+    /// Every event, in order — for the rows that read a failure's VALUE,
+    /// not only its name (5c). Kept BEFORE the name is signalled, so a row
+    /// that heard "failed:N" finds the event here.
+    let events = TurnEventLog()
     private let listener: Broadcast<TurnEvent>.Listener
     private let audio: AsyncStream<AudioEvent>
     private let audioIn: AsyncStream<AudioEvent>.Continuation
@@ -229,10 +233,12 @@ struct CoordinatorRig {
     private let transcriptsIn: AsyncStream<TranscriptEvent>.Continuation
 
     /// Memory bounds wide open unless a row is about the bound.
-    init(mind: any ReplyGenerating, maxMemoryTurns: Int = 64, maxMemoryCharacters: Int = 64_000) async throws {
+    init(mind: any ReplyGenerating, maxMemoryTurns: Int = 64, maxMemoryCharacters: Int = 64_000,
+         diagnostics: PipelineDiagnostics? = nil) async throws {
         coordinator = try TurnCoordinator(
             replyGenerator: mind, synthesizer: InstantMouth(),
-            config: .init(maxMemoryTurns: maxMemoryTurns, maxMemoryCharacters: maxMemoryCharacters))
+            config: .init(maxMemoryTurns: maxMemoryTurns, maxMemoryCharacters: maxMemoryCharacters),
+            diagnostics: diagnostics)
         listener = await coordinator.listen()
         (audio, audioIn) = AsyncStream.makeStream(of: AudioEvent.self)
         (transcripts, transcriptsIn) = AsyncStream.makeStream(of: TranscriptEvent.self)
@@ -241,10 +247,13 @@ struct CoordinatorRig {
     /// The loop and the event forwarder, as children of the test's group.
     func start(in group: inout TaskGroup<Void>) {
         let coordinator = coordinator, audio = audio, transcripts = transcripts
-        let listener = listener, signals = signals
+        let listener = listener, signals = signals, events = events
         group.addTask { await coordinator.run(audio: audio, transcripts: transcripts) }
         group.addTask {
-            for await event in listener.events { signals.send(ToolSpikeTests.name(of: event)) }
+            for await event in listener.events {
+                events.add(event)
+                signals.send(ToolSpikeTests.name(of: event))
+            }
         }
     }
 
@@ -296,6 +305,22 @@ extension FakeSessionMaker {
                 return index
             }
             return index < plans.count ? plans[index] : .answers(["Answer to \(said)."])
+        }
+    }
+}
+
+/// Every turn event a coordinator published, in order (5c).
+final class TurnEventLog: Sendable {
+    private let seen = Mutex<[TurnEvent]>([])
+
+    func add(_ event: TurnEvent) { seen.withLock { $0.append(event) } }
+
+    var events: [TurnEvent] { seen.withLock { $0 } }
+
+    /// The failures among them, in order.
+    var failures: [TurnFailure] {
+        events.compactMap { event in
+            if case .turnFailed(let failure, _) = event { failure } else { nil }
         }
     }
 }

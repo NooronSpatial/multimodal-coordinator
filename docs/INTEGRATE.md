@@ -325,7 +325,9 @@ await mind.endConversation()
   had been said, the mind has ALREADY asked again once, answering any
   repeat of a call from its record, so no write ran twice. An app that
   switches over `ReplyFailure` exhaustively must add the case — say your
-  own sentence for it.
+  own sentence for it. **In a conversation (5c)** the same value arrives as
+  `TurnEvent.turnFailed(.generationFailed(failure), turn:)` and on the
+  health road — `case .generationFailed(.unexplained)` works in both.
 - **Your tests can stand in for the Apple model**: conform to
   `MindSessionMaking` and hand it as `sessions:`.
 - **The MLX mind** keeps no session yet (its KV cache is a later
@@ -366,7 +368,10 @@ await mind.endConversation()
     keeps the wrapped mind's conversation alive after it ended.
 12. **`ReplyUpdate` and `ReplyFailure` grew in 5b** (`.toolRan`,
     `.unexplained`). A `switch` without `default` over either stops
-    compiling until it handles the new case — which is the point.
+    compiling until it handles the new case — which is the point. **Since
+    5c, `TurnFailure.generationFailed` carries the `ReplyFailure`** (it
+    carried a `String`): a conversation switches on the value a text caller
+    catches, and the old words are its `description`.
 
 ## For an AI agent integrating this library
 

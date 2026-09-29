@@ -43,7 +43,7 @@ extension TurnCoordinatorTests {
 
             bench.speak(utterance: 0, final: "doomed", at: 0)
             #expect(await Self.until { await bench.box.events.contains(
-                .turnFailed(.generationFailed("no model"), turn: 0))
+                .turnFailed(.generationFailed(.engine("no model")), turn: 0))
             }, "the failure must surface as a turn event, reason intact")
 
             // The next turn is untouched by the corpse.

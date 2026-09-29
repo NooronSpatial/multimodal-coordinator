@@ -5734,3 +5734,75 @@ of those is a second write.
 as a `ToolCallError` (the vendor wraps a tool's throw), which the library
 NAMES and does not retry. The probe measured the re-ask; the vendor's own
 unnamed failure cannot be summoned, and the field will show it.
+
+## D-127 — 5b's teach-back is skipped, and AC-315 is taken later from a TestFlight trace (Milestone 5b)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("I do this AC-315 — the diet
+app on the phone — later and we skip teach-back") · **Ruling:** the 5b
+teach-back is skipped. AC-315 — turn two's first token and twenty turns
+that call their tools — is measured later, from Ryad's Details trace after
+the diet app's next TestFlight build (the diet app said so the same day).
+
+**What it changes.** §212's definition of done ends with "teach-back";
+that item is not met, by this ruling. The method's own definition of done —
+a component is finished when Ryad can explain it cold — is therefore open
+for 5b's core (the keeper's rule, the window rule, the retry), and this
+entry says so rather than letting the gap go unnamed.
+
+- *Rejected:* the teach-back as planned — one question at a time, decision
+  by decision, before the milestone closes.
+
+## D-128 — 5c signed: a turn's failure carries the typed ReplyFailure (F-23 A) (Milestone 5c)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("Sign, F-23 A") · **Ruling:**
+SPEC §215–§220 signed; **F-23 = A** — `TurnFailure.generationFailed` carries
+the `ReplyFailure` itself, on both roads (mid-stream, at the open) and on
+the health road; a foreign error at the open becomes `.engine` with the
+words it carried before.
+
+**Where it came from.** The diet app's R-3 (its D-143), relayed by Ryad:
+0.4.0 named the vendor's unnamed failure (`.unexplained`), but in a
+conversation every reply failure reaches the app as a string, and both of
+its field failures happened in Talk.
+
+- **A — the payload becomes the typed failure.** One case, one meaning;
+  every road typed at once; the old string was always the failure's own
+  `description` (AC-242), so the words are kept.
+- *Rejected:* **B**, a new `replyFailed(ReplyFailure)` beside
+  `generationFailed(String)` — a `switch` with a `default:` that caught
+  every reply failure would silently stop seeing the typed ones, and no
+  compiler would say so; **C**, a typed side channel beside the string —
+  one fact on two roads an app must keep in step.
+
+**Reversed in the open: AC-242's "the description goes where the string
+went"** (4v, D-103) — the right step while `TurnFailure` predated the typed
+failures; the typed value now goes where the description went.
+
+**Known when signing:** the diet app's own AC-6…AC-9 were not read by this
+session; the spec was written from Ryad's summary and says so.
+
+## D-129 — the stale resume that 5c's loop found: fixed next, as its own piece; a failed resume restarts its file once (F-24 A)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad · **Rulings:** the order — 5c's
+PR now, the fix next as its own piece (its own spec, tests and PR, no
+phases mixed); **F-24 = A** — when a download task that was started FROM
+resume data fails (not a cancel), the downloader drops the stale resume
+data and downloads that file again from the start, once.
+
+**The bug** (a 5a bug in 0.3.1 and 0.4.0, found by 5c's 20× loop, run 13,
+not caused by 5c). `ModelDownloader` removes a file's resume data only when
+the file lands, or on a delete. A RESUMED task that fails keeps it: in run
+13 the background daemon's partial was gone (`NSPOSIXErrorDomain Code=2`),
+and with the stale data kept, every later attempt resumes from it and
+fails the same way — until the person deletes the model. Why the partial
+vanished in that run is not known; the fix does not need to know.
+
+- *Rejected:* **B** — drop the stale data and report the failure: the next
+  tap starts fresh, but the person first sees a failure the library could
+  recover from itself; **fixing first and holding 5c's PR** — it holds a
+  finished, unrelated piece behind a bug it only exposed.
+
+**The limits of A, named:** only a task that was started from resume data;
+only once per file per transfer; a fresh download's failure is reported as
+today. The restart pays the bytes the lost partial held — they are gone
+either way.

@@ -45,6 +45,11 @@ final class HealthLog: Sendable {
         seen.withLock { $0.filter { if case .mindSessionSeeded = $0 { true } else { false } } }
     }
 
+    /// Every dead turn heard on the health road, in order (5c, AC-326).
+    var turnFailures: [HealthEvent] {
+        seen.withLock { $0.filter { if case .turnFailed = $0 { true } else { false } } }
+    }
+
     /// Every retry heard, in order (5b piece R, AC-321).
     var retries: [HealthEvent] {
         seen.withLock { $0.filter { if case .mindReplyRetried = $0 { true } else { false } } }

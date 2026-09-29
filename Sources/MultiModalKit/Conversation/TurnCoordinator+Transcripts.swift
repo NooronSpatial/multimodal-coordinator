@@ -147,10 +147,18 @@ extension TurnCoordinator {
             // `.idle → .idle` transition AND a second terminal event for a
             // turn that is already dead. The ticket answers, as always.
             guard !isStopped, current?.turn == turn else { return }
+            // At the open, typed (5c, D-128 F-23 A): a TurnFailure passes
+            // through as it always did; a ReplyFailure — whatever the
+            // mind's door refused with — is the turn's failure as it
+            // is; anything else a generator throws keeps the words the
+            // string carried before, as `.engine` (`.unexplained` is the
+            // VENDOR's unnamed failure, and a caller's error is not that).
             if let failure = error as? TurnFailure {
                 failTurn(turn, with: failure)
+            } else if let failure = error as? ReplyFailure {
+                failTurn(turn, with: .generationFailed(failure))
             } else {
-                failTurn(turn, with: .generationFailed(String(describing: error)))
+                failTurn(turn, with: .generationFailed(.engine(String(describing: error))))
             }
         }
     }

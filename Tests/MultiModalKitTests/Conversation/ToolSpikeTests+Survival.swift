@@ -167,7 +167,7 @@ extension ToolSpikeTests {
         let expected: [TurnEvent] = [
             .stateChanged(.listening, turn: 0),
             .stateChanged(.thinking, turn: 0),
-            .turnFailed(.generationFailed(failure.description), turn: 0),
+            .turnFailed(.generationFailed(.engine(failure.description)), turn: 0),
             .stateChanged(.idle, turn: 0),
             .stateChanged(.listening, turn: 1),
             .stateChanged(.thinking, turn: 1),

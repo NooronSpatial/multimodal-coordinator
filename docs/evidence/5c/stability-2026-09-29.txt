@@ -1,0 +1,22 @@
+commit 0ab0f2a · macOS 26.6.1 · Xcode 27, Swift 6.4 · no warnings-as-errors
+run 1: 􁁛  Test run with 975 tests in 140 suites passed after 20.584 seconds.
+run 2: 􁁛  Test run with 975 tests in 140 suites passed after 24.430 seconds.
+run 3: 􁁛  Test run with 975 tests in 140 suites passed after 36.680 seconds.
+run 4: 􁁛  Test run with 975 tests in 140 suites passed after 5.761 seconds.
+run 5: 􁁛  Test run with 975 tests in 140 suites passed after 34.588 seconds.
+run 6: 􁁛  Test run with 975 tests in 140 suites passed after 20.694 seconds.
+run 7: 􁁛  Test run with 975 tests in 140 suites passed after 5.688 seconds.
+run 8: 􁁛  Test run with 975 tests in 140 suites passed after 20.883 seconds.
+run 9: 􁁛  Test run with 975 tests in 140 suites passed after 18.444 seconds.
+run 10: 􁁛  Test run with 975 tests in 140 suites passed after 20.251 seconds.
+run 11: 􁁛  Test run with 975 tests in 140 suites passed after 24.175 seconds.
+run 12: 􁁛  Test run with 975 tests in 140 suites passed after 18.942 seconds.
+run 13: FAILED (exit 1) — 􀢄  Test run with 975 tests in 140 suites failed after 54.516 seconds with 1 issue. — full output: stability-2026-09-29-run13-FAILED.log
+run 14: 􁁛  Test run with 975 tests in 140 suites passed after 17.310 seconds.
+run 15: 􁁛  Test run with 975 tests in 140 suites passed after 53.427 seconds.
+run 16: 􁁛  Test run with 975 tests in 140 suites passed after 36.785 seconds.
+run 17: 􁁛  Test run with 975 tests in 140 suites passed after 41.853 seconds.
+run 18: 􁁛  Test run with 975 tests in 140 suites passed after 35.659 seconds.
+run 19: 􁁛  Test run with 975 tests in 140 suites passed after 20.375 seconds.
+run 20: 􁁛  Test run with 975 tests in 140 suites passed after 20.474 seconds.
+done

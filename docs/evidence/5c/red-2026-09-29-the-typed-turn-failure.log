@@ -1,0 +1,291 @@
+# 5c — RED: a turn's failure is typed (AC-324…AC-329; D-128 F-23 A)
+# command: swift test --skip-build --filter "TypedTurnFailureTests|AdmissionTests|TurnCoordinatorTests|ToolSpikeTests"
+# (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors)
+# Against a skeleton where the TYPE changed — TurnFailure.generationFailed(ReplyFailure) — and the JUDGMENT did
+# not: every failure is flattened to .engine(<its words>), exactly the information the string carried (AC-242).
+# Expected RED: mid-stream typed + the health road (AC-324, AC-326), at the open typed (AC-325), the diet app's
+# case end to end (AC-329), and the re-pinned admission row (a .tooHot door is now expected typed).
+# Expected GREEN here, as GUARDS: a caller's own error keeps its words (AC-327/328), a TurnFailure thrown at the
+# open passes through (AC-327), and the six re-pinned rows whose failures ARE .engine ("no model", "brain died",
+# the tool spike's sentence).
+
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite TurnCoordinatorTests started.
+􀟈  Suite "AC-324…AC-329 · a turn's failure is typed" started.
+􀟈  Suite AdmissionSeamTests started.
+􀟈  Suite "AC-258 / AC-259 · admission is one step, on the app's number" started.
+􀟈  Suite AdmissionCoordinatorTests started.
+􀟈  Suite ToolSpikeTests started.
+􀟈  Suite TurnHealthTests started.
+􀟈  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" started.
+􀟈  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" started.
+􀟈  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" started.
+􀟈  Test "the coordinator passes the default options (AC-231)" started.
+􀟈  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" started.
+􀟈  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" started.
+􀟈  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" started.
+􀟈  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" started.
+􀟈  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" started.
+􀟈  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" started.
+􀟈  Test "a failed turn is never remembered, and keeps its words (AC-194)" started.
+􀟈  Test "a need of 0 bytes is NO claim (D-105's shape): admitted with no memory question" started.
+􀟈  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" started.
+􀟈  Test "a reply of no tokens is answered, and not remembered" started.
+􀟈  Test "a counting caller sees two .tooHot across three attempts (AC-260, the AC-236 shape)" started.
+􀟈  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" started.
+􀟈  Test "GenerationOptions.deadline defaults to nil and is a value (AC-264, AC-265)" started.
+􀟈  Test "two concurrent callers: the second is admitted when the post-allocation headroom still fits it" started.
+􀟈  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" started.
+􀟈  Test ".exhausted is a KNOWN zero, and refuses with available 0" started.
+􀟈  Test "mid-stream: the turn carries the reply's failure, typed, and the health road the same (AC-324, AC-326)" started.
+􀟈  Test "a headroom EQUAL to the need admits — the refusal is strictly below" started.
+􀟈  Test "A whitespace-only final produces no reply: back to idle, generator untouched" started.
+􀟈  Test "DefaultGenerationThermalPolicy refuses at .critical only (F-2 = A)" started.
+􀟈  Test "an interruption keeps the conversation and drops the thought (AC-196)" started.
+􀟈  Test "ReplyFailure gained .tooHot — and still has no .refused (D-104)" started.
+􀟈  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" started.
+􀟈  Test "a load that throws lets the next admission through — the gate is released on every exit" started.
+􀟈  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" started.
+􀟈  Test "two concurrent callers: the second is refused on the post-allocation headroom, not the stale one" started.
+􀟈  Test "a device that cannot load is refused with its readiness verdict, not a memory number" started.
+􀟈  Test "openReply opens at .nominal, .fair and .serious (AC-260)" started.
+􀟈  Test "with no headroom number the model admits, and the load door speaks next" started.
+􀟈  Test "a headroom the phone will not give NEVER refuses — D-092" started.
+􀟈  Test "GenerationOptions.deadline ends a slow reply on the injected clock — Reply(partial, .deadline) (AC-264)" started.
+􀟈  Test "a reply finished before its deadline ends .complete, and releases the clock's sleeper (AC-264)" started.
+􀟈  Test "weights already RESIDENT are admitted without the memory question" started.
+􀟈  Test "an injected policy overrules the default: refusing at .serious" started.
+􀟈  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" started.
+􀟈  Test "no deadline means no sleeper: the clock cannot end a reply that carries nil (AC-264, AC-265)" started.
+􀟈  Test "a known headroom below the need refuses, typed, and no load begins" started.
+􀟈  Test "the transcription policy's table is untouched — D-028 stands" started.
+􀟈  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" started.
+􀟈  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" started.
+􀟈  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" started.
+􀟈  Test "A barge moves the thought into the conversation, not into the next question (D-089)" started.
+􀟈  Test "openReply throws ReplyFailure.tooHot(.critical) at the door, and opens no run (AC-260)" started.
+􀟈  Test "The context bound is the app's number, and its default is stated" started.
+􀟈  Test "StopReason is complete / tokenBudget / unreported / refused / deadline — F-4 = A" started.
+􀟈  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" started.
+􀟈  Test "A final STASHED before an interruption is not replayed after resume" started.
+􀟈  Test "A failed turn keeps its words — nothing answered them (AC-89)" started.
+􀟈  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" started.
+􀟈  Test "a barge before the first token loses nothing (F-5 = A)" started.
+􀟈  Test "a .tooHot door fails the turn honestly; the next turn runs clean; memory is not poisoned" started.
+􀟈  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" started.
+􀟈  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" started.
+􀟈  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" started.
+􀟈  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" started.
+􀟈  Test "tooHot describes itself in plain words, naming the state" started.
+􀟈  Test "An interruption ends the live turn like a failure — not a barge" started.
+􀟈  Test "A stale final during the gate is dropped at the door; the armed reply survives it" started.
+􀟈  Test "completion forgets and remembers in the same step (AC-195)" started.
+􀟈  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" started.
+􀟈  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" started.
+􀟈  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" started.
+􀟈  Test "The app's context bound reaches the ledger and drops the oldest through the loop" started.
+􀟈  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" started.
+􀟈  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" started.
+􀟈  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" started.
+􀟈  Test "Every adjacent state pair across a multi-turn run is in the legal table" started.
+􀟈  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" started.
+􀟈  Test "stop() ends the conversation's memory (F-4 = A)" started.
+􀟈  Test "run() returns after an interruption even when the inputs ended first" started.
+􀟈  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" started.
+􀟈  Test "An onset one tick before expiry wins the race" started.
+􀟈  Test "The refused final contributes content and still triggers nothing (AC-87)" started.
+􀟈  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" started.
+􀟈  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" started.
+􀟈  Test "clearMemory() forgets the past and leaves the thought alone" started.
+􀟈  Test "Interrupting while idle publishes nothing at all" started.
+􀟈  Test "A dead turn cannot speak after an interruption — defiant stages included" started.
+􀟈  Test "An onset during the gate kills the pending reply silently; the next final gates again" started.
+􀟈  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" started.
+􀟈  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" started.
+􁁛  Test "weights already RESIDENT are admitted without the memory question" passed after 0.004 seconds.
+􁁛  Test "a need of 0 bytes is NO claim (D-105's shape): admitted with no memory question" passed after 0.005 seconds.
+􁁛  Test "GenerationOptions.deadline defaults to nil and is a value (AC-264, AC-265)" passed after 0.005 seconds.
+􁁛  Test "openReply opens at .nominal, .fair and .serious (AC-260)" passed after 0.005 seconds.
+􁁛  Test "The context bound is the app's number, and its default is stated" passed after 0.004 seconds.
+􁁛  Test "a headroom EQUAL to the need admits — the refusal is strictly below" passed after 0.005 seconds.
+􁁛  Test "DefaultGenerationThermalPolicy refuses at .critical only (F-2 = A)" passed after 0.005 seconds.
+􁁛  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" passed after 0.004 seconds.
+􁁛  Test "ReplyFailure gained .tooHot — and still has no .refused (D-104)" passed after 0.005 seconds.
+􁁛  Test "tooHot describes itself in plain words, naming the state" passed after 0.004 seconds.
+􁁛  Test "the transcription policy's table is untouched — D-028 stands" passed after 0.005 seconds.
+􁁛  Test "a headroom the phone will not give NEVER refuses — D-092" passed after 0.005 seconds.
+􁁛  Test "StopReason is complete / tokenBudget / unreported / refused / deadline — F-4 = A" passed after 0.005 seconds.
+􁁛  Test "an injected policy overrules the default: refusing at .serious" passed after 0.005 seconds.
+􁁛  Test "openReply throws ReplyFailure.tooHot(.critical) at the door, and opens no run (AC-260)" passed after 0.005 seconds.
+􁁛  Test "a known headroom below the need refuses, typed, and no load begins" passed after 0.005 seconds.
+􁁛  Test ".exhausted is a KNOWN zero, and refuses with available 0" passed after 0.006 seconds.
+􁁛  Test "a load that throws lets the next admission through — the gate is released on every exit" passed after 0.006 seconds.
+􁁛  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" passed after 0.006 seconds.
+􁁛  Test "A whitespace-only final produces no reply: back to idle, generator untouched" passed after 0.006 seconds.
+􁁛  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" passed after 0.006 seconds.
+􁁛  Test "a reply of no tokens is answered, and not remembered" passed after 0.006 seconds.
+􁁛  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" passed after 0.006 seconds.
+􁁛  Test "a failed turn is never remembered, and keeps its words (AC-194)" passed after 0.007 seconds.
+􁁛  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" passed after 0.007 seconds.
+􁁛  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" passed after 0.006 seconds.
+􁁛  Suite TurnHealthTests passed after 0.007 seconds.
+􁁛  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" passed after 0.006 seconds.
+􁁛  Test "An interruption ends the live turn like a failure — not a barge" passed after 0.006 seconds.
+􁁛  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" passed after 0.006 seconds.
+􁁛  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" passed after 0.006 seconds.
+􁁛  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" passed after 0.006 seconds.
+􁁛  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" passed after 0.007 seconds.
+􁁛  Test "a reply finished before its deadline ends .complete, and releases the clock's sleeper (AC-264)" passed after 0.007 seconds.
+􁁛  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" passed after 0.006 seconds.
+􁁛  Test "the coordinator passes the default options (AC-231)" passed after 0.007 seconds.
+􁁛  Test "A failed turn keeps its words — nothing answered them (AC-89)" passed after 0.007 seconds.
+􁁛  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" passed after 0.007 seconds.
+􁁛  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" passed after 0.007 seconds.
+􁁛  Test "completion forgets and remembers in the same step (AC-195)" passed after 0.006 seconds.
+􁁛  Test "two concurrent callers: the second is admitted when the post-allocation headroom still fits it" passed after 0.007 seconds.
+􁁛  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" passed after 0.006 seconds.
+􁁛  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" passed after 0.007 seconds.
+􁁛  Test "stop() ends the conversation's memory (F-4 = A)" passed after 0.006 seconds.
+􁁛  Test "a barge before the first token loses nothing (F-5 = A)" passed after 0.007 seconds.
+􁁛  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" passed after 0.007 seconds.
+􁁛  Test "a counting caller sees two .tooHot across three attempts (AC-260, the AC-236 shape)" passed after 0.007 seconds.
+􁁛  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" passed after 0.007 seconds.
+􁁛  Test "two concurrent callers: the second is refused on the post-allocation headroom, not the stale one" passed after 0.007 seconds.
+􁁛  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" passed after 0.008 seconds.
+􁁛  Test "The app's context bound reaches the ledger and drops the oldest through the loop" passed after 0.007 seconds.
+􁁛  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" passed after 0.007 seconds.
+􁁛  Test "A barge moves the thought into the conversation, not into the next question (D-089)" passed after 0.007 seconds.
+􁁛  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" passed after 0.008 seconds.
+􁁛  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" passed after 0.008 seconds.
+􁁛  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" passed after 0.007 seconds.
+􁁛  Test "an interruption keeps the conversation and drops the thought (AC-196)" passed after 0.008 seconds.
+􁁛  Test "clearMemory() forgets the past and leaves the thought alone" passed after 0.007 seconds.
+􁁛  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" passed after 0.008 seconds.
+􁁛  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" passed after 0.008 seconds.
+􁁛  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" passed after 0.007 seconds.
+􁁛  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" passed after 0.007 seconds.
+􁁛  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" passed after 0.008 seconds.
+􁁛  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" passed after 0.007 seconds.
+􁁛  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" passed after 0.007 seconds.
+􁁛  Test "Every adjacent state pair across a multi-turn run is in the legal table" passed after 0.007 seconds.
+􁁛  Test "no deadline means no sleeper: the clock cannot end a reply that carries nil (AC-264, AC-265)" passed after 0.008 seconds.
+􀢄  Test "a .tooHot door fails the turn honestly; the next turn runs clean; memory is not poisoned" recorded an issue at AdmissionTests.swift:451:9: Expectation failed: await rig.bench.box.events == expected
+􀄵  await rig.bench.box.events == expected → <not evaluated>
+􁁛  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" passed after 0.008 seconds.
+􀢄  Test "a .tooHot door fails the turn honestly; the next turn runs clean; memory is not poisoned" failed after 0.008 seconds with 1 issue.
+􀄵  /// A refused door is an honest failed turn: the failure event carries
+􀄵  /// `tooHot`'s own words (AC-242's rule, unchanged), the next turn
+􀄵  /// runs clean, and the memory is not poisoned — nothing was answered,
+􀄵  /// so the ledger keeps the words and the memory refuses the exchange
+􀄵  /// (AC-194, untouched).
+􁁛  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" passed after 0.008 seconds.
+􀟈  Test "a reply that ends .finished(.deadline) is spoken as far as it got and completes the turn (AC-264)" started.
+􁁛  Test "GenerationOptions.deadline ends a slow reply on the injected clock — Reply(partial, .deadline) (AC-264)" passed after 0.008 seconds.
+􁁛  Suite AdmissionSeamTests passed after 0.009 seconds.
+􁁛  Test "A stale final during the gate is dropped at the door; the armed reply survives it" passed after 0.008 seconds.
+􁁛  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" passed after 0.008 seconds.
+􁁛  Test "An onset one tick before expiry wins the race" passed after 0.008 seconds.
+􁁛  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" passed after 0.009 seconds.
+􁁛  Test "a reply that ends .finished(.deadline) is spoken as far as it got and completes the turn (AC-264)" passed after 0.001 seconds.
+􀟈  Test "the coordinator passes no deadline: every driven call records deadline == nil (AC-265)" started.
+􀟈  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" started.
+􁁛  Test "An onset during the gate kills the pending reply silently; the next final gates again" passed after 0.008 seconds.
+􀢄  Test "mid-stream: the turn carries the reply's failure, typed, and the health road the same (AC-324, AC-326)" recorded an issue at TypedTurnFailureTests.swift:54:9: Expectation failed: turn == .generationFailed(expected)
+􀄵  the app can switch on .unexplained in a conversation
+􀄵  turn == .generationFailed(expected) → false
+􀄵    turn → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵      some → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵        generationFailed → the model failed without a reason this library can name: tokengeneration Code=10
+􀄵          engine → "the model failed without a reason this library can name: tokengeneration Code=10"
+􀄵    .generationFailed(expected) → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵      some → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵        generationFailed → the model failed without a reason this library can name: tokengeneration Code=10
+􀄵          unexplained → "tokengeneration Code=10"
+􁁛  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" passed after 0.001 seconds.
+􀟈  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" started.
+􁁛  Test "the coordinator passes no deadline: every driven call records deadline == nil (AC-265)" passed after 0.001 seconds.
+􀟈  Test "the coordinator's own source names no thermal policy, no thermometer and no GenerationOptions (AC-265)" started.
+􁁛  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" passed after 0.001 seconds.
+􀟈  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" started.
+􁁛  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" passed after 0.001 seconds.
+􀟈  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" started.
+􀢄  Test "mid-stream: the turn carries the reply's failure, typed, and the health road the same (AC-324, AC-326)" recorded an issue at TypedTurnFailureTests.swift:55:9: Expectation failed: health == [.turnFailed(turn: 0, failure: .generationFailed(expected))]
+􀄵  the health road carries the same typed value
+􀄵  health == [.turnFailed(turn: 0, failure: .generationFailed(expected))] → false
+􀄵    health → [MultiModalKit.HealthEvent.turnFailed(turn: 0, failure: MultiModalKit.TurnFailure.generationFailed(the model failed without a reason this library can name: tokengeneration Code=10))]
+􀄵    [.turnFailed(turn: 0, failure: .generationFailed(expected))] → [MultiModalKit.HealthEvent.turnFailed(turn: 0, failure: MultiModalKit.TurnFailure.generationFailed(the model failed without a reason this library can name: tokengeneration Code=10))]
+􀢄  Test "mid-stream: the turn carries the reply's failure, typed, and the health road the same (AC-324, AC-326)" failed after 0.011 seconds with 2 issues.
+􀟈  Test "at the open: a ReplyFailure thrown by the mind is the turn's failure, typed (AC-325)" started.
+􁁛  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" passed after 0.001 seconds.
+􀟈  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" started.
+􀢄  Test "at the open: a ReplyFailure thrown by the mind is the turn's failure, typed (AC-325)" recorded an issue at TypedTurnFailureTests.swift:71:9: Expectation failed: turn == .generationFailed(.tooHot(.critical))
+􀄵  turn == .generationFailed(.tooHot(.critical)) → false
+􀄵    turn → .generationFailed(the device is too hot to generate — thermal state critical)
+􀄵      some → .generationFailed(the device is too hot to generate — thermal state critical)
+􀄵        generationFailed → the device is too hot to generate — thermal state critical
+􀄵          engine → "the device is too hot to generate — thermal state critical"
+􀄵    .generationFailed(.tooHot(.critical)) → .generationFailed(the device is too hot to generate — thermal state critical)
+􀄵      some → .generationFailed(the device is too hot to generate — thermal state critical)
+􀄵        generationFailed → the device is too hot to generate — thermal state critical
+􀄵          tooHot → .critical
+􀢄  Test "at the open: a ReplyFailure thrown by the mind is the turn's failure, typed (AC-325)" recorded an issue at TypedTurnFailureTests.swift:72:9: Expectation failed: health == [.turnFailed(turn: 0, failure: .generationFailed(.tooHot(.critical)))]
+􀄵  health == [.turnFailed(turn: 0, failure: .generationFailed(.tooHot(.critical)))] → false
+􀄵    health → [MultiModalKit.HealthEvent.turnFailed(turn: 0, failure: MultiModalKit.TurnFailure.generationFailed(the device is too hot to generate — thermal state critical))]
+􀄵    [.turnFailed(turn: 0, failure: .generationFailed(.tooHot(.critical)))] → [MultiModalKit.HealthEvent.turnFailed(turn: 0, failure: MultiModalKit.TurnFailure.generationFailed(the device is too hot to generate — thermal state critical))]
+􀢄  Test "at the open: a ReplyFailure thrown by the mind is the turn's failure, typed (AC-325)" failed after 0.001 seconds with 2 issues.
+􀟈  Test "a caller's own error at the open keeps its words, as .engine (AC-327, AC-328)" started.
+􁁛  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" passed after 0.001 seconds.
+􀟈  Test "D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run" started.
+􁁛  Test "a caller's own error at the open keeps its words, as .engine (AC-327, AC-328)" passed after 0.001 seconds.
+􀟈  Test "a TurnFailure thrown at the open passes through unchanged (AC-327)" started.
+􁁛  Test "a TurnFailure thrown at the open passes through unchanged (AC-327)" passed after 0.001 seconds.
+􀟈  Test "the unnamed failure, after its retry, reaches the conversation typed (AC-329)" started.
+􁁛  Test "D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run" passed after 0.001 seconds.
+􀟈  Test "ToolTable: exact name, nil for a stranger, both failures typed" started.
+􀢄  Test "the unnamed failure, after its retry, reaches the conversation typed (AC-329)" recorded an issue at TypedTurnFailureTests.swift:107:9: Expectation failed: turn == expected
+􀄵  turn == expected → false
+􀄵    turn → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵      some → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵        generationFailed → the model failed without a reason this library can name: tokengeneration Code=10
+􀄵          engine → "the model failed without a reason this library can name: tokengeneration Code=10"
+􀄵    expected → .generationFailed(the model failed without a reason this library can name: tokengeneration Code=10)
+􀄵      generationFailed → the model failed without a reason this library can name: tokengeneration Code=10
+􀄵        unexplained → "tokengeneration Code=10"
+􀢄  Test "the unnamed failure, after its retry, reaches the conversation typed (AC-329)" recorded an issue at TypedTurnFailureTests.swift:108:9: Expectation failed: health == [.turnFailed(turn: 0, failure: expected)]
+􀄵  health == [.turnFailed(turn: 0, failure: expected)] → false
+􀄵    health → [MultiModalKit.HealthEvent.turnFailed(turn: 0, failure: MultiModalKit.TurnFailure.generationFailed(the model failed without a reason this library can name: tokengeneration Code=10))]
+􀄵    [.turnFailed(turn: 0, failure: expected)] → [MultiModalKit.HealthEvent.turnFailed(turn: 0, failure: MultiModalKit.TurnFailure.generationFailed(the model failed without a reason this library can name: tokengeneration Code=10))]
+􀢄  Test "the unnamed failure, after its retry, reaches the conversation typed (AC-329)" failed after 0.001 seconds with 2 issues.
+􀄵  /// The Apple mind runs its tool, fails with no reason, asks again once
+􀄵  /// (§213), and the retry fails too — the turn a person hears nothing
+􀄵  /// from, which the app wants to speak its own sentence for.
+􁁛  Test "ToolTable: exact name, nil for a stranger, both failures typed" passed after 0.001 seconds.
+􁁛  Suite ToolSpikeTests passed after 0.015 seconds.
+􀢄  Suite "AC-324…AC-329 · a turn's failure is typed" failed after 0.015 seconds with 6 issues.
+􁁛  Test "the coordinator's own source names no thermal policy, no thermometer and no GenerationOptions (AC-265)" passed after 0.006 seconds.
+􀢄  Suite AdmissionCoordinatorTests failed after 0.017 seconds with 1 issue.
+􀄵  /// The coordinator learned NOTHING in 4y — that is the claim. A heat
+􀄵  /// refusal takes the path a `.failOnOpen` takes today
+􀄵  /// (`TurnCoordinatorTests.generatorFailureEndsOnlyTheTurn`); a deadline
+􀄵  /// ending takes the path `.finished(.tokenBudget)` takes — the stop
+􀄵  /// reason is the text caller's concern, the mouth finishes what it has.
+􁁛  Test "run() returns after an interruption even when the inputs ended first" passed after 0.019 seconds.
+􁁛  Test "A final STASHED before an interruption is not replayed after resume" passed after 0.020 seconds.
+􁁛  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" passed after 0.020 seconds.
+􁁛  Test "A dead turn cannot speak after an interruption — defiant stages included" passed after 0.019 seconds.
+􁁛  Test "The refused final contributes content and still triggers nothing (AC-87)" passed after 0.019 seconds.
+􁁛  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" passed after 0.020 seconds.
+􁁛  Test "Interrupting while idle publishes nothing at all" passed after 0.019 seconds.
+􁁛  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" passed after 0.021 seconds.
+􁁛  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" passed after 0.021 seconds.
+􁁛  Suite TurnCoordinatorTests passed after 0.021 seconds.
+􁁛  Test "a device that cannot load is refused with its readiness verdict, not a memory number" passed after 0.527 seconds.
+􁁛  Test "with no headroom number the model admits, and the load door speaks next" passed after 0.527 seconds.
+􁁛  Suite "AC-258 / AC-259 · admission is one step, on the app's number" passed after 0.527 seconds.
+􀢄  Test run with 101 tests in 7 suites failed after 0.528 seconds with 7 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
