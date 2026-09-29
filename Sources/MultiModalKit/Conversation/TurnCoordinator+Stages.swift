@@ -71,9 +71,11 @@ extension TurnCoordinator {
 
         case .failed(let failure):
             let dying = current
-            // RED skeleton (5c): the type changed, the judgment did not —
-            // the value is flattened to its words, as AC-242 had it.
-            failTurn(turn, with: .generationFailed(.engine(failure.description)))
+            // THE TYPED VALUE goes where the description went (5c, D-128
+            // F-23 A; AC-242 reversed in the open): a conversation can
+            // switch on `.unexplained` exactly as a text caller does, and
+            // the words are still the payload's `description`.
+            failTurn(turn, with: .generationFailed(failure))
             await dying?.synthesisRun?.cancel()
         }
     }
