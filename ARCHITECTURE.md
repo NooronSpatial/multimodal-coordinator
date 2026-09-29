@@ -2899,13 +2899,13 @@ is right.
 
 ```
 $ Scripts/shape.sh
-commit          7a4f10e
-library core    8278 lines   Sources/MultiModalKit
-all sources     22039 lines   every product, demo and instrument under Sources/
-demo app        6092 lines   Demo/
-tests           23532 lines   Tests/
-TurnCoordinator 1028 lines across 5 files
-runner          Test run with 855 tests in 119 suites
+commit          79c1d5d
+library core    10349 lines   Sources/MultiModalKit
+all sources     26008 lines   every product, demo and instrument under Sources/
+demo app        6837 lines   Demo/
+tests           27607 lines   Tests/
+TurnCoordinator 1060 lines across 5 files
+runner          Test run with 970 tests in 139 suites
 ```
 
 More test than library, which is the point. The test folder mirrors this

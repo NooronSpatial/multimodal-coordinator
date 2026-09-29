@@ -7859,3 +7859,70 @@ nothing was decided silently, and each can be changed in review.
 - **Repeats are not new acts.** A call answered from its record reaches
   the vendor's transcript, but not the run: `.toolRan` was already sent
   when the tool really ran.
+
+## §214 — results, measured 2026-09-23…29 on `milestone/5b-session`
+
+Every criterion, with what was RUN and what is owed. "Phone" means
+Ryad's gate, and by **D-123** the phone comes after the merge, in one
+session: nothing here claims a phone number. The raw logs are in
+`docs/evidence/5b/`. Every AC-303…AC-322 row drives the fake session
+maker: the Apple model reports `modelNotReady` on this Mac.
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-303 one session for many turns | **met** — ten turns, one session made; turn ten sends its own words only; the same through the coordinator, with and without tools | `AppleSessionTests`, `AppleSessionToolTests`, mutation M5 (a finished turn written without its tools re-seeds every tool turn) |
+| AC-304 instructions and tools once | **met** — given at the session's birth, never re-sent | `AppleSessionTests` |
+| AC-305 a tool call is a tool call | **met** — a re-seed replays `Transcript.ToolCalls` + `ToolOutput`, never prose; a turn with no tool replays exactly as before; an act with no words replays the act | `AppleSessionToolTests` |
+| AC-306 a barge never poisons *(amended, D-117 F-10 A)* | **met** — the next turn is a NEW session seeded from the memory, the cut turn marked interrupted; the cut session answers nothing more | `AppleSessionEndingTests`, `AppleSessionTests` |
+| AC-307 a failure re-seeds, and says so | **met** — released at once; the next birth is `mindSessionSeeded(.lastAnswerFailed(words), …)` | `AppleSessionEndingTests` |
+| AC-308 the bound bounds the re-seed *(amended, D-118 F-12 C, D-124 F-22 B)* | **met** — the window rule (six turns at a bound of four, one session); the window must MATCH, not only fit; memory off re-seeds every turn; the wall re-asked once only when the session outgrew the window; after a word the turn fails and the next re-seeds with `.contextFull` | `AppleSessionWindowTests` (8 rows), mutations M22…M30 |
+| AC-309 per-call identity, its own session | **met** | `AppleSessionTests`, `AppleSessionEndingTests` |
+| AC-310 `stop()` retires it | **met** — `stop()` and `clearMemory()` end the conversation; a new one starts from no past | `AppleSessionEndingTests` |
+| AC-311 the memory carries what ran | **met** — `ConversationTurn.tools`; an act with no words is kept (D-119); the bound unchanged | `ConversationMemoryTests+Tools` |
+| AC-312 residency is an event *(D-124 F-21 B)* | **met on this Mac, scripted** — `whenWarm() -> Bool` true at once / when the weights arrive, false when the warm ends without them or nothing is loading, cancellable; the model's wiring on a model with no weights; the ask raised before `prewarm()`'s hop (read from the code). The demo shows the warm's end (compiled). The **live** row needs `MMK_MLX_MODEL` and skips here, saying so | `MLXResidencyTests`, mutations M31…M42 |
+| AC-313 the MLX mind untouched | **met** — `MLXPlainPromptTests` is unchanged since `main`; the contract page says the kept session is the Apple mind's today | `git diff main`, ARCHITECTURE.md |
+| AC-314 INSTRUMENTS §71 | **met, in characters** — 8 644 fixed characters re-read every turn before 5b; 21–30 per turn after turn one with a kept session; 181 807 against 9 127 over twenty turns. The vendor's token count was asked and refused here (`modelNotReady`) | §71, `instruments-71-session-2026-09-29.log` |
+| AC-315 the phone | **OWED** (D-123) — turn two's first token; twenty turns that call their tools | — |
+| AC-316 nothing else moved | **met on this Mac** — 970 tests in 139 suites green, the 20× loop 20 of 20 at `970 tests in 139 suites`, no failing log; CI green on the latest push; lint zero; the demo compiles (signing off). **Owed:** the demo running on a device, and one CI run that hung (below) | the suite, `stability-2026-09-29.txt`, `ci-hang-2026-09-29.md` |
+| AC-317 one reply, one body run | **met** — text caller and coordinator | `AppleRetryTests` |
+| AC-318 no third try | **met** | `AppleRetryTests`, mutation M14 |
+| AC-319 what is never retried | **met** — no tool, a word said, seven named failures, a door failure | `AppleRetryTests`, mutations M9–M11 |
+| AC-320 a barge during the retry | **met** — cancels it; the write stands, once; the act is remembered | `AppleRetryTests` |
+| AC-321 the retry is seen | **met** — one `mindReplyRetried(after:)` per retry | `AppleRetryTests`, mutation M17 |
+| AC-322 the unnamed failure has a name | **met** — `.unexplained(words)` for a foreign vendor error; the library's own failures and every named case keep their names | `AppleFailureTableTests`, mutations M15–M16 |
+| AC-323 the phone (PROBE-R) | **OWED** (D-123) — built in the demo (Bench → Retry probe), not yet run | `RetryProbe.swift` |
+
+### What the milestone found that it did not plan to
+
+- **Two real gaps, found by mutation, not by review.** M24: a keeper that
+  continued any session holding *enough* turns passed every row — a row
+  now proves the window must *match*. M32: a cancel that answers nothing
+  made a test helper hang the whole run — the helper now fails in 10 s.
+- **One CI run never finished** (run 36579409889, piece R): twelve silent
+  minutes, cancelled by hand. The next run on a superset commit passed,
+  the same commit re-run on CI passed (attempt 2), and the whole suite passed
+  with a one-thread cooperative pool. Not explained yet; kept with its
+  log (`ci-hang-2026-09-29.md`).
+- **The vendor's own token count fails here with the SAME shape as the
+  diet app's unnamed failure** (`GenerationError Code=-1`, an NSError no
+  case names) — which is the shape `ReplyFailure.unexplained` exists for.
+- **Stale truths corrected on the way:** the demo's Apple caption said
+  "one session per turn"; `AIRuntime`'s doc said it "cannot call a tool"
+  (false since 4z).
+
+### The phone session, named (D-123)
+
+One session on Ryad's iPhone, after the merge:
+
+1. **PROBE-R** — demo, Bench tab → toolbar "Retry probe" → Run → share the
+   trace. Confirms or reopens F-18 A (AC-323).
+2. **AC-315** — the diet app on `main`: turn two's first token against
+   3.4 s, with its 5 100 characters and 15 tools; twenty turns of the
+   coach's script, a tool called every time one is asked for.
+3. **AC-316, the device half** — the demo runs; the Settings tab shows the
+   local mind's warm end (AC-312's demo half); the Kokoro bundle signs in
+   Xcode's own build.
+4. **5a's AC-300**, still owed: lock five minutes mid-download; kill and
+   relaunch mid-transfer; the system's background wake-up.
+
+Then the tag 0.4.0 — on Ryad's word (D-123).

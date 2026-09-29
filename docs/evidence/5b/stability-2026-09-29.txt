@@ -1,0 +1,22 @@
+commit 356fda6 · macOS 26.6.1 · Xcode 27, Swift 6.4 · no warnings-as-errors
+run 1: 􁁛  Test run with 970 tests in 139 suites passed after 20.167 seconds.
+run 2: 􁁛  Test run with 970 tests in 139 suites passed after 47.800 seconds.
+run 3: 􁁛  Test run with 970 tests in 139 suites passed after 5.634 seconds.
+run 4: 􁁛  Test run with 970 tests in 139 suites passed after 22.622 seconds.
+run 5: 􁁛  Test run with 970 tests in 139 suites passed after 19.993 seconds.
+run 6: 􁁛  Test run with 970 tests in 139 suites passed after 36.608 seconds.
+run 7: 􁁛  Test run with 970 tests in 139 suites passed after 19.994 seconds.
+run 8: 􁁛  Test run with 970 tests in 139 suites passed after 20.021 seconds.
+run 9: 􁁛  Test run with 970 tests in 139 suites passed after 5.574 seconds.
+run 10: 􁁛  Test run with 970 tests in 139 suites passed after 20.028 seconds.
+run 11: 􁁛  Test run with 970 tests in 139 suites passed after 25.809 seconds.
+run 12: 􁁛  Test run with 970 tests in 139 suites passed after 20.087 seconds.
+run 13: 􁁛  Test run with 970 tests in 139 suites passed after 20.159 seconds.
+run 14: 􁁛  Test run with 970 tests in 139 suites passed after 36.586 seconds.
+run 15: 􁁛  Test run with 970 tests in 139 suites passed after 5.533 seconds.
+run 16: 􁁛  Test run with 970 tests in 139 suites passed after 5.614 seconds.
+run 17: 􁁛  Test run with 970 tests in 139 suites passed after 20.348 seconds.
+run 18: 􁁛  Test run with 970 tests in 139 suites passed after 5.611 seconds.
+run 19: 􁁛  Test run with 970 tests in 139 suites passed after 5.551 seconds.
+run 20: 􁁛  Test run with 970 tests in 139 suites passed after 69.364 seconds.
+done
