@@ -61,7 +61,7 @@ extension TurnCoordinatorTests {
             // The generator dies mid-sentence, mid-SPEECH.
             bench.generator.fail(reply: 0, reason: "brain died")
             #expect(await Self.until { await bench.box.events.contains(
-                .turnFailed(.generationFailed("brain died"), turn: 0)) })
+                .turnFailed(.generationFailed(.engine("brain died")), turn: 0)) })
             #expect(await Self.until { bench.synthesizer.record(ofUtterance: 0)?.cancelled == true },
                     "a dead reply must silence the mouth it was feeding")
 

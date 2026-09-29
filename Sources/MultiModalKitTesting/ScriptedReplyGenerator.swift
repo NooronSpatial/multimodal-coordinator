@@ -246,7 +246,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
         }
 
         if case .failOnOpen(let reason) = plan {
-            throw TurnFailure.generationFailed(reason)
+            throw TurnFailure.generationFailed(.engine(reason))
         }
         if case .blockThenFailOnOpen(let reason) = plan {
             // Hold the caller here until the test says go. Lock rules
@@ -260,7 +260,7 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
                 }
                 if releaseNow { continuation.resume() }
             }
-            throw TurnFailure.generationFailed(reason)
+            throw TurnFailure.generationFailed(.engine(reason))
         }
         if case .callsTool(let script) = plan {
             // THE RUN DRIVES ITSELF (F-1 = B): the call happens in here,

@@ -130,7 +130,7 @@ extension TurnCoordinatorTests {
             bench.speak(utterance: 0, final: "the lost question", at: 0)
             #expect(await Self.until {
                 await bench.box.events.contains(
-                    .turnFailed(.generationFailed("no model"), turn: 0)) })
+                    .turnFailed(.generationFailed(.engine("no model")), turn: 0)) })
             bench.speak(utterance: 1, final: "asking again", at: 96_000)
             #expect(await Self.until { bench.generator.repliesOpened == 2 })
 

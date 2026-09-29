@@ -150,7 +150,8 @@ extension TurnCoordinator {
             if let failure = error as? TurnFailure {
                 failTurn(turn, with: failure)
             } else {
-                failTurn(turn, with: .generationFailed(String(describing: error)))
+                // RED skeleton (5c): every error flattened to its words.
+                failTurn(turn, with: .generationFailed(.engine(String(describing: error))))
             }
         }
     }
