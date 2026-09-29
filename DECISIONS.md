@@ -5780,3 +5780,29 @@ failures; the typed value now goes where the description went.
 
 **Known when signing:** the diet app's own AC-6…AC-9 were not read by this
 session; the spec was written from Ryad's summary and says so.
+
+## D-129 — the stale resume that 5c's loop found: fixed next, as its own piece; a failed resume restarts its file once (F-24 A)
+
+**Date:** 2026-09-29 · **Decided by:** Ryad · **Rulings:** the order — 5c's
+PR now, the fix next as its own piece (its own spec, tests and PR, no
+phases mixed); **F-24 = A** — when a download task that was started FROM
+resume data fails (not a cancel), the downloader drops the stale resume
+data and downloads that file again from the start, once.
+
+**The bug** (a 5a bug in 0.3.1 and 0.4.0, found by 5c's 20× loop, run 13,
+not caused by 5c). `ModelDownloader` removes a file's resume data only when
+the file lands, or on a delete. A RESUMED task that fails keeps it: in run
+13 the background daemon's partial was gone (`NSPOSIXErrorDomain Code=2`),
+and with the stale data kept, every later attempt resumes from it and
+fails the same way — until the person deletes the model. Why the partial
+vanished in that run is not known; the fix does not need to know.
+
+- *Rejected:* **B** — drop the stale data and report the failure: the next
+  tap starts fresh, but the person first sees a failure the library could
+  recover from itself; **fixing first and holding 5c's PR** — it holds a
+  finished, unrelated piece behind a bug it only exposed.
+
+**The limits of A, named:** only a task that was started from resume data;
+only once per file per transfer; a fresh download's failure is reported as
+today. The restart pays the bytes the lost partial held — they are gone
+either way.
