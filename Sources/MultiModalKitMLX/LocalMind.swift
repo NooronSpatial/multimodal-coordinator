@@ -286,6 +286,13 @@ public actor LocalMindModel: ModelBacked {
                     from: source, using: #huggingFaceTokenizerLoader())
             }
         } catch {
+            // NO ROW ON A MAC WITHOUT THE MODEL REACHES THIS LINE — measured
+            // (mutation M40, docs/evidence/5b): with it gone every row stays
+            // green, because without weights or the shader library the
+            // door (`readiness()`) refuses before a load begins. Only a
+            // load that STARTS and then fails lands here — corrupt weights,
+            // a retire during the load — and a waiter must hear that end
+            // too. Kept on the argument, not on a row.
             warm.loadEnded(resident: await held.isResident)
             throw error
         }

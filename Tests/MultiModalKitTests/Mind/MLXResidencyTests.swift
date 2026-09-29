@@ -13,6 +13,7 @@
 // MLX row.
 
 import Foundation
+import Synchronization
 import Testing
 @testable import MultiModalKit
 @testable import MultiModalKitMLX
@@ -29,21 +30,28 @@ struct MLXResidencyTests {
         return (task, registered)
     }
 
-    /// The waiter's answer, or `nil` when the cap wins. The cap CANCELS
-    /// the waiter — `whenWarm()` is cancellable, so a red row ends in
-    /// seconds instead of parking a task on a warm that never ends.
+    /// The waiter's answer, or `nil` when the cap wins; the cap also
+    /// cancels the waiter.
+    ///
+    /// Raced with two UNSTRUCTURED tasks, on purpose (test support, not
+    /// production): mutation M32 — a cancel that answers nothing — left a
+    /// waiter parked for ever, and a task group waiting on it held the
+    /// whole test run past its time limit until it was killed by hand. A
+    /// waiter nobody answers must fail its row in seconds, not hang the run.
     static func answer(_ task: Task<Bool, Never>, within deadline: Duration = .seconds(10)) async -> Bool? {
-        await withTaskGroup(of: Bool?.self) { group in
-            group.addTask { await task.value }
-            group.addTask {
-                try? await Task.sleep(for: deadline)
-                task.cancel()
-                return nil
-            }
-            let first = await group.next() ?? nil
-            group.cancelAll()
-            return first
+        let first = FirstAnswer()
+        Task { first.offer(await task.value) }
+        Task {
+            try? await Task.sleep(for: deadline)
+            task.cancel()
+            first.offer(nil)
         }
+        return await first.value()
+    }
+
+    /// Every `whenWarm()` a row asks goes through the capped race above.
+    static func warm(_ ask: @escaping @Sendable () async -> Bool) async -> Bool? {
+        await answer(Task { await ask() })
     }
 
     // MARK: - the watch
@@ -53,7 +61,7 @@ struct MLXResidencyTests {
         let watch = WarmWatch()
         watch.loadBegan()
         watch.loadEnded(resident: true)
-        #expect(await watch.whenWarm() == true)
+        #expect(await Self.warm { await watch.whenWarm() } == true)
     }
 
     @Test("a waiter is answered true when the load in flight ends with the weights (AC-312)")
@@ -81,7 +89,7 @@ struct MLXResidencyTests {
 
     @Test("false at once when nothing is resident and nothing is loading (D-124 F-21 B)")
     func falseAtOnceWhenIdle() async {
-        #expect(await WarmWatch().whenWarm() == false)
+        #expect(await Self.warm { await WarmWatch().whenWarm() } == false)
     }
 
     @Test("an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)")
@@ -115,7 +123,7 @@ struct MLXResidencyTests {
         watch.asked()
         watch.loadBegan()
         watch.loadEnded(resident: true)
-        #expect(await Self.answer(Task { await watch.whenWarm() }) == true)
+        #expect(await Self.warm { await watch.whenWarm() } == true)
     }
 
     @Test("a load in flight with no warm asked — a turn's own — is waited for too (AC-312)")
@@ -134,7 +142,7 @@ struct MLXResidencyTests {
         watch.loadBegan()
         watch.loadEnded(resident: true)
         watch.retired()
-        #expect(await watch.whenWarm() == false)
+        #expect(await Self.warm { await watch.whenWarm() } == false)
     }
 
     // MARK: - the model's wiring (no weights: a real warm that fails at the door)
@@ -147,7 +155,8 @@ struct MLXResidencyTests {
 
     @Test("the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)")
     func theModelAnswersFalseAtOnce() async {
-        #expect(await Self.modelWithoutWeights().whenWarm() == false)
+        let model = Self.modelWithoutWeights()
+        #expect(await Self.warm { await model.whenWarm() } == false)
     }
 
     /// The model cannot be made resident without weights, so the load's
@@ -157,9 +166,9 @@ struct MLXResidencyTests {
         let model = Self.modelWithoutWeights()
         model.warm.loadBegan()
         model.warm.loadEnded(resident: true)
-        #expect(await model.whenWarm() == true)
+        #expect(await Self.warm { await model.whenWarm() } == true)
         await model.retire()
-        #expect(await model.whenWarm() == false)
+        #expect(await Self.warm { await model.whenWarm() } == false)
     }
 
     @Test("the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)")
@@ -219,5 +228,35 @@ struct MLXResidencyLiveTests {
         #expect(await model.isResident)
         #expect(await model.whenWarm() == true, "already resident: at once")
         await model.retire()
+    }
+}
+
+/// The first answer offered, handed to the one reader — a second offer is
+/// dropped. Resumed outside the lock.
+final class FirstAnswer: Sendable {
+    private enum State {
+        case waiting(CheckedContinuation<Bool?, Never>?)
+        case answered(Bool?)
+    }
+    private let state = Mutex(State.waiting(nil))
+
+    func offer(_ answer: Bool?) {
+        let reader = state.withLock { state -> CheckedContinuation<Bool?, Never>? in
+            guard case .waiting(let reader) = state else { return nil }
+            state = .answered(answer)
+            return reader
+        }
+        reader?.resume(returning: answer)
+    }
+
+    func value() async -> Bool? {
+        await withCheckedContinuation { (reader: CheckedContinuation<Bool?, Never>) in
+            let now = state.withLock { state -> Bool?? in
+                if case .answered(let answer) = state { return .some(answer) }
+                state = .waiting(reader)
+                return .none
+            }
+            if case .some(let answer) = now { reader.resume(returning: answer) }
+        }
     }
 }
