@@ -8170,3 +8170,16 @@ reports only upward (AC-291 holds as it is).
 | AC-332 | `ModelDownloaderTests` · "a restart that fails too ends the transfer — no third attempt" | loopback server, foreground session (a background one retries a drop for days) |
 | AC-333 | `ModelDownloaderTests` · "a resumed task that fails with fresh resume data keeps it" | foreground session |
 | AC-334 | 5a's resume rows, unchanged | — |
+
+## §223 — results (§222), measured 2026-09-29 on `fix/stale-resume`
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-331 nothing to resume from: the file restarts once, and lands | **met** — resume data nothing can read now restarts the file and it lands whole, the stale data gone, the fraction never stepping back. Measured alongside: a partial the system loses CLEANLY is refetched by the system itself (a guard; D-131) | `ModelDownloaderStaleResumeTests`, mutation M51 |
+| AC-332 once, never a loop | **met** — the restart dropped too: one failure, two requests from the start, no third | `ModelDownloaderStaleResumeTests`; "once" is structural (M49 survives as a belt) |
+| AC-333 fresh resume data is not stale | **met** — kept, and the transfer fails as before | `ModelDownloaderStaleResumeTests`, mutation M48 |
+| AC-334 nothing else moved | **met** — 5a's resume rows green; the whole suite green; the 20× loop 20 of 20 at `979 tests in 141 suites`, no failing log; lint zero | the suite, `stability-2026-09-29-stale-resume.txt` |
+
+**What it corrected:** D-129's premise (D-131) — the lock-out is resume data
+nothing can read, not a lost partial; run 13 was a race inside the download
+daemon.
