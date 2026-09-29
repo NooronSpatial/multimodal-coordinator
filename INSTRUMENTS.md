@@ -5836,3 +5836,53 @@ session stops paying the rest on every turn.
 - **Owed — the phone (AC-315, D-123):** turn two's first token with the
   coach's real 5 100 characters and 15 tools, and twenty turns that call
   a tool every time one is asked for.
+
+## 72. What the model does when a reply is asked again — PROBE-R on the phone (5b, AC-323)
+
+**What was asked.** 5b's reply retry (SPEC §213) must RE-ASK: every
+`respond` / `streamResponse` takes a prompt. How to re-ask was ruled A
+(replay the turn, repeats answered from records) and left to the phone to
+confirm (D-122). This is that run.
+
+**Machine and command.** Ryad's iPhone, 2026-09-29, the Apple model
+`available`; the demo's Bench tab → "Retry probe" → 3 trials. The raw
+trace is `docs/evidence/5b/probe-r-2026-09-29-iphone.md`. (The probe did
+not record the phone's model or iOS; its share text does now.)
+
+**Each trial.** The turn "Log 84 kilos, please." runs `log_weight` — its
+body counted — and then fails on purpose. Then the same turn is asked
+again three ways, each in a new session, each with the call already on
+record:
+
+| re-ask | first word, trial 1 · 2 · 3 (ms) | the tool called again | a body ran twice | what it said (trial 2) |
+|---|---|---|---|---|
+| **A — replay** (0.4.0) | 6 714 · 2 831 · 1 368 | 3 of 3, from the record | **never** | "I have successfully logged your weight of 84 kg." |
+| B — seeded, same words | 3 015 · 956 · 1 231 | 2 of 3, from the record | never | "I have already logged 84 kilos." |
+| C — seeded, empty prompt | 2 791 · 681 · 683 | 0 of 3 | never | "I have successfully logged 84 kg." |
+
+The failing first ask took 3 921 · 2 191 · 682 ms — trial one was the cold
+one, in every row.
+
+**What it shows.**
+
+- **A holds** (AC-323): the body ran once and a reply was spoken, 3 of 3.
+- **The records are load-bearing.** The model re-calls a tool it already
+  called — 5 of the 6 re-asks in A and B. Without the records every one
+  of those would be a second write (F-16 A).
+- **B's wording is the reason it was rejected.** "Already logged" answers a
+  person who asked twice; this person asked once.
+- **C is the fastest** — no second tool round — and its empty prompt worked
+  3 of 3. It was not adopted (D-126): one phone, one OS, an undocumented
+  prompt, and a new session shape for a path that runs only after a
+  failure. Its numbers wait here for the day retries are common.
+
+### What this section does not claim
+
+- **Not the trigger.** The injected fault surfaced as a `ToolCallError`,
+  which the library names and does NOT retry. The probe measured the
+  RE-ASK; the vendor's unnamed failure cannot be summoned on demand. When
+  it happens in the field, `HealthEvent.mindReplyRetried` counts it.
+- **Three trials.** Evidence, not a distribution. The times are the main
+  actor of an idle app — indicative; the counts are exact.
+- **The probe talks to the vendor directly**, not through the library's
+  keeper: it measures the model's behaviour, which is what F-18 needed.

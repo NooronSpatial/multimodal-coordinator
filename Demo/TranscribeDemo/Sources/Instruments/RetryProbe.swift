@@ -153,6 +153,7 @@ final class RetryProbe {
     private func buildShareText() -> String {
         var out = "# PROBE-R — the reply retry's vendor fact (5b §213, F-18)\n\n"
         out += "availability: \(availabilityLine)\n"
+        out += "device: \(Self.device)\n"
         out += "prompt: \(Self.prompt)\n"
         out += "caveat: main actor of an idle app — the counts are solid, the times indicative\n\n"
         for trial in 1...Self.trials {
@@ -185,6 +186,18 @@ final class RetryProbe {
             + "no body ran twice, and a reply was written every time.\n"
             : "VERDICT this run: F-18 A held in only \(held.count) of \(replays.count) trials — "
             + "see the A rows; F-18 is reopened.\n"
+    }
+
+    /// Which phone, and which OS — the vendor's behaviour is the OS's. The
+    /// first run on the phone (2026-09-29, INSTRUMENTS §72) recorded
+    /// neither, and its evidence had to say so.
+    private static var device: String {
+        var system = utsname()
+        uname(&system)
+        let machine = withUnsafeBytes(of: &system.machine) { raw in
+            String(bytes: raw.prefix { $0 != 0 }, encoding: .utf8) ?? "unknown"
+        }
+        return "\(machine) · \(ProcessInfo.processInfo.operatingSystemVersionString)"
     }
 
     private static func ms(_ duration: Duration) -> Double {

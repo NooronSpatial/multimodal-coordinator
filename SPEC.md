@@ -7804,7 +7804,9 @@ with the same words again (the question appears twice in the transcript).
 *C:* seed them and ask with an empty prompt (the vendor's behaviour
 unknown). **Recommendation: A**, confirmed or overturned by PROBE-R — the
 only shape that neither shows the model its question twice nor leans on an
-unmeasured empty prompt.
+unmeasured empty prompt. *PROBE-R on Ryad's iPhone, 2026-09-29: A held 3 of
+3 — no body ran twice, a reply every time; C was faster and is recorded;
+A kept (D-126, INSTRUMENTS §72).*
 
 **F-19 — A FAILURE AFTER A WORD WAS SAID.** *A:* no retry — the turn fails
 with the named failure, as today. *B:* retry anyway. **Recommendation: A** —
@@ -7890,7 +7892,7 @@ maker: the Apple model reports `modelNotReady` on this Mac.
 | AC-320 a barge during the retry | **met** — cancels it; the write stands, once; the act is remembered | `AppleRetryTests` |
 | AC-321 the retry is seen | **met** — one `mindReplyRetried(after:)` per retry | `AppleRetryTests`, mutation M17 |
 | AC-322 the unnamed failure has a name | **met** — `.unexplained(words)` for a foreign vendor error; the library's own failures and every named case keep their names | `AppleFailureTableTests`, mutations M15–M16 |
-| AC-323 the phone (PROBE-R) | **OWED** (D-123) — built in the demo (Bench → Retry probe), not yet run | `RetryProbe.swift` |
+| AC-323 the phone (PROBE-R) | **met** (2026-09-29, Ryad's iPhone) — with the fault injected, the tool's body ran ONCE and a reply was spoken in 3 of 3; the re-ask's first word 1 368–6 714 ms. F-18 A kept (D-126) | §72, `probe-r-2026-09-29-iphone.md` |
 
 ### What the milestone found that it did not plan to
 
@@ -7914,8 +7916,8 @@ maker: the Apple model reports `modelNotReady` on this Mac.
 
 One session on Ryad's iPhone, after the merge:
 
-1. **PROBE-R** — demo, Bench tab → toolbar "Retry probe" → Run → share the
-   trace. Confirms or reopens F-18 A (AC-323).
+1. ~~**PROBE-R**~~ — **done 2026-09-29**: F-18 A held 3 of 3 and is kept
+   (D-126, INSTRUMENTS §72).
 2. **AC-315** — the diet app on `main`: turn two's first token against
    3.4 s, with its 5 100 characters and 15 tools; twenty turns of the
    coach's script, a tool called every time one is asked for.
