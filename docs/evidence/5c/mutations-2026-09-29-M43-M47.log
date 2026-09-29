@@ -1,0 +1,52 @@
+# 5c — mutations M43…M47 against GREEN 0b4bcf3 (AC-324…AC-329; D-128 F-23 A)
+# Each mutation breaks ONE rule, rebuilds, and runs:
+#   swift test --skip-build --filter 'TypedTurnFailureTests|AdmissionTests|TurnCoordinatorTests|ToolSpikeTests'
+# then reverts with git checkout. This Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors.
+# RESULT: 5 of 5 killed. The two guard rows green at RED show their teeth: M45 (a caller's error kept as .engine,
+# not .unexplained) and M46 (a TurnFailure at the open passes through). M47 also reddens 4y's own row
+# 'a failed turn reaches the HEALTH stream, typed, with its turn number'.
+
+## M43 — mid-stream flattened back to words
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - mid-stream: the turn carries the reply's failure, typed, and the health road the same (AC-324, AC-326)
+  - the unnamed failure, after its retry, reaches the conversation typed (AC-329)
+􀢄  Test run with 101 tests in 7 suites failed after 0.495 seconds with 4 issues.
+reverted: yes
+
+## M44 — at the open: a ReplyFailure flattened to words
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+KILLED — red rows:
+  - a .tooHot door fails the turn honestly; the next turn runs clean; memory is not poisoned
+  - at the open: a ReplyFailure thrown by the mind is the turn's failure, typed (AC-325)
+􀢄  Test run with 101 tests in 7 suites failed after 0.448 seconds with 3 issues.
+reverted: yes
+
+## M45 — a caller's own error becomes .unexplained
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+KILLED — red rows:
+  - a caller's own error at the open keeps its words, as .engine (AC-327, AC-328)
+􀢄  Test run with 101 tests in 7 suites failed after 0.398 seconds with 1 issue.
+reverted: yes
+
+## M46 — a TurnFailure thrown at the open is wrapped again
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+KILLED — red rows:
+  - A failed turn keeps its words — nothing answered them (AC-89)
+  - A generator failure ends the turn, not the coordinator; the next turn runs clean
+  - a TurnFailure thrown at the open passes through unchanged (AC-327)
+  - a failed turn is never remembered, and keeps its words (AC-194)
+􀢄  Test run with 101 tests in 7 suites failed after 10.004 seconds with 4 issues.
+reverted: yes
+
+## M47 — the health road carries another value than the turn event
+file: Sources/MultiModalKit/Conversation/TurnCoordinator.swift
+KILLED — red rows:
+  - a failed turn reaches the HEALTH stream, typed, with its turn number
+  - at the open: a ReplyFailure thrown by the mind is the turn's failure, typed (AC-325)
+  - mid-stream: the turn carries the reply's failure, typed, and the health road the same (AC-324, AC-326)
+  - the unnamed failure, after its retry, reaches the conversation typed (AC-329)
+􀢄  Test run with 101 tests in 7 suites failed after 10.003 seconds with 4 issues.
+reverted: yes
+
+source tree after the run: clean
