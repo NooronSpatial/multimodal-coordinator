@@ -1,0 +1,168 @@
+# 5b piece R — RED: the reply retry (AC-317…AC-321) and the unnamed failure's name (AC-322); SPEC §213, D-122, D-123
+# command: swift test --skip-build --filter "AppleRetryTests|AppleFailureTableTests"   (this Mac: macOS 26.6.1, Xcode 27, Swift 6.4; no warnings-as-errors)
+# Against a skeleton with the shape — ReplyFailure.unexplained(String), HealthEvent.mindReplyRetried(after:),
+# PipelineDiagnostics.noteMindReplyRetried(after:), the fake's door calls (FakeSession.Plan.callsThen) —
+# and none of the judgment: the keeper never asks again, and the run still maps an unnamed failure to .engine.
+# Expected RED: every row that needs a retry or the new name. Expected GREEN here, as GUARDS whose teeth the
+# mutations after GREEN must show: 'no retry for a failure with a name' (7 cases), 'a failure at the door makes
+# no session', 'no vendor case with a name becomes .unexplained', 'the tripwire keeps its name'.
+# The two pinning switches over ReplyFailure (ReplyContractTests, AdmissionTests) stopped compiling on the new
+# case, as the diet app's two will — and were given the case. The AC-320 row fails slowly (10 s event waits),
+# never hangs: every wait has a deadline.
+
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-236 · the Apple mind's failures are typed, one row per vendor case" started.
+􀟈  Suite "AC-317…AC-321 · the reply retry" started.
+􀟈  Test "a refusal after partial text keeps what was already spoken — D-104" started.
+􀟈  Test "the tripwire keeps its name: a revised text is .engine, never .unexplained (AC-322)" started.
+􀟈  Test "a caller can COUNT: two scripted .busy runs are two" started.
+􀟈  Test "rate limiting and a concurrent request are both .busy" started.
+􀟈  Test "no vendor case with a name becomes .unexplained (AC-322)" started.
+􀟈  Test "a refusal is spoken and ends .finished(.refused) — D-104" started.
+􀟈  Test "an empty refusal sentence yields no token, only the ending — D-104" started.
+􀟈  Test "reply(to:) RETURNS a refusal as Reply(text:, stop: .refused) — D-104" started.
+􀟈  Test "this library's own failures keep their names: a declaration the vendor refuses is .engine (AC-322)" started.
+􀟈  Test "a decoding failure and an unsupported guide are .engine — the honest rest" started.
+􀟈  Test "the context window overflowing stays .contextWindowExceeded" started.
+􀟈  Test "an unsupported language is .unsupportedLanguage" started.
+􀟈  Test "one retry, one reply, one body run (AC-317)" started.
+􀟈  Test "an error the vendor's enum does not own is .unexplained, with its words (AC-322)" started.
+􀢄  Test "this library's own failures keep their names: a declaration the vendor refuses is .engine (AC-322)" recorded an issue at AppleFailureTableTests.swift:113:9: Expectation failed: try await Self.failure(after: declaration) == .engine(declaration.description)
+􀄵  try await Self.failure(after: declaration) == .engine(declaration.description) → <not evaluated>
+􁁛  Test "the tripwire keeps its name: a revised text is .engine, never .unexplained (AC-322)" passed after 0.001 seconds.
+􁁛  Test "an unsupported language is .unsupportedLanguage" passed after 0.001 seconds.
+􁁛  Test "the context window overflowing stays .contextWindowExceeded" passed after 0.001 seconds.
+􁁛  Test "a caller can COUNT: two scripted .busy runs are two" passed after 0.001 seconds.
+􁁛  Test "rate limiting and a concurrent request are both .busy" passed after 0.001 seconds.
+􁁛  Test "a decoding failure and an unsupported guide are .engine — the honest rest" passed after 0.001 seconds.
+􁁛  Test "no vendor case with a name becomes .unexplained (AC-322)" passed after 0.001 seconds.
+􀢄  Test "one retry, one reply, one body run (AC-317)" recorded an issue at AppleRetryTests.swift:73:6: Caught error: reply generation failed: tokengeneration Code=10
+􀢄  Test "one retry, one reply, one body run (AC-317)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)" started.
+􀢄  Test "this library's own failures keep their names: a declaration the vendor refuses is .engine (AC-322)" failed after 0.002 seconds with 1 issue.
+􀢄  Test "an error the vendor's enum does not own is .unexplained, with its words (AC-322)" recorded an issue at AppleFailureTableTests.swift:104:9: Expectation failed: failure == .unexplained(String(describing: error))
+􀄵  failure == .unexplained(String(describing: error)) → false
+􀄵    failure → reply generation failed: Error Domain=com.apple.tokengeneration Code=10 "(null)"
+􀄵      some → reply generation failed: Error Domain=com.apple.tokengeneration Code=10 "(null)"
+􀄵        engine → "reply generation failed: Error Domain=com.apple.tokengeneration Code=10 "(null)""
+􀄵    .unexplained(String(describing: error)) → the model failed without a reason this library can name: Error Domain=com.apple.tokengeneration Code=10 "(null)"
+􀄵      some → the model failed without a reason this library can name: Error Domain=com.apple.tokengeneration Code=10 "(null)"
+􀄵        unexplained → "Error Domain=com.apple.tokengeneration Code=10 "(null)""
+􀢄  Test "an error the vendor's enum does not own is .unexplained, with its words (AC-322)" failed after 0.002 seconds with 1 issue.
+􀄵  /// Until 5b this row read `.engine("reply generation failed: …")` — the
+􀄵  /// string the diet app could only match as a string, twice, after its
+􀄵  /// tools had run (`tokengeneration Code=10`). The words are kept whole;
+􀄵  /// the CASE is what changed.
+􁁛  Test "reply(to:) RETURNS a refusal as Reply(text:, stop: .refused) — D-104" passed after 0.003 seconds.
+􁁛  Test "a refusal after partial text keeps what was already spoken — D-104" passed after 0.004 seconds.
+􁁛  Test "an empty refusal sentence yields no token, only the ending — D-104" passed after 0.004 seconds.
+􁁛  Test "a refusal is spoken and ends .finished(.refused) — D-104" passed after 0.004 seconds.
+􀢄  Suite "AC-236 · the Apple mind's failures are typed, one row per vendor case" failed after 0.004 seconds with 2 issues.
+􀄵  /// AC-236, the Apple half (SPEC §175/3, D-103 F-3 = A): every case of
+􀄵  /// the vendor's `GenerationError` lands on ONE row of the failure table,
+􀄵  /// and every row is `Equatable` — so a caller can COUNT, where a string
+􀄵  /// could only be read.
+􀄵  ///
+􀄵  /// The errors are FORGED through the scripted seam (`Context` has a
+􀄵  /// public init): a real model cannot be asked to rate-limit itself on
+􀄵  /// cue, and AC-114 already proved the forging works. Every test is
+􀄵  /// runtime-gated on OS 26, as the whole Apple kit is — swift-testing
+􀄵  /// forbids `@available` on a `@Test`.
+􀢄  Test "through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)" recorded an issue at AppleRetryTests.swift:100:13: Expectation failed: await rig.say("log 84 kilos", utterance: 0)
+􀄵  one answer spoken; the turn completed
+􀄵  await rig.say("log 84 kilos", utterance: 0) → <not evaluated>
+􀢄  Test "through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)" recorded an issue at AppleRetryTests.swift:101:13: Expectation failed: await rig.say("and a coffee", utterance: 1)
+􀄵  await rig.say("and a coffee", utterance: 1) → <not evaluated>
+􀢄  Test "through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)" recorded an issue at AppleRetryTests.swift:104:9: Expectation failed: ledger.bodyRuns == 1
+􀄵  ledger.bodyRuns == 1 → false
+􀄵    ledger.bodyRuns → 2
+􀢄  Test "through the coordinator: the turn completes, and the retried session carries the conversation (AC-317)" failed after 10.484 seconds with 3 issues.
+􀟈  Test "two failures: the named failure, once — no third try (AC-318)" started.
+􀢄  Test "two failures: the named failure, once — no third try (AC-318)" recorded an issue at AppleRetryTests.swift:126:9: Expectation failed: failures == [.failed(.unexplained(Self.vendorWords))]
+􀄵  the named failure, exactly once
+􀄵  failures == [.failed(.unexplained(Self.vendorWords))] → false
+􀄵    failures → [MultiModalKit.ReplyUpdate.failed(reply generation failed: tokengeneration Code=10)]
+􀄵    [.failed(.unexplained(Self.vendorWords))] → [MultiModalKit.ReplyUpdate.failed(the model failed without a reason this library can name: tokengeneration Code=10)]
+􀢄  Test "two failures: the named failure, once — no third try (AC-318)" recorded an issue at AppleRetryTests.swift:127:9: Expectation failed: maker.made.count == 2
+􀄵  one retry, never a third ask (F-15 A)
+􀄵  maker.made.count == 2 → false
+􀄵    maker.made.count → 1
+􀢄  Test "two failures: the named failure, once — no third try (AC-318)" recorded an issue at AppleRetryTests.swift:129:9: Expectation failed: log.retries.count == 1
+􀄵  one retry, one event
+􀄵  log.retries.count == 1 → false
+􀄵    log.retries.count → 0
+􀢄  Test "two failures: the named failure, once — no third try (AC-318)" failed after 0.002 seconds with 3 issues.
+􀟈  Test "no retry when no tool ran: nothing was saved, the person can say it again (AC-319)" started.
+􀢄  Test "no retry when no tool ran: nothing was saved, the person can say it again (AC-319)" recorded an issue at AppleRetryTests.swift:140:15: Expectation failed: expected error "the model failed without a reason this library can name: tokengeneration Code=10" of type ReplyFailure, but "reply generation failed: tokengeneration Code=10" of type ReplyFailure was thrown instead
+􀄵  ReplyFailure.unexplained(Self.vendorWords) → reply generation failed: tokengeneration Code=10
+􀄵    engine → "reply generation failed: tokengeneration Code=10"
+􀢄  Test "no retry when no tool ran: nothing was saved, the person can say it again (AC-319)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "no retry once a word was said: a second answer would be a stutter (AC-319, F-19 A)" started.
+􀢄  Test "no retry once a word was said: a second answer would be a stutter (AC-319, F-19 A)" recorded an issue at AppleRetryTests.swift:153:15: Expectation failed: expected error "the model failed without a reason this library can name: tokengeneration Code=10" of type ReplyFailure, but "reply generation failed: tokengeneration Code=10" of type ReplyFailure was thrown instead
+􀄵  ReplyFailure.unexplained(Self.vendorWords) → reply generation failed: tokengeneration Code=10
+􀄵    engine → "reply generation failed: tokengeneration Code=10"
+􀢄  Test "no retry once a word was said: a second answer would be a stutter (AC-319, F-19 A)" failed after 0.001 seconds with 1 issue.
+􀟈  Test "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "context" to "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "assets" to "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "language" to "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "rate" to "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "concurrent" to "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "guardrail" to "no retry for a failure with a name (AC-319)" started.
+􀟈  Test case passing 1 argument which → "refusal" to "no retry for a failure with a name (AC-319)" started.
+􁁛  Test "no retry for a failure with a name (AC-319)" with 7 test cases passed after 0.006 seconds.
+􀟈  Test "a failure at the door makes no session, so nothing to retry (AC-319: .tooHot)" started.
+􁁛  Test "a failure at the door makes no session, so nothing to retry (AC-319: .tooHot)" passed after 0.001 seconds.
+􀟈  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" started.
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:223:13: Expectation failed: await asked.heard("holding:log 84 kilos")
+􀄵  the retry is running, its repeat answered
+􀄵  await asked.heard("holding:log 84 kilos") → <not evaluated>
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:225:13: Expectation failed: await rig.signals.heard("barged:0")
+􀄵  await rig.signals.heard("barged:0") → <not evaluated>
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:227:13: Expectation failed: await rig.signals.heard("completed:1")
+􀄵  await rig.signals.heard("completed:1") → <not evaluated>
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:232:9: Expectation failed: ledger.bodyRuns == 1
+􀄵  the write stands, and ran once
+􀄵  ledger.bodyRuns == 1 → false
+􀄵    ledger.bodyRuns → 2
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:233:9: Expectation failed: maker.made.count == 3
+􀄵  ask 1, the retry, then the next turn's own session
+􀄵  maker.made.count == 3 → false
+􀄵    maker.made.count → 2
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:234:9: Expectation failed: maker.sessions.dropFirst().first?.asked.map(\.prompt) == ["log 84 kilos"]
+􀄵  the cut retry answered nothing more
+􀄵  maker.sessions.dropFirst().first?.asked.map(\.prompt) == ["log 84 kilos"] → false
+􀄵    maker.sessions.dropFirst().first?.asked.map(\.prompt) → ["log 84 kilos question 1"]
+􀄵      some → ["log 84 kilos question 1"]
+􀄵      some → ["log 84 kilos"]
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:236:9: Expectation failed: maker.made.last?.seed.first?.tools.count == 1
+􀄵  the act that happened is remembered
+􀄵  maker.made.last?.seed.first?.tools.count == 1 → false
+􀄵    maker.made.last?.seed.first?.tools.count → nil
+􀄵      some → 1
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" recorded an issue at AppleRetryTests.swift:237:9: Expectation failed: log.seeds.last == .mindSessionSeeded(.lastAnswerUnfinished, turns: 1)
+􀄵  log.seeds.last == .mindSessionSeeded(.lastAnswerUnfinished, turns: 1) → false
+􀄵    log.seeds.last → .mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("tokengeneration Code=10"), turns: 0)
+􀄵      some → .mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerFailed("tokengeneration Code=10"), turns: 0)
+􀄵        mindSessionSeeded → (MultiModalKit.SessionSeedReason.lastAnswerFailed("tokengeneration Code=10"), turns: 0)
+􀄵          .0 → .lastAnswerFailed("tokengeneration Code=10")
+􀄵            lastAnswerFailed → "tokengeneration Code=10"
+􀄵          turns → 0
+􀄵    .mindSessionSeeded(.lastAnswerUnfinished, turns: 1) → .mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerUnfinished, turns: 1)
+􀄵      some → .mindSessionSeeded(MultiModalKit.SessionSeedReason.lastAnswerUnfinished, turns: 1)
+􀄵        mindSessionSeeded → (MultiModalKit.SessionSeedReason.lastAnswerUnfinished, turns: 1)
+􀄵          .0 → .lastAnswerUnfinished
+􀄵          turns → 1
+􀢄  Test "a barge during the retry cancels it; the write stands; nothing runs twice (AC-320)" failed after 20.952 seconds with 8 issues.
+􀄵  /// The retry repeats the call — answered from its record — and then
+􀄵  /// holds; the next onset barges it (no barge window: an onset while
+􀄵  /// the mind is thinking IS a barge).
+􀟈  Test "one retry, one health event naming it, beside the fresh session's birth (AC-321)" started.
+􀢄  Test "one retry, one health event naming it, beside the fresh session's birth (AC-321)" recorded an issue at AppleRetryTests.swift:242:6: Caught error: reply generation failed: tokengeneration Code=10
+􀢄  Test "one retry, one health event naming it, beside the fresh session's birth (AC-321)" failed after 0.001 seconds with 1 issue.
+􀢄  Suite "AC-317…AC-321 · the reply retry" failed after 31.451 seconds with 18 issues.
+􀢄  Test run with 22 tests in 2 suites failed after 31.452 seconds with 20 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

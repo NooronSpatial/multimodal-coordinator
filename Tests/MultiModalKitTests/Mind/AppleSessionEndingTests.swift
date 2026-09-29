@@ -32,6 +32,9 @@ final class HealthLog: Sendable {
                 if case .mindSessionSeeded(let reason, let turns) = event {
                     self.signals.send("seeded:\(reason):\(turns)")
                 }
+                if case .mindReplyRetried(let words) = event {
+                    self.signals.send("retried:\(words)")
+                }
             }
         }
         reading.withLock { $0 = task }
@@ -40,6 +43,11 @@ final class HealthLog: Sendable {
     /// Every session birth heard, in order.
     var seeds: [HealthEvent] {
         seen.withLock { $0.filter { if case .mindSessionSeeded = $0 { true } else { false } } }
+    }
+
+    /// Every retry heard, in order (5b piece R, AC-321).
+    var retries: [HealthEvent] {
+        seen.withLock { $0.filter { if case .mindReplyRetried = $0 { true } else { false } } }
     }
 
     /// Closes the road and waits until everything published was read.

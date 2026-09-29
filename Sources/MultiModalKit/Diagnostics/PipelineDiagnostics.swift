@@ -26,6 +26,13 @@ public enum HealthEvent: Sendable, Equatable {
     /// diagnostics seam at init. `turns` is how many remembered turns the
     /// new session was seeded with: the size of the prefill it paid.
     case mindSessionSeeded(SessionSeedReason, turns: Int)
+    /// The mind's answer failed without a reason this library can name
+    /// after a tool had run and before any word, and was ASKED AGAIN, once
+    /// (5b, SPEC §213 R-1, AC-321). `after` is the failure's words — the
+    /// ones `ReplyFailure.unexplained` would have carried. The fresh
+    /// session the retry runs in is reported beside it, as every birth is
+    /// (`mindSessionSeeded`, `.lastAnswerFailed`).
+    case mindReplyRetried(after: String)
 }
 
 /// The injected diagnostics seam (D-026 F5): owned by the consumer, handed
@@ -112,5 +119,12 @@ public final class PipelineDiagnostics: Sendable {
     /// seam. Not handed = byte-for-byte today's generator.
     public func noteMindSessionSeeded(_ reason: SessionSeedReason, turns: Int) {
         broadcast.publish(.mindSessionSeeded(reason, turns: turns))
+    }
+
+    /// One retry, one event (5b, SPEC §213, AC-321): the Apple mind's
+    /// session keeper reports here when it asks an answer again. Not
+    /// handed = byte-for-byte the generator without it.
+    public func noteMindReplyRetried(after words: String) {
+        broadcast.publish(.mindReplyRetried(after: words))
     }
 }

@@ -162,6 +162,19 @@ public enum ReplyFailure: Error, Sendable, Equatable, CustomStringConvertible {
     case tooHot(ThermalState)
     /// Everything the engine says that this library cannot type yet.
     case engine(String)
+    /// The vendor failed and gave no reason this library can name (5b,
+    /// SPEC §213 R-2, D-122 F-20 A) — the words are the vendor's own, for
+    /// a log; an app switches on the CASE and speaks its own sentence.
+    /// Exactly two roads lead here, both the Apple mind's: a
+    /// `GenerationError` case the SDK does not publish (`@unknown
+    /// default`), and a vendor error that is neither a `GenerationError`
+    /// nor a `ToolCallError` — the diet app's `tokengeneration Code=10`,
+    /// twice, after its tools had run. This library's own failures (the
+    /// tripwire, a declaration the vendor refuses) and every vendor case
+    /// with a name keep their names. When it comes after a tool ran and
+    /// before any word, the Apple mind has already asked again once
+    /// (§213 R-1) — so a caller seeing it knows the retry failed too.
+    case unexplained(String)
 
     public var description: String {
         switch self {
@@ -181,6 +194,8 @@ public enum ReplyFailure: Error, Sendable, Equatable, CustomStringConvertible {
             // died" reaches the turn's failure untouched, and every
             // pre-4v test keeps its meaning.
             words
+        case .unexplained(let words):
+            "the model failed without a reason this library can name: \(words)"
         }
     }
 }

@@ -41,9 +41,13 @@ final class FakeSessionMaker: MindSessionMaking {
     func makeSession(instructions: String?, tools: ToolTable,
                      seed: [ConversationTurn]) throws -> any MindSession {
         let session = FakeSession(script: script, signals: signals)
-        record.withLock {
+        let count = record.withLock {
             $0.append((Made(instructions: instructions, tools: tools, seed: seed), session))
+            return $0.count
         }
+        // "made:N" — the EVENT a row waits on to know a retry's session
+        // exists (5b piece R): "asked:<prompt>" is the same words twice.
+        signals?.send("made:\(count)")
         return session
     }
 }
@@ -75,6 +79,30 @@ final class FakeSession: MindSession {
         case snapshotThenHold(String)
         /// The answer fails before its first word, with these words.
         case fails(String)
+        /// The model calls these tools THROUGH THE DOOR of the table the
+        /// answer was handed — so a body runs and a test can count it, or
+        /// a call is answered from a record without reaching one — then
+        /// the answer ends as told (5b piece R). What a real session does
+        /// when its model uses a tool: the adapter knocks on the same door.
+        case callsThen([Call], Ending)
+    }
+
+    /// One call the fake model makes.
+    struct Call: Sendable {
+        let tool: String
+        let arguments: ToolArguments
+    }
+
+    /// How an answer ends after its calls.
+    enum Ending: Sendable {
+        /// These cumulative snapshots, then the answer ends on its own.
+        case answers([String])
+        /// The answer fails before its first word, with this error.
+        case fails(any Error)
+        /// One snapshot — a word said — and then the answer fails.
+        case snapshotThenFails(String, any Error)
+        /// Held until the listener goes away; "holding:<prompt>" says so.
+        case holdsUntilCut
     }
 
     let script: @Sendable (String) -> Plan
@@ -112,10 +140,40 @@ final class FakeSession: MindSession {
                 self.held.withLock { $0.append(continuation) }
             case .fails(let words):
                 continuation.finish(throwing: FakeSessionFailure(words: words))
+            case .callsThen(let calls, let ending):
+                // The door is async, so the calls run on a task the stream
+                // owns — cancelled when its reader goes away.
+                let task = Task {
+                    for call in calls {
+                        let outcome = await tools.invoke(call.tool, arguments: call.arguments,
+                                                         confirmed: options.confirmedTools)
+                        continuation.yield(.toolRan(ToolUse(name: call.tool, arguments: call.arguments,
+                                                            outcome: outcome)))
+                    }
+                    self.end(continuation, as: ending, prompt: prompt)
+                }
+                continuation.onTermination = { _ in task.cancel() }
             }
         }
         signals?.send("asked:\(prompt)")
         return stream
+    }
+
+    private func end(_ continuation: AsyncThrowingStream<MindSessionUpdate, any Error>.Continuation,
+                     as ending: Ending, prompt: String) {
+        switch ending {
+        case .answers(let snapshots):
+            for snapshot in snapshots { continuation.yield(.snapshot(snapshot)) }
+            continuation.finish()
+        case .fails(let error):
+            continuation.finish(throwing: error)
+        case .snapshotThenFails(let snapshot, let error):
+            continuation.yield(.snapshot(snapshot))
+            continuation.finish(throwing: error)
+        case .holdsUntilCut:
+            held.withLock { $0.append(continuation) }
+            signals?.send("holding:\(prompt)")
+        }
     }
 }
 
