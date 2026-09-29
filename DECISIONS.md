@@ -5806,3 +5806,15 @@ vanished in that run is not known; the fix does not need to know.
 only once per file per transfer; a fresh download's failure is reported as
 today. The restart pays the bytes the lost partial held — they are gone
 either way.
+
+## D-130 — §222 signed: the stale resume's trigger is exact — restart only when nothing is left to resume from
+
+**Date:** 2026-09-29 · **Decided by:** Ryad ("Sign, exact trigger") ·
+**Ruling:** §222 signed. The file restarts from zero, once, only when a task
+started from resume data fails (not a cancel) and the failure carries NO
+fresh resume data. A resumed task that fails WITH fresh resume data keeps
+it and fails as today, so the next attempt resumes from the new point.
+
+- *Rejected:* restart on ANY failure of a resumed task — simpler, but a
+  failure that hands back fresh resume data is progress, and a restart from
+  zero would throw it away.

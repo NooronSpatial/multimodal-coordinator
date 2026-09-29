@@ -8108,7 +8108,7 @@ that run is not known. Kept with its full log
 read (D-128); the spec was built from Ryad's summary of R-3.
 
 
-# The stale resume (a 5a bug found by 5c's loop) — DRAFT, for Ryad's sign-off
+# The stale resume (a 5a bug found by 5c's loop) — signed 2026-09-29 (D-130)
 
 *Ruled in D-129 (the order, and F-24 A); this section only turns the ruling
 into rows.*
