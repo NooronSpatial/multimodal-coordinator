@@ -331,4 +331,5 @@ count. CoreML memory-maps its weights, so on the phone the voice costs
 while the phone has the most memory free.
 
 See [SPEC.md](SPEC.md) and [DECISIONS.md](DECISIONS.md): D-029…D-113 carry
-the rulings from 4a to 4z, D-114 carries 5a's, and D-116…D-125 carry 5b's.
+the rulings from 4a to 4z, D-114 carries 5a's, D-116…D-127 carry 5b's,
+and D-128…D-131 carry 5c's and the stale-resume fix its loop found.
