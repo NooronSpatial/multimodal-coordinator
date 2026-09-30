@@ -136,7 +136,10 @@ extension TurnCoordinator {
             transition(to: .speaking, turn: turn)
             // Turn latency (R2): final accepted → audible. The felt pause.
             if let reporter = latencyReporter, let clock, let start = live.thinkingStart {
-                let now = clock.now          // ONE reading: the timeline sums to this exactly
+                // ONE reading, so the timeline sums to turnLatency exactly. A belt:
+                // a manual clock cannot tell two readings apart, so no test can —
+                // mutation M60 (a second reading) survives by design.
+                let now = clock.now
                 reporter.turnLatency(start.duration(to: now), turn: turn)
                 // …and the same pause, stage by stage, reported HERE at the
                 // first sound (5d, D-133): a reply cut after it still counts.

@@ -1,0 +1,120 @@
+# 5d piece 1 — mutations M52…M60 on the turn timeline (2026-09-30), at aeff453.
+# Each mutation breaks ONE rule; the filter: TurnTimelineTests|TurnCoordinatorTests|BargeWindowTests.
+# RESULT: eight of nine killed. M60 survives as a BELT, documented beside its line (a manual clock cannot
+# tell one clock reading from two).
+# READ WITH CARE — M54's FIRST verdict below says SURVIVED, and it is FALSE: the mutation as written
+# (current?.openedAt = current?.thinkingStart) is an exclusivity conflict, the test process trapped
+# ('Fatal access conflict detected'), printed no summary, and the old runner counted that as a survivor.
+# The runner now says NO VERDICT when no summary is printed (second section). Written legally (a local
+# first), M54 is KILLED by the two gate rows (third section).
+
+=================== the run of all nine (old runner) ===================
+## M52 — the speech end is never stamped on arrival
+file: Sources/MultiModalKit/Conversation/TurnCoordinator.swift
+KILLED — red rows:
+  - a spoken turn reports every stage, exact, at its first sound (AC-335)
+  - an ear that finishes before the end decision reports a negative earFinish
+  - no gate: the stage is zero, and the others are untouched (AC-336)
+􀢄  Test run with 83 tests in 4 suites failed after 2.004 seconds with 3 issues.
+reverted: yes
+
+## M53 — the report ignores WHICH utterance ended
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - a person who went on: the older utterance's end is not this one's
+􀢄  Test run with 83 tests in 4 suites failed after 2.005 seconds with 1 issue.
+reverted: yes
+
+## M54 — the reply counts as opened at the final: the gate folds into nothing
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+SURVIVED (masked) — every row green
+
+reverted: yes
+
+## M55 — every token re-stamps the first token
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - a spoken turn reports every stage, exact, at its first sound (AC-335)
+  - no gate: the stage is zero, and the others are untouched (AC-336)
+􀢄  Test run with 83 tests in 4 suites failed after 2.004 seconds with 2 issues.
+reverted: yes
+
+## M56 — the barge window reported as zero
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a barge while speaking: the window, then the silence; the pause was already reported (AC-338)
+􀢄  Test run with 83 tests in 4 suites failed after 2.004 seconds with 1 issue.
+reverted: yes
+
+## M57 — the barge silence reported as zero
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a barge while speaking: the window, then the silence; the pause was already reported (AC-338)
+􀢄  Test run with 83 tests in 4 suites failed after 2.004 seconds with 1 issue.
+reverted: yes
+
+## M58 — the pause reported only once the reply's words are all in (at the end, not the first sound)
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - a barge while speaking: the window, then the silence; the pause was already reported (AC-338)
+  - a person who went on: the older utterance's end is not this one's
+  - a spoken turn reports every stage, exact, at its first sound (AC-335)
+  - an ear that finishes before the end decision reports a negative earFinish
+  - an end the coordinator never saw leaves earFinish empty, not zero
+  - no gate: the stage is zero, and the others are untouched (AC-336)
+  - the gate is its own stage: 500 ms in, 500 ms out (AC-336)
+  - turnLatency did not move: it is the timeline's stages since the final (AC-337)
+􀢄  Test run with 83 tests in 4 suites failed after 83.341 seconds with 16 issues.
+reverted: yes
+
+## M59 — the ear's finish measured backwards
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - a spoken turn reports every stage, exact, at its first sound (AC-335)
+  - an ear that finishes before the end decision reports a negative earFinish
+  - no gate: the stage is zero, and the others are untouched (AC-336)
+􀢄  Test run with 83 tests in 4 suites failed after 2.004 seconds with 3 issues.
+reverted: yes
+
+## M60 — turnLatency takes its own clock reading (a belt: a manual clock cannot tell two readings apart)
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 83 tests in 4 suites passed after 2.004 seconds.
+reverted: yes
+
+source tree after the run: clean
+
+=================== M54 again, the runner that cannot miscount a crash ===================
+## M54 — the reply counts as opened at the final: the gate folds into nothing
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+NO VERDICT — the test run printed no summary; its tail:
+8    libsystem_pthread.dylib            0x000000018fcd7d9c _pthread_wqthread + 232
+9    libsystem_pthread.dylib            0x000000018fcd6c08 start_wqthread + 8
+Fatal access conflict detected.
+9    libsystem_pthread.dylib            0x000000018fcd6c08 start_wqthread + 8
+Fatal access conflict detected.
+5    libswift_Concurrency.dylib         0x00000002953d5650 swift_job_runImpl(swift::Job*, swift::SerialExecutorRef) + 156
+6    libdispatch.dylib                  0x000000018fb31818 _dispatch_root_queue_drain + 360
+7    libdispatch.dylib                  0x000000018fb32068 _dispatch_worker_thread2 + 184
+8    libsystem_pthread.dylib            0x000000018fcd7d9c _pthread_wqthread + 232
+9    libsystem_pthread.dylib            0x000000018fcd6c08 start_wqthread + 8
+Fatal access conflict detected.
+3    MultiModalKitTests                 0x000000010e3a8544 TurnCoordinator.openGeneration(of:turn:forwardingInto:via:) + 368
+4    libswift_Concurrency.dylib         0x00000002953d3c40 swift::runJobInEstablishedExecutorContext(swift::Job*) + 472
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
+
+reverted: yes
+
+source tree after the run: clean
+
+=================== M54 written legally ===================
+## M54 — the reply counts as opened at the final: the gate folds into nothing
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+KILLED — red rows:
+  - a spoken turn reports every stage, exact, at its first sound (AC-335)
+  - the gate is its own stage: 500 ms in, 500 ms out (AC-336)
+􀢄  Test run with 83 tests in 4 suites failed after 2.004 seconds with 2 issues.
+reverted: yes
+
+source tree after the run: clean
