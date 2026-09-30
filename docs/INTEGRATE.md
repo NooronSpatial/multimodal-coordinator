@@ -391,6 +391,7 @@ line.
 | you want | read |
 |---|---|
 | the argument, the concurrency model, how to build and test | `README.md` |
+| where the Runtime stands — done, missing, owed | `PROGRESS.md` |
 | the map of every seam, one contract page per milestone | `ARCHITECTURE.md` |
 | every acceptance criterion and its test | `SPEC.md` |
 | why — every ruling and the options it rejected | `DECISIONS.md` |
