@@ -296,8 +296,9 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             // end is stamped as it arrives, before the queue. Handling it
             // changes nothing anyone can see, so only here can its instant
             // be proven; nothing shared is touched, and the instant
-            // travels with the event.
-            let endStamps = latencyReporter == nil ? nil : clock
+            // travels with the event. Like every other stamp, it follows the
+            // clock: a clock comes with the reporter (R2's pair).
+            let endStamps = clock
             group.addTask {
                 for await event in audio {
                     var arrived: C.Instant?
