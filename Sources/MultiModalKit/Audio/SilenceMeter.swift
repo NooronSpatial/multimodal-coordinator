@@ -35,12 +35,36 @@ public struct SilenceMeter: Sendable, Equatable {
     /// The longest closed silent stretch, of any length, in frames.
     public private(set) var longestFrames = 0
 
+    /// The silent stretch still open — closed by the next sound.
+    private var run = 0
+    /// Silence before the first sound is the reply not yet begun.
+    private var heardSound = false
+    /// `minimumGap` in frames.
+    private let gapFrames: Int
+
     public init(config: Config) {
         self.config = config
+        let (seconds, attoseconds) = config.minimumGap.components
+        gapFrames = Int(((Double(seconds) + Double(attoseconds) * 1e-18) * config.sampleRate).rounded())
     }
 
     /// Hears the next samples, in the order they played.
     public mutating func feed(_ samples: some Sequence<Float>) {
+        for sample in samples {
+            if abs(sample) < config.level {
+                if heardSound { run += 1 }
+            } else {
+                if run > 0 { close() }
+                heardSound = true
+            }
+        }
+    }
+
+    /// Sound after a silent stretch: the stretch was a pause.
+    private mutating func close() {
+        if run >= gapFrames { gaps += 1 }
+        longestFrames = max(longestFrames, run)
+        run = 0
     }
 
     /// The longest closed silent stretch, as time.
