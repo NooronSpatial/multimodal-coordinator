@@ -19,6 +19,7 @@
 - ARCHITECTURE.md § "Where is …? — the geography table" — file for every seam.
 
 ## The record (the repo is the memory)
+- PROGRESS.md — where the AI Runtime stands, on one page: what it does, what the name still promises (vision, a model router, permissions), the gaps, the proof owed, the apps' asks. Every row points to its proof.
 - SPEC.md — every milestone's scope, acceptance criteria (AC-nnn) and test matrix; §198 is 4z's results, §206 is 5a's, §207–213 are 5b (one session per conversation; §213 the reply retry).
 - DECISIONS.md — every ruling (D-nnn) with the options it rejected; D-110 is the tool contract's thirteen forks, D-114 the downloads' eight (and the reversal of D-106's F-2 and F-3), D-116…D-124 the session's twenty-two (and the reversal of D-057's F-2).
 - INSTRUMENTS.md — every measurement with its methodology; §67 the tool spike, §68 memory under a cut, §69 the tool contract's cost and accuracy, §70 what a download costs and what a resume pays, §71 what one turn prefills with a fresh session and with a kept one.

@@ -255,6 +255,9 @@ three different bugs can be told apart at a glance.
 
 ## Status
 
+*The whole picture — what is done, what the name still promises, what is
+owed, each row with its proof — is one page: [PROGRESS.md](PROGRESS.md).*
+
 **On `main`, every milestone through 5c is merged** — phases 1–3, phase 4
 from 4a to 4z, then 5a, 5b and 5c. The conversation runs on a Mac and on an
 iPhone, with two transcription engines, two minds and three mouths behind

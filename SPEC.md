@@ -8117,6 +8117,11 @@ inside the daemon; the fix covers both.*
 **Not checked:** the diet app's AC-6…AC-9, whose text this session never
 read (D-128); the spec was built from Ryad's summary of R-3.
 
+*Checked since, by the diet app (2026-09-30, relayed by Ryad): all four
+met — AC-6 → AC-329, AC-7 → AC-324 + AC-325, AC-8 → AC-326, AC-9 →
+AC-330 and the tag note. No new ask; the typed failure broke the one
+place they expected.*
+
 
 # The stale resume (a 5a bug found by 5c's loop) — signed 2026-09-29 (D-130)
 

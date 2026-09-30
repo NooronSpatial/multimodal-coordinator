@@ -12,8 +12,9 @@ repo's own rule that the repo is the memory.
 Division of labor between the documents: the code says **what**,
 [DECISIONS.md](DECISIONS.md) says **why** (and what was rejected),
 [SPEC.md](SPEC.md) says **what was promised**,
-[INSTRUMENTS.md](INSTRUMENTS.md) says **what it cost, measured**. This
-page says **where**.
+[INSTRUMENTS.md](INSTRUMENTS.md) says **what it cost, measured**,
+[PROGRESS.md](PROGRESS.md) says **how far it has come, and what is
+missing**. This page says **where**.
 
 Line counts are as of Phase 4 (milestone 4e). They will drift; the shape
 should not. Any PR that adds a box or moves an arrow updates this page.
