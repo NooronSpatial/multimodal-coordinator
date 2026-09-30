@@ -5842,3 +5842,36 @@ fresh resume data — is exactly both cases: the unreadable file, and the
 daemon's race. What changed is the story told about it: SPEC §221 and the
 5c evidence README are corrected in the open, and #59's description (merged)
 carries a correction note.
+
+## D-132 — the voice first: a fast, natural speech-to-speech loop before the Runtime's next capability; measure first (process pivot, Milestone 5d)
+
+**Date:** 2026-09-30 · **Decided by:** Ryad · **Rulings:** (1) the next
+milestone is the voice itself — milestone 5d, "the fast voice"; (2) its
+order: measure first.
+
+**(1) The pivot.** *"Before we continue with the plan of the AI Runtime I
+want you to focus only in the voice feature speech to speech … fast …
+without echo problem … the switching between listening to thinking and
+speaking it has to go fast … when we have it so good, then we will continue
+with AI runtime development."* He feels the delay in every setup he tried —
+Whisper + the local 4B + Kokoro, and the Apple ear + the Apple mind + the
+Apple voice — and in all four places: after he stops talking, when he
+interrupts, inside the answer, and on the first turn. So the cause is
+sought first in the path every setup shares (SPEC §224), not in one engine.
+
+- *Rejected:* **vision next** — the builder's recommendation that same day
+  (PROGRESS.md: the first thing the name promises, and the biggest gap).
+  The Runtime's next capability waits for a conversation that feels
+  natural.
+
+**(2) The order: measure first.** Piece 1 is a turn timeline on the Mac
+and on the phone (SPEC §225); every fix after it is a fork ruled on those
+numbers (§229). The same discipline as D-054: measure instead of argue.
+
+- *Rejected:* **fix the obvious waits now** ("think during the gate") and
+  measure alongside — faster to a first win, but that fix would be chosen
+  before any number says it matters most, and nothing would prove it moved
+  the pause the person feels.
+
+**What this entry does NOT decide:** piece 1's six forks (F-25 … F-30) and
+the spec's sign-off — open until Ryad signs §224–§230.

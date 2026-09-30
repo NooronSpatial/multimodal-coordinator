@@ -8196,3 +8196,222 @@ daemon.
 **Tagged** `0.5.0` on `e82533d` (the merge of #60), on Ryad's word,
 2026-09-30 — with 5c. The tag note lists the one public break versus
 0.4.0 (`git show 0.5.0`); AC-315 is still owed.
+
+
+# Milestone 5d — the fast voice (speech to speech) — PROPOSED, not signed
+
+*Ryad, 2026-09-30 (D-132): "focus only in the voice feature speech to
+speech … fast … without echo problem … the switching between listening to
+thinking and speaking has to go fast." He feels the delay in every setup
+he tried — Whisper + the local 4B + Kokoro, and the Apple ear + the Apple
+mind + the Apple voice — and in all four places: after he stops talking,
+when he interrupts, inside the answer, and on the first turn. He ruled the
+order the same day: measure first. This section is piece 1 only; the
+fixes come after it, each ruled on its numbers (§229).*
+
+## §224 — why: the pause, as the code builds it today
+
+Read from the code and the demo's own settings (2026-09-30):
+
+```
+you stop talking
+  │ ① the silence wait (the VAD's hangover) ... 300 ms   the phone's policy (the Mac demo: 700)
+  ▼
+speech end decided        AudioEvent.speechEnded: "the moment the decision was made"
+  │ ② the ear finishes the text ............... never measured per turn
+  ▼
+final transcript          ◀── LatencyReporter.turnLatency starts HERE (thinkingStart)
+  │ ③ the reply gate .......................... 500 ms   the phone's policy (AC-81)
+  ▼
+LISTENING → THINKING      the reply is opened only now
+  │ ④ the mind's first token .................. 320–400 ms warm (the Apple mind, §61)
+  │ ⑤ …then the mouth's first sound ........... never measured on its own
+  ▼
+THINKING → SPEAKING       SynthesisUpdate.started
+  │ ⑥ pauses inside the answer ................ invisible: the seam says only
+  ▼                                             started · finished · failed
+the reply ends
+
+interrupting:
+  your voice starts over the reply
+  │ ⑦ the barge window ........................ 600 ms   BargeWindow.measured (D-071)
+  ▼
+barge accepted            ◀── LatencyReporter.cancelLatency starts here
+  │ ⑧ both stages acknowledge the cancel ...... the Mac demo prints it; the phone shows nothing
+  ▼
+silence
+```
+
+Three facts from that reading:
+
+- **The number the phone shows as "the felt pause" starts at the final
+  transcript** (`turnLatency`, `PhoneLatency`). ① and ② are inside no
+  number the app shows, so the pause the person feels has never been
+  measured whole.
+- **① + ③ are 800 ms of pure waiting on the phone**, and the mind does
+  not start until ③ ends: the waiting and the thinking run one after the
+  other.
+- **⑥ cannot be seen by the coordinator at all.**
+
+## §225 — scope: piece 1, the turn timeline (measure; change nothing)
+
+Piece 1 changes no behaviour and no policy number. It turns every stage
+above into a number, on the Mac and on the phone, so that each fix after
+it is chosen on numbers and proven by the same numbers moving.
+
+1. **The library stamps the stages.** The coordinator stamps ②–⑤ — from
+   `speechEnded`'s arrival to `SynthesisUpdate.started`, through the final
+   transcript, the reply's opening and its first token — and ⑦–⑧, on its
+   injected clock and on its own actor (the audio thread is untouched). It
+   hands the app ONE value per spoken turn and one per barge (F-25). ①
+   is the app's own hangover, known exactly (F-26).
+2. **Inside the answer (⑥):** the silences the person hears while a reply
+   plays, counted per turn (F-27).
+3. **The phone:** the demo's share text carries each turn's stages and the
+   session's medians, and the felt pause: ① + ② + … + ⑤.
+4. **The Mac:** `audio-demo` prints the same timeline, takes the phone's
+   policy numbers (hangover 300, gate 500, window 600), speaks with Kokoro
+   (F-29), and gains a **scripted person** (F-28): recorded sentences fed
+   into the ring at real pace, the next one said when the reply ends, and
+   an interruption on cue — so a run can be repeated exactly, before and
+   after every fix.
+5. **The first numbers:** INSTRUMENTS §73 — this Mac, scripted, in Ryad's
+   phone setup; then one session on Ryad's phone in his setup.
+
+## §226 — non-goals
+
+- **No fix, no policy change, no new default.** The gate stays 500 ms,
+  the hangover 300, the window 600. Every fix is a later piece, and a
+  fork of its own (§229).
+- **No new case in any public enum** — not in `HealthEvent`,
+  `AudioEvent` or `SynthesisUpdate`: each would break every app's
+  exhaustive `switch` for a measurement.
+- **Echo is measured, not changed.** The self-cut count is in the
+  numbers; the fix is a later piece.
+- The MLX mind's kept session stays parked (D-116 F-5 B), and Arabic
+  stays parked (D-100).
+
+## §227 — acceptance criteria (AC-335 … AC-344)
+
+- **AC-335 — one timeline per spoken turn, exact.** Through the
+  coordinator, with a scripted ear, mind and mouth on a `ManualClock`, a
+  spoken turn reports one timeline whose stages are all present, in
+  order, and each equal to its scripted delay: speech end → final text →
+  reply opened → first token → first sound → reply finished.
+- **AC-336 — the gate is its own stage.** With `replyGate` 500 ms, final
+  text → reply opened is exactly 500 ms; with no gate, it is zero.
+- **AC-337 — the old number did not move.** `turnLatency` still reports
+  final text → first sound, and it equals the timeline's stages over that
+  same span.
+- **AC-338 — a barge has its own timeline.** Onset → accepted equals the
+  window (zero with the window off, or when the barge lands while
+  thinking); accepted → silent equals the scripted cancel
+  acknowledgements; the turn that died reports no spoken-turn timeline.
+- **AC-339 — a turn that never spoke reports none.** An empty turn, a
+  failed turn, and a reply killed inside the gate by a resumed person
+  report no spoken-turn timeline; their events already say what happened.
+- **AC-340 — nothing breaks.** A `LatencyReporter` written for 0.5.0
+  compiles unchanged: the new requirements have do-nothing defaults. No
+  public enum gains a case; `Scripts/api.sh` shows additions only.
+- **AC-341 — the pauses inside the answer.** A reply's silences longer
+  than the threshold F-27 rules are counted per turn, and the longest is
+  reported — proven first on a scripted stream with known silences, then
+  on every mouth.
+- **AC-342 — the Mac harness repeats.** `audio-demo` with the scripted
+  person runs Ryad's phone setup (Whisper, the local 4B, Kokoro; hangover
+  300, gate 500, window 600) for twenty turns, two interruptions among
+  them, and prints each turn's timeline and the medians. Run twice: the
+  same sentences, the same number of turns and barges; each stage's two
+  medians are printed side by side, with their difference.
+- **AC-343 — the first numbers.** INSTRUMENTS §73: the Mac table from
+  AC-342, with the felt pause per turn and its median — and the phone
+  table from one session of Ryad's (a phone row, his gate).
+- **AC-344 — nothing else moved.** The whole suite green, the 20× loop
+  20 of 20, lint zero, the demo compiles, and every existing number —
+  `turnLatency`, `cancelLatency` — is unchanged.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-335 | `TurnTimelineTests` · "a spoken turn reports every stage, exact" | coordinator, scripted organs, `ManualClock` |
+| AC-336 | `TurnTimelineTests` · "the gate is its own stage" | the same, the gate on and off |
+| AC-337 | `TurnTimelineTests` · "turnLatency did not move" | the same |
+| AC-338 | `TurnTimelineTests` · "a barge has its own timeline" | the same, the window on and off |
+| AC-339 | `TurnTimelineTests` · "a turn that never spoke reports none" | empty, failed, killed inside the gate |
+| AC-340 | a reporter written for 0.5.0, in the test target; `Scripts/api.sh` before and after | build |
+| AC-341 | the silence meter's rows on a scripted stream; then each mouth | pure function; the demo |
+| AC-342 | `audio-demo`, scripted, run twice | instrument, this Mac |
+| AC-343 | INSTRUMENTS §73 | instrument; the phone (Ryad) |
+| AC-344 | the suite, the 20× loop, lint | — |
+
+## §228 — the forks (Ryad rules)
+
+- **F-25 — where the numbers travel.** **A:** `LatencyReporter` gains
+  `turnTimeline(_:)` and `bargeTimeline(_:)`, each with a do-nothing
+  default: one value per turn, beside the number it extends, and no app
+  breaks. **B:** new `HealthEvent` cases — every app's exhaustive `switch`
+  breaks, and timing is not health. **C:** `os_signpost` intervals only —
+  visible in Instruments.app, never in the app's share text, so never in
+  a phone session's report. **Recommendation: A.**
+- **F-26 — when "you stopped talking" is.** **A:** the speech-end
+  decision's arrival, plus the app's own hangover: exact, because the VAD
+  ends speech after exactly that many quiet frames, and no API changes.
+  **B:** `AudioEvent.speechEnded` also carries the last loud moment — a
+  public break, for a number the app already knows. **Recommendation: A.**
+- **F-27 — how the pauses inside the answer are seen.** **A:** measure
+  what the person hears — the app taps the audio the engine plays and
+  counts the silent stretches between the reply's first sound and its
+  end: one meter for every mouth, but it cannot tell a sentence's natural
+  pause from a starved decode, so it counts only silences longer than a
+  threshold (300 ms proposed). **B:** each mouth reports its own underruns
+  through a new optional reporter: the cause is exact, but three mouths
+  need work, and a natural pause is not seen. **C:** leave ⑥ for later.
+  **Recommendation: A** — and B only if A shows the silences are starved
+  decodes.
+- **F-28 — the Mac harness's person.** **A:** a scripted person made from
+  Ryad's committed recording (`Fixtures/ryad-en.wav`, 46 s), cut into
+  sentences at its pauses: a real human voice for the ear, already in the
+  repo — but read sentences, not questions. **B:** sentences synthesized
+  by the Apple voice: any words, real questions — but a synthetic voice,
+  which the ear may find easier than a person. **C:** the live
+  microphone only: real, but never the same run twice. **Recommendation:
+  A** — the ear's time depends on real speech, and the mind answers any
+  sentence; the live microphone stays for echo, which a scripted person
+  fed into the ring cannot produce.
+- **F-29 — Kokoro on the Mac.** **A:** `audio-demo` gains
+  `--mouth=kokoro`, so the Mac runs Ryad's exact setup — a change to a
+  demo target only. **B:** measure the Mac with the Qwen3 voice, and leave
+  Kokoro to the phone. **Recommendation: A.**
+- **F-30 — 5d's finish line.** **A:** set now, on Ryad's phone, warm: the
+  felt pause (① through the first sound) at a median of 800 ms or less;
+  an interruption to silence in 400 ms or less; no self-cut in a
+  twenty-turn session on the loudspeaker. **B:** set after piece 1's
+  numbers. **Recommendation: A** — a line to aim at from the first piece;
+  a D-entry moves it if the numbers show it is wrong.
+
+## §229 — after piece 1: the candidate fixes (named, NOT ruled)
+
+Each becomes its own fork, ruled on piece 1's numbers, in the order the
+numbers say:
+
+- **Think during the gate:** open the reply at the final text and hold
+  only the sound until the gate passes; a person who goes on talking
+  kills it through the ticket, as a resumed person kills a gated reply
+  today. It would hide ④ inside ③.
+- **A smarter gate:** short when the words look finished, long when they
+  end on "and", "uh", or a comma.
+- **A shorter silence wait** (① 300 ms), if the gate carries the "are you
+  done?" judgement instead.
+- **A faster ear finish:** Whisper decoding while the person speaks, or
+  the Apple ear.
+- **A shorter first phrase:** the mouth starts on the first words.
+- **A warm first turn:** every organ warmed before the first "listening".
+- **An interruption faster than 600 ms** that still ignores the
+  assistant's own echo — told apart by more than duration (§43).
+
+## §230 — definition of done (piece 1)
+
+Red before green; the suite green; mutations on the stamps; the 20× loop
+20 of 20; lint zero; the demo compiles; INSTRUMENTS §73's Mac table; the
+phone row from Ryad's session; present → HALT, and the first fix's fork.

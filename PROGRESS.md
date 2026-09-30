@@ -6,8 +6,9 @@ page only POINTS. Every row names where its fact is proven — a SPEC
 section (what was promised and measured), a D-entry (who ruled, and why),
 an evidence file, or a tag note (`git show <tag>`).*
 
-**As of 2026-09-30** · `main` at `bb31c40` · latest tag **0.5.0**
-(`e82533d`) · **next milestone: not ruled yet** — Ryad's call.
+**As of 2026-09-30** · `main` at `f11dca4` · latest tag **0.5.0**
+(`e82533d`) · **next milestone: 5d — the fast voice** (D-132); piece 1,
+the turn timeline, is proposed and not signed (SPEC §224–§230).
 
 ## The picture
 
@@ -68,6 +69,7 @@ work when Arabic was parked (D-100).
 
 | gap | what goes wrong | status | where |
 |---|---|---|---|
+| the conversation feels slow — after the person stops talking, when they interrupt, inside the answer, on the first turn — in every setup Ryad tried | 800 ms of fixed waiting before the mind starts (the silence wait, then the reply gate); a 600 ms interrupt window; the whole pause never measured | **open** — 5d, piece 1 measures it first | D-132; SPEC §224 |
 | a barge while a tool's body runs drops that tool's record | the write stands, but the memory never learns it, so the next turn's model does not know it happened | **open** | SPEC §214 "Known limits" |
 | the yes binds to the tool's name | after a yes, the model's next call of that tool runs with whatever number it writes; B-iv (name plus arguments) would close it | **open** — ruled and recorded as a hole | D-110 F-10 B-ii; ARCHITECTURE § "The tool contract (4z)" |
 | a tool cannot take a list or an object | the door refuses it | **open** — a 4z non-goal | SPEC §194 |
