@@ -42,8 +42,8 @@ the two hosts a download may contact).
 | `0.2.0` | `ee6788c` | the install (`expectedInstall()`, `download(reporting:)`, `InstallState`, `WeightsFetching`, six privacy manifests, `docs/HOSTS.md`) and the tool spike (`ReplyTool`, `ToolTable` at construction) |
 | `0.3.0` | `228b7e6` | admission and heat (`admit(needing:)`, `.tooHot`, memory pressure, `deadline`) and the tool CONTRACT (typed parameters, one door, tools per call, the confirmation flag, the band). **The tag note lists every public break versus 0.2.0** — `git show 0.3.0`. |
 | `0.3.1` | `145c0dd` | model downloads: `ensureModel(progress:)`, `expectedDownloadBytes()` and `deleteModel()` on `ModelBacked` (no default implementations — every engine writes all five), one background `ModelDownloader` for every engine's bytes, `ModelDownloads.handleEvents` for the system's wake-up, resume kept across a stop, `HubTree` in the core. **The tag note lists every public break versus 0.3.0** — three of them — `git show 0.3.1`. |
-
 | `0.4.0` | `ed1d6b4` | one mind session per conversation (5b): the Apple mind keeps ONE vendor session across turns (`MindSession`, `MindSessionMaking`, `AppleSessionMaker`; `AppleReplyGenerator` is a `final class` with `sessions:` and `diagnostics:`), tool calls replayed as tool calls (`ReplyUpdate.toolRan`, `ToolUse`, `Reply.tools`, `ConversationTurn.tools`), `ReplyGenerating.endConversation()`, the reply retry and `ReplyFailure.unexplained`, `HealthEvent.mindSessionSeeded` / `.mindReplyRetried`, `LocalMindModel.whenWarm()`. **The tag note lists every public break versus 0.3.1 — four of them** — `git show 0.4.0`. Tagged right after the merge, BEFORE the phone session (D-125). Since then PROBE-R kept the retry's shape (D-126) and the demo ran on a device; turn two's first token on the phone (AC-315) is still owed. |
+| `0.5.0` | `e82533d` | the typed turn failure (5c): `TurnFailure.generationFailed` carries the `ReplyFailure` itself — on the turn event and the health road, mid-stream and at the open — so a conversation can switch on `.unexplained`; and the stale resume fixed: a download that resumes and fails with nothing left to resume from downloads that file again from the start, once. **The tag note lists the one public break versus 0.4.0** — `git show 0.5.0`. AC-315 is still owed: the first TestFlight trace (2026-09-30) could not take it — each turn after the first began in a new session, because the person spoke over the reply before it. |
 
 Pin an exact tag. A `from:` range would let a `throws` land on an init
 you did not write `try` for.
@@ -327,7 +327,7 @@ await mind.endConversation()
   had been said, the mind has ALREADY asked again once, answering any
   repeat of a call from its record, so no write ran twice. An app that
   switches over `ReplyFailure` exhaustively must add the case — say your
-  own sentence for it. **In a conversation (5c)** the same value arrives as
+  own sentence for it. **In a conversation (5c, 0.5.0)** the same value arrives as
   `TurnEvent.turnFailed(.generationFailed(failure), turn:)` and on the
   health road — `case .generationFailed(.unexplained)` works in both.
 - **Your tests can stand in for the Apple model**: conform to
@@ -371,7 +371,7 @@ await mind.endConversation()
 12. **`ReplyUpdate` and `ReplyFailure` grew in 5b** (`.toolRan`,
     `.unexplained`). A `switch` without `default` over either stops
     compiling until it handles the new case — which is the point. **Since
-    5c, `TurnFailure.generationFailed` carries the `ReplyFailure`** (it
+    5c (0.5.0), `TurnFailure.generationFailed` carries the `ReplyFailure`** (it
     carried a `String`): a conversation switches on the value a text caller
     catches, and the old words are its `description`.
 
@@ -406,7 +406,7 @@ default closure `= { … }` folds at its brace). The words are the
 source's; the doc comments beside them say why.
 
 ```
-commit   ed1d6b4
+commit   e82533d
 
 ## MultiModalKit
   Audio/AudioEvent.swift: public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible

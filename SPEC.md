@@ -7892,7 +7892,7 @@ maker: the Apple model reports `modelNotReady` on this Mac.
 | AC-312 residency is an event *(D-124 F-21 B)* | **met on this Mac, scripted** — `whenWarm() -> Bool` true at once / when the weights arrive, false when the warm ends without them or nothing is loading, cancellable; the model's wiring on a model with no weights; the ask raised before `prewarm()`'s hop (read from the code). The demo shows the warm's end (compiled; run on Ryad's iPhone 2026-09-29, his report). The **live** row needs `MMK_MLX_MODEL` and skips here, saying so | `MLXResidencyTests`, mutations M31…M42 |
 | AC-313 the MLX mind untouched | **met** — `MLXPlainPromptTests` is unchanged since `main`; the contract page says the kept session is the Apple mind's today | `git diff main`, ARCHITECTURE.md |
 | AC-314 INSTRUMENTS §71 | **met, in characters** — 8 644 fixed characters re-read every turn before 5b; 21–30 per turn after turn one with a kept session; 181 807 against 9 127 over twenty turns. The vendor's token count was asked and refused here (`modelNotReady`) | §71, `instruments-71-session-2026-09-29.log` |
-| AC-315 the phone | **OWED** (D-123) — turn two's first token; twenty turns that call their tools | — |
+| AC-315 the phone | **OWED** (D-123; D-127: from a TestFlight trace) — turn two's first token; twenty turns that call their tools. The first trace (2026-09-30, the diet app's build 278, on 0.4.0) could not take it: each turn after the first began in a new session (`memoryChanged`), because the person spoke over the reply before it | `ac315-trace-2026-09-30-build-278.md` |
 | AC-316 nothing else moved | **met** — 970 tests in 139 suites green, the 20× loop 20 of 20 at `970 tests in 139 suites`, no failing log; CI green on the latest push; lint zero; the demo compiles, and **ran on Ryad's iPhone** (2026-09-29, his report — built and signed in Xcode's own build, so the Kokoro bundle signed there). Still open: one CI run that hung (below) | the suite, `stability-2026-09-29.txt`, `ci-hang-2026-09-29.md` |
 | AC-317 one reply, one body run | **met** — text caller and coordinator | `AppleRetryTests` |
 | AC-318 no third try | **met** | `AppleRetryTests`, mutation M14 |
@@ -7946,7 +7946,11 @@ One session on Ryad's iPhone, after the merge:
    (D-126, INSTRUMENTS §72).
 2. **AC-315** — the diet app on `main`: turn two's first token against
    3.4 s, with its 5 100 characters and 15 tools; twenty turns of the
-   coach's script, a tool called every time one is asked for.
+   coach's script, a tool called every time one is asked for. *The first
+   trace (2026-09-30, build 278) could not take it: every reply before a
+   measured turn was spoken over, so no turn ran on a kept session
+   (`ac315-trace-2026-09-30-build-278.md`). A conversation with no barge
+   follows.*
 3. ~~**AC-316, the device half**~~ — **done 2026-09-29** (Ryad's report,
    `docs/evidence/5b/phone-session-2026-09-29.md`).
 4. ~~**5a's AC-300**~~ — **done 2026-09-29**, all three rows (Ryad's report,
@@ -8183,3 +8187,7 @@ reports only upward (AC-291 holds as it is).
 **What it corrected:** D-129's premise (D-131) — the lock-out is resume data
 nothing can read, not a lost partial; run 13 was a race inside the download
 daemon.
+
+**Tagged** `0.5.0` on `e82533d` (the merge of #60), on Ryad's word,
+2026-09-30 — with 5c. The tag note lists the one public break versus
+0.4.0 (`git show 0.5.0`); AC-315 is still owed.

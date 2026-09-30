@@ -12,7 +12,7 @@ and the phone's model and iOS version were not recorded for any of them.
 | 5a's AC-300, row 1 | start the mind's download, lock the phone five minutes, unlock — the percentage has moved | **done** | reported by Ryad: "5a's three phone rows … done" |
 | 5a's AC-300, row 2 | kill the app mid-transfer, relaunch, tap again — it continues, with a range request rather than the whole file | **done** | the same report |
 | 5a's AC-300, row 3 | the system relaunches the app in the background when the last file lands, and `ModelDownloads.handleEvents` calls the completion handler once | **done** | the same report |
-| AC-315 | the diet app: turn two's first token against 3.4 s; twenty turns that call a tool every time one is asked for | **owed** | — |
+| AC-315 | the diet app: turn two's first token against 3.4 s; twenty turns that call a tool every time one is asked for | **owed** — the first trace (2026-09-30) could not take it: no turn ran on a kept session | `ac315-trace-2026-09-30-build-278.md` |
 
 **What this file does not hold.** No durations, byte counts or
 screenshots for the device rows, and no phone model or iOS version for any
