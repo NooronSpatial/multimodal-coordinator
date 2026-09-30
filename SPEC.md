@@ -8198,7 +8198,7 @@ daemon.
 0.4.0 (`git show 0.5.0`); AC-315 is still owed.
 
 
-# Milestone 5d — the fast voice (speech to speech) — PROPOSED, not signed
+# Milestone 5d — the fast voice (speech to speech) — piece 1 signed 2026-09-30 (D-133)
 
 *Ryad, 2026-09-30 (D-132): "focus only in the voice feature speech to
 speech … fast … without echo problem … the switching between listening to
@@ -8293,20 +8293,22 @@ it is chosen on numbers and proven by the same numbers moving.
 
 ## §227 — acceptance criteria (AC-335 … AC-344)
 
-- **AC-335 — one timeline per spoken turn, exact.** Through the
-  coordinator, with a scripted ear, mind and mouth on a `ManualClock`, a
-  spoken turn reports one timeline whose stages are all present, in
+- **AC-335 — one timeline per spoken turn, exact** *(amended, D-133:
+  reported at the first sound)*. Through the coordinator, with a
+  scripted ear, mind and mouth on a `ManualClock`, a spoken turn reports
+  one timeline, at its first sound, whose stages are all present, in
   order, and each equal to its scripted delay: speech end → final text →
-  reply opened → first token → first sound → reply finished.
+  reply opened → first token → first sound.
 - **AC-336 — the gate is its own stage.** With `replyGate` 500 ms, final
   text → reply opened is exactly 500 ms; with no gate, it is zero.
 - **AC-337 — the old number did not move.** `turnLatency` still reports
   final text → first sound, and it equals the timeline's stages over that
   same span.
-- **AC-338 — a barge has its own timeline.** Onset → accepted equals the
-  window (zero with the window off, or when the barge lands while
-  thinking); accepted → silent equals the scripted cancel
-  acknowledgements; the turn that died reports no spoken-turn timeline.
+- **AC-338 — a barge has its own timeline** *(amended, D-133)*. Onset →
+  accepted equals the window (zero with the window off, or when the
+  barge lands while thinking); accepted → silent equals the scripted
+  cancel acknowledgements. A turn cut BEFORE its first sound reports no
+  spoken-turn timeline; one cut after it has already reported its pause.
 - **AC-339 — a turn that never spoke reports none.** An empty turn, a
   failed turn, and a reply killed inside the gate by a resumed person
   report no spoken-turn timeline; their events already say what happened.

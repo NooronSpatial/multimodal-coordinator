@@ -5875,3 +5875,33 @@ numbers (§229). The same discipline as D-054: measure instead of argue.
 
 **What this entry does NOT decide:** piece 1's six forks (F-25 … F-30) and
 the spec's sign-off — open until Ryad signs §224–§230.
+
+## D-133 — 5d piece 1 signed: the turn timeline, every fork as recommended; one amendment before code — the timeline is reported at the first sound (Milestone 5d)
+
+**Date:** 2026-09-30 · **Decided by:** Ryad ("Sign, all A"; then "(a) At
+the first sound") · **Rulings:** SPEC §224–§230 signed; **F-25 = A**
+(`LatencyReporter` gains `turnTimeline(_:)` and `bargeTimeline(_:)` with
+do-nothing defaults), **F-26 = A** (the speech-end decision plus the app's
+own hangover), **F-27 = A** (the pauses inside an answer measured from the
+sound the engine plays, above a threshold), **F-28 = A** (the scripted
+person cut from `Fixtures/ryad-en.wav`), **F-29 = A** (`--mouth=kokoro` in
+`audio-demo`), **F-30 = A** (the finish line: a median pause of 800 ms or
+less, an interruption to silence in 400 ms or less, no self-cut in twenty
+turns — on Ryad's phone, warm). The rejected options are in §228.
+
+**The amendment, found reading the coordinator before any code, and ruled
+the same day: the timeline is reported at the FIRST SOUND.** As signed,
+AC-335 ended the timeline at the reply's finish and AC-338 had a turn that
+died report none — so every answer the person interrupts would have
+dropped out of the pause numbers, and Ryad interrupts often. The pause is
+over at the first sound; the old `turnLatency` is reported there too; and
+the pauses inside the answer need no turn timeline (F-27 measures them
+from the sound itself).
+
+- AC-335 now ends at the first sound: speech end → final text → reply
+  opened → first token → first sound.
+- AC-338 now reads: a turn cut BEFORE its first sound reports no
+  spoken-turn timeline; one cut after it has already reported its pause.
+- *Rejected:* **(b) at the reply's end, as signed** — it holds the
+  speaking time too, but the pause numbers would leave out exactly the
+  turns the person cut short.

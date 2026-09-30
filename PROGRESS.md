@@ -8,7 +8,7 @@ an evidence file, or a tag note (`git show <tag>`).*
 
 **As of 2026-09-30** · `main` at `f11dca4` · latest tag **0.5.0**
 (`e82533d`) · **next milestone: 5d — the fast voice** (D-132); piece 1,
-the turn timeline, is proposed and not signed (SPEC §224–§230).
+the turn timeline, is signed and being built (SPEC §224–§230, D-133).
 
 ## The picture
 
