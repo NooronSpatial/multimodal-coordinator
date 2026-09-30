@@ -12,13 +12,34 @@ import Synchronization
 /// hops to the screen actor via an unstructured task (D-016).
 struct ConsoleLatency: LatencyReporter {
     let screen: Screen
+    /// ① — this machine's silence wait (5d, F-26 A).
+    let hangover: Duration
     func turnLatency(_ duration: Duration, turn: Int) {
         let screen = screen
-        Task { await screen.log("⏱  [\(turn)] felt pause: \(duration.formattedMs)") }
+        Task { await screen.log("⏱  [\(turn)] since the final: \(duration.formattedMs)") }
     }
     func cancelLatency(_ duration: Duration, turn: Int) {
         let screen = screen
         Task { await screen.log("⏱  [\(turn)] barge → dead in \(duration.formattedMs)") }
+    }
+    /// 5d: the whole pause, stage by stage — the number the line above
+    /// never held (① and ② come before the final).
+    func turnTimeline(_ timeline: TurnTimeline) {
+        let screen = screen
+        let ear = timeline.earFinish?.formattedMs ?? "?"
+        let felt = timeline.felt(hangover: hangover)?.formattedMs ?? "?"
+        Task {
+            await screen.log("⏱  [\(timeline.turn)] ① \(hangover.formattedMs) · ② \(ear)"
+                + " · ③ \(timeline.gate.formattedMs) · ④ \(timeline.firstToken.formattedMs)"
+                + " · ⑤ \(timeline.firstSound.formattedMs) → FELT \(felt)")
+        }
+    }
+    func bargeTimeline(_ timeline: BargeTimeline) {
+        let screen = screen
+        Task {
+            await screen.log("✋ [\(timeline.turn)] ⑦ window \(timeline.window.formattedMs)"
+                + " · ⑧ silence \(timeline.silence.formattedMs)")
+        }
     }
 }
 

@@ -2,6 +2,7 @@ import Foundation
 import MultiModalKit
 import MultiModalKitMLX
 import MultiModalKitTTS
+import Synchronization
 import TTSKit
 
 // The demo's organ pickers: mind, mouth, and where the local weights live.
@@ -81,7 +82,7 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
     }
 }
 
-/// `--mouth=apple|neural` (default: apple)
+/// `--mouth=apple|neural|kokoro` (default: apple)
 ///
 /// The neural voice's levers are exposed too, so they can be tried by ear
 /// in a live conversation rather than only measured by `bakeoff
@@ -102,24 +103,21 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
 ///   stepped + latency          201–224 ms · 9353 ms
 ///   throughputOptimized        491–571 ms · 10622 ms   (slower, both modes)
 ///   temperature 0 on fused     156–177 ms · 13054 ms   (not faster, talkier)
-func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
-    func flag(_ name: String) -> String? {
-        arguments.first { $0.hasPrefix("--\(name)=") }
-            .map { String($0.dropFirst(name.count + 3)) }
-    }
-    let want = flag("mouth") ?? "apple"
-    guard want == "neural" else { return AppleSpeechSynthesizer() }
-
-    // The lever flags parse in the LIBRARY (D-072 F-3): the hand-rolled
-    // parse that lived here shared no code with the tested type, which is
-    // how the model lever reached the phone's Bench and never reached this
-    // terminal — and how `--decoder=banana` became `.fused` silently.
-    //
-    // The Mac's defaults are `VoiceLevers()`'s own: `.fused` + latency.
-    // `.fused` fails to load on iOS 18+, but this Mac loads and decodes it
-    // fine and it wins on both numbers — the phone's workaround does not
-    // belong on a machine without the bug.
-    let levers: VoiceLevers
+///
+/// 5d (F-27 A, F-29 A): a neural voice renders on a host this demo holds,
+/// wrapped so it LISTENS — every reply's pauses reach `heard`. The voice is
+/// built by the library's one door, `makeSpokenVoice()`: until 5d this demo
+/// called `makeVoice()`, which is Qwen3 whatever `--voice` said, so
+/// `--voice=kokoro` was parsed and then ignored. `--mouth=kokoro` is
+/// `--mouth=neural --voice=kokoro`, and `--mouth=neural` alone now speaks
+/// with the library's default voice, Kokoro (D-084) — `--voice=qwen3` for
+/// the old one. A missing model is fetched here, by the library's own
+/// downloader.
+func preparedMouth(_ arguments: [String],
+                   heard: @escaping @Sendable (ReplyPauses) -> Void) async -> (any SpeechSynthesizing)? {
+    let want = arguments.first { $0.hasPrefix("--mouth=") }.map { String($0.dropFirst("--mouth=".count)) }
+    guard want == "neural" || want == "kokoro" else { return AppleSpeechSynthesizer() }
+    var levers: VoiceLevers
     do {
         levers = try VoiceLevers.parsed(fromArguments: arguments)
     } catch let refusal as VoiceLevers.FlagError {
@@ -129,11 +127,32 @@ func chosenMouth(_ arguments: [String]) -> any SpeechSynthesizing {
         FileHandle.standardError.write(Data("audio-demo: \(error)\n".utf8))
         exit(2)
     }
-    let voice = levers.makeVoice()
-    // The banner reads the VOICE, not the flags (AC-162): `inForce` names
-    // the model too, which the hand-rolled banner never did.
+    if want == "kokoro" { levers.voice = .kokoro }
+    let voice = levers.makeSpokenVoice()
+    await voice.render(on: ListeningHost(wrapping: AudioEnginePlaybackHost(), heard: heard))
+    if !(await voice.modelInstalled()) {
+        print("⏬ \(voice.inForce): the model is not on this Mac — downloading …")
+        let decile = Decile()
+        do {
+            try await voice.ensureModel { fraction in decile.report(fraction) }
+            print("✅ the voice's model is installed")
+        } catch {
+            print("⚠️  the voice's model did not download: \(error)")
+            return nil
+        }
+    }
+    // The banner reads the VOICE, not the flags (AC-162).
     FileHandle.standardError.write(Data("voice: \(voice.inForce)\n".utf8))
     return voice
+}
+
+/// A download's progress, one line per tenth.
+final class Decile: Sendable {
+    private let last = Atomic<Int>(-1)
+    func report(_ fraction: Double) {
+        let tenth = Int(fraction * 10)
+        if last.exchange(tenth, ordering: .relaxed) != tenth { print("   \(tenth * 10) %") }
+    }
 }
 
 /// The Hugging Face cache, so a machine that already has the weights needs

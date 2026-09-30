@@ -17,10 +17,28 @@ struct DemoFlags {
     let hangoverMs: Double
     let wantsAEC: Bool
     let levels: Bool
+    /// `--window <ms>`: the barge window (D-071) — how long a voice over
+    /// the reply must last before it interrupts. 0 here (the library's
+    /// default); the phone runs 600 (5d).
+    let windowMs: Double
+    /// `--person` or `--person=<wav>`: the scripted person speaks instead
+    /// of the microphone (5d, F-28 A). Bare, it is Ryad's recording.
+    let personPath: String?
+    /// `--turns <n>`: how many sentences the scripted person says (20).
+    let turns: Int
+    /// `--interrupt-at=7,14`: the sentences said OVER the answer before them.
+    let interruptAt: Set<Int>
 
     init(arguments: [String]) {
         self.arguments = arguments
-        talk = arguments.contains("--talk")
+        personPath = arguments.contains("--person") ? "Fixtures/ryad-en.wav"
+            : arguments.first { $0.hasPrefix("--person=") }.map { String($0.dropFirst("--person=".count)) }
+        talk = arguments.contains("--talk") || personPath != nil
+        windowMs = Self.number(after: "--window", in: arguments) ?? 0.0
+        turns = Self.number(after: "--turns", in: arguments) ?? 20
+        interruptAt = Set((arguments.first { $0.hasPrefix("--interrupt-at=") }
+            .map { String($0.dropFirst("--interrupt-at=".count)) } ?? "7,14")
+            .split(separator: ",").compactMap { Int($0) })
         // `--onset <ms>`: the F-6 field A/B flag (08-13). The A/B convicted
         // the strict window twice on this machine — "Riyadh"→"Riyat" and
         // "error rate"→"rate", both onsets clipped after a split — against
@@ -157,12 +175,13 @@ extension AudioDemo {
                     .map { String($0.dropFirst(name.count + 3)) }
             }
             let mindName = flag("mind") ?? "echo"
-            let mouthName = flag("mouth") == "neural"
-                ? "Qwen3 neural voice" : "AVSpeechSynthesizer"
+            let mouthName = ["neural", "kokoro"].contains(flag("mouth") ?? "apple")
+                ? "the neural voice named on the voice: line" : "AVSpeechSynthesizer"
             print("    turn loop: ON — \(mindName) mind, spoken by "
                 + "\(mouthName); interrupt it mid-reply")
             print("    reply gate: \(Int(flags.gateMs)) ms"
-                + (flags.gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor"))
+                + (flags.gateMs == 0 ? " (answers at the final — 4a behavior)" : " of yielded floor")
+                + " · barge window: \(Int(flags.windowMs)) ms")
             print("    context: up to 16 pieces of one thought — 🧠 shows what the"
                 + " generator received\n")
         } else {

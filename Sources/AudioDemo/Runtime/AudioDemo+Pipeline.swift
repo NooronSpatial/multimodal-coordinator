@@ -10,13 +10,17 @@ import MultiModalKit
 
 extension AudioDemo {
     /// What this machine established before the door opened: the ear
-    /// whose model is (or is not) ready, the ring's read side, and the
-    /// rate the microphone actually runs at. Three facts from startup,
-    /// carried as one thing because they ARE one thing.
+    /// whose model is (or is not) ready, the ring's read side, the rate
+    /// the audio actually runs at — and, since 5d, the mouth prepared
+    /// (its model fetched, its host listening) and the reporter that hears
+    /// the timeline. Facts from startup, carried as one thing because they
+    /// ARE one thing.
     struct Machine {
         let ear: any TranscriptionEngine
         let consumer: AudioRingConsumer
         let sampleRate: Double
+        let mouth: (any SpeechSynthesizing)?
+        let latency: any LatencyReporter
     }
 
     /// Every policy value this machine earned, passed through untouched
@@ -48,19 +52,21 @@ extension AudioDemo {
             // organs proved. Without it, listen-only (F-3 = B): no mind,
             // no mouth, no coordinator.
             mind: flags.talk ? chosenMind(flags.arguments, screen: screen) : nil,
-            mouth: flags.talk ? chosenMouth(flags.arguments) : nil,
+            mouth: flags.talk ? machine.mouth : nil,
             pump: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
                         chunkFrames: chunkFrames, preRollChunks: 10),
             transcription: .init(format: .init(sampleRate: sampleRate, channels: 1)),
             // `--gate <ms>`: the AC-81 reply gate, this machine's to earn.
-            turns: .init(replyGate: .milliseconds(Int(flags.gateMs))),
+            // `--window <ms>`: the barge window (D-071), the phone's 600 (5d).
+            turns: .init(replyGate: .milliseconds(Int(flags.gateMs)),
+                         bargeWindow: .milliseconds(Int(flags.windowMs))),
             clock: ContinuousClock(),
             // Field forensics (the 08-13 --talk investigation): the demo
             // was BLIND to listener overflow — the pump's broadcast drops
             // oldest silently when a listener stalls (D-012). Health makes
             // the invisible number visible.
             diagnostics: PipelineDiagnostics(),
-            latencyReporter: ConsoleLatency(screen: screen),
+            latencyReporter: machine.latency,
             // Nothing this app holds renders: the neural mouth, when
             // chosen, owns its own engine. Step 2 of the teardown is
             // therefore absent here and present on the phone.

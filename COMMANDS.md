@@ -68,7 +68,10 @@ would expect.
 | *(positional)* | `apple` · `whisper` | `apple` | `AudioDemo.swift:83` |
 | `--talk` | bare | off | `AudioDemo.swift:32` |
 | `--mind=` | `echo` · `apple` · `local` | `echo` | `chosenMind` |
-| `--mouth=` | `apple` · `neural` | `apple` | `chosenMouth` |
+| `--mouth=` | `apple` · `neural` · `kokoro` | `apple` | `preparedMouth` |
+| `--person` / `--person=<wav>` | bare: `Fixtures/ryad-en.wav` | off | `DemoFlags` — the scripted person speaks instead of the microphone (5d) |
+| `--turns` | `--turns 20` | `20` | how many sentences the scripted person says |
+| `--interrupt-at=` | `--interrupt-at=7,14` | `7,14` | the sentences said OVER the answer before them |
 | `--model=` | a weights directory | the Hugging Face cache | `defaultLocalWeights` |
 
 The positional argument is "the first token that is neither a flag nor a
@@ -120,6 +123,7 @@ disagreeing. Typing a number re-opens that hole by hand.
 | `--onset` | `--onset 120` | `0` (D-036) | how long speech must persist before it counts |
 | `--hangover` | `--hangover 700` | `700` (D-028/D-036) | how long silence must last before the turn ends |
 | `--gate` | `--gate 250` | `0` | AC-81's reply gate — how long to wait before answering |
+| `--window` | `--window 600` | `0` | the barge window (D-071) — how long a voice over the reply must last to interrupt it; the phone runs 600 |
 | `--no-aec` | bare | AEC **on** (D-038) | turns echo cancellation off |
 
 These four values are printed in the startup banner (`AudioDemo.swift:182`),
@@ -139,12 +143,27 @@ defaults to `apple` and can begin **downloading a speech model** before it
 ever prints a level. Pass an engine that is already installed
 (`audio-demo whisper --levels`) if all you want is the meter.
 
+### The turn timeline and the scripted person (5d)
+
+Every spoken turn prints its pause stage by stage — ① the silence wait (the
+hangover), ② the ear's finish, ③ the gate, ④ the first token, ⑤ the first
+sound — and the felt pause they add up to; every barge prints ⑦ its window
+and ⑧ the silence after; every reply prints ⑥ its pauses. The phone's setup,
+spoken to by Ryad's recorded voice, repeatable (SPEC §225/4, INSTRUMENTS §73):
+
+```bash
+swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro --hangover 300 --gate 500 --window 600
+```
+
+It ends with the medians. The person speaks into the ring directly, so this
+run can never show an echo — that needs the microphone, or the phone.
+
 ### What each organ needs on disk
 
 | organ | needs |
 |---|---|
 | `--mind=local` | `mlx-community/Qwen3-4B-4bit` **in the Hugging Face cache**, and a Metal shader library (`Scripts/metallib.sh`) |
-| `--mouth=neural` | the Qwen3 TTS model, ~1.1 GB — `swift run bakeoff voice-install` |
+| `--mouth=neural` / `--mouth=kokoro` | Kokoro's weights, 328 MB in `Application Support/Kokoro` — fetched at start-up by the library's downloader when missing (5d). `--voice=qwen3` for the Qwen3 voice: ~1.1 GB, `swift run bakeoff voice-install`. Until 5d `--mouth=neural` was always Qwen3: the demo called `makeVoice()` and ignored `--voice` |
 | `--mind=apple` / `--mouth=apple` | an OS willing to hand them over |
 
 A missing model does not stop the demo: `chosenMind` writes a refusal to
