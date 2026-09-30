@@ -1,0 +1,23 @@
+# 5d piece 1 — the silence meter (AC-341, the pure half), RED on the skeleton (feed does nothing), 2026-09-30.
+# swift test --filter SilenceMeterTests · this Mac, Xcode 27, no warnings-as-errors. 3 rows red; 2 guards green
+# at red (the edges, quiet-is-not-silence: both expect nothing counted).
+
+􀟈  Test run started.
+􀟈  Suite "AC-341 · the pauses inside an answer" started.
+􀟈  Test "exactly the gap counts" started.
+􀟈  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" started.
+􀟈  Test "a pause split across buffers is ONE pause" started.
+􀟈  Test "quiet is not silence: a soft stretch above the level is sound" started.
+􀟈  Test "the silence before the first sound and after the last is not a pause inside the answer" started.
+􁁛  Test "the silence before the first sound and after the last is not a pause inside the answer" passed after 0.001 seconds.
+􁁛  Test "quiet is not silence: a soft stretch above the level is sound" passed after 0.001 seconds.
+􀢄  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" recorded an issue at SilenceMeterTests.swift:31:9: Expectation failed: meter.gaps == 1
+􀢄  Test "a pause split across buffers is ONE pause" recorded an issue at SilenceMeterTests.swift:54:9: Expectation failed: meter.gaps == 2
+􀢄  Test "exactly the gap counts" recorded an issue at SilenceMeterTests.swift:62:9: Expectation failed: meter.gaps == 1
+􀢄  Test "exactly the gap counts" failed after 0.001 seconds with 1 issue.
+􀢄  Test "a pause split across buffers is ONE pause" recorded an issue at SilenceMeterTests.swift:55:9: Expectation failed: meter.longest == .milliseconds(400)
+􀢄  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" recorded an issue at SilenceMeterTests.swift:32:9: Expectation failed: meter.longest == .milliseconds(400)
+􀢄  Test "a pause split across buffers is ONE pause" failed after 0.001 seconds with 2 issues.
+􀢄  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" failed after 0.001 seconds with 2 issues.
+􀢄  Suite "AC-341 · the pauses inside an answer" failed after 0.001 seconds with 5 issues.
+􀢄  Test run with 5 tests in 1 suite failed after 0.002 seconds with 5 issues.
