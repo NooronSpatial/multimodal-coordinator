@@ -55,6 +55,14 @@ struct SilenceMeterTests {
         #expect(meter.longest == .milliseconds(400))
     }
 
+    @Test("a reply with only short pauses still reports its longest")
+    func theLongestOfAnyLength() {
+        var meter = Self.meter()
+        meter.feed(Self.sound(100) + Self.silence(180) + Self.sound(100) + Self.silence(90) + Self.sound(100))
+        #expect(meter.gaps == 0)
+        #expect(meter.longest == .milliseconds(180), "the longest pause, even one too short to count")
+    }
+
     @Test("exactly the gap counts")
     func theBoundaryCounts() {
         var meter = Self.meter()
