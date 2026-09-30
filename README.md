@@ -255,10 +255,10 @@ three different bugs can be told apart at a glance.
 
 ## Status
 
-**On `main`, every milestone through 5b is merged** — phases 1–3, phase 4
-from 4a to 4z, then 5a and 5b. The conversation runs on a Mac and on an
+**On `main`, every milestone through 5c is merged** — phases 1–3, phase 4
+from 4a to 4z, then 5a, 5b and 5c. The conversation runs on a Mac and on an
 iPhone, with two transcription engines, two minds and three mouths behind
-their seams. Five tags an app can pin:
+their seams. Six tags an app can pin:
 
 | Tag | Milestones | What it added |
 |---|---|---|
@@ -267,10 +267,11 @@ their seams. Five tags an app can pin:
 | **0.3.0** | 4y, 4z | admission, heat at the door, memory pressure that cancels, a deadline; the tool contract |
 | **0.3.1** | 5a | model downloads: a percentage on every engine, a transfer that survives the background, a delete |
 | **0.4.0** | 5b | the Apple mind keeps one session per conversation; a reply that fails for no named reason after a tool ran is asked again, once |
+| **0.5.0** | 5c | a turn's failure is typed, so a conversation can switch on the model's unnamed failure; a download whose resume data is stale restarts that file once |
 
-**0.4.0 was tagged before its phone session, on purpose** (D-125). That
-session is next. If it overturns the retry's design, the fix ships as
-0.4.1 — a pushed tag is never moved.
+**0.4.0 was tagged before its phone session, on purpose** (D-125). The
+phone then kept the retry's design (PROBE-R, D-126), so no patch was
+needed — and a pushed tag is never moved.
 
 **What changed after 4h, measured on the phone.** All the local models fit
 at once: the Whisper ear, the 4B mind and the Qwen3 voice worked together
@@ -283,13 +284,14 @@ about **six times faster** on the same phone (§55, D-084).
 
 **Open, and named rather than buried:**
 
-- **The newest promises still owe their phone rows.** One session is
-  planned for them (SPEC §214): the retry probe (AC-323); turn two's first
-  token and twenty turns that call their tools (AC-315); the demo running
-  on a device (AC-316); and 5a's three — a download that keeps going while
-  the phone is locked for five minutes, a killed app that resumes with a
-  range request, and the system waking the app when the last file lands
-  (AC-300). 4z's live tool rows for the Apple mind are owed too (SPEC §198).
+- **One phone row of 5b is still owed: AC-315** — turn two's first token
+  on a kept session, and twenty turns that call their tools, taken from
+  the diet app's TestFlight trace (D-127). The first trace (2026-09-30)
+  could not take it: the person spoke over each long reply, and a turn
+  after a cut reply starts a new session (D-117). The retry probe
+  (AC-323), the demo on a device (AC-316) and 5a's three rows (AC-300)
+  were done on 2026-09-29 (SPEC §214). 4z's live tool rows for the Apple
+  mind are owed too (SPEC §198).
 - **One CI run never finished** (5b, piece R): twelve silent minutes,
   cancelled by hand. Its re-run passed, and so did the whole suite on a
   one-thread pool. Not explained yet; the log is kept (SPEC §214).
