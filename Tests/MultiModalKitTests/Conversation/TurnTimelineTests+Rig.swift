@@ -17,13 +17,7 @@ extension TurnTimelineTests {
     // MARK: - the recorder: every hand-off, kept and announced
 
     final class Recorder: LatencyReporter, Sendable {
-        struct Kept: Sendable {
-            var timelines: [TurnTimeline] = []
-            var barges: [BargeTimeline] = []
-            var latencies: [Duration] = []
-            var cancels: [Duration] = []
-        }
-        private let kept = Mutex(Kept())
+        private let kept = Mutex(RecorderKept())
         private let signals: Signals
 
         init(signals: Signals) { self.signals = signals }
@@ -76,14 +70,7 @@ extension TurnTimelineTests {
     /// The feed behind `Audio`: a queue, one waiting pull, and a count of
     /// pulls announced as `pull:N`.
     final class Feed: Sendable {
-        private struct State {
-            var queued: [AudioEvent?] = []           // nil: the audio ended
-            var waiting: CheckedContinuation<AudioEvent?, Never>?
-            var cancelled = false
-            var given = 0
-            var pulls = 0
-        }
-        private let state = Mutex(State())
+        private let state = Mutex(FeedState())
         private let signals: Signals
 
         init(signals: Signals) { self.signals = signals }
@@ -293,4 +280,21 @@ extension TurnTimelineTests {
         rig.synthesizer.reportFinished(utterance: 0)
         #expect(await rig.heard("completed:0"))
     }
+}
+
+/// What the recorder keeps (a file-level type: lint allows one level of nesting).
+private struct RecorderKept: Sendable {
+    var timelines: [TurnTimeline] = []
+    var barges: [BargeTimeline] = []
+    var latencies: [Duration] = []
+    var cancels: [Duration] = []
+}
+
+/// The audio feed's state: a queue, one waiting pull, and the counts.
+private struct FeedState {
+    var queued: [AudioEvent?] = []           // nil: the audio ended
+    var waiting: CheckedContinuation<AudioEvent?, Never>?
+    var cancelled = false
+    var given = 0
+    var pulls = 0
 }

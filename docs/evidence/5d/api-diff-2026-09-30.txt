@@ -1,0 +1,22 @@
+# 5d piece 1 — AC-340: the public surface before (tag 0.5.0, e82533d) and after the turn timeline.
+# sh Scripts/api.sh, diffed without its commit line. Additions only: two types, two default hand-offs.
+# (A protocol requirement carries no 'public' keyword, so the script lists the extension's defaults.)
+
+167a168,169
+>   Conversation/LatencyReporter.swift: public func turnTimeline(_ timeline: TurnTimeline)
+>   Conversation/LatencyReporter.swift: public func bargeTimeline(_ timeline: BargeTimeline)
+366a369,382
+>   Conversation/TurnTimeline.swift: public struct TurnTimeline: Sendable, Equatable
+>   Conversation/TurnTimeline.swift: public let turn: Int
+>   Conversation/TurnTimeline.swift: public let earFinish: Duration?
+>   Conversation/TurnTimeline.swift: public let gate: Duration
+>   Conversation/TurnTimeline.swift: public let firstToken: Duration
+>   Conversation/TurnTimeline.swift: public let firstSound: Duration
+>   Conversation/TurnTimeline.swift: public init(turn: Int, earFinish: Duration?, gate: Duration, firstToken: Duration, firstSound: Duration)
+>   Conversation/TurnTimeline.swift: public var sinceFinal: Duration
+>   Conversation/TurnTimeline.swift: public func felt(hangover: Duration) -> Duration?
+>   Conversation/TurnTimeline.swift: public struct BargeTimeline: Sendable, Equatable
+>   Conversation/TurnTimeline.swift: public let turn: Int
+>   Conversation/TurnTimeline.swift: public let window: Duration
+>   Conversation/TurnTimeline.swift: public let silence: Duration
+>   Conversation/TurnTimeline.swift: public init(turn: Int, window: Duration, silence: Duration)

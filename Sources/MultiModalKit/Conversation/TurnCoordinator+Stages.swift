@@ -19,6 +19,9 @@ extension TurnCoordinator {
             // A defiant token AFTER the reply finished: the sentence is
             // over; late words are noise, not speech (review finding).
             guard !live.tokensFinished else { return }
+            // ④ ends at the FIRST token (5d, D-133) — stamped before the
+            // mouth is opened on it, so opening the mouth is ⑤'s time.
+            if live.firstTokenAt == nil, let clock { current?.firstTokenAt = clock.now }
             // Remembered as it is born, from the tokens already passing
             // through here (AC-193/AC-195). A barge can land at any point
             // after this line, and whatever has accumulated by then is
@@ -133,7 +136,19 @@ extension TurnCoordinator {
             transition(to: .speaking, turn: turn)
             // Turn latency (R2): final accepted → audible. The felt pause.
             if let reporter = latencyReporter, let clock, let start = live.thinkingStart {
-                reporter.turnLatency(start.duration(to: clock.now), turn: turn)
+                let now = clock.now          // ONE reading: the timeline sums to this exactly
+                reporter.turnLatency(start.duration(to: now), turn: turn)
+                // …and the same pause, stage by stage, reported HERE at the
+                // first sound (5d, D-133): a reply cut after it still counts.
+                if let opened = live.openedAt, let token = live.firstTokenAt {
+                    let end = live.speechEnd.flatMap { $0.utterance == live.utterance ? $0.at : nil }
+                    reporter.turnTimeline(TurnTimeline(
+                        turn: turn,
+                        earFinish: end.map { $0.duration(to: start) },
+                        gate: start.duration(to: opened),
+                        firstToken: opened.duration(to: token),
+                        firstSound: token.duration(to: now)))
+                }
             }
 
         case .finished:

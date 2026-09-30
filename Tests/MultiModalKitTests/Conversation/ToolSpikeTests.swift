@@ -43,13 +43,7 @@ struct ToolSpikeTests {
     /// in that test failed at once. Green runs never time out, so it never
     /// showed — 5d's first red run did (`docs/evidence/5d/red-2026-09-30-a-…`).
     final class Signals: Sendable {
-        private struct State {
-            var seen: [String] = []
-            var waiters: [UInt64: (name: String, continuation: CheckedContinuation<Bool, Never>)] = [:]
-            var cancelled: Set<UInt64> = []
-            var nextID: UInt64 = 0
-        }
-        private let state = Mutex(State())
+        private let state = Mutex(SignalsState())
 
         func send(_ name: String) {
             let answered = state.withLock { state -> [CheckedContinuation<Bool, Never>] in
@@ -373,4 +367,13 @@ struct ToolSpikeTests {
         #expect(ToolCallFailure(tool: "weather", reason: .unknownTool).description
                 == "no tool named 'weather'")
     }
+}
+
+/// `ToolSpikeTests.Signals`' state: every name sent, and the waits still
+/// open (a file-level type: lint allows one level of nesting).
+private struct SignalsState {
+    var seen: [String] = []
+    var waiters: [UInt64: (name: String, continuation: CheckedContinuation<Bool, Never>)] = [:]
+    var cancelled: Set<UInt64> = []
+    var nextID: UInt64 = 0
 }

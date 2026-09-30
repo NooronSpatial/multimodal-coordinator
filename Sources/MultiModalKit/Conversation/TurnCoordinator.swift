@@ -30,7 +30,9 @@ public enum BargeWindow {
 public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// Everything that can wake the loop, in one type.
     enum Input: Sendable {
-        case audio(AudioEvent)
+        /// An audio event — and, for a speech end while latency is
+        /// measured, the instant it ARRIVED (5d, D-134).
+        case audio(AudioEvent, arrived: C.Instant?)
         case transcript(TranscriptEvent)
         case reply(turn: Int, ReplyUpdate)
         case synthesis(turn: Int, SynthesisUpdate)
@@ -51,6 +53,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// When this turn's final was accepted — the start of the pause the
         /// user feels. Captured only when a latency reporter is injected.
         var thinkingStart: C.Instant?
+        /// The turn timeline's other instants (5d, D-133): this
+        /// utterance's speech end as it ARRIVED (D-134), the reply
+        /// opened, its first token. Kept only while latency is measured.
+        var speechEnd: (utterance: Int, at: C.Instant)?
+        var openedAt: C.Instant?
+        var firstTokenAt: C.Instant?
         /// The input-side ticket (SPEC §31): the utterance whose final may
         /// drive this turn. Mirrored from the same event stream the session
         /// numbers from. A settled final from an EARLIER utterance (D-024)
@@ -284,8 +292,18 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         merge = input
 
         await withTaskGroup(of: Void.self) { group in
+            // THE ONE STAMP TAKEN OUTSIDE THE ACTOR (5d, D-134): a speech
+            // end is stamped as it arrives, before the queue. Handling it
+            // changes nothing anyone can see, so only here can its instant
+            // be proven; nothing shared is touched, and the instant
+            // travels with the event.
+            let endStamps = latencyReporter == nil ? nil : clock
             group.addTask {
-                for await event in audio { input.yield(.audio(event)) }
+                for await event in audio {
+                    var arrived: C.Instant?
+                    if case .speechEnded = event { arrived = endStamps?.now }
+                    input.yield(.audio(event, arrived: arrived))
+                }
                 input.yield(.audioEnded)
             }
             group.addTask {
@@ -316,8 +334,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         via input: AsyncStream<Input>.Continuation
     ) async -> Bool {
         switch item {
-        case .audio(let event):
-            await handleAudio(event, forwardingInto: &group, via: input)
+        case .audio(let event, let arrived):
+            await handleAudio(event, arrived: arrived, forwardingInto: &group, via: input)
         case .transcript(let event):
             await handleTranscript(event, forwardingInto: &group, via: input)
         case .reply(let turn, let update):
@@ -434,6 +452,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// An onset seen while speaking, waiting to prove it is a person.
     struct PendingBarge: Sendable {
         let utterance: Int
+        /// The person's first sound — where the window starts (5d, ⑦).
+        let onset: AudioTime
         /// The audio moment at which it becomes a barge.
         let deadline: AudioTime
     }
