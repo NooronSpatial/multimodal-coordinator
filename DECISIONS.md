@@ -5905,3 +5905,23 @@ from the sound itself).
 - *Rejected:* **(b) at the reply's end, as signed** — it holds the
   speaking time too, but the pause numbers would leave out exactly the
   turns the person cut short.
+
+## D-134 — the speech-end stamp is taken on arrival, by the coordinator's input reader: one stamp outside the actor, an exception to R2 (Milestone 5d)
+
+**Date:** 2026-09-30 · **Decided by:** Ryad ("On arrival") · **Ruling:**
+`AudioEvent.speechEnded` is stamped with the clock by the reader that
+forwards the audio into the coordinator's merged input — as it arrives,
+before the queue — and the stamp travels with the event. Every other stamp
+of the turn timeline stays inside the actor, as R2 (2026-08-12, the
+`LatencyReporter` seam) rules.
+
+**Why an exception.** R2 takes every instant inside the actor "so
+measurement can never race the thing it measures". But handling
+`speechEnded` changes nothing a test can see, so a test cannot know when
+the actor handled it — and a nonzero ② (the ear's finish) could never be
+proven through the coordinator. Stamped on arrival, the test hands the
+audio over one event at a time and knows the end is stamped before it
+moves the clock. The reader touches no shared state: nothing can race.
+
+- *Rejected:* **inside the actor, R2 as written** — ② proven through the
+  coordinator only when it is zero, a nonzero ② only on the Mac harness.

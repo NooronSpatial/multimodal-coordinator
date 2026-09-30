@@ -1,0 +1,83 @@
+# 5d piece 1 — RED on the committed tests (2026-09-30): the skeleton only (TurnTimeline, BargeTimeline, the two
+# LatencyReporter hand-offs with do-nothing defaults); the coordinator's stamps stashed. After Signals was rebuilt.
+# swift test --filter 'TurnTimelineTests|ToolSpikeTests' · macOS 26.6, Xcode 27 (Swift 6.4), no warnings-as-errors.
+# 10 rows red, each on its own point (no timeline, no barge report); 6 guards green at red (AC-339 x4, AC-340,
+# the felt-pause arithmetic); ToolSpikeTests green on the rebuilt helper. The 70 ms slow-to-silence mouth already
+# shows in the OLD cancelLatency (cancels == [70 ms] passes): the bench measures before the code does.
+
+􀟈  Test run started.
+􀟈  Suite ToolSpikeTests started.
+􀟈  Suite "AC-335…AC-340 · the turn timeline" started.
+􀟈  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" started.
+􀟈  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" started.
+􁁛  Test "AC-224: a barge lands while a tool call is pending; the late answer goes nowhere" passed after 0.001 seconds.
+􀟈  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" started.
+􁁛  Test "AC-226: a defiant run pushes the tool's late answer into a dead turn — the ticket discards it" passed after 0.001 seconds.
+􀟈  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" started.
+􁁛  Test "AC-225: a throwing tool fails the turn honestly, and the next turn runs clean" passed after 0.001 seconds.
+􀟈  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" started.
+􁁛  Test "AC-225 / F-4 = B: a name no tool has is answered in words, and the turn completes" passed after 0.001 seconds.
+􀟈  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" started.
+􁁛  Test "AC-277: a barge during a writing tool — one write, the answer dies, the next turn is clean (F-5 = A)" passed after 0.001 seconds.
+􀟈  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" started.
+􁁛  Test "AC-221: the run calls the tool itself — the coordinator sees only tokens and one terminal" passed after 0.001 seconds.
+􀟈  Test "D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run" started.
+􁁛  Test "D-120: ReplyUpdate is .token / .toolRan / .finished / .failed — records, never a call to run" passed after 0.001 seconds.
+􀟈  Test "ToolTable: exact name, nil for a stranger, both failures typed" started.
+􁁛  Test "ToolTable: exact name, nil for a stranger, both failures typed" passed after 0.001 seconds.
+􁁛  Suite ToolSpikeTests passed after 0.006 seconds.
+􀢄  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" recorded an issue at TurnTimelineTests.swift:29:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" recorded an issue at TurnTimelineTests.swift:33:9: Expectation failed: rig.recorder.timelines == [
+􀢄  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" failed after 10.649 seconds with 2 issues.
+􀟈  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" started.
+􀢄  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" recorded an issue at TurnTimelineTests.swift:45:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" recorded an issue at TurnTimelineTests.swift:50:9: Expectation failed: rig.recorder.timelines.map(\.sinceFinal) == rig.recorder.latencies
+􀢄  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" failed after 10.007 seconds with 2 issues.
+􀟈  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" started.
+􀢄  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" recorded an issue at TurnTimelineTests.swift:61:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" recorded an issue at TurnTimelineTests.swift:65:9: Expectation failed: rig.recorder.timelines.map(\.gate) == [.milliseconds(500)]
+􀢄  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" failed after 10.248 seconds with 2 issues.
+􀟈  Test "no gate: the stage is zero, and the others are untouched (AC-336)" started.
+􀢄  Test "no gate: the stage is zero, and the others are untouched (AC-336)" recorded an issue at TurnTimelineTests.swift:74:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "no gate: the stage is zero, and the others are untouched (AC-336)" recorded an issue at TurnTimelineTests.swift:78:9: Expectation failed: rig.recorder.timelines == [
+􀢄  Test "no gate: the stage is zero, and the others are untouched (AC-336)" failed after 10.520 seconds with 2 issues.
+􀟈  Test "an end the coordinator never saw leaves earFinish empty, not zero" started.
+􀢄  Test "an end the coordinator never saw leaves earFinish empty, not zero" recorded an issue at TurnTimelineTests.swift:92:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "an end the coordinator never saw leaves earFinish empty, not zero" recorded an issue at TurnTimelineTests.swift:96:9: Expectation failed: rig.recorder.timelines.map(\.earFinish) == [nil]
+􀢄  Test "an end the coordinator never saw leaves earFinish empty, not zero" failed after 10.509 seconds with 2 issues.
+􀟈  Test "a person who went on: the older utterance's end is not this one's" started.
+􀢄  Test "a person who went on: the older utterance's end is not this one's" recorded an issue at TurnTimelineTests.swift:118:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "a person who went on: the older utterance's end is not this one's" recorded an issue at TurnTimelineTests.swift:122:9: Expectation failed: rig.recorder.timelines.map(\.earFinish) == [nil]
+􀢄  Test "a person who went on: the older utterance's end is not this one's" failed after 10.662 seconds with 2 issues.
+􀟈  Test "an ear that finishes before the end decision reports a negative earFinish" started.
+􀢄  Test "an ear that finishes before the end decision reports a negative earFinish" recorded an issue at TurnTimelineTests.swift:143:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "an ear that finishes before the end decision reports a negative earFinish" recorded an issue at TurnTimelineTests.swift:147:9: Expectation failed: rig.recorder.timelines.map(\.earFinish) == [.milliseconds(-40)]
+􀢄  Test "an ear that finishes before the end decision reports a negative earFinish" failed after 10.491 seconds with 2 issues.
+􀟈  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" started.
+􀢄  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" recorded an issue at TurnTimelineTests.swift:160:13: Expectation failed: await rig.heard("timeline:0")
+􀢄  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" recorded an issue at TurnTimelineTests.swift:170:13: Expectation failed: await rig.heard("barge:0")
+􀢄  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" recorded an issue at TurnTimelineTests.swift:173:9: Expectation failed: rig.recorder.barges == [BargeTimeline(turn: 0, window: .milliseconds(500),
+􀢄  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" recorded an issue at TurnTimelineTests.swift:176:9: Expectation failed: rig.recorder.timelines.map(\.turn) == [0]
+􀢄  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" failed after 20.521 seconds with 4 issues.
+􀟈  Test "a barge with the window off: the window is zero (AC-338)" started.
+􀢄  Test "a barge with the window off: the window is zero (AC-338)" recorded an issue at TurnTimelineTests.swift:186:13: Expectation failed: await rig.heard("barge:0")
+􀢄  Test "a barge with the window off: the window is zero (AC-338)" recorded an issue at TurnTimelineTests.swift:189:9: Expectation failed: rig.recorder.barges == [BargeTimeline(turn: 0, window: .zero, silence: .zero)]
+􀢄  Test "a barge with the window off: the window is zero (AC-338)" failed after 10.652 seconds with 2 issues.
+􀟈  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" started.
+􀢄  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" recorded an issue at TurnTimelineTests.swift:202:13: Expectation failed: await rig.heard("barge:0")
+􀢄  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" recorded an issue at TurnTimelineTests.swift:205:9: Expectation failed: rig.recorder.barges == [BargeTimeline(turn: 0, window: .zero, silence: .zero)]
+􀢄  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" failed after 10.333 seconds with 2 issues.
+􀟈  Test "an empty final reports no timeline (AC-339)" started.
+􁁛  Test "an empty final reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a failed ear reports no timeline (AC-339)" started.
+􁁛  Test "a failed ear reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" started.
+􁁛  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a mind that chose silence reports no timeline (AC-339)" started.
+􁁛  Test "a mind that chose silence reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" started.
+􁁛  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" passed after 0.001 seconds.
+􀟈  Test "the felt pause is the app's hangover plus every stage" started.
+􁁛  Test "the felt pause is the app's hangover plus every stage" passed after 0.001 seconds.
+􀢄  Suite "AC-335…AC-340 · the turn timeline" failed after 114.602 seconds with 22 issues.
+􀢄  Test run with 24 tests in 2 suites failed after 114.602 seconds with 22 issues.

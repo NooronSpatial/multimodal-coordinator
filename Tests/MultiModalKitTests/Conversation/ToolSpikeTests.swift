@@ -31,34 +31,44 @@ import Testing
 struct ToolSpikeTests {
     typealias Bench = TurnCoordinatorTests.Bench<ManualClock>
 
-    /// The EVENT a test waits on. Like the runtime tests' `Signals`, with
-    /// one addition: names already heard are remembered, so two waits in
-    /// a row ("entered", then "barged:0") cannot lose the one that arrived
-    /// while the other was being awaited — an `AsyncStream` has one
-    /// consumer and no rewind.
+    /// The EVENT a test waits on. Names already sent are remembered, so two
+    /// waits in a row ("entered", then "barged:0") cannot lose the one that
+    /// arrived while the other was being awaited. Each wait is ONE waiter,
+    /// registered under the lock, answered by the `send` that matches it or
+    /// dropped at its own deadline — so a wait that times out takes nothing
+    /// down with it.
+    ///
+    /// Until 5d this was one `AsyncStream` shared by every wait: a waiter
+    /// cancelled at its deadline TERMINATED the stream, and every later wait
+    /// in that test failed at once. Green runs never time out, so it never
+    /// showed — 5d's first red run did (`docs/evidence/5d/red-2026-09-30-a-…`).
     final class Signals: Sendable {
-        private let seen = Mutex<[String]>([])
-        private let stream: AsyncStream<String>
-        private let emit: AsyncStream<String>.Continuation
-
-        init() {
-            (stream, emit) = AsyncStream.makeStream(of: String.self, bufferingPolicy: .unbounded)
+        private struct State {
+            var seen: [String] = []
+            var waiters: [UInt64: (name: String, continuation: CheckedContinuation<Bool, Never>)] = [:]
+            var cancelled: Set<UInt64> = []
+            var nextID: UInt64 = 0
         }
+        private let state = Mutex(State())
 
         func send(_ name: String) {
-            seen.withLock { $0.append(name) }
-            emit.yield(name)
+            let answered = state.withLock { state -> [CheckedContinuation<Bool, Never>] in
+                state.seen.append(name)
+                let keys = state.waiters.filter { $0.value.name == name }.map(\.key)
+                return keys.compactMap { state.waiters.removeValue(forKey: $0)?.continuation }
+            }
+            for waiter in answered { waiter.resume(returning: true) }       // outside the lock
         }
 
         /// True when `name` has arrived, or arrives before the deadline.
         /// The loser of the race is cancelled, never abandoned.
         func heard(_ name: String, within deadline: Duration = .seconds(10)) async -> Bool {
-            if seen.withLock({ $0.contains(name) }) { return true }
+            let id = state.withLock { state -> UInt64 in
+                defer { state.nextID += 1 }
+                return state.nextID
+            }
             return await withTaskGroup(of: Bool.self) { group in
-                group.addTask { [stream] in
-                    for await event in stream where event == name { return true }
-                    return false
-                }
+                group.addTask { await self.wait(for: name, id: id) }
                 group.addTask {
                     try? await Task.sleep(for: deadline)
                     return false
@@ -66,6 +76,29 @@ struct ToolSpikeTests {
                 let first = await group.next() ?? false
                 group.cancelAll()
                 return first
+            }
+        }
+
+        private func wait(for name: String, id: UInt64) async -> Bool {
+            await withTaskCancellationHandler {
+                await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
+                    // Check and register in ONE lock step. A cancel that came
+                    // first left its claim ticket in `cancelled`.
+                    let now = state.withLock { state -> Bool? in
+                        if state.seen.contains(name) { return true }
+                        if state.cancelled.remove(id) != nil { return false }
+                        state.waiters[id] = (name, continuation)
+                        return nil
+                    }
+                    if let now { continuation.resume(returning: now) }
+                }
+            } onCancel: {
+                let waiter = state.withLock { state -> CheckedContinuation<Bool, Never>? in
+                    if let waiter = state.waiters.removeValue(forKey: id) { return waiter.continuation }
+                    state.cancelled.insert(id)
+                    return nil
+                }
+                waiter?.resume(returning: false)
             }
         }
     }
