@@ -170,7 +170,12 @@ extension TranscribeModel {
         }
     }
 
-    func clearLog() { turns.removeAll() }
+    func clearLog() {
+        turns.removeAll()
+        timelines.removeAll()
+        barges.removeAll()
+        replyPauses.removeAll()
+    }
 
     /// The per-turn tool line, ONE function for the log and the Chat tab
     /// so the two surfaces cannot drift apart. `nil` is "Tools was off
@@ -264,6 +269,7 @@ extension TranscribeModel {
                 out += "\n\n"
             }
         }
+        out += timelineLog          // 5d: the whole pause, stage by stage
         return out
     }
 

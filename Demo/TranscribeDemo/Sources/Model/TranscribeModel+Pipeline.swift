@@ -222,7 +222,7 @@ extension TranscribeModel {
             // says this device earns its own numbers from a run rather
             // than inheriting the Mac's.
             vad: EnergyVAD(config: .init(threshold: vadThreshold,
-                                         hangoverFrames: Int(rate * 0.3))),
+                                         hangoverFrames: Int(rate * Double(Self.hangoverMilliseconds) / 1000))),
             // The ear the person picked.
             ear: engine,
             // The conversation, if the app is talking (F-3 = B: mind and
@@ -231,7 +231,7 @@ extension TranscribeModel {
             // that none of them needed an iOS variant.
             mind: talkEnabled ? (try currentGenerator) : nil,
             mouth: talkEnabled
-                ? currentMouth(shieldHost: speakerShield ? microphone.playbackHost : nil)
+                ? currentMouth(shieldHost: speakerShield ? listening(to: microphone.playbackHost) : nil)
                 : nil,
             // 200 ms of pre-roll: a word's quiet onset must survive a VAD
             // that only wakes on its loud middle.
@@ -349,7 +349,8 @@ extension TranscribeModel {
         // CAPTURE engine's host — the whole point, the canceller can only
         // remove what its own unit renders (D-043). Unshielded, the 4e
         // arrangement stands.
-        await neuralVoice.render(on: speakerShield ? captureHost : neuralHost)
+        // …and through a host that LISTENS (5d, F-27 A): each reply's pauses.
+        await neuralVoice.render(on: listening(to: speakerShield ? captureHost : neuralHost))
         await neuralVoice.reportMargins { margin in
             // The graph's rate is refreshed HERE, with the margin, because
             // it only becomes real when a reply has actually rendered: the

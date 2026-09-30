@@ -373,6 +373,16 @@ final class TranscribeModel {
     /// this picker says.
     var memoryDepth = 8
     var feltPauseMilliseconds: Int?
+    /// Whether `feltPauseMilliseconds` is the WHOLE pause, from the
+    /// person's last sound (5d) — false when the turn's speech end was not
+    /// seen, and the number starts at the final.
+    var feltPauseIsWhole = false
+    /// 5d (SPEC §225/3): every spoken turn's timeline, every interruption,
+    /// and every reply's pauses — kept with the conversation log, cleared
+    /// with it.
+    var timelines: [TurnTimeline] = []
+    var barges: [BargeTimeline] = []
+    var replyPauses: [ReplyPauses] = []
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.
     var wasInterrupted = false
