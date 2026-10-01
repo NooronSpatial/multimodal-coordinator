@@ -8487,6 +8487,17 @@ returned empty text for 3 of 20 short sentences per run.
 | AC-346 | `AIRuntimeTests` · "the health seam outlives the session" | the same seam, two runs |
 | AC-347 | the suite | — |
 
+### §232 — results, measured 2026-10-01
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-345 the observer ending ends the run | **met** — `run` comes back on its own, the teardown in its order | `AIRuntimeTests+Teardown`, mutation M66 |
+| AC-346 the health seam outlives the session | **met** — a second session still hears the seam | `AIRuntimeTests+Teardown`, mutation M67 |
+| AC-347 nothing else moved | **met** — the older runtime rows unchanged and green; the demos still end by cancelling | the suite |
+
+The fix is one line: after the three stops, `group.cancelAll()`. The
+runtime suite takes milliseconds again (20 s of deadlines at red).
+
 ## §233 — the hunt for the downloader bench's flake
 
 **What is known.** Run 16 of piece 1's loop: "two callers, one transfer"

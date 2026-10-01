@@ -66,11 +66,11 @@ extension AudioDemo {
         }
     }
 
-    /// THE RUN ENDS BY CANCELLATION, as both demos end it (F-4 = A). It used
-    /// to end by the observer returning — and `AIRuntime.run` never came back
-    /// from that: the health seam's thermal watcher is a child that only a
-    /// CANCEL ends, and nothing cancels it when the observer simply returns
-    /// (found by this harness, 2026-09-30).
+    /// THE RUN ENDS BY CANCELLATION, as both demos end it (F-4 = A). It first
+    /// ended by the observer returning — and `AIRuntime.run` never came back
+    /// from that: nothing cancelled the health seam's thermal watcher. Found
+    /// by this harness (2026-09-30), fixed in the runtime (SPEC §232, D-135);
+    /// the harness keeps the demos' way of ending.
     static func converseAndMeasure(_ harness: Harness) async {
         let mouthpiece = Mouthpiece()
         let watch = TurnWatch()
