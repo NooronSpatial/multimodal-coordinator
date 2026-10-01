@@ -1,0 +1,75 @@
+# §233 — the bench fixes' mutations (2026-10-01)
+
+## FIRST RUN, at e306520 — M71 SURVIVED (and its label here was wrong: M71 removed the
+## cancel handler's close, so NOTHING closed the descriptor). The watch row checked only
+## that the dropped watch was freed, not what its name promised.
+
+## M68 — the socket closed BEFORE the wait for the accept thread
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+KILLED — red rows:
+  - stop() returns only once the accept thread has ended
+􀢄  Test run with 2 tests in 1 suite failed after 0.009 seconds with 1 issue.
+reverted: yes
+
+## M69 — no wait at all (the bug as it was)
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+KILLED — red rows:
+  - stop() returns only once the accept thread has ended
+􀢄  Test run with 2 tests in 1 suite failed after 0.007 seconds with 1 issue.
+reverted: yes
+
+## M70 — the watch's handler holds the watch again
+file: Tests/MultiModalKitTests/Models/ModelDownloaderReentryTests.swift
+KILLED — red rows:
+  - a dropped directory watch is freed, and gives back its descriptor
+􀢄  Test run with 2 tests in 1 suite failed after 0.012 seconds with 1 issue.
+reverted: yes
+
+## M71 — the descriptor closed in deinit, before the source is done with it (a belt: libdispatch's rule)
+file: Tests/MultiModalKitTests/Models/ModelDownloaderReentryTests.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 2 tests in 1 suite passed after 0.012 seconds.
+reverted: yes
+
+source tree after the run: clean
+
+## SECOND RUN, at 8952ee8 — after the watch row was made to check the descriptor
+
+## M68 — the socket closed BEFORE the wait for the accept thread
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+KILLED — red rows:
+  - stop() returns only once the accept thread has ended
+􀢄  Test run with 2 tests in 1 suite failed after 0.012 seconds with 1 issue.
+reverted: yes
+
+## M69 — no wait at all (the bug as it was)
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+KILLED — red rows:
+  - stop() returns only once the accept thread has ended
+􀢄  Test run with 2 tests in 1 suite failed after 0.010 seconds with 1 issue.
+reverted: yes
+
+## M70 — the watch's handler holds the watch again
+file: Tests/MultiModalKitTests/Models/ModelDownloaderReentryTests.swift
+KILLED — red rows:
+  - a dropped directory watch is freed, and gives back its descriptor
+􀢄  Test run with 2 tests in 1 suite failed after 5.020 seconds with 3 issues.
+reverted: yes
+
+## M71 — nothing closes the descriptor (the cancel handler's close removed)
+file: Tests/MultiModalKitTests/Models/ModelDownloaderReentryTests.swift
+KILLED — red rows:
+  - a dropped directory watch is freed, and gives back its descriptor
+􀢄  Test run with 2 tests in 1 suite failed after 0.011 seconds with 1 issue.
+reverted: yes
+
+source tree after the run: clean
+
+## M71 BY HAND, at 8952ee8 — what killed it:
+##   Expectation failed: !Self.holds(number, directory)
+##   descriptor 3 still holds the watched directory
+
+## LATER (same day): M68 and M69 were killed by a row that never reaches the case that
+## matters. A server stopped at once never has its accept thread waiting in accept();
+## a server that has SERVED does, and on this Mac shutdown() does not wake that wait —
+## so the fix these two mutations 'pinned' was itself wrong (red-2026-10-01-f).

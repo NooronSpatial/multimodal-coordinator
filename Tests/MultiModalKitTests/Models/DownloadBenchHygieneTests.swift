@@ -32,6 +32,60 @@ struct DownloadBenchHygieneTests {
         #expect(stillRunning == 0, "\(stillRunning) of 200 stops closed or returned with the accept thread alive")
     }
 
+    /// The case that matters: a server that has SERVED, so its accept thread
+    /// is back in `accept()`, waiting. On this Mac `shutdown()` does not wake
+    /// that wait — only `close()` does (5d §233, the experiment) — so a stop
+    /// that closes only after the thread has ended must wake it another way.
+    @Test("a server that has served stops with its accept thread ended before its socket closes")
+    func aServedServerStopsCleanly() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "bench-hygiene-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try Data("served".utf8).write(to: directory.appending(path: "f.bin"))
+        var lateEnds = 0
+        for _ in 0..<3 {
+            let server = try LoopbackFileServer(directory: directory)
+            #expect(Self.fetch("f.bin", from: server.port) == "served", "the server served")
+            server.stop()
+            if !server.acceptLoopEnded || server.acceptEndedAfterClose { lateEnds += 1 }
+        }
+        #expect(lateEnds == 0, "\(lateEnds) of 3 stops closed the socket under a waiting accept thread")
+    }
+
+    /// One plain GET over a blocking socket: the response's body. The server
+    /// answers `Connection: close`, so its close ends the read — an event; the
+    /// receive cap only keeps a broken server from hanging the row.
+    static func fetch(_ path: String, from port: UInt16) -> String? {
+        let client = socket(AF_INET, SOCK_STREAM, 0)
+        guard client >= 0 else { return nil }
+        defer { close(client) }
+        var cap = timeval(tv_sec: 5, tv_usec: 0)
+        setsockopt(client, SOL_SOCKET, SO_RCVTIMEO, &cap, socklen_t(MemoryLayout<timeval>.size))
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = port.bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        let connected = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(client, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        guard connected == 0 else { return nil }
+        let request = Array("GET /\(path) HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n".utf8)
+        guard send(client, request, request.count, 0) == request.count else { return nil }
+        var response: [UInt8] = []
+        var piece = [UInt8](repeating: 0, count: 4_096)
+        while true {
+            let count = read(client, &piece, piece.count)
+            guard count > 0 else { break }
+            response += piece[0..<count]
+        }
+        let text = String(decoding: response, as: UTF8.self)
+        guard let head = text.range(of: "\r\n\r\n") else { return nil }
+        return String(text[head.upperBound...])
+    }
+
     /// A watch the test has dropped must go: its dispatch source and its
     /// descriptor with it. A watch that holds itself leaks both, for the life
     /// of the test process.

@@ -1,0 +1,150 @@
+^D[2K[33m[1mwarning: [0m'zipfoundation': /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-291/293/294/295/296 · the mind through the downloader" started.
+􀟈  Suite "AC-291/293/296 · the downloader against a counting server" started.
+􀟈  Suite "AC-331…AC-333 · a stale resume restarts its file once" started.
+􀟈  Suite "AC-291/294/295 · the neural voice through the downloader" started.
+􀟈  Suite "AC-292/297 · the app that died, and the one that came back" started.
+􀟈  Suite "AC-291/294/295 · Kokoro through the downloader" started.
+􀟈  Test "one request lists, one per file moves; one byte fraction, 1.0 once; then .installed with a manifest" started.
+􀙟  Suite "AC-294 · the measured variants, against the real repositories" skipped: "set MMK_LIVE_HUB=1 to ask huggingface.co"
+􀟈  Suite "AC-291 · the ear's load half, when this machine has the model" started.
+􀟈  Test "a partial the system lost before the resume: the system refetches it, and the file lands (AC-331, measured)" started.
+􀟈  Test "the plan is the VENDOR's file set, not a list written here" started.
+􀟈  Test "both files arrive under one fraction, never decreasing, 1.0 once; then it is installed" started.
+􀟈  Suite "AC-292 · the session is background everywhere it can be" started.
+􀟈  Test "fractions never decrease and end at exactly one 1.0; every file lands complete" started.
+􀟈  Test "a tap in the second life adopts the transfer the first life started" started.
+􀟈  Suite "AC-291/294/295 · Whisper through the downloader" started.
+􀟈  Test "the library's session is a background session — except in the simulator, which has none" started.
+􀟈  Test "ensureModel(progress:) on an installed variant: one 1.0, then a loaded pipeline" started.
+􀙟  Suite "AC-294 · the neural voice's measured variants, against the real repositories" skipped: "set MMK_LIVE_HUB=1 to ask huggingface.co"
+􀙟  Test "base and small still cost what this library says they cost" skipped: "set MMK_LIVE_HUB=1 to ask huggingface.co"
+􀟈  Test "both repositories arrive under one fraction; then installed, with the tokenizer" started.
+􀙟  Test "each variant still costs what this library says it costs" skipped: "set MMK_LIVE_HUB=1 to ask huggingface.co"
+􁁛  Test "the library's session is a background session — except in the simulator, which has none" passed after 0.002 seconds.
+􁁛  Suite "AC-292 · the session is background everywhere it can be" passed after 0.002 seconds.
+􁁛  Test "the plan is the VENDOR's file set, not a list written here" passed after 0.007 seconds.
+􀟈  Test "the variant's six directories arrive under one fraction; then installed" started.
+􁁛  Test "both files arrive under one fraction, never decreasing, 1.0 once; then it is installed" passed after 0.076 seconds.
+􀟈  Test "an installed Kokoro says 1.0 once and asks the server nothing" started.
+􁁛  Test "a partial the system lost before the resume: the system refetches it, and the file lands (AC-331, measured)" passed after 0.122 seconds.
+􀟈  Test "resume data nothing can read: the file restarts once from the start, and lands (AC-331)" started.
+􁁛  Test "a tap in the second life adopts the transfer the first life started" passed after 0.127 seconds.
+􀟈  Test "the file lands without a tap, while the wake-up's completion handler is held" started.
+􁁛  Test "resume data nothing can read: the file restarts once from the start, and lands (AC-331)" passed after 0.010 seconds.
+􀟈  Test "a restart that fails too ends the transfer — no third attempt (AC-332)" started.
+􁁛  Test "a restart that fails too ends the transfer — no third attempt (AC-332)" passed after 0.006 seconds.
+􀟈  Test "a resumed task that fails with fresh resume data keeps it, and fails as today (AC-333)" started.
+􁁛  Test "a resumed task that fails with fresh resume data keeps it, and fails as today (AC-333)" passed after 0.007 seconds.
+􁁛  Suite "AC-331…AC-333 · a stale resume restarts its file once" passed after 0.147 seconds.
+􁁛  Test "the file lands without a tap, while the wake-up's completion handler is held" passed after 0.051 seconds.
+􁁛  Suite "AC-292/297 · the app that died, and the one that came back" passed after 0.179 seconds.
+􁁛  Test "an installed Kokoro says 1.0 once and asks the server nothing" passed after 0.173 seconds.
+􀟈  Test "a truncated download is fetched again, alone" started.
+􁁛  Test "a truncated download is fetched again, alone" passed after 0.029 seconds.
+􀟈  Test "remove takes the downloads, the cast and the resume data, and leaves the app's folder" started.
+􁁛  Test "remove takes the downloads, the cast and the resume data, and leaves the app's folder" passed after 0.017 seconds.
+􀟈  Test "deleteModel retires the voice and removes the files; modelInstalled reads false" started.
+􁁛  Test "deleteModel retires the voice and removes the files; modelInstalled reads false" passed after 0.031 seconds.
+􀟈  Test "the download's size is known without the network: the two files' bytes" started.
+􁁛  Test "the download's size is known without the network: the two files' bytes" passed after 0.002 seconds.
+􁁛  Suite "AC-291/294/295 · Kokoro through the downloader" passed after 0.331 seconds.
+􁁛  Test "ensureModel(progress:) on an installed variant: one 1.0, then a loaded pipeline" passed after 13.088 seconds.
+􁁛  Suite "AC-291 · the ear's load half, when this machine has the model" passed after 13.089 seconds.
+􁁛  Test "one request lists, one per file moves; one byte fraction, 1.0 once; then .installed with a manifest" passed after 13.653 seconds.
+􀟈  Test "an installed model reports one 1.0 and asks the server nothing" started.
+􁁛  Test "the variant's six directories arrive under one fraction; then installed" passed after 13.657 seconds.
+􀟈  Test "an installed variant reports one 1.0 and asks the server nothing" started.
+􁁛  Test "fractions never decrease and end at exactly one 1.0; every file lands complete" passed after 13.742 seconds.
+􀟈  Test "a plan whose files are already complete reports one 1.0 and asks the server nothing" started.
+􁁛  Test "both repositories arrive under one fraction; then installed, with the tokenizer" passed after 13.743 seconds.
+􀟈  Test "an installed variant reports one 1.0 and asks the server nothing" started.
+􁁛  Test "a plan whose files are already complete reports one 1.0 and asks the server nothing" passed after 0.006 seconds.
+􀟈  Test "a file that lands short of its declared size is refused and not kept" started.
+􁁛  Test "a file that lands short of its declared size is refused and not kept" passed after 0.058 seconds.
+􀟈  Test "a cancel keeps resume data; the next transfer sends Range, gets 206, and never pays twice" started.
+§70 resume · file 2097152 B · sent 2293760 B across both attempts · overhead 9.4% · resumed at 262144 B
+􁁛  Test "a cancel keeps resume data; the next transfer sends Range, gets 206, and never pays twice" passed after 16.555 seconds.
+􀟈  Test "a dropped connection keeps resume data too (F-4 A), on a foreground session" started.
+􁁛  Test "an installed model reports one 1.0 and asks the server nothing" passed after 16.710 seconds.
+􀟈  Test "a cancel keeps the scratch and its resume data; .absent throughout; the next call resumes with a Range" started.
+􁁛  Test "an installed variant reports one 1.0 and asks the server nothing" passed after 16.622 seconds.
+􀟈  Test "a stopped transfer leaves nothing installed, keeps its scratch, and resumes next time" started.
+􁁛  Test "a dropped connection keeps resume data too (F-4 A), on a foreground session" passed after 0.008 seconds.
+􀟈  Test "two callers, one transfer: one request per file, both see the fractions, both return" started.
+􁁛  Test "an installed variant reports one 1.0 and asks the server nothing" passed after 16.714 seconds.
+􀟈  Test "a variant installed beside another does not fetch the shared tokenizer twice" started.
+§70 join · 2 callers · 1 request(s) · 524288 B sent · file 524288 B
+􁁛  Test "two callers, one transfer: one request per file, both see the fractions, both return" passed after 0.118 seconds.
+􀟈  Test "F-8 A: the transfer stops when the LAST waiter cancels, not the first" started.
+􁁛  Test "F-8 A: the transfer stops when the LAST waiter cancels, not the first" passed after 0.057 seconds.
+􁁛  Suite "AC-291/293/296 · the downloader against a counting server" passed after 30.547 seconds.
+􁁛  Test "a cancel keeps the scratch and its resume data; .absent throughout; the next call resumes with a Range" passed after 16.710 seconds.
+􀟈  Test "expectedInstall makes one request and creates no weights; expectedDownloadBytes then answers offline" started.
+􁁛  Test "expectedInstall makes one request and creates no weights; expectedDownloadBytes then answers offline" passed after 0.103 seconds.
+􀟈  Test "deleteModel removes the weights, the manifest, the listing and nothing beside them" started.
+􀢄  Test "a stopped transfer leaves nothing installed, keeps its scratch, and resumes next time" recorded an issue at WhisperInstallTests.swift:92:9: Expectation failed: counts.bytesSent < 2 * 1_048_576
+􀄵  never twice the file: 2359296
+􀄵  counts.bytesSent < 2 * 1_048_576 → false
+􀄵    counts.bytesSent → 2359296
+􀄵    2 * 1_048_576 → 2097152
+􀢄  Test "a stopped transfer leaves nothing installed, keeps its scratch, and resumes next time" failed after 16.853 seconds with 1 issue.
+􀄵  /// A partial must never be readable as an install — the failure a
+􀄵  /// field report produced for the neural voice, where a truncated
+􀄵  /// download was reported installed and then failed to load.
+􀟈  Test "the size is known without the network: the measured variants, then this device's listing" started.
+􁁛  Test "deleteModel removes the weights, the manifest, the listing and nothing beside them" passed after 0.096 seconds.
+􀟈  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" started.
+􁁛  Test "a variant installed beside another does not fetch the shared tokenizer twice" passed after 16.909 seconds.
+􀟈  Test "the size is known without the network: the measured variants, then this device's listing" started.
+􁁛  Test "the size is known without the network: the measured variants, then this device's listing" passed after 0.118 seconds.
+􀟈  Test "deleteModel removes this variant's folders and listing, and nothing beside them" started.
+􁁛  Test "deleteModel removes this variant's folders and listing, and nothing beside them" passed after 0.086 seconds.
+􀟈  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" started.
+􁁛  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" passed after 0.037 seconds.
+􀢄  Suite "AC-291/294/295 · Whisper through the downloader" failed after 47.462 seconds with 1 issue.
+􀄵  /// AC-291, AC-294, AC-295 for the Whisper ear (5a, piece 4; D-114
+􀄵  /// F-3 = A, F-4 = A, F-5 = A, F-6 = A): two repositories, one variant,
+􀄵  /// through the downloader — against the counting loopback server.
+􀄵  ///
+􀄵  /// The real download is ~142 MB across 22 files in two repositories;
+􀄵  /// these rows serve a handful of small files at their declared sizes and
+􀄵  /// prove every promise on real bytes over a real socket. What they watch
+􀄵  /// is the thing this engine could not say before: a percentage, a size
+􀄵  /// before the tap, a delete that removes exactly its own variant, and a
+􀄵  /// tokenizer that is fetched as part of "installed" rather than left to
+􀄵  /// a silent load-time fetch.
+􀄵  ///
+􀄵  /// THE VENDOR'S LAYOUT, UNDER THE BENCH'S OWN ROOT. The paths below the
+􀄵  /// root are the vendor's and no row chooses them; the root itself is
+􀄵  /// redirected, so these rows never write into a person's real model
+􀄵  /// folders. The variant name is unique per bench as well, so two rows
+􀄵  /// running together cannot collide. A stranger's folder beside the
+􀄵  /// model is written by hand and asserted untouched.
+􁁛  Test "deleteModel during a transfer stops it, and the caller hears CancellationError" passed after 7.611 seconds.
+􀟈  Test "two concurrent downloads make one transfer, and both return installed" started.
+􁁛  Test "the size is known without the network: the measured variants, then this device's listing" passed after 7.616 seconds.
+􀟈  Test "deleteModel removes this variant's six directories and leaves the other variant's" started.
+􁁛  Test "two concurrent downloads make one transfer, and both return installed" passed after 0.146 seconds.
+􀙟  Test "ensureModel(progress:) on an installed model: one 1.0, then resident" skipped: "set MMK_MLX_MODEL and run Scripts/metallib.sh to make this row real"
+􁁛  Suite "AC-291/293/294/295/296 · the mind through the downloader" passed after 55.033 seconds.
+􁁛  Test "deleteModel removes this variant's six directories and leaves the other variant's" passed after 0.247 seconds.
+􀟈  Test "deleteModel takes the shared tokenizer once no variant is left" started.
+􁁛  Test "deleteModel takes the shared tokenizer once no variant is left" passed after 0.086 seconds.
+􀟈  Test "a stopped transfer keeps its scratch and resumes; nothing is installed meanwhile" started.
+􁁛  Test "a stopped transfer keeps its scratch and resumes; nothing is installed meanwhile" passed after 0.106 seconds.
+􁁛  Suite "AC-291/294/295 · the neural voice through the downloader" passed after 55.346 seconds.
+􀢄  Test run with 45 tests in 11 suites failed after 55.346 seconds with 1 issue.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

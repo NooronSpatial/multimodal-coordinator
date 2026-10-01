@@ -1,0 +1,5 @@
+swiftc -O accept-after-shutdown.swift && ./accept-after-shutdown   (this Mac, 2026-10-01; macOS 26.6.1)
+
+1. accept after shutdown:   returned=false result=0 errno=0 (Undefined error: 0)
+2. blocked, then shutdown:  returned=false
+3. stuck after shutdown, then close: returned=true
