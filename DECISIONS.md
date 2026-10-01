@@ -6081,3 +6081,27 @@ SPEC §234–§239 signed — AC-348 … AC-354, and the five forks:
 - **F-36 = A** — on by default for Kokoro, every number overridable.
   *Rejected:* B, opt-in (a 0.75 s silence at every comma is the model's
   padding, not a policy any app chose).
+
+## D-139 — F-37: the download daemon's resume flake is made to explain itself; AC-344 stays open with the family named (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("A — make it explain itself")
+· **Ruling:** when one of the bench's resume rows fails, it prints what the
+daemon did — every request the loopback server saw for that file (its
+offset and the bytes sent), the resume data on disk, the error — so the
+next sighting is evidence, not a mystery. The flake is not hunted now;
+piece 2 goes on, and its own 20× loop meets the family again.
+
+**Why a ruling.** §233's hunt fixed two bench defects (D-136) and left a
+third family it never touched: the system's background download daemon,
+whose resume restarted from zero (or hung a delete) three times — 5c's run
+13, the trap loop's run 3, and run 11 of the 60× loop after the poke —
+always under the whole suite's parallel load. It keeps AC-344 at 59 of 60.
+
+- *Rejected:* **B — keep its rows apart** (the background-download suites
+  run one at a time, then a new loop): it tests the parallel-load guess,
+  but slows the suite and may not help — the daemon is shared by the whole
+  system — and it changes when tests run, not what they check.
+- *Rejected:* **C — hunt it now**: time away from the voice, which is 5d's
+  point (D-132).
+
+**The cost accepted:** the flake stays until a sighting explains it.
