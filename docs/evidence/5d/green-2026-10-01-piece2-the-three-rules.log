@@ -1,0 +1,114 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite SpeechPhraserTests started.
+􀟈  Suite "AC-348 · the quiet around a phrase" started.
+􀟈  Suite "AC-351 · the first word, measured" started.
+􀟈  Suite "AC-341 · the pauses inside an answer" started.
+􀟈  Suite PhraseCapTests started.
+􀟈  Test "the Arabic question mark ends a phrase exactly like ASCII's" started.
+􀟈  Test everyClauseMarkCuts() started.
+􀟈  Test maxLengthCutsAtTheLastWhitespace() started.
+􀟈  Test emptyAndWhitespaceTokensCompleteNothing() started.
+􀟈  Test subwordFragmentsAreJoinedVerbatim() started.
+􀟈  Test aLimitOfOneStillMakesProgress() started.
+􀟈  Test noEmittedPhraseIsUnspeakable() started.
+􀟈  Test wordTokensSplitAtPunctuation() started.
+􀟈  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" started.
+􀟈  Test punctuationGluedInsideATokenSplitsCorrectly() started.
+􀟈  Test aBurstCanCompleteSeveralPhrasesInOneFeed() started.
+􀟈  Test oneUnbrokenRunIsCutHardAtTheLimit() started.
+􀟈  Test flushWithNothingWorthSayingIsNil() started.
+􀟈  Test flushDeliversTheRemainder() started.
+􀟈  Test "the level is the meter's: a sample AT the level is loud, one just under it is quiet" started.
+􀟈  Test punctuationInsideANumberDoesNotCut() started.
+􀟈  Test "never a loud sample: words that touch both edges come back whole" started.
+􀟈  Test "the margin before the first loud sample, and the mark's pause after the last — exactly" started.
+􀟈  Suite "AC-350 · growing phrases" started.
+􀟈  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" started.
+􀟈  Test "less quiet than the rule asks for: all of it is kept" started.
+􀟈  Test "the quiet INSIDE the words stays: only the edges are shortened" started.
+􀟈  Test "nothing loud at all: the samples come back unchanged" started.
+􀟈  Test "sound at once: no quiet before it" started.
+􀟈  Test "the host's ear publishes each reply's quiet before its first word" started.
+􀟈  Test "a reply cut before it ever sounded publishes no first word" started.
+􀟈  Test "the quiet before the first word is not a pause inside the answer" started.
+􀟈  Test "the quiet before the first sound is measured, exactly" started.
+􀟈  Test "split across buffers, it is the same quiet" started.
+􀟈  Test "quiet is not silence: a soft stretch above the level is sound" started.
+􀟈  Test "the closing mark chooses the pause" started.
+􀟈  Test "a reply with only short pauses still reports its longest" started.
+􀟈  Test "the silence before the first sound and after the last is not a pause inside the answer" started.
+􀟈  Test "exactly the gap counts" started.
+􀟈  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" started.
+􀟈  Test "a smaller cap cuts the same reply into more decodes" started.
+􀟈  Test "a phrase that closes on no mark the table knows keeps only the margin after its words" started.
+􀟈  Test "a reply that never sounds has no first word" started.
+􀟈  Test "a pause split across buffers is ONE pause" started.
+􀟈  Test "an unbroken run past the 120 limit is still cut at 120: the memory bound outranks the opening cap" started.
+􀟈  Test "tokens at any granularity give the same phrases" started.
+􀟈  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" started.
+􀟈  Test "a reply shorter than the first cap is one phrase, as today" started.
+􀟈  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" started.
+􀟈  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" started.
+􀟈  Test "a clause mark that comes before the cap still wins" started.
+􀟈  Test "with no opening caps, nothing changes" started.
+􁁛  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" passed after 0.009 seconds.
+􁁛  Test "less quiet than the rule asks for: all of it is kept" passed after 0.009 seconds.
+􁁛  Test "the quiet before the first word is not a pause inside the answer" passed after 0.009 seconds.
+􁁛  Test "the margin before the first loud sample, and the mark's pause after the last — exactly" passed after 0.009 seconds.
+􁁛  Test "split across buffers, it is the same quiet" passed after 0.009 seconds.
+􁁛  Test "quiet is not silence: a soft stretch above the level is sound" passed after 0.009 seconds.
+􁁛  Test "nothing loud at all: the samples come back unchanged" passed after 0.009 seconds.
+􁁛  Test "exactly the gap counts" passed after 0.009 seconds.
+􁁛  Test "the silence before the first sound and after the last is not a pause inside the answer" passed after 0.009 seconds.
+􁁛  Test "a reply with only short pauses still reports its longest" passed after 0.009 seconds.
+􁁛  Test "the closing mark chooses the pause" passed after 0.010 seconds.
+􁁛  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" passed after 0.010 seconds.
+􁁛  Test "never a loud sample: words that touch both edges come back whole" passed after 0.010 seconds.
+􁁛  Test "a phrase that closes on no mark the table knows keeps only the margin after its words" passed after 0.010 seconds.
+􁁛  Test "sound at once: no quiet before it" passed after 0.008 seconds.
+􁁛  Test "the quiet INSIDE the words stays: only the edges are shortened" passed after 0.011 seconds.
+􁁛  Test "the quiet before the first sound is measured, exactly" passed after 0.011 seconds.
+􁁛  Test "the level is the meter's: a sample AT the level is loud, one just under it is quiet" passed after 0.011 seconds.
+􁁛  Test "a reply cut before it ever sounded publishes no first word" passed after 0.011 seconds.
+􁁛  Test everyClauseMarkCuts() passed after 0.012 seconds.
+􁁛  Test emptyAndWhitespaceTokensCompleteNothing() passed after 0.012 seconds.
+􁁛  Test subwordFragmentsAreJoinedVerbatim() passed after 0.012 seconds.
+􁁛  Test aLimitOfOneStillMakesProgress() passed after 0.012 seconds.
+􁁛  Test wordTokensSplitAtPunctuation() passed after 0.012 seconds.
+􁁛  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" passed after 0.012 seconds.
+􁁛  Test aBurstCanCompleteSeveralPhrasesInOneFeed() passed after 0.012 seconds.
+􁁛  Test oneUnbrokenRunIsCutHardAtTheLimit() passed after 0.012 seconds.
+􁁛  Test punctuationGluedInsideATokenSplitsCorrectly() passed after 0.012 seconds.
+􁁛  Test noEmittedPhraseIsUnspeakable() passed after 0.012 seconds.
+􁁛  Test flushDeliversTheRemainder() passed after 0.012 seconds.
+􁁛  Test punctuationInsideANumberDoesNotCut() passed after 0.012 seconds.
+􁁛  Test flushWithNothingWorthSayingIsNil() passed after 0.012 seconds.
+􁁛  Test "the Arabic question mark ends a phrase exactly like ASCII's" passed after 0.012 seconds.
+􁁛  Suite "AC-348 · the quiet around a phrase" passed after 0.012 seconds.
+􁁛  Test "an unbroken run past the 120 limit is still cut at 120: the memory bound outranks the opening cap" passed after 0.004 seconds.
+􁁛  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" passed after 0.004 seconds.
+􁁛  Test "a reply shorter than the first cap is one phrase, as today" passed after 0.004 seconds.
+􁁛  Test "with no opening caps, nothing changes" passed after 0.004 seconds.
+􁁛  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" passed after 0.004 seconds.
+􁁛  Test maxLengthCutsAtTheLastWhitespace() passed after 0.012 seconds.
+􁁛  Suite SpeechPhraserTests passed after 0.013 seconds.
+􁁛  Test "a clause mark that comes before the cap still wins" passed after 0.004 seconds.
+􁁛  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" passed after 0.004 seconds.
+􁁛  Test "the host's ear publishes each reply's quiet before its first word" passed after 0.012 seconds.
+􁁛  Test "tokens at any granularity give the same phrases" passed after 0.005 seconds.
+􁁛  Suite "AC-350 · growing phrases" passed after 0.014 seconds.
+􁁛  Test "a reply that never sounds has no first word" passed after 0.012 seconds.
+􁁛  Suite "AC-351 · the first word, measured" passed after 0.014 seconds.
+􁁛  Test "a pause split across buffers is ONE pause" passed after 0.012 seconds.
+􁁛  Suite "AC-341 · the pauses inside an answer" passed after 0.014 seconds.
+􁁛  Test "a smaller cap cuts the same reply into more decodes" passed after 0.033 seconds.
+􀟈  Test "no decoded phrase is longer than the cap it was given" started.
+􁁛  Test "no decoded phrase is longer than the cap it was given" passed after 0.001 seconds.
+􀟈  Test "cutting harder never drops a word" started.
+􁁛  Test "cutting harder never drops a word" passed after 0.001 seconds.
+􀟈  Test "Kokoro's default cap is the phraser's 120, restored by D-087" started.
+􁁛  Test "Kokoro's default cap is the phraser's 120, restored by D-087" passed after 0.001 seconds.
+􁁛  Suite PhraseCapTests passed after 0.035 seconds.
+􁁛  Test run with 49 tests in 6 suites passed after 0.035 seconds.

@@ -43,6 +43,8 @@ public struct SilenceMeter: Sendable, Equatable {
     private var run = 0
     /// Silence before the first sound is the reply not yet begun.
     private var heardSound = false
+    /// Quiet frames heard before the first sound, while it is awaited.
+    private var quietBefore = 0
     /// `minimumGap` in frames.
     private let gapFrames: Int
 
@@ -56,9 +58,10 @@ public struct SilenceMeter: Sendable, Equatable {
     public mutating func feed(_ samples: some Sequence<Float>) {
         for sample in samples {
             if abs(sample) < config.level {
-                if heardSound { run += 1 }
+                if heardSound { run += 1 } else { quietBefore += 1 }
             } else {
                 if run > 0 { close() }
+                if !heardSound { leadingFrames = quietBefore }
                 heardSound = true
             }
         }

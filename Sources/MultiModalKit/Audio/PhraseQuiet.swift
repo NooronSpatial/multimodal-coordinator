@@ -48,12 +48,25 @@ public struct PhraseQuiet: Sendable, Equatable {
     /// `closingMark` (nil: it closed on none — a cap cut, or a reply's end
     /// without one).
     public func kept(_ samples: [Float], closingMark: Character?, sampleRate: Double) -> Range<Int> {
-        0..<samples.count      // RED skeleton: the shape without the judgment
+        guard let first = samples.firstIndex(where: { abs($0) >= config.level }),
+              let last = samples.lastIndex(where: { abs($0) >= config.level }) else {
+            return 0..<samples.count        // nothing loud: no words to find, nothing to cut
+        }
+        let margin = Self.frames(config.margin, at: sampleRate)
+        let pause = closingMark.flatMap { config.pauses[$0] }.map { Self.frames($0, at: sampleRate) } ?? margin
+        return max(0, first - margin)..<min(samples.count, last + 1 + pause)
+    }
+
+    private static func frames(_ duration: Duration, at rate: Double) -> Int {
+        let (seconds, attoseconds) = duration.components
+        return Int(((Double(seconds) + Double(attoseconds) * 1e-18) * rate).rounded())
     }
 
     /// The clause mark a phrase closes on: its last character that is not
     /// whitespace, if that is one of the marks the phraser cuts at.
     public static func closingMark(of phrase: String) -> Character? {
-        nil                    // RED skeleton
+        guard let last = phrase.last(where: { !$0.isWhitespace }),
+              SpeechPhraser.clauseMarks.contains(last) else { return nil }
+        return last
     }
 }

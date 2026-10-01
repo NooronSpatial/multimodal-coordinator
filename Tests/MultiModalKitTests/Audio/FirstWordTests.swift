@@ -69,7 +69,8 @@ struct FirstWordTests {
         let format = try #require(AVAudioFormat(standardFormatWithSampleRate: rate, channels: 1))
         let buffer = try #require(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)))
         buffer.frameLength = AVAudioFrameCount(samples.count)
-        samples.withUnsafeBufferPointer { buffer.floatChannelData![0].update(from: $0.baseAddress!, count: samples.count) }
+        let channel = try #require(buffer.floatChannelData?[0])
+        samples.withUnsafeBufferPointer { channel.update(from: $0.baseAddress!, count: samples.count) }
         return buffer
     }
 

@@ -88,6 +88,8 @@ final class ReplyEar: @unchecked Sendable {
     private let sampleRate: Double
     private let gaps = Atomic<Int>(0)
     private let longestFrames = Atomic<Int>(0)
+    /// The quiet before the first word, in frames; −1 until there is one.
+    private let leadingFrames = Atomic<Int>(-1)
 
     init(meter: SilenceMeter) {
         self.meter = meter
@@ -100,11 +102,15 @@ final class ReplyEar: @unchecked Sendable {
         meter.feed(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
         gaps.store(meter.gaps, ordering: .releasing)
         longestFrames.store(meter.longestFrames, ordering: .releasing)
+        if let leading = meter.leadingFrames { leadingFrames.store(leading, ordering: .releasing) }
     }
 
     var pauses: ReplyPauses {
         let frames = longestFrames.load(ordering: .acquiring)
+        let leading = leadingFrames.load(ordering: .acquiring)
         return ReplyPauses(gaps: gaps.load(ordering: .acquiring),
-                           longest: .nanoseconds(Int64((Double(frames) / sampleRate * 1e9).rounded())))
+                           longest: .nanoseconds(Int64((Double(frames) / sampleRate * 1e9).rounded())),
+                           leadingQuiet: leading < 0 ? nil
+                               : .nanoseconds(Int64((Double(leading) / sampleRate * 1e9).rounded())))
     }
 }

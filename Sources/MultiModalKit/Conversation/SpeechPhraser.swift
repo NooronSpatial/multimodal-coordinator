@@ -62,13 +62,25 @@ public struct SpeechPhraser: Sendable {
             precondition(maxPhraseCharacters >= 1,
                          "SpeechPhraser needs room for at least one character")
             self.maxPhraseCharacters = maxPhraseCharacters
-            self.openingCaps = openingCaps      // RED skeleton: kept, not yet honoured
+            // The same refusal, for the same reason: a cap below one could
+            // not advance the cut.
+            precondition(openingCaps.allSatisfy { $0 >= 1 },
+                         "SpeechPhraser needs room for at least one character in every opening cap")
+            self.openingCaps = openingCaps
         }
     }
 
     private let config: Config
     /// Text that has arrived but not yet left as a phrase. Verbatim.
     private var buffer = ""
+    /// Phrases with something to say that have left, for the opening caps.
+    private var emitted = 0
+
+    /// The clause marks a phrase is cut at — one set, read by the cut and
+    /// by `PhraseQuiet.closingMark(of:)`, so the two cannot disagree.
+    /// ASCII, and the Arabic comma `،`, question mark `؟` and semicolon `؛`
+    /// (4u, AC-214) — the same marks in a different script.
+    static let clauseMarks: Set<Character> = [".", ",", ":", ";", "?", "!", "،", "؟", "؛"]
 
     public init(config: Config = Config()) {
         self.config = config
@@ -83,25 +95,36 @@ public struct SpeechPhraser: Sendable {
         // Rule 1: a clause mark followed by whitespace ends a phrase.
         // ("3.14" survives: its mark is followed by a digit, not space.)
         while let cut = boundary() {
-            phrases.append(String(buffer[..<cut]))
-            buffer = String(buffer[cut...])
+            leave(at: cut, into: &phrases)
         }
         // Rule 2: past the limit, cut at the last whitespace before it —
-        // no word is ever torn. One unbroken run is cut hard: it cannot
-        // wait forever, and a cut mid-run beats no speech at all.
+        // no word is ever torn. One unbroken run is cut hard at the LIMIT:
+        // it cannot wait forever, and a cut mid-run beats no speech at all.
         // `max(1, …)` is belt to the precondition's braces: the loop must be
         // unable to spin even if a limit of zero ever reaches it.
-        let cap = max(1, config.maxPhraseCharacters)
-        while buffer.count > cap {
+        //
+        // GROWING PHRASES (5d piece 2, F-34 A): while a reply's first
+        // phrases are being cut, the cap is the opening one — and a single
+        // word longer than it is NOT torn but left whole, cut at the first
+        // whitespace after it (the limit above still binds).
+        let limitCap = max(1, config.maxPhraseCharacters)
+        while true {
+            let opening = emitted < config.openingCaps.count
+            let cap = opening ? min(max(1, config.openingCaps[emitted]), limitCap) : limitCap
+            guard buffer.count > cap else { break }
             let limit = buffer.index(buffer.startIndex, offsetBy: cap)
-            let head = buffer[..<limit]
-            if let space = head.lastIndex(where: \.isWhitespace),
+            if let space = buffer[..<limit].lastIndex(where: \.isWhitespace),
                 space != buffer.startIndex {
-                phrases.append(String(buffer[..<space]))
-                buffer = String(buffer[space...])
+                leave(at: space, into: &phrases)
+            } else if opening, let space = buffer[limit...].firstIndex(where: \.isWhitespace),
+                      buffer.distance(from: buffer.startIndex, to: space) <= limitCap {
+                leave(at: space, into: &phrases)                  // the long word, whole
+            } else if opening, buffer.count <= limitCap {
+                break                                            // the word goes on: wait for its end
             } else {
-                phrases.append(String(head))
-                buffer = String(buffer[limit...])
+                // One unbroken run past the limit — today's hard cut (and
+                // when no opening cap is in force, `cap` IS the limit).
+                leave(at: buffer.index(buffer.startIndex, offsetBy: limitCap), into: &phrases)
             }
         }
         // THE LIVENESS INVARIANT: never emit a phrase with nothing to say.
@@ -111,6 +134,15 @@ public struct SpeechPhraser: Sendable {
         // turn forever. Only the max-length cut can produce such a piece
         // (a long whitespace run); dropping it costs nothing but spaces.
         return phrases.filter { $0.contains(where: { !$0.isWhitespace }) }
+    }
+
+    /// One phrase leaves at `cut`; a phrase with something to say counts
+    /// toward the opening caps.
+    private mutating func leave(at cut: String.Index, into phrases: inout [String]) {
+        let phrase = String(buffer[..<cut])
+        buffer = String(buffer[cut...])
+        phrases.append(phrase)
+        if phrase.contains(where: { !$0.isWhitespace }) { emitted += 1 }
     }
 
     /// No more tokens are coming: the remainder, if any words are in it.
@@ -129,7 +161,7 @@ public struct SpeechPhraser: Sendable {
             // and semicolon `؛` (4u, AC-214) — the same clause marks in a
             // different script. Until they were here an Arabic reply was
             // never phrased: it reached the mouth cut by the cap alone.
-            if ".,:;?!،؟؛".contains(buffer[cursor]) {
+            if Self.clauseMarks.contains(buffer[cursor]) {
                 let next = buffer.index(after: cursor)
                 if next < buffer.endIndex, buffer[next].isWhitespace {
                     return next
