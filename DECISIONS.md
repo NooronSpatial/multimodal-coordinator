@@ -5925,3 +5925,38 @@ moves the clock. The reader touches no shared state: nothing can race.
 
 - *Rejected:* **inside the actor, R2 as written** — ② proven through the
   coordinator only when it is zero, a nonzero ② only on the Mac harness.
+
+## D-135 — two findings of 5d piece 1, ruled: the runtime's teardown bug is fixed now, as its own piece; the downloader bench's flake is hunted now (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("Fix now, own piece"; "Hunt
+it now") · **Rulings:** (1) the bug the Mac harness found in
+`AIRuntime.run` is fixed now, as its own piece of 5d (SPEC §232), in the
+shape offered: a red test first, then the runtime cancels its remaining
+children after the stops; (2) the flake of the 20× loop's run 16, in 5a's
+downloader test bench, is hunted now (SPEC §233): reproduced first, then
+the patterns read as suspects are fixed only where a test proves them.
+
+**(1) The bug.** `AIRuntime.run` promises that when its observer — "or any
+child" — ends, the actors are stopped and the scope drains. It stops the
+pump, the ear and the coordinator, but a health seam's thermal watcher is
+a child that ends only when CANCELLED ("cancelled with the group, never
+stop()ped"), and nothing cancels the group when the observer returns on its
+own. Both demos end the runtime by cancelling it, so neither met it; the
+harness's second run did.
+
+- *Rejected:* **later, after 5d** — no current app hits it, but the harness
+  already did, and a door whose own sentence is false is the kind of debt
+  this project refuses.
+- *Rejected (not offered, recorded for the reader):* stopping the
+  diagnostics seam in the runtime's stop sequence — the seam is app-owned
+  and lives across sessions; finishing its broadcast would end every health
+  listener with the session.
+
+**(2) The flake.** 5a's "two callers, one transfer" failed in its setup:
+writing the served file returned POSIX 9 (a bad file descriptor) — the
+signature of a descriptor closed by someone who no longer owned its number.
+Not 5d's code. The method's rule decides it: one flake means not done.
+
+- *Rejected:* **record it and move on** — AC-344 would stand at 19 of 20 with
+  a reason, and the bench would stay fragile under parallel load (5c's run 13
+  was a different flake in the same bench).

@@ -8460,3 +8460,45 @@ returned empty text for 3 of 20 short sentences per run.
   timed-out wait end every later wait — rebuilt; three older copies remain.
 - **A mutation runner that miscounted**: a crashed run (an exclusivity trap)
   was counted as a survivor — the runner now says NO VERDICT.
+
+# 5d — two pieces the measurements found (D-135)
+
+## §232 — the runtime's teardown, when the observer ends on its own
+
+```
+ observer returns ─▶ pump.stop() · transcription.stop() · coordinator.stop()
+                     └── the thermal watcher (health seam): ends only on a CANCEL
+ today:  withTaskGroup waits for it for ever ─▶ run never returns, no teardown
+ D-135:  after the stops, the group cancels what is left ─▶ the scope drains
+```
+
+- **AC-345 — the observer ending ends the run.** With a health seam
+  attached, an observer that returns on its own makes `run` return, and the
+  teardown runs in its order (actors → `stopRendering` → `releaseSource`).
+- **AC-346 — the health seam outlives the session.** The same
+  `PipelineDiagnostics` serves a second session: its listener still hears a
+  thermal change after the first session ended.
+- **AC-347 — nothing else moved.** The runtime's tests unchanged and green;
+  the demos end by cancelling, as before.
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-345 | `AIRuntimeTests` · "the observer ending on its own ends the run, health seam attached" | runtime, scripted organs, a thermal source that never ends |
+| AC-346 | `AIRuntimeTests` · "the health seam outlives the session" | the same seam, two runs |
+| AC-347 | the suite | — |
+
+## §233 — the hunt for the downloader bench's flake
+
+**What is known.** Run 16 of piece 1's loop: "two callers, one transfer"
+failed in its setup — `Data.write` of the served file returned POSIX 9.
+Read, not proven: (a) `LoopbackFileServer.stop()` closes its listening
+socket while its accept thread may still call `accept` on that number —
+which another test may already have reused; (b) the re-entry tests'
+`DirectoryWatch` holds itself in its own event handler, so its `deinit`
+never runs and its descriptor leaks.
+
+**The order.** Reproduce first: the downloader suites, then the whole
+suite, looped on a frozen tree, every failing run kept whole. Then each
+suspect is proven or cleared by a test of its own before anything changes;
+a fix lands red-first. If nothing reproduces, the hunt reports that, with
+the counts, and the suspects that a test can prove are fixed anyway.
