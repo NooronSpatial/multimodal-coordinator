@@ -53,7 +53,10 @@ extension TranscribeModel {
             out += " → \(Self.ms(barge.window + barge.silence)) ms\n"
         }
         for (index, pauses) in replyPauses.enumerated() {
-            out += "reply #\(index + 1): \(pauses.gaps) pauses over 300 ms · longest \(Self.ms(pauses.longest)) ms\n"
+            let first = pauses.leadingQuiet.map { " · quiet before the first word \(Self.ms($0)) ms" }
+                ?? " · never sounded"
+            out += "reply #\(index + 1): \(pauses.gaps) pauses over 300 ms"
+                + " · longest \(Self.ms(pauses.longest)) ms\(first)\n"
         }
         out += "\nmedians · \(timelines.count) spoken turns · \(barges.count) barges · \(replyPauses.count) replies\n"
         out += Self.medianLine("② ear   ", timelines.compactMap(\.earFinish))
@@ -61,10 +64,27 @@ extension TranscribeModel {
         out += Self.medianLine("④ token ", timelines.map(\.firstToken))
         out += Self.medianLine("⑤ sound ", timelines.map(\.firstSound))
         out += Self.medianLine("FELT    ", timelines.compactMap { $0.felt(hangover: hangover) })
+        out += firstWordLines(hangover: hangover)
         out += Self.medianLine("⑦ window", barges.map(\.window))
         out += Self.medianLine("⑧ silent", barges.map(\.silence))
         out += Self.medianLine("⑥ longest pause", replyPauses.map(\.longest))
         out += "⑥ replies with a pause over 300 ms: \(replyPauses.filter { $0.gaps > 0 }.count)\n```\n"
+        return out
+    }
+
+    /// THE FELT PAUSE TO THE FIRST WORD (5d piece 2, F-35 A): the k-th
+    /// spoken turn is the k-th reply that sounded — trusted only when the
+    /// two counts agree, and said so when they do not.
+    private func firstWordLines(hangover: Duration) -> String {
+        let leads = replyPauses.compactMap(\.leadingQuiet)
+        var out = Self.medianLine("1st-word quiet", leads)
+        guard leads.count == timelines.count else {
+            return out + "TO 1st WORD  — not paired: \(timelines.count) spoken turns,"
+                + " \(leads.count) replies that sounded\n"
+        }
+        out += Self.medianLine("TO 1st WORD", zip(timelines, leads).compactMap { timeline, lead in
+            timeline.felt(hangover: hangover).map { $0 + lead }
+        })
         return out
     }
 

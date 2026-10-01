@@ -41,7 +41,8 @@ final class HarnessLatency: LatencyReporter, Sendable {
     /// `ListeningHost`'s `heard`: one reply's pauses, when its node is given back.
     func heard(_ pauses: ReplyPauses) {
         kept.withLock { $0.pauses.append(pauses) }
-        print("⏸  reply pauses: \(pauses.gaps) over 300 ms · longest \(pauses.longest.ms) ms")
+        let first = pauses.leadingQuiet.map { " · quiet before the first word \($0.ms) ms" } ?? " · it never sounded"
+        print("⏸  reply pauses: \(pauses.gaps) over 300 ms · longest \(pauses.longest.ms) ms" + first)
     }
 
     /// The medians, stage by stage (AC-342).
@@ -61,6 +62,7 @@ final class HarnessLatency: LatencyReporter, Sendable {
         lines.append(row("④ first token", spoken.map(\.firstToken)))
         lines.append(row("⑤ first sound", spoken.map(\.firstSound)))
         lines.append(row("   FELT PAUSE ", spoken.compactMap { $0.felt(hangover: hangover) }))
+        lines.append(contentsOf: Self.toTheFirstWord(spoken, kept.pauses, hangover: hangover, row: row))
         lines.append(row("⑦ barge window", kept.barges.map(\.window)))
         lines.append(row("⑧ to silence ", kept.barges.map(\.silence)))
         let gaps = kept.pauses.map(\.gaps)
@@ -68,6 +70,27 @@ final class HarnessLatency: LatencyReporter, Sendable {
                      + " · replies with one or more: \(gaps.filter { $0 > 0 }.count)")
         lines.append(row("⑥ longest pause", kept.pauses.map(\.longest)))
         return lines.joined(separator: "\n")
+    }
+
+    /// THE FELT PAUSE TO THE FIRST WORD (5d piece 2, F-35 A): ⑤ is stamped
+    /// when the player starts, and the reply may still hold quiet before its
+    /// first word. The k-th spoken turn is the k-th reply that sounded; if the
+    /// two counts differ (a reply cut after its stamp, before any audible
+    /// sample), the pairing is not trusted and the rows say so.
+    static func toTheFirstWord(_ spoken: [TurnTimeline], _ pauses: [ReplyPauses], hangover: Duration,
+                               row: (String, [Duration]) -> String) -> [String] {
+        let leads = pauses.compactMap(\.leadingQuiet)
+        var lines = [row("   quiet before the 1st word", leads)]
+        guard leads.count == spoken.count else {
+            lines.append("   FELT, TO THE FIRST WORD  — not paired: \(spoken.count) spoken turns,"
+                         + " \(leads.count) replies that sounded")
+            return lines
+        }
+        let felt = zip(spoken, leads).compactMap { timeline, lead in
+            timeline.felt(hangover: hangover).map { $0 + lead }
+        }
+        lines.append(row("   FELT, TO THE FIRST WORD", felt))
+        return lines
     }
 
     static func median(_ values: [Duration]) -> Duration? {
