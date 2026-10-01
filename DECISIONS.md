@@ -6051,3 +6051,33 @@ content, and the window's number in loud time, are not ruled here.
 
 **What this entry does NOT decide:** piece 2's spec and its forks — open
 until Ryad signs them.
+
+## D-138 — 5d piece 2 signed: the voice, every fork as recommended (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("Sign, all A") · **Ruling:**
+SPEC §234–§239 signed — AC-348 … AC-354, and the five forks:
+
+- **F-32 = A** — the trim finds the words by the audio, at the meter's
+  level (0.001), with a margin before the first loud sample: a pure rule in
+  the core, applied by the Kokoro decoder to each phrase. *Rejected:* B,
+  Kokoro's own token timestamps (a vendor field never used here, empty
+  without the misaki tokens, its accuracy at the edges unmeasured, Kokoro
+  only); C, both.
+- **F-33 = A** — the quiet kept after a phrase is Kokoro's own pause for
+  its closing mark, measured on this Mac inside whole sentences; a phrase
+  cut by a cap keeps only the margins. *Rejected:* B, one fixed pause (a
+  comma and a full stop would sound the same); C, trim only the first
+  phrase's lead-in (the ~0.75 s inside every answer would stay).
+- **F-34 = A** — growing caps: 20 characters, then 40, then the usual 120,
+  each cut at the last space before it, always at a clause mark if one
+  comes first; the numbers from the replay, confirmed by ear and on the
+  phone. *Rejected:* B, only the first phrase short (the replay shows the
+  voice running dry after the first words: 12 boundaries against 7); C, the
+  mind asked to open with a short phrase (the same opening every time, not
+  always obeyed, and the app's prompt rather than the voice).
+- **F-35 = A** — the listening host reports each reply's quiet before its
+  first audible sample; the logs print the felt pause to the first word.
+  *Rejected:* B, only writing the margin down.
+- **F-36 = A** — on by default for Kokoro, every number overridable.
+  *Rejected:* B, opt-in (a 0.75 s silence at every comma is the model's
+  padding, not a policy any app chose).
