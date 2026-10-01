@@ -90,10 +90,22 @@ struct FirstWordTests {
     @Test("buffers rendered before the player starts are not the reply's quiet")
     func beforeThePlayerStarts() throws {
         let ear = ReplyEar(meter: Self.meter())
-        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 120)), playing: false)    // decoding, not yet playing
-        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 150)), playing: false)
-        try ear.hear(Self.buffer(Self.quiet(40) + Self.sound(100)), playing: true)
+        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 120)), playerFrame: nil)    // decoding, not yet playing
+        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 150)), playerFrame: nil)
+        try ear.hear(Self.buffer(Self.quiet(40) + Self.sound(100)), playerFrame: 0)
         #expect(ear.pauses.leadingQuiet == .milliseconds(40), "only what the PLAYER held before its first word")
+    }
+
+    /// The second half of the harness's lesson (runs 9 and 10): a tap's block
+    /// runs a buffer or two AFTER the render, so "is it playing now?" let
+    /// silent buffers from before the start through. The player's own sample
+    /// position says exactly which frames came before its start.
+    @Test("a buffer that straddles the player's start counts only from the start")
+    func aBufferStraddlingTheStart() throws {
+        let ear = ReplyEar(meter: Self.meter())
+        let beforeStart = Array(repeating: Float(0), count: 16 * 120)
+        try ear.hear(Self.buffer(beforeStart + Self.quiet(40) + Self.sound(100)), playerFrame: -Int64(16 * 120))
+        #expect(ear.pauses.leadingQuiet == .milliseconds(40))
     }
 
     @Test("a reply cut before it ever sounded publishes no first word")

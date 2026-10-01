@@ -73,7 +73,7 @@ public final class ListeningHost: PlaybackHost, @unchecked Sendable {
         // (the Mac harness, runs 7 and 8), so the ear is told whether the
         // player had started. `weak`: the node holds this block until detach.
         node.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak node] buffer, _ in
-            ear.hear(buffer, playing: (node as? AVAudioPlayerNode)?.isPlaying ?? true)
+            ear.hear(buffer, playerFrame: (node as? AVAudioPlayerNode)?.isPlaying == false ? nil : 0)
         }
         ears.withLock { $0[ObjectIdentifier(node)] = ear }
     }
@@ -104,10 +104,12 @@ final class ReplyEar: @unchecked Sendable {
     }
 
     /// The tap's body: the buffer read in place, the two facts published.
-    /// - Parameter playing: whether the node had started playing when it
-    ///   rendered `buffer`; a buffer from before is not the reply's at all.
-    func hear(_ buffer: AVAudioPCMBuffer, playing: Bool = true) {
-        guard playing else { return }
+    /// - Parameter playerFrame: the PLAYER's own sample position of the
+    ///   buffer's first frame — nil when it was not playing, negative when
+    ///   the buffer began before the player's start. Frames before the
+    ///   start are not the reply's (RED skeleton: only nil is honoured).
+    func hear(_ buffer: AVAudioPCMBuffer, playerFrame: Int64? = 0) {
+        guard playerFrame != nil else { return }
         guard let channel = buffer.floatChannelData?[0] else { return }
         meter.feed(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
         gaps.store(meter.gaps, ordering: .releasing)
