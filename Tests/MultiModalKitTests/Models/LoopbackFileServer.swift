@@ -334,7 +334,13 @@ final class LoopbackFileServer: @unchecked Sendable {
         for watcher in watchers { watcher.resume() }
         semaphore.wait()
     }
+}
 
+// MARK: - the wire
+
+/// HTTP in, bytes out — moved out of the class body to keep it under the
+/// type-length bound; `private` still reaches across a same-file extension.
+extension LoopbackFileServer {
     private struct Request {
         let method: String
         let target: String

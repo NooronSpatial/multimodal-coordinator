@@ -159,7 +159,8 @@ struct ModelDownloaderStaleResumeTests {
         let counts = bench.server.counts(for: "big.bin")
         let story = bench.server.story(for: "big.bin")
         #expect(counts.rangeRequests >= 1, "the second attempt resumed — \(story)")
-        #expect(counts.requests - counts.rangeRequests == 1, "and nothing restarted from the start: \(counts) — \(story)")
+        #expect(counts.requests - counts.rangeRequests == 1,
+                "and nothing restarted from the start: \(counts) — \(story)")
         #expect(bench.resumeDataExists("big.bin"), "the fresh resume data is kept for the next attempt")
     }
 }
