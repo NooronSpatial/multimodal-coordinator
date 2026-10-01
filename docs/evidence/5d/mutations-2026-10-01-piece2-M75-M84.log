@@ -1,0 +1,87 @@
+## M75 — the trim keeps no margin before the first word
+file: Sources/MultiModalKit/Audio/PhraseQuiet.swift
+KILLED — red rows:
+  - less quiet than the rule asks for: all of it is kept
+  - the level is the meter's: a sample AT the level is loud, one just under it is quiet
+  - the margin before the first loud sample, and the mark's pause after the last — exactly
+  - the quiet INSIDE the words stays: only the edges are shortened
+􀢄  Test run with 47 tests in 5 suites failed after 0.018 seconds with 4 issues.
+reverted: yes
+
+## M76 — the closing mark is ignored: every phrase keeps only the margin after
+file: Sources/MultiModalKit/Audio/PhraseQuiet.swift
+KILLED — red rows:
+  - less quiet than the rule asks for: all of it is kept
+  - the closing mark chooses the pause
+  - the margin before the first loud sample, and the mark's pause after the last — exactly
+  - the quiet INSIDE the words stays: only the edges are shortened
+􀢄  Test run with 47 tests in 5 suites failed after 0.020 seconds with 4 issues.
+reverted: yes
+
+## M77 — the tail counts from the last loud sample, not past it (off by one)
+file: Sources/MultiModalKit/Audio/PhraseQuiet.swift
+KILLED — red rows:
+  - a phrase that closes on no mark the table knows keeps only the margin after its words
+  - the closing mark chooses the pause
+  - the level is the meter's: a sample AT the level is loud, one just under it is quiet
+  - the margin before the first loud sample, and the mark's pause after the last — exactly
+  - the quiet INSIDE the words stays: only the edges are shortened
+􀢄  Test run with 47 tests in 5 suites failed after 0.016 seconds with 6 issues.
+reverted: yes
+
+## M78 — a sample AT the level is quiet (> instead of >=)
+file: Sources/MultiModalKit/Audio/PhraseQuiet.swift
+KILLED — red rows:
+  - the level is the meter's: a sample AT the level is loud, one just under it is quiet
+􀢄  Test run with 47 tests in 5 suites failed after 0.021 seconds with 1 issue.
+reverted: yes
+
+## M79 — the closing mark is the last character, spaces included
+file: Sources/MultiModalKit/Audio/PhraseQuiet.swift
+KILLED — red rows:
+  - a phrase's closing mark is its last character that is not a space, when the phraser cuts there
+􀢄  Test run with 47 tests in 5 suites failed after 0.021 seconds with 1 issue.
+reverted: yes
+
+## M80 — the opening caps are ignored: every phrase at the 120 limit
+file: Sources/MultiModalKit/Conversation/SpeechPhraser.swift
+KILLED — red rows:
+  - after the opening caps, phrases are cut at 120 again — and nothing is lost or invented
+  - one unbroken word longer than an opening cap stays WHOLE — never torn at 20
+  - the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap
+􀢄  Test run with 47 tests in 5 suites failed after 0.022 seconds with 3 issues.
+reverted: yes
+
+## M81 — a long word is torn at the opening cap (no whole-word rule)
+file: Sources/MultiModalKit/Conversation/SpeechPhraser.swift
+KILLED — red rows:
+  - one unbroken word longer than an opening cap stays WHOLE — never torn at 20
+􀢄  Test run with 47 tests in 5 suites failed after 0.015 seconds with 1 issue.
+reverted: yes
+
+## M82 — a clause mark beyond the cap still wins (the burst defect, back)
+file: Sources/MultiModalKit/Conversation/SpeechPhraser.swift
+KILLED — red rows:
+  - a whole reply fed in ONE burst gives the same phrases as word by word
+  - with no opening caps too: a mark beyond the 120 limit never stretches a burst's phrase past it
+􀢄  Test run with 47 tests in 5 suites failed after 0.015 seconds with 4 issues.
+reverted: yes
+
+## M83 — the quiet before the first sound is never counted
+file: Sources/MultiModalKit/Audio/SilenceMeter.swift
+KILLED — red rows:
+  - split across buffers, it is the same quiet
+  - the host's ear publishes each reply's quiet before its first word
+  - the quiet before the first sound is measured, exactly
+  - the quiet before the first word is not a pause inside the answer
+􀢄  Test run with 47 tests in 5 suites failed after 0.021 seconds with 4 issues.
+reverted: yes
+
+## M84 — the host's ear never publishes the first word
+file: Sources/MultiModalKit/Audio/ListeningHost.swift
+KILLED — red rows:
+  - the host's ear publishes each reply's quiet before its first word
+􀢄  Test run with 47 tests in 5 suites failed after 0.020 seconds with 1 issue.
+reverted: yes
+
+source tree after the run: DIRTY
