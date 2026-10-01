@@ -83,6 +83,19 @@ struct FirstWordTests {
         #expect(ear.pauses.leadingQuiet == .milliseconds(325))
     }
 
+    /// Found by the Mac harness (runs 7 and 8): a tap on a player node hears
+    /// the node's silent buffers from the moment it is attached — before
+    /// `play()`, while the first phrase is still being synthesized — and the
+    /// ear counted that wait, which is ⑤, as the reply's own quiet.
+    @Test("buffers rendered before the player starts are not the reply's quiet")
+    func beforeThePlayerStarts() throws {
+        let ear = ReplyEar(meter: Self.meter())
+        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 120)), playing: false)    // decoding, not yet playing
+        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 150)), playing: false)
+        try ear.hear(Self.buffer(Self.quiet(40) + Self.sound(100)), playing: true)
+        #expect(ear.pauses.leadingQuiet == .milliseconds(40), "only what the PLAYER held before its first word")
+    }
+
     @Test("a reply cut before it ever sounded publishes no first word")
     func aSilentReplyPublishesNone() throws {
         let ear = ReplyEar(meter: Self.meter())

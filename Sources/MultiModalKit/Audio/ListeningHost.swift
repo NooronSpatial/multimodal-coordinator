@@ -97,7 +97,9 @@ final class ReplyEar: @unchecked Sendable {
     }
 
     /// The tap's body: the buffer read in place, the two facts published.
-    func hear(_ buffer: AVAudioPCMBuffer) {
+    /// - Parameter playing: whether the node had started playing when it
+    ///   rendered `buffer` (RED skeleton: not yet honoured).
+    func hear(_ buffer: AVAudioPCMBuffer, playing: Bool = true) {
         guard let channel = buffer.floatChannelData?[0] else { return }
         meter.feed(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
         gaps.store(meter.gaps, ordering: .releasing)
