@@ -43,8 +43,15 @@ public struct SpeechPhraser: Sendable {
         /// A phrase is cut here even without punctuation, at the last
         /// whitespace before the limit (or hard, if one unbroken run).
         public var maxPhraseCharacters: Int
+        /// GROWING PHRASES (5d piece 2; SPEC §235/2, F-34 A, AC-350): the
+        /// caps of a reply's FIRST phrases, in order — `[20, 40]` cuts the
+        /// first at 20 characters and the second at 40, then every phrase
+        /// at `maxPhraseCharacters`. Each is cut at the last whitespace
+        /// before its cap, and a clause mark that comes first still wins.
+        /// Empty: every phrase as before.
+        public var openingCaps: [Int]
 
-        public init(maxPhraseCharacters: Int = 120) {
+        public init(maxPhraseCharacters: Int = 120, openingCaps: [Int] = []) {
             // A limit below one cannot be honoured: there would be no room
             // for a single character, the cut could not advance, and `feed`
             // would spin forever building empty phrases. Found by review
@@ -55,6 +62,7 @@ public struct SpeechPhraser: Sendable {
             precondition(maxPhraseCharacters >= 1,
                          "SpeechPhraser needs room for at least one character")
             self.maxPhraseCharacters = maxPhraseCharacters
+            self.openingCaps = openingCaps      // RED skeleton: kept, not yet honoured
         }
     }
 

@@ -1,0 +1,246 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite PhraseCapTests started.
+􀟈  Suite "AC-350 · growing phrases" started.
+􀟈  Suite "AC-348 · the quiet around a phrase" started.
+􀟈  Suite "AC-341 · the pauses inside an answer" started.
+􀟈  Suite "AC-351 · the first word, measured" started.
+􀟈  Suite SpeechPhraserTests started.
+􀟈  Test "a smaller cap cuts the same reply into more decodes" started.
+􀟈  Test "the closing mark chooses the pause" started.
+􀟈  Test "a reply shorter than the first cap is one phrase, as today" started.
+􀟈  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" started.
+􀟈  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" started.
+􀟈  Test "the quiet INSIDE the words stays: only the edges are shortened" started.
+􀟈  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" started.
+􀟈  Test "with no opening caps, nothing changes" started.
+􀟈  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" started.
+􀟈  Test "a reply with only short pauses still reports its longest" started.
+􀟈  Test "less quiet than the rule asks for: all of it is kept" started.
+􀟈  Test "the margin before the first loud sample, and the mark's pause after the last — exactly" started.
+􀟈  Test "the level is the meter's: a sample AT the level is loud, one just under it is quiet" started.
+􀟈  Test "nothing loud at all: the samples come back unchanged" started.
+􀟈  Test "the silence before the first sound and after the last is not a pause inside the answer" started.
+􀟈  Test "quiet is not silence: a soft stretch above the level is sound" started.
+􀟈  Test "tokens at any granularity give the same phrases" started.
+􀟈  Test "a phrase that closes on no mark the table knows keeps only the margin after its words" started.
+􀟈  Test "never a loud sample: words that touch both edges come back whole" started.
+􀟈  Test "exactly the gap counts" started.
+􀟈  Test "an unbroken run past the 120 limit is still cut at 120: the memory bound outranks the opening cap" started.
+􀟈  Test "a clause mark that comes before the cap still wins" started.
+􀟈  Test "the host's ear publishes each reply's quiet before its first word" started.
+􀟈  Test "a reply cut before it ever sounded publishes no first word" started.
+􀟈  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" started.
+􀟈  Test "a pause split across buffers is ONE pause" started.
+􀟈  Test flushWithNothingWorthSayingIsNil() started.
+􀟈  Test "the quiet before the first word is not a pause inside the answer" started.
+􀟈  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" started.
+􀟈  Test aLimitOfOneStillMakesProgress() started.
+􀟈  Test "sound at once: no quiet before it" started.
+􀟈  Test oneUnbrokenRunIsCutHardAtTheLimit() started.
+􀟈  Test everyClauseMarkCuts() started.
+􀟈  Test aBurstCanCompleteSeveralPhrasesInOneFeed() started.
+􀟈  Test "the quiet before the first sound is measured, exactly" started.
+􀟈  Test "split across buffers, it is the same quiet" started.
+􀟈  Test "a reply that never sounds has no first word" started.
+􀟈  Test subwordFragmentsAreJoinedVerbatim() started.
+􀢄  Test "the closing mark chooses the pause" recorded an issue at PhraseQuietTests.swift:43:9: Expectation failed: kept.upperBound == Self.frames(325 + 400 + 350)
+􀄵  kept.upperBound == Self.frames(325 + 400 + 350) → false
+􀄵    kept.upperBound → 18320
+􀄵    Self.frames(325 + 400 + 350) → 17200
+􀢄  Test "a phrase that closes on no mark the table knows keeps only the margin after its words" recorded an issue at PhraseQuietTests.swift:49:9: Expectation failed: Self.trim.kept(phrase, closingMark: nil, sampleRate: Self.rate).upperBound == Self.frames(325 + 400 + 40)
+􀄵  a cap cut
+􀄵  Self.trim.kept(phrase, closingMark: nil, sampleRate: Self.rate).upperBound == Self.frames(325 + 400 + 40) → false
+􀄵    Self.trim.kept(phrase, closingMark: nil, sampleRate: Self.rate).upperBound → 18320
+􀄵    Self.frames(325 + 400 + 40) → 12240
+􀟈  Test maxLengthCutsAtTheLastWhitespace() started.
+􀢄  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" recorded an issue at PhraseQuietTests.swift:95:9: Expectation failed: PhraseQuiet.closingMark(of: "into small chunks,") == ","
+􀄵  PhraseQuiet.closingMark(of: "into small chunks,") == "," → false
+􀄵    PhraseQuiet.closingMark(of: "into small chunks,") → nil
+􀄵    "," → ,
+􀄵      some → ,
+􀢄  Test "a phrase that closes on no mark the table knows keeps only the margin after its words" recorded an issue at PhraseQuietTests.swift:51:9: Expectation failed: Self.trim.kept(phrase, closingMark: "؟", sampleRate: Self.rate).upperBound == Self.frames(325 + 400 + 40)
+􀄵  a mark with no pause in the table
+􀄵  Self.trim.kept(phrase, closingMark: "؟", sampleRate: Self.rate).upperBound == Self.frames(325 + 400 + 40) → false
+􀄵    Self.trim.kept(phrase, closingMark: "؟", sampleRate: Self.rate).upperBound → 18320
+􀄵    Self.frames(325 + 400 + 40) → 12240
+􀢄  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" recorded an issue at PhraseQuietTests.swift:96:9: Expectation failed: PhraseQuiet.closingMark(of: " Sure! ") == "!"
+􀄵  PhraseQuiet.closingMark(of: " Sure! ") == "!" → false
+􀄵    PhraseQuiet.closingMark(of: " Sure! ") → nil
+􀄵    "!" → !
+􀄵      some → !
+􀟈  Test emptyAndWhitespaceTokensCompleteNothing() started.
+􀢄  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" recorded an issue at PhraseQuietTests.swift:97:9: Expectation failed: PhraseQuiet.closingMark(of: "How can I help you today?") == "?"
+􀄵  PhraseQuiet.closingMark(of: "How can I help you today?") == "?" → false
+􀄵    PhraseQuiet.closingMark(of: "How can I help you today?") → nil
+􀄵    "?" → ?
+􀄵      some → ?
+􀟈  Test wordTokensSplitAtPunctuation() started.
+􀢄  Test "the margin before the first loud sample, and the mark's pause after the last — exactly" recorded an issue at PhraseQuietTests.swift:36:9: Expectation failed: kept == Self.frames(325 - 40)..<Self.frames(325 + 400 + 150)
+􀄵  kept == Self.frames(325 - 40)..<Self.frames(325 + 400 + 150) → false
+􀄵    kept → 0 ..< 18320
+􀄵      lowerBound → 0
+􀄵      upperBound → 18320
+􀄵    Self.frames(325 - 40)..<Self.frames(325 + 400 + 150) → 4560 ..< 14000
+􀄵      lowerBound → 4560
+􀄵      upperBound → 14000
+􀢄  Test "the level is the meter's: a sample AT the level is loud, one just under it is quiet" recorded an issue at PhraseQuietTests.swift:86:9: Expectation failed: Self.trim.kept(atLevel, closingMark: nil, sampleRate: Self.rate) == Self.frames(325 - 40)..<(Self.frames(325) + 1 + Self.frames(40))
+􀄵  Self.trim.kept(atLevel, closingMark: nil, sampleRate: Self.rate) == Self.frames(325 - 40)..<(Self.frames(325) + 1 + Self.frames(40)) → false
+􀄵    Self.trim.kept(atLevel, closingMark: nil, sampleRate: Self.rate) → 0 ..< 10401
+􀄵      lowerBound → 0
+􀄵      upperBound → 10401
+􀄵    Self.frames(325 - 40)..<(Self.frames(325) + 1 + Self.frames(40)) → 4560 ..< 5841
+􀄵      lowerBound → 4560
+􀄵      upperBound → 5841
+􀢄  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" recorded an issue at PhraseQuietTests.swift:98:9: Expectation failed: PhraseQuiet.closingMark(of: "Here is the plan:") == ":"
+􀄵  PhraseQuiet.closingMark(of: "Here is the plan:") == ":" → false
+􀄵    PhraseQuiet.closingMark(of: "Here is the plan:") → nil
+􀄵    ":" → :
+􀄵      some → :
+􀟈  Test "the Arabic question mark ends a phrase exactly like ASCII's" started.
+􀢄  Test "the quiet INSIDE the words stays: only the edges are shortened" recorded an issue at PhraseQuietTests.swift:66:9: Expectation failed: kept == Self.frames(325 - 40)..<Self.frames(325 + 800 + 350)
+􀄵  a 500 ms pause between the words is the voice's own phrasing
+􀄵  kept == Self.frames(325 - 40)..<Self.frames(325 + 800 + 350) → false
+􀄵    kept → 0 ..< 24720
+􀄵      lowerBound → 0
+􀄵      upperBound → 24720
+􀄵    Self.frames(325 - 40)..<Self.frames(325 + 800 + 350) → 4560 ..< 23600
+􀄵      lowerBound → 4560
+􀄵      upperBound → 23600
+􀟈  Test punctuationGluedInsideATokenSplitsCorrectly() started.
+􀟈  Test punctuationInsideANumberDoesNotCut() started.
+􀟈  Test noEmittedPhraseIsUnspeakable() started.
+􀟈  Test flushDeliversTheRemainder() started.
+􀢄  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" recorded an issue at SpeechPhraserGrowingTests.swift:38:9: Expectation failed: Self.phrases(Self.words(Self.firstLaw)) == [
+            "The first law of",
+            " thermodynamics states that energy",
+            " cannot be created or destroyed,",
+            " only transformed from one form to another."
+        ]
+􀄵  Self.phrases(Self.words(Self.firstLaw)) == [
+               "The first law of",
+               " thermodynamics states that energy",
+               " cannot be created or destroyed,",
+               " only transformed from one form to another."
+           ] → false
+􀄵    Self.phrases(Self.words(Self.firstLaw)) → ["The first law of thermodynamics states that energy cannot be created or destroyed,", " only transformed from one form to another."]
+􀄵    [
+                 "The first law of",
+                 " thermodynamics states that energy",
+                 " cannot be created or destroyed,",
+                 " only transformed from one form to another."
+             ] → ["The first law of", " thermodynamics states that energy", " cannot be created or destroyed,", " only transformed from one form to another."]
+􀢄  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" recorded an issue at SpeechPhraserGrowingTests.swift:65:9: Expectation failed: Self.phrases(Self.words(reply)) == [
+            "Pneumonoultramicroscopicsilicovolcanoconiosis",
+            " is a long word for a lung disease."
+        ]
+􀄵  Self.phrases(Self.words(reply)) == [
+               "Pneumonoultramicroscopicsilicovolcanoconiosis",
+               " is a long word for a lung disease."
+           ] → false
+􀄵    Self.phrases(Self.words(reply)) → ["Pneumonoultramicroscopicsilicovolcanoconiosis is a long word for a lung disease."]
+􀄵    [
+                 "Pneumonoultramicroscopicsilicovolcanoconiosis",
+                 " is a long word for a lung disease."
+             ] → ["Pneumonoultramicroscopicsilicovolcanoconiosis", " is a long word for a lung disease."]
+􁁛  Test "less quiet than the rule asks for: all of it is kept" passed after 0.003 seconds.
+􁁛  Test "nothing loud at all: the samples come back unchanged" passed after 0.003 seconds.
+􀢄  Test "the closing mark chooses the pause" failed after 0.004 seconds with 1 issue.
+􀢄  Test "the quiet before the first word is not a pause inside the answer" recorded an issue at FirstWordTests.swift:64:9: Expectation failed: meter.leading == .milliseconds(500)
+􀄵  meter.leading == .milliseconds(500) → false
+􀄵    meter.leading → nil
+􀄵    .milliseconds(500) → 0.5 seconds
+􀄵      some → 0.5 seconds
+􀄵        _low → 500000000000000000
+􀄵        _high → 0
+􀢄  Test "split across buffers, it is the same quiet" recorded an issue at FirstWordTests.swift:41:9: Expectation failed: meter.leading == .milliseconds(325)
+􀄵  meter.leading == .milliseconds(325) → false
+􀄵    meter.leading → nil
+􀄵    .milliseconds(325) → 0.325 seconds
+􀄵      some → 0.325 seconds
+􀄵        _low → 325000000000000000
+􀄵        _high → 0
+􀢄  Test "sound at once: no quiet before it" recorded an issue at FirstWordTests.swift:55:9: Expectation failed: meter.leading == .zero
+􀄵  meter.leading == .zero → false
+􀄵    meter.leading → nil
+􀄵    .zero → 0.0 seconds
+􀄵      some → 0.0 seconds
+􀄵        _low → 0
+􀄵        _high → 0
+􀢄  Test "the margin before the first loud sample, and the mark's pause after the last — exactly" failed after 0.004 seconds with 1 issue.
+􀢄  Test "the quiet INSIDE the words stays: only the edges are shortened" failed after 0.004 seconds with 1 issue.
+􀢄  Test "a phrase's closing mark is its last character that is not a space, when the phraser cuts there" failed after 0.004 seconds with 4 issues.
+􀢄  Test "the level is the meter's: a sample AT the level is loud, one just under it is quiet" failed after 0.004 seconds with 1 issue.
+􁁛  Test "quiet is not silence: a soft stretch above the level is sound" passed after 0.004 seconds.
+􁁛  Test "a reply with only short pauses still reports its longest" passed after 0.004 seconds.
+􁁛  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" passed after 0.005 seconds.
+􀢄  Test "the host's ear publishes each reply's quiet before its first word" recorded an issue at FirstWordTests.swift:82:9: Expectation failed: ear.pauses.leadingQuiet == .milliseconds(325)
+􀄵  ear.pauses.leadingQuiet == .milliseconds(325) → false
+􀄵    ear.pauses.leadingQuiet → nil
+􀄵    .milliseconds(325) → 0.325 seconds
+􀄵      some → 0.325 seconds
+􀄵        _low → 325000000000000000
+􀄵        _high → 0
+􁁛  Test "exactly the gap counts" passed after 0.005 seconds.
+􁁛  Test "the silence before the first sound and after the last is not a pause inside the answer" passed after 0.005 seconds.
+􀢄  Test "the quiet before the first sound is measured, exactly" recorded an issue at FirstWordTests.swift:28:9: Expectation failed: meter.leading == .milliseconds(325)
+􀄵  meter.leading == .milliseconds(325) → false
+􀄵    meter.leading → nil
+􀄵    .milliseconds(325) → 0.325 seconds
+􀄵      some → 0.325 seconds
+􀄵        _low → 325000000000000000
+􀄵        _high → 0
+􁁛  Test "a reply cut before it ever sounded publishes no first word" passed after 0.004 seconds.
+􀢄  Test "the quiet before the first word is not a pause inside the answer" failed after 0.004 seconds with 1 issue.
+􀢄  Test "sound at once: no quiet before it" failed after 0.004 seconds with 1 issue.
+􁁛  Test "a reply that never sounds has no first word" passed after 0.004 seconds.
+􀢄  Test "split across buffers, it is the same quiet" failed after 0.004 seconds with 1 issue.
+􀢄  Test "a phrase that closes on no mark the table knows keeps only the margin after its words" failed after 0.004 seconds with 2 issues.
+􀢄  Test "the host's ear publishes each reply's quiet before its first word" failed after 0.005 seconds with 1 issue.
+􁁛  Test "never a loud sample: words that touch both edges come back whole" passed after 0.004 seconds.
+􀢄  Test "the quiet before the first sound is measured, exactly" failed after 0.004 seconds with 1 issue.
+􁁛  Test "a reply shorter than the first cap is one phrase, as today" passed after 0.005 seconds.
+􁁛  Test "with no opening caps, nothing changes" passed after 0.005 seconds.
+􀢄  Suite "AC-348 · the quiet around a phrase" failed after 0.005 seconds with 10 issues.
+􀢄  Suite "AC-351 · the first word, measured" failed after 0.005 seconds with 5 issues.
+􁁛  Test "an unbroken run past the 120 limit is still cut at 120: the memory bound outranks the opening cap" passed after 0.005 seconds.
+􁁛  Test flushWithNothingWorthSayingIsNil() passed after 0.005 seconds.
+􁁛  Test aLimitOfOneStillMakesProgress() passed after 0.005 seconds.
+􁁛  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" passed after 0.005 seconds.
+􁁛  Test "a clause mark that comes before the cap still wins" passed after 0.005 seconds.
+􀢄  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" failed after 0.005 seconds with 1 issue.
+􁁛  Test oneUnbrokenRunIsCutHardAtTheLimit() passed after 0.005 seconds.
+􁁛  Test "a pause split across buffers is ONE pause" passed after 0.005 seconds.
+􁁛  Test emptyAndWhitespaceTokensCompleteNothing() passed after 0.004 seconds.
+􁁛  Test everyClauseMarkCuts() passed after 0.005 seconds.
+􁁛  Test flushDeliversTheRemainder() passed after 0.003 seconds.
+􁁛  Test subwordFragmentsAreJoinedVerbatim() passed after 0.005 seconds.
+􁁛  Test punctuationInsideANumberDoesNotCut() passed after 0.003 seconds.
+􁁛  Test maxLengthCutsAtTheLastWhitespace() passed after 0.004 seconds.
+􁁛  Test punctuationGluedInsideATokenSplitsCorrectly() passed after 0.004 seconds.
+􀢄  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" failed after 0.005 seconds with 1 issue.
+􁁛  Test wordTokensSplitAtPunctuation() passed after 0.004 seconds.
+􁁛  Test aBurstCanCompleteSeveralPhrasesInOneFeed() passed after 0.005 seconds.
+􁁛  Suite "AC-341 · the pauses inside an answer" passed after 0.006 seconds.
+􁁛  Test noEmittedPhraseIsUnspeakable() passed after 0.003 seconds.
+􀢄  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" recorded an issue at SpeechPhraserGrowingTests.swift:87:13: Expectation failed: phrases.count >= 4
+􀄵  phrases: 2
+􀄵  phrases.count >= 4 → false
+􀄵    phrases.count → 2
+􁁛  Test "the Arabic question mark ends a phrase exactly like ASCII's" passed after 0.004 seconds.
+􀢄  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" failed after 0.006 seconds with 1 issue.
+􁁛  Suite SpeechPhraserTests passed after 0.006 seconds.
+􁁛  Test "tokens at any granularity give the same phrases" passed after 0.006 seconds.
+􀢄  Suite "AC-350 · growing phrases" failed after 0.006 seconds with 3 issues.
+􁁛  Test "a smaller cap cuts the same reply into more decodes" passed after 2.116 seconds.
+􀟈  Test "no decoded phrase is longer than the cap it was given" started.
+􁁛  Test "no decoded phrase is longer than the cap it was given" passed after 0.001 seconds.
+􀟈  Test "cutting harder never drops a word" started.
+􁁛  Test "cutting harder never drops a word" passed after 0.001 seconds.
+􀟈  Test "Kokoro's default cap is the phraser's 120, restored by D-087" started.
+􁁛  Test "Kokoro's default cap is the phraser's 120, restored by D-087" passed after 0.001 seconds.
+􁁛  Suite PhraseCapTests passed after 2.117 seconds.
+􀢄  Test run with 49 tests in 6 suites failed after 2.117 seconds with 18 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

@@ -7,10 +7,15 @@ public struct ReplyPauses: Sendable, Equatable {
     public let gaps: Int
     /// The longest silent stretch inside the reply, of any length.
     public let longest: Duration
+    /// The quiet between the reply's first rendered sample and its first
+    /// audible one — what the person still waits through after the first
+    /// sound is stamped (5d piece 2; F-35 A, AC-351). Nil: nothing audible.
+    public let leadingQuiet: Duration?
 
-    public init(gaps: Int, longest: Duration) {
+    public init(gaps: Int, longest: Duration, leadingQuiet: Duration? = nil) {
         self.gaps = gaps
         self.longest = longest
+        self.leadingQuiet = leadingQuiet
     }
 }
 

@@ -34,6 +34,10 @@ public struct SilenceMeter: Sendable, Equatable {
     public private(set) var gaps = 0
     /// The longest closed silent stretch, of any length, in frames.
     public private(set) var longestFrames = 0
+    /// THE QUIET BEFORE THE FIRST WORD (5d piece 2; F-35 A, AC-351), in
+    /// frames: what the person waits through after the player starts. Nil
+    /// until the first sound — a reply that never sounds has no first word.
+    public private(set) var leadingFrames: Int?
 
     /// The silent stretch still open — closed by the next sound.
     private var run = 0
@@ -70,5 +74,10 @@ public struct SilenceMeter: Sendable, Equatable {
     /// The longest closed silent stretch, as time.
     public var longest: Duration {
         .nanoseconds(Int64((Double(longestFrames) / config.sampleRate * 1e9).rounded()))
+    }
+
+    /// The quiet before the first sound, as time — nil before any sound.
+    public var leading: Duration? {
+        leadingFrames.map { .nanoseconds(Int64((Double($0) / config.sampleRate * 1e9).rounded())) }
     }
 }
