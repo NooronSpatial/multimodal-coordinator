@@ -12,9 +12,12 @@ import Testing
 @Suite("§233 · the download bench gives back what it holds", .timeLimit(.minutes(1)))
 struct DownloadBenchHygieneTests {
 
-    /// A server's listening socket is closed by `stop()`. If its accept thread
-    /// is still alive then, the next `accept()` lands on a NUMBER the system
-    /// may already have handed to another test's socket or file.
+    /// A server stopped at once: its accept thread may not even have reached
+    /// its first `accept()`. (Corrected, D-136: alive at the return is not by
+    /// itself the danger — a thread that has not yet asked "stopped?" ends
+    /// without calling `accept`. The danger is a thread WAITING in `accept`,
+    /// which the next row reaches. This one keeps the stop deterministic
+    /// from the very start of a server's life.)
     @Test("stop() returns only once the accept thread has ended")
     func stopWaitsForTheAcceptThread() throws {
         let directory = FileManager.default.temporaryDirectory.appending(path: "bench-hygiene-\(UUID().uuidString)")

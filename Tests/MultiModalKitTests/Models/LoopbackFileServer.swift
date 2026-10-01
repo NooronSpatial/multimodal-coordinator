@@ -93,17 +93,43 @@ final class LoopbackFileServer: @unchecked Sendable {
 
     enum LoopbackFailure: Error { case couldNotListen(String) }
 
-    /// Stops serving. THE ORDER IS THE FIX (5d §233): the shutdown wakes the
-    /// accept thread, the thread is WAITED for, and only then is the socket
-    /// closed — so no thread of this server can call `accept` on a number the
-    /// system has already handed to another test's socket or file.
+    /// Stops serving. THE ORDER IS THE FIX (5d §233, D-136): the accept
+    /// thread is WOKEN by a poke, the thread is WAITED for, and only then is
+    /// the socket closed — so no thread of this server can call `accept` on
+    /// a number the system has already handed to another test's socket or
+    /// file. (`shutdown()` wakes nothing here: on this Mac a thread waiting
+    /// in `accept()` returns only for a connection or a `close()`.)
     func stop() {
         state.withLock { $0.stopped = true }
         release()
-        shutdown(socket, SHUT_RDWR)
+        let poke = Self.poke(port)
         _ = acceptDone.wait(timeout: .now() + 5)
         state.withLock { $0.socketClosed = true }
         close(socket)
+        if poke >= 0 { close(poke) }
+    }
+
+    /// A connection to this server's own port — the poke. The kernel queues
+    /// it on the listening socket, so `accept()` returns it whether the
+    /// thread waits there already or arrives after. Non-blocking, so a full
+    /// backlog cannot hang the stop. Returns the socket for `stop()` to
+    /// close, or -1 when none could be made: the stop then sits out its cap,
+    /// and the hygiene rows count it.
+    private static func poke(_ port: UInt16) -> Int32 {
+        let poke = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        guard poke >= 0 else { return -1 }
+        _ = fcntl(poke, F_SETFL, O_NONBLOCK)
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = port.bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        _ = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(poke, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return poke
     }
 
     /// Whether the accept thread has returned — read by the bench's own
@@ -168,8 +194,14 @@ final class LoopbackFileServer: @unchecked Sendable {
             }
             acceptDone.signal()
         }
-        while !state.withLock({ $0.stopped }) {
+        while true {
             let client = accept(socket, nil, nil)
+            // "Stopped?" is asked AFTER `accept` (D-136): the poke is what
+            // wakes a stopping server, and it is closed here, never served.
+            if state.withLock({ $0.stopped }) {
+                if client >= 0 { close(client) }
+                return
+            }
             guard client >= 0 else { continue }
             let thread = Thread { [weak self] in self?.serve(client) }
             thread.name = "loopback-file-server-connection"

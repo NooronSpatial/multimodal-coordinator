@@ -5960,3 +5960,38 @@ Not 5d's code. The method's rule decides it: one flake means not done.
 - *Rejected:* **record it and move on** — AC-344 would stand at 19 of 20 with
   a reason, and the bench would stay fragile under parallel load (5c's run 13
   was a different flake in the same bench).
+
+## D-136 — F-31: the bench's server wakes its waiting accept thread with a POKE, a connection to its own port; §233's first server fix stands corrected (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("A — poke") · **Ruling:**
+`LoopbackFileServer.stop()` connects to the server's own port, so a thread
+waiting in `accept()` always returns; the thread checks "stopped" AFTER
+`accept`, closes what it got and ends; only then is the listening socket
+closed.
+
+**Why a fork at all.** §233's first fix (`e306520`) waited for the accept
+thread BEFORE closing, trusting `shutdown()` to wake it. On this Mac it does
+not — neither a thread already waiting in `accept()` nor one that arrives
+after; only `close()` does (`experiment-2026-10-01-accept-after-shutdown`).
+So every stop of a server that had served sat out its 5 s cap, and then the
+close woke the thread anyway: the order the fix claimed was never reached,
+and every bench teardown paid 5 s. Its row stopped each server at once,
+before its thread reached `accept`, and never saw it. The loop on that fix
+did (runs 2 and 3, 1 of 200 stops); a second RED reached the real case
+(`230c530`: 3 of 3). The first RED's row also over-claimed: a thread alive
+at the return but not yet at its "stopped" check ends without ever calling
+`accept`, which is harmless.
+
+- *Rejected:* **B — a wake pipe and `poll()`.** Race-free and classic, but
+  two more descriptors to own and close, a non-blocking listening socket,
+  and every accepted connection set back to blocking: more descriptor code,
+  in a hunt about descriptor hygiene.
+- *Rejected:* **C — a dispatch read source, no accept thread.** The
+  guarantee comes from libdispatch (no handler after the cancel handler,
+  which closes the socket — the watch fix's rule), but it is the biggest
+  change: the server's chosen shape (blocking threads, argued in its
+  header) goes, and the hygiene rows' flags change meaning.
+
+**The cost accepted.** A trick that needs its comment. If the poke cannot
+connect (no descriptor left, a full backlog), the stop falls back to its
+5 s cap and the hygiene rows count it — visible, never hidden.
