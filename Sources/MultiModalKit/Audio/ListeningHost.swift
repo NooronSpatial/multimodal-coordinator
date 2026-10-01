@@ -67,7 +67,14 @@ public final class ListeningHost: PlaybackHost, @unchecked Sendable {
         try host.attachForPlayback(node, format: format)
         let ear = ReplyEar(meter: SilenceMeter(config: .init(
             level: level, minimumGap: minimumGap, sampleRate: format.sampleRate)))
-        node.installTap(onBus: 0, bufferSize: 1024, format: nil) { buffer, _ in ear.hear(buffer) }
+        // A tap hears the node from the moment it is ATTACHED — silent
+        // buffers while the first phrase is still being synthesized, before
+        // `play()`. Those are the first-sound stage, not the reply's quiet
+        // (the Mac harness, runs 7 and 8), so the ear is told whether the
+        // player had started. `weak`: the node holds this block until detach.
+        node.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak node] buffer, _ in
+            ear.hear(buffer, playing: (node as? AVAudioPlayerNode)?.isPlaying ?? true)
+        }
         ears.withLock { $0[ObjectIdentifier(node)] = ear }
     }
 
@@ -98,8 +105,9 @@ final class ReplyEar: @unchecked Sendable {
 
     /// The tap's body: the buffer read in place, the two facts published.
     /// - Parameter playing: whether the node had started playing when it
-    ///   rendered `buffer` (RED skeleton: not yet honoured).
+    ///   rendered `buffer`; a buffer from before is not the reply's at all.
     func hear(_ buffer: AVAudioPCMBuffer, playing: Bool = true) {
+        guard playing else { return }
         guard let channel = buffer.floatChannelData?[0] else { return }
         meter.feed(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
         gaps.store(meter.gaps, ordering: .releasing)
