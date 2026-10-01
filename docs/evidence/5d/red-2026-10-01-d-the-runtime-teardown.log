@@ -1,0 +1,23 @@
+# 5d §232 — the runtime's teardown when the observer ends on its own: RED before the fix (2026-10-01).
+# swift test --filter AIRuntimeTests · this Mac, Xcode 27, no warnings-as-errors. Both new rows fail on
+# 'run never came back' at their 10 s deadline (the run is then cancelled, so nothing hangs); AC-346's own
+# guard - the second session still hears the seam - passes; the four older rows pass.
+
+􀟈  Test run started.
+􀟈  Suite AIRuntimeTests started.
+􀟈  Test "the observer ending on its own ends the run, with a health seam attached (AC-345)" started.
+􀢄  Test "the observer ending on its own ends the run, with a health seam attached (AC-345)" recorded an issue at AIRuntimeTests+Teardown.swift:55:9: Expectation failed: await Self.returnsOnItsOwn(runtime)
+􀢄  Test "the observer ending on its own ends the run, with a health seam attached (AC-345)" failed after 10.188 seconds with 1 issue.
+􀟈  Test "the health seam outlives the session: a second session still hears it (AC-346)" started.
+􀢄  Test "the health seam outlives the session: a second session still hears it (AC-346)" recorded an issue at AIRuntimeTests+Teardown.swift:63:9: Expectation failed: await Self.returnsOnItsOwn(first)
+􀢄  Test "the health seam outlives the session: a second session still hears it (AC-346)" failed after 10.214 seconds with 1 issue.
+􀟈  Test "the app's listeners are open before any loop publishes (AC-202)" started.
+􁁛  Test "the app's listeners are open before any loop publishes (AC-202)" passed after 0.007 seconds.
+􀟈  Test "teardown runs actors → stopRendering → releaseSource (AC-203)" started.
+􁁛  Test "teardown runs actors → stopRendering → releaseSource (AC-203)" passed after 0.001 seconds.
+􀟈  Test "listen-only tears down source-last with no rendering step" started.
+􁁛  Test "listen-only tears down source-last with no rendering step" passed after 0.001 seconds.
+􀟈  Test "every policy value goes through untouched (AC-204)" started.
+􁁛  Test "every policy value goes through untouched (AC-204)" passed after 0.001 seconds.
+􀢄  Suite AIRuntimeTests failed after 20.413 seconds with 2 issues.
+􀢄  Test run with 6 tests in 1 suite failed after 20.418 seconds with 2 issues.

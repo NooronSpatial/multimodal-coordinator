@@ -19,3 +19,4 @@ warnings as errors) is the gate.
 | `harness-2026-09-30-run5.log`, `…-run6.log` | **The AC-342 pair, on the committed code** (INSTRUMENTS §73's table): felt pause 2 394 and 2 030 ms; ④ 867/822; every reply holds a silence over 300 ms (34 of 34). |
 | `stability-2026-09-30.txt` | The 20× loop at `4a5b3df`: **19 of 20** at `1001 tests in 143 suites`. |
 | `stability-2026-09-30-run16-FAILED.log` | Run 16, whole: one issue, NOT in 5d's code — 5a's "two callers, one transfer" failed in its setup, writing the served file (POSIX 9, bad file descriptor). Not reproduced, not yet explained (SPEC §231). |
+| `red-2026-10-01-d-the-runtime-teardown.log` | §232 (D-135) RED: the observer returning on its own with a health seam attached — `run` never comes back (both new rows fail at their 10 s deadline, nothing hangs); the older runtime rows pass. |
