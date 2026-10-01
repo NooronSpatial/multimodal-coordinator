@@ -1,0 +1,21 @@
+commit 4a5b3df · macOS 26.6.1 · Xcode 27, Swift 6.4 · no warnings-as-errors
+run 1: 􁁛  Test run with 1001 tests in 143 suites passed after 36.741 seconds.
+run 2: 􁁛  Test run with 1001 tests in 143 suites passed after 27.141 seconds.
+run 3: 􁁛  Test run with 1001 tests in 143 suites passed after 5.532 seconds.
+run 4: 􁁛  Test run with 1001 tests in 143 suites passed after 20.504 seconds.
+run 5: 􁁛  Test run with 1001 tests in 143 suites passed after 36.985 seconds.
+run 6: 􁁛  Test run with 1001 tests in 143 suites passed after 20.176 seconds.
+run 7: 􁁛  Test run with 1001 tests in 143 suites passed after 46.274 seconds.
+run 8: 􁁛  Test run with 1001 tests in 143 suites passed after 18.222 seconds.
+run 9: 􁁛  Test run with 1001 tests in 143 suites passed after 20.636 seconds.
+run 10: 􁁛  Test run with 1001 tests in 143 suites passed after 18.721 seconds.
+run 11: 􁁛  Test run with 1001 tests in 143 suites passed after 20.310 seconds.
+run 12: 􁁛  Test run with 1001 tests in 143 suites passed after 19.618 seconds.
+run 13: 􁁛  Test run with 1001 tests in 143 suites passed after 20.517 seconds.
+run 14: 􁁛  Test run with 1001 tests in 143 suites passed after 20.714 seconds.
+run 15: 􁁛  Test run with 1001 tests in 143 suites passed after 20.420 seconds.
+run 16: 􀢄  Test run with 1001 tests in 143 suites failed after 18.315 seconds with 1 issue.
+run 17: 􁁛  Test run with 1001 tests in 143 suites passed after 50.607 seconds.
+run 18: 􁁛  Test run with 1001 tests in 143 suites passed after 85.105 seconds.
+run 19: 􁁛  Test run with 1001 tests in 143 suites passed after 30.667 seconds.
+run 20: 􁁛  Test run with 1001 tests in 143 suites passed after 19.500 seconds.

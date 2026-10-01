@@ -5886,3 +5886,86 @@ one, in every row.
   actor of an idle app — indicative; the counts are exact.
 - **The probe talks to the vendor directly**, not through the library's
   keeper: it measures the model's behaviour, which is what F-18 needed.
+
+## 73. The pause a person feels, stage by stage — the phone's setup on this Mac, spoken to by a recording (5d, AC-342)
+
+**What was asked.** Ryad feels the delay in every setup he tried, in four
+places: after he stops talking, when he interrupts, inside the answer, and
+on the first turn (D-132). The one number the app showed — "felt pause" —
+started at the final transcript, so the whole pause had never been measured
+(SPEC §224). Piece 1 measures it: the coordinator reports a timeline per
+spoken turn and per barge (AC-335…AC-340), and a `ListeningHost` counts the
+silences inside each reply from what is actually played (AC-341).
+
+**Machine and command.** This Mac (macOS 26.6, Xcode 27, release build),
+2026-09-30. Ryad's phone setup: the Whisper base ear, the local
+Qwen3-4B-4bit mind (MLX), the Kokoro-82M voice; his phone's policy — a
+300 ms silence wait, a 500 ms gate, a 600 ms barge window — and the Mac's
+own VAD gate, 0.02. The scripted person: `Fixtures/ryad-en.wav` cut into 22
+sentences at its pauses; 20 turns; interruptions at sentences 7 and 14.
+
+```bash
+swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro --hangover 300 --gate 500 --window 600
+```
+
+Six runs, all kept in `docs/evidence/5d/harness-2026-09-30-run*.log`. Runs 1
+and 2 hung and found two things (below); runs 3 and 4 measured on the
+harness before its lint refactor; **runs 5 and 6 are the pair on the
+committed code**, and the table is theirs.
+
+**The pause, stage by stage** (medians over the spoken turns, ms):
+
+| stage | | run 5 | run 6 | difference |
+|---|---|---:|---:|---:|
+| ① | the silence wait — the hangover, fixed | 300 | 300 | 0 |
+| ② | the ear's finish (speech end → final text) | 145 | 141 | −4 |
+| ③ | the reply gate | 503 | 503 | 0 |
+| ④ | the mind's first token | 867 | 822 | −45 |
+| ⑤ | the voice's first sound | 522 | 284 | −238 |
+| | **the felt pause, ① to ⑤** | **2 394** | **2 030** | −364 |
+| ⑦ | barge window (one barge each) | 600 | 600 | 0 |
+| ⑧ | barge accepted → both stages silent | 1 | 0 | −1 |
+| ⑥ | longest silence inside an answer | 777 | 805 | +28 |
+| ⑥ | replies with a silence over 300 ms | 17 of 17 | 17 of 17 | |
+
+Both runs: the same 20 sentences, 17 spoken turns (the ear returned empty
+text for 3 short sentences each time), one barge. Runs 3 and 4 had the same
+shape: felt pause 2 320 and 2 256 ms.
+
+**Where the time goes, warm:**
+
+```
+you stop ─① 300─▶ ─② ~140─▶ ─③ 500─▶ ─④ ~850─▶ ─⑤ ~300–500─▶ first sound     ≈ 2.0–2.4 s
+          waiting   the ear   waiting   the mind   the voice
+          └──── 800 ms of pure waiting ────┘ and the mind starts only after it
+```
+
+**What it found.**
+
+1. **The mind's first token is the biggest stage** (④, 0.8–0.9 s), and it
+   starts only after the gate: ① + ③ are 800 ms of pure waiting, in series
+   with the thinking.
+2. **Every answer holds a silence** — 34 of 34 replies in runs 5 and 6, the
+   longest 740–890 ms. That is about what Kokoro needs to decode one full
+   120-character phrase (0.2× real time on 4 s of audio). The per-phrase
+   proof — decode against playback — is the fix's job, not piece 1's.
+3. **The cold first turn is mostly the ear's first model load.** The first
+   run after each build paid 13.3–14.1 s in ② (runs 3 and 5); the second run
+   0.8–1.6 s (runs 4 and 6).
+4. **A short voice over an answer is ignored, by design** (run 1): an
+   interruption shorter than the 600 ms window never barges (D-071, the echo
+   rule) — a quick "stop" does nothing. And a barge that lands pays the whole
+   window: ⑦ is exactly 600 ms; after it, the stages are silent in ~0 ms (⑧).
+5. **The ear returns empty text for some short real sentences** (3 of 20 per
+   run: listening → idle), so those turns are never answered.
+
+**Found by the harness, not by the tests:** `AIRuntime.run` never returns
+when its observer returns on its own while a health seam is attached (run
+2). The seam's thermal watcher is a child that only a CANCEL ends, and
+nothing cancels it; both demos end their runtime by cancelling it, so
+neither ever met this. A library bug, latent, and Ryad's to rule (fix it
+now, or later).
+
+**What this does not measure.** Echo: the person speaks into the ring, not
+through a loudspeaker. The phone's own speed and heat. The audio device's
+output latency after ⑧. Those are the phone session's (AC-343).

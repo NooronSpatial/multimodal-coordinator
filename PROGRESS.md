@@ -8,7 +8,8 @@ an evidence file, or a tag note (`git show <tag>`).*
 
 **As of 2026-09-30** · `main` at `f11dca4` · latest tag **0.5.0**
 (`e82533d`) · **next milestone: 5d — the fast voice** (D-132); piece 1,
-the turn timeline, is signed and being built (SPEC §224–§230, D-133).
+the turn timeline, is built and measured on the Mac (INSTRUMENTS §73); its phone row is
+owed, and its 20× loop was 19 of 20 (SPEC §231).
 
 ## The picture
 
@@ -69,7 +70,9 @@ work when Arabic was parked (D-100).
 
 | gap | what goes wrong | status | where |
 |---|---|---|---|
-| the conversation feels slow — after the person stops talking, when they interrupt, inside the answer, on the first turn — in every setup Ryad tried | 800 ms of fixed waiting before the mind starts (the silence wait, then the reply gate); a 600 ms interrupt window; the whole pause never measured | **open** — 5d, piece 1 measures it first | D-132; SPEC §224 |
+| the conversation feels slow — after the person stops talking, when they interrupt, inside the answer, on the first turn — in every setup Ryad tried | measured on the Mac in his setup: the felt pause is 2.0–2.4 s warm (① 300 · ② ~140 · ③ 500 · ④ ~850 · ⑤ 300–500), the mind starting only after 800 ms of waiting; a silence over 300 ms inside every answer; a cold first turn of 13–14 s (the ear's first model load); an interruption needs 600 ms of voice | **open** — measured; the fixes are next, each a fork (SPEC §229) | D-132; SPEC §231; INSTRUMENTS §73 |
+| `AIRuntime.run` never returns when its observer returns on its own while a health seam is attached | the thermal watcher ends only when cancelled, and nothing cancels it; both demos end by cancelling, so neither met it | **open** — found by the 5d harness; Ryad's to rule | SPEC §231; `docs/evidence/5d/harness-2026-09-30-run2-teardown-HUNG.log` |
+| the ear returns empty text for some short real sentences | those turns are never answered (3 of 20 per Mac run) | **open** | INSTRUMENTS §73 |
 | a barge while a tool's body runs drops that tool's record | the write stands, but the memory never learns it, so the next turn's model does not know it happened | **open** | SPEC §214 "Known limits" |
 | the yes binds to the tool's name | after a yes, the model's next call of that tool runs with whatever number it writes; B-iv (name plus arguments) would close it | **open** — ruled and recorded as a hole | D-110 F-10 B-ii; ARCHITECTURE § "The tool contract (4z)" |
 | a tool cannot take a list or an object | the door refuses it | **open** — a 4z non-goal | SPEC §194 |
@@ -111,6 +114,8 @@ work when Arabic was parked (D-100).
 | one CI run that never finished | **open** — not explained, not seen again | SPEC §214; `docs/evidence/5b/ci-hang-2026-09-29.md` |
 | a time limit on CI (`timeout-minutes`) | **proposed, not ruled** | — |
 | about ten test waits still poll (`Task.yield()` in a capped loop) where the rule is events | **open** | the TTS, transcription, pump and diagnostics tests |
+| 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **open** — not yet explained | SPEC §221, §231 |
+| three copies of the old `Signals` test helper (one timed-out wait ends every later wait) | **open** — the ToolSpike copy is rebuilt | `AIRuntimeTests`, `AdmissionTests`, `ReplyContractTests` |
 | teach-back rows | **owed** (e.g. 4z's AC-287); 5b's was skipped by ruling | SPEC; D-127 |
 | stale lines in the docs | **open** — README's phase table stops at 4h, and its "two real mouths" paragraph predates Kokoro (D-084); ARCHITECTURE's front-door paragraph still says the runtime "cannot call a tool", false since 4z | README; ARCHITECTURE § "The front door" |
 

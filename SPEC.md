@@ -8417,3 +8417,46 @@ numbers say:
 Red before green; the suite green; mutations on the stamps; the 20× loop
 20 of 20; lint zero; the demo compiles; INSTRUMENTS §73's Mac table; the
 phone row from Ryad's session; present → HALT, and the first fix's fork.
+
+## §231 — results (piece 1), measured 2026-09-30 on `milestone/5d-fast-voice`
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-335 one timeline per spoken turn, exact | **met** — every stage equal to its scripted delay, reported at the first sound (D-133) | `TurnTimelineTests`, mutations M52–M60 |
+| AC-336 the gate is its own stage | **met** — 500 in, 500 out; zero without a gate | `TurnTimelineTests`, mutation M54 |
+| AC-337 the old number did not move | **met** — `turnLatency` equals `sinceFinal`, from ONE clock reading | `TurnTimelineTests`; M60 survives as a belt (a manual clock cannot tell two readings apart) |
+| AC-338 a barge has its own timeline | **met** — the window on the audio timeline (500 ms in, 500 out; zero when off or while thinking); the silence = a mouth's 70 ms to go quiet; a turn cut before its first sound reports no pause | `TurnTimelineTests`, mutations M56, M57 |
+| AC-339 a turn that never spoke reports none | **met** — empty final, failed ear, a reply killed in the gate, a silent mind | `TurnTimelineTests` (guards green at red) |
+| AC-340 nothing breaks | **met** — a reporter written for 0.5.0 compiles; `Scripts/api.sh` shows additions only | `api-diff-2026-09-30.txt` |
+| AC-341 the pauses inside an answer | **met** — the pure meter exact on scripted streams (M61–M65 killed), then on the real mouth: every reply of the Mac runs measured | `SilenceMeterTests`, INSTRUMENTS §73 |
+| AC-342 the Mac harness repeats | **met** — runs 5 and 6 on the committed code: the same 20 sentences, 17 spoken turns and one barge each; the medians side by side in §73 (felt pause 2 394 and 2 030 ms) | `harness-2026-09-30-run5/6.log` |
+| AC-343 the first numbers | **met on the Mac** (INSTRUMENTS §73); **the phone row is OWED** — one session of Ryad's | §73 |
+| AC-344 nothing else moved | **NOT YET** — the suite green (1 001 tests in 143 suites), lint zero, the demo compiles for iOS; but the 20× loop was **19 of 20**: run 16 failed in 5a's downloader tests (below) | `stability-2026-09-30.txt`, `stability-2026-09-30-run16-FAILED.log` |
+
+**What the measurements found** (INSTRUMENTS §73): warm, the felt pause is
+2.0–2.4 s — ① 300 + ② ~140 + ③ 500 + ④ ~850 + ⑤ 300–500. The mind's first
+token is the biggest stage and starts only after 800 ms of pure waiting.
+Every answer holds a silence over 300 ms (34 of 34). The cold first turn is
+mostly the ear's first model load (13–14 s). A voice over an answer shorter
+than the 600 ms window never interrupts it, by design (D-071). The ear
+returned empty text for 3 of 20 short sentences per run.
+
+**What it found that it did not plan to:**
+
+- **A library bug** (harness run 2): `AIRuntime.run` never returns when its
+  observer returns on its own while a health seam is attached — the thermal
+  watcher ends only when cancelled, and nothing cancels it. Both demos end
+  the runtime by cancelling it, so neither met it. Latent; Ryad's to rule.
+- **A test-bench flake** (the 20× loop, run 16): 5a's "two callers, one
+  transfer" failed in its SETUP — writing the served file returned POSIX
+  error 9 (bad file descriptor). Not in 5d's code. Read, not yet proven: the
+  loopback server closes its listening socket while its accept thread may
+  still call `accept` on that number, and the directory watcher of the
+  re-entry tests holds itself strongly and leaks its descriptor. 5c's loop
+  met a different 5a downloader flake (§221, run 13). Ryad's to rule.
+- **A demo flag that lied**: `audio-demo --voice=kokoro` was parsed and
+  ignored (`makeVoice()` is Qwen3 always) — fixed under F-29 A.
+- **A shared test helper's flaw**: `ToolSpikeTests.Signals` let one
+  timed-out wait end every later wait — rebuilt; three older copies remain.
+- **A mutation runner that miscounted**: a crashed run (an exclusivity trap)
+  was counted as a survivor — the runner now says NO VERDICT.
