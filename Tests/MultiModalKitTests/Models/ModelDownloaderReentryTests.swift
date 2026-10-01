@@ -229,7 +229,12 @@ final class DirectoryWatch: @unchecked Sendable {
         guard descriptor >= 0 else { throw DownloadBench.Failure.cannotWatch(directory.path) }
         source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: [.write, .extend],
                                                            queue: DispatchQueue(label: "directory-watch"))
-        source.setEventHandler { [self] in
+        // WEAK (5d §233): a handler that held the watch kept it alive for
+        // ever, and its descriptor with it. The descriptor is closed by the
+        // source's cancel handler — the one moment the source no longer uses
+        // it (libdispatch's rule) — and never before.
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
             let waiting = self.state.withLock { state -> [CheckedContinuation<Void, Never>] in
                 let waiting = state.waiting
                 state.waiting.removeAll()
@@ -238,12 +243,12 @@ final class DirectoryWatch: @unchecked Sendable {
             }
             for continuation in waiting { continuation.resume() }
         }
+        source.setCancelHandler { [descriptor] in close(descriptor) }
         source.resume()
     }
 
     deinit {
         source.cancel()
-        close(descriptor)
     }
 
     func changed() async {

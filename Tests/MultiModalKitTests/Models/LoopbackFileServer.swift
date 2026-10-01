@@ -49,11 +49,17 @@ final class LoopbackFileServer: @unchecked Sendable {
         var stopped = false
         /// The accept thread has returned (5d §233: what `stop()` must wait for).
         var acceptLoopEnded = false
+        /// `stop()` has closed the listening socket.
+        var socketClosed = false
+        /// The accept thread was still alive when the socket was closed.
+        var acceptEndedAfterClose = false
     }
 
     private let directory: URL
     private let socket: Int32
     private let state = Mutex(State())
+    /// Signalled by the accept thread as it returns (5d §233).
+    private let acceptDone = DispatchSemaphore(value: 0)
     let port: UInt16
 
     init(directory: URL) throws {
@@ -87,16 +93,24 @@ final class LoopbackFileServer: @unchecked Sendable {
 
     enum LoopbackFailure: Error { case couldNotListen(String) }
 
+    /// Stops serving. THE ORDER IS THE FIX (5d §233): the shutdown wakes the
+    /// accept thread, the thread is WAITED for, and only then is the socket
+    /// closed — so no thread of this server can call `accept` on a number the
+    /// system has already handed to another test's socket or file.
     func stop() {
         state.withLock { $0.stopped = true }
         release()
         shutdown(socket, SHUT_RDWR)
+        _ = acceptDone.wait(timeout: .now() + 5)
+        state.withLock { $0.socketClosed = true }
         close(socket)
     }
 
     /// Whether the accept thread has returned — read by the bench's own
     /// hygiene test (5d §233).
     var acceptLoopEnded: Bool { state.withLock { $0.acceptLoopEnded } }
+    /// Whether the accept thread outlived the socket's close (5d §233).
+    var acceptEndedAfterClose: Bool { state.withLock { $0.acceptEndedAfterClose } }
 
     func url(for path: String) -> URL {
         URL(string: "http://127.0.0.1:\(port)/\(path)")!
@@ -147,7 +161,13 @@ final class LoopbackFileServer: @unchecked Sendable {
     // MARK: - the threads
 
     private func acceptLoop() {
-        defer { state.withLock { $0.acceptLoopEnded = true } }
+        defer {
+            state.withLock { state in
+                state.acceptLoopEnded = true
+                state.acceptEndedAfterClose = state.socketClosed
+            }
+            acceptDone.signal()
+        }
         while !state.withLock({ $0.stopped }) {
             let client = accept(socket, nil, nil)
             guard client >= 0 else { continue }

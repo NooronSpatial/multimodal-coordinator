@@ -24,9 +24,12 @@ struct DownloadBenchHygieneTests {
         for _ in 0..<200 {
             let server = try LoopbackFileServer(directory: directory)
             server.stop()
-            if !server.acceptLoopEnded { stillRunning += 1 }
+            // Alive at the return, or alive when the socket was closed: the
+            // second is the danger itself, and a stop that closed first and
+            // waited after would hide behind the first check alone.
+            if !server.acceptLoopEnded || server.acceptEndedAfterClose { stillRunning += 1 }
         }
-        #expect(stillRunning == 0, "\(stillRunning) of 200 stops returned with the accept thread alive")
+        #expect(stillRunning == 0, "\(stillRunning) of 200 stops closed or returned with the accept thread alive")
     }
 
     /// A watch the test has dropped must go: its dispatch source and its
