@@ -1,0 +1,37 @@
+swift run -c release bakeoff kokoro-pauses   (this Mac, 2026-10-01 15:08, macOS 26.6.1; Kokoro-82M float16, voice af_heart)
+
+
+⏸  KOKORO-PAUSES (5d piece 2, F-33 A) — whole sentences, one mark each, quiet below 0.001
+    model: /Users/ryad/Library/Application Support/Kokoro/kokoro-float16.safetensors
+
+| mark | sentence | lead quiet ms | quiet at the mark ms | longest quiet inside ms | mark's predicted span ms | tail quiet ms |
+|---|---|---:|---:|---:|---|---:|
+| , | Germany has a long history, shaped by many wars and reunions. | 342 | 152 | 152 | 2025–2162 | 414 |
+| , | I can help with that, if you tell me a little more. | 300 | 18 | 121 | 1375–1475 | 413 |
+| , | The first law says energy is conserved, never created. | 312 | 181 | 181 | 2525–2662 | 451 |
+| , | Grill the chicken first, then slice it into thin strips. | 322 | 8 | 90 | 1525–1625 | 408 |
+| . | I can hear you. Say that again and I will stop. | 326 | 3 | 107 | 1100–1237 | 411 |
+| . | That is a good question. Let me think about it for a moment. | 310 | 30 | 142 | 1600–1725 | 404 |
+| . | Algebra uses letters for numbers. It helps us solve equations. | 346 | 228 | 228 | 2425–2525 | 419 |
+| . | The recipe is ready. Enjoy your lunch with a fresh salad. | 333 | 234 | 234 | 1475–1612 | 445 |
+| ? | Do you mean low carb? I can suggest a simple dinner. | 320 | 19 | 159 | 1375–1500 | 444 |
+| ? | Is that the right city? Tell me and I will check again. | 325 | 212 | 212 | 1450–1587 | 412 |
+| ? | Would you like more detail? I can explain the second law. | 313 | 204 | 204 | 1650–1775 | 439 |
+| ! | Good morning! How can I help you today? | 330 | 24 | 103 | 975–1087 | 419 |
+| ! | That sounds great! Let me find a recipe for you. | 335 | 163 | 163 | 1375–1475 | 437 |
+| ! | Sure! Here is a simple low carb recipe for lunch. | 311 | 8 | 109 | 700–788 | 430 |
+| : | Here is the plan: grill the chicken and steam the spinach. | 297 | 182 | 182 | 1275–1413 | 429 |
+| : | The answer is simple: energy changes form but never disappears. | 323 | 408 | 408 | 1625–1763 | 419 |
+| : | I can suggest an idea: an app that tracks your focus time. | 334 | 201 | 201 | 1800–1925 | 437 |
+| ; | Italy has a rich history; its art changed the whole of Europe. | 335 | 206 | 206 | 1750–1875 | 425 |
+| ; | The first law is about energy; the second is about disorder. | 312 | 259 | 259 | 2125–2250 | 458 |
+| ; | I know the basics; ask me anything about it. | 337 | 30 | 120 | 1375–1487 | 419 |
+
+per mark — the quiet at the mark, median (min – max):
+  ,    85 ms  (8 – 181), 4 sentences
+  .   129 ms  (3 – 234), 4 sentences
+  ?   204 ms  (19 – 212), 3 sentences
+  !    24 ms  (8 – 163), 3 sentences
+  :   201 ms  (182 – 408), 3 sentences
+  ;   206 ms  (30 – 259), 3 sentences
+every utterance: lead quiet median 324 ms, tail quiet median 422 ms
