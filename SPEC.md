@@ -8523,6 +8523,66 @@ suspect is proven or cleared by a test of its own before anything changes;
 a fix lands red-first. If nothing reproduces, the hunt reports that, with
 the counts, and the suspects that a test can prove are fixed anyway.
 
+### §233 — results, 2026-10-01
+
+```
+ three kinds of failure, all in 5a's download bench, never in the code it tests
+   POSIX 9 on a file write ........ 1 seen  (4a5b3df, run 16 of 20)
+   the helper's words empty ....... 1 seen  (5ed42bf, run 7 of 40)
+   the download daemon's resume ... 3 seen  (5c run 13 of 20 · the trap loop · 614a8b5 run 11 of 60)
+```
+
+**Reproduced.** The whole suite 40× at `5ed42bf`, before any bench change:
+**39 of 40** — run 7: the re-entry row's first life printed nothing the
+test read, though the server had its one request. A temporary descriptor
+trap (canary threads guarding descriptors with the kernel's close guard;
+never committed), the bench suites alone: two green, then run 3 red on
+Whisper's resume row (2 359 296 bytes for a 1 MiB file, with one `Range`
+request) — no guard fired; the trap's own load is suspected, not proven.
+
+**Cleared by experiment.** `Process` closing a shared stdout/stderr pipe
+twice: 0 stolen descriptors in 1 500 launches each way. The helper's
+reading logic against a process that exits at once: 0 empty in 300.
+
+**Proven and fixed, red first.**
+
+1. **The bench's server could reach `accept()` after its socket closed.**
+   The first fix (`e306520`) was WRONG: it waited for the accept thread
+   before closing, trusting `shutdown()` to wake it, and on this Mac
+   `shutdown()` wakes nothing — only `close()` does
+   (`experiment-2026-10-01-accept-after-shutdown`). Every stop of a server
+   that had served sat out a 5 s cap, and the close woke the thread anyway.
+   The loop on that fix found it (runs 2 and 3), a second red row proved it
+   (3 of 3), and the first red row's claim was corrected: a thread alive
+   but not yet at its "stopped" check ends without calling `accept`. Fixed
+   by the poke (D-136): a connection to the server's own port wakes the
+   thread; the socket closes only after it has ended. M72 and M74 killed,
+   M73 a belt.
+2. **The re-entry tests' directory watch held itself**, so it was never
+   freed and its descriptor leaked for the life of the test process. Fixed:
+   a weak handler; the source's cancel handler closes the descriptor. M70
+   and M71 killed (M71 only after the row was made to check the descriptor
+   its name promised).
+
+**After the fixes.** The whole suite 60× at `614a8b5`: **59 of 60**, the
+last 49 in a row. Run 11 failed in the daemon's family: two resume rows
+restarted from zero (no `Range` request) in the same moment, and a delete
+row hit its 60 s limit.
+
+**What stays unexplained.**
+
+- **POSIX 9 and the empty words.** Neither fixed defect closes a number
+  another test owns — a stale `accept` could steal a connection, a leaked
+  descriptor is never closed — so neither is proven the cause. Neither was
+  seen in the 60 runs after the fixes; at the rate seen before (2 in 60
+  runs), a clean 60 by luck alone is about 1 in 8. Suggestive, not proof.
+- **The daemon's resume** — three sightings, always inside the system's
+  background download daemon, always under the whole suite's parallel
+  load. Not hunted yet.
+
+**AC-344 stays open:** the loop was 59 of 60, and its one failure is the
+daemon's, not piece 1's code. What to do with that family is Ryad's ruling.
+
 # 5d piece 2 — the voice: start on the first words, and never wait for nothing (D-137)
 
 ## §234 — why: what piece 1 found in the voice

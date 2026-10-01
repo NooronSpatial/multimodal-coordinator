@@ -117,7 +117,7 @@ work when Arabic was parked (D-100).
 | one CI run that never finished | **open** — not explained, not seen again | SPEC §214; `docs/evidence/5b/ci-hang-2026-09-29.md` |
 | a time limit on CI (`timeout-minutes`) | **proposed, not ruled** | — |
 | about ten test waits still poll (`Task.yield()` in a capped loop) where the rule is events | **open** | the TTS, transcription, pump and diagnostics tests |
-| 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **being hunted** (D-135): two bench defects proven and fixed (D-136); the download daemon's resume family still recurs; the cause of the bad descriptor not found | SPEC §221, §231, §233 |
+| 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **hunted** (D-135): two bench defects proven and fixed (D-136); after them, 59 of 60 — the bad descriptor and the empty helper words not seen again, causes not proven; the download daemon's resume family recurs (3 sightings) — Ryad's ruling | SPEC §221, §231, §233 |
 | three copies of the old `Signals` test helper (one timed-out wait ends every later wait) | **open** — the ToolSpike copy is rebuilt | `AIRuntimeTests`, `AdmissionTests`, `ReplyContractTests` |
 | teach-back rows | **owed** (e.g. 4z's AC-287); 5b's was skipped by ruling | SPEC; D-127 |
 | stale lines in the docs | **open** — README's phase table stops at 4h, and its "two real mouths" paragraph predates Kokoro (D-084); ARCHITECTURE's front-door paragraph still says the runtime "cannot call a tool", false since 4z | README; ARCHITECTURE § "The front door" |
