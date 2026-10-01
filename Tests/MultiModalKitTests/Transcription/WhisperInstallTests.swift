@@ -83,13 +83,16 @@ struct WhisperInstallTests {
                 "and nothing of it is where the check looks")
         #expect(bench.exists("scratch/model/AudioEncoder.mlmodelc/weights/weight.bin.resume"),
                 "F-4 = A: what can be resumed is kept")
+        let resumeData = resumeDataLine(bench.url("scratch/model/AudioEncoder.mlmodelc/weights/weight.bin.resume"))
 
         bench.server.release()
         try await bench.engine.download()
 
-        let counts = bench.server.counts(for: bench.filePath("AudioEncoder.mlmodelc/weights/weight.bin"))
-        #expect(counts.rangeRequests == 1, "resumed, not restarted")
-        #expect(counts.bytesSent < 2 * 1_048_576, "never twice the file: \(counts.bytesSent)")
+        let weights = bench.filePath("AudioEncoder.mlmodelc/weights/weight.bin")
+        let counts = bench.server.counts(for: weights)
+        let story = "\(resumeData) · \(bench.server.story(for: weights))"
+        #expect(counts.rangeRequests == 1, "resumed, not restarted — \(story)")
+        #expect(counts.bytesSent < 2 * 1_048_576, "never twice the file: \(counts.bytesSent) — \(story)")
         #expect(await bench.engine.modelInstalled())
     }
 
@@ -293,20 +296,25 @@ struct WhisperBench {
     /// `tokenizer`, `scratch/model`, `scratch/tokenizer`, each optionally
     /// followed by a path inside it.
     func exists(_ what: String) -> Bool {
+        url(what).map { FileManager.default.fileExists(atPath: $0.path) } ?? false
+    }
+
+    /// Where a landmark lives — `exists`'s mapping, also read by a failing
+    /// resume row to name its resume data (D-139).
+    func url(_ what: String) -> URL? {
         let parts = what.split(separator: "/", maxSplits: 1).map(String.init)
         let scratched = parts.first == "scratch"
         let rest = scratched
             ? (parts.count > 1 ? parts[1].split(separator: "/", maxSplits: 1).map(String.init) : [])
             : parts
-        guard let which = rest.first else { return false }
+        guard let which = rest.first else { return nil }
         let folder: URL
         switch which {
         case "model": folder = scratched ? scratch(modelFolder) : modelFolder
         case "tokenizer": folder = scratched ? scratch(tokenizerFolder) : tokenizerFolder
-        default: return false
+        default: return nil
         }
-        let url = rest.count > 1 ? folder.appending(path: rest[1]) : folder
-        return FileManager.default.fileExists(atPath: url.path)
+        return rest.count > 1 ? folder.appending(path: rest[1]) : folder
     }
 
     private func scratch(_ folder: URL) -> URL {

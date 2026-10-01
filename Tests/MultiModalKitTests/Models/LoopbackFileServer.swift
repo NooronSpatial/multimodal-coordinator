@@ -1,6 +1,15 @@
 import Foundation
 import Synchronization
 
+/// The resume data at `url`, as a failing resume row's first words (5d,
+/// D-139): its size, or that there was none.
+func resumeDataLine(_ url: URL?) -> String {
+    guard let url, let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int else {
+        return "NO resume data on disk"
+    }
+    return "resume data \(size) B on disk"
+}
+
 // THE LOOPBACK SERVER (5a, SPEC §203) — the instrument every downloader
 // row measures against.
 //
@@ -36,8 +45,20 @@ final class LoopbackFileServer: @unchecked Sendable {
         var firstRangeOffset: Int?
     }
 
+    /// One request, as the server lived it (5d, D-139): where it started,
+    /// what it sent, and how it ended — so a resume row that fails can say
+    /// what the download daemon actually did.
+    struct Served: Equatable {
+        /// The `Range` start asked for; nil for a whole-file request.
+        let offset: Int?
+        var sent = 0
+        var ending = "streaming"
+    }
+
     private struct State {
         var counts: [String: Counts] = [:]
+        /// Path → every request for it, in arrival order.
+        var served: [String: [Served]] = [:]
         /// Path → the byte count after which a connection parks.
         var holds: [String: Int] = [:]
         /// Path → the byte count after which the connection is dropped.
@@ -146,6 +167,18 @@ final class LoopbackFileServer: @unchecked Sendable {
         state.withLock { $0.counts[path] ?? Counts() }
     }
 
+    /// Every request for `path`, one line each — what a failing resume row
+    /// prints, so the next sighting of the daemon's flake is evidence (D-139):
+    /// "#1 whole file · 131072 B · held, then the peer went away | #2 Range from 131072 · 917504 B · complete".
+    func story(for path: String) -> String {
+        let served = state.withLock { $0.served[path] ?? [] }
+        guard !served.isEmpty else { return "the server saw NO request for \(path)" }
+        return served.enumerated().map { index, request in
+            let from = request.offset.map { "Range from \($0)" } ?? "whole file"
+            return "#\(index + 1) \(from) · \(request.sent) B · \(request.ending)"
+        }.joined(separator: " | ")
+    }
+
     /// The connection serving `path` sends `bytes` and then parks until
     /// `release()`.
     func hold(_ path: String, after bytes: Int) {
@@ -231,7 +264,8 @@ final class LoopbackFileServer: @unchecked Sendable {
             status = "206 Partial Content"
             extra = "Content-Range: bytes \(start)-\(size - 1)/\(size)\r\n"
         }
-        state.withLock { state in
+        let entry = state.withLock { state -> Int in
+            state.served[path, default: []].append(Served(offset: request.range.map { _ in start }))
             var counts = state.counts[path, default: Counts()]
             counts.requests += 1
             if request.range != nil {
@@ -239,36 +273,52 @@ final class LoopbackFileServer: @unchecked Sendable {
                 if counts.firstRangeOffset == nil { counts.firstRangeOffset = start }
             }
             state.counts[path] = counts
+            return state.served[path, default: []].count - 1
         }
+        var ending = "the peer went away"
+        defer { state.withLock { $0.served[path]?[entry].ending = ending } }
         let head = "HTTP/1.1 \(status)\r\nContent-Length: \(size - start)\r\n\(extra)"
             + "Accept-Ranges: bytes\r\nETag: \"\(path)-v1\"\r\nContent-Type: application/octet-stream\r\n"
             + "Connection: close\r\n\r\n"
         guard write(client, head) else { return }
-        guard request.method != "HEAD" else { return }
+        guard request.method != "HEAD" else {
+            ending = "HEAD"
+            return
+        }
         try? handle.seek(toOffset: UInt64(start))
-        stream(handle, bytes: size - start, to: client, path: path)
+        ending = stream(handle, bytes: size - start, to: client, path: path, entry: entry)
     }
 
     /// The body, in 64 KB chunks — counted, held or dropped as the test
     /// asked.
-    private func stream(_ handle: FileHandle, bytes total: Int, to client: Int32, path: String) {
+    /// Returns how the body ended, for the request's story.
+    private func stream(_ handle: FileHandle, bytes total: Int, to client: Int32, path: String,
+                        entry: Int) -> String {
         var sent = 0
+        var held = false
         while sent < total {
-            guard let bytes = try? handle.read(upToCount: min(65_536, total - sent)), !bytes.isEmpty else { return }
-            guard write(client, bytes) else { return }
+            guard let bytes = try? handle.read(upToCount: min(65_536, total - sent)), !bytes.isEmpty else {
+                return "the file ran short"
+            }
+            guard write(client, bytes) else { return held ? "held, then the peer went away" : "the peer went away" }
             sent += bytes.count
-            state.withLock { $0.counts[path, default: Counts()].bytesSent += bytes.count }
+            state.withLock { state in
+                state.counts[path, default: Counts()].bytesSent += bytes.count
+                state.served[path]?[entry].sent += bytes.count
+            }
             if let dropAt = state.withLock({ $0.drops[path] }), sent >= dropAt {
                 state.withLock { $0.drops[path] = nil }
                 // A plain close mid-body: the reader sees the connection
                 // end short of Content-Length, which is what a lost
                 // network looks like.
-                return
+                return "dropped on purpose"
             }
             if let holdAt = state.withLock({ $0.holds[path] }), sent >= holdAt {
+                held = true
                 park()
             }
         }
+        return held ? "held, then complete" : "complete"
     }
 
     /// Parks this connection's thread until `release()`; tells anyone

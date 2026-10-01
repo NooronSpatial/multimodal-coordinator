@@ -90,6 +90,8 @@ struct ModelDownloaderTests {
 
         #expect(bench.resumeDataExists("big.bin"), "the resume data waits beside the destination")
         #expect(bench.sizeOnDisk("big.bin") == nil, "and the destination is not there yet")
+        // Read BEFORE the resume, which consumes it (D-139: a failing row says what the daemon did).
+        let resumeData = resumeDataLine(bench.root.appending(path: "landed/big.bin.resume"))
         let paidBefore = bench.server.counts(for: "big.bin").bytesSent
         #expect(paidBefore >= 262_144 && paidBefore < size, "the first attempt was cut mid-file")
 
@@ -97,9 +99,10 @@ struct ModelDownloaderTests {
         try await bench.downloader.transfer(plan) { _ in }
 
         let counts = bench.server.counts(for: "big.bin")
-        #expect(counts.rangeRequests == 1, "the second attempt asked for a Range")
-        #expect((counts.firstRangeOffset ?? 0) > 0, "from where the first one stopped")
-        #expect(counts.bytesSent < 2 * size, "never twice the file: \(counts.bytesSent) of \(size)")
+        let story = "\(resumeData) · \(bench.server.story(for: "big.bin"))"
+        #expect(counts.rangeRequests == 1, "the second attempt asked for a Range — \(story)")
+        #expect((counts.firstRangeOffset ?? 0) > 0, "from where the first one stopped — \(story)")
+        #expect(counts.bytesSent < 2 * size, "never twice the file: \(counts.bytesSent) of \(size) — \(story)")
         // INSTRUMENTS §70's resume number, counted by the server rather
         // than believed: what a cancel-and-resume really costs over the
         // wire, as a fraction of the file.
@@ -135,9 +138,11 @@ struct ModelDownloaderTests {
         }
         #expect(file == "big.bin")
         #expect(bench.resumeDataExists("big.bin"), "what can be resumed is kept")
+        let resumeData = resumeDataLine(bench.root.appending(path: "landed/big.bin.resume"))
 
         try await bench.downloader.transfer(bench.plan(["big.bin": size])) { _ in }
-        #expect(bench.server.counts(for: "big.bin").rangeRequests == 1, "resumed, not restarted")
+        #expect(bench.server.counts(for: "big.bin").rangeRequests == 1,
+                "resumed, not restarted — \(resumeData) · \(bench.server.story(for: "big.bin"))")
         #expect(bench.sizeOnDisk("big.bin") == size)
     }
 
