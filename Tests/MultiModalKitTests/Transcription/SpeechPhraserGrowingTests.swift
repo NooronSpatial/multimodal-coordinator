@@ -98,6 +98,28 @@ struct SpeechPhraserGrowingTests {
         #expect(byCharacter == byWord)
     }
 
+    /// The bakeoff's long fixture, which found the next two rows: it is fed
+    /// to the voice in ONE `feed`, and its first phrase ran to the comma.
+    static let longFixture = "The audio travels through a ring buffer into a pump that cuts it into small chunks,"
+        + " and each chunk is handed to a listener that decides whether the person is still speaking"
+        + " or has finally stopped and is waiting for an answer."
+
+    @Test("a whole reply fed in ONE burst gives the same phrases as word by word")
+    func aBurstGivesTheSamePhrases() {
+        for reply in [Self.firstLaw, Self.longFixture] {
+            #expect(Self.phrases([reply]) == Self.phrases(Self.words(reply)), "\(reply.prefix(30))…")
+        }
+    }
+
+    @Test("with no opening caps too: a mark beyond the 120 limit never stretches a burst's phrase past it")
+    func aBurstRespectsTheLimit() {
+        let reply = String(repeating: "word ", count: 26) + "end, and the rest."     // the comma at 133
+        let config = SpeechPhraser.Config()
+        let burst = Self.phrases([reply], config)
+        #expect(burst == Self.phrases(Self.words(reply), config))
+        #expect(burst.allSatisfy { $0.count <= 120 }, "a burst made \(burst.map(\.count)) characters")
+    }
+
     @Test("with no opening caps, nothing changes")
     func noCapsNothingChanges() {
         #expect(Self.phrases(Self.words(Self.firstLaw), SpeechPhraser.Config()) == [

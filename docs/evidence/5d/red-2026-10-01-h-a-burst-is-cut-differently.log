@@ -1,0 +1,87 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite SpeechPhraserTests started.
+􀟈  Suite PhraseCapTests started.
+􀟈  Suite "AC-350 · growing phrases" started.
+􀟈  Test flushWithNothingWorthSayingIsNil() started.
+􀟈  Test aBurstCanCompleteSeveralPhrasesInOneFeed() started.
+􀟈  Test "a smaller cap cuts the same reply into more decodes" started.
+􀟈  Test "the Arabic question mark ends a phrase exactly like ASCII's" started.
+􀟈  Test aLimitOfOneStillMakesProgress() started.
+􀟈  Test punctuationInsideANumberDoesNotCut() started.
+􀟈  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" started.
+􀟈  Test subwordFragmentsAreJoinedVerbatim() started.
+􀟈  Test wordTokensSplitAtPunctuation() started.
+􀟈  Test flushDeliversTheRemainder() started.
+􀟈  Test punctuationGluedInsideATokenSplitsCorrectly() started.
+􀟈  Test everyClauseMarkCuts() started.
+􀟈  Test maxLengthCutsAtTheLastWhitespace() started.
+􀟈  Test "an unbroken run past the 120 limit is still cut at 120: the memory bound outranks the opening cap" started.
+􀟈  Test oneUnbrokenRunIsCutHardAtTheLimit() started.
+􀟈  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" started.
+􀟈  Test emptyAndWhitespaceTokensCompleteNothing() started.
+􀟈  Test "tokens at any granularity give the same phrases" started.
+􀟈  Test "with no opening caps too: a mark beyond the 120 limit never stretches a burst's phrase past it" started.
+􀟈  Test noEmittedPhraseIsUnspeakable() started.
+􀟈  Test "with no opening caps, nothing changes" started.
+􀟈  Test "a reply shorter than the first cap is one phrase, as today" started.
+􀟈  Test "a whole reply fed in ONE burst gives the same phrases as word by word" started.
+􀟈  Test "a clause mark that comes before the cap still wins" started.
+􀟈  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" started.
+􀟈  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" started.
+􁁛  Test punctuationInsideANumberDoesNotCut() passed after 0.001 seconds.
+􁁛  Test subwordFragmentsAreJoinedVerbatim() passed after 0.001 seconds.
+􁁛  Test punctuationGluedInsideATokenSplitsCorrectly() passed after 0.001 seconds.
+􁁛  Test "the Arabic question mark ends a phrase exactly like ASCII's" passed after 0.001 seconds.
+􁁛  Test aBurstCanCompleteSeveralPhrasesInOneFeed() passed after 0.001 seconds.
+􁁛  Test maxLengthCutsAtTheLastWhitespace() passed after 0.001 seconds.
+􁁛  Test wordTokensSplitAtPunctuation() passed after 0.001 seconds.
+􁁛  Test flushDeliversTheRemainder() passed after 0.001 seconds.
+􁁛  Test oneUnbrokenRunIsCutHardAtTheLimit() passed after 0.001 seconds.
+􁁛  Test flushWithNothingWorthSayingIsNil() passed after 0.001 seconds.
+􁁛  Test emptyAndWhitespaceTokensCompleteNothing() passed after 0.001 seconds.
+􁁛  Test "a reply shorter than the first cap is one phrase, as today" passed after 0.001 seconds.
+􁁛  Test everyClauseMarkCuts() passed after 0.001 seconds.
+􁁛  Test noEmittedPhraseIsUnspeakable() passed after 0.001 seconds.
+􁁛  Test aLimitOfOneStillMakesProgress() passed after 0.001 seconds.
+􁁛  Test "one unbroken word longer than an opening cap stays WHOLE — never torn at 20" passed after 0.001 seconds.
+􁁛  Test "a clause mark that comes before the cap still wins" passed after 0.001 seconds.
+􁁛  Test "an unbroken run past the 120 limit is still cut at 120: the memory bound outranks the opening cap" passed after 0.001 seconds.
+􁁛  Test "an Arabic reply with no ASCII punctuation is cut at its own marks" passed after 0.001 seconds.
+􁁛  Suite SpeechPhraserTests passed after 0.002 seconds.
+􁁛  Test "with no opening caps, nothing changes" passed after 0.002 seconds.
+􁁛  Test "the first phrases grow: 20, then 40, then the usual 120 — each at the last space before its cap" passed after 0.002 seconds.
+􀢄  Test "a whole reply fed in ONE burst gives the same phrases as word by word" recorded an issue at SpeechPhraserGrowingTests.swift:110:13: Expectation failed: Self.phrases([reply]) == Self.phrases(Self.words(reply))
+􀄵  The first law of thermodynamic…
+􀄵  Self.phrases([reply]) == Self.phrases(Self.words(reply)) → false
+􀄵    Self.phrases([reply]) → ["The first law of thermodynamics states that energy cannot be created or destroyed,", " only transformed from one form to", " another."]
+􀄵    Self.phrases(Self.words(reply)) → ["The first law of", " thermodynamics states that energy", " cannot be created or destroyed,", " only transformed from one form to another."]
+􀢄  Test "with no opening caps too: a mark beyond the 120 limit never stretches a burst's phrase past it" recorded an issue at SpeechPhraserGrowingTests.swift:119:9: Expectation failed: burst == Self.phrases(Self.words(reply), config)
+􀄵  burst == Self.phrases(Self.words(reply), config) → false
+􀄵    burst → ["word word word word word word word word word word word word word word word word word word word word word word word word word word end,", " and the rest."]
+􀄵    Self.phrases(Self.words(reply), config) → ["word word word word word word word word word word word word word word word word word word word word word word word word", " word word end,", " and the rest."]
+􀢄  Test "with no opening caps too: a mark beyond the 120 limit never stretches a burst's phrase past it" recorded an issue at SpeechPhraserGrowingTests.swift:120:9: Expectation failed: burst.allSatisfy { $0.count <= 120 }
+􀄵  a burst made [134, 14] characters
+􀄵  burst.allSatisfy { $0.count <= 120 } → <not evaluated>
+􀢄  Test "with no opening caps too: a mark beyond the 120 limit never stretches a burst's phrase past it" failed after 0.003 seconds with 2 issues.
+􁁛  Test "tokens at any granularity give the same phrases" passed after 0.003 seconds.
+􁁛  Test "after the opening caps, phrases are cut at 120 again — and nothing is lost or invented" passed after 0.003 seconds.
+􀢄  Test "a whole reply fed in ONE burst gives the same phrases as word by word" recorded an issue at SpeechPhraserGrowingTests.swift:110:13: Expectation failed: Self.phrases([reply]) == Self.phrases(Self.words(reply))
+􀄵  The audio travels through a ri…
+􀄵  Self.phrases([reply]) == Self.phrases(Self.words(reply)) → false
+􀄵    Self.phrases([reply]) → ["The audio travels through a ring buffer into a pump that cuts it into small chunks,", " and each chunk is handed to a listener", " that decides whether the person is still speaking or has finally stopped and is waiting for an answer."]
+􀄵    Self.phrases(Self.words(reply)) → ["The audio travels", " through a ring buffer into a pump that", " cuts it into small chunks,", " and each chunk is handed to a listener that decides whether the person is still speaking or has finally stopped and is", " waiting for an answer."]
+􀢄  Test "a whole reply fed in ONE burst gives the same phrases as word by word" failed after 0.003 seconds with 2 issues.
+􀢄  Suite "AC-350 · growing phrases" failed after 0.004 seconds with 4 issues.
+􁁛  Test "a smaller cap cuts the same reply into more decodes" passed after 0.015 seconds.
+􀟈  Test "no decoded phrase is longer than the cap it was given" started.
+􁁛  Test "no decoded phrase is longer than the cap it was given" passed after 0.001 seconds.
+􀟈  Test "cutting harder never drops a word" started.
+􁁛  Test "cutting harder never drops a word" passed after 0.001 seconds.
+􀟈  Test "Kokoro's default cap is the phraser's 120, restored by D-087" started.
+􁁛  Test "Kokoro's default cap is the phraser's 120, restored by D-087" passed after 0.001 seconds.
+􁁛  Suite PhraseCapTests passed after 0.016 seconds.
+􀢄  Test run with 29 tests in 3 suites failed after 0.016 seconds with 4 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
