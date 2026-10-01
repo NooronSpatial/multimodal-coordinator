@@ -23,16 +23,21 @@ struct DownloadBenchHygieneTests {
         let directory = FileManager.default.temporaryDirectory.appending(path: "bench-hygiene-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
-        var stillRunning = 0
-        for _ in 0..<200 {
+        var late: Int?
+        for stop in 1...200 {
             let server = try LoopbackFileServer(directory: directory)
             server.stop()
             // Alive at the return, or alive when the socket was closed: the
             // second is the danger itself, and a stop that closed first and
-            // waited after would hide behind the first check alone.
-            if !server.acceptLoopEnded || server.acceptEndedAfterClose { stillRunning += 1 }
+            // waited after would hide behind the first check alone. The row
+            // ends at the FIRST late stop: a broken stop sits out its 5 s
+            // cap every time, and 200 of them took 17 minutes (M72).
+            if !server.acceptLoopEnded || server.acceptEndedAfterClose {
+                late = stop
+                break
+            }
         }
-        #expect(stillRunning == 0, "\(stillRunning) of 200 stops closed or returned with the accept thread alive")
+        #expect(late == nil, "stop \(late ?? 0) of 200 closed or returned with the accept thread alive")
     }
 
     /// The case that matters: a server that has SERVED, so its accept thread
@@ -45,14 +50,17 @@ struct DownloadBenchHygieneTests {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
         try Data("served".utf8).write(to: directory.appending(path: "f.bin"))
-        var lateEnds = 0
-        for _ in 0..<3 {
+        var late: Int?
+        for stop in 1...3 {
             let server = try LoopbackFileServer(directory: directory)
             #expect(Self.fetch("f.bin", from: server.port) == "served", "the server served")
             server.stop()
-            if !server.acceptLoopEnded || server.acceptEndedAfterClose { lateEnds += 1 }
+            if !server.acceptLoopEnded || server.acceptEndedAfterClose {
+                late = stop
+                break
+            }
         }
-        #expect(lateEnds == 0, "\(lateEnds) of 3 stops closed the socket under a waiting accept thread")
+        #expect(late == nil, "stop \(late ?? 0) of 3 closed the socket under a waiting accept thread")
     }
 
     /// One plain GET over a blocking socket: the response's body. The server
