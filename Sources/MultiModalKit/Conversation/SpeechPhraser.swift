@@ -92,40 +92,15 @@ public struct SpeechPhraser: Sendable {
         buffer += token
 
         var phrases: [String] = []
-        // Rule 1: a clause mark followed by whitespace ends a phrase.
-        // ("3.14" survives: its mark is followed by a digit, not space.)
-        while let cut = boundary() {
+        // ONE RULE, DECIDED BY POSITION (5d piece 2): a phrase ends at
+        // whichever comes FIRST in the text — a clause mark within its cap,
+        // or the cap itself. Deciding by position is what makes one burst
+        // and a stream of single characters cut a reply the same way: the
+        // first version ran the clause rule over the whole buffer before the
+        // cap, and a burst's first phrase ran past both (found by the
+        // bakeoff, which feeds a reply in one `feed`).
+        while let cut = nextCut() {
             leave(at: cut, into: &phrases)
-        }
-        // Rule 2: past the limit, cut at the last whitespace before it —
-        // no word is ever torn. One unbroken run is cut hard at the LIMIT:
-        // it cannot wait forever, and a cut mid-run beats no speech at all.
-        // `max(1, …)` is belt to the precondition's braces: the loop must be
-        // unable to spin even if a limit of zero ever reaches it.
-        //
-        // GROWING PHRASES (5d piece 2, F-34 A): while a reply's first
-        // phrases are being cut, the cap is the opening one — and a single
-        // word longer than it is NOT torn but left whole, cut at the first
-        // whitespace after it (the limit above still binds).
-        let limitCap = max(1, config.maxPhraseCharacters)
-        while true {
-            let opening = emitted < config.openingCaps.count
-            let cap = opening ? min(max(1, config.openingCaps[emitted]), limitCap) : limitCap
-            guard buffer.count > cap else { break }
-            let limit = buffer.index(buffer.startIndex, offsetBy: cap)
-            if let space = buffer[..<limit].lastIndex(where: \.isWhitespace),
-                space != buffer.startIndex {
-                leave(at: space, into: &phrases)
-            } else if opening, let space = buffer[limit...].firstIndex(where: \.isWhitespace),
-                      buffer.distance(from: buffer.startIndex, to: space) <= limitCap {
-                leave(at: space, into: &phrases)                  // the long word, whole
-            } else if opening, buffer.count <= limitCap {
-                break                                            // the word goes on: wait for its end
-            } else {
-                // One unbroken run past the limit — today's hard cut (and
-                // when no opening cap is in force, `cap` IS the limit).
-                leave(at: buffer.index(buffer.startIndex, offsetBy: limitCap), into: &phrases)
-            }
         }
         // THE LIVENESS INVARIANT: never emit a phrase with nothing to say.
         // Downstream every phrase becomes one utterance the mouth must
@@ -152,15 +127,47 @@ public struct SpeechPhraser: Sendable {
         return buffer
     }
 
+    /// Where the oldest phrase ends, if the text so far already says.
+    ///
+    /// Rule 1: a clause mark followed by whitespace, within the cap ("3.14"
+    /// survives: its mark is followed by a digit, not space). Rule 2: past
+    /// the cap, the last whitespace before it — no word is ever torn. One
+    /// unbroken run is cut hard at the LIMIT: it cannot wait forever, and a
+    /// cut mid-run beats no speech at all. `max(1, …)` is belt to the
+    /// precondition's braces: the loop must be unable to spin even if a
+    /// limit of zero ever reaches it.
+    ///
+    /// GROWING PHRASES (5d piece 2, F-34 A): while a reply's first phrases
+    /// are being cut, the cap is the opening one — and a single word longer
+    /// than it is NOT torn but left whole, cut at the first whitespace after
+    /// it (the limit still binds).
+    private func nextCut() -> String.Index? {
+        let limitCap = max(1, config.maxPhraseCharacters)
+        let opening = emitted < config.openingCaps.count
+        let cap = opening ? min(max(1, config.openingCaps[emitted]), limitCap) : limitCap
+        if let mark = boundary(within: cap) { return mark }
+        guard buffer.count > cap else { return nil }
+        let limit = buffer.index(buffer.startIndex, offsetBy: cap)
+        if let space = buffer[..<limit].lastIndex(where: \.isWhitespace), space != buffer.startIndex {
+            return space
+        }
+        if opening {
+            if let space = buffer[limit...].firstIndex(where: \.isWhitespace),
+               buffer.distance(from: buffer.startIndex, to: space) <= limitCap {
+                return space                                   // the long word, whole
+            }
+            if buffer.count <= limitCap { return nil }         // the word goes on: wait for its end
+        }
+        return buffer.index(buffer.startIndex, offsetBy: limitCap)
+    }
+
     /// The index just past the first clause mark whose neighbor is
-    /// whitespace — the cut point of the oldest completed phrase.
-    private func boundary() -> String.Index? {
+    /// whitespace — when the phrase it closes is at most `cap` characters.
+    private func boundary(within cap: Int) -> String.Index? {
         var cursor = buffer.startIndex
-        while cursor < buffer.endIndex {
-            // ASCII marks, and the Arabic comma `،`, question mark `؟`
-            // and semicolon `؛` (4u, AC-214) — the same clause marks in a
-            // different script. Until they were here an Arabic reply was
-            // never phrased: it reached the mouth cut by the cap alone.
+        var length = 0
+        while cursor < buffer.endIndex, length < cap {
+            length += 1
             if Self.clauseMarks.contains(buffer[cursor]) {
                 let next = buffer.index(after: cursor)
                 if next < buffer.endIndex, buffer[next].isWhitespace {
