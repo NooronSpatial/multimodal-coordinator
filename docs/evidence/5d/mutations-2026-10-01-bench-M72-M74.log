@@ -1,0 +1,47 @@
+# §233 — the poke's mutations (2026-10-01, D-136)
+
+## FIRST RUN, at f02d1b6 — M72 gave NO VERDICT, and the runner had a bug.
+## With the loop now calling accept first, M72 (no poke) made every one of row 1's 200 stops
+## sit out its 5 s cap: about 17 minutes. The runner's 600 s deadline killed only the SHELL;
+## the test ran on as an orphan (killed by hand at 13 min), testing a mutation already
+## reverted. The runner now gives the test its own process group and kills it whole.
+
+## M72 — no poke (the first fix as it was: nothing wakes a waiting accept)
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+NO VERDICT — the test run printed no summary; its tail:
+TIMED OUT after 600 s
+
+reverted: yes
+
+## M73 — the loop asks stopped BEFORE accept, as before D-136 (a belt: expected to survive)
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+SURVIVED (masked) — every row green
+􁁛  Test run with 3 tests in 1 suite passed after 0.014 seconds.
+reverted: yes
+
+## M74 — the socket closed BEFORE the wait, with the poke
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+KILLED — red rows:
+  - a server that has served stops with its accept thread ended before its socket closes
+  - stop() returns only once the accept thread has ended
+􀢄  Test run with 3 tests in 1 suite failed after 0.017 seconds with 2 issues.
+reverted: yes
+
+source tree after the run: clean
+
+## M72 AGAIN, at 614a8b5 — after both server rows were made to end at their first late stop
+## (a red row must fail fast):
+
+## M72 — no poke (the first fix as it was: nothing wakes a waiting accept)
+file: Tests/MultiModalKitTests/Models/LoopbackFileServer.swift
+KILLED — red rows:
+  - a server that has served stops with its accept thread ended before its socket closes
+  - stop() returns only once the accept thread has ended
+􀢄  Test run with 3 tests in 1 suite failed after 5.018 seconds with 2 issues.
+reverted: yes
+
+source tree after the run: clean
+
+## M73 SURVIVES, as it was named before it ran: asking stopped BEFORE accept is safe with the
+## poke too — the poke wakes the thread, which serves the poke (a read of nothing) and then sees
+## stopped. Asking AFTER accept is the ruling's shape (D-136): the poke is closed, never served.

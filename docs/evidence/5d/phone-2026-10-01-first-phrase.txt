@@ -1,0 +1,28 @@
+python3 phone-2026-10-01-first-phrase.py phone-2026-10-01-session.md   (the phraser's rule: a cut at . , : ; ? ! before a space, or at 120 characters)
+
+log  tl 1st phrase ch     ④     ⑤  felt mind total  first phrase
+  1   0            13   333   829  2453        833  Good morning!
+  2   2            10   439  1080  3003       1618  I am Qwen,
+  3   3            36   435  1117  2518       2228  I can help with answering questions,
+  6   6           120   591  3710  5266       2813  I can help you find a low-carb recipe with a log car (likely
+  7   7             5   705   587  2297       7340  Sure!
+  8   8            42   727  1590  3323      12324  Here's a low-carb Afghani-inspired recipe:
+  9   9            47   567  1082  2665       1006  I don't know much about the history of Germany.
+ 10  10            73   633  4908  6557       4005  I don't have enough information to provide a detailed histor
+ 12  12            58   558  1333  2842       1078  I can try to give a general overview of Germany's history.
+ 13  13            39   575  1337  2887       4215  Germany has a long and complex history,
+ 14  14             4  1039   552  2573       7728  Yes,
+ 15  15            38   707  1234  2870       4975  Italy is a country in Southern Europe,
+ 16  17            82   837  4981  6750       3940  The first law of thermodynamics states that energy cannot be
+ 17  18           105   560  2612  4132       2043  The second law of thermodynamics states that the entropy of 
+ 18  19            59   707  1698  3397       2412  I cannot determine which law is the most important in math,
+ 19  20           117   599  2544  4112       1511  Algebra is a branch of mathematics that uses symbols and let
+ 20  21             5   634   622  2196        741  Okay.
+ 21  22            94   567  2029  3577       1221  Calculation is the process of performing mathematical operat
+ 23  24           115   652  5539  7105       3714  An integral is a mathematical operation that finds the area 
+ 24  25             5   686   556  2227       1579  Sure,
+ 25  26            22   826  2390  4199       7155  I can suggest an idea:
+  first phrase ≤ 15 ch: n= 6 · ⑤ median    604 · felt median   2375
+              16–60 ch: n= 8 · ⑤ median   1335 · felt median   2878
+               > 60 ch: n= 7 · ⑤ median   3710 · felt median   5266
+correlation (first-phrase characters, ⑤): r = 0.75 over 21 spoken turns
