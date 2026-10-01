@@ -47,6 +47,8 @@ final class LoopbackFileServer: @unchecked Sendable {
         /// Who is waiting to hear that a connection has parked.
         var parkedWatchers: [CheckedContinuation<Void, Never>] = []
         var stopped = false
+        /// The accept thread has returned (5d §233: what `stop()` must wait for).
+        var acceptLoopEnded = false
     }
 
     private let directory: URL
@@ -91,6 +93,10 @@ final class LoopbackFileServer: @unchecked Sendable {
         shutdown(socket, SHUT_RDWR)
         close(socket)
     }
+
+    /// Whether the accept thread has returned — read by the bench's own
+    /// hygiene test (5d §233).
+    var acceptLoopEnded: Bool { state.withLock { $0.acceptLoopEnded } }
 
     func url(for path: String) -> URL {
         URL(string: "http://127.0.0.1:\(port)/\(path)")!
@@ -141,6 +147,7 @@ final class LoopbackFileServer: @unchecked Sendable {
     // MARK: - the threads
 
     private func acceptLoop() {
+        defer { state.withLock { $0.acceptLoopEnded = true } }
         while !state.withLock({ $0.stopped }) {
             let client = accept(socket, nil, nil)
             guard client >= 0 else { continue }

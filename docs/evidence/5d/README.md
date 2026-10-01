@@ -21,3 +21,4 @@ warnings as errors) is the gate.
 | `stability-2026-09-30-run16-FAILED.log` | Run 16, whole: one issue, NOT in 5d's code — 5a's "two callers, one transfer" failed in its setup, writing the served file (POSIX 9, bad file descriptor). Not reproduced, not yet explained (SPEC §231). |
 | `mutations-2026-10-01-runtime-M66-M67.log` | §232's mutations: M66 (no cancel) killed by both rows; M67 (cancel AND finish the seam — the tempting wrong fix) killed by AC-346 alone. |
 | `red-2026-10-01-d-the-runtime-teardown.log` | §232 (D-135) RED: the observer returning on its own with a health seam attached — `run` never comes back (both new rows fail at their 10 s deadline, nothing hangs); the older runtime rows pass. |
+| `red-2026-10-01-e-the-bench-hygiene.log` | §233 RED — both suspects proven: `LoopbackFileServer.stop()` returned with its accept thread alive in 200 of 200 stops; a dropped `DirectoryWatch` is never freed (it holds itself), leaking its descriptor. |
