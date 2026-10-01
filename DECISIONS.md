@@ -5995,3 +5995,59 @@ at the return but not yet at its "stopped" check ends without ever calling
 **The cost accepted.** A trick that needs its comment. If the poke cannot
 connect (no descriptor left, a full backlog), the stop falls back to its
 5 s cap and the hygiene rows count it — visible, never hidden.
+
+## D-137 — 5d piece 2 is the voice: trim the quiet Kokoro puts around every phrase, and start speaking on a short first phrase; the echo is piece 3 (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("A — the voice") · **Ruling:**
+piece 2 fixes the two causes piece 1's numbers found in the voice — the
+silence the model synthesizes around every phrase, and the wait for the
+WHOLE first phrase. The echo — the diet app's R-4 and the self-cut on
+Ryad's own phone — is piece 3, in the option's own words.
+
+**What the numbers said** (Ryad's phone session, 2026-10-01, INSTRUMENTS
+§73; Kokoro's captures on this Mac the same day):
+
+- The felt pause: median 3.0 s as logged, about 3.3 s to the first WORD.
+  ⑤, the voice, is the biggest stage (1 337 ms), and it follows the first
+  phrase's length (r = 0.75): 604 ms when the first phrase is 15
+  characters or fewer, 3 710 ms when it is over 60. Every turn over 5 s
+  had a long first phrase.
+- 16 of 22 replies held a pause over 300 ms — one at every phrase
+  boundary, ~0.75 s each. On this Mac, every Kokoro phrase is wrapped in
+  ~325 ms of quiet before its words and ~420 ms after, made by the model
+  (no exact zeros: the voice never fell behind), and the first sound is
+  stamped when the player starts, ~325 ms before the first word.
+- One self-cut: the session's first reply was cut by its own echo (shield
+  on, 300 ms hangover, 600 ms window). Ryad: "no I didn't talk but the
+  system hear itself — the echo problem." F-30's third line fails today.
+
+- *Rejected:* **B — the echo first** (R-4, and every barge candidate's
+  loud time and level logged on the phone). R-4 alone does not stop Ryad's
+  self-cut: that leak was loud for at least ~0.32 s, so a window long
+  enough to stop it makes a real interruption slower than F-30's 0.4 s; the
+  real fix needs more than duration, and leak numbers from the phone. Next,
+  as piece 3. **The cost accepted:** the diet app's self-cuts (two of three
+  replies at its 700 ms hangover) wait for piece 3.
+- *Rejected:* **C — think during the gate** (about −0.5 s per turn):
+  smaller than A's gain, wasted mind work for every turn the person goes on
+  (4 of 25 in the session), and a change to the coordinator's core.
+- *Rejected:* **D — a voice bake-off**, Kokoro against Piper or others.
+  Ryad asked: "do you think another model like piper can be better
+  solution?" Not first: a different voice fixes neither cause (it would
+  still wait for a whole phrase, and its output still needs trimming);
+  Piper turns text into sounds with espeak-ng, which is GPL-3.0 and fails
+  the dependency rule's licence question; its voices are likely less
+  natural (not measured here). Where it might help — synthesis on the CPU,
+  out of the 4B mind's way on the GPU — is a measurement for after A, if
+  the voice's own speed is still the big stage.
+
+**R-4, received the same day.** The diet app's requirement — the barge
+window must judge the LOUD part, not loud + hangover — was checked against
+the code before any reply: all three of its claims hold (the coordinator
+accepts any segment at or after the deadline; the pump publishes every
+chunk through the hangover, by D-013; §43's durations were measured at a
+300 ms hangover and nothing in the API says so). Placed in piece 3; its
+content, and the window's number in loud time, are not ruled here.
+
+**What this entry does NOT decide:** piece 2's spec and its forks — open
+until Ryad signs them.

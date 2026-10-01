@@ -5969,3 +5969,73 @@ now, or later).
 **What this does not measure.** Echo: the person speaks into the ring, not
 through a loudspeaker. The phone's own speed and heat. The audio device's
 output latency after ⑧. Those are the phone session's (AC-343).
+
+### 73b. The phone — Ryad's session, 2026-10-01 (AC-343)
+
+**Machine and setup.** iPhone18,5, iOS 26.6.1 (23G83). The Whisper ear,
+the local Qwen3-4B-4bit mind (warm, weights resident), the neural mouth —
+Kokoro, at a lead of zero ("cushion 0 ms") — the speaker shield on, tools
+off. The demo's policy: a 300 ms silence wait, a 500 ms gate, the 600 ms
+barge window (`BargeWindow.measured`). 25 turns, 21 of them spoken, 7
+barges. **Thermal "serious" from the first turn to the last** — ④ and ⑤
+are slower than a cool phone's. The log, word for word:
+`docs/evidence/5d/phone-2026-10-01-session.md`.
+
+**The pause, stage by stage** (medians, ms):
+
+| stage | | Mac run 5 | Mac run 6 | **phone** |
+|---|---|---:|---:|---:|
+| ① | the silence wait | 300 | 300 | 300 |
+| ② | the ear's finish | 145 | 141 | 172 |
+| ③ | the reply gate | 503 | 503 | 503 |
+| ④ | the mind's first token | 867 | 822 | 633 |
+| ⑤ | the voice's first sound | 522 | 284 | **1 337** |
+| | **the felt pause, ① to ⑤** | 2 394 | 2 030 | **3 003** (2 196 – 7 105) |
+| ⑥ | longest silence inside an answer | 777 | 805 | 783 |
+| ⑥ | replies with a silence over 300 ms | 17 of 17 | 17 of 17 | 16 of 22 |
+
+The phone's mind is faster than this Mac's; its voice is far slower.
+
+**What it found.**
+
+1. **The first phrase decides ⑤** (`phone-2026-10-01-first-phrase.txt`).
+   The voice starts only when the mind has written the WHOLE first phrase —
+   to the first `, . : ; ? !` before a space, or 120 characters — and
+   Kokoro has synthesized all of it. Across the 21 spoken turns, the first
+   phrase's length tracks ⑤ with r = 0.75:
+
+   ```
+   first phrase      turns   ⑤ median   felt median
+   ≤ 15 characters      6      604 ms      2 375 ms    "Sure!", "Yes,", "Okay."
+   16 – 60              8    1 335 ms      2 878 ms
+   > 60                 7    3 710 ms      5 266 ms    every turn over 5 s
+   ```
+
+2. **Kokoro wraps every phrase in quiet, and the quiet is the model's own**
+   (measured on this Mac the same day, `kokoro-silence-2026-10-01.txt`; ten
+   captures of `bakeoff voice-kokoro`, read sample by sample at the meter's
+   level, 0.001). Each phrase starts with 300–351 ms and ends with 388–464 ms
+   of quiet; no capture held a single exact-zero run, so the voice never
+   fell behind (it decodes at 0.07× real time here). Two phrases back to
+   back leave 734–790 ms of silence — the phone's ~0.75 s at every phrase
+   boundary, whatever the next phrase's length ("formulas.", 9 characters:
+   785 ms). It also means ⑤ is stamped when the player starts, ~325 ms
+   before the first word: **the felt pause to the first word is about 3.3 s.**
+3. **Barges.** Three were interruptions while the voice spoke: the 600 ms
+   window, then ~0 ms to silence (⑧ 0–1 ms). Four were Ryad finishing a
+   sentence after a pause ("…a log car? … for my lunch."): the turn had
+   opened too early, and his words joined the next turn as they should.
+4. **One self-cut.** The first reply ("Good morning! How can I assist you
+   today?") was cut after the 600 ms window by a sound that produced no
+   words — the turn it opened heard nothing. Ryad did not speak: "the
+   system hear itself — the echo problem". So that leak was loud for at
+   least ~0.32 s at this hangover, longer than any leak §43 measured.
+
+**Against F-30's line:** the felt pause ~3.3 s (line: 0.8 s); an
+interruption to silence 600 ms (line: 0.4 s); one self-cut in 21 spoken
+turns (line: none).
+
+**What this does not measure.** The output device's own latency after the
+player starts. The quiet around Kokoro's phrases was measured on this Mac;
+on the phone it is inferred from the same model's output and the same
+~0.75 s per boundary, not captured there.

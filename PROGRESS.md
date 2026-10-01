@@ -6,10 +6,13 @@ page only POINTS. Every row names where its fact is proven — a SPEC
 section (what was promised and measured), a D-entry (who ruled, and why),
 an evidence file, or a tag note (`git show <tag>`).*
 
-**As of 2026-09-30** · `main` at `f11dca4` · latest tag **0.5.0**
-(`e82533d`) · **next milestone: 5d — the fast voice** (D-132); piece 1,
-the turn timeline, is built and measured on the Mac (INSTRUMENTS §73); its phone row is
-owed, and its 20× loop was 19 of 20 (SPEC §231).
+**As of 2026-10-01** · `main` at `f11dca4` · latest tag **0.5.0**
+(`e82533d`) · **milestone 5d — the fast voice** (D-132), on
+`milestone/5d-fast-voice`: piece 1, the turn timeline, is measured on the
+Mac and on Ryad's phone (INSTRUMENTS §73, §73b) — the felt pause is ~3.3 s
+to the first word, and one reply was cut by its own echo. Piece 2 is ruled:
+the voice (D-137); the echo, with the diet app's R-4, is piece 3. Piece 1's
+20× loop is still owed (SPEC §231, §233).
 
 ## The picture
 
@@ -114,7 +117,7 @@ work when Arabic was parked (D-100).
 | one CI run that never finished | **open** — not explained, not seen again | SPEC §214; `docs/evidence/5b/ci-hang-2026-09-29.md` |
 | a time limit on CI (`timeout-minutes`) | **proposed, not ruled** | — |
 | about ten test waits still poll (`Task.yield()` in a capped loop) where the rule is events | **open** | the TTS, transcription, pump and diagnostics tests |
-| 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **open** — not yet explained | SPEC §221, §231 |
+| 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **being hunted** (D-135): two bench defects proven and fixed (D-136); the download daemon's resume family still recurs; the cause of the bad descriptor not found | SPEC §221, §231, §233 |
 | three copies of the old `Signals` test helper (one timed-out wait ends every later wait) | **open** — the ToolSpike copy is rebuilt | `AIRuntimeTests`, `AdmissionTests`, `ReplyContractTests` |
 | teach-back rows | **owed** (e.g. 4z's AC-287); 5b's was skipped by ruling | SPEC; D-127 |
 | stale lines in the docs | **open** — README's phase table stops at 4h, and its "two real mouths" paragraph predates Kokoro (D-084); ARCHITECTURE's front-door paragraph still says the runtime "cannot call a tool", false since 4z | README; ARCHITECTURE § "The front door" |

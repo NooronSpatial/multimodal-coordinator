@@ -8430,7 +8430,7 @@ phone row from Ryad's session; present → HALT, and the first fix's fork.
 | AC-340 nothing breaks | **met** — a reporter written for 0.5.0 compiles; `Scripts/api.sh` shows additions only | `api-diff-2026-09-30.txt` |
 | AC-341 the pauses inside an answer | **met** — the pure meter exact on scripted streams (M61–M65 killed), then on the real mouth: every reply of the Mac runs measured | `SilenceMeterTests`, INSTRUMENTS §73 |
 | AC-342 the Mac harness repeats | **met** — runs 5 and 6 on the committed code: the same 20 sentences, 17 spoken turns and one barge each; the medians side by side in §73 (felt pause 2 394 and 2 030 ms) | `harness-2026-09-30-run5/6.log` |
-| AC-343 the first numbers | **met on the Mac** (INSTRUMENTS §73); **the phone row is OWED** — one session of Ryad's | §73 |
+| AC-343 the first numbers | **met** — the Mac (INSTRUMENTS §73) and Ryad's phone, 2026-10-01 (§73b): felt pause median 3.0 s as logged, ~3.3 s to the first word | §73, §73b, `phone-2026-10-01-session.md` |
 | AC-344 nothing else moved | **NOT YET** — the suite green (1 001 tests in 143 suites), lint zero, the demo compiles for iOS; but the 20× loop was **19 of 20**: run 16 failed in 5a's downloader tests (below) | `stability-2026-09-30.txt`, `stability-2026-09-30-run16-FAILED.log` |
 
 **What the measurements found** (INSTRUMENTS §73): warm, the felt pause is
@@ -8440,6 +8440,15 @@ Every answer holds a silence over 300 ms (34 of 34). The cold first turn is
 mostly the ear's first model load (13–14 s). A voice over an answer shorter
 than the 600 ms window never interrupts it, by design (D-071). The ear
 returned empty text for 3 of 20 short sentences per run.
+
+**The phone (§73b, 2026-10-01).** ⑤ is the phone's biggest stage
+(1 337 ms) and it follows the first phrase's length (r = 0.75): the voice
+waits for the WHOLE first phrase, then synthesizes all of it. Every Kokoro
+phrase carries ~325 ms of quiet before its words and ~420 ms after (the
+model's own, measured on this Mac), so every phrase boundary is ~0.75 s of
+silence and ⑤ is stamped ~325 ms before the first word. One self-cut: the
+first reply, cut by its own echo. Ruled the same day: piece 2 is the voice,
+the echo is piece 3 (D-137).
 
 **What it found that it did not plan to:**
 
