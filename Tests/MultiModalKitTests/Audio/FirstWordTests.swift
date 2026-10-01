@@ -90,7 +90,8 @@ struct FirstWordTests {
     @Test("buffers rendered before the player starts are not the reply's quiet")
     func beforeThePlayerStarts() throws {
         let ear = ReplyEar(meter: Self.meter())
-        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 120)), playerFrame: nil)    // decoding, not yet playing
+        // decoding, not yet playing:
+        try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 120)), playerFrame: nil)
         try ear.hear(Self.buffer(Array(repeating: 0, count: 16 * 150)), playerFrame: nil)
         try ear.hear(Self.buffer(Self.quiet(40) + Self.sound(100)), playerFrame: 0)
         #expect(ear.pauses.leadingQuiet == .milliseconds(40), "only what the PLAYER held before its first word")

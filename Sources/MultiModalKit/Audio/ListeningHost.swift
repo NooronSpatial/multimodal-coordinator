@@ -70,12 +70,24 @@ public final class ListeningHost: PlaybackHost, @unchecked Sendable {
         // A tap hears the node from the moment it is ATTACHED — silent
         // buffers while the first phrase is still being synthesized, before
         // `play()`. Those are the first-sound stage, not the reply's quiet
-        // (the Mac harness, runs 7 and 8), so the ear is told whether the
-        // player had started. `weak`: the node holds this block until detach.
-        node.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak node] buffer, _ in
-            ear.hear(buffer, playerFrame: (node as? AVAudioPlayerNode)?.isPlaying == false ? nil : 0)
+        // (the Mac harness, runs 7 and 8). And its block runs a buffer or two
+        // after the render, so "is it playing NOW?" is the wrong question
+        // (runs 9 and 10): the player's own sample position for the buffer
+        // says exactly which frames came before its start. `weak`: the node
+        // holds this block until detach.
+        node.installTap(onBus: 0, bufferSize: 1024, format: nil) { [weak node] buffer, when in
+            ear.hear(buffer, playerFrame: Self.playerFrame(of: node, at: when))
         }
         ears.withLock { $0[ObjectIdentifier(node)] = ear }
+    }
+
+    /// The player's own sample position at `when` — nil while it is not
+    /// playing (or the node is gone); any node that is not a player: 0, all
+    /// of its output is the reply's.
+    private static func playerFrame(of node: AVAudioNode?, at when: AVAudioTime) -> Int64? {
+        guard let node else { return nil }
+        guard let player = node as? AVAudioPlayerNode else { return 0 }
+        return player.playerTime(forNodeTime: when)?.sampleTime
     }
 
     public func detachFromPlayback(_ node: AVAudioNode) {
@@ -107,11 +119,13 @@ final class ReplyEar: @unchecked Sendable {
     /// - Parameter playerFrame: the PLAYER's own sample position of the
     ///   buffer's first frame — nil when it was not playing, negative when
     ///   the buffer began before the player's start. Frames before the
-    ///   start are not the reply's (RED skeleton: only nil is honoured).
+    ///   start are not the reply's: they are skipped, exactly.
     func hear(_ buffer: AVAudioPCMBuffer, playerFrame: Int64? = 0) {
-        guard playerFrame != nil else { return }
-        guard let channel = buffer.floatChannelData?[0] else { return }
-        meter.feed(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength)))
+        guard let playerFrame, let channel = buffer.floatChannelData?[0] else { return }
+        let count = Int(buffer.frameLength)
+        let before = playerFrame < 0 ? Int(min(Int64(count), -playerFrame)) : 0
+        guard before < count else { return }
+        meter.feed(UnsafeBufferPointer(start: channel + before, count: count - before))
         gaps.store(meter.gaps, ordering: .releasing)
         longestFrames.store(meter.longestFrames, ordering: .releasing)
         if let leading = meter.leadingFrames { leadingFrames.store(leading, ordering: .releasing) }
