@@ -92,8 +92,8 @@ struct DownloadBenchHygieneTests {
             guard count > 0 else { break }
             response += piece[0..<count]
         }
-        let text = String(decoding: response, as: UTF8.self)
-        guard let head = text.range(of: "\r\n\r\n") else { return nil }
+        guard let text = String(bytes: response, encoding: .utf8),
+              let head = text.range(of: "\r\n\r\n") else { return nil }
         return String(text[head.upperBound...])
     }
 

@@ -113,15 +113,16 @@ private func readPause(_ samples: [Float], rate: Double, mark: String, text: Str
     // The run nearest the mark's predicted span (centre to centre).
     let atMark = markSpan.flatMap { span -> Int? in
         let centre = (span.0 + span.1) / 2 * rate
-        return runs.min { abs(Double($0.start + $0.length / 2) - centre) < abs(Double($1.start + $1.length / 2) - centre) }?
-            .length
+        let distance = { (run: (start: Int, length: Int)) in abs(Double(run.start + run.length / 2) - centre) }
+        return runs.min { distance($0) < distance($1) }?.length
     }
     return PauseRow(mark: mark, text: text, leadMs: ms(first), tailMs: ms(samples.count - 1 - last),
                     markMs: atMark.map(ms), longestMs: ms(longest), markSpan: markSpan)
 }
 
 private func printKokoroPauses(_ rows: [PauseRow]) {
-    print("\n| mark | sentence | lead quiet ms | quiet at the mark ms | longest quiet inside ms | mark's predicted span ms | tail quiet ms |")
+    print("\n| mark | sentence | lead quiet ms | quiet at the mark ms | longest quiet inside ms"
+          + " | mark's predicted span ms | tail quiet ms |")
     print("|---|---|---:|---:|---:|---|---:|")
     for row in rows {
         let span = row.markSpan.map { String(format: "%.0f–%.0f", $0.start * 1000, $0.end * 1000) } ?? "—"
