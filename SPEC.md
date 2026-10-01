@@ -8522,3 +8522,159 @@ suite, looped on a frozen tree, every failing run kept whole. Then each
 suspect is proven or cleared by a test of its own before anything changes;
 a fix lands red-first. If nothing reproduces, the hunt reports that, with
 the counts, and the suspects that a test can prove are fixed anyway.
+
+# 5d piece 2 — the voice: start on the first words, and never wait for nothing (D-137)
+
+## §234 — why: what piece 1 found in the voice
+
+```
+today, one reply (Ryad's phone, Kokoro):
+  first token ─▶ the mind writes the WHOLE first phrase ─▶ Kokoro synthesizes ALL of it ─▶ player starts
+                                                                                            │ ~325 ms quiet
+                                                                                            ▼ first word
+  …words][~420 ms quiet][~325 ms quiet][words…   ← at EVERY phrase boundary, ~0.75 s
+```
+
+- **⑤ follows the first phrase** (INSTRUMENTS §73b): 604 ms when it is 15
+  characters or fewer, 3 710 ms when it is over 60 (r = 0.75 over 21
+  turns). The phraser cuts at `, . : ; ? !` before a space, or at 120
+  characters — so a first sentence with no comma is spoken only once the
+  mind has written all of it and Kokoro has synthesized all of it.
+- **The quiet is the model's own**, measured on this Mac
+  (`kokoro-silence-2026-10-01.txt`): ~300–350 ms before each phrase's words,
+  ~390–465 ms after, no exact zeros. So every boundary is ~0.75 s of silence
+  — at a comma, at a full stop, and at a cap cut in the middle of a clause
+  — and the first word comes ~325 ms after ⑤ is stamped.
+- **A short first phrase alone is not enough.** Replayed on the session's
+  own speeds (`phone-2026-10-01-phrase-replay.txt`, a projection checked
+  against the measured ⑤ to ~245 ms): a 20-character first phrase brings
+  the first word to ~0.6 s after the first token, but then the next phrase
+  is often not ready — 12 boundaries run dry. Growing sizes — 20 characters,
+  then 40, then the usual 120 — keep the early start and leave 7.
+
+**The projection** (rough; the phone decides): the first word from
+~1.7 s after the first token (measured: ⑤ 1 337 ms + ~325 ms of quiet) to
+~0.6 s (replayed); the felt pause to the first word from ~3.3 s to ~2.2 s;
+the silence at a boundary from ~0.75 s to the kept pause.
+
+## §235 — scope: piece 2
+
+1. **The trim.** Each Kokoro phrase loses the quiet the model put around
+   it: a margin is kept before the first word, and after the last word the
+   pause its closing mark calls for (F-32, F-33).
+2. **Growing phrases.** A reply's first phrase is cut at a small cap, the
+   second at a larger one, then the usual 120 — always at a clause mark if
+   one comes first, never inside a word (F-34).
+3. **The first word, measured.** The listening host reports each reply's
+   quiet before its first audible sample; the demo's log and the harness
+   print the felt pause to the first WORD beside today's (F-35).
+4. **The numbers.** Kokoro's own pause at each mark is measured on this Mac
+   inside whole sentences (F-33 A); Ryad hears before/after samples made on
+   this Mac before the phone (the ear gate); then one session of his.
+5. **On by default** for Kokoro, every number overridable (F-36).
+
+## §236 — non-goals
+
+- **The echo** — the diet app's R-4, the self-cut, the 600 ms interruption:
+  piece 3 (D-137).
+- Thinking during the gate, a smarter gate, a shorter silence wait.
+- The Qwen3 voice and the Apple voice: their output is not changed.
+- A voice bake-off (D-137, rejected D) and streaming inside a phrase
+  (Kokoro is one-shot).
+- The mind's prompt: asking it to open with a short phrase (F-34 C).
+
+## §237 — acceptance criteria (AC-348 … AC-354)
+
+- **AC-348 — the trim is exact.** A pure rule, on scripted samples with
+  known quiet before, between and after the words: it keeps exactly the
+  margin before the first loud sample and exactly the pause for the closing
+  mark after the last one (all of the quiet, when there is less); it never
+  removes a loud sample; samples with nothing loud come back unchanged.
+- **AC-349 — Kokoro, trimmed, on this Mac.** `bakeoff voice-kokoro`'s five
+  fixtures: the quiet before the first word at most the margin plus 10 ms;
+  every phrase boundary's silence within ±25 ms of the kept pause for its
+  mark; WER 0.000 and zero exact-zero runs on every draw, as before.
+- **AC-350 — growing phrases.** On scripted token streams: the first phrase
+  ends at its first clause mark if one comes within the first cap, else at
+  the last space before that cap (one unbroken word: whole); the second
+  phrase the same with the second cap; every later phrase exactly as today.
+  A reply shorter than the first cap is one phrase, as today.
+- **AC-351 — the first word is measured.** The listening host reports each
+  reply's quiet between its first rendered sample and its first audible
+  one, exact on a scripted stream; the demo's log and the harness print the
+  felt pause to the first word beside the felt pause as today (AC-337's
+  number unchanged).
+- **AC-352 — the Mac harness moves.** AC-342's run after piece 2, against
+  runs 5 and 6: ⑤, the quiet before the first word, ⑥'s longest silence,
+  and the felt pause to the first word — medians side by side
+  (INSTRUMENTS §74).
+- **AC-353 — the ear, then the phone.** Ryad hears before/after samples
+  made on this Mac and keeps or changes the numbers (a D-entry if changed).
+  Then one session of his, twenty turns, his setup: ⑤ to the first word,
+  ⑥, and F-30's lines read again.
+- **AC-354 — nothing else moved.** The suite green; the 20× loop 20 of 20;
+  lint zero; mutations on the trim and on the growing cut; `Scripts/api.sh`
+  additions only; the demo compiles for iOS.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-348 | `PhraseQuietTests` · "the trim keeps the margin and the mark's pause, never a loud sample" | pure, scripted samples |
+| AC-349 | `bakeoff voice-kokoro`, before and after | instrument, this Mac |
+| AC-350 | `SpeechPhraserTests` · "the first phrases grow: 20, 40, then 120" | pure, scripted tokens |
+| AC-351 | `SilenceMeterTests` / `ListeningHost` · "the quiet before the first word" | pure meter; the host on a scripted node |
+| AC-352 | `audio-demo --person`, after, against runs 5 and 6 | instrument, this Mac |
+| AC-353 | samples for the ear; Ryad's session | Ryad |
+| AC-354 | the suite, the 20× loop, lint, mutations, `api.sh` | — |
+
+## §238 — the forks (Ryad rules)
+
+- **F-32 — how the trim finds the words.** **A:** by the audio, at the
+  meter's level (0.001), with a margin before the first loud sample: a pure
+  rule in the core (beside `SpeechPhraser` and `SilenceMeter`), applied by
+  the Kokoro decoder to each phrase; it works for any voice, and the margin
+  protects a soft first sound (an "h", an "s") that starts below the level.
+  **B:** by Kokoro's own token timestamps (the vendor predicts each token's
+  start and end from its durations, in 25 ms steps): no threshold, but a
+  vendor field this project has never used, empty without the misaki
+  tokens, its accuracy at the edges unmeasured, and Kokoro only. **C:**
+  both — the timestamps, checked against the level. **Recommendation: A.**
+- **F-33 — how much quiet stays between phrases.** **A:** Kokoro's own
+  pause for that mark — measured on this Mac by synthesizing whole
+  sentences, where Kokoro pauses at commas and full stops by itself; a
+  phrase cut by a cap (no mark) keeps only the margins. **B:** one fixed
+  pause at every boundary (say 200 ms): simplest, but a comma and a full
+  stop sound the same. **C:** trim only the first phrase's lead-in: the
+  first word comes sooner, and the ~0.75 s inside every answer stays.
+  **Recommendation: A** — the pause Kokoro itself chose, where the text
+  asked for one.
+- **F-34 — how the first phrases are cut.** **A:** growing caps —
+  20 characters, then 40, then the usual 120 — each cut at the last space
+  before it (the existing cap's rule), always at a clause mark if one comes
+  first; starting numbers from the replay, confirmed by ear and on the
+  phone. **B:** only the first phrase short (20), then 120: simpler, but
+  the replay shows the voice running dry after the first words (12
+  boundaries against 7). **C:** ask the mind to open with a short phrase
+  ("Sure,"): a natural cut, but every reply starts the same way, the mind
+  may not obey, and it is the app's prompt, not the voice. **Recommendation:
+  A.**
+- **F-35 — the first word, measured.** **A:** the listening host also
+  reports each reply's quiet before its first audible sample, and the logs
+  print the felt pause to the first word: the phone then shows the gain
+  itself. **B:** no new measure — after the trim, the stamp's error is the
+  margin, written down. **Recommendation: A** (F-27's rule: measure what
+  the person hears).
+- **F-36 — on by default.** **A:** on for Kokoro by default, every number
+  overridable: every app's Kokoro speaks sooner and pauses less — the diet
+  app too, at its next pin. **B:** opt-in, off unless an app asks.
+  **Recommendation: A** — a 0.75 s silence at every comma is the model's
+  padding, not a policy any app chose.
+
+## §239 — definition of done (piece 2)
+
+Red before green; the suite green; mutations on the trim and on the growing
+cut; the 20× loop 20 of 20; lint zero; the demo compiles; `api.sh`
+additions only; INSTRUMENTS §74 (the Mac, before and after); the ear gate;
+the phone row from Ryad's session; present → HALT, and piece 3's spec — the
+echo.
