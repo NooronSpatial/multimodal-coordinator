@@ -8431,7 +8431,7 @@ phone row from Ryad's session; present → HALT, and the first fix's fork.
 | AC-341 the pauses inside an answer | **met** — the pure meter exact on scripted streams (M61–M65 killed), then on the real mouth: every reply of the Mac runs measured | `SilenceMeterTests`, INSTRUMENTS §73 |
 | AC-342 the Mac harness repeats | **met** — runs 5 and 6 on the committed code: the same 20 sentences, 17 spoken turns and one barge each; the medians side by side in §73 (felt pause 2 394 and 2 030 ms) | `harness-2026-09-30-run5/6.log` |
 | AC-343 the first numbers | **met** — the Mac (INSTRUMENTS §73) and Ryad's phone, 2026-10-01 (§73b): felt pause median 3.0 s as logged, ~3.3 s to the first word | §73, §73b, `phone-2026-10-01-session.md` |
-| AC-344 nothing else moved | **NOT YET** — the suite green (1 001 tests in 143 suites), lint zero, the demo compiles for iOS; but the 20× loop was **19 of 20**: run 16 failed in 5a's downloader tests (below) | `stability-2026-09-30.txt`, `stability-2026-09-30-run16-FAILED.log` |
+| AC-344 nothing else moved | **met on 2026-10-06** — the 20× loop at `92da927`, which carries piece 1, ran **20 of 20**. Before it: 19 of 20 at `4a5b3df` (run 16, the bench's POSIX 9) and 59 of 60 at `614a8b5` (run 11, the download daemon's family, still unexplained — D-139 makes its next sighting tell its story); §233 | `stability-2026-09-30.txt`, `stability-2026-10-01-after-the-poke.txt`, `stability-2026-10-06-piece2.txt` |
 
 **What the measurements found** (INSTRUMENTS §73): warm, the felt pause is
 2.0–2.4 s — ① 300 + ② ~140 + ③ 500 + ④ ~850 + ⑤ 300–500. The mind's first
@@ -8738,3 +8738,34 @@ cut; the 20× loop 20 of 20; lint zero; the demo compiles; `api.sh`
 additions only; INSTRUMENTS §74 (the Mac, before and after); the ear gate;
 the phone row from Ryad's session; present → HALT, and piece 3's spec — the
 echo.
+
+## §240 — results (piece 2), measured 2026-10-01 … 2026-10-06 on `milestone/5d-fast-voice`
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-348 the trim is exact | **met** — the margin before, the mark's pause after, never a loud sample, nothing loud untouched | `PhraseQuietTests`, mutations M75–M79 |
+| AC-349 Kokoro, trimmed, on this Mac | **met** — 41–42 ms before the first word; 80 ms at a cap cut, 137 at a comma, 185 at a full stop (Kokoro's own); WER 0.000, no exact zeros | `kokoro-trimmed-2026-10-01.txt`, INSTRUMENTS §74 |
+| AC-350 growing phrases | **met** — 20, 40, then 120; a mark first still wins; a long word whole; one burst cuts like a stream | `SpeechPhraserGrowingTests`, mutations M80–M82 |
+| AC-351 the first word is measured | **met** — exact on scripted buffers; on the real engine, 40 ms in all 34 replies, by the player's own sample position | `FirstWordTests`, mutations M83–M84, harness runs 11–12 |
+| AC-352 the Mac harness moves | **met** — the felt pause to the first word ~2.36–2.72 s → 2.07 s; ⑥ 34 of 34 replies with a silence over 300 ms → 0 of 34; the longest 777–805 → 185 ms | INSTRUMENTS §74 |
+| AC-353 the ear, then the phone | **OWED** — the ear gate's samples were sent to Ryad on 2026-10-01; his ruling, then his session | — |
+| AC-354 nothing else moved | **met on the Mac, except the demo's compile** — the 20× loop **20 of 20** at `92da927`; the suite 1 034 tests in 147 suites; strict lint zero; M75–M84 ten of ten killed; `api.sh`: 55 lines added, 2 initialisers with defaulted parameters, 0 removed. The demo's iOS compile waits on Xcode's macro approval (below) | `stability-2026-10-06-piece2.txt`, `api-diff-2026-10-06-piece2.txt`, `mutations-2026-10-01-piece2-M75-M84.log` |
+
+**What it found that it did not plan to:**
+
+- **A burst was cut differently from a stream** — the clause rule ran over
+  the whole buffer before the cap (found by the bakeoff, which feeds a reply
+  in one `feed`). Fixed by deciding each cut by position; that also closed a
+  corner older than piece 2: a burst with its first mark past 120 characters
+  made a phrase longer than the memory bound.
+- **The first-word measure was wrong twice** — a tap on a player node hears
+  silent buffers from before `play()`, and its block runs a buffer or two
+  late. Found by the harness, turn by turn; the ear now reads the player's
+  own sample position.
+- **Xcode's macro gate.** The demo's compile stops at "Macro
+  `MLXHuggingFaceMacros` from package `mlx-swift-lm` was changed since a
+  previous approval and must be enabled" — trusting a package's macro is
+  Ryad's to approve, in Xcode, and was not bypassed. The package pins have
+  not changed since 4q.
+- **The echo, on the phone** (§73b): one self-cut in 21 turns, and the diet
+  app's R-4 — piece 3 (D-137).

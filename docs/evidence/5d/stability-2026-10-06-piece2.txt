@@ -1,0 +1,22 @@
+commit 92da927 · macOS 26.6.1 · Xcode 27, Swift 6.4 · no warnings-as-errors · started 13:00:30
+run 1: 􁁛  Test run with 1034 tests in 147 suites passed after 21.972 seconds.
+run 2: 􁁛  Test run with 1034 tests in 147 suites passed after 8.743 seconds.
+run 3: 􁁛  Test run with 1034 tests in 147 suites passed after 24.537 seconds.
+run 4: 􁁛  Test run with 1034 tests in 147 suites passed after 24.822 seconds.
+run 5: 􁁛  Test run with 1034 tests in 147 suites passed after 8.758 seconds.
+run 6: 􁁛  Test run with 1034 tests in 147 suites passed after 8.665 seconds.
+run 7: 􁁛  Test run with 1034 tests in 147 suites passed after 23.869 seconds.
+run 8: 􁁛  Test run with 1034 tests in 147 suites passed after 8.645 seconds.
+run 9: 􁁛  Test run with 1034 tests in 147 suites passed after 8.344 seconds.
+run 10: 􁁛  Test run with 1034 tests in 147 suites passed after 40.709 seconds.
+run 11: 􁁛  Test run with 1034 tests in 147 suites passed after 15.763 seconds.
+run 12: 􁁛  Test run with 1034 tests in 147 suites passed after 40.445 seconds.
+run 13: 􁁛  Test run with 1034 tests in 147 suites passed after 53.746 seconds.
+run 14: 􁁛  Test run with 1034 tests in 147 suites passed after 40.919 seconds.
+run 15: 􁁛  Test run with 1034 tests in 147 suites passed after 8.659 seconds.
+run 16: 􁁛  Test run with 1034 tests in 147 suites passed after 24.864 seconds.
+run 17: 􁁛  Test run with 1034 tests in 147 suites passed after 10.963 seconds.
+run 18: 􁁛  Test run with 1034 tests in 147 suites passed after 8.541 seconds.
+run 19: 􁁛  Test run with 1034 tests in 147 suites passed after 41.794 seconds.
+run 20: 􁁛  Test run with 1034 tests in 147 suites passed after 41.137 seconds.
+done 13:11:08
