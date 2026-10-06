@@ -1,0 +1,171 @@
+voice: Kokoro-82M · float16 · phrases ≤ 120 chars, opening at 20 and 40 · quiet trimmed (margin 40 ms)
+
+🧪 THE SCRIPTED PERSON — Fixtures/ryad-en.wav, 22 sentences, 20 turns, interrupting at [7, 14]
+    hangover 300 ms · gate 500 ms · window 600 ms · vad 0.02
+
+🗣  sentence 1/20 (1380 ms of audio)
+   · turn 0 listening
+   · turn 0 thinking
+   · turn 0 speaking
+⏱  turn 0: ① 300 · ② 11721 · ③ 504 · ④ 687 · ⑤ 847  →  felt 14059 ms
+   · turn 0 completed
+   · turn 0 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 712 ms
+🗣  sentence 2/20 (2460 ms of audio)
+   · turn 1 listening
+   · turn 1 thinking
+   · turn 1 speaking
+⏱  turn 1: ① 300 · ② 165 · ③ 503 · ④ 403 · ⑤ 285  →  felt 1657 ms
+   · turn 1 completed
+   · turn 1 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 349 ms
+🗣  sentence 3/20 (1120 ms of audio)
+   · turn 2 listening
+   · turn 2 thinking
+   · turn 2 speaking
+⏱  turn 2: ① 300 · ② 141 · ③ 502 · ④ 500 · ⑤ 252  →  felt 1695 ms
+   · turn 2 completed
+   · turn 2 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 317 ms
+🗣  sentence 4/20 (1180 ms of audio)
+   · turn 3 listening
+   · turn 3 thinking
+   · turn 3 speaking
+⏱  turn 3: ① 300 · ② 111 · ③ 508 · ④ 589 · ⑤ 264  →  felt 1773 ms
+   · turn 3 completed
+   · turn 3 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 5/20 (1440 ms of audio)
+   · turn 4 listening
+   · turn 4 thinking
+   · turn 4 speaking
+⏱  turn 4: ① 300 · ② 133 · ③ 504 · ④ 713 · ⑤ 260  →  felt 1911 ms
+   · turn 4 completed
+   · turn 4 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 6/20 (2260 ms of audio)
+   · turn 5 listening
+   · turn 5 thinking
+   · turn 5 speaking
+⏱  turn 5: ① 300 · ② 162 · ③ 505 · ④ 811 · ⑤ 257  →  felt 2035 ms
+🗣  sentence 7/20 (2460 ms of audio) — OVER the answer
+   · turn 5 BARGED
+✋ barge (turn 5 dies): ⑦ window 600 · ⑧ silence 0  →  600 ms from your first sound
+   · turn 6 listening
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+   · turn 6 thinking
+   · turn 6 speaking
+⏱  turn 6: ① 300 · ② 147 · ③ 502 · ④ 816 · ⑤ 258  →  felt 2023 ms
+   · turn 6 completed
+   · turn 6 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 8/20 (1740 ms of audio)
+   · turn 7 listening
+   · turn 7 thinking
+   · turn 7 speaking
+⏱  turn 7: ① 300 · ② 325 · ③ 504 · ④ 712 · ⑤ 274  →  felt 2115 ms
+   · turn 7 completed
+   · turn 7 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 339 ms
+🗣  sentence 9/20 (1760 ms of audio)
+   · turn 8 listening
+   · turn 8 thinking
+   · turn 8 speaking
+⏱  turn 8: ① 300 · ② 147 · ③ 502 · ④ 816 · ⑤ 262  →  felt 2027 ms
+   · turn 8 completed
+   · turn 8 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 10/20 (4880 ms of audio)
+   · turn 9 listening
+   · turn 9 thinking
+   · turn 9 speaking
+⏱  turn 9: ① 300 · ② 212 · ③ 500 · ④ 812 · ⑤ 276  →  felt 2102 ms
+   · turn 9 completed
+   · turn 9 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 339 ms
+🗣  sentence 11/20 (1540 ms of audio)
+   · turn 10 listening
+   · turn 10 thinking
+   · turn 10 speaking
+⏱  turn 10: ① 300 · ② 124 · ③ 504 · ④ 806 · ⑤ 282  →  felt 2016 ms
+   · turn 10 completed
+   · turn 10 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 349 ms
+🗣  sentence 12/20 (1220 ms of audio)
+   · turn 11 listening
+   · turn 11 thinking
+   · turn 11 speaking
+⏱  turn 11: ① 300 · ② 144 · ③ 504 · ④ 817 · ⑤ 257  →  felt 2022 ms
+   · turn 11 completed
+   · turn 11 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 13/20 (980 ms of audio)
+   · turn 12 listening
+   · turn 12 idle
+🗣  sentence 14/20 (2260 ms of audio) — OVER the answer
+   · turn 13 listening
+   · turn 13 thinking
+   · turn 13 speaking
+⏱  turn 13: ① 300 · ② 163 · ③ 502 · ④ 813 · ⑤ 253  →  felt 2031 ms
+   · turn 13 completed
+   · turn 13 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 317 ms
+🗣  sentence 15/20 (1480 ms of audio)
+   · turn 14 listening
+   · turn 14 thinking
+   · turn 14 speaking
+⏱  turn 14: ① 300 · ② 390 · ③ 500 · ④ 805 · ⑤ 251  →  felt 2247 ms
+   · turn 14 completed
+   · turn 14 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 317 ms
+🗣  sentence 16/20 (1320 ms of audio)
+   · turn 15 listening
+   · turn 15 thinking
+   · turn 15 speaking
+⏱  turn 15: ① 300 · ② 239 · ③ 508 · ④ 814 · ⑤ 263  →  felt 2125 ms
+   · turn 15 completed
+   · turn 15 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 17/20 (2240 ms of audio)
+   · turn 16 listening
+   · turn 16 thinking
+   · turn 16 speaking
+⏱  turn 16: ① 300 · ② 154 · ③ 504 · ④ 812 · ⑤ 277  →  felt 2048 ms
+   · turn 16 completed
+   · turn 16 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 339 ms
+🗣  sentence 18/20 (920 ms of audio)
+   · turn 17 listening
+   · turn 17 idle
+🗣  sentence 19/20 (1120 ms of audio)
+   · turn 18 listening
+   · turn 18 thinking
+   · turn 18 speaking
+⏱  turn 18: ① 300 · ② 154 · ③ 502 · ④ 812 · ⑤ 264  →  felt 2031 ms
+   · turn 18 completed
+   · turn 18 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 328 ms
+🗣  sentence 20/20 (4480 ms of audio)
+   · turn 19 listening
+   · turn 19 thinking
+   · turn 19 speaking
+⏱  turn 19: ① 300 · ② 131 · ③ 504 · ④ 816 · ⑤ 255  →  felt 2006 ms
+   · turn 19 completed
+   · turn 19 idle
+⏸  reply pauses: 0 over 300 ms · longest 204 ms · quiet before the first word 317 ms
+
+(the runtime is down — teardown ran in order)
+
+════ THE TURN TIMELINE — 18 spoken turns, 1 barges ════
+  ① silence wait     300 ms (the app's hangover, every turn)
+  ② ear finish   median 154 ms · min 111 · max 11721 · n 18
+  ③ reply gate   median 504 ms · min 500 · max 508 · n 18
+  ④ first token  median 812 ms · min 403 · max 817 · n 18
+  ⑤ first sound  median 263 ms · min 251 · max 847 · n 18
+     FELT PAUSE   median 2029 ms · min 1657 · max 14059 · n 18
+     quiet before the 1st word  median 328 ms · min 317 · max 712 · n 18
+     FELT, TO THE FIRST WORD  median 2357 ms · min 2006 · max 14771 · n 18
+  ⑦ barge window  median 600 ms · min 600 · max 600 · n 1
+  ⑧ to silence   median 0 ms · min 0 · max 0 · n 1
+  ⑥ pauses inside answers: 0 over 300 ms in 18 replies · replies with one or more: 0
+  ⑥ longest pause  median 185 ms · min 185 · max 204 · n 18

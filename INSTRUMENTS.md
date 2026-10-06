@@ -6039,3 +6039,64 @@ turns (line: none).
 player starts. The quiet around Kokoro's phrases was measured on this Mac;
 on the phone it is inferred from the same model's output and the same
 ~0.75 s per boundary, not captured there.
+
+## 74. The voice that waits for nothing — piece 2 on this Mac, before and after (5d, AC-349, AC-352)
+
+**What changed** (D-137, D-138): every Kokoro phrase keeps a 40 ms margin
+before its words and, after them, only the pause Kokoro itself makes at the
+phrase's closing mark (measured on whole sentences: comma 137 ms, full stop
+185, question 204, exclamation 109, colon 201, semicolon 206); a cap cut keeps
+the two margins. A reply's first phrases are cut at 20 characters, then 40,
+then the usual 120 — a clause mark that comes first still wins, and one burst
+cuts like a stream. The listening host measures the quiet the player still
+holds before its first word.
+
+**Kokoro alone, at the mixer** (`bakeoff voice-kokoro`, the same five
+fixtures, two draws; `kokoro-silence-2026-10-01.txt` against
+`kokoro-trimmed-2026-10-01.txt`):
+
+| | before piece 2 | after |
+|---|---:|---:|
+| quiet before the first word | 300–351 ms | 41–42 ms |
+| a boundary at a cap cut | ~790 ms | 80–81 ms |
+| a boundary at a comma / a full stop | ~747 / ~734 ms | 137 / 185 ms |
+| the long fixture's first sound | 403 ms | 126–137 ms |
+| WER · exact-zero runs | 0.000 · none | 0.000 · none |
+
+**The harness** (`audio-demo --person`, Ryad's phone setup — the Whisper
+ear, the local 4B, Kokoro; 300 · 500 · 600), medians in ms:
+
+| stage | | run 5 | run 6 | **run 11** | **run 12** |
+|---|---|---:|---:|---:|---:|
+| ① | the silence wait | 300 | 300 | 300 | 300 |
+| ② | the ear's finish | 145 | 141 | 154 | 147 |
+| ③ | the reply gate | 503 | 503 | 503 | 502 |
+| ④ | the mind's first token | 867 | 822 | 813 | 807 |
+| ⑤ | the voice's first sound | 522 | 284 | 270 | 262 |
+| | the quiet before the first word | ~325 † | ~325 † | **40** | **40** |
+| | **the felt pause, to the first word** | ~2 720 † | ~2 355 † | **2 069** | **2 067** |
+| ⑥ | longest silence inside an answer | 777 | 805 | 185 | 185 |
+| ⑥ | replies with a silence over 300 ms | 17 of 17 | 17 of 17 | **0 of 17** | **0 of 17** |
+| ⑦ · ⑧ | barge window · to silence | 600 · 1 | 600 · 0 | 600 · 0 | 600 · 0 |
+
+† Not measured per turn before piece 2: the felt pause to ⑤ (2 394 and 2 030)
+plus Kokoro's lead-in as the mixer measured it (~325 ms).
+
+**What it shows.**
+
+1. **Inside the answers, the waits are gone.** Every reply before held a
+   silence over 300 ms; none does now. The longest pause left is Kokoro's own
+   full stop, 185 ms.
+2. **The first word comes ~0.3 s sooner on this Mac** — the lead-in quiet,
+   325 → 40 ms. ⑤ itself barely moves here: Kokoro decodes at 0.07× real time
+   on this Mac, and the read sentences' replies rarely open with a long
+   phrase. The phone is where ⑤ is big (1 337 ms, §73b) and where the growing
+   phrases are projected to matter most (`phone-2026-10-01-phrase-replay.txt`).
+3. **The measure itself was wrong twice before it was right** (runs 7–10,
+   kept): a tap on a player node hears silent buffers from before `play()`,
+   and its block runs late, so the quiet is now read by the player's own
+   sample position.
+
+**What this does not measure.** The phone (AC-353, Ryad's session). How the
+shorter pauses sound — the ear gate's question. Echo: the scripted person
+speaks into the ring.
