@@ -12,8 +12,8 @@ an evidence file, or a tag note (`git show <tag>`).*
 Mac and on Ryad's phone (INSTRUMENTS §73, §73b) — the felt pause is ~3.3 s
 to the first word, and one reply was cut by its own echo. Piece 2, the voice
 (D-137, D-138), is built and measured on the Mac (§74): the quiet before the
-first word 325 → 40 ms, no silence over 300 ms inside any answer; its ear gate
-and its phone row are owed. The echo, with the diet app's R-4, is piece 3.
+first word 325 → 40 ms, no silence over 300 ms inside any answer; Ryad's ear
+kept every number (2026-10-06); its phone row is owed. The echo, with the diet app's R-4, is piece 3.
 The download daemon's flake keeps "20 of 20" open (SPEC §233, D-139).
 
 ## The picture
