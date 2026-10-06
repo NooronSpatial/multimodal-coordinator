@@ -1,0 +1,72 @@
+# 5d piece 2 — the ear gate's samples (AC-353), made 2026-10-06 on this Mac at 90dc27d (+ the two bakeoff options of this commit).
+# Ryad's own replies from the phone session (phone-2026-10-01-session.md), markdown stars removed:
+#   bakeoff voice-kokoro --draws=1 --texts=FILE --untrimmed   (BEFORE: no trim, the first phrase whole)
+#   bakeoff voice-kokoro --draws=1 --texts=FILE               (AFTER: piece 2's defaults)
+# The audio itself went to Ryad (BEFORE, 1.2 s of silence, AFTER, one file per reply); it is not kept in the repo.
+
+## the texts
+Good morning! How can I assist you today?
+The first law of thermodynamics states that energy cannot be created or destroyed, only transformed from one form to another.
+An integral is a mathematical operation that finds the area under a curve or the accumulation of a quantity over an interval.
+Germany has a long and complex history, shaped by events like the unification in 1871, World War I and II, the Cold War, and the reunification in 1990.
+Sure! Here's a simple low-carb recipe for you: Grilled Chicken with Avocado and Spinach.
+
+## BEFORE
+
+🗣  VOICE-KOKORO (AC-183 + AC-184) — one engine per draw, release build
+    speak → capture at the mixer → exact-zero runs ≥20 ms → transcribe → WER
+    weights: /Users/ryad/Library/Application Support/Kokoro/ · float16
+  text1 draw 1 · 3.8 s · first audio 139 ms · decode RTF 0.09 · 1st decode 133 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text2 draw 1 · 9.1 s · first audio 404 ms · decode RTF 0.07 · 1st decode 397 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text3 draw 1 · 10.0 s · first audio 543 ms · decode RTF 0.07 · 1st decode 537 ms · silence 0 runs, 0.0 ms/s · WER 0.091
+  text4 draw 1 · 14.2 s · first audio 212 ms · decode RTF 0.07 · 1st decode 208 ms · silence 0 runs, 0.0 ms/s · WER 0.081
+  text5 draw 1 · 7.4 s · first audio 138 ms · decode RTF 0.08 · 1st decode 129 ms · silence 0 runs, 0.0 ms/s · WER 0.062
+
+| fixture | draw | audio s | first audio ms | decode RTF | 1st decode ms | silence runs | silence ms/s | WER | warm-up ms |
+|---|---|---|---|---|---|---|---|---|---|
+| text1 | 1 | 3.8 | 139 | 0.09 | 133 | 0 | 0.0 | 0.000 | 757 |
+| text2 | 1 | 9.1 | 404 | 0.07 | 397 | 0 | 0.0 | 0.000 | 769 |
+| text3 | 1 | 10.0 | 543 | 0.07 | 537 | 0 | 0.0 | 0.091 | 554 |
+| text4 | 1 | 14.2 | 212 | 0.07 | 208 | 0 | 0.0 | 0.081 | 564 |
+| text5 | 1 | 7.4 | 138 | 0.08 | 129 | 0 | 0.0 | 0.062 | 709 |
+
+heard, per row:
+  text1 draw 1: "Good morning. How can I assist you today?"
+  text2 draw 1: "The first law of thermodynamics states that energy cannot be created or destroyed. Only transformed from one form to another."
+  text3 draw 1: "An integral is a mathematical operation that finds the area under curve or the accumulation of a quantity over n. Interval"
+  text4 draw 1: "Germany has a long and complex history, shaped by events like the Unification in 1871, World War I and I's I. The Cold War and the Reunification in 1990."
+  text5 draw 1: "Sure, here's a simple low car recipe for you. Grilled chicken with avocado and spinach."
+
+5 of 5 graded draws had ZERO exact-silence runs at lead .zero (AC-183).
+median WER across graded draws: 0.062 (AC-184)
+median decode RTF: 0.07 (wall ÷ audio, from the run's margin)
+
+## AFTER
+
+🗣  VOICE-KOKORO (AC-183 + AC-184) — one engine per draw, release build
+    speak → capture at the mixer → exact-zero runs ≥20 ms → transcribe → WER
+    weights: /Users/ryad/Library/Application Support/Kokoro/ · float16
+  text1 draw 1 · 2.6 s · first audio 155 ms · decode RTF 0.13 · 1st decode 151 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text2 draw 1 · 7.1 s · first audio 138 ms · decode RTF 0.10 · 1st decode 138 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text3 draw 1 · 7.6 s · first audio 138 ms · decode RTF 0.09 · 1st decode 132 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text4 draw 1 · 11.1 s · first audio 138 ms · decode RTF 0.09 · 1st decode 135 ms · silence 0 runs, 0.0 ms/s · WER 0.027
+  text5 draw 1 · 5.9 s · first audio 95 ms · decode RTF 0.10 · 1st decode 92 ms · silence 0 runs, 0.0 ms/s · WER 0.125
+
+| fixture | draw | audio s | first audio ms | decode RTF | 1st decode ms | silence runs | silence ms/s | WER | warm-up ms |
+|---|---|---|---|---|---|---|---|---|---|
+| text1 | 1 | 2.6 | 155 | 0.13 | 151 | 0 | 0.0 | 0.000 | 853 |
+| text2 | 1 | 7.1 | 138 | 0.10 | 138 | 0 | 0.0 | 0.000 | 583 |
+| text3 | 1 | 7.6 | 138 | 0.09 | 132 | 0 | 0.0 | 0.000 | 537 |
+| text4 | 1 | 11.1 | 138 | 0.09 | 135 | 0 | 0.0 | 0.027 | 548 |
+| text5 | 1 | 5.9 | 95 | 0.10 | 92 | 0 | 0.0 | 0.125 | 552 |
+
+heard, per row:
+  text1 draw 1: "Good morning. How can I assist you today?"
+  text2 draw 1: "The first law of thermodynamics states that energy cannot be created or destroyed, only transformed from one form to another."
+  text3 draw 1: "An integral is a mathematical operation that finds the area under a curve or the accumulation of a quantity over an interval."
+  text4 draw 1: "Germany has a long and complex history, shaped by events like the Unification in 1871, World War I and I. The Cold War and the Reunification in 1990."
+  text5 draw 1: "Sure, here's a simple low car recipe for you, a grilled chicken with avocado and spinach."
+
+5 of 5 graded draws had ZERO exact-silence runs at lead .zero (AC-183).
+median WER across graded draws: 0.000 (AC-184)
+median decode RTF: 0.10 (wall ÷ audio, from the run's margin)

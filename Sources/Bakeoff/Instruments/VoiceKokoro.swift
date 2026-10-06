@@ -3,6 +3,7 @@
 // exact-zero runs (digital silence) → transcribe → WER.
 //
 //   swift run -c release bakeoff voice-kokoro --kokoro-weights=DIR [--draws=N] [--save-audio=DIR]
+//                                             [--untrimmed] [--texts=FILE]   (5d piece 2's ear gate)
 //
 // SAME TEXT AS THE OTHER INSTRUMENTS, character for character: the
 // cushion sweep's short and long fixtures (§53/§54) and voice-wer's three
@@ -59,6 +60,13 @@ private struct KokoroFlags {
     let weights: KokoroWeights
     let draws: Int
     let audioDirectory: URL?
+    /// `--untrimmed` (5d piece 2's ear gate): the voice as it was before
+    /// piece 2 — no trim, the first phrase whole — so the same texts can be
+    /// heard before and after.
+    let untrimmed: Bool
+    /// `--texts=FILE`: one text per line, said instead of the fixtures —
+    /// a person's own replies, for the ear gate.
+    let texts: [(name: String, text: String)]?
 
     init(_ arguments: [String]) {
         func flag(_ name: String) -> String? {
@@ -71,6 +79,12 @@ private struct KokoroFlags {
         if let audioDirectory {
             try? FileManager.default.createDirectory(at: audioDirectory, withIntermediateDirectories: true)
         }
+        untrimmed = arguments.contains("--untrimmed")
+        texts = flag("texts").flatMap { try? String(contentsOfFile: $0, encoding: .utf8) }
+            .map { file in
+                file.split(separator: "\n").map(String.init).filter { !$0.isEmpty }.enumerated()
+                    .map { (name: "text\($0.offset + 1)", text: $0.element) }
+            }
     }
 }
 
@@ -108,7 +122,7 @@ func runVoiceKokoro(_ arguments: [String]) async {
 
     var rows: [KokoroRow] = []
     var graderWarm = false
-    for fixture in kokoroFixtures {
+    for fixture in flags.texts ?? kokoroFixtures {
         for draw in 1...flags.draws {
             if let row = await kokoroDraw(fixture, draw: draw, flags: flags,
                                           whisper: whisper, graderWarm: &graderWarm) {
@@ -130,7 +144,9 @@ private func kokoroDraw(_ fixture: (name: String, text: String), draw: Int,
                         graderWarm: inout Bool) async -> KokoroRow? {
     let engine = AVAudioEngine()
     let capture = MixerCapture(engine: engine)
-    let voice = KokoroVoice(weights: flags.weights)
+    let voice = flags.untrimmed
+        ? KokoroVoice(weights: flags.weights, openingCaps: [], quiet: nil)
+        : KokoroVoice(weights: flags.weights)
     await voice.render(on: AudioEnginePlaybackHost(engine: engine))
     let margin = Mutex<DecodeMargin?>(nil)
     await voice.reportMargins { reported in margin.withLock { $0 = reported } }
