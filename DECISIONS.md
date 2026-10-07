@@ -6105,3 +6105,27 @@ always under the whole suite's parallel load. It keeps AC-344 at 59 of 60.
   point (D-132).
 
 **The cost accepted:** the flake stays until a sighting explains it.
+
+## D-140 — 5d piece 3 signed: the echo — a barge proves itself by being LOUD, every candidate measured; every fork as recommended (Milestone 5d)
+
+**Date:** 2026-10-07 · **Decided by:** Ryad ("Sign, all A") · **Ruling:**
+SPEC §241–§246 signed — AC-355 … AC-362, and the three forks:
+
+- **F-38 = A** — the pump marks every chunk it publishes with the VAD's own
+  verdict, loud or quiet (`AudioChunk` gains it; the VAD protocol gains a
+  defaulted way to report its last chunk): one threshold for the speech
+  decision and the barge. *Rejected:* B, the coordinator measuring each
+  segment against a barge level of its own — two thresholds an app must keep
+  equal by hand.
+- **F-39 = A** — `BargeWindow.measured` becomes **320 ms of loud time**:
+  today's behaviour at the demo's 300 ms hangover, kept, so no interruption
+  gets slower (inside F-30's 0.4 s), and the diet app at its 700 ms hangover
+  gets the same protection. *Rejected:* B, 450 ms (likely stops §73b's leak,
+  but every interruption past F-30's line); C, 600 ms re-read (the safest
+  and the slowest). **The cost accepted:** §73b's leak stayed loud for at
+  least ~0.32 s and may still cut; the phone's candidate numbers can move
+  the number, by a D-entry.
+- **F-40 = A** — every barge candidate reported through `LatencyReporter`
+  (a new hand-off with a do-nothing default): onset, loud time, loudest
+  chunk, verdict; the demo's log lists them. *Rejected:* B, the fix alone,
+  unmeasured.
