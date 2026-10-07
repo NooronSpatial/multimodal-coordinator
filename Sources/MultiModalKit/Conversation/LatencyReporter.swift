@@ -30,6 +30,11 @@ public protocol LatencyReporter: Sendable {
     /// One interruption (5d; D-133): the barge window, then the silence —
     /// `cancelLatency` equals its `silence`. Defaults to nothing.
     func bargeTimeline(_ timeline: BargeTimeline)
+
+    /// Every barge candidate, accepted or abandoned, as it was judged (5d
+    /// piece 3, F-40 A): how long it stayed loud, its loudest chunk, its
+    /// verdict. Defaults to nothing; a wrapping reporter must forward it.
+    func bargeCandidate(_ candidate: BargeCandidate)
 }
 
 extension LatencyReporter {
@@ -37,4 +42,6 @@ extension LatencyReporter {
     public func turnTimeline(_ timeline: TurnTimeline) {}
     /// Nothing: a reporter that never asked for the timeline (5d, AC-340).
     public func bargeTimeline(_ timeline: BargeTimeline) {}
+    /// Nothing: a reporter that never asked for candidates (5d piece 3).
+    public func bargeCandidate(_ candidate: BargeCandidate) {}
 }

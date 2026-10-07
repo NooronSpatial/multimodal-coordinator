@@ -64,6 +64,35 @@ public struct TurnTimeline: Sendable, Equatable {
 ///       │ ⑧ silence
 ///       ▼
 ///     both stages acknowledged their cancel
+/// ONE BARGE CANDIDATE, AS IT WAS JUDGED (5d piece 3, F-40 A; AC-360).
+///
+///     onset ─▶ … loud · quiet · loud … ─▶ verdict: accepted (a LOUD chunk at or
+///                                         after the deadline) or abandoned (its speech ended)
+///
+/// Reported for every candidate, accepted or not, so a session shows how
+/// long a leak stays loud beside how long a person does — on the audio
+/// timeline, the window's own.
+public struct BargeCandidate: Sendable, Equatable {
+    /// The speaking turn the candidate threatened.
+    public let turn: Int
+    /// Onset → the verdict: the deciding chunk's start, or the speech's end.
+    public let window: Duration
+    /// The loud chunks the candidate had shown when its verdict fell.
+    public let loudTime: Duration
+    /// Its loudest chunk, as RMS.
+    public let peak: Float
+    /// True: it cut the reply. False: its speech ended first.
+    public let accepted: Bool
+
+    public init(turn: Int, window: Duration, loudTime: Duration, peak: Float, accepted: Bool) {
+        self.turn = turn
+        self.window = window
+        self.loudTime = loudTime
+        self.peak = peak
+        self.accepted = accepted
+    }
+}
+
 public struct BargeTimeline: Sendable, Equatable {
     /// The turn that died.
     public let turn: Int

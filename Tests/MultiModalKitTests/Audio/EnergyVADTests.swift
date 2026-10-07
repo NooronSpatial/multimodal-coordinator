@@ -165,4 +165,20 @@ import Testing
         }
         #expect(transitions == [.speechStarted, .speechEnded])
     }
+
+    // MARK: - 5d piece 3 (F-38 A): the verdict on each chunk, reported
+
+    @Test("the detector reports each chunk's own verdict — the same rule as the speech decision")
+    func reportsEachChunksVerdict() {
+        var vad = EnergyVAD(config: config)
+        #expect(vad.lastChunkIsLoud == nil, "nothing judged yet")
+        _ = vad.process(chunk(0.5))
+        #expect(vad.lastChunkIsLoud == true)
+        _ = vad.process(chunk(0.01))
+        #expect(vad.lastChunkIsLoud == false,
+                "quiet INSIDE the hangover is still quiet — speech goes on, loudness does not")
+        _ = vad.process(chunk(0.02))
+        #expect(vad.lastChunkIsLoud == true, "exactly the threshold is loud, as for the speech decision")
+    }
+
 }

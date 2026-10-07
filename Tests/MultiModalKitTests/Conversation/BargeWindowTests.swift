@@ -174,10 +174,16 @@ struct BargeWindowTests {
     /// someone later "improves" it by widening the window until it swallows
     /// real speech — removing barge-in, the product's soul (D-060), while
     /// every other test here stays green.
+    ///
+    /// RE-READ IN LOUD TIME (5d piece 3, D-140): §43's durations were
+    /// DECLARED lengths at a 300 ms hangover — loud part plus hangover. The
+    /// window now judges loudness alone, so the bounds lose the hangover:
+    /// the longest leak was loud for 520 − 300 = 220 ms, the shortest real
+    /// utterance for 939 − 300 = 639 ms.
     @Test("the measured window cannot swallow the shortest real utterance")
     func theWindowCannotSwallowSpeech() {
-        let shortestRealUtterance = Duration.milliseconds(939)
-        let longestLeak = Duration.milliseconds(520)
+        let shortestRealUtterance = Duration.milliseconds(639)
+        let longestLeak = Duration.milliseconds(220)
         // The MEASURED number, not the default — the default is zero,
         // because a library does not get to claim a policy (D-027).
         let window = BargeWindow.measured
