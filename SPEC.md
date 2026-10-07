@@ -8778,3 +8778,126 @@ echo.
   CORRECTS `10d6dae`'s guess that the bench's 5 s stalls starved those rows:
   the stalls are gone and the rows still fail. Older than piece 2's code;
   Ryad's to rule.
+
+# 5d piece 3 — the echo: a barge proves itself by being LOUD, and every candidate is measured (D-137)
+
+## §241 — why: what the window really measures
+
+```
+today:  onset ─▶ deadline (onset + 600 ms) ─▶ ANY segment at or after it, before speech ends, cuts
+        the pump sends a segment for EVERY chunk until speech ends — the quiet hangover too
+        so the window measures  loud part + hangover,  not how long the sound was loud
+
+  hangover 300 (Ryad's demo, §43):  cuts when loud ≳ 0.32 s — leaks of ≤ 0.22 s filtered
+  hangover 700 (the diet app):      every sound is declared ≥ 0.62 s — the window filters NOTHING
+```
+
+- **The diet app's R-4** (2026-10-01): the coach's own "Good morning!" leaked
+  back for ~0.2–0.3 s and cut the reply in two of three replies. All three of
+  its claims hold against the code (D-137).
+- **Ryad's phone, §73b:** one self-cut in 21 turns — the first reply, cut by
+  its own echo after the 600 ms window at a 300 ms hangover, so that leak
+  stayed loud for at least ~0.32 s, longer than any leak §43 measured.
+  §74b: none in 18 spoken turns.
+- **Nothing in the API says** the window's meaning depends on the hangover.
+- **What nobody has measured:** a leak's loud time and a person's, side by
+  side on the phone. §43's durations are declared lengths at one hangover.
+
+## §242 — scope: piece 3
+
+1. **Loud chunks.** The pump marks every chunk it publishes with the VAD's own
+   verdict — loud or quiet — so the coordinator judges by the same threshold
+   the VAD used (F-38).
+2. **The window judges loudness (R-4).** A barge candidate is accepted at the
+   first LOUD chunk that starts at or after its deadline, before its speech
+   ends; quiet chunks inside the hangover prove nothing. Its verdicts no
+   longer depend on the hangover.
+3. **The number, in loud time.** `BargeWindow.measured` is re-read for the
+   new meaning (F-39), its doc says what it now measures, and the hangover is
+   named as having no part in it.
+4. **Every candidate, measured.** Each barge candidate is reported — its
+   onset, how long it stayed loud, its loudest chunk, accepted or abandoned —
+   and the demo's shared log lists them (F-40): the phone's own numbers for
+   leaks against interruptions.
+
+## §243 — non-goals
+
+- **Telling a leak from a person by more than duration** — comparing the
+  microphone with what the voice is playing (the listening host taps it since
+  piece 1). A later piece, if §242/4's numbers show leaks and people overlap
+  in loud time.
+- **A bystander** (§74b: another person's "bye-bye" killed a pending answer
+  and was answered). Telling the person from someone else needs more than a
+  window — a later piece.
+- **A sound while THINKING** still opens the floor at once (D-071: nothing
+  plays, nothing echoes); §74b: 8 of 26 turns. Turn-taking, not echo.
+- F-30's 400 ms interruption, unless F-39's number meets it.
+
+## §244 — acceptance criteria (AC-355 … AC-362)
+
+- **AC-355 — the same audio, the same verdicts, at any hangover.** Scripted
+  audio events through the coordinator: hangovers of 300 ms and 700 ms give
+  the same accepted and abandoned candidates (R-4 AC-10).
+- **AC-356 — the diet app's numbers.** Hangover 700 ms, onset 100 ms, 20 ms
+  chunks, the window: a sound loud for 280 ms and then quiet, during a reply,
+  does not cut it (R-4 AC-11).
+- **AC-357 — still loud at the deadline cuts.** A sound loud at or after the
+  deadline cuts at the first loud chunk at or after it — also after a pause
+  inside the window, a person between two words (R-4 AC-12). ⑦ is the onset
+  → that chunk.
+- **AC-358 — an abandoned candidate starts nothing.** Its words never start
+  a turn, during the reply or after it (R-4 AC-13).
+- **AC-359 — unchanged:** a window of zero cuts at once; a sound while
+  thinking or idle opens the floor at once (R-4 AC-14); every older barge row
+  green.
+- **AC-360 — every candidate reported** — onset, loud time, loudest chunk,
+  verdict — exact on scripted audio; a reporter written for 0.5.0 compiles
+  unchanged (a defaulted hand-off).
+- **AC-361 — the phone.** One session of Ryad's: the candidates' loud times —
+  leaks against his interruptions — and every self-cut counted. The diet app
+  checks its own, on its pin.
+- **AC-362 — nothing else moved.** The suite green; the 20× loop 20 of 20;
+  lint zero; mutations on the loud-chunk verdict and the window; `api.sh`
+  additions only; the demo compiles.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-355 … AC-359 | `BargeWindowTests` (new rows) · scripted audio events, `ManualClock` | coordinator |
+| AC-355, F-38 | `AudioPumpTests` · "each published chunk carries the VAD's verdict" | pump, scripted VAD |
+| AC-360 | `BargeWindowTests` · "every candidate is reported, accepted or not" | coordinator |
+| AC-361 | Ryad's session | phone |
+| AC-362 | the suite, the 20× loop, lint, mutations, `api.sh`, `xcodebuild` | — |
+
+## §245 — the forks (Ryad rules)
+
+- **F-38 — where "loud" comes from.** **A:** the pump marks each chunk with
+  the VAD's own verdict (`AudioChunk` gains it; the VAD protocol gains a
+  defaulted way to say whether its last chunk was loud): one threshold, the
+  VAD's, for both the speech decision and the barge — additions only.
+  **B:** the coordinator measures each segment's loudness against a barge
+  level of its own: no change to the audio side, but two thresholds an app
+  must keep equal by hand. **Recommendation: A.**
+- **F-39 — the window's number, in loud time.** **A: 320 ms** — today's
+  behaviour at the demo's 300 ms hangover, kept: an interruption still takes
+  ~0.32 s, inside F-30's 0.4 s; but §73b's leak, loud for at least ~0.32 s,
+  may still cut. **B: 450 ms** — between §43's longest leak (0.22 s) and its
+  shortest speech (0.64 s): likely stops §73b's leak; an interruption takes
+  0.45 s, past F-30's line. **C: 600 ms** — today's constant, re-read: the
+  safest, and the slowest — 0.6 s of loud voice to interrupt. Whichever: the
+  phone's candidate numbers (§242/4) can move it, by a D-entry.
+  **Recommendation: A** — the diet app gets the protection Ryad's demo has
+  today, no interruption gets slower, and the phone measures what a better
+  number would be, instead of guessing it.
+- **F-40 — the candidates measured.** **A:** through `LatencyReporter`, a
+  new hand-off with a do-nothing default, one value per candidate — beside
+  the barge timeline it extends; the demo's log lists them. **B:** not
+  measured — only the fix. **Recommendation: A** (D-132: measure first).
+
+## §246 — definition of done (piece 3)
+
+Red before green; the suite green; mutations; the 20× loop 20 of 20; lint
+zero; `api.sh` additions only; the demo compiles; the Mac numbers (the
+harness's barge, unchanged at 300 ms); Ryad's phone session; the diet app
+told that R-4 is in (its own pin checks it); present → HALT.
