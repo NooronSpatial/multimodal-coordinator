@@ -64,8 +64,22 @@ extension TurnCoordinator {
         // THE BARGE WINDOW (D-071). A candidate proves itself by
         // CONTINUING past its deadline, and abandons itself by stopping.
         if case .audioSegment(let chunk) = event {
-            guard let candidate = pendingBarge,
-                  chunk.start >= candidate.deadline else { return nil }
+            guard var candidate = pendingBarge else { return nil }
+            // LOUDNESS, NOT DECLARED LENGTH (5d piece 3, R-4, F-38 A): the
+            // pump sends a segment for every chunk through the hangover, so
+            // "any segment past the deadline" measured loud part + hangover —
+            // at a 700 ms hangover, every sound. Only a LOUD chunk proves a
+            // person; a chunk the VAD said nothing about counts as loud, the
+            // old rule.
+            let loud = chunk.isLoud != false
+            if loud, chunk.start >= candidate.onset {
+                candidate.loudTime += chunk.start.duration(
+                    to: AudioTime(frames: chunk.start.frames + chunk.frameCount, sampleRate: chunk.start.sampleRate))
+                candidate.peak = max(candidate.peak, Self.rms(chunk.samples))
+                pendingBarge = candidate
+            }
+            guard loud, chunk.start >= candidate.deadline else { return nil }
+            report(candidate, verdictAt: chunk.start, accepted: true)
             // Still going at the far edge of the window — a person, not the
             // assistant's own tail. It falls straight through to the barge
             // below, which is the SAME code an immediate barge runs.
@@ -77,9 +91,15 @@ extension TurnCoordinator {
             pendingBarge = nil
             return (candidate.utterance, candidate.onset.duration(to: chunk.start))
         }
-        if case .speechEnded = event {
-            // It stopped before the window closed. 339–520 ms is the leak's
-            // entire measured range (§43); nothing dies.
+        if case .speechEnded(let ended) = event {
+            // It stopped before the window closed: the reply's own echo, by
+            // the window's verdict (§43). Nothing dies — and its words, when
+            // they arrive, are no one's (AC-358).
+            if let candidate = pendingBarge {
+                report(candidate, verdictAt: ended, accepted: false)
+                abandonedUtterances = abandonedUtterances.filter { $0 > contextFloor }
+                abandonedUtterances.insert(candidate.utterance)
+            }
             pendingBarge = nil
             return nil
         }
@@ -93,11 +113,25 @@ extension TurnCoordinator {
             pendingBarge = PendingBarge(
                 utterance: started,
                 onset: at,
-                deadline: at.advanced(by: config.bargeWindow))
+                deadline: at.advanced(by: config.bargeWindow),
+                turn: current?.turn ?? nextTurn - 1)
             return nil
         }
         pendingBarge = nil
         return (started, .zero)
+    }
+
+    /// One candidate's verdict, to the reporter (5d piece 3, F-40 A).
+    private func report(_ candidate: PendingBarge, verdictAt moment: AudioTime, accepted: Bool) {
+        latencyReporter?.bargeCandidate(BargeCandidate(
+            turn: candidate.turn, window: candidate.onset.duration(to: moment),
+            loudTime: candidate.loudTime, peak: candidate.peak, accepted: accepted))
+    }
+
+    /// A chunk's loudness as RMS — the VAD's measure, for the report only.
+    static func rms(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        return (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
     }
 
     /// The barge: the one arm an immediate onset and a candidate that

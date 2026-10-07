@@ -25,7 +25,7 @@ extension TurnCoordinator {
             // the words joined the live prompt, the turn completed and
             // emptied the ledger, and the stashed final was then replayed
             // into a fresh one — answering the same sentence twice.
-            if utterance <= lastOnset && utterance > contextFloor {
+            if utterance <= lastOnset && utterance > contextFloor && !abandonedUtterances.contains(utterance) {
                 ledger.record(text, utterance: utterance)
             }
 

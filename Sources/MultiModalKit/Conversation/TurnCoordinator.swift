@@ -14,17 +14,24 @@
 /// coordinator reacts to is merged into ONE stream and handled by ONE loop
 /// on the actor. Stage readers are group children that only forward into
 /// the merge; they never touch the actor.
-/// THE NUMBER 4k MEASURED, for an app that wants a barge window.
+/// THE NUMBER, for an app that wants a barge window — in LOUD time.
 ///
-/// 600 ms, ruled by Ryad on this evidence (INSTRUMENTS §43): across six
-/// field sessions every leak of the assistant's own voice died under 530 ms,
-/// and every real utterance lasted over 930. This sits 80 ms clear of the
-/// longest leak and 339 ms clear of the shortest speech.
+/// 320 ms of loudness at or after the onset (5d piece 3, D-140, F-39 A): a
+/// candidate cuts the reply only on a chunk the VAD judged LOUD at or after
+/// this deadline. **The app's hangover has no part in it** — the window once
+/// counted every chunk until the speech ended, so it measured loud part +
+/// hangover, and at a 700 ms hangover it filtered nothing (the diet app's R-4).
+///
+/// Why 320: it is what 4k's 600 ms meant at the 300 ms hangover it was
+/// measured at (INSTRUMENTS §43: every leak loud for at most ~220 ms, every
+/// real utterance for at least ~640), so no interruption got slower. Kept as
+/// D-140 ruled it until the phone's own candidate numbers say otherwise —
+/// a leak on Ryad's phone (§73b) stayed loud for at least ~320 ms.
 ///
 /// A named constant rather than a library default: the app that owns a
 /// device owns the policy (D-027).
 public enum BargeWindow {
-    public static let measured = Duration.milliseconds(600)
+    public static let measured = Duration.milliseconds(320)
 }
 
 public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
@@ -457,8 +464,18 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         let onset: AudioTime
         /// The audio moment at which it becomes a barge.
         let deadline: AudioTime
+        /// The speaking turn it threatens (5d piece 3, F-40 A).
+        let turn: Int
+        /// The loud chunks it has shown since its onset, and its loudest.
+        var loudTime: Duration = .zero
+        var peak: Float = 0
     }
     var pendingBarge: PendingBarge?
+    /// Utterances whose barge candidate was ABANDONED — the reply's own echo
+    /// by the window's verdict. Their words are no one's to answer: they
+    /// never enter the ledger, whenever their final arrives (5d piece 3,
+    /// AC-358 — a leak's words reached the next prompt before).
+    var abandonedUtterances: Set<Int> = []
 
     /// The one place a turn dies of failure: event out, ticket dead, idle.
     func failTurn(_ turn: Int, with failure: TurnFailure) {

@@ -203,8 +203,12 @@ public actor AudioPump<C: Clock> where C.Duration == Duration {
         }
     }
 
-    private func judge(_ chunk: AudioChunk) {
-        let transition = chunk.samples.withUnsafeBufferPointer { vad.process($0) }
+    private func judge(_ unjudged: AudioChunk) {
+        let transition = unjudged.samples.withUnsafeBufferPointer { vad.process($0) }
+        // THE VAD'S VERDICT TRAVELS WITH THE CHUNK (5d piece 3, F-38 A): the
+        // barge window downstream judges loudness by the same threshold that
+        // decided the speech — held pre-roll chunks keep their own.
+        let chunk = AudioChunk(samples: unjudged.samples, start: unjudged.start, isLoud: vad.lastChunkIsLoud)
 
         switch transition {
         case .speechStarted:

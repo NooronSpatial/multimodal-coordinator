@@ -177,8 +177,11 @@ import Testing
         _ = vad.process(chunk(0.01))
         #expect(vad.lastChunkIsLoud == false,
                 "quiet INSIDE the hangover is still quiet — speech goes on, loudness does not")
-        _ = vad.process(chunk(0.02))
-        #expect(vad.lastChunkIsLoud == true, "exactly the threshold is loud, as for the speech decision")
+        // Binary-exact, as the method demands: 0.02 has no exact float, and
+        // its RMS lands a hair under itself (this row's first run did).
+        var exact = EnergyVAD(config: .init(threshold: 0.25, hangoverFrames: 300))
+        _ = exact.process(chunk(0.25))
+        #expect(exact.lastChunkIsLoud == true, "exactly the threshold is loud, as for the speech decision")
     }
 
 }
