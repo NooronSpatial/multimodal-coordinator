@@ -34,6 +34,8 @@ extension TranscribeModel {
 
     func record(barge: BargeTimeline) { barges.append(barge) }
 
+    func record(candidate: BargeCandidate) { bargeCandidates.append(candidate) }
+
     func record(pauses: ReplyPauses) { replyPauses.append(pauses) }
 
     /// The log's timeline section: every row, then the medians.
@@ -52,6 +54,13 @@ extension TranscribeModel {
             out += "barge (turn \(barge.turn) dies): ⑦ \(Self.ms(barge.window)) · ⑧ \(Self.ms(barge.silence))"
             out += " → \(Self.ms(barge.window + barge.silence)) ms\n"
         }
+        // 5d piece 3 (F-40 A): every sound over a reply, as the window judged
+        // it — how long it stayed LOUD tells a leak from a person.
+        for candidate in bargeCandidates {
+            out += "candidate over turn \(candidate.turn): loud \(Self.ms(candidate.loudTime)) ms"
+            out += String(format: " · peak %.3f", candidate.peak)
+            out += " · onset → verdict \(Self.ms(candidate.window)) ms → \(candidate.accepted ? "CUT" : "abandoned")\n"
+        }
         for (index, pauses) in replyPauses.enumerated() {
             let first = pauses.leadingQuiet.map { " · quiet before the first word \(Self.ms($0)) ms" }
                 ?? " · never sounded"
@@ -67,6 +76,8 @@ extension TranscribeModel {
         out += firstWordLines(hangover: hangover)
         out += Self.medianLine("⑦ window", barges.map(\.window))
         out += Self.medianLine("⑧ silent", barges.map(\.silence))
+        out += Self.medianLine("loud · cut      ", bargeCandidates.filter(\.accepted).map(\.loudTime))
+        out += Self.medianLine("loud · abandoned", bargeCandidates.filter { !$0.accepted }.map(\.loudTime))
         out += Self.medianLine("⑥ longest pause", replyPauses.map(\.longest))
         out += "⑥ replies with a pause over 300 ms: \(replyPauses.filter { $0.gaps > 0 }.count)\n```\n"
         return out

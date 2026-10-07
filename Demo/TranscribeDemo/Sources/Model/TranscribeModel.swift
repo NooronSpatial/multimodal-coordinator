@@ -382,6 +382,8 @@ final class TranscribeModel {
     /// with it.
     var timelines: [TurnTimeline] = []
     var barges: [BargeTimeline] = []
+    /// Every barge candidate, as the window judged it (5d piece 3, F-40 A).
+    var bargeCandidates: [BargeCandidate] = []
     var replyPauses: [ReplyPauses] = []
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.

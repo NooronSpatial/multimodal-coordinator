@@ -11,6 +11,7 @@ final class HarnessLatency: LatencyReporter, Sendable {
         var timelines: [TurnTimeline] = []
         var barges: [BargeTimeline] = []
         var pauses: [ReplyPauses] = []
+        var candidates: [BargeCandidate] = []
     }
 
     /// ① — the app's own silence wait (F-26 A): the person's sound stopped
@@ -36,6 +37,13 @@ final class HarnessLatency: LatencyReporter, Sendable {
         kept.withLock { $0.barges.append(timeline) }
         print("✋ barge (turn \(timeline.turn) dies): ⑦ window \(timeline.window.ms) · ⑧ silence \(timeline.silence.ms)"
               + "  →  \((timeline.window + timeline.silence).ms) ms from your first sound")
+    }
+
+    /// Every barge candidate, as the window judged it (5d piece 3, F-40 A).
+    func bargeCandidate(_ candidate: BargeCandidate) {
+        kept.withLock { $0.candidates.append(candidate) }
+        print("🔊 candidate over turn \(candidate.turn): loud \(candidate.loudTime.ms) ms · onset → verdict"
+              + " \(candidate.window.ms) ms → \(candidate.accepted ? "CUT" : "abandoned")")
     }
 
     /// `ListeningHost`'s `heard`: one reply's pauses, when its node is given back.
@@ -65,6 +73,8 @@ final class HarnessLatency: LatencyReporter, Sendable {
         lines.append(contentsOf: Self.toTheFirstWord(spoken, kept.pauses, hangover: hangover, row: row))
         lines.append(row("⑦ barge window", kept.barges.map(\.window)))
         lines.append(row("⑧ to silence ", kept.barges.map(\.silence)))
+        lines.append(row("loud · cut      ", kept.candidates.filter(\.accepted).map(\.loudTime)))
+        lines.append(row("loud · abandoned", kept.candidates.filter { !$0.accepted }.map(\.loudTime)))
         let gaps = kept.pauses.map(\.gaps)
         lines.append("  ⑥ pauses inside answers: \(gaps.reduce(0, +)) over 300 ms in \(gaps.count) replies"
                      + " · replies with one or more: \(gaps.filter { $0 > 0 }.count)")

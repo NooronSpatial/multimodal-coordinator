@@ -174,6 +174,7 @@ extension TranscribeModel {
         turns.removeAll()
         timelines.removeAll()
         barges.removeAll()
+        bargeCandidates.removeAll()
         replyPauses.removeAll()
     }
 
