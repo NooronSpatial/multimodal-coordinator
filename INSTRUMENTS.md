@@ -6141,9 +6141,11 @@ log, word for word: `docs/evidence/5d/phone-2026-10-07-session-piece2.md`.
 
 - **8 of 26 turns were killed before their first sound** by a sound that
   came while the AI was thinking (⑦ 0): Ryad going on after a pause
-  ("which kind of sport should I… Cheers for them!"), or something that was
-  not words — Whisper heard "Bye-bye!" once and "- Bye. Bye." once, and the
-  AI answered "Bye-bye!". Asked of Ryad, not assumed.
+  ("which kind of sport should I… Cheers for them!"), or **another person**:
+  the "Bye-bye!" Whisper heard (turn 9 — and the AI answered it) and the
+  "- Bye. Bye." inside turn 17 were someone talking beside Ryad (his answer,
+  2026-10-07: "it was another person"). The pipeline cannot yet tell the
+  person it talks with from a bystander.
 - **The local mind's refusals snowballed** from turn 19 ("I cannot
   provide…", "not allowed to give detailed information") — the mind and its
   memory, outside 5d.

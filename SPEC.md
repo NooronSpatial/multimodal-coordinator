@@ -8770,7 +8770,8 @@ echo.
 - **The echo, on the phone** (§73b): one self-cut in 21 turns, and the diet
   app's R-4 — piece 3 (D-137). None seen in §74b's 18 spoken turns; there,
   8 of 26 turns were killed before their first sound by a sound while the AI
-  was thinking — twice heard by Whisper as "bye".
+  was thinking — twice by ANOTHER PERSON beside Ryad, whose "bye-bye" the AI
+  then answered (his answer, 2026-10-07). A bystander is heard as the person.
 - **A third flake family, on CI only**: `PlaybackLeadStrandTests`' real-audio
   rows ("CONTROL", "THE HOLE, CLOSED") — started, never finished within
   3 s — on `8952ee8`, `90dc27d` and `1a30ecd`; never in 80 local runs. It
