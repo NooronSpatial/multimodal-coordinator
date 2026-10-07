@@ -8748,8 +8748,8 @@ echo.
 | AC-350 growing phrases | **met** — 20, 40, then 120; a mark first still wins; a long word whole; one burst cuts like a stream | `SpeechPhraserGrowingTests`, mutations M80–M82 |
 | AC-351 the first word is measured | **met** — exact on scripted buffers; on the real engine, 40 ms in all 34 replies, by the player's own sample position | `FirstWordTests`, mutations M83–M84, harness runs 11–12 |
 | AC-352 the Mac harness moves | **met** — the felt pause to the first word ~2.36–2.72 s → 2.07 s; ⑥ 34 of 34 replies with a silence over 300 ms → 0 of 34; the longest 777–805 → 185 ms | INSTRUMENTS §74 |
-| AC-353 the ear, then the phone | **the ear: passed** (2026-10-06) — five of Ryad's own replies, before and after; his ruling: "Good: keep all numbers" (the first samples, sent 2026-10-01, were removed by the system's cleanup before he heard them). **The phone: OWED** — one session of his | `ear-gate-2026-10-06.txt` |
-| AC-354 nothing else moved | **met on the Mac, except the demo's compile** — the 20× loop **20 of 20** at `92da927`; the suite 1 034 tests in 147 suites; strict lint zero; M75–M84 ten of ten killed; `api.sh`: 55 lines added, 2 initialisers with defaulted parameters, 0 removed. The demo's iOS compile waits on Xcode's macro approval (below) | `stability-2026-10-06-piece2.txt`, `api-diff-2026-10-06-piece2.txt`, `mutations-2026-10-01-piece2-M75-M84.log` |
+| AC-353 the ear, then the phone | **the ear: passed** (2026-10-06) — five of Ryad's own replies, before and after; his ruling: "Good: keep all numbers" (the first samples, sent 2026-10-01, were removed by the system's cleanup before he heard them). **The phone: met** (2026-10-07, INSTRUMENTS §74b) — ⑤ 1 337 → 660 ms, the felt pause to the first word ~3.3 → 2.3 s, replies with a silence over 300 ms 16 of 22 → 2 of 22; a cooler phone than §73b | `ear-gate-2026-10-06.txt`, `phone-2026-10-07-session-piece2.md` |
+| AC-354 nothing else moved | **met** — the demo's iOS compile passed on 2026-10-07, after Ryad trusted the macro in Xcode; the 20× loop **20 of 20** at `92da927`; the suite 1 034 tests in 147 suites; strict lint zero; M75–M84 ten of ten killed; `api.sh`: 55 lines added, 2 initialisers with defaulted parameters, 0 removed | `stability-2026-10-06-piece2.txt`, `api-diff-2026-10-06-piece2.txt`, `mutations-2026-10-01-piece2-M75-M84.log` |
 
 **What it found that it did not plan to:**
 
@@ -8768,4 +8768,12 @@ echo.
   Ryad's to approve, in Xcode, and was not bypassed. The package pins have
   not changed since 4q.
 - **The echo, on the phone** (§73b): one self-cut in 21 turns, and the diet
-  app's R-4 — piece 3 (D-137).
+  app's R-4 — piece 3 (D-137). None seen in §74b's 18 spoken turns; there,
+  8 of 26 turns were killed before their first sound by a sound while the AI
+  was thinking — twice heard by Whisper as "bye".
+- **A third flake family, on CI only**: `PlaybackLeadStrandTests`' real-audio
+  rows ("CONTROL", "THE HOLE, CLOSED") — started, never finished within
+  3 s — on `8952ee8`, `90dc27d` and `1a30ecd`; never in 80 local runs. It
+  CORRECTS `10d6dae`'s guess that the bench's 5 s stalls starved those rows:
+  the stalls are gone and the rows still fail. Older than piece 2's code;
+  Ryad's to rule.

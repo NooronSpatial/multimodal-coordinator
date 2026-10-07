@@ -13,7 +13,8 @@ Mac and on Ryad's phone (INSTRUMENTS §73, §73b) — the felt pause is ~3.3 s
 to the first word, and one reply was cut by its own echo. Piece 2, the voice
 (D-137, D-138), is built and measured on the Mac (§74): the quiet before the
 first word 325 → 40 ms, no silence over 300 ms inside any answer; Ryad's ear
-kept every number (2026-10-06); its phone row is owed. The echo, with the diet app's R-4, is piece 3.
+kept every number, and on his phone (§74b) the first sound halved (1 337 →
+660 ms) and the felt pause to the first word fell from ~3.3 to 2.3 s. The echo, with the diet app's R-4, is piece 3.
 The download daemon's flake keeps "20 of 20" open (SPEC §233, D-139).
 
 ## The picture
@@ -120,6 +121,7 @@ work when Arabic was parked (D-100).
 | a time limit on CI (`timeout-minutes`) | **proposed, not ruled** | — |
 | about ten test waits still poll (`Task.yield()` in a capped loop) where the rule is events | **open** | the TTS, transcription, pump and diagnostics tests |
 | 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **hunted** (D-135): two bench defects proven and fixed (D-136); after them, 59 of 60 — the bad descriptor and the empty helper words not seen again, causes not proven; the download daemon's resume family recurs (3 sightings) — Ryad's ruling | SPEC §221, §231, §233 |
+| real-audio rows of `PlaybackLeadStrandTests` flake on CI only (started, never finished within 3 s) | **open** — 3 sightings (`8952ee8`, `90dc27d`, `1a30ecd`), none in 80 local runs; corrects the guess in `10d6dae` | SPEC §240 |
 | three copies of the old `Signals` test helper (one timed-out wait ends every later wait) | **open** — the ToolSpike copy is rebuilt | `AIRuntimeTests`, `AdmissionTests`, `ReplyContractTests` |
 | teach-back rows | **owed** (e.g. 4z's AC-287); 5b's was skipped by ruling | SPEC; D-127 |
 | stale lines in the docs | **open** — README's phase table stops at 4h, and its "two real mouths" paragraph predates Kokoro (D-084); ARCHITECTURE's front-door paragraph still says the runtime "cannot call a tool", false since 4z | README; ARCHITECTURE § "The front door" |

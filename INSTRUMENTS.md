@@ -6100,3 +6100,53 @@ plus Kokoro's lead-in as the mixer measured it (~325 ms).
 **What this does not measure.** The phone (AC-353, Ryad's session). How the
 shorter pauses sound — the ear gate's question. Echo: the scripted person
 speaks into the ring.
+
+### 74b. The phone — Ryad's session after piece 2 (AC-353)
+
+**Machine and setup.** iPhone18,5, iOS 26.6.1 (23G83); the same picker as
+§73b — the Whisper ear, the local Qwen3-4B-4bit mind (warm), Kokoro, the
+speaker shield on, tools off; 300 · 500 · 600. 26 turns, 18 spoken, 12
+barges. **Thermal "nominal" throughout** — §73b ran at "serious", so this
+phone was cooler, and ④ (the mind) gains from that, not from piece 2. The
+log, word for word: `docs/evidence/5d/phone-2026-10-07-session-piece2.md`.
+
+| median, ms | §73b (before) | **after piece 2** |
+|---|---:|---:|
+| ② the ear's finish | 172 | 203 |
+| ③ the reply gate | 503 | 503 |
+| ④ the mind's first token | 633 | 547 (cooler phone) |
+| ⑤ the voice's first sound | 1 337 (max 5 539) | **660** (max 833) |
+| the quiet before the first word | ~325 † | **40** (all 18) |
+| the felt pause, to ⑤ | 3 003 (max 7 105) | 2 283 (max 3 373) |
+| **the felt pause, to the first word** | ~3.3 s † | **2 323** |
+| ⑥ longest silence inside an answer | 783 | 124 |
+| ⑥ replies with a silence over 300 ms | 16 of 22 | **2 of 22** (348 and 325 ms) |
+| ⑦ an interruption during speech | 600 | 600 |
+
+† The lead-in was measured on this Mac, not on the phone, before piece 2.
+
+**What it shows.**
+
+1. **The voice now starts on its first words.** ⑤ halved, and its long tail
+   went with it: the slowest first sound 5.5 s → 0.8 s. The slowest felt
+   pause left (3.4 s) is a slow ear (② 1 169 ms), not the voice.
+2. **The waits inside the answers are gone**: 2 replies of 22 hold a silence
+   over 300 ms, both just over it — the next phrase not yet ready after a
+   short first one (the replay foresaw a few).
+3. **No echo self-cut seen.** Each of the four interruptions during speech
+   was followed by Ryad's own words, except the session's last, which nothing
+   follows.
+
+**What it found that is not speed.**
+
+- **8 of 26 turns were killed before their first sound** by a sound that
+  came while the AI was thinking (⑦ 0): Ryad going on after a pause
+  ("which kind of sport should I… Cheers for them!"), or something that was
+  not words — Whisper heard "Bye-bye!" once and "- Bye. Bye." once, and the
+  AI answered "Bye-bye!". Asked of Ryad, not assumed.
+- **The local mind's refusals snowballed** from turn 19 ("I cannot
+  provide…", "not allowed to give detailed information") — the mind and its
+  memory, outside 5d.
+
+**Against F-30's line:** the felt pause to the first word 2.3 s (line 0.8);
+an interruption 600 ms (line 0.4); no self-cut seen in 18 spoken turns.
