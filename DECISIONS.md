@@ -6129,3 +6129,26 @@ SPEC §241–§246 signed — AC-355 … AC-362, and the three forks:
   (a new hand-off with a do-nothing default): onset, loud time, loudest
   chunk, verdict; the demo's log lists them. *Rejected:* B, the fix alone,
   unmeasured.
+
+## D-141 — F-41: the real-audio playback rows that flake on CI only are made to explain themselves (Milestone 5d)
+
+**Date:** 2026-10-07 · **Decided by:** Ryad ("A — explain itself") ·
+**Ruling:** when one of `PlaybackLeadStrandTests`' real-audio rows fails, it
+prints what happened — the buffers scheduled and played, whether the engine
+was running, its output rate, the time the drain waited — so the next CI
+failure says whether CI's audio device plays slower than real time or the
+reply really stuck. Done beside piece 3.
+
+**Why a ruling.** The rows ("CONTROL", "THE HOLE, CLOSED") play 400 ms of
+real audio and wait up to 3 s for `.finished`; on CI's virtual machine they
+sometimes never finish — `8952ee8`, `90dc27d`, `1a30ecd` — and never did in
+80 local runs. They correct the guess in `10d6dae` (§240). CI is the merge
+gate, so the flake reaches every PR.
+
+- *Rejected:* **B — hunt it now**: it happens on CI only; each try is a push
+  and a wait, and CI is not ours to loop.
+- *Rejected:* **C — skip the rows on CI**: green, but the gate would stop
+  checking real playback, and a real bug there would hide.
+
+**The cost accepted:** CI may still go red on these rows until a failure
+explains itself.
