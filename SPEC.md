@@ -9001,8 +9001,17 @@ player back. AVFAudio threw, and the whole test process died mid-run. It was
 never committed. Since then this Mac's download rows time out at 60 s, even
 alone. The likely reason is that the download daemon still holds the dead run's
 background sessions. Not proven. Without the download suites, 940 tests pass
-twice.
+twice. Ryad ruled the daemon be restarted. SIP refused `launchctl kickstart`,
+so his user's `nsurlsessiond` was stopped and came back on demand. The
+download rows stayed slow (31–48 s each), and "a tap in the second life"
+failed. So the restart did not clear it, and the daemon theory is weaker. The
+download rows' code and tests did not change since this morning's 20 of 20
+(`6568619`), and they ran alone, so it is this Mac's state, not yet known
+which part.
 
-**CI: owed.** If CONTROL still fails, its new story says whether the player
-rendered at all. The next step is then C, the real-audio rows alone in their
-own CI step (D-143).
+**CI: green on `9bfbc67`, one run.** CONTROL 4.2 s (8.5–8.6 s in the red
+runs, 4.6–7.3 s before 5d); THE HOLE 0.8 s, THE CONTRAST 0.7 s; the whole
+suite 5.7 s (10–14 s in the red runs). One run is not yet proof: before
+piece 3, CONTROL also passed most runs. If it fails again, its new story says
+whether the player rendered at all, and the next step is C, the real-audio
+rows alone in their own CI step (D-143).
