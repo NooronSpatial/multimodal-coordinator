@@ -62,3 +62,4 @@ warnings as errors) is the gate.
 | `ci-hunt-2026-10-08-strict-run3-FAILED.log` | A one-thread run on the branch before the fix: THE CONTRAST red at 6.048 s. |
 | `red-2026-10-08-l-a-second-stop.log` | The hunt's red: a server stopped twice waited twice and closed twice (both counters 2), and the row took 5.012 s. |
 | `stability-2026-10-08-the-second-stop.txt` | The 20× loop at `6568619`, after the fix. |
+| `mutate-5d-verdict.py`, `mutations-2026-10-08-verdict-M85-M95.log` | D-143's check: the barge rows now wait for the coordinator's verdict (a probe), not 2 s of nothing. M85–M92 again and M93–M95 new: **11 of 11 killed**. M93 (a leak that ended keeps its candidate armed) is killed by exactly "a leak that ended cannot barge later", so the probe waits for the trailing audio. |

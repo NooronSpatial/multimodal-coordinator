@@ -8972,3 +8972,37 @@ directly. CONTROL has always been close to its line on CI (4.6–7.3 s before
 5d). (3) The double close since 5a fits §233's "descriptor closed under its
 owner" family, which was never explained (D-135). It is not proven to be that
 family.
+
+## §249 — CONTROL, after §248: the barge rows wait for a verdict (D-143, F-42 A)
+
+**Why.** After §248's fix, CI went red twice more (`177f61b`, `38e9377`), both
+times on CONTROL: "played 0 of 4 · engine running · drained 3.0 s". CONTROL
+runs in the suite's first seconds. Before piece 3's tests landed it failed now
+and then; after, 3 of 3. Piece 3's rows had added three 2 s busy waits ("no
+barge" proven by spinning) to three older ones: about 12 s of a busy CPU in
+those seconds, on CI's three cores. **Not proven** to be CONTROL's cause.
+
+**Built (Ryad's ruling A).**
+- `BargeVerdict`: after a row's own events, a probe (an onset and its end
+  7 ms later) is judged only once every event before it has been judged; a
+  barge ends the wait too, because the reply is cut in the same actor step
+  that reports the verdict. The 13 barge rows take at most 8 ms (before: 2–4 s
+  on this Mac, 5–8 s on CI).
+- Mutations M85–M95: **11 of 11 killed**, M85–M92 as before and three new ones
+  aimed at "nothing happens after the end". M93 (a leak that ended keeps its
+  candidate) is killed by exactly the row whose point that is ("a leak that
+  ended cannot barge later"), so the probe does wait for the trailing audio.
+- CONTROL's story gains the player's own clock (how far it rendered since its
+  start), read on the run's queue while the player is attached.
+
+**A crash of mine, and what it left.** The clock's first version read the
+player without that guard, on a row that had passed and already given its
+player back. AVFAudio threw, and the whole test process died mid-run. It was
+never committed. Since then this Mac's download rows time out at 60 s, even
+alone. The likely reason is that the download daemon still holds the dead run's
+background sessions. Not proven. Without the download suites, 940 tests pass
+twice.
+
+**CI: owed.** If CONTROL still fails, its new story says whether the player
+rendered at all. The next step is then C, the real-audio rows alone in their
+own CI step (D-143).
