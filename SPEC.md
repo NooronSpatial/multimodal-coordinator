@@ -8901,3 +8901,30 @@ Red before green; the suite green; mutations; the 20× loop 20 of 20; lint
 zero; `api.sh` additions only; the demo compiles; the Mac numbers (the
 harness's barge, unchanged at 300 ms); Ryad's phone session; the diet app
 told that R-4 is in (its own pin checks it); present → HALT.
+
+### §247 — results (piece 3), measured 2026-10-07 … 2026-10-08
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-355 the same verdicts at any hangover | **met** — 300 and 700 ms give the same cuts | `BargeLoudnessTests`, mutation M85 |
+| AC-356 the diet app's numbers | **met** — loud 280 ms then 700 ms of hangover: not a barge | `BargeLoudnessTests`, M85, M90, M91 |
+| AC-357 still loud at the deadline cuts | **met** — at the first LOUD chunk at or after it, also after a pause across it | `BargeLoudnessTests`, M85, M91 |
+| AC-358 an abandoned candidate starts nothing | **met** — and more than asked: its words no longer join the NEXT prompt, which they did ("Good morning. What's your name?") | `BargeLoudnessTests`, M89 |
+| AC-359 unchanged | **met** — a chunk with no verdict counts as loud; every older barge row green | `BargeWindowTests`, M86 |
+| AC-360 every candidate reported | **met** — loud time, peak, onset → verdict, cut or abandoned; the phone log and the harness list them | `BargeLoudnessTests`, M90, M91; harness runs 13–14 |
+| AC-361 the phone | **OWED** — one session of Ryad's | — |
+| AC-362 nothing else moved | **met** — the 20× loop 20 of 20 at `9bda538`; the suite 1 041 tests in 148 suites; strict lint zero; M85–M92 eight of eight killed; `api.sh`: additions and one ruled value (600 → 320 ms); the demo compiles | `stability-2026-10-08-piece3.txt`, `api-diff-2026-10-08-piece3.txt`, `mutations-2026-10-07-piece3-M85-M92.log` |
+
+**On this Mac** (INSTRUMENTS §75): ⑦ 600 → 320 ms for a person who keeps
+talking — the same protection, decided 280 ms sooner.
+
+**What it found that it did not plan to:**
+
+- **An abandoned leak's words reached the next prompt** — a real gap older
+  than piece 3, closed by it (AC-358).
+- **Two traps in the test bench**, both in the AC-358 row, both in the test:
+  a mouth reported finished before the reply's terminal (impossible for a real
+  mouth) stalled the next turn at random, and a wait written inside an
+  `#expect` around an `await` did not wait. Neither was the coordinator.
+- **The harness's 4B weights were removed** with `/tmp`, and the harness fell
+  back to its echo mind without stopping — seen at the head of runs 13–14.

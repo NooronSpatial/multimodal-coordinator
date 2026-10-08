@@ -6152,3 +6152,32 @@ log, word for word: `docs/evidence/5d/phone-2026-10-07-session-piece2.md`.
 
 **Against F-30's line:** the felt pause to the first word 2.3 s (line 0.8);
 an interruption 600 ms (line 0.4); no self-cut seen in 18 spoken turns.
+
+## 75. The barge that judges loudness — piece 3 on this Mac (5d, AC-362)
+
+**What changed** (D-140): a barge candidate cuts the reply only on a chunk
+the VAD judged LOUD at or after its deadline — 320 ms of loud time — and every
+candidate is reported (loud time, peak, onset → verdict, cut or abandoned).
+
+**The harness** (`audio-demo --person`, `--hangover 300 --gate 500
+--window 320`), runs 13 and 14 (`9bda538`), one interruption each — the
+scripted person talks over the answer and keeps talking:
+
+| | runs 11 · 12 (`--window 600`, the old rule) | **runs 13 · 14** (320 ms loud) |
+|---|---:|---:|
+| ⑦ the barge window | 600 · 600 | **320 · 320** |
+| ⑧ accepted → silent | 0 · 0 | 0 · 0 |
+| the candidate | — (not measured) | loud 340 ms → CUT, both runs |
+
+**What it shows.** The same sounds pass the window as before — one must stay
+loud ~0.32 s — but a person who keeps talking now stops the voice **280 ms
+sooner**: 320 ms, inside F-30's 0.4 s line on this Mac. The hangover has no
+part in it any more.
+
+**⚠ What these two runs are not.** Their mind was NOT the local 4B: its
+weights lived under `/tmp/mmk`, which the system emptied, and the harness fell
+back to its echo mind without stopping ("--mind=local: no weights found" at
+the head of both logs). The barge does not depend on the mind; ②–⑥ of runs 13
+and 14 are not comparable with runs 11 and 12, and are not used. Echo itself
+cannot happen here: the scripted person speaks into the ring. Leaks against a
+person, in loud time, are the phone's to measure (AC-361).

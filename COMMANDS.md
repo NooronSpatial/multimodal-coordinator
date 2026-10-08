@@ -123,7 +123,7 @@ disagreeing. Typing a number re-opens that hole by hand.
 | `--onset` | `--onset 120` | `0` (D-036) | how long speech must persist before it counts |
 | `--hangover` | `--hangover 700` | `700` (D-028/D-036) | how long silence must last before the turn ends |
 | `--gate` | `--gate 250` | `0` | AC-81's reply gate — how long to wait before answering |
-| `--window` | `--window 600` | `0` | the barge window (D-071) — how long a voice over the reply must last to interrupt it; the phone runs 600 |
+| `--window` | `--window 320` | `0` | the barge window (D-071), in LOUD time since 5d piece 3 (D-140) — how long a voice over the reply must stay loud to interrupt it; the hangover has no part in it; the phone runs 320 (`BargeWindow.measured`) |
 | `--no-aec` | bare | AEC **on** (D-038) | turns echo cancellation off |
 
 These four values are printed in the startup banner (`AudioDemo.swift:182`),
@@ -152,7 +152,7 @@ and ⑧ the silence after; every reply prints ⑥ its pauses. The phone's setup,
 spoken to by Ryad's recorded voice, repeatable (SPEC §225/4, INSTRUMENTS §73):
 
 ```bash
-swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro --hangover 300 --gate 500 --window 600
+swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro --hangover 300 --gate 500 --window 320
 ```
 
 It ends with the medians. The person speaks into the ring directly, so this

@@ -14,7 +14,7 @@ to the first word, and one reply was cut by its own echo. Piece 2, the voice
 (D-137, D-138), is built and measured on the Mac (§74): the quiet before the
 first word 325 → 40 ms, no silence over 300 ms inside any answer; Ryad's ear
 kept every number, and on his phone (§74b) the first sound halved (1 337 →
-660 ms) and the felt pause to the first word fell from ~3.3 to 2.3 s. The echo, with the diet app's R-4, is piece 3.
+660 ms) and the felt pause to the first word fell from ~3.3 to 2.3 s. Piece 3, the echo (D-140), is built and checked on the Mac (§75): a barge proves itself by staying LOUD 320 ms — the diet app's R-4 — decided 280 ms sooner than before; its phone row is owed.
 The download daemon's flake keeps "20 of 20" open (SPEC §233, D-139).
 
 ## The picture

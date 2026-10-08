@@ -6,7 +6,7 @@ import MultiModalKit
 // stage — the same run, repeatable, before and after every fix:
 //
 //   swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro \
-//       --hangover 300 --gate 500 --window 600
+//       --hangover 300 --gate 500 --window 320      (loud time since 5d piece 3, D-140)
 //
 // No microphone: the person's voice reaches the ring directly, so this run
 // measures the pipeline and never an echo.
