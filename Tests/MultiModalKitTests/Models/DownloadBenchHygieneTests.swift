@@ -63,6 +63,25 @@ struct DownloadBenchHygieneTests {
         #expect(late == nil, "stop \(late ?? 0) of 3 closed the socket under a waiting accept thread")
     }
 
+    /// Found by the CI hunt (2026-10-08): one row stops its server in the
+    /// middle ("the network, unplugged") and its teardown stops it again.
+    /// The second stop waited the whole 5 s cap for an accept thread that
+    /// had already ended — a thread of Swift's pool held for 5 s, and on CI's
+    /// three-thread pool the real-audio rows ran out of time underneath it —
+    /// and it closed the socket's NUMBER a second time, a number the system
+    /// may already have handed to another test.
+    @Test("a second stop() does nothing: no second wait, no second close")
+    func aSecondStopDoesNothing() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "bench-hygiene-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let server = try LoopbackFileServer(directory: directory)
+        server.stop()
+        server.stop()
+        #expect(server.acceptWaits == 1, "the second stop waited for an accept thread that had already ended")
+        #expect(server.socketCloses == 1, "the second stop closed the socket's number again")
+    }
+
     /// One plain GET over a blocking socket: the response's body. The server
     /// answers `Connection: close`, so its close ends the read — an event; the
     /// receive cap only keeps a broken server from hanging the row.

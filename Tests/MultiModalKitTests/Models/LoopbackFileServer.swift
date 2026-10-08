@@ -74,6 +74,10 @@ final class LoopbackFileServer: @unchecked Sendable {
         var socketClosed = false
         /// The accept thread was still alive when the socket was closed.
         var acceptEndedAfterClose = false
+        /// How many times `stop()` waited for the accept thread, and closed
+        /// the listening socket — once each, whoever calls it (the CI hunt).
+        var acceptWaits = 0
+        var socketCloses = 0
     }
 
     private let directory: URL
@@ -124,8 +128,9 @@ final class LoopbackFileServer: @unchecked Sendable {
         state.withLock { $0.stopped = true }
         release()
         let poke = Self.poke(port)
+        state.withLock { $0.acceptWaits += 1 }
         _ = acceptDone.wait(timeout: .now() + 5)
-        state.withLock { $0.socketClosed = true }
+        state.withLock { $0.socketClosed = true; $0.socketCloses += 1 }
         close(socket)
         if poke >= 0 { close(poke) }
     }
@@ -158,6 +163,10 @@ final class LoopbackFileServer: @unchecked Sendable {
     var acceptLoopEnded: Bool { state.withLock { $0.acceptLoopEnded } }
     /// Whether the accept thread outlived the socket's close (5d §233).
     var acceptEndedAfterClose: Bool { state.withLock { $0.acceptEndedAfterClose } }
+    /// How many times `stop()` waited for the accept thread.
+    var acceptWaits: Int { state.withLock { $0.acceptWaits } }
+    /// How many times `stop()` closed the listening socket.
+    var socketCloses: Int { state.withLock { $0.socketCloses } }
 
     func url(for path: String) -> URL {
         URL(string: "http://127.0.0.1:\(port)/\(path)")!
