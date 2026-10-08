@@ -124,8 +124,18 @@ final class LoopbackFileServer: @unchecked Sendable {
     /// a number the system has already handed to another test's socket or
     /// file. (`shutdown()` wakes nothing here: on this Mac a thread waiting
     /// in `accept()` returns only for a connection or a `close()`.)
+    ///
+    /// ONCE (the CI hunt, 2026-10-08): a second call returns at once. It
+    /// used to wait the whole cap for a thread that had already ended, and
+    /// close the socket's number again — a number the system may already
+    /// have handed to another test.
     func stop() {
-        state.withLock { $0.stopped = true }
+        let stoppedBefore = state.withLock { state -> Bool in
+            let before = state.stopped
+            state.stopped = true
+            return before
+        }
+        guard !stoppedBefore else { return }
         release()
         let poke = Self.poke(port)
         state.withLock { $0.acceptWaits += 1 }
