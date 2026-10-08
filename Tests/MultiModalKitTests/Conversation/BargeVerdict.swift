@@ -26,7 +26,7 @@ enum BargeVerdict {
     /// The probe, far past any row's own events (60 s on the audio timeline).
     static let probe: [AudioEvent] = [
         .speechStarted(utterance: 99, at: TurnCoordinatorTests.t(60_000 * 48)),
-        .speechEnded(at: TurnCoordinatorTests.t(60_000 * 48 + 7 * 48)),
+        .speechEnded(at: TurnCoordinatorTests.t(60_000 * 48 + 7 * 48))
     ]
 
     static func isProbe(_ candidate: BargeCandidate) -> Bool {
