@@ -1,0 +1,22 @@
+# the 20x loop at 6568619 — after the second stop's fix (the CI hunt). swift test --skip-build, this Mac, 10 cores.
+run 1: 􁁛  Test run with 1042 tests in 148 suites passed after 5.808 seconds.
+run 2: 􁁛  Test run with 1042 tests in 148 suites passed after 84.250 seconds.
+run 3: 􁁛  Test run with 1042 tests in 148 suites passed after 37.364 seconds.
+run 4: 􁁛  Test run with 1042 tests in 148 suites passed after 6.029 seconds.
+run 5: 􁁛  Test run with 1042 tests in 148 suites passed after 36.455 seconds.
+run 6: 􁁛  Test run with 1042 tests in 148 suites passed after 37.121 seconds.
+run 7: 􁁛  Test run with 1042 tests in 148 suites passed after 20.659 seconds.
+run 8: 􁁛  Test run with 1042 tests in 148 suites passed after 20.663 seconds.
+run 9: 􁁛  Test run with 1042 tests in 148 suites passed after 15.275 seconds.
+run 10: 􁁛  Test run with 1042 tests in 148 suites passed after 35.228 seconds.
+run 11: 􁁛  Test run with 1042 tests in 148 suites passed after 36.100 seconds.
+run 12: 􁁛  Test run with 1042 tests in 148 suites passed after 20.736 seconds.
+run 13: 􁁛  Test run with 1042 tests in 148 suites passed after 68.104 seconds.
+run 14: 􁁛  Test run with 1042 tests in 148 suites passed after 20.898 seconds.
+run 15: 􁁛  Test run with 1042 tests in 148 suites passed after 35.217 seconds.
+run 16: 􁁛  Test run with 1042 tests in 148 suites passed after 36.779 seconds.
+run 17: 􁁛  Test run with 1042 tests in 148 suites passed after 20.313 seconds.
+run 18: 􁁛  Test run with 1042 tests in 148 suites passed after 20.153 seconds.
+run 19: 􁁛  Test run with 1042 tests in 148 suites passed after 20.163 seconds.
+run 20: 􁁛  Test run with 1042 tests in 148 suites passed after 20.278 seconds.
+done 07:25:52
