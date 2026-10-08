@@ -55,11 +55,14 @@ struct BargeLoudnessTests {
 
     struct Outcome {
         let barged: Bool
-        let recorder: CandidateRecorder
+        /// The candidates the row's own events raised (the probe's left out).
+        let candidates: [BargeCandidate]
+        let barges: [BargeTimeline]
     }
 
     /// Drives a turn to SPEAKING, plays `events` over it, and says whether
-    /// the reply was cut — bounded, so a red row fails instead of hanging.
+    /// the reply was cut — once the coordinator has judged every event
+    /// (`BargeVerdict`, D-143), not after 2 s of waiting for nothing.
     static func play(_ events: [AudioEvent], window: Duration = .milliseconds(320)) async throws -> Outcome {
         let recorder = CandidateRecorder()
         let bench = try TurnCoordinatorTests.Bench(
@@ -67,7 +70,7 @@ struct BargeLoudnessTests {
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true), .manual()]),
             clock: ContinuousClock(), reporter: recorder, config: .init(bargeWindow: window))
         let listener = await bench.coordinator.listen()
-        var barged = false
+        var verdict = (barged: false, candidates: [BargeCandidate]())
         await withTaskGroup(of: Void.self) { group in
             bench.start(in: &group, listener: listener)
             bench.speak(utterance: 0, final: "tell me a story", at: 0)
@@ -77,13 +80,11 @@ struct BargeLoudnessTests {
             bench.synthesizer.reportStarted(utterance: 0)
             _ = await TurnCoordinatorTests.until { await bench.coordinator.currentState == .speaking }
             for event in events { bench.audio.yield(event) }
-            barged = await TurnCoordinatorTests.until({
-                await bench.coordinator.currentState == .listening
-            }, within: .seconds(2))
+            verdict = await BargeVerdict.judged(bench, recorder)
             bench.finishInputs()
             await bench.coordinator.stop()
         }
-        return Outcome(barged: barged, recorder: recorder)
+        return Outcome(barged: verdict.barged, candidates: verdict.candidates, barges: recorder.barges)
     }
 
     // MARK: - AC-356: the diet app's numbers
@@ -93,7 +94,7 @@ struct BargeLoudnessTests {
         let outcome = try await Self.play([Self.onset(1000)]
             + Self.chunks(1000, 1280, loud: true) + Self.chunks(1280, 1980, loud: false) + [Self.end(1980)])
         #expect(!outcome.barged, "280 ms of loudness is a leak; 700 ms of hangover proves nothing")
-        #expect(outcome.recorder.candidates == [BargeCandidate(
+        #expect(outcome.candidates == [BargeCandidate(
             turn: 0, window: .milliseconds(980), loudTime: .milliseconds(280), peak: 0.5, accepted: false)],
                 "reported as judged: abandoned, loud for 280 ms (AC-360)")
     }
@@ -109,7 +110,7 @@ struct BargeLoudnessTests {
             let long = try await Self.play([Self.onset(1000)] + Self.chunks(1000, 1400, loud: true)
                 + Self.chunks(1400, 1400 + hangover, loud: false) + [Self.end(1400 + hangover)])
             #expect(long.barged, "loud 400 ms, hangover \(hangover) ms: a barge")
-            #expect(long.recorder.barges.map(\.window) == [.milliseconds(320)],
+            #expect(long.barges.map(\.window) == [.milliseconds(320)],
                     "cut at the first loud chunk ≥ deadline")
         }
     }
@@ -121,9 +122,9 @@ struct BargeLoudnessTests {
         let outcome = try await Self.play([Self.onset(1000)] + Self.chunks(1000, 1200, loud: true)
             + Self.chunks(1200, 1400, loud: false) + Self.chunks(1400, 1600, loud: true))
         #expect(outcome.barged)
-        #expect(outcome.recorder.barges.map(\.window) == [.milliseconds(400)],
+        #expect(outcome.barges.map(\.window) == [.milliseconds(400)],
                 "⑦ runs to the first LOUD chunk at or after the deadline — not to a quiet one at 320")
-        #expect(outcome.recorder.candidates == [BargeCandidate(
+        #expect(outcome.candidates == [BargeCandidate(
             turn: 0, window: .milliseconds(400), loudTime: .milliseconds(220), peak: 0.5, accepted: true)],
                 "reported as judged: accepted, 200 + 20 ms loud (AC-360)")
     }
@@ -134,7 +135,7 @@ struct BargeLoudnessTests {
     func unknownIsLoud() async throws {
         let outcome = try await Self.play([Self.onset(1000)] + Self.chunks(1000, 1400, loud: nil))
         #expect(outcome.barged)
-        #expect(outcome.recorder.barges.map(\.window) == [.milliseconds(320)])
+        #expect(outcome.barges.map(\.window) == [.milliseconds(320)])
     }
 
     // MARK: - F-39: the number, re-read in loud time

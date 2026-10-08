@@ -44,11 +44,13 @@ struct BargeWindowTests {
         trailingSegments: [Int] = [],
         window: Duration
     ) async throws -> Bool {
+        let recorder = CandidateRecorder()
         let bench = try TurnCoordinatorTests.Bench<ContinuousClock>(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true),
                                                       .manual()]),
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true),
                                                      .manual()]),
+            clock: ContinuousClock(), reporter: recorder,
             config: .init(bargeWindow: window))
         let listener = await bench.coordinator.listen()
         var barged = false
@@ -82,11 +84,10 @@ struct BargeWindowTests {
                     AudioChunk(samples: [0], start: TurnCoordinatorTests.t(frames))))
             }
 
-            // A barge moves the state to `.listening`. Bounded: if it never
-            // happens this returns false rather than hanging.
-            barged = await TurnCoordinatorTests.until({
-                await bench.coordinator.currentState == .listening
-            }, within: .seconds(2))
+            // A barge moves the state to `.listening`. Decided once the
+            // coordinator has judged every event above — not after 2 s of
+            // waiting for a state that must not come (5d, D-143).
+            barged = await BargeVerdict.judged(bench, recorder).barged
 
             bench.finishInputs()
             await bench.coordinator.stop()

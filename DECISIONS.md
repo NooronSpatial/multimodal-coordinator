@@ -6171,3 +6171,29 @@ would have come to Ryad first.
 
 **D-141 stands.** The stories it added made the CI failures readable, and they
 stay. "played 0 of 4" in CONTROL is not yet explained (§248).
+
+## D-143 — F-42: the barge rows wait for the coordinator's verdict, not 2 s of nothing; CONTROL's story gains the engine's clock (Milestone 5d)
+
+**Date:** 2026-10-08 · **Decided by:** Ryad ("A — wait for the verdict") ·
+**Ruling:** the barge rows (`BargeLoudnessTests`, `BargeWindowTests`) stop
+proving "no barge" by spinning a CPU for 2 s. They wait for the coordinator's
+own verdict on the candidate, which piece 3 reports (AC-360): abandoned, or
+cut. The rows' mutations run again to show the proof is as strong. CONTROL's
+failure story also gains the engine's clock, so the next failure says
+whether audio moved at all. If CONTROL still fails, C is next.
+
+**Why a ruling.** After §248's fix, CI went red twice more, both times on
+CONTROL: "played 0 of 4 · engine running · drained 3.0 s". CONTROL runs in the
+suite's first seconds, when about a thousand tests start on CI's three cores.
+Before piece 3's tests landed, CONTROL failed now and then; after, 3 of 3.
+Piece 3 added three 2 s busy waits to the three older ones, about 12 s of a
+busy CPU in those seconds, against the house rule (events, not delays).
+**Not proven:** CPU load never stopped audio on this Mac; only CI can confirm.
+
+- *Rejected:* **B — keep the 2 s, sleep between looks**: the same proof on an
+  idle CPU, but still a wait for a delay, and still ~12 s of wall time.
+- *Rejected:* **C — the real-audio rows alone in their own CI step** (D-111's
+  shape): the surest green, but it isolates and fixes nothing; kept as the
+  fallback.
+- *Rejected:* **D — a 10 s drain**: hides how slow, and a stuck reply fails
+  only after 10 s.
