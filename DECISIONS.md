@@ -6152,3 +6152,22 @@ gate, so the flake reaches every PR.
 
 **The cost accepted:** CI may still go red on these rows until a failure
 explains itself.
+
+## D-142 — PR 63's red check is hunted now, under Auto-fix: D-141's "not now" changes (Milestone 5d)
+
+**Date:** 2026-10-08 · **Decided by:** Ryad, by turning Auto-fix on for
+PR 63 (standing permission to fix what makes its check red, and to push the
+fix). The hunt and the fix are mine; they are presented for his review.
+
+**What changes.** D-141 rejected "B — hunt it now" (CI only, each try a push).
+The hunt then found a way to reproduce the failure on this Mac, so no push was
+needed: Swift's pool held to one thread (`LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`).
+The cause is test code only: the download bench's server, stopped twice by one
+row, waited 5 s on the second stop (SPEC §248). The fix (`stop()` acts once)
+was red first. **No design fork arose**: a stop that does its work once has no
+defensible alternative that keeps the trap. Had the fix needed one, for
+example skipping the real-audio rows on CI (D-141's C) or a longer drain, it
+would have come to Ryad first.
+
+**D-141 stands.** The stories it added made the CI failures readable, and they
+stay. "played 0 of 4" in CONTROL is not yet explained (§248).

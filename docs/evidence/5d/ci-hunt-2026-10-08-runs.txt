@@ -1,0 +1,70 @@
+# The CI hunt (2026-10-08) — every run behind docs/evidence/5d/ci-hunt-2026-10-08.md, one line each.
+# LOCAL rows: swift test --skip-build on this Mac (10 cores); 'strict' = LIBDISPATCH_COOPERATIVE_POOL_STRICT=1,
+# Swift's pool held to ONE thread (CI's runner has three); the 4y hammer skipped, as CI's suite step skips it.
+# Each line: the run's summary | the four real-audio rows' own durations (s) and verdicts | any issue.
+
+## the branch at 115c30d, strict
+run  1: 1040 tests failed 24.353 with 1 issue | CONTROL — 7.147 passed; the margin  2.069 passed; THE HOLE, C 1.614 passed; THE CONTRAS 1.409 passed;  ISSUE: two callers, one transfer: one request per f 
+run  2: 1040 tests passed 28.974 | CONTROL — 4.785 passed; the margin  1.698 passed; THE HOLE, C 1.044 passed; THE CONTRAS 0.951 passed; 
+run  3: 1040 tests failed 13.635 with 1 issue | CONTROL — 4.529 passed; the margin  1.154 passed; THE HOLE, C 1.005 passed; THE CONTRAS 6.048 failed;  ISSUE: THE CONTRAST — the same lead is fine when  
+run  4: 1040 tests passed 12.658 | CONTROL — 4.462 passed; the margin  1.588 passed; THE HOLE, C 1.030 passed; THE CONTRAS 5.983 passed; 
+run  5: 1040 tests failed 13.349 with 2 issues | CONTROL — 4.436 passed; the margin  1.556 passed; THE HOLE, C 0.980 passed; THE CONTRAS 6.026 failed;  ISSUE: THE CONTRAST — the same lead is fine when  
+run  6: 1040 tests failed 13.647 with 1 issue | CONTROL — 4.424 passed; the margin  1.121 passed; THE HOLE, C 1.012 passed; THE CONTRAS 6.057 failed;  ISSUE: THE CONTRAST — the same lead is fine when  
+
+## the branch at 115c30d, strict, BargeLoudnessTests and BargeWindowTests skipped
+run  1: 1027 tests failed 28.874 with 2 issues | CONTROL — 4.718 passed; the margin  2.707 passed; THE HOLE, C 1.014 passed; THE CONTRAS 5.911 failed;  ISSUE: THE CONTRAST — the same lead is fine when  
+run  2: 1027 tests passed 12.072 | CONTROL — 4.476 passed; THE HOLE, C 0.997 passed; the margin  1.582 passed; THE CONTRAS 0.954 passed; 
+run  3: 1027 tests passed 12.030 | CONTROL — 4.575 passed; the margin  1.177 passed; THE HOLE, C 0.969 passed; THE CONTRAS 5.993 passed; 
+run  4: 1027 tests passed 12.041 | CONTROL — 4.551 passed; the margin  1.222 passed; THE HOLE, C 1.008 passed; THE CONTRAS 5.171 passed; 
+run  5: 1027 tests passed 12.224 | CONTROL — 4.578 passed; the margin  1.518 passed; THE HOLE, C 1.066 passed; THE CONTRAS 5.129 passed; 
+run  6: 1027 tests failed 28.629 with 1 issue | CONTROL — 4.515 passed; the margin  1.253 passed; THE HOLE, C 1.010 passed; THE CONTRAS 5.997 failed;  ISSUE: THE CONTRAST — the same lead is fine when  
+
+## main at f11dca4 (before 5d), strict
+run  1: 978 tests passed 6.887 | CONTROL — 4.408 passed; the margin  1.135 passed; THE HOLE, C 1.006 passed; THE CONTRAS 0.959 passed; 
+run  2: 978 tests passed 15.589 | CONTROL — 4.350 passed; the margin  1.213 passed; THE HOLE, C 1.081 passed; THE CONTRAS 1.033 passed; 
+run  3: 978 tests passed 22.944 | CONTROL — 4.599 passed; THE HOLE, C 1.005 passed; the margin  1.172 passed; THE CONTRAS 1.151 passed; 
+run  4: 978 tests passed 7.281 | CONTROL — 4.772 passed; the margin  1.266 passed; THE HOLE, C 1.037 passed; THE CONTRAS 0.981 passed; 
+run  5: 978 tests passed 7.209 | CONTROL — 4.430 passed; THE HOLE, C 1.211 passed; the margin  1.416 passed; THE CONTRAS 0.995 passed; 
+run  6: 978 tests passed 22.907 | CONTROL — 4.603 passed; the margin  1.077 passed; THE HOLE, C 1.910 passed; THE CONTRAS 0.520 passed; 
+
+## the branch with the fix (6568619), strict
+run  1: 1041 tests passed 22.827 | CONTROL — 4.714 passed; the margin  1.643 passed; THE HOLE, C 1.018 passed; THE CONTRAS 1.006 passed; 
+run  2: 1041 tests passed 22.406 | CONTROL — 4.529 passed; the margin  1.164 passed; THE HOLE, C 1.013 passed; THE CONTRAS 1.033 passed; 
+run  3: 1041 tests passed 8.822 | CONTROL — 4.652 passed; the margin  1.352 passed; THE HOLE, C 1.132 passed; THE CONTRAS 0.986 passed; 
+run  4: 1041 tests passed 8.768 | CONTROL — 4.588 passed; THE HOLE, C 1.046 passed; the margin  1.191 passed; THE CONTRAS 0.997 passed; 
+run  5: 1041 tests passed 8.722 | CONTROL — 4.579 passed; the margin  1.246 passed; THE HOLE, C 1.011 passed; THE CONTRAS 1.005 passed; 
+run  6: 1041 tests passed 8.798 | CONTROL — 4.504 passed; the margin  1.282 passed; THE HOLE, C 1.089 passed; THE CONTRAS 1.065 passed; 
+run  7: 1041 tests passed 7.806 | CONTROL — 4.647 passed; THE HOLE, C 0.989 passed; the margin  1.175 passed; THE CONTRAS 0.971 passed; 
+run  8: 1041 tests passed 7.831 | CONTROL — 4.563 passed; the margin  1.373 passed; THE HOLE, C 1.036 passed; THE CONTRAS 0.986 passed; 
+run  9: 1041 tests passed 7.690 | CONTROL — 4.510 passed; the margin  1.132 passed; THE HOLE, C 1.000 passed; THE CONTRAS 1.036 passed; 
+run 10: 1041 tests passed 8.727 | CONTROL — 4.634 passed; THE HOLE, C 0.993 passed; the margin  1.151 passed; THE CONTRAS 0.969 passed; 
+
+## the expectedInstall row alone (MLXBackgroundInstallTests, no strict), before the fix: 5.016, 5.022, 5.014 s; after: 0.006 s
+
+## CI (GitHub, macos-26, 3 cores): the real-audio rows' own durations (s), from each run's log; ! = red
+pre-5b-0924a     CONTROL — t   -    | THE HOLE, C   -    | THE CONTRAS   -    | the margin    -   
+pre-5b-0924b     CONTROL — t   5.2  | THE HOLE, C   0.7  | THE CONTRAS   1.0  | the margin    2.1 
+pre-5c-0929      CONTROL — t   5.4  | THE HOLE, C   1.1  | THE CONTRAS   0.6  | the margin    1.2 
+pre-main-0929a   CONTROL — t   5.5  | THE HOLE, C   1.1  | THE CONTRAS   0.6  | the margin    0.8 
+pre-main-0929b   CONTROL — t   6.3  | THE HOLE, C   1.2  | THE CONTRAS   0.7  | the margin    2.6 
+pre-main-0929c   CONTROL — t   4.6  | THE HOLE, C   0.8  | THE CONTRAS   0.6  | the margin    2.3 
+pre-main-0929d   CONTROL — t   6.7  | THE HOLE, C   2.7  | THE CONTRAS   2.6  | the margin    2.9 
+pre-stale-0929   CONTROL — t   7.3  | THE HOLE, C   1.4  | THE CONTRAS   0.7  | the margin    1.6 
+green-03eded8    CONTROL — t   6.2  | THE HOLE, C   2.8  | THE CONTRAS   3.0  | the margin    2.6 
+green-6c555c0    CONTROL — t   6.1  | THE HOLE, C   2.8  | THE CONTRAS   0.8  | the margin    2.3 
+green-97f7f1b    CONTROL — t   6.0  | THE HOLE, C   0.9  | THE CONTRAS   0.8  | the margin    0.9 
+green-9be891d    CONTROL — t   5.5  | THE HOLE, C   0.8  | THE CONTRAS   0.6  | the margin    0.7 
+green-db13fce    CONTROL — t   5.9  | THE HOLE, C   3.1  | THE CONTRAS   0.7  | the margin    2.3 
+green-f3cf780    CONTROL — t   5.1  | THE HOLE, C   6.0  | THE CONTRAS   2.2  | the margin    7.0 
+red-115c30d      CONTROL — t   7.4! | THE HOLE, C   1.1  | THE CONTRAS   0.8  | the margin    0.9 
+red-1a30ecd      CONTROL — t   7.0  | THE HOLE, C   6.1! | THE CONTRAS   0.6  | the margin    5.8 
+red-519cf45      CONTROL — t   5.4  | THE HOLE, C   5.9! | THE CONTRAS   0.7  | the margin    5.7 
+red-8952ee8      CONTROL — t  24.6! | THE HOLE, C  51.1! | THE CONTRAS  20.4! | the margin   51.5!
+red-8bbd273      CONTROL — t   5.8  | THE HOLE, C   6.0! | THE CONTRAS   0.7  | the margin    7.4 
+red-90dc27d      CONTROL — t  12.2! | THE HOLE, C   0.6  | THE CONTRAS   0.6  | the margin    7.7 
+
+## E1 — the strand suite alone, ten cores, no load (run: seconds)
+run 1 passed 4.389;run 2 passed 2.029;run 3 passed 1.674;run 4 passed 1.591;run 5 passed 1.678;run 6 passed 1.848;run 7 passed 1.702;run 8 passed 1.656;run 9 passed 1.797;run 10 passed 1.777;
+
+## E2 — the same, beside fourteen CPU burners (yes > /dev/null) on ten cores
+run 1 passed 1.937;run 2 passed 1.783;run 3 passed 1.833;run 4 passed 1.747;run 5 passed 1.749;run 6 passed 1.782;run 7 passed 1.779;run 8 passed 1.811;run 9 passed 1.736;run 10 passed 1.731;

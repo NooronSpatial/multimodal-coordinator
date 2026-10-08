@@ -8777,7 +8777,9 @@ echo.
   3 s — on `8952ee8`, `90dc27d` and `1a30ecd`; never in 80 local runs. It
   CORRECTS `10d6dae`'s guess that the bench's 5 s stalls starved those rows:
   the stalls are gone and the rows still fail. Older than piece 2's code;
-  Ryad's to rule.
+  Ryad's to rule. *(Corrected by §248, 2026-10-08: one 5 s stall was NOT
+  gone — the second stop of the bench's server in one row — and it was the
+  cause.)*
 
 # 5d piece 3 — the echo: a barge proves itself by being LOUD, and every candidate is measured (D-137)
 
@@ -8928,3 +8930,45 @@ talking — the same protection, decided 280 ms sooner.
   `#expect` around an `await` did not wait. Neither was the coordinator.
 - **The harness's 4B weights were removed** with `/tmp`, and the harness fell
   back to its echo mind without stopping — seen at the head of runs 13–14.
+
+## §248 — the CI hunt (2026-10-08): the bench's second stop, found and fixed
+
+**Why.** PR 63's check was red, and 6 of this branch's 16 CI runs had gone
+red on the real-audio strand rows (D-141), against about 40 green runs
+before 5d. Ryad turned on Auto-fix for PR 63, which is standing permission to
+fix the red check (D-142). The full hunt:
+`docs/evidence/5d/ci-hunt-2026-10-08.md`.
+
+**The cause.** One row, `MLXBackgroundInstallTests` "expectedInstall makes
+one request…" (since 5a), stops its bench's server in the middle and again in
+its teardown. Since §233's fix (`e306520`; D-136 kept its wait), `stop()`
+waits up to 5 s for the accept thread, and that thread signals only once.
+So the second `stop()` held a thread of Swift's pool for the whole 5 s, and
+it closed the socket's number a second time (true since 5a). CI's runner has
+three pool threads, and the strand rows ran out of their 3 s drain under it.
+
+**Reproduced, then fixed.** On this Mac, on a one-thread pool
+(`LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`, the hammer skipped as on CI):
+
+| | THE CONTRAST | red runs |
+|---|---|---|
+| main (`f11dca4`) | 0.5–1.2 s | 0 of 6 |
+| this branch before the fix | 1.0 s, or 5–6 s | 4 of 6 |
+| after the fix (`6568619`) | 0.97–1.07 s | **0 of 10** |
+
+RED `df1e042` (two stops: two waits and two closes, 5.012 s), GREEN
+`6568619` (`stop()` acts once). The expectedInstall row: 5.0 s → 0.006 s.
+
+**Corrects §240.** §240 said this flake "CORRECTS `10d6dae`'s guess that the
+bench's 5 s stalls starved those rows: the stalls are gone". They were not all
+gone. The poke (D-136) ended the FIRST stop's wait. The second stop's wait
+stayed, in that one row. So `10d6dae`'s guess was right in kind, and §240's
+correction was wrong.
+
+**Not proven.** (1) CI's three-thread pool: only CI runs confirm it.
+(2) CONTROL's "played 0 of 4" in CI's last red run: "played" is counted by the
+audio engine's own callback, so a held pool thread does not explain it
+directly. CONTROL has always been close to its line on CI (4.6–7.3 s before
+5d). (3) The double close since 5a fits §233's "descriptor closed under its
+owner" family, which was never explained (D-135). It is not proven to be that
+family.
