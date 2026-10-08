@@ -124,7 +124,31 @@ struct PlaybackLeadStrandTests {
         return "updates \(updates) · scheduled \(counters.scheduled) · played \(counters.played)"
             + " · in flight \(counters.phrasesInFlight) · tokens closed \(counters.tokensFinished)"
             + " · engine running \(host.isRendering) · output \(Int(host.outputSampleRate)) Hz"
-            + " · drained for \(drainedFor)"
+            + " · \(playerClock(run)) · drained for \(drainedFor)"
+    }
+
+    /// THE ENGINE'S CLOCK (D-143): how far the player itself has rendered
+    /// since its start. CI's red CONTROL said "played 0 of 4" with the engine
+    /// running; this says whether audio moved at all — rendered and never
+    /// reported, or never rendered.
+    ///
+    /// Read on the run's own queue, where the player is given back, and only
+    /// while it is attached: a node with no engine THROWS (AVFAudio's
+    /// `_engine != nil`), and that ends the whole test process — the first
+    /// version of this line did, on a row that had passed.
+    static func playerClock(_ run: NeuralVoiceRun) -> String {
+        run.mouth.sync {
+            let player = run.player
+            guard player.engine != nil else { return "player given back" }
+            guard let nodeTime = player.lastRenderTime, nodeTime.isSampleTimeValid else {
+                return "player playing \(player.isPlaying) · no render time"
+            }
+            guard let playerTime = player.playerTime(forNodeTime: nodeTime) else {
+                return "player playing \(player.isPlaying) · rendered, no player time"
+            }
+            let milliseconds = Int((Double(playerTime.sampleTime) / playerTime.sampleRate * 1_000).rounded())
+            return "player playing \(player.isPlaying) · rendered \(milliseconds) ms since its start"
+        }
     }
 
     /// Builds the run, or returns nil when this machine has no engine to
