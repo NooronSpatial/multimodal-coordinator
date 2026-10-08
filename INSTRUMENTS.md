@@ -5886,3 +5886,298 @@ one, in every row.
   actor of an idle app — indicative; the counts are exact.
 - **The probe talks to the vendor directly**, not through the library's
   keeper: it measures the model's behaviour, which is what F-18 needed.
+
+## 73. The pause a person feels, stage by stage — the phone's setup on this Mac, spoken to by a recording (5d, AC-342)
+
+**What was asked.** Ryad feels the delay in every setup he tried, in four
+places: after he stops talking, when he interrupts, inside the answer, and
+on the first turn (D-132). The one number the app showed — "felt pause" —
+started at the final transcript, so the whole pause had never been measured
+(SPEC §224). Piece 1 measures it: the coordinator reports a timeline per
+spoken turn and per barge (AC-335…AC-340), and a `ListeningHost` counts the
+silences inside each reply from what is actually played (AC-341).
+
+**Machine and command.** This Mac (macOS 26.6, Xcode 27, release build),
+2026-09-30. Ryad's phone setup: the Whisper base ear, the local
+Qwen3-4B-4bit mind (MLX), the Kokoro-82M voice; his phone's policy — a
+300 ms silence wait, a 500 ms gate, a 600 ms barge window — and the Mac's
+own VAD gate, 0.02. The scripted person: `Fixtures/ryad-en.wav` cut into 22
+sentences at its pauses; 20 turns; interruptions at sentences 7 and 14.
+
+```bash
+swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro --hangover 300 --gate 500 --window 600
+```
+
+Six runs, all kept in `docs/evidence/5d/harness-2026-09-30-run*.log`. Runs 1
+and 2 hung and found two things (below); runs 3 and 4 measured on the
+harness before its lint refactor; **runs 5 and 6 are the pair on the
+committed code**, and the table is theirs.
+
+**The pause, stage by stage** (medians over the spoken turns, ms):
+
+| stage | | run 5 | run 6 | difference |
+|---|---|---:|---:|---:|
+| ① | the silence wait — the hangover, fixed | 300 | 300 | 0 |
+| ② | the ear's finish (speech end → final text) | 145 | 141 | −4 |
+| ③ | the reply gate | 503 | 503 | 0 |
+| ④ | the mind's first token | 867 | 822 | −45 |
+| ⑤ | the voice's first sound | 522 | 284 | −238 |
+| | **the felt pause, ① to ⑤** | **2 394** | **2 030** | −364 |
+| ⑦ | barge window (one barge each) | 600 | 600 | 0 |
+| ⑧ | barge accepted → both stages silent | 1 | 0 | −1 |
+| ⑥ | longest silence inside an answer | 777 | 805 | +28 |
+| ⑥ | replies with a silence over 300 ms | 17 of 17 | 17 of 17 | |
+
+Both runs: the same 20 sentences, 17 spoken turns (the ear returned empty
+text for 3 short sentences each time), one barge. Runs 3 and 4 had the same
+shape: felt pause 2 320 and 2 256 ms.
+
+**Where the time goes, warm:**
+
+```
+you stop ─① 300─▶ ─② ~140─▶ ─③ 500─▶ ─④ ~850─▶ ─⑤ ~300–500─▶ first sound     ≈ 2.0–2.4 s
+          waiting   the ear   waiting   the mind   the voice
+          └──── 800 ms of pure waiting ────┘ and the mind starts only after it
+```
+
+**What it found.**
+
+1. **The mind's first token is the biggest stage** (④, 0.8–0.9 s), and it
+   starts only after the gate: ① + ③ are 800 ms of pure waiting, in series
+   with the thinking.
+2. **Every answer holds a silence** — 34 of 34 replies in runs 5 and 6, the
+   longest 740–890 ms. That is about what Kokoro needs to decode one full
+   120-character phrase (0.2× real time on 4 s of audio). The per-phrase
+   proof — decode against playback — is the fix's job, not piece 1's.
+3. **The cold first turn is mostly the ear's first model load.** The first
+   run after each build paid 13.3–14.1 s in ② (runs 3 and 5); the second run
+   0.8–1.6 s (runs 4 and 6).
+4. **A short voice over an answer is ignored, by design** (run 1): an
+   interruption shorter than the 600 ms window never barges (D-071, the echo
+   rule) — a quick "stop" does nothing. And a barge that lands pays the whole
+   window: ⑦ is exactly 600 ms; after it, the stages are silent in ~0 ms (⑧).
+5. **The ear returns empty text for some short real sentences** (3 of 20 per
+   run: listening → idle), so those turns are never answered.
+
+**Found by the harness, not by the tests:** `AIRuntime.run` never returns
+when its observer returns on its own while a health seam is attached (run
+2). The seam's thermal watcher is a child that only a CANCEL ends, and
+nothing cancels it; both demos end their runtime by cancelling it, so
+neither ever met this. A library bug, latent, and Ryad's to rule (fix it
+now, or later).
+
+**What this does not measure.** Echo: the person speaks into the ring, not
+through a loudspeaker. The phone's own speed and heat. The audio device's
+output latency after ⑧. Those are the phone session's (AC-343).
+
+### 73b. The phone — Ryad's session, 2026-10-01 (AC-343)
+
+**Machine and setup.** iPhone18,5, iOS 26.6.1 (23G83). The Whisper ear,
+the local Qwen3-4B-4bit mind (warm, weights resident), the neural mouth —
+Kokoro, at a lead of zero ("cushion 0 ms") — the speaker shield on, tools
+off. The demo's policy: a 300 ms silence wait, a 500 ms gate, the 600 ms
+barge window (`BargeWindow.measured`). 25 turns, 21 of them spoken, 7
+barges. **Thermal "serious" from the first turn to the last** — ④ and ⑤
+are slower than a cool phone's. The log, word for word:
+`docs/evidence/5d/phone-2026-10-01-session.md`.
+
+**The pause, stage by stage** (medians, ms):
+
+| stage | | Mac run 5 | Mac run 6 | **phone** |
+|---|---|---:|---:|---:|
+| ① | the silence wait | 300 | 300 | 300 |
+| ② | the ear's finish | 145 | 141 | 172 |
+| ③ | the reply gate | 503 | 503 | 503 |
+| ④ | the mind's first token | 867 | 822 | 633 |
+| ⑤ | the voice's first sound | 522 | 284 | **1 337** |
+| | **the felt pause, ① to ⑤** | 2 394 | 2 030 | **3 003** (2 196 – 7 105) |
+| ⑥ | longest silence inside an answer | 777 | 805 | 783 |
+| ⑥ | replies with a silence over 300 ms | 17 of 17 | 17 of 17 | 16 of 22 |
+
+The phone's mind is faster than this Mac's; its voice is far slower.
+
+**What it found.**
+
+1. **The first phrase decides ⑤** (`phone-2026-10-01-first-phrase.txt`).
+   The voice starts only when the mind has written the WHOLE first phrase —
+   to the first `, . : ; ? !` before a space, or 120 characters — and
+   Kokoro has synthesized all of it. Across the 21 spoken turns, the first
+   phrase's length tracks ⑤ with r = 0.75:
+
+   ```
+   first phrase      turns   ⑤ median   felt median
+   ≤ 15 characters      6      604 ms      2 375 ms    "Sure!", "Yes,", "Okay."
+   16 – 60              8    1 335 ms      2 878 ms
+   > 60                 7    3 710 ms      5 266 ms    every turn over 5 s
+   ```
+
+2. **Kokoro wraps every phrase in quiet, and the quiet is the model's own**
+   (measured on this Mac the same day, `kokoro-silence-2026-10-01.txt`; ten
+   captures of `bakeoff voice-kokoro`, read sample by sample at the meter's
+   level, 0.001). Each phrase starts with 300–351 ms and ends with 388–464 ms
+   of quiet; no capture held a single exact-zero run, so the voice never
+   fell behind (it decodes at 0.07× real time here). Two phrases back to
+   back leave 734–790 ms of silence — the phone's ~0.75 s at every phrase
+   boundary, whatever the next phrase's length ("formulas.", 9 characters:
+   785 ms). It also means ⑤ is stamped when the player starts, ~325 ms
+   before the first word: **the felt pause to the first word is about 3.3 s.**
+3. **Barges.** Three were interruptions while the voice spoke: the 600 ms
+   window, then ~0 ms to silence (⑧ 0–1 ms). Four were Ryad finishing a
+   sentence after a pause ("…a log car? … for my lunch."): the turn had
+   opened too early, and his words joined the next turn as they should.
+4. **One self-cut.** The first reply ("Good morning! How can I assist you
+   today?") was cut after the 600 ms window by a sound that produced no
+   words — the turn it opened heard nothing. Ryad did not speak: "the
+   system hear itself — the echo problem". So that leak was loud for at
+   least ~0.32 s at this hangover, longer than any leak §43 measured.
+
+**Against F-30's line:** the felt pause ~3.3 s (line: 0.8 s); an
+interruption to silence 600 ms (line: 0.4 s); one self-cut in 21 spoken
+turns (line: none).
+
+**What this does not measure.** The output device's own latency after the
+player starts. The quiet around Kokoro's phrases was measured on this Mac;
+on the phone it is inferred from the same model's output and the same
+~0.75 s per boundary, not captured there.
+
+## 74. The voice that waits for nothing — piece 2 on this Mac, before and after (5d, AC-349, AC-352)
+
+**What changed** (D-137, D-138): every Kokoro phrase keeps a 40 ms margin
+before its words and, after them, only the pause Kokoro itself makes at the
+phrase's closing mark (measured on whole sentences: comma 137 ms, full stop
+185, question 204, exclamation 109, colon 201, semicolon 206); a cap cut keeps
+the two margins. A reply's first phrases are cut at 20 characters, then 40,
+then the usual 120 — a clause mark that comes first still wins, and one burst
+cuts like a stream. The listening host measures the quiet the player still
+holds before its first word.
+
+**Kokoro alone, at the mixer** (`bakeoff voice-kokoro`, the same five
+fixtures, two draws; `kokoro-silence-2026-10-01.txt` against
+`kokoro-trimmed-2026-10-01.txt`):
+
+| | before piece 2 | after |
+|---|---:|---:|
+| quiet before the first word | 300–351 ms | 41–42 ms |
+| a boundary at a cap cut | ~790 ms | 80–81 ms |
+| a boundary at a comma / a full stop | ~747 / ~734 ms | 137 / 185 ms |
+| the long fixture's first sound | 403 ms | 126–137 ms |
+| WER · exact-zero runs | 0.000 · none | 0.000 · none |
+
+**The harness** (`audio-demo --person`, Ryad's phone setup — the Whisper
+ear, the local 4B, Kokoro; 300 · 500 · 600), medians in ms:
+
+| stage | | run 5 | run 6 | **run 11** | **run 12** |
+|---|---|---:|---:|---:|---:|
+| ① | the silence wait | 300 | 300 | 300 | 300 |
+| ② | the ear's finish | 145 | 141 | 154 | 147 |
+| ③ | the reply gate | 503 | 503 | 503 | 502 |
+| ④ | the mind's first token | 867 | 822 | 813 | 807 |
+| ⑤ | the voice's first sound | 522 | 284 | 270 | 262 |
+| | the quiet before the first word | ~325 † | ~325 † | **40** | **40** |
+| | **the felt pause, to the first word** | ~2 720 † | ~2 355 † | **2 069** | **2 067** |
+| ⑥ | longest silence inside an answer | 777 | 805 | 185 | 185 |
+| ⑥ | replies with a silence over 300 ms | 17 of 17 | 17 of 17 | **0 of 17** | **0 of 17** |
+| ⑦ · ⑧ | barge window · to silence | 600 · 1 | 600 · 0 | 600 · 0 | 600 · 0 |
+
+† Not measured per turn before piece 2: the felt pause to ⑤ (2 394 and 2 030)
+plus Kokoro's lead-in as the mixer measured it (~325 ms).
+
+**What it shows.**
+
+1. **Inside the answers, the waits are gone.** Every reply before held a
+   silence over 300 ms; none does now. The longest pause left is Kokoro's own
+   full stop, 185 ms.
+2. **The first word comes ~0.3 s sooner on this Mac** — the lead-in quiet,
+   325 → 40 ms. ⑤ itself barely moves here: Kokoro decodes at 0.07× real time
+   on this Mac, and the read sentences' replies rarely open with a long
+   phrase. The phone is where ⑤ is big (1 337 ms, §73b) and where the growing
+   phrases are projected to matter most (`phone-2026-10-01-phrase-replay.txt`).
+3. **The measure itself was wrong twice before it was right** (runs 7–10,
+   kept): a tap on a player node hears silent buffers from before `play()`,
+   and its block runs late, so the quiet is now read by the player's own
+   sample position.
+
+**What this does not measure.** The phone (AC-353, Ryad's session). How the
+shorter pauses sound — the ear gate's question. Echo: the scripted person
+speaks into the ring.
+
+### 74b. The phone — Ryad's session after piece 2 (AC-353)
+
+**Machine and setup.** iPhone18,5, iOS 26.6.1 (23G83); the same picker as
+§73b — the Whisper ear, the local Qwen3-4B-4bit mind (warm), Kokoro, the
+speaker shield on, tools off; 300 · 500 · 600. 26 turns, 18 spoken, 12
+barges. **Thermal "nominal" throughout** — §73b ran at "serious", so this
+phone was cooler, and ④ (the mind) gains from that, not from piece 2. The
+log, word for word: `docs/evidence/5d/phone-2026-10-07-session-piece2.md`.
+
+| median, ms | §73b (before) | **after piece 2** |
+|---|---:|---:|
+| ② the ear's finish | 172 | 203 |
+| ③ the reply gate | 503 | 503 |
+| ④ the mind's first token | 633 | 547 (cooler phone) |
+| ⑤ the voice's first sound | 1 337 (max 5 539) | **660** (max 833) |
+| the quiet before the first word | ~325 † | **40** (all 18) |
+| the felt pause, to ⑤ | 3 003 (max 7 105) | 2 283 (max 3 373) |
+| **the felt pause, to the first word** | ~3.3 s † | **2 323** |
+| ⑥ longest silence inside an answer | 783 | 124 |
+| ⑥ replies with a silence over 300 ms | 16 of 22 | **2 of 22** (348 and 325 ms) |
+| ⑦ an interruption during speech | 600 | 600 |
+
+† The lead-in was measured on this Mac, not on the phone, before piece 2.
+
+**What it shows.**
+
+1. **The voice now starts on its first words.** ⑤ halved, and its long tail
+   went with it: the slowest first sound 5.5 s → 0.8 s. The slowest felt
+   pause left (3.4 s) is a slow ear (② 1 169 ms), not the voice.
+2. **The waits inside the answers are gone**: 2 replies of 22 hold a silence
+   over 300 ms, both just over it — the next phrase not yet ready after a
+   short first one (the replay foresaw a few).
+3. **No echo self-cut seen.** Each of the four interruptions during speech
+   was followed by Ryad's own words, except the session's last, which nothing
+   follows.
+
+**What it found that is not speed.**
+
+- **8 of 26 turns were killed before their first sound** by a sound that
+  came while the AI was thinking (⑦ 0): Ryad going on after a pause
+  ("which kind of sport should I… Cheers for them!"), or **another person**:
+  the "Bye-bye!" Whisper heard (turn 9 — and the AI answered it) and the
+  "- Bye. Bye." inside turn 17 were someone talking beside Ryad (his answer,
+  2026-10-07: "it was another person"). The pipeline cannot yet tell the
+  person it talks with from a bystander.
+- **The local mind's refusals snowballed** from turn 19 ("I cannot
+  provide…", "not allowed to give detailed information") — the mind and its
+  memory, outside 5d.
+
+**Against F-30's line:** the felt pause to the first word 2.3 s (line 0.8);
+an interruption 600 ms (line 0.4); no self-cut seen in 18 spoken turns.
+
+## 75. The barge that judges loudness — piece 3 on this Mac (5d, AC-362)
+
+**What changed** (D-140): a barge candidate cuts the reply only on a chunk
+the VAD judged LOUD at or after its deadline — 320 ms of loud time — and every
+candidate is reported (loud time, peak, onset → verdict, cut or abandoned).
+
+**The harness** (`audio-demo --person`, `--hangover 300 --gate 500
+--window 320`), runs 13 and 14 (`9bda538`), one interruption each — the
+scripted person talks over the answer and keeps talking:
+
+| | runs 11 · 12 (`--window 600`, the old rule) | **runs 13 · 14** (320 ms loud) |
+|---|---:|---:|
+| ⑦ the barge window | 600 · 600 | **320 · 320** |
+| ⑧ accepted → silent | 0 · 0 | 0 · 0 |
+| the candidate | — (not measured) | loud 340 ms → CUT, both runs |
+
+**What it shows.** The same sounds pass the window as before — one must stay
+loud ~0.32 s — but a person who keeps talking now stops the voice **280 ms
+sooner**: 320 ms, inside F-30's 0.4 s line on this Mac. The hangover has no
+part in it any more.
+
+**⚠ What these two runs are not.** Their mind was NOT the local 4B: its
+weights lived under `/tmp/mmk`, which the system emptied, and the harness fell
+back to its echo mind without stopping ("--mind=local: no weights found" at
+the head of both logs). The barge does not depend on the mind; ②–⑥ of runs 13
+and 14 are not comparable with runs 11 and 12, and are not used. Echo itself
+cannot happen here: the scripted person speaks into the ring. Leaks against a
+person, in loud time, are the phone's to measure (AC-361).

@@ -1,0 +1,3 @@
+swiftc -O helper-reading-race.swift && ./a.out   (this Mac, 2026-10-01 09:19; re-run for this record — the hunt's earlier runs said the same)
+
+runs 300 · words came back EMPTY: 0 · 'enqueued' missing: 0

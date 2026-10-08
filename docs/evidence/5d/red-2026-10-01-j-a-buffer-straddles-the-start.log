@@ -1,0 +1,40 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-351 · the first word, measured" started.
+􀟈  Test "the quiet before the first sound is measured, exactly" started.
+􀟈  Test "a reply cut before it ever sounded publishes no first word" started.
+􀟈  Test "the quiet before the first word is not a pause inside the answer" started.
+􀟈  Test "a reply that never sounds has no first word" started.
+􀟈  Test "a buffer that straddles the player's start counts only from the start" started.
+􀟈  Test "the host's ear publishes each reply's quiet before its first word" started.
+􀟈  Test "buffers rendered before the player starts are not the reply's quiet" started.
+􀟈  Test "split across buffers, it is the same quiet" started.
+􀟈  Test "sound at once: no quiet before it" started.
+􁁛  Test "sound at once: no quiet before it" passed after 0.001 seconds.
+􁁛  Test "split across buffers, it is the same quiet" passed after 0.001 seconds.
+􁁛  Test "the quiet before the first word is not a pause inside the answer" passed after 0.001 seconds.
+􁁛  Test "a reply that never sounds has no first word" passed after 0.001 seconds.
+􁁛  Test "buffers rendered before the player starts are not the reply's quiet" passed after 0.002 seconds.
+􁁛  Test "a reply cut before it ever sounded publishes no first word" passed after 0.002 seconds.
+􁁛  Test "the quiet before the first sound is measured, exactly" passed after 0.002 seconds.
+􁁛  Test "the host's ear publishes each reply's quiet before its first word" passed after 0.002 seconds.
+􀢄  Test "a buffer that straddles the player's start counts only from the start" recorded an issue at FirstWordTests.swift:108:9: Expectation failed: ear.pauses.leadingQuiet == .milliseconds(40)
+􀄵  ear.pauses.leadingQuiet == .milliseconds(40) → false
+􀄵    ear.pauses.leadingQuiet → 0.16 seconds
+􀄵      some → 0.16 seconds
+􀄵        _low → 160000000000000000
+􀄵        _high → 0
+􀄵    .milliseconds(40) → 0.04 seconds
+􀄵      some → 0.04 seconds
+􀄵        _low → 40000000000000000
+􀄵        _high → 0
+􀢄  Test "a buffer that straddles the player's start counts only from the start" failed after 0.003 seconds with 1 issue.
+􀄵  /// The second half of the harness's lesson (runs 9 and 10): a tap's block
+􀄵  /// runs a buffer or two AFTER the render, so "is it playing now?" let
+􀄵  /// silent buffers from before the start through. The player's own sample
+􀄵  /// position says exactly which frames came before its start.
+􀢄  Suite "AC-351 · the first word, measured" failed after 0.003 seconds with 1 issue.
+􀢄  Test run with 9 tests in 1 suite failed after 0.003 seconds with 1 issue.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

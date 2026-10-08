@@ -44,11 +44,13 @@ struct BargeWindowTests {
         trailingSegments: [Int] = [],
         window: Duration
     ) async throws -> Bool {
+        let recorder = CandidateRecorder()
         let bench = try TurnCoordinatorTests.Bench<ContinuousClock>(
             generator: ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true),
                                                       .manual()]),
             synthesizer: ScriptedSynthesizer(plans: [.manual(ignoresCancel: true),
                                                      .manual()]),
+            clock: ContinuousClock(), reporter: recorder,
             config: .init(bargeWindow: window))
         let listener = await bench.coordinator.listen()
         var barged = false
@@ -82,11 +84,10 @@ struct BargeWindowTests {
                     AudioChunk(samples: [0], start: TurnCoordinatorTests.t(frames))))
             }
 
-            // A barge moves the state to `.listening`. Bounded: if it never
-            // happens this returns false rather than hanging.
-            barged = await TurnCoordinatorTests.until({
-                await bench.coordinator.currentState == .listening
-            }, within: .seconds(2))
+            // A barge moves the state to `.listening`. Decided once the
+            // coordinator has judged every event above — not after 2 s of
+            // waiting for a state that must not come (5d, D-143).
+            barged = await BargeVerdict.judged(bench, recorder).barged
 
             bench.finishInputs()
             await bench.coordinator.stop()
@@ -174,10 +175,16 @@ struct BargeWindowTests {
     /// someone later "improves" it by widening the window until it swallows
     /// real speech — removing barge-in, the product's soul (D-060), while
     /// every other test here stays green.
+    ///
+    /// RE-READ IN LOUD TIME (5d piece 3, D-140): §43's durations were
+    /// DECLARED lengths at a 300 ms hangover — loud part plus hangover. The
+    /// window now judges loudness alone, so the bounds lose the hangover:
+    /// the longest leak was loud for 520 − 300 = 220 ms, the shortest real
+    /// utterance for 939 − 300 = 639 ms.
     @Test("the measured window cannot swallow the shortest real utterance")
     func theWindowCannotSwallowSpeech() {
-        let shortestRealUtterance = Duration.milliseconds(939)
-        let longestLeak = Duration.milliseconds(520)
+        let shortestRealUtterance = Duration.milliseconds(639)
+        let longestLeak = Duration.milliseconds(220)
         // The MEASURED number, not the default — the default is zero,
         // because a library does not get to claim a policy (D-027).
         let window = BargeWindow.measured

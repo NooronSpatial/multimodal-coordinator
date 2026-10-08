@@ -220,6 +220,11 @@ let package = Package(
                 // spec adds to the prompt, and that names `ModelContext`,
                 // `UserInput` and `Chat.Message`, which are MLXLMCommon's.
                 .product(name: "MLXLMCommon", package: "mlx-swift-lm"),
+                // DECLARED for the same reason: `kokoro-pauses` (5d piece 2,
+                // F-33 A) reads Kokoro on whole sentences, past our phraser,
+                // so it names the vendor and loads the voice style itself.
+                .product(name: "KokoroSwift", package: "kokoro-ios"),
+                .product(name: "MLX", package: "mlx-swift"),
             ]
         ),
         // THE APP THAT DIED (5a, AC-292/AC-297). A test cannot kill itself

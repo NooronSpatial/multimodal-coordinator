@@ -1,0 +1,4 @@
+trap loop · bench suites only · started 08:53:54
+run 1: 􁁛  Test run with 45 tests in 11 suites passed after 17.287 seconds.
+run 2: 􁁛  Test run with 45 tests in 11 suites passed after 34.586 seconds.
+run 3: 􀢄  Test run with 45 tests in 11 suites failed after 55.346 seconds with 1 issue.

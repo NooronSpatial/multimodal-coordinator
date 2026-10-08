@@ -1,0 +1,179 @@
+# 5d piece 1 — the Mac harness, RUN 3 (2026-09-30): the first complete measurement (AC-342).
+# Same command and machine. Ends by cancellation; 'the runtime is down' is printed after the teardown.
+
+Building for production...
+/Users/ryad/Developer/multimodal-coordinator/Sources/MultiModalKit/Conversation/AppleReplyGenerator+Session.swift:180:33: [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m178 |[0;0m             sampling = .random(top: Self.seededTopK, seed: seed)
+[0;36m179 |[0;0m         }
+[0;36m180 |[0;0m         return FoundationModels.GenerationOptions(
+    [0;36m|[0;0m                                 |- [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+    [0;36m|[0;0m                                 `- [1;39mnote: [1;39muse 'init(samplingMode:temperature:maximumResponseTokens:)' instead[0;0m
+[0;36m181 |[0;0m             sampling: sampling,
+[0;36m182 |[0;0m             temperature: options.temperature.map(Double.init),
+
+Build complete! (72.09 sec)
+voice: Kokoro-82M · float16 · phrases ≤ 120 chars
+
+🧪 THE SCRIPTED PERSON — Fixtures/ryad-en.wav, 22 sentences, 20 turns, interrupting at [7, 14]
+    ear Whisper base (batch — text arrives after each pause) · hangover 300 ms · gate 500 ms · window 600 ms · vad 0.02
+
+🗣  sentence 1/20 (1380 ms of audio)
+   · turn 0 listening
+   · turn 0 thinking
+   · turn 0 speaking
+⏱  turn 0: ① 300 · ② 13317 · ③ 501 · ④ 979 · ⑤ 1073  →  felt 16170 ms
+   · turn 0 completed
+   · turn 0 idle
+⏸  reply pauses: 2 over 300 ms · longest 889 ms
+🗣  sentence 2/20 (2460 ms of audio)
+   · turn 1 listening
+   · turn 1 thinking
+   · turn 1 speaking
+⏱  turn 1: ① 300 · ② 183 · ③ 507 · ④ 988 · ⑤ 327  →  felt 2305 ms
+   · turn 1 completed
+   · turn 1 idle
+⏸  reply pauses: 1 over 300 ms · longest 817 ms
+🗣  sentence 3/20 (1120 ms of audio)
+   · turn 2 listening
+   · turn 2 thinking
+   · turn 2 speaking
+⏱  turn 2: ① 300 · ② 159 · ③ 501 · ④ 1081 · ⑤ 374  →  felt 2414 ms
+   · turn 2 completed
+   · turn 2 idle
+⏸  reply pauses: 1 over 300 ms · longest 750 ms
+🗣  sentence 4/20 (1180 ms of audio)
+   · turn 3 listening
+   · turn 3 thinking
+   · turn 3 speaking
+⏱  turn 3: ① 300 · ② 115 · ③ 501 · ④ 615 · ⑤ 474  →  felt 2005 ms
+   · turn 3 completed
+   · turn 3 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 5/20 (1440 ms of audio)
+   · turn 4 listening
+   · turn 4 thinking
+   · turn 4 speaking
+⏱  turn 4: ① 300 · ② 122 · ③ 502 · ④ 753 · ⑤ 430  →  felt 2107 ms
+   · turn 4 completed
+   · turn 4 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 6/20 (2260 ms of audio)
+   · turn 5 listening
+   · turn 5 thinking
+   · turn 5 speaking
+⏱  turn 5: ① 300 · ② 131 · ③ 501 · ④ 842 · ⑤ 425  →  felt 2200 ms
+🗣  sentence 7/20 (2460 ms of audio) — OVER the answer
+   · turn 5 BARGED
+✋ barge (turn 5 dies): ⑦ window 600 · ⑧ silence 0  →  600 ms from your first sound
+   · turn 6 listening
+⏸  reply pauses: 0 over 300 ms · longest 4 ms
+   · turn 6 thinking
+   · turn 6 speaking
+⏱  turn 6: ① 300 · ② 149 · ③ 506 · ④ 957 · ⑤ 433  →  felt 2346 ms
+   · turn 6 completed
+   · turn 6 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 8/20 (1740 ms of audio)
+   · turn 7 listening
+   · turn 7 idle
+🗣  sentence 9/20 (1760 ms of audio)
+   · turn 8 listening
+   · turn 8 thinking
+   · turn 8 speaking
+⏱  turn 8: ① 300 · ② 103 · ③ 508 · ④ 958 · ⑤ 439  →  felt 2308 ms
+   · turn 8 completed
+   · turn 8 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 10/20 (4880 ms of audio)
+   · turn 9 listening
+   · turn 9 thinking
+⏱  turn 9: ① 300 · ② 178 · ③ 506 · ④ 965 · ⑤ 426  →  felt 2375 ms
+   · turn 9 speaking
+   · turn 9 completed
+   · turn 9 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 11/20 (1540 ms of audio)
+   · turn 10 listening
+   · turn 10 thinking
+   · turn 10 speaking
+⏱  turn 10: ① 300 · ② 108 · ③ 501 · ④ 967 · ⑤ 398  →  felt 2273 ms
+   · turn 10 completed
+   · turn 10 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 12/20 (1220 ms of audio)
+   · turn 11 listening
+   · turn 11 thinking
+   · turn 11 speaking
+⏱  turn 11: ① 300 · ② 150 · ③ 500 · ④ 1347 · ⑤ 470  →  felt 2768 ms
+   · turn 11 completed
+   · turn 11 idle
+⏸  reply pauses: 1 over 300 ms · longest 721 ms
+🗣  sentence 13/20 (980 ms of audio)
+   · turn 12 listening
+   · turn 12 idle
+🗣  sentence 14/20 (2260 ms of audio) — OVER the answer
+   · turn 13 listening
+   · turn 13 thinking
+   · turn 13 speaking
+⏱  turn 13: ① 300 · ② 154 · ③ 500 · ④ 966 · ⑤ 446  →  felt 2366 ms
+   · turn 13 completed
+   · turn 13 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 15/20 (1480 ms of audio)
+   · turn 14 listening
+   · turn 14 thinking
+   · turn 14 speaking
+⏱  turn 14: ① 300 · ② 348 · ③ 503 · ④ 961 · ⑤ 389  →  felt 2501 ms
+   · turn 14 completed
+   · turn 14 idle
+⏸  reply pauses: 1 over 300 ms · longest 721 ms
+🗣  sentence 16/20 (1320 ms of audio)
+   · turn 15 listening
+   · turn 15 thinking
+   · turn 15 speaking
+⏱  turn 15: ① 300 · ② 229 · ③ 510 · ④ 959 · ⑤ 500  →  felt 2499 ms
+   · turn 15 completed
+   · turn 15 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 17/20 (2240 ms of audio)
+   · turn 16 listening
+   · turn 16 thinking
+   · turn 16 speaking
+⏱  turn 16: ① 300 · ② 150 · ③ 504 · ④ 972 · ⑤ 393  →  felt 2320 ms
+   · turn 16 completed
+   · turn 16 idle
+⏸  reply pauses: 1 over 300 ms · longest 721 ms
+🗣  sentence 18/20 (920 ms of audio)
+   · turn 17 listening
+   · turn 17 idle
+🗣  sentence 19/20 (1120 ms of audio)
+   · turn 18 listening
+   · turn 18 thinking
+   · turn 18 speaking
+⏱  turn 18: ① 300 · ② 123 · ③ 507 · ④ 935 · ⑤ 441  →  felt 2305 ms
+   · turn 18 completed
+   · turn 18 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+🗣  sentence 20/20 (4480 ms of audio)
+   · turn 19 listening
+   · turn 19 thinking
+   · turn 19 speaking
+⏱  turn 19: ① 300 · ② 131 · ③ 501 · ④ 963 · ⑤ 377  →  felt 2272 ms
+   · turn 19 completed
+   · turn 19 idle
+⏸  reply pauses: 1 over 300 ms · longest 722 ms
+
+(the runtime is down — teardown ran in order)
+
+════ THE TURN TIMELINE — 17 spoken turns, 1 barges ════
+  ① silence wait     300 ms (the app's hangover, every turn)
+  ② ear finish   median 150 ms · min 103 · max 13317 · n 17
+  ③ reply gate   median 502 ms · min 500 · max 510 · n 17
+  ④ first token  median 963 ms · min 615 · max 1347 · n 17
+  ⑤ first sound  median 430 ms · min 327 · max 1073 · n 17
+     FELT PAUSE   median 2320 ms · min 2005 · max 16170 · n 17
+  ⑦ barge window  median 600 ms · min 600 · max 600 · n 1
+  ⑧ to silence   median 0 ms · min 0 · max 0 · n 1
+  ⑥ pauses inside answers: 17 over 300 ms in 17 replies · replies with one or more: 16
+  ⑥ longest pause  median 722 ms · min 4 · max 889 · n 17
+exit: 0

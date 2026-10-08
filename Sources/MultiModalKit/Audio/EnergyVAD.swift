@@ -50,6 +50,9 @@ public struct EnergyVAD: VoiceActivityDetecting {
     /// (D-035). One quiet chunk resets it (F-2); it plays no role while
     /// speaking.
     private var loudFrames = 0
+    /// Its verdict on the chunk it judged last (5d piece 3, F-38 A): the
+    /// pump stamps it on that chunk, so the barge judges by THIS threshold.
+    public private(set) var lastChunkIsLoud: Bool?
 
     public init(config: Config = Config()) {
         self.config = config
@@ -66,6 +69,7 @@ public struct EnergyVAD: VoiceActivityDetecting {
             sumOfSquares += sample * sample
         }
         let rms = (sumOfSquares / Float(chunk.count)).squareRoot()
+        lastChunkIsLoud = rms >= config.threshold
 
         if rms >= config.threshold {                     // a loud chunk
             quietFrames = 0                              // the hangover resets

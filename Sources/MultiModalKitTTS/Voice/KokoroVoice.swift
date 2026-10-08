@@ -135,6 +135,8 @@ public actor KokoroVoice: SpokenVoice {
     private nonisolated let weights: KokoroWeights
     private nonisolated let lead: Duration
     private nonisolated let phraseCharacters: Int
+    private nonisolated let openingCaps: [Int]
+    private nonisolated let quiet: PhraseQuiet.Config?
 
     private var decoder: KokoroDecoder?
     private var providedHost: (any PlaybackHost)?
@@ -162,13 +164,29 @@ public actor KokoroVoice: SpokenVoice {
     ///     is confirmed below 1.0 INSIDE this pipeline, so it stays where
     ///     it is and this mouth simply does not use it yet.
     ///   - phraseCharacters: the memory bound described above.
+    ///   - openingCaps: GROWING PHRASES (5d piece 2, F-34 A) — the caps of a
+    ///     reply's first phrases, so the voice starts on its first words and
+    ///     the next phrase is ready before the first one ends. `[]` speaks
+    ///     the first phrase whole, as before.
+    ///   - quiet: the quiet kept around each phrase (F-32 A, F-33 A) — on by
+    ///     default (F-36 A); nil plays the model's own padding untouched.
     public init(weights: KokoroWeights,
                 lead: Duration = .zero,
-                phraseCharacters: Int = KokoroVoice.phraseCharacters) {
+                phraseCharacters: Int = KokoroVoice.phraseCharacters,
+                openingCaps: [Int] = KokoroVoice.openingCaps,
+                quiet: PhraseQuiet.Config? = .kokoro) {
         self.weights = weights
         self.lead = lead
         self.phraseCharacters = phraseCharacters
+        self.openingCaps = openingCaps
+        self.quiet = quiet
     }
+
+    /// 20, then 40: from the replay of Ryad's 21 phone replies
+    /// (docs/evidence/5d/phone-2026-10-01-phrase-replay.txt) — the first word
+    /// sooner, and the voice rarely dry after it. Confirmed by ear, then on
+    /// the phone (AC-353).
+    public static let openingCaps = [20, 40]
 
     // MARK: - ModelBacked (D-078)
 
@@ -370,7 +388,7 @@ public actor KokoroVoice: SpokenVoice {
         let run = try NeuralVoiceRun(
             decoder: decoder, host: host,
             lead: PlaybackLead(target: lead),
-            phrasing: SpeechPhraser.Config(maxPhraseCharacters: phraseCharacters),
+            phrasing: SpeechPhraser.Config(maxPhraseCharacters: phraseCharacters, openingCaps: openingCaps),
             // `[weak self]`, and the Mutex reached through it rather than
             // copied out: `Mutex` is non-copyable, so `let record =
             // coldStartRecord` is a consume the compiler refuses — and a
@@ -391,7 +409,7 @@ public actor KokoroVoice: SpokenVoice {
     private func loadedDecoder() throws -> KokoroDecoder {
         guard !isRetired else { throw KokoroVoiceRetired() }
         if let decoder { return decoder }
-        let fresh = try KokoroDecoder(weights: weights)
+        let fresh = try KokoroDecoder(weights: weights, quiet: quiet.map(PhraseQuiet.init))
         decoder = fresh
         return fresh
     }
@@ -413,6 +431,15 @@ extension KokoroVoice {
     /// mouth actually has. A shared implementation would have printed
     /// "0.6B · fused · latency" about a model with none of those things.
     public nonisolated var inForce: String {
-        "Kokoro-82M · \(weights.precision.rawValue) · phrases ≤ \(phraseCharacters) chars"
+        var line = "Kokoro-82M · \(weights.precision.rawValue) · phrases ≤ \(phraseCharacters) chars"
+        if !openingCaps.isEmpty {
+            line += ", opening at " + openingCaps.map(String.init).joined(separator: " and ")
+        }
+        if let quiet {
+            let (seconds, attoseconds) = quiet.margin.components
+            let margin = Int((Double(seconds) * 1000 + Double(attoseconds) * 1e-15).rounded())
+            line += " · quiet trimmed (margin \(margin) ms)"
+        }
+        return line
     }
 }

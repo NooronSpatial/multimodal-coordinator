@@ -1,0 +1,31 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "§233 · the download bench gives back what it holds" started.
+􀟈  Test "a dropped directory watch is freed, and gives back its descriptor" started.
+􀟈  Test "a server that has served stops with its accept thread ended before its socket closes" started.
+􀟈  Test "stop() returns only once the accept thread has ended" started.
+􀟈  Test "a second stop() does nothing: no second wait, no second close" started.
+􁁛  Test "a dropped directory watch is freed, and gives back its descriptor" passed after 0.003 seconds.
+􁁛  Test "a server that has served stops with its accept thread ended before its socket closes" passed after 0.006 seconds.
+􁁛  Test "stop() returns only once the accept thread has ended" passed after 0.025 seconds.
+􀢄  Test "a second stop() does nothing: no second wait, no second close" recorded an issue at DownloadBenchHygieneTests.swift:81:9: Expectation failed: server.acceptWaits == 1
+􀄵  the second stop waited for an accept thread that had already ended
+􀄵  server.acceptWaits == 1 → false
+􀄵    server.acceptWaits → 2
+􀢄  Test "a second stop() does nothing: no second wait, no second close" recorded an issue at DownloadBenchHygieneTests.swift:82:9: Expectation failed: server.socketCloses == 1
+􀄵  the second stop closed the socket's number again
+􀄵  server.socketCloses == 1 → false
+􀄵    server.socketCloses → 2
+􀢄  Test "a second stop() does nothing: no second wait, no second close" failed after 5.012 seconds with 2 issues.
+􀄵  /// Found by the CI hunt (2026-10-08): one row stops its server in the
+􀄵  /// middle ("the network, unplugged") and its teardown stops it again.
+􀄵  /// The second stop waited the whole 5 s cap for an accept thread that
+􀄵  /// had already ended — a thread of Swift's pool held for 5 s, and on CI's
+􀄵  /// three-thread pool the real-audio rows ran out of time underneath it —
+􀄵  /// and it closed the socket's NUMBER a second time, a number the system
+􀄵  /// may already have handed to another test.
+􀢄  Suite "§233 · the download bench gives back what it holds" failed after 5.013 seconds with 2 issues.
+􀢄  Test run with 4 tests in 1 suite failed after 5.013 seconds with 2 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

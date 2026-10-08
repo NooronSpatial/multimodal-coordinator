@@ -244,8 +244,23 @@ struct PhoneLatency: LatencyReporter {
     weak var model: TranscribeModel?
 
     func turnLatency(_ duration: Duration, turn: Int) {
+        // 5d: the screen shows the WHOLE pause now, from the timeline
+        // below; this number is its `sinceFinal`, so nothing is lost.
+    }
+
+    func turnTimeline(_ timeline: TurnTimeline) {
         let model = model
-        Task { @MainActor in model?.show(feltPause: duration) }
+        Task { @MainActor in model?.record(timeline: timeline) }
+    }
+
+    func bargeTimeline(_ timeline: BargeTimeline) {
+        let model = model
+        Task { @MainActor in model?.record(barge: timeline) }
+    }
+
+    func bargeCandidate(_ candidate: BargeCandidate) {
+        let model = model
+        Task { @MainActor in model?.record(candidate: candidate) }
     }
 
     func cancelLatency(_ duration: Duration, turn: Int) {

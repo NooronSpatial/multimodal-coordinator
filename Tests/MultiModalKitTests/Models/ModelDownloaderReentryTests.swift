@@ -220,16 +220,24 @@ final class HelperRun: @unchecked Sendable {
 /// watch was armed). Armed BEFORE the change can happen, so a landing
 /// cannot slip between the arming and the wait.
 final class DirectoryWatch: @unchecked Sendable {
-    private let descriptor: Int32
+    /// Read by the bench's own hygiene row only (5d §233).
+    let descriptor: Int32
     private let source: any DispatchSourceFileSystemObject
     private let state = Mutex<(pending: Int, waiting: [CheckedContinuation<Void, Never>])>((0, []))
 
-    init(_ directory: URL) throws {
+    /// `closed` runs once the descriptor is closed — the event the bench's
+    /// hygiene row waits for.
+    init(_ directory: URL, closed: @escaping @Sendable () -> Void = {}) throws {
         descriptor = open(directory.path, O_EVTONLY)
         guard descriptor >= 0 else { throw DownloadBench.Failure.cannotWatch(directory.path) }
         source = DispatchSource.makeFileSystemObjectSource(fileDescriptor: descriptor, eventMask: [.write, .extend],
                                                            queue: DispatchQueue(label: "directory-watch"))
-        source.setEventHandler { [self] in
+        // WEAK (5d §233): a handler that held the watch kept it alive for
+        // ever, and its descriptor with it. The descriptor is closed by the
+        // source's cancel handler — the one moment the source no longer uses
+        // it (libdispatch's rule) — and never before.
+        source.setEventHandler { [weak self] in
+            guard let self else { return }
             let waiting = self.state.withLock { state -> [CheckedContinuation<Void, Never>] in
                 let waiting = state.waiting
                 state.waiting.removeAll()
@@ -238,12 +246,15 @@ final class DirectoryWatch: @unchecked Sendable {
             }
             for continuation in waiting { continuation.resume() }
         }
+        source.setCancelHandler { [descriptor] in
+            close(descriptor)
+            closed()
+        }
         source.resume()
     }
 
     deinit {
         source.cancel()
-        close(descriptor)
     }
 
     func changed() async {

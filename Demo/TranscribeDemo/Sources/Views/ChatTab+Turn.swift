@@ -55,7 +55,7 @@ extension ChatTab {
                     Text(turnLabel).font(.subheadline.weight(.medium))
                     Spacer()
                     if let pause = model.feltPauseMilliseconds {
-                        Text("felt pause \(pause) ms")
+                        Text(model.feltPauseIsWhole ? "felt pause \(pause) ms" : "since the final \(pause) ms")
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }

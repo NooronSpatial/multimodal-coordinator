@@ -1,0 +1,7 @@
+commit 8952ee8 · macOS 26.6.1 · Xcode 27, Swift 6.4 · no warnings-as-errors · started 09:07:32
+run 1: 􁁛  Test run with 1005 tests in 144 suites passed after 65.633 seconds.
+run 2: FAILED (exit 1) — 􀢄  Test run with 1005 tests in 144 suites failed after 38.294 seconds with 1 issue. — full output: stability-2026-10-01-after-the-bench-fixes-run2-FAILED.log
+run 3: FAILED (exit 1) — 􀢄  Test run with 1005 tests in 144 suites failed after 43.301 seconds with 1 issue. — full output: stability-2026-10-01-after-the-bench-fixes-run3-FAILED.log
+run 4: 􁁛  Test run with 1005 tests in 144 suites passed after 58.667 seconds.
+run 5: 􁁛  Test run with 1005 tests in 144 suites passed after 54.339 seconds.
+stopped after run 5 by the builder (09:2x): the fix under test is wrong — on this Mac shutdown() does not wake a thread waiting in accept(), so every stop of a server that has served waits its full 5 s cap and the close wakes the thread after all (SPEC §233, the experiment). Runs 2 and 3 failed on that fix's own row.

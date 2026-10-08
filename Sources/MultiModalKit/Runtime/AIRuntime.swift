@@ -243,6 +243,12 @@ public struct AIRuntime<C: Clock>: Sendable where C.Duration == Duration {
             await pump.stop()
             await transcription.stop()
             await coordinator?.stop()
+            // …and CANCEL what the stops cannot end (5d, D-135, AC-345): the
+            // health seam's thermal watcher is app-owned and is never
+            // stop()ped, so only a cancel ends it. Without this line, an
+            // observer that returned on its own left `run` waiting for that
+            // child for ever — both demos end by cancelling, so neither met it.
+            group.cancelAll()
         }
 
         // 4. THE TEARDOWN, IN ORDER, ON THE WAY OUT (AC-203). The actors

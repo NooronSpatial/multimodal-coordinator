@@ -25,6 +25,11 @@ struct AudioDemo {
         // "spoken" into the terminal — barge it mid-reply with your voice.
         let arguments = Array(CommandLine.arguments.dropFirst())
         let flags = DemoFlags(arguments: arguments)
+        // 5d: the scripted person instead of the microphone (F-28 A).
+        if let person = flags.personPath {
+            await runHarness(flags, personAt: person)
+            return
+        }
         guard let ear = chosenEar(flags.choice) else { return }
 
         // The model phase comes FIRST — before the microphone exists.
@@ -33,6 +38,10 @@ struct AudioDemo {
         // (900 s × 48 kHz) that nobody was reading. The ring told the truth;
         // the ordering was the bug.
         let engineReady = await readyModel(ear.engine, named: flags.choice)
+        // The mouth's model phase too, for the same reason (5d): a voice
+        // whose model is missing is fetched before any microphone runs.
+        let screen = Screen()
+        guard let talk = await preparedTalk(flags, screen: screen) else { return }
 
         // ~1 second of audio at 48 kHz; rounded up to a power of two inside.
         let (producer, consumer) = AudioRing.create(minimumCapacity: 48_000)
@@ -74,12 +83,12 @@ struct AudioDemo {
         // its transcription failure on screen instead — failure is an
         // event (AC-65), which is the library's own rule finally applied
         // to its own demo.
-        let screen = Screen()
         let runtime: AIRuntime<ContinuousClock>
         do {
             runtime = try AIRuntime(configuration(
                 flags: flags,
-                machine: Machine(ear: ear.engine, consumer: consumer, sampleRate: sampleRate),
+                machine: Machine(ear: ear.engine, consumer: consumer, sampleRate: sampleRate,
+                                 mouth: talk.mouth, latency: talk.latency),
                 screen: screen,
                 releaseSource: { microphone.stop() }))
         } catch {
@@ -91,6 +100,33 @@ struct AudioDemo {
             microphone.stop()
             return
         }
+        await runUntilInterrupted(runtime, on: screen, ringDrops: consumer)
+    }
+}
+
+extension AudioDemo {
+    /// The live conversation's mouth and reporter (5d): the timeline printed
+    /// on the screen, and each reply's pauses beside it. `nil` when a voice
+    /// was asked for and its model could not be fetched.
+    static func preparedTalk(_ flags: DemoFlags, screen: Screen)
+        async -> (mouth: (any SpeechSynthesizing)?, latency: ConsoleLatency)? {
+        let latency = ConsoleLatency(screen: screen, hangover: .milliseconds(Int(flags.hangoverMs)))
+        guard flags.talk else { return (nil, latency) }
+        let mouth = await preparedMouth(flags.arguments) { pauses in
+            Task {
+                await screen.log("⏸  reply pauses: \(pauses.gaps) over 300 ms"
+                    + " · longest \(pauses.longest.ms) ms")
+            }
+        }
+        guard let mouth else { return nil }
+        return (mouth, latency)
+    }
+}
+
+extension AudioDemo {
+    /// Runs the conversation until Ctrl-C, then lets the teardown finish.
+    static func runUntilInterrupted(_ runtime: AIRuntime<ContinuousClock>, on screen: Screen,
+                                    ringDrops consumer: AudioRingConsumer) async {
         let pipeline = Task {
             await runtime.run { session in
                 await observe(session, on: screen, ringDrops: consumer)

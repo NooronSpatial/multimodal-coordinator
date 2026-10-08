@@ -93,6 +93,7 @@ struct MLXBackgroundInstallTests {
         #expect(FileManager.default.fileExists(
                     atPath: bench.scratch.appending(path: "model.safetensors.resume").path),
                 "with the resume data of the unfinished file")
+        let resumeData = resumeDataLine(bench.scratch.appending(path: "model.safetensors.resume"))
         let paid = bench.server.counts(for: bench.filePath("model.safetensors")).bytesSent
         #expect(paid >= 262_144 && paid < size, "cut mid-file")
 
@@ -100,8 +101,9 @@ struct MLXBackgroundInstallTests {
         try await model.download(reporting: { _ in }, using: fetcher)
 
         let counts = bench.server.counts(for: bench.filePath("model.safetensors"))
-        #expect(counts.rangeRequests == 1, "resumed, not restarted")
-        #expect(counts.bytesSent < 2 * size, "never twice the file: \(counts.bytesSent) of \(size)")
+        let story = "\(resumeData) · \(bench.server.story(for: bench.filePath("model.safetensors")))"
+        #expect(counts.rangeRequests == 1, "resumed, not restarted — \(story)")
+        #expect(counts.bytesSent < 2 * size, "never twice the file: \(counts.bytesSent) of \(size) — \(story)")
         #expect(bench.server.counts(for: bench.treePath).requests == 2, "each attempt lists once")
         #expect(model.installState() == .installed)
         #expect(!FileManager.default.fileExists(atPath: bench.scratch.path), "moved into place, resume data and all")

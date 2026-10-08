@@ -4,10 +4,19 @@
 extension TurnCoordinator {
     func handleAudio(
         _ event: AudioEvent,
+        arrived: C.Instant?,
         forwardingInto group: inout TaskGroup<Void>,
         via input: AsyncStream<Input>.Continuation
     ) async {
-        guard let utterance = floorOpeningUtterance(for: event) else { return }
+        // 5d (D-133, D-134): an utterance ended — which one, and when it
+        // ARRIVED. ② starts here, but only for the utterance whose final
+        // drives the turn: the report checks the number (a person who went
+        // on has a newer utterance, and this end is not its end).
+        if case .speechEnded = event, let arrived, current != nil {
+            current?.speechEnd = (utterance: lastOnset, at: arrived)
+        }
+        guard let opening = floorOpeningUtterance(for: event) else { return }
+        let utterance = opening.utterance
 
         switch state {
         case .idle:
@@ -29,7 +38,7 @@ extension TurnCoordinator {
             current?.replyArmed = false
 
         case .thinking, .speaking:
-            await barge(for: utterance)
+            await barge(for: utterance, window: opening.window)
         }
 
         // The utterance is born — if its terminal transcript arrived early
@@ -46,14 +55,31 @@ extension TurnCoordinator {
     /// Which utterance this audio event opens the floor for — `nil` when
     /// the event is not turn business, or when a candidate onset is still
     /// inside the window, proving itself.
-    private func floorOpeningUtterance(for event: AudioEvent) -> Int? {
+    /// The utterance that takes the floor, if this event opens it — with
+    /// how long its barge window held it back, on the audio timeline
+    /// (5d, ⑦): zero for an onset that took the floor at once.
+    private func floorOpeningUtterance(for event: AudioEvent) -> (utterance: Int, window: Duration)? {
         // THE BARGE WINDOW's other two events (D-071). A candidate onset
         // proves itself by CONTINUING, and abandons itself by stopping.
         // THE BARGE WINDOW (D-071). A candidate proves itself by
         // CONTINUING past its deadline, and abandons itself by stopping.
         if case .audioSegment(let chunk) = event {
-            guard let candidate = pendingBarge,
-                  chunk.start >= candidate.deadline else { return nil }
+            guard var candidate = pendingBarge else { return nil }
+            // LOUDNESS, NOT DECLARED LENGTH (5d piece 3, R-4, F-38 A): the
+            // pump sends a segment for every chunk through the hangover, so
+            // "any segment past the deadline" measured loud part + hangover —
+            // at a 700 ms hangover, every sound. Only a LOUD chunk proves a
+            // person; a chunk the VAD said nothing about counts as loud, the
+            // old rule.
+            let loud = chunk.isLoud != false
+            if loud, chunk.start >= candidate.onset {
+                candidate.loudTime += chunk.start.duration(
+                    to: AudioTime(frames: chunk.start.frames + chunk.frameCount, sampleRate: chunk.start.sampleRate))
+                candidate.peak = max(candidate.peak, Self.rms(chunk.samples))
+                pendingBarge = candidate
+            }
+            guard loud, chunk.start >= candidate.deadline else { return nil }
+            report(candidate, verdictAt: chunk.start, accepted: true)
             // Still going at the far edge of the window — a person, not the
             // assistant's own tail. It falls straight through to the barge
             // below, which is the SAME code an immediate barge runs.
@@ -63,11 +89,17 @@ extension TurnCoordinator {
             // reached, so the candidate deferred itself forever and nothing
             // was ever barged.
             pendingBarge = nil
-            return candidate.utterance
+            return (candidate.utterance, candidate.onset.duration(to: chunk.start))
         }
-        if case .speechEnded = event {
-            // It stopped before the window closed. 339–520 ms is the leak's
-            // entire measured range (§43); nothing dies.
+        if case .speechEnded(let ended) = event {
+            // It stopped before the window closed: the reply's own echo, by
+            // the window's verdict (§43). Nothing dies — and its words, when
+            // they arrive, are no one's (AC-358).
+            if let candidate = pendingBarge {
+                report(candidate, verdictAt: ended, accepted: false)
+                abandonedUtterances = abandonedUtterances.filter { $0 > contextFloor }
+                abandonedUtterances.insert(candidate.utterance)
+            }
             pendingBarge = nil
             return nil
         }
@@ -80,16 +112,31 @@ extension TurnCoordinator {
         if case .speaking = state, config.bargeWindow > .zero {
             pendingBarge = PendingBarge(
                 utterance: started,
-                deadline: at.advanced(by: config.bargeWindow))
+                onset: at,
+                deadline: at.advanced(by: config.bargeWindow),
+                turn: current?.turn ?? nextTurn - 1)
             return nil
         }
         pendingBarge = nil
-        return started
+        return (started, .zero)
+    }
+
+    /// One candidate's verdict, to the reporter (5d piece 3, F-40 A).
+    private func report(_ candidate: PendingBarge, verdictAt moment: AudioTime, accepted: Bool) {
+        latencyReporter?.bargeCandidate(BargeCandidate(
+            turn: candidate.turn, window: candidate.onset.duration(to: moment),
+            loudTime: candidate.loudTime, peak: candidate.peak, accepted: accepted))
+    }
+
+    /// A chunk's loudness as RMS — the VAD's measure, for the report only.
+    static func rms(_ samples: [Float]) -> Float {
+        guard !samples.isEmpty else { return 0 }
+        return (samples.reduce(0) { $0 + $1 * $1 } / Float(samples.count)).squareRoot()
     }
 
     /// The barge: the one arm an immediate onset and a candidate that
     /// survived the window both fall into.
-    private func barge(for utterance: Int) async {
+    private func barge(for utterance: Int, window: Duration) async {
         // THE BARGE. Ticket first, in this same actor step: the old
         // turn is dead before anything awaits.
         let bargeAccepted = clock?.now
@@ -120,7 +167,19 @@ extension TurnCoordinator {
         // Cancel latency (R2): barge accepted → both cancels
         // acknowledged. Belongs to the turn that died.
         if let reporter = latencyReporter, let clock, let bargeAccepted, let dying {
-            reporter.cancelLatency(bargeAccepted.duration(to: clock.now), turn: dying.turn)
+            let silence = bargeAccepted.duration(to: clock.now)
+            reporter.cancelLatency(silence, turn: dying.turn)
+            // …and the whole interruption (5d, D-133): the window the person
+            // talked through, then that same silence.
+            reporter.bargeTimeline(BargeTimeline(turn: dying.turn, window: window, silence: silence))
         }
+    }
+}
+
+extension AudioTime {
+    /// The time from `self` to `later` on the audio timeline — one pump,
+    /// one sample rate (5d, the barge window's ⑦).
+    func duration(to later: AudioTime) -> Duration {
+        .nanoseconds(Int64((Double(later.frames - frames) / sampleRate * 1e9).rounded()))
     }
 }

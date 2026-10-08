@@ -1,0 +1,38 @@
+python3 phone-2026-10-01-phrase-replay.py phone-2026-10-01-session.md
+A REPLAY, NOT A MEASUREMENT: each turn's own speeds from its log lines (the mind's characters per second, the voice's RTF and audio length), Kokoro's ~0.745 s of quiet per phrase from the Mac captures; checked against the measured first sound, then calibrated by one factor on the voice's synthesis time.
+
+CHECK — the replay against the measured first sound (⑤): median error 337 ms, max 1776 ms over 21 turns
+                         today: first WORD median  2180 ms (max  6591) · longest silence inside median  745 ms (max  2892) · boundaries where the voice runs dry > 150 ms: 5
+                     trim only: first WORD median  1895 ms (max  6306) · longest silence inside median  190 ms (max  2892) · boundaries where the voice runs dry > 150 ms: 5
+      trim + first phrase ≤ 20: first WORD median   748 ms (max  1683) · longest silence inside median  711 ms (max  4031) · boundaries where the voice runs dry > 150 ms: 13
+  trim + 20, then 40, then 120: first WORD median   748 ms (max  1683) · longest silence inside median  190 ms (max  3198) · boundaries where the voice runs dry > 150 ms: 8
+  trim + 30, then 60, then 120: first WORD median   998 ms (max  2122) · longest silence inside median  190 ms (max  1942) · boundaries where the voice runs dry > 150 ms: 8
+
+CALIBRATED k = 0.75: median |error| 245 ms, median signed -179 ms, max |error| 1331 ms
+  turn  measured ⑤  replayed ⑤
+     1        829         580
+     2       1080         475
+     3       1117        1051
+     6       3710        2947
+     7        587         391
+     8       1590        2920
+     9       1082        1249
+    10       4908        3577
+    12       1333        1525
+    13       1337        1803
+    14        552         373
+    15       1234        1479
+    16       4981        3849
+    17       2612        2256
+    18       1698        1600
+    19       2544        2085
+    20        622         586
+    21       2029        2178
+    23       5539        5437
+    24        556         324
+    25       2390        1792
+                         today: first WORD median  1925 ms (max  5762) · longest silence inside: median  745, max  2530 ms · boundaries run dry > 150 ms: 5
+                     trim only: first WORD median  1640 ms (max  5477) · longest silence inside: median  190, max  2530 ms · boundaries run dry > 150 ms: 5
+      trim + first phrase ≤ 20: first WORD median   626 ms (max  1443) · longest silence inside: median  497, max  3429 ms · boundaries run dry > 150 ms: 12
+  trim + 20, then 40, then 120: first WORD median   626 ms (max  1443) · longest silence inside: median  190, max  2786 ms · boundaries run dry > 150 ms: 7
+  trim + 30, then 60, then 120: first WORD median   839 ms (max  1832) · longest silence inside: median  190, max  1687 ms · boundaries run dry > 150 ms: 8

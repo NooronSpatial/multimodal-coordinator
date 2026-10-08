@@ -14,4 +14,15 @@ public protocol VoiceActivityDetecting: Sendable {
     /// Judge one chunk. Return a transition when the state flips,
     /// nil when nothing changes. At most one transition per chunk.
     mutating func process(_ chunk: UnsafeBufferPointer<Float>) -> SpeechTransition?
+
+    /// Whether the chunk last judged was loud by this detector's own rule
+    /// (5d piece 3, F-38 A) — the pump stamps it on the chunk it publishes,
+    /// so the barge window judges by the SAME threshold as the speech.
+    var lastChunkIsLoud: Bool? { get }
+}
+
+extension VoiceActivityDetecting {
+    /// A detector written before 5d says nothing: nil, "unknown", which the
+    /// barge window reads as loud — its old behaviour, unchanged.
+    public var lastChunkIsLoud: Bool? { nil }
 }

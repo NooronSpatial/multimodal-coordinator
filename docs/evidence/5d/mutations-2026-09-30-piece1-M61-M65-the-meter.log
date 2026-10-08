@@ -1,0 +1,40 @@
+# 5d piece 1 — mutations M61…M65 on the SilenceMeter (2026-09-30), filter SilenceMeterTests. Five of five killed.
+# M65 (the longest kept only among the gaps) is killed by a row added after green — 'a reply with only short
+# pauses still reports its longest' — written because no row pinned 'the longest of ANY length' before it.
+
+## M61 — the open stretch (the tail) grows the longest
+file: Sources/MultiModalKit/Audio/SilenceMeter.swift
+KILLED — red rows:
+  - the silence before the first sound and after the last is not a pause inside the answer
+􀢄  Test run with 6 tests in 1 suite failed after 0.007 seconds with 1 issue.
+reverted: yes
+
+## M62 — silence before the first sound counts
+file: Sources/MultiModalKit/Audio/SilenceMeter.swift
+KILLED — red rows:
+  - the silence before the first sound and after the last is not a pause inside the answer
+􀢄  Test run with 6 tests in 1 suite failed after 0.006 seconds with 2 issues.
+reverted: yes
+
+## M63 — exactly the gap does not count
+file: Sources/MultiModalKit/Audio/SilenceMeter.swift
+KILLED — red rows:
+  - exactly the gap counts
+􀢄  Test run with 6 tests in 1 suite failed after 0.003 seconds with 1 issue.
+reverted: yes
+
+## M64 — a soft stretch counts as silence
+file: Sources/MultiModalKit/Audio/SilenceMeter.swift
+KILLED — red rows:
+  - quiet is not silence: a soft stretch above the level is sound
+􀢄  Test run with 6 tests in 1 suite failed after 0.004 seconds with 2 issues.
+reverted: yes
+
+## M65 — the longest is kept only among the gaps
+file: Sources/MultiModalKit/Audio/SilenceMeter.swift
+KILLED — red rows:
+  - a reply with only short pauses still reports its longest
+􀢄  Test run with 6 tests in 1 suite failed after 0.007 seconds with 1 issue.
+reverted: yes
+
+source tree after the run: clean

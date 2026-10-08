@@ -1,0 +1,94 @@
+## M85 — the window ignores loudness again (the old rule)
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)
+  - hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)
+  - the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)
+reverted: yes
+
+## M86 — a chunk the VAD said nothing about counts as quiet
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a 1160 ms utterance — the shortest real one ever logged — DOES barge
+  - a barge while speaking: the window, then the silence; the pause was already reported (AC-338)
+  - a chunk the VAD said nothing about still counts as loud — the old rule, unchanged (AC-359)
+  - just over the window barges — it opens, it does not merely delay
+reverted: yes
+
+## M87 — the pump drops the VAD's verdict
+file: Sources/MultiModalKit/Audio/AudioPump.swift
+KILLED — red rows:
+  - A partial chunk waits for the next poll instead of being padded or judged
+  - A scripted utterance produces the exact event sequence, in timeline order
+  - Frames lost to a full ring appear as a dropped event with the exact count
+  - Only the last two held chunks are pre-rolled, and they arrive before the live audio
+  - With the window wired per the F-4 law, the word is not beheaded
+reverted: yes
+
+## M88 — the detector's verdict misses the exact threshold
+file: Sources/MultiModalKit/Audio/EnergyVAD.swift
+KILLED — red rows:
+  - the detector reports each chunk's own verdict — the same rule as the speech decision
+reverted: yes
+
+## M89 — an abandoned candidate's words enter the ledger again
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Transcripts.swift
+KILLED — red rows:
+  - an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)
+reverted: yes
+
+## M90 — an abandoned candidate is never reported
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a 480 ms burst — the echo's exact fingerprint — does NOT barge
+  - a leak that ended cannot barge later on somebody else's audio
+  - hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)
+  - just under the window does not barge
+  - the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)
+reverted: yes
+
+## M91 — loud time counts the quiet chunks too
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)
+  - hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)
+reverted: yes
+
+## M92 — the measured window back to 600 ms
+file: Sources/MultiModalKit/Conversation/TurnCoordinator.swift
+KILLED — red rows:
+  - the measured window is 320 ms of LOUD time (D-140, F-39 A)
+reverted: yes
+
+## M93 — a leak that ended keeps its candidate armed
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a leak that ended cannot barge later on somebody else's audio
+reverted: yes
+
+## M94 — the end of speech is ignored (4k's mutation: the arm deleted)
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a 480 ms burst — the echo's exact fingerprint — does NOT barge
+  - a leak that ended cannot barge later on somebody else's audio
+  - an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)
+  - hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)
+  - just under the window does not barge
+  - the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)
+reverted: yes
+
+## M95 — no window: every onset while speaking barges at once
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a 480 ms burst — the echo's exact fingerprint — does NOT barge
+  - a barge while speaking: the window, then the silence; the pause was already reported (AC-338)
+  - a chunk the VAD said nothing about still counts as loud — the old rule, unchanged (AC-359)
+  - a leak that ended cannot barge later on somebody else's audio
+  - a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)
+  - an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)
+  - hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)
+  - just under the window does not barge
+  - the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)
+reverted: yes
+
+source tree after the run: clean

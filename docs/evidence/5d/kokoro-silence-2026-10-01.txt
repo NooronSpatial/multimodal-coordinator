@@ -1,0 +1,144 @@
+swift run -c release bakeoff voice-kokoro --draws=2 --save-audio=DIR   (this Mac, 2026-10-01, macOS 26.6.1; Kokoro-82M float16, lead .zero)
+
+[Computing dependencies]
+[Constructing description]
+[Pre-planning 1 / 1628]
+[Planning deferred tasks]
+[Starting]
+[6 / 84] _NumericsShims
+[35 / 135] ArgumentParserToolInfo
+[41 / 138] yyjson
+[42 / 138] EventSource
+[46 / 140] Crypto
+[52 / 143] RealModule
+[58 / 148] ArgumentParserToolInfo
+[66 / 144] InternalCollectionsUtilities
+[74 / 157] OrderedCollections
+[80 / 155] EventSource
+[84 / 159] HuggingFace
+[86 / 160] OrderedCollections
+[90 / 164] Jinja
+[92 / 165] ZIPFoundation
+[94 / 161] yyjson
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[95 / 161] MultiModalKit
+[100 / 164] MultiModalKitTesting
+[103 / 166] ArgmaxCore
+[109 / 178] TTSKit
+[113 / 180] MultiModalKitBench
+[115 / 179] ArgumentParser
+[120 / 182] MLX
+[122 / 183] MultiModalKitTesting
+[127 / 182] HuggingFace
+[129 / 178] TTSKit
+[131 / 174] Jinja
+[135 / 178] Hub
+[138 / 180] Hub
+[145 / 186] Tokenizers
+[149 / 188] MLX
+[159 / 216] MLXFFT
+[167 / 220] MLXFFT
+[171 / 212] MultiModalKitWhisper
+[174 / 209] MLXUtilsLibrary
+[176 / 205] MLXNN
+[186 / 221] MLXOptimizers
+[190 / 223] Generation
+[192 / 224] MLXOptimizers
+[200 / 232] MLXLMCommon
+[204 / 234] Models
+[206 / 230] MisakiSwift
+[210 / 234] KokoroSwift
+[212 / 235] KokoroSwift
+[215 / 237] MultiModalKitTTS
+[217 / 238] MultiModalKitTTS
+[220 / 235] MLXLMCommon
+[226 / 247] MLXHuggingFace
+[230 / 249] MLXHuggingFace
+[232 / 245] MLXLLM
+[235 / 247] MultiModalKitMLX
+[238 / 249] MultiModalKitMLX
+[243 / 248] bakeoff-product
+[245 / 249] bakeoff-product
+[247 / 249] bakeoff-product
+[248 / 249] bakeoff-product
+Build complete! (76.90 sec)
+
+🗣  VOICE-KOKORO (AC-183 + AC-184) — one engine per draw, release build
+    speak → capture at the mixer → exact-zero runs ≥20 ms → transcribe → WER
+    weights: /Users/ryad/Library/Application Support/Kokoro/ · float16
+  short draw 1 · 3.0 s · first audio 219 ms · decode RTF 0.08 · 1st decode 216 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  short draw 2 · 3.0 s · first audio 222 ms · decode RTF 0.08 · 1st decode 215 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  long draw 1 · 15.3 s · first audio 403 ms · decode RTF 0.07 · 1st decode 399 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  long draw 2 · 15.3 s · first audio 393 ms · decode RTF 0.07 · 1st decode 387 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  wer1 draw 1 · 2.1 s · first audio 148 ms · decode RTF 0.08 · 1st decode 140 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  wer1 draw 2 · 2.1 s · first audio 147 ms · decode RTF 0.08 · 1st decode 141 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  wer2 draw 1 · 4.5 s · first audio 127 ms · decode RTF 0.07 · 1st decode 124 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  wer2 draw 2 · 4.5 s · first audio 136 ms · decode RTF 0.07 · 1st decode 131 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  wer3 draw 1 · 5.8 s · first audio 383 ms · decode RTF 0.07 · 1st decode 376 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  wer3 draw 2 · 5.8 s · first audio 381 ms · decode RTF 0.07 · 1st decode 380 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+
+
+heard, per row:
+  short draw 1: "The audio travels through a ring buffer."
+  short draw 2: "The audio travels through a ring buffer."
+  long draw 1: "The audio travels through a ring buffer into a pump that cuts it into small chunks. And each chunk is handed to a listener that decides whether the person is still speaking or has finally stopped and is. Waiting for an answer."
+  long draw 2: "The audio travels through a ring buffer into a pump that cuts it into small chunks. And each chunk is handed to a listener that decides whether the person is still speaking or has finally stopped and is. Waiting for an answer."
+  wer1 draw 1: "How is the weather today?"
+  wer1 draw 2: "How is the weather today?"
+  wer2 draw 1: "I can hear you. Say that again and I will stop talking."
+  wer2 draw 2: "I can hear you. Say that again and I will stop talking."
+  wer3 draw 1: "The audio travels through a ring buffer into a pump that cuts it into small chunks."
+  wer3 draw 2: "The audio travels through a ring buffer into a pump that cuts it into small chunks."
+
+10 of 10 graded draws had ZERO exact-silence runs at lead .zero (AC-183).
+median WER across graded draws: 0.000 (AC-184)
+median decode RTF: 0.07 (wall ÷ audio, from the run's margin)
+
+## the captures, read sample by sample (kokoro-silence-2026-10-01.py; quiet = |x| <= 0.001, the SilenceMeter's level)
+
+long-draw1.wav · 15.30 s at 48000 Hz
+  player start (first non-zero)     427 ms · first word (>0.001)     752 ms  → quiet before the first word:   325 ms (exact zeros in it: 0%)
+  last word   14855 ms · last non-zero   15278 ms · end   15300 ms  → quiet after the last word, while non-zero:   423 ms
+  PAUSE at    5430 ms ·   747 ms long · exact zeros 0% · peak |x| 0.00089
+  PAUSE at   13008 ms ·   790 ms long · exact zeros 0% · peak |x| 0.00098
+
+long-draw2.wav · 15.30 s at 48000 Hz
+  player start (first non-zero)     416 ms · first word (>0.001)     741 ms  → quiet before the first word:   325 ms (exact zeros in it: 0%)
+  last word   14848 ms · last non-zero   15267 ms · end   15300 ms  → quiet after the last word, while non-zero:   419 ms
+  PAUSE at    5420 ms ·   747 ms long · exact zeros 0% · peak |x| 0.00090
+  PAUSE at   12997 ms ·   790 ms long · exact zeros 0% · peak |x| 0.00096
+
+short-draw1.wav · 3.00 s at 48000 Hz
+  player start (first non-zero)     245 ms · first word (>0.001)     569 ms  → quiet before the first word:   323 ms (exact zeros in it: 0%)
+  last word    2508 ms · last non-zero    2972 ms · end    3000 ms  → quiet after the last word, while non-zero:   464 ms
+
+short-draw2.wav · 3.00 s at 48000 Hz
+  player start (first non-zero)     245 ms · first word (>0.001)     570 ms  → quiet before the first word:   325 ms (exact zeros in it: 0%)
+  last word    2508 ms · last non-zero    2972 ms · end    3000 ms  → quiet after the last word, while non-zero:   464 ms
+
+wer1-draw1.wav · 2.10 s at 48000 Hz
+  player start (first non-zero)     171 ms · first word (>0.001)     472 ms  → quiet before the first word:   301 ms (exact zeros in it: 0%)
+  last word    1684 ms · last non-zero    2072 ms · end    2100 ms  → quiet after the last word, while non-zero:   388 ms
+
+wer1-draw2.wav · 2.10 s at 48000 Hz
+  player start (first non-zero)     171 ms · first word (>0.001)     474 ms  → quiet before the first word:   303 ms (exact zeros in it: 0%)
+  last word    1684 ms · last non-zero    2072 ms · end    2100 ms  → quiet after the last word, while non-zero:   388 ms
+
+wer2-draw1.wav · 4.50 s at 48000 Hz
+  player start (first non-zero)     149 ms · first word (>0.001)     501 ms  → quiet before the first word:   351 ms (exact zeros in it: 0%)
+  last word    4093 ms · last non-zero    4500 ms · end    4500 ms  → quiet after the last word, while non-zero:   407 ms
+  PAUSE at    1388 ms ·   734 ms long · exact zeros 0% · peak |x| 0.00095
+
+wer2-draw2.wav · 4.50 s at 48000 Hz
+  player start (first non-zero)     160 ms · first word (>0.001)     511 ms  → quiet before the first word:   351 ms (exact zeros in it: 0%)
+  last word    4104 ms · last non-zero    4500 ms · end    4500 ms  → quiet after the last word, while non-zero:   396 ms
+  PAUSE at    1399 ms ·   734 ms long · exact zeros 0% · peak |x| 0.00098
+
+wer3-draw1.wav · 5.80 s at 48000 Hz
+  player start (first non-zero)     405 ms · first word (>0.001)     729 ms  → quiet before the first word:   324 ms (exact zeros in it: 0%)
+  last word    5375 ms · last non-zero    5800 ms · end    5800 ms  → quiet after the last word, while non-zero:   425 ms
+
+wer3-draw2.wav · 5.80 s at 48000 Hz
+  player start (first non-zero)     405 ms · first word (>0.001)     729 ms  → quiet before the first word:   324 ms (exact zeros in it: 0%)
+  last word    5375 ms · last non-zero    5800 ms · end    5800 ms  → quiet after the last word, while non-zero:   425 ms

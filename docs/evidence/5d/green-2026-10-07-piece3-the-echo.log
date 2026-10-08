@@ -1,0 +1,248 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-355…AC-360 · a barge proves itself by being loud" started.
+􀟈  Suite "AC-335…AC-340 · the turn timeline" started.
+􀟈  Suite TurnHealthTests started.
+􀟈  Suite "the barge window" started.
+􀟈  Suite EnergyVADTests started.
+􀟈  Test "a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)" started.
+􀟈  Test "a chunk the VAD said nothing about still counts as loud — the old rule, unchanged (AC-359)" started.
+􀟈  Suite AudioPumpTests started.
+􀟈  Test "hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)" started.
+􀟈  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" started.
+􀟈  Test "the measured window is 320 ms of LOUD time (D-140, F-39 A)" started.
+􀟈  Test "a 1160 ms utterance — the shortest real one ever logged — DOES barge" started.
+􀟈  Test "the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)" started.
+􀟈  Test "a 480 ms burst — the echo's exact fingerprint — does NOT barge" started.
+􀟈  Suite TurnCoordinatorTests started.
+􀟈  Test "just under the window does not barge" started.
+􀟈  Test "just over the window barges — it opens, it does not merely delay" started.
+􀟈  Test "an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)" started.
+􀟈  Test fullConversationSequence() started.
+􀟈  Test hangoverIsUntouchedByTheWindow() started.
+􀟈  Test silenceProducesNothing() started.
+􀟈  Test firstLoudChunkStartsSpeech() started.
+􀟈  Test exactThresholdCountsAsLoud() started.
+􀟈  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" started.
+􀟈  Test fullSequenceWithTransientsAroundARealWord() started.
+􀟈  Test "the measured window cannot swallow the shortest real utterance" started.
+􀟈  Test "a leak that ended cannot barge later on somebody else's audio" started.
+􀟈  Test hangoverBoundaryIsExact() started.
+􀟈  Test oneBigChunkCompletesTheWindowAlone() started.
+􀟈  Test loudChunkResetsTheHangoverBudget() started.
+􀟈  Test subWindowBurstProducesNothingEver() started.
+􀟈  Test "zero window is the old behaviour — the first onset kills the reply" started.
+􀟈  Test shortGapInsideHangoverKeepsSpeaking() started.
+􀟈  Test "the detector reports each chunk's own verdict — the same rule as the speech decision" started.
+􀟈  Test quietKillsTheCandidate() started.
+􀟈  Test "The pump parks on the injected clock, wakes on each poll, and leaves nothing behind" started.
+􀟈  Test "stop() alone ends the loop — no cancellation, no clock advance" started.
+􀟈  Test onsetBoundaryIsExact() started.
+􀟈  Test defaultWindowIsZeroAndOff() started.
+􀟈  Test "A partial chunk waits for the next poll instead of being padded or judged" started.
+􀟈  Test emptyChunkIsIgnored() started.
+􀟈  Test "A scripted utterance produces the exact event sequence, in timeline order" started.
+􀟈  Test "A sub-window transient publishes nothing — nothing for the turn loop to barge on" started.
+􀟈  Test "Only the last two held chunks are pre-rolled, and they arrive before the live audio" started.
+􀟈  Test "Frames lost to a full ring appear as a dropped event with the exact count" started.
+􀟈  Test "Latency from capture to speechStarted is exact audio time" started.
+􀟈  Test "With the window wired per the F-4 law, the word is not beheaded" started.
+􀟈  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" started.
+􀟈  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" started.
+􀟈  Test "An interruption ends the live turn like a failure — not a barge" started.
+􀟈  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" started.
+􀟈  Test "the coordinator passes the default options (AC-231)" started.
+􀟈  Test "A barge moves the thought into the conversation, not into the next question (D-089)" started.
+􀟈  Test "an interruption keeps the conversation and drops the thought (AC-196)" started.
+􀟈  Test "clearMemory() forgets the past and leaves the thought alone" started.
+􀟈  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" started.
+􀟈  Test "Two listeners receive identical sequences" started.
+􀟈  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" started.
+􀟈  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" started.
+􀟈  Test "a failed turn is never remembered, and keeps its words (AC-194)" started.
+􀟈  Test "A whitespace-only final produces no reply: back to idle, generator untouched" started.
+􀟈  Test "a barge before the first token loses nothing (F-5 = A)" started.
+􀟈  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" started.
+􀟈  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" started.
+􀟈  Test "A dead turn cannot speak after an interruption — defiant stages included" started.
+􀟈  Test "run() returns after an interruption even when the inputs ended first" started.
+􀟈  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" started.
+􀟈  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" started.
+􀟈  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" started.
+􀟈  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" started.
+􀟈  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" started.
+􀟈  Test "The app's context bound reaches the ledger and drops the oldest through the loop" started.
+􀟈  Test "stop() ends the conversation's memory (F-4 = A)" started.
+􀟈  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" started.
+􀟈  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" started.
+􀟈  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" started.
+􀟈  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" started.
+􀟈  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" started.
+􀟈  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" started.
+􀟈  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" started.
+􀟈  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" started.
+􀟈  Test "The refused final contributes content and still triggers nothing (AC-87)" started.
+􀟈  Test "The context bound is the app's number, and its default is stated" started.
+􀟈  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" started.
+􀟈  Test "completion forgets and remembers in the same step (AC-195)" started.
+􀟈  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" started.
+􀟈  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" started.
+􀟈  Test "An onset one tick before expiry wins the race" started.
+􀟈  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" started.
+􀟈  Test "Interrupting while idle publishes nothing at all" started.
+􀟈  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" started.
+􀟈  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" started.
+􀟈  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" started.
+􀟈  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" started.
+􀟈  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" started.
+􀟈  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" started.
+􀟈  Test "Every adjacent state pair across a multi-turn run is in the legal table" started.
+􀟈  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" started.
+􀟈  Test "A final STASHED before an interruption is not replayed after resume" started.
+􀟈  Test "A failed turn keeps its words — nothing answered them (AC-89)" started.
+􀟈  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" started.
+􀟈  Test "An onset during the gate kills the pending reply silently; the next final gates again" started.
+􀟈  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" started.
+􀟈  Test "a reply of no tokens is answered, and not remembered" started.
+􀟈  Test "A stale final during the gate is dropped at the door; the armed reply survives it" started.
+􁁛  Test "the measured window cannot swallow the shortest real utterance" passed after 0.002 seconds.
+􁁛  Test firstLoudChunkStartsSpeech() passed after 0.004 seconds.
+􁁛  Test fullConversationSequence() passed after 0.004 seconds.
+􁁛  Test subWindowBurstProducesNothingEver() passed after 0.004 seconds.
+􁁛  Test shortGapInsideHangoverKeepsSpeaking() passed after 0.004 seconds.
+􁁛  Test silenceProducesNothing() passed after 0.004 seconds.
+􁁛  Test oneBigChunkCompletesTheWindowAlone() passed after 0.004 seconds.
+􁁛  Test defaultWindowIsZeroAndOff() passed after 0.004 seconds.
+􁁛  Test hangoverIsUntouchedByTheWindow() passed after 0.004 seconds.
+􁁛  Test emptyChunkIsIgnored() passed after 0.004 seconds.
+􁁛  Test "the measured window is 320 ms of LOUD time (D-140, F-39 A)" passed after 0.004 seconds.
+􁁛  Test quietKillsTheCandidate() passed after 0.004 seconds.
+􁁛  Test onsetBoundaryIsExact() passed after 0.004 seconds.
+􁁛  Test hangoverBoundaryIsExact() passed after 0.004 seconds.
+􁁛  Test loudChunkResetsTheHangoverBudget() passed after 0.005 seconds.
+􁁛  Test exactThresholdCountsAsLoud() passed after 0.005 seconds.
+􁁛  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" passed after 0.004 seconds.
+􁁛  Test fullSequenceWithTransientsAroundARealWord() passed after 0.004 seconds.
+􁁛  Test "the detector reports each chunk's own verdict — the same rule as the speech decision" passed after 0.004 seconds.
+􁁛  Test "The context bound is the app's number, and its default is stated" passed after 0.004 seconds.
+􁁛  Suite EnergyVADTests passed after 0.006 seconds.
+􁁛  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" passed after 0.007 seconds.
+􁁛  Test "A whitespace-only final produces no reply: back to idle, generator untouched" passed after 0.007 seconds.
+􁁛  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" passed after 0.007 seconds.
+􁁛  Test "stop() alone ends the loop — no cancellation, no clock advance" passed after 0.007 seconds.
+􁁛  Suite TurnHealthTests passed after 0.008 seconds.
+􁁛  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" passed after 0.007 seconds.
+􁁛  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" passed after 0.007 seconds.
+􁁛  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" passed after 0.007 seconds.
+􁁛  Test "a reply of no tokens is answered, and not remembered" passed after 0.007 seconds.
+􁁛  Test "just over the window barges — it opens, it does not merely delay" passed after 0.009 seconds.
+􁁛  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" passed after 0.007 seconds.
+􁁛  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" passed after 0.007 seconds.
+􁁛  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" passed after 0.007 seconds.
+􁁛  Test "a barge before the first token loses nothing (F-5 = A)" passed after 0.008 seconds.
+􁁛  Test "a failed turn is never remembered, and keeps its words (AC-194)" passed after 0.008 seconds.
+􁁛  Test "completion forgets and remembers in the same step (AC-195)" passed after 0.007 seconds.
+􁁛  Test "the coordinator passes the default options (AC-231)" passed after 0.008 seconds.
+􁁛  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" passed after 0.008 seconds.
+􁁛  Test "a 1160 ms utterance — the shortest real one ever logged — DOES barge" passed after 0.009 seconds.
+􁁛  Test "zero window is the old behaviour — the first onset kills the reply" passed after 0.009 seconds.
+􁁛  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" passed after 0.008 seconds.
+􁁛  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" passed after 0.008 seconds.
+􁁛  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" passed after 0.008 seconds.
+􁁛  Test "The app's context bound reaches the ledger and drops the oldest through the loop" passed after 0.008 seconds.
+􁁛  Test "An interruption ends the live turn like a failure — not a barge" passed after 0.008 seconds.
+􁁛  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" passed after 0.008 seconds.
+􁁛  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" passed after 0.008 seconds.
+􁁛  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" passed after 0.008 seconds.
+􁁛  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" passed after 0.007 seconds.
+􁁛  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" passed after 0.009 seconds.
+􁁛  Test "A barge moves the thought into the conversation, not into the next question (D-089)" passed after 0.009 seconds.
+􁁛  Test "stop() ends the conversation's memory (F-4 = A)" passed after 0.008 seconds.
+􁁛  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" passed after 0.008 seconds.
+􁁛  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" passed after 0.009 seconds.
+􁁛  Test "A failed turn keeps its words — nothing answered them (AC-89)" passed after 0.007 seconds.
+􁁛  Test "clearMemory() forgets the past and leaves the thought alone" passed after 0.009 seconds.
+􁁛  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" passed after 0.008 seconds.
+􁁛  Test "an interruption keeps the conversation and drops the thought (AC-196)" passed after 0.009 seconds.
+􁁛  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" passed after 0.008 seconds.
+􁁛  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" passed after 0.009 seconds.
+􁁛  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" passed after 0.008 seconds.
+􁁛  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" passed after 0.009 seconds.
+􁁛  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" passed after 0.009 seconds.
+􁁛  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" passed after 0.009 seconds.
+􁁛  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" passed after 0.009 seconds.
+􁁛  Test "Every adjacent state pair across a multi-turn run is in the legal table" passed after 0.009 seconds.
+􁁛  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" passed after 0.009 seconds.
+􁁛  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" passed after 0.009 seconds.
+􁁛  Test "a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)" passed after 0.011 seconds.
+􁁛  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" passed after 0.009 seconds.
+􁁛  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" passed after 0.010 seconds.
+􁁛  Test "Latency from capture to speechStarted is exact audio time" passed after 0.011 seconds.
+􁁛  Test "a chunk the VAD said nothing about still counts as loud — the old rule, unchanged (AC-359)" passed after 0.011 seconds.
+􁁛  Test "Two listeners receive identical sequences" passed after 0.010 seconds.
+􁁛  Test "Only the last two held chunks are pre-rolled, and they arrive before the live audio" passed after 0.011 seconds.
+􁁛  Test "A sub-window transient publishes nothing — nothing for the turn loop to barge on" passed after 0.011 seconds.
+􁁛  Test "The pump parks on the injected clock, wakes on each poll, and leaves nothing behind" passed after 0.011 seconds.
+􁁛  Test "Frames lost to a full ring appear as a dropped event with the exact count" passed after 0.011 seconds.
+􁁛  Test "With the window wired per the F-4 law, the word is not beheaded" passed after 0.011 seconds.
+􁁛  Test "A scripted utterance produces the exact event sequence, in timeline order" passed after 0.011 seconds.
+􁁛  Test "an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)" passed after 0.011 seconds.
+􁁛  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" passed after 0.010 seconds.
+􁁛  Test "A stale final during the gate is dropped at the door; the armed reply survives it" passed after 0.010 seconds.
+􁁛  Test "An onset one tick before expiry wins the race" passed after 0.010 seconds.
+􁁛  Test "A partial chunk waits for the next poll instead of being padded or judged" passed after 0.011 seconds.
+􁁛  Suite AudioPumpTests passed after 0.012 seconds.
+􁁛  Test "An onset during the gate kills the pending reply silently; the next final gates again" passed after 0.010 seconds.
+􁁛  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" passed after 0.013 seconds.
+􀟈  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" started.
+􁁛  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" passed after 0.001 seconds.
+􀟈  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" started.
+􁁛  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" passed after 0.001 seconds.
+􀟈  Test "no gate: the stage is zero, and the others are untouched (AC-336)" started.
+􁁛  Test "no gate: the stage is zero, and the others are untouched (AC-336)" passed after 0.001 seconds.
+􀟈  Test "an end the coordinator never saw leaves earFinish empty, not zero" started.
+􁁛  Test "an end the coordinator never saw leaves earFinish empty, not zero" passed after 0.001 seconds.
+􀟈  Test "a person who went on: the older utterance's end is not this one's" started.
+􁁛  Test "a person who went on: the older utterance's end is not this one's" passed after 0.001 seconds.
+􀟈  Test "an ear that finishes before the end decision reports a negative earFinish" started.
+􁁛  Test "an ear that finishes before the end decision reports a negative earFinish" passed after 0.001 seconds.
+􀟈  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" started.
+􁁛  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" passed after 0.001 seconds.
+􀟈  Test "a barge with the window off: the window is zero (AC-338)" started.
+􁁛  Test "a barge with the window off: the window is zero (AC-338)" passed after 0.001 seconds.
+􀟈  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" started.
+􁁛  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" passed after 0.001 seconds.
+􀟈  Test "an empty final reports no timeline (AC-339)" started.
+􁁛  Test "an empty final reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a failed ear reports no timeline (AC-339)" started.
+􁁛  Test "a failed ear reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" started.
+􁁛  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a mind that chose silence reports no timeline (AC-339)" started.
+􁁛  Test "a mind that chose silence reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" started.
+􁁛  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" passed after 0.001 seconds.
+􀟈  Test "the felt pause is the app's hangover plus every stage" started.
+􁁛  Test "the felt pause is the app's hangover plus every stage" passed after 0.001 seconds.
+􁁛  Suite "AC-335…AC-340 · the turn timeline" passed after 0.026 seconds.
+􁁛  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" passed after 0.027 seconds.
+􁁛  Test "Interrupting while idle publishes nothing at all" passed after 0.027 seconds.
+􁁛  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" passed after 0.027 seconds.
+􁁛  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" passed after 0.027 seconds.
+􁁛  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" passed after 0.027 seconds.
+􁁛  Test "A dead turn cannot speak after an interruption — defiant stages included" passed after 0.027 seconds.
+􁁛  Test "run() returns after an interruption even when the inputs ended first" passed after 0.027 seconds.
+􁁛  Test "The refused final contributes content and still triggers nothing (AC-87)" passed after 0.027 seconds.
+􁁛  Test "A final STASHED before an interruption is not replayed after resume" passed after 0.027 seconds.
+􁁛  Suite TurnCoordinatorTests passed after 0.028 seconds.
+􁁛  Test "just under the window does not barge" passed after 2.006 seconds.
+􁁛  Test "a 480 ms burst — the echo's exact fingerprint — does NOT barge" passed after 2.006 seconds.
+􁁛  Test "a leak that ended cannot barge later on somebody else's audio" passed after 2.006 seconds.
+􁁛  Suite "the barge window" passed after 2.006 seconds.
+􁁛  Test "hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)" passed after 2.006 seconds.
+􁁛  Test "the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)" passed after 4.011 seconds.
+􁁛  Suite "AC-355…AC-360 · a barge proves itself by being loud" passed after 4.011 seconds.
+􁁛  Test run with 115 tests in 7 suites passed after 4.011 seconds.

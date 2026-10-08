@@ -86,8 +86,12 @@ struct AudioPumpTests {
         AudioTime(frames: frames, sampleRate: sampleRate)
     }
 
+    /// A chunk as the pump publishes it — with the VAD's own verdict on it
+    /// (5d piece 3, F-38 A): every chunk this suite writes is either loud
+    /// (`loud`, over the threshold) or quiet (`quiet`, under it).
     static func chunk(_ value: Float, at frames: Int) -> AudioChunk {
-        AudioChunk(samples: [Float](repeating: value, count: chunkFrames), start: t(frames))
+        AudioChunk(samples: [Float](repeating: value, count: chunkFrames), start: t(frames),
+                   isLoud: value >= threshold)
     }
 
     // MARK: - AC-9 / AC-18: the rhythm, and a clean stop

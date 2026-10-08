@@ -1,0 +1,78 @@
+# 5d piece 1 — the Mac harness, RUN 1 (2026-09-30): HUNG after sentence 7, kept because it found something.
+# swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro --hangover 300 --gate 500 --window 600
+# this Mac: macOS 26.6, Xcode 27, release build; Whisper base, Qwen3-4B-4bit (MLX), Kokoro-82M.
+# WHAT HAPPENED: sentence 7 was meant to interrupt the answer, but its real speech was shorter than the
+# 600 ms barge window, so the pipeline dropped it AS DESIGNED (D-071: a voice over the reply that stops
+# before the window closes is treated as the assistant's own echo). No turn opened; the scripted person
+# waited for one with no deadline. FINDING: a short 'stop' or 'wait' over an answer is ignored today.
+# The watchdog then fired, and the process never exited — see run 2 for why.
+# Turn 0's ② of 22 s is the ear's cold first decode (Whisper's model loading on first use).
+
+Building for production...
+/Users/ryad/Developer/multimodal-coordinator/Sources/MultiModalKit/Conversation/AppleReplyGenerator+Session.swift:180:33: [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m178 |[0;0m             sampling = .random(top: Self.seededTopK, seed: seed)
+[0;36m179 |[0;0m         }
+[0;36m180 |[0;0m         return FoundationModels.GenerationOptions(
+    [0;36m|[0;0m                                 |- [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+    [0;36m|[0;0m                                 `- [1;39mnote: [1;39muse 'init(samplingMode:temperature:maximumResponseTokens:)' instead[0;0m
+[0;36m181 |[0;0m             sampling: sampling,
+[0;36m182 |[0;0m             temperature: options.temperature.map(Double.init),
+
+In file included from /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/steel_attention.metal:6:
+In file included from /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/kernels/steel_attention.h:3:
+In file included from /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/attn.h:6:
+In file included from /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/../../steel/attn/mma.h:11:
+/Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/../../steel/utils/integral_constant.h:108:6: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+  if constexpr (start < stop) {
+     ^
+In file included from /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/steel_attention.metal:6:
+/Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/kernels/steel_attention.h:356:16: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+            if constexpr (is_bool) {
+               ^
+/Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/kernels/steel_attention.h:426:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (BD == 128) {
+             ^
+/Users/ryad/Developer/multimodal-coordinator/.build/checkouts/mlx-swift/Source/Cmlx/mlx-generated/metal/steel/attn/kernels/../../../steel/attn/kernels/steel_attention.h:436:14: warning: constexpr if is a C++17 extension [-Wc++17-extensions]
+          if constexpr (BD == 128) {
+             ^
+4 warnings generated.
+Build complete! (85.72 sec)
+⏬ Kokoro-82M · float16 · phrases ≤ 120 chars: the model is not on this Mac — downloading …
+   0 %
+   10 %
+   20 %
+   30 %
+   40 %
+   50 %
+   60 %
+   70 %
+   80 %
+   90 %
+   100 %
+✅ the voice's model is installed
+voice: Kokoro-82M · float16 · phrases ≤ 120 chars
+
+🧪 THE SCRIPTED PERSON — Fixtures/ryad-en.wav, 22 sentences, 20 turns, interrupting at [7, 14]
+    ear Whisper base (batch — text arrives after each pause) · hangover 300 ms · gate 500 ms · window 600 ms · vad 0.02
+
+🗣  sentence 1/20 (1380 ms of speech)
+⏱  turn 0: ① 300 · ② 22414 · ③ 504 · ④ 883 · ⑤ 2498  →  felt 26598 ms
+⏸  reply pauses: 2 over 300 ms · longest 889 ms
+🗣  sentence 2/20 (2460 ms of speech)
+⏱  turn 1: ① 300 · ② 125 · ③ 500 · ④ 872 · ⑤ 655  →  felt 2453 ms
+⏸  reply pauses: 1 over 300 ms · longest 775 ms
+🗣  sentence 3/20 (1120 ms of speech)
+⏱  turn 2: ① 300 · ② 141 · ③ 509 · ④ 485 · ⑤ 260  →  felt 1695 ms
+⏸  reply pauses: 1 over 300 ms · longest 803 ms
+🗣  sentence 4/20 (1180 ms of speech)
+⏱  turn 3: ① 300 · ② 114 · ③ 502 · ④ 1045 · ⑤ 355  →  felt 2316 ms
+⏸  reply pauses: 1 over 300 ms · longest 807 ms
+🗣  sentence 5/20 (1440 ms of speech)
+⏱  turn 4: ① 300 · ② 118 · ③ 501 · ④ 705 · ⑤ 357  →  felt 1981 ms
+⏸  reply pauses: 1 over 300 ms · longest 795 ms
+🗣  sentence 6/20 (2260 ms of speech)
+⏱  turn 5: ① 300 · ② 138 · ③ 500 · ④ 825 · ⑤ 271  →  felt 2035 ms
+🗣  sentence 7/20 (720 ms of speech) — OVER the answer
+⏸  reply pauses: 1 over 300 ms · longest 775 ms
+⚠ the run ran out of time — the summary is partial
+🗣  sentence 8/20 (1740 ms of speech)

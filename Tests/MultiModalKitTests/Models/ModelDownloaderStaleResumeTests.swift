@@ -134,8 +134,9 @@ struct ModelDownloaderStaleResumeTests {
 
         await #expect(throws: DownloadFailure.self) { try await bench.downloader.transfer(plan) { _ in } }
         let counts = bench.server.counts(for: "big.bin")
+        let story = bench.server.story(for: "big.bin")
         #expect(counts.requests - counts.rangeRequests == 2,
-                "the first attempt and ONE restart from the start — never a third: \(counts)")
+                "the first attempt and ONE restart from the start — never a third: \(counts) — \(story)")
     }
 
     // MARK: - AC-333: fresh resume data is not stale
@@ -156,8 +157,10 @@ struct ModelDownloaderStaleResumeTests {
         await #expect(throws: DownloadFailure.self) { try await bench.downloader.transfer(plan) { _ in } }
 
         let counts = bench.server.counts(for: "big.bin")
-        #expect(counts.rangeRequests >= 1, "the second attempt resumed")
-        #expect(counts.requests - counts.rangeRequests == 1, "and nothing restarted from the start: \(counts)")
+        let story = bench.server.story(for: "big.bin")
+        #expect(counts.rangeRequests >= 1, "the second attempt resumed — \(story)")
+        #expect(counts.requests - counts.rangeRequests == 1,
+                "and nothing restarted from the start: \(counts) — \(story)")
         #expect(bench.resumeDataExists("big.bin"), "the fresh resume data is kept for the next attempt")
     }
 }

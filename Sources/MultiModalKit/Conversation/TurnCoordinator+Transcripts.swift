@@ -25,7 +25,7 @@ extension TurnCoordinator {
             // the words joined the live prompt, the turn completed and
             // emptied the ledger, and the stashed final was then replayed
             // into a fresh one — answering the same sentence twice.
-            if utterance <= lastOnset && utterance > contextFloor {
+            if utterance <= lastOnset && utterance > contextFloor && !abandonedUtterances.contains(utterance) {
                 ledger.record(text, utterance: utterance)
             }
 
@@ -120,6 +120,9 @@ extension TurnCoordinator {
         forwardingInto group: inout TaskGroup<Void>,
         via input: AsyncStream<Input>.Continuation
     ) async {
+        // ③ ends here (5d, D-133): the reply is opened — right at the final,
+        // or when the gate ran out. The mind's own time starts now.
+        if let clock { current?.openedAt = clock.now }
         do {
             // WHAT THE MIND IS GIVEN (4r, F-1 = B): this thought, and the
             // bounded past with the halves kept apart. Built HERE rather

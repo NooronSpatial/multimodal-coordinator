@@ -1,0 +1,73 @@
+# 5d piece 2 — AC-354: the public surface at tag 0.5.0 (e82533d) against 92da927.
+# sh Scripts/api.sh, each without its commit line; 0.5.0 read from git archive. 55 lines added (piece 1 and piece 2),
+# 2 changed, 0 removed. The 2 changed lines are initialisers that gained DEFAULTED parameters — every 0.5.0 call
+# compiles unchanged (the suite still makes both calls in their 0.5.0 shape). What changes is Kokoro's default
+# behaviour (the trim and growing phrases on), ruled by F-36 A (D-138).
+
+59a60,69
+>   Audio/ListeningHost.swift: public struct ReplyPauses: Sendable, Equatable
+>   Audio/ListeningHost.swift: public let gaps: Int
+>   Audio/ListeningHost.swift: public let longest: Duration
+>   Audio/ListeningHost.swift: public let leadingQuiet: Duration?
+>   Audio/ListeningHost.swift: public init(gaps: Int, longest: Duration, leadingQuiet: Duration? = nil)
+>   Audio/ListeningHost.swift: public final class ListeningHost: PlaybackHost, @unchecked Sendable
+>   Audio/ListeningHost.swift: public init(wrapping host: any PlaybackHost, level: Float = 0.001, minimumGap: Duration = .milliseconds(300), heard: @escaping @Sendable (ReplyPauses) -> Void)
+>   Audio/ListeningHost.swift: public func attachForPlayback(_ node: AVAudioNode, format: AVAudioFormat) throws
+>   Audio/ListeningHost.swift: public func detachFromPlayback(_ node: AVAudioNode)
+>   Audio/ListeningHost.swift: public var outputSampleRate: Double
+72a83,92
+>   Audio/PhraseQuiet.swift: public struct PhraseQuiet: Sendable, Equatable
+>   Audio/PhraseQuiet.swift: public struct Config: Sendable, Equatable
+>   Audio/PhraseQuiet.swift: public var level: Float
+>   Audio/PhraseQuiet.swift: public var margin: Duration
+>   Audio/PhraseQuiet.swift: public var pauses: [Character: Duration]
+>   Audio/PhraseQuiet.swift: public init(level: Float = 0.001, margin: Duration, pauses: [Character: Duration])
+>   Audio/PhraseQuiet.swift: public let config: Config
+>   Audio/PhraseQuiet.swift: public init(config: Config)
+>   Audio/PhraseQuiet.swift: public func kept(_ samples: [Float], closingMark: Character?, sampleRate: Double) -> Range<Int>
+>   Audio/PhraseQuiet.swift: public static func closingMark(of phrase: String) -> Character?
+89a110,123
+>   Audio/SilenceMeter.swift: public struct SilenceMeter: Sendable, Equatable
+>   Audio/SilenceMeter.swift: public struct Config: Sendable, Equatable
+>   Audio/SilenceMeter.swift: public var level: Float
+>   Audio/SilenceMeter.swift: public var minimumGap: Duration
+>   Audio/SilenceMeter.swift: public var sampleRate: Double
+>   Audio/SilenceMeter.swift: public init(level: Float = 0.001, minimumGap: Duration = .milliseconds(300), sampleRate: Double)
+>   Audio/SilenceMeter.swift: public let config: Config
+>   Audio/SilenceMeter.swift: public private(set) var gaps = 0
+>   Audio/SilenceMeter.swift: public private(set) var longestFrames = 0
+>   Audio/SilenceMeter.swift: public private(set) var leadingFrames: Int?
+>   Audio/SilenceMeter.swift: public init(config: Config)
+>   Audio/SilenceMeter.swift: public mutating func feed(_ samples: some Sequence<Float>)
+>   Audio/SilenceMeter.swift: public var longest: Duration
+>   Audio/SilenceMeter.swift: public var leading: Duration?
+167a202,203
+>   Conversation/LatencyReporter.swift: public func turnTimeline(_ timeline: TurnTimeline)
+>   Conversation/LatencyReporter.swift: public func bargeTimeline(_ timeline: BargeTimeline)
+306c342,343
+<   Conversation/SpeechPhraser.swift: public init(maxPhraseCharacters: Int = 120)
+---
+>   Conversation/SpeechPhraser.swift: public var openingCaps: [Int]
+>   Conversation/SpeechPhraser.swift: public init(maxPhraseCharacters: Int = 120, openingCaps: [Int] = [])
+366a404,417
+>   Conversation/TurnTimeline.swift: public struct TurnTimeline: Sendable, Equatable
+>   Conversation/TurnTimeline.swift: public let turn: Int
+>   Conversation/TurnTimeline.swift: public let earFinish: Duration?
+>   Conversation/TurnTimeline.swift: public let gate: Duration
+>   Conversation/TurnTimeline.swift: public let firstToken: Duration
+>   Conversation/TurnTimeline.swift: public let firstSound: Duration
+>   Conversation/TurnTimeline.swift: public init(turn: Int, earFinish: Duration?, gate: Duration, firstToken: Duration, firstSound: Duration)
+>   Conversation/TurnTimeline.swift: public var sinceFinal: Duration
+>   Conversation/TurnTimeline.swift: public func felt(hangover: Duration) -> Duration?
+>   Conversation/TurnTimeline.swift: public struct BargeTimeline: Sendable, Equatable
+>   Conversation/TurnTimeline.swift: public let turn: Int
+>   Conversation/TurnTimeline.swift: public let window: Duration
+>   Conversation/TurnTimeline.swift: public let silence: Duration
+>   Conversation/TurnTimeline.swift: public init(turn: Int, window: Duration, silence: Duration)
+626a678
+>   Voice/KokoroQuiet.swift: public static let kokoro: PhraseQuiet.Config =
+648c700,701
+<   Voice/KokoroVoice.swift: public init(weights: KokoroWeights, lead: Duration = .zero, phraseCharacters: Int = KokoroVoice.phraseCharacters)
+---
+>   Voice/KokoroVoice.swift: public init(weights: KokoroWeights, lead: Duration = .zero, phraseCharacters: Int = KokoroVoice.phraseCharacters, openingCaps: [Int] = KokoroVoice.openingCaps, quiet: PhraseQuiet.Config? = .kokoro)
+>   Voice/KokoroVoice.swift: public static let openingCaps = [20, 40]

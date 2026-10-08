@@ -159,12 +159,15 @@ struct NeuralVoiceInstallTests {
             .appending(path: "speech_decoder/\(bench.voice.catalog.versionDir)/\(quant)")
             .appending(path: NeuralBench.nestedFile + ".resume")
         #expect(FileManager.default.fileExists(atPath: resume.path), "F-4 = A: what can be resumed is kept")
+        let resumeData = resumeDataLine(resume)
 
         bench.server.release()
         try await bench.voice.download()
 
-        let counts = bench.server.counts(for: bench.modelFilePath("speech_decoder", NeuralBench.nestedFile))
-        #expect(counts.rangeRequests == 1, "resumed, not restarted")
+        let decoderFile = bench.modelFilePath("speech_decoder", NeuralBench.nestedFile)
+        let counts = bench.server.counts(for: decoderFile)
+        #expect(counts.rangeRequests == 1,
+                "resumed, not restarted — \(resumeData) · \(bench.server.story(for: decoderFile))")
         #expect(await bench.voice.modelInstalled())
     }
 }

@@ -1,0 +1,4 @@
+swiftc -O shared-pipe-double-close.swift && ./a.out   (this Mac, 2026-10-01 09:15; re-run for this record — the hunt's earlier runs said the same)
+
+shared pipe (stdout = stderr):  stolen descriptors = 0
+separate pipes:                  stolen descriptors = 0

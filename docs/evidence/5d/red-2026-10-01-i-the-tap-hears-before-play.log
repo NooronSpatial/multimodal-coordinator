@@ -1,0 +1,53 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-341 · the pauses inside an answer" started.
+􀟈  Suite "AC-351 · the first word, measured" started.
+􀟈  Test "quiet is not silence: a soft stretch above the level is sound" started.
+􀟈  Test "buffers rendered before the player starts are not the reply's quiet" started.
+􀟈  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" started.
+􀟈  Test "the host's ear publishes each reply's quiet before its first word" started.
+􀟈  Test "exactly the gap counts" started.
+􀟈  Test "a reply with only short pauses still reports its longest" started.
+􀟈  Test "the quiet before the first sound is measured, exactly" started.
+􀟈  Test "a pause split across buffers is ONE pause" started.
+􀟈  Test "the quiet before the first word is not a pause inside the answer" started.
+􀟈  Test "a reply cut before it ever sounded publishes no first word" started.
+􀟈  Test "the silence before the first sound and after the last is not a pause inside the answer" started.
+􀟈  Test "split across buffers, it is the same quiet" started.
+􀟈  Test "sound at once: no quiet before it" started.
+􀟈  Test "a reply that never sounds has no first word" started.
+􁁛  Test "exactly the gap counts" passed after 0.001 seconds.
+􁁛  Test "a reply with only short pauses still reports its longest" passed after 0.001 seconds.
+􁁛  Test "sound at once: no quiet before it" passed after 0.001 seconds.
+􁁛  Test "the host's ear publishes each reply's quiet before its first word" passed after 0.001 seconds.
+􁁛  Test "a reply cut before it ever sounded publishes no first word" passed after 0.001 seconds.
+􁁛  Test "a pause longer than the gap counts; a shorter one does not; the longest is kept" passed after 0.002 seconds.
+􁁛  Test "split across buffers, it is the same quiet" passed after 0.002 seconds.
+􁁛  Test "the quiet before the first word is not a pause inside the answer" passed after 0.002 seconds.
+􁁛  Test "quiet is not silence: a soft stretch above the level is sound" passed after 0.003 seconds.
+􁁛  Test "a pause split across buffers is ONE pause" passed after 0.003 seconds.
+􀢄  Test "buffers rendered before the player starts are not the reply's quiet" recorded an issue at FirstWordTests.swift:96:9: Expectation failed: ear.pauses.leadingQuiet == .milliseconds(40)
+􀄵  only what the PLAYER held before its first word
+􀄵  ear.pauses.leadingQuiet == .milliseconds(40) → false
+􀄵    ear.pauses.leadingQuiet → 0.31 seconds
+􀄵      some → 0.31 seconds
+􀄵        _low → 310000000000000000
+􀄵        _high → 0
+􀄵    .milliseconds(40) → 0.04 seconds
+􀄵      some → 0.04 seconds
+􀄵        _low → 40000000000000000
+􀄵        _high → 0
+􀢄  Test "buffers rendered before the player starts are not the reply's quiet" failed after 0.003 seconds with 1 issue.
+􀄵  /// Found by the Mac harness (runs 7 and 8): a tap on a player node hears
+􀄵  /// the node's silent buffers from the moment it is attached — before
+􀄵  /// `play()`, while the first phrase is still being synthesized — and the
+􀄵  /// ear counted that wait, which is ⑤, as the reply's own quiet.
+􁁛  Test "a reply that never sounds has no first word" passed after 0.003 seconds.
+􁁛  Test "the quiet before the first sound is measured, exactly" passed after 0.003 seconds.
+􀢄  Suite "AC-351 · the first word, measured" failed after 0.003 seconds with 1 issue.
+􁁛  Test "the silence before the first sound and after the last is not a pause inside the answer" passed after 0.003 seconds.
+􁁛  Suite "AC-341 · the pauses inside an answer" passed after 0.003 seconds.
+􀢄  Test run with 14 tests in 2 suites failed after 0.004 seconds with 1 issue.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

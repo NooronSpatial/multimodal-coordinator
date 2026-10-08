@@ -43,10 +43,16 @@ public struct AudioTime: Sendable, Hashable, Comparable, CustomStringConvertible
 public struct AudioChunk: Sendable, Equatable {
     public let samples: [Float]
     public let start: AudioTime
+    /// The VAD's own verdict on this chunk — loud or quiet, by the same
+    /// threshold that decided the speech (5d piece 3, F-38 A). Nil when the
+    /// VAD said nothing (one that does not report, or a scripted chunk):
+    /// the barge window then treats the chunk as loud, as it always has.
+    public let isLoud: Bool?
 
-    public init(samples: [Float], start: AudioTime) {
+    public init(samples: [Float], start: AudioTime, isLoud: Bool? = nil) {
         self.samples = samples
         self.start = start
+        self.isLoud = isLoud
     }
 
     public var frameCount: Int { samples.count }

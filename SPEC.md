@@ -8196,3 +8196,822 @@ daemon.
 **Tagged** `0.5.0` on `e82533d` (the merge of #60), on Ryad's word,
 2026-09-30 — with 5c. The tag note lists the one public break versus
 0.4.0 (`git show 0.5.0`); AC-315 is still owed.
+
+
+# Milestone 5d — the fast voice (speech to speech) — piece 1 signed 2026-09-30 (D-133)
+
+*Ryad, 2026-09-30 (D-132): "focus only in the voice feature speech to
+speech … fast … without echo problem … the switching between listening to
+thinking and speaking has to go fast." He feels the delay in every setup
+he tried — Whisper + the local 4B + Kokoro, and the Apple ear + the Apple
+mind + the Apple voice — and in all four places: after he stops talking,
+when he interrupts, inside the answer, and on the first turn. He ruled the
+order the same day: measure first. This section is piece 1 only; the
+fixes come after it, each ruled on its numbers (§229).*
+
+## §224 — why: the pause, as the code builds it today
+
+Read from the code and the demo's own settings (2026-09-30):
+
+```
+you stop talking
+  │ ① the silence wait (the VAD's hangover) ... 300 ms   the phone's policy (the Mac demo: 700)
+  ▼
+speech end decided        AudioEvent.speechEnded: "the moment the decision was made"
+  │ ② the ear finishes the text ............... never measured per turn
+  ▼
+final transcript          ◀── LatencyReporter.turnLatency starts HERE (thinkingStart)
+  │ ③ the reply gate .......................... 500 ms   the phone's policy (AC-81)
+  ▼
+LISTENING → THINKING      the reply is opened only now
+  │ ④ the mind's first token .................. 320–400 ms warm (the Apple mind, §61)
+  │ ⑤ …then the mouth's first sound ........... never measured on its own
+  ▼
+THINKING → SPEAKING       SynthesisUpdate.started
+  │ ⑥ pauses inside the answer ................ invisible: the seam says only
+  ▼                                             started · finished · failed
+the reply ends
+
+interrupting:
+  your voice starts over the reply
+  │ ⑦ the barge window ........................ 600 ms   BargeWindow.measured (D-071)
+  ▼
+barge accepted            ◀── LatencyReporter.cancelLatency starts here
+  │ ⑧ both stages acknowledge the cancel ...... the Mac demo prints it; the phone shows nothing
+  ▼
+silence
+```
+
+Three facts from that reading:
+
+- **The number the phone shows as "the felt pause" starts at the final
+  transcript** (`turnLatency`, `PhoneLatency`). ① and ② are inside no
+  number the app shows, so the pause the person feels has never been
+  measured whole.
+- **① + ③ are 800 ms of pure waiting on the phone**, and the mind does
+  not start until ③ ends: the waiting and the thinking run one after the
+  other.
+- **⑥ cannot be seen by the coordinator at all.**
+
+## §225 — scope: piece 1, the turn timeline (measure; change nothing)
+
+Piece 1 changes no behaviour and no policy number. It turns every stage
+above into a number, on the Mac and on the phone, so that each fix after
+it is chosen on numbers and proven by the same numbers moving.
+
+1. **The library stamps the stages.** The coordinator stamps ②–⑤ — from
+   `speechEnded`'s arrival to `SynthesisUpdate.started`, through the final
+   transcript, the reply's opening and its first token — and ⑦–⑧, on its
+   injected clock and on its own actor (the audio thread is untouched). It
+   hands the app ONE value per spoken turn and one per barge (F-25). ①
+   is the app's own hangover, known exactly (F-26).
+2. **Inside the answer (⑥):** the silences the person hears while a reply
+   plays, counted per turn (F-27).
+3. **The phone:** the demo's share text carries each turn's stages and the
+   session's medians, and the felt pause: ① + ② + … + ⑤.
+4. **The Mac:** `audio-demo` prints the same timeline, takes the phone's
+   policy numbers (hangover 300, gate 500, window 600), speaks with Kokoro
+   (F-29), and gains a **scripted person** (F-28): recorded sentences fed
+   into the ring at real pace, the next one said when the reply ends, and
+   an interruption on cue — so a run can be repeated exactly, before and
+   after every fix.
+5. **The first numbers:** INSTRUMENTS §73 — this Mac, scripted, in Ryad's
+   phone setup; then one session on Ryad's phone in his setup.
+
+## §226 — non-goals
+
+- **No fix, no policy change, no new default.** The gate stays 500 ms,
+  the hangover 300, the window 600. Every fix is a later piece, and a
+  fork of its own (§229).
+- **No new case in any public enum** — not in `HealthEvent`,
+  `AudioEvent` or `SynthesisUpdate`: each would break every app's
+  exhaustive `switch` for a measurement.
+- **Echo is measured, not changed.** The self-cut count is in the
+  numbers; the fix is a later piece.
+- The MLX mind's kept session stays parked (D-116 F-5 B), and Arabic
+  stays parked (D-100).
+
+## §227 — acceptance criteria (AC-335 … AC-344)
+
+- **AC-335 — one timeline per spoken turn, exact** *(amended, D-133:
+  reported at the first sound)*. Through the coordinator, with a
+  scripted ear, mind and mouth on a `ManualClock`, a spoken turn reports
+  one timeline, at its first sound, whose stages are all present, in
+  order, and each equal to its scripted delay: speech end → final text →
+  reply opened → first token → first sound.
+- **AC-336 — the gate is its own stage.** With `replyGate` 500 ms, final
+  text → reply opened is exactly 500 ms; with no gate, it is zero.
+- **AC-337 — the old number did not move.** `turnLatency` still reports
+  final text → first sound, and it equals the timeline's stages over that
+  same span.
+- **AC-338 — a barge has its own timeline** *(amended, D-133)*. Onset →
+  accepted equals the window (zero with the window off, or when the
+  barge lands while thinking); accepted → silent equals the scripted
+  cancel acknowledgements. A turn cut BEFORE its first sound reports no
+  spoken-turn timeline; one cut after it has already reported its pause.
+- **AC-339 — a turn that never spoke reports none.** An empty turn, a
+  failed turn, and a reply killed inside the gate by a resumed person
+  report no spoken-turn timeline; their events already say what happened.
+- **AC-340 — nothing breaks.** A `LatencyReporter` written for 0.5.0
+  compiles unchanged: the new requirements have do-nothing defaults. No
+  public enum gains a case; `Scripts/api.sh` shows additions only.
+- **AC-341 — the pauses inside the answer.** A reply's silences longer
+  than the threshold F-27 rules are counted per turn, and the longest is
+  reported — proven first on a scripted stream with known silences, then
+  on every mouth.
+- **AC-342 — the Mac harness repeats.** `audio-demo` with the scripted
+  person runs Ryad's phone setup (Whisper, the local 4B, Kokoro; hangover
+  300, gate 500, window 600) for twenty turns, two interruptions among
+  them, and prints each turn's timeline and the medians. Run twice: the
+  same sentences, the same number of turns and barges; each stage's two
+  medians are printed side by side, with their difference.
+- **AC-343 — the first numbers.** INSTRUMENTS §73: the Mac table from
+  AC-342, with the felt pause per turn and its median — and the phone
+  table from one session of Ryad's (a phone row, his gate).
+- **AC-344 — nothing else moved.** The whole suite green, the 20× loop
+  20 of 20, lint zero, the demo compiles, and every existing number —
+  `turnLatency`, `cancelLatency` — is unchanged.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-335 | `TurnTimelineTests` · "a spoken turn reports every stage, exact" | coordinator, scripted organs, `ManualClock` |
+| AC-336 | `TurnTimelineTests` · "the gate is its own stage" | the same, the gate on and off |
+| AC-337 | `TurnTimelineTests` · "turnLatency did not move" | the same |
+| AC-338 | `TurnTimelineTests` · "a barge has its own timeline" | the same, the window on and off |
+| AC-339 | `TurnTimelineTests` · "a turn that never spoke reports none" | empty, failed, killed inside the gate |
+| AC-340 | a reporter written for 0.5.0, in the test target; `Scripts/api.sh` before and after | build |
+| AC-341 | the silence meter's rows on a scripted stream; then each mouth | pure function; the demo |
+| AC-342 | `audio-demo`, scripted, run twice | instrument, this Mac |
+| AC-343 | INSTRUMENTS §73 | instrument; the phone (Ryad) |
+| AC-344 | the suite, the 20× loop, lint | — |
+
+## §228 — the forks (Ryad rules)
+
+- **F-25 — where the numbers travel.** **A:** `LatencyReporter` gains
+  `turnTimeline(_:)` and `bargeTimeline(_:)`, each with a do-nothing
+  default: one value per turn, beside the number it extends, and no app
+  breaks. **B:** new `HealthEvent` cases — every app's exhaustive `switch`
+  breaks, and timing is not health. **C:** `os_signpost` intervals only —
+  visible in Instruments.app, never in the app's share text, so never in
+  a phone session's report. **Recommendation: A.**
+- **F-26 — when "you stopped talking" is.** **A:** the speech-end
+  decision's arrival, plus the app's own hangover: exact, because the VAD
+  ends speech after exactly that many quiet frames, and no API changes.
+  **B:** `AudioEvent.speechEnded` also carries the last loud moment — a
+  public break, for a number the app already knows. **Recommendation: A.**
+- **F-27 — how the pauses inside the answer are seen.** **A:** measure
+  what the person hears — the app taps the audio the engine plays and
+  counts the silent stretches between the reply's first sound and its
+  end: one meter for every mouth, but it cannot tell a sentence's natural
+  pause from a starved decode, so it counts only silences longer than a
+  threshold (300 ms proposed). **B:** each mouth reports its own underruns
+  through a new optional reporter: the cause is exact, but three mouths
+  need work, and a natural pause is not seen. **C:** leave ⑥ for later.
+  **Recommendation: A** — and B only if A shows the silences are starved
+  decodes.
+- **F-28 — the Mac harness's person.** **A:** a scripted person made from
+  Ryad's committed recording (`Fixtures/ryad-en.wav`, 46 s), cut into
+  sentences at its pauses: a real human voice for the ear, already in the
+  repo — but read sentences, not questions. **B:** sentences synthesized
+  by the Apple voice: any words, real questions — but a synthetic voice,
+  which the ear may find easier than a person. **C:** the live
+  microphone only: real, but never the same run twice. **Recommendation:
+  A** — the ear's time depends on real speech, and the mind answers any
+  sentence; the live microphone stays for echo, which a scripted person
+  fed into the ring cannot produce.
+- **F-29 — Kokoro on the Mac.** **A:** `audio-demo` gains
+  `--mouth=kokoro`, so the Mac runs Ryad's exact setup — a change to a
+  demo target only. **B:** measure the Mac with the Qwen3 voice, and leave
+  Kokoro to the phone. **Recommendation: A.**
+- **F-30 — 5d's finish line.** **A:** set now, on Ryad's phone, warm: the
+  felt pause (① through the first sound) at a median of 800 ms or less;
+  an interruption to silence in 400 ms or less; no self-cut in a
+  twenty-turn session on the loudspeaker. **B:** set after piece 1's
+  numbers. **Recommendation: A** — a line to aim at from the first piece;
+  a D-entry moves it if the numbers show it is wrong.
+
+## §229 — after piece 1: the candidate fixes (named, NOT ruled)
+
+Each becomes its own fork, ruled on piece 1's numbers, in the order the
+numbers say:
+
+- **Think during the gate:** open the reply at the final text and hold
+  only the sound until the gate passes; a person who goes on talking
+  kills it through the ticket, as a resumed person kills a gated reply
+  today. It would hide ④ inside ③.
+- **A smarter gate:** short when the words look finished, long when they
+  end on "and", "uh", or a comma.
+- **A shorter silence wait** (① 300 ms), if the gate carries the "are you
+  done?" judgement instead.
+- **A faster ear finish:** Whisper decoding while the person speaks, or
+  the Apple ear.
+- **A shorter first phrase:** the mouth starts on the first words.
+- **A warm first turn:** every organ warmed before the first "listening".
+- **An interruption faster than 600 ms** that still ignores the
+  assistant's own echo — told apart by more than duration (§43).
+
+## §230 — definition of done (piece 1)
+
+Red before green; the suite green; mutations on the stamps; the 20× loop
+20 of 20; lint zero; the demo compiles; INSTRUMENTS §73's Mac table; the
+phone row from Ryad's session; present → HALT, and the first fix's fork.
+
+## §231 — results (piece 1), measured 2026-09-30 on `milestone/5d-fast-voice`
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-335 one timeline per spoken turn, exact | **met** — every stage equal to its scripted delay, reported at the first sound (D-133) | `TurnTimelineTests`, mutations M52–M60 |
+| AC-336 the gate is its own stage | **met** — 500 in, 500 out; zero without a gate | `TurnTimelineTests`, mutation M54 |
+| AC-337 the old number did not move | **met** — `turnLatency` equals `sinceFinal`, from ONE clock reading | `TurnTimelineTests`; M60 survives as a belt (a manual clock cannot tell two readings apart) |
+| AC-338 a barge has its own timeline | **met** — the window on the audio timeline (500 ms in, 500 out; zero when off or while thinking); the silence = a mouth's 70 ms to go quiet; a turn cut before its first sound reports no pause | `TurnTimelineTests`, mutations M56, M57 |
+| AC-339 a turn that never spoke reports none | **met** — empty final, failed ear, a reply killed in the gate, a silent mind | `TurnTimelineTests` (guards green at red) |
+| AC-340 nothing breaks | **met** — a reporter written for 0.5.0 compiles; `Scripts/api.sh` shows additions only | `api-diff-2026-09-30.txt` |
+| AC-341 the pauses inside an answer | **met** — the pure meter exact on scripted streams (M61–M65 killed), then on the real mouth: every reply of the Mac runs measured | `SilenceMeterTests`, INSTRUMENTS §73 |
+| AC-342 the Mac harness repeats | **met** — runs 5 and 6 on the committed code: the same 20 sentences, 17 spoken turns and one barge each; the medians side by side in §73 (felt pause 2 394 and 2 030 ms) | `harness-2026-09-30-run5/6.log` |
+| AC-343 the first numbers | **met** — the Mac (INSTRUMENTS §73) and Ryad's phone, 2026-10-01 (§73b): felt pause median 3.0 s as logged, ~3.3 s to the first word | §73, §73b, `phone-2026-10-01-session.md` |
+| AC-344 nothing else moved | **met on 2026-10-06** — the 20× loop at `92da927`, which carries piece 1, ran **20 of 20**. Before it: 19 of 20 at `4a5b3df` (run 16, the bench's POSIX 9) and 59 of 60 at `614a8b5` (run 11, the download daemon's family, still unexplained — D-139 makes its next sighting tell its story); §233 | `stability-2026-09-30.txt`, `stability-2026-10-01-after-the-poke.txt`, `stability-2026-10-06-piece2.txt` |
+
+**What the measurements found** (INSTRUMENTS §73): warm, the felt pause is
+2.0–2.4 s — ① 300 + ② ~140 + ③ 500 + ④ ~850 + ⑤ 300–500. The mind's first
+token is the biggest stage and starts only after 800 ms of pure waiting.
+Every answer holds a silence over 300 ms (34 of 34). The cold first turn is
+mostly the ear's first model load (13–14 s). A voice over an answer shorter
+than the 600 ms window never interrupts it, by design (D-071). The ear
+returned empty text for 3 of 20 short sentences per run.
+
+**The phone (§73b, 2026-10-01).** ⑤ is the phone's biggest stage
+(1 337 ms) and it follows the first phrase's length (r = 0.75): the voice
+waits for the WHOLE first phrase, then synthesizes all of it. Every Kokoro
+phrase carries ~325 ms of quiet before its words and ~420 ms after (the
+model's own, measured on this Mac), so every phrase boundary is ~0.75 s of
+silence and ⑤ is stamped ~325 ms before the first word. One self-cut: the
+first reply, cut by its own echo. Ruled the same day: piece 2 is the voice,
+the echo is piece 3 (D-137).
+
+**What it found that it did not plan to:**
+
+- **A library bug** (harness run 2): `AIRuntime.run` never returns when its
+  observer returns on its own while a health seam is attached — the thermal
+  watcher ends only when cancelled, and nothing cancels it. Both demos end
+  the runtime by cancelling it, so neither met it. Latent; Ryad's to rule.
+- **A test-bench flake** (the 20× loop, run 16): 5a's "two callers, one
+  transfer" failed in its SETUP — writing the served file returned POSIX
+  error 9 (bad file descriptor). Not in 5d's code. Read, not yet proven: the
+  loopback server closes its listening socket while its accept thread may
+  still call `accept` on that number, and the directory watcher of the
+  re-entry tests holds itself strongly and leaks its descriptor. 5c's loop
+  met a different 5a downloader flake (§221, run 13). Ryad's to rule.
+- **A demo flag that lied**: `audio-demo --voice=kokoro` was parsed and
+  ignored (`makeVoice()` is Qwen3 always) — fixed under F-29 A.
+- **A shared test helper's flaw**: `ToolSpikeTests.Signals` let one
+  timed-out wait end every later wait — rebuilt; three older copies remain.
+- **A mutation runner that miscounted**: a crashed run (an exclusivity trap)
+  was counted as a survivor — the runner now says NO VERDICT.
+
+# 5d — two pieces the measurements found (D-135)
+
+## §232 — the runtime's teardown, when the observer ends on its own
+
+```
+ observer returns ─▶ pump.stop() · transcription.stop() · coordinator.stop()
+                     └── the thermal watcher (health seam): ends only on a CANCEL
+ today:  withTaskGroup waits for it for ever ─▶ run never returns, no teardown
+ D-135:  after the stops, the group cancels what is left ─▶ the scope drains
+```
+
+- **AC-345 — the observer ending ends the run.** With a health seam
+  attached, an observer that returns on its own makes `run` return, and the
+  teardown runs in its order (actors → `stopRendering` → `releaseSource`).
+- **AC-346 — the health seam outlives the session.** The same
+  `PipelineDiagnostics` serves a second session: its listener still hears a
+  thermal change after the first session ended.
+- **AC-347 — nothing else moved.** The runtime's tests unchanged and green;
+  the demos end by cancelling, as before.
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-345 | `AIRuntimeTests` · "the observer ending on its own ends the run, health seam attached" | runtime, scripted organs, a thermal source that never ends |
+| AC-346 | `AIRuntimeTests` · "the health seam outlives the session" | the same seam, two runs |
+| AC-347 | the suite | — |
+
+### §232 — results, measured 2026-10-01
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-345 the observer ending ends the run | **met** — `run` comes back on its own, the teardown in its order | `AIRuntimeTests+Teardown`, mutation M66 |
+| AC-346 the health seam outlives the session | **met** — a second session still hears the seam | `AIRuntimeTests+Teardown`, mutation M67 |
+| AC-347 nothing else moved | **met** — the older runtime rows unchanged and green; the demos still end by cancelling | the suite |
+
+The fix is one line: after the three stops, `group.cancelAll()`. The
+runtime suite takes milliseconds again (20 s of deadlines at red).
+
+## §233 — the hunt for the downloader bench's flake
+
+**What is known.** Run 16 of piece 1's loop: "two callers, one transfer"
+failed in its setup — `Data.write` of the served file returned POSIX 9.
+Read, not proven: (a) `LoopbackFileServer.stop()` closes its listening
+socket while its accept thread may still call `accept` on that number —
+which another test may already have reused; (b) the re-entry tests'
+`DirectoryWatch` holds itself in its own event handler, so its `deinit`
+never runs and its descriptor leaks.
+
+**The order.** Reproduce first: the downloader suites, then the whole
+suite, looped on a frozen tree, every failing run kept whole. Then each
+suspect is proven or cleared by a test of its own before anything changes;
+a fix lands red-first. If nothing reproduces, the hunt reports that, with
+the counts, and the suspects that a test can prove are fixed anyway.
+
+### §233 — results, 2026-10-01
+
+```
+ three kinds of failure, all in 5a's download bench, never in the code it tests
+   POSIX 9 on a file write ........ 1 seen  (4a5b3df, run 16 of 20)
+   the helper's words empty ....... 1 seen  (5ed42bf, run 7 of 40)
+   the download daemon's resume ... 3 seen  (5c run 13 of 20 · the trap loop · 614a8b5 run 11 of 60)
+```
+
+**Reproduced.** The whole suite 40× at `5ed42bf`, before any bench change:
+**39 of 40** — run 7: the re-entry row's first life printed nothing the
+test read, though the server had its one request. A temporary descriptor
+trap (canary threads guarding descriptors with the kernel's close guard;
+never committed), the bench suites alone: two green, then run 3 red on
+Whisper's resume row (2 359 296 bytes for a 1 MiB file, with one `Range`
+request) — no guard fired; the trap's own load is suspected, not proven.
+
+**Cleared by experiment.** `Process` closing a shared stdout/stderr pipe
+twice: 0 stolen descriptors in 1 500 launches each way. The helper's
+reading logic against a process that exits at once: 0 empty in 300.
+
+**Proven and fixed, red first.**
+
+1. **The bench's server could reach `accept()` after its socket closed.**
+   The first fix (`e306520`) was WRONG: it waited for the accept thread
+   before closing, trusting `shutdown()` to wake it, and on this Mac
+   `shutdown()` wakes nothing — only `close()` does
+   (`experiment-2026-10-01-accept-after-shutdown`). Every stop of a server
+   that had served sat out a 5 s cap, and the close woke the thread anyway.
+   The loop on that fix found it (runs 2 and 3), a second red row proved it
+   (3 of 3), and the first red row's claim was corrected: a thread alive
+   but not yet at its "stopped" check ends without calling `accept`. Fixed
+   by the poke (D-136): a connection to the server's own port wakes the
+   thread; the socket closes only after it has ended. M72 and M74 killed,
+   M73 a belt.
+2. **The re-entry tests' directory watch held itself**, so it was never
+   freed and its descriptor leaked for the life of the test process. Fixed:
+   a weak handler; the source's cancel handler closes the descriptor. M70
+   and M71 killed (M71 only after the row was made to check the descriptor
+   its name promised).
+
+**After the fixes.** The whole suite 60× at `614a8b5`: **59 of 60**, the
+last 49 in a row. Run 11 failed in the daemon's family: two resume rows
+restarted from zero (no `Range` request) in the same moment, and a delete
+row hit its 60 s limit.
+
+**What stays unexplained.**
+
+- **POSIX 9 and the empty words.** Neither fixed defect closes a number
+  another test owns — a stale `accept` could steal a connection, a leaked
+  descriptor is never closed — so neither is proven the cause. Neither was
+  seen in the 60 runs after the fixes; at the rate seen before (2 in 60
+  runs), a clean 60 by luck alone is about 1 in 8. Suggestive, not proof.
+- **The daemon's resume** — three sightings, always inside the system's
+  background download daemon, always under the whole suite's parallel
+  load. Not hunted yet.
+
+**AC-344 stays open:** the loop was 59 of 60, and its one failure is the
+daemon's, not piece 1's code. What to do with that family is Ryad's ruling.
+
+# 5d piece 2 — the voice: start on the first words, and never wait for nothing (D-137)
+
+## §234 — why: what piece 1 found in the voice
+
+```
+today, one reply (Ryad's phone, Kokoro):
+  first token ─▶ the mind writes the WHOLE first phrase ─▶ Kokoro synthesizes ALL of it ─▶ player starts
+                                                                                            │ ~325 ms quiet
+                                                                                            ▼ first word
+  …words][~420 ms quiet][~325 ms quiet][words…   ← at EVERY phrase boundary, ~0.75 s
+```
+
+- **⑤ follows the first phrase** (INSTRUMENTS §73b): 604 ms when it is 15
+  characters or fewer, 3 710 ms when it is over 60 (r = 0.75 over 21
+  turns). The phraser cuts at `, . : ; ? !` before a space, or at 120
+  characters — so a first sentence with no comma is spoken only once the
+  mind has written all of it and Kokoro has synthesized all of it.
+- **The quiet is the model's own**, measured on this Mac
+  (`kokoro-silence-2026-10-01.txt`): ~300–350 ms before each phrase's words,
+  ~390–465 ms after, no exact zeros. So every boundary is ~0.75 s of silence
+  — at a comma, at a full stop, and at a cap cut in the middle of a clause
+  — and the first word comes ~325 ms after ⑤ is stamped.
+- **A short first phrase alone is not enough.** Replayed on the session's
+  own speeds (`phone-2026-10-01-phrase-replay.txt`, a projection checked
+  against the measured ⑤ to ~245 ms): a 20-character first phrase brings
+  the first word to ~0.6 s after the first token, but then the next phrase
+  is often not ready — 12 boundaries run dry. Growing sizes — 20 characters,
+  then 40, then the usual 120 — keep the early start and leave 7.
+
+**The projection** (rough; the phone decides): the first word from
+~1.7 s after the first token (measured: ⑤ 1 337 ms + ~325 ms of quiet) to
+~0.6 s (replayed); the felt pause to the first word from ~3.3 s to ~2.2 s;
+the silence at a boundary from ~0.75 s to the kept pause.
+
+## §235 — scope: piece 2
+
+1. **The trim.** Each Kokoro phrase loses the quiet the model put around
+   it: a margin is kept before the first word, and after the last word the
+   pause its closing mark calls for (F-32, F-33).
+2. **Growing phrases.** A reply's first phrase is cut at a small cap, the
+   second at a larger one, then the usual 120 — always at a clause mark if
+   one comes first, never inside a word (F-34).
+3. **The first word, measured.** The listening host reports each reply's
+   quiet before its first audible sample; the demo's log and the harness
+   print the felt pause to the first WORD beside today's (F-35).
+4. **The numbers.** Kokoro's own pause at each mark is measured on this Mac
+   inside whole sentences (F-33 A); Ryad hears before/after samples made on
+   this Mac before the phone (the ear gate); then one session of his.
+5. **On by default** for Kokoro, every number overridable (F-36).
+
+## §236 — non-goals
+
+- **The echo** — the diet app's R-4, the self-cut, the 600 ms interruption:
+  piece 3 (D-137).
+- Thinking during the gate, a smarter gate, a shorter silence wait.
+- The Qwen3 voice and the Apple voice: their output is not changed.
+- A voice bake-off (D-137, rejected D) and streaming inside a phrase
+  (Kokoro is one-shot).
+- The mind's prompt: asking it to open with a short phrase (F-34 C).
+
+## §237 — acceptance criteria (AC-348 … AC-354)
+
+- **AC-348 — the trim is exact.** A pure rule, on scripted samples with
+  known quiet before, between and after the words: it keeps exactly the
+  margin before the first loud sample and exactly the pause for the closing
+  mark after the last one (all of the quiet, when there is less); it never
+  removes a loud sample; samples with nothing loud come back unchanged.
+- **AC-349 — Kokoro, trimmed, on this Mac.** `bakeoff voice-kokoro`'s five
+  fixtures: the quiet before the first word at most the margin plus 10 ms;
+  every phrase boundary's silence within ±25 ms of the kept pause for its
+  mark; WER 0.000 and zero exact-zero runs on every draw, as before.
+- **AC-350 — growing phrases.** On scripted token streams: the first phrase
+  ends at its first clause mark if one comes within the first cap, else at
+  the last space before that cap (one unbroken word: whole); the second
+  phrase the same with the second cap; every later phrase exactly as today.
+  A reply shorter than the first cap is one phrase, as today.
+- **AC-351 — the first word is measured.** The listening host reports each
+  reply's quiet between its first rendered sample and its first audible
+  one, exact on a scripted stream; the demo's log and the harness print the
+  felt pause to the first word beside the felt pause as today (AC-337's
+  number unchanged).
+- **AC-352 — the Mac harness moves.** AC-342's run after piece 2, against
+  runs 5 and 6: ⑤, the quiet before the first word, ⑥'s longest silence,
+  and the felt pause to the first word — medians side by side
+  (INSTRUMENTS §74).
+- **AC-353 — the ear, then the phone.** Ryad hears before/after samples
+  made on this Mac and keeps or changes the numbers (a D-entry if changed).
+  Then one session of his, twenty turns, his setup: ⑤ to the first word,
+  ⑥, and F-30's lines read again.
+- **AC-354 — nothing else moved.** The suite green; the 20× loop 20 of 20;
+  lint zero; mutations on the trim and on the growing cut; `Scripts/api.sh`
+  additions only; the demo compiles for iOS.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-348 | `PhraseQuietTests` · "the trim keeps the margin and the mark's pause, never a loud sample" | pure, scripted samples |
+| AC-349 | `bakeoff voice-kokoro`, before and after | instrument, this Mac |
+| AC-350 | `SpeechPhraserTests` · "the first phrases grow: 20, 40, then 120" | pure, scripted tokens |
+| AC-351 | `SilenceMeterTests` / `ListeningHost` · "the quiet before the first word" | pure meter; the host on a scripted node |
+| AC-352 | `audio-demo --person`, after, against runs 5 and 6 | instrument, this Mac |
+| AC-353 | samples for the ear; Ryad's session | Ryad |
+| AC-354 | the suite, the 20× loop, lint, mutations, `api.sh` | — |
+
+## §238 — the forks (Ryad rules)
+
+- **F-32 — how the trim finds the words.** **A:** by the audio, at the
+  meter's level (0.001), with a margin before the first loud sample: a pure
+  rule in the core (beside `SpeechPhraser` and `SilenceMeter`), applied by
+  the Kokoro decoder to each phrase; it works for any voice, and the margin
+  protects a soft first sound (an "h", an "s") that starts below the level.
+  **B:** by Kokoro's own token timestamps (the vendor predicts each token's
+  start and end from its durations, in 25 ms steps): no threshold, but a
+  vendor field this project has never used, empty without the misaki
+  tokens, its accuracy at the edges unmeasured, and Kokoro only. **C:**
+  both — the timestamps, checked against the level. **Recommendation: A.**
+- **F-33 — how much quiet stays between phrases.** **A:** Kokoro's own
+  pause for that mark — measured on this Mac by synthesizing whole
+  sentences, where Kokoro pauses at commas and full stops by itself; a
+  phrase cut by a cap (no mark) keeps only the margins. **B:** one fixed
+  pause at every boundary (say 200 ms): simplest, but a comma and a full
+  stop sound the same. **C:** trim only the first phrase's lead-in: the
+  first word comes sooner, and the ~0.75 s inside every answer stays.
+  **Recommendation: A** — the pause Kokoro itself chose, where the text
+  asked for one.
+- **F-34 — how the first phrases are cut.** **A:** growing caps —
+  20 characters, then 40, then the usual 120 — each cut at the last space
+  before it (the existing cap's rule), always at a clause mark if one comes
+  first; starting numbers from the replay, confirmed by ear and on the
+  phone. **B:** only the first phrase short (20), then 120: simpler, but
+  the replay shows the voice running dry after the first words (12
+  boundaries against 7). **C:** ask the mind to open with a short phrase
+  ("Sure,"): a natural cut, but every reply starts the same way, the mind
+  may not obey, and it is the app's prompt, not the voice. **Recommendation:
+  A.**
+- **F-35 — the first word, measured.** **A:** the listening host also
+  reports each reply's quiet before its first audible sample, and the logs
+  print the felt pause to the first word: the phone then shows the gain
+  itself. **B:** no new measure — after the trim, the stamp's error is the
+  margin, written down. **Recommendation: A** (F-27's rule: measure what
+  the person hears).
+- **F-36 — on by default.** **A:** on for Kokoro by default, every number
+  overridable: every app's Kokoro speaks sooner and pauses less — the diet
+  app too, at its next pin. **B:** opt-in, off unless an app asks.
+  **Recommendation: A** — a 0.75 s silence at every comma is the model's
+  padding, not a policy any app chose.
+
+## §239 — definition of done (piece 2)
+
+Red before green; the suite green; mutations on the trim and on the growing
+cut; the 20× loop 20 of 20; lint zero; the demo compiles; `api.sh`
+additions only; INSTRUMENTS §74 (the Mac, before and after); the ear gate;
+the phone row from Ryad's session; present → HALT, and piece 3's spec — the
+echo.
+
+## §240 — results (piece 2), measured 2026-10-01 … 2026-10-06 on `milestone/5d-fast-voice`
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-348 the trim is exact | **met** — the margin before, the mark's pause after, never a loud sample, nothing loud untouched | `PhraseQuietTests`, mutations M75–M79 |
+| AC-349 Kokoro, trimmed, on this Mac | **met** — 41–42 ms before the first word; 80 ms at a cap cut, 137 at a comma, 185 at a full stop (Kokoro's own); WER 0.000, no exact zeros | `kokoro-trimmed-2026-10-01.txt`, INSTRUMENTS §74 |
+| AC-350 growing phrases | **met** — 20, 40, then 120; a mark first still wins; a long word whole; one burst cuts like a stream | `SpeechPhraserGrowingTests`, mutations M80–M82 |
+| AC-351 the first word is measured | **met** — exact on scripted buffers; on the real engine, 40 ms in all 34 replies, by the player's own sample position | `FirstWordTests`, mutations M83–M84, harness runs 11–12 |
+| AC-352 the Mac harness moves | **met** — the felt pause to the first word ~2.36–2.72 s → 2.07 s; ⑥ 34 of 34 replies with a silence over 300 ms → 0 of 34; the longest 777–805 → 185 ms | INSTRUMENTS §74 |
+| AC-353 the ear, then the phone | **the ear: passed** (2026-10-06) — five of Ryad's own replies, before and after; his ruling: "Good: keep all numbers" (the first samples, sent 2026-10-01, were removed by the system's cleanup before he heard them). **The phone: met** (2026-10-07, INSTRUMENTS §74b) — ⑤ 1 337 → 660 ms, the felt pause to the first word ~3.3 → 2.3 s, replies with a silence over 300 ms 16 of 22 → 2 of 22; a cooler phone than §73b | `ear-gate-2026-10-06.txt`, `phone-2026-10-07-session-piece2.md` |
+| AC-354 nothing else moved | **met** — the demo's iOS compile passed on 2026-10-07, after Ryad trusted the macro in Xcode; the 20× loop **20 of 20** at `92da927`; the suite 1 034 tests in 147 suites; strict lint zero; M75–M84 ten of ten killed; `api.sh`: 55 lines added, 2 initialisers with defaulted parameters, 0 removed | `stability-2026-10-06-piece2.txt`, `api-diff-2026-10-06-piece2.txt`, `mutations-2026-10-01-piece2-M75-M84.log` |
+
+**What it found that it did not plan to:**
+
+- **A burst was cut differently from a stream** — the clause rule ran over
+  the whole buffer before the cap (found by the bakeoff, which feeds a reply
+  in one `feed`). Fixed by deciding each cut by position; that also closed a
+  corner older than piece 2: a burst with its first mark past 120 characters
+  made a phrase longer than the memory bound.
+- **The first-word measure was wrong twice** — a tap on a player node hears
+  silent buffers from before `play()`, and its block runs a buffer or two
+  late. Found by the harness, turn by turn; the ear now reads the player's
+  own sample position.
+- **Xcode's macro gate.** The demo's compile stops at "Macro
+  `MLXHuggingFaceMacros` from package `mlx-swift-lm` was changed since a
+  previous approval and must be enabled" — trusting a package's macro is
+  Ryad's to approve, in Xcode, and was not bypassed. The package pins have
+  not changed since 4q.
+- **The echo, on the phone** (§73b): one self-cut in 21 turns, and the diet
+  app's R-4 — piece 3 (D-137). None seen in §74b's 18 spoken turns; there,
+  8 of 26 turns were killed before their first sound by a sound while the AI
+  was thinking — twice by ANOTHER PERSON beside Ryad, whose "bye-bye" the AI
+  then answered (his answer, 2026-10-07). A bystander is heard as the person.
+- **A third flake family, on CI only**: `PlaybackLeadStrandTests`' real-audio
+  rows ("CONTROL", "THE HOLE, CLOSED") — started, never finished within
+  3 s — on `8952ee8`, `90dc27d` and `1a30ecd`; never in 80 local runs. It
+  CORRECTS `10d6dae`'s guess that the bench's 5 s stalls starved those rows:
+  the stalls are gone and the rows still fail. Older than piece 2's code;
+  Ryad's to rule. *(Corrected by §248, 2026-10-08: one 5 s stall was NOT
+  gone — the second stop of the bench's server in one row — and it was the
+  cause.)*
+
+# 5d piece 3 — the echo: a barge proves itself by being LOUD, and every candidate is measured (D-137)
+
+## §241 — why: what the window really measures
+
+```
+today:  onset ─▶ deadline (onset + 600 ms) ─▶ ANY segment at or after it, before speech ends, cuts
+        the pump sends a segment for EVERY chunk until speech ends — the quiet hangover too
+        so the window measures  loud part + hangover,  not how long the sound was loud
+
+  hangover 300 (Ryad's demo, §43):  cuts when loud ≳ 0.32 s — leaks of ≤ 0.22 s filtered
+  hangover 700 (the diet app):      every sound is declared ≥ 0.62 s — the window filters NOTHING
+```
+
+- **The diet app's R-4** (2026-10-01): the coach's own "Good morning!" leaked
+  back for ~0.2–0.3 s and cut the reply in two of three replies. All three of
+  its claims hold against the code (D-137).
+- **Ryad's phone, §73b:** one self-cut in 21 turns — the first reply, cut by
+  its own echo after the 600 ms window at a 300 ms hangover, so that leak
+  stayed loud for at least ~0.32 s, longer than any leak §43 measured.
+  §74b: none in 18 spoken turns.
+- **Nothing in the API says** the window's meaning depends on the hangover.
+- **What nobody has measured:** a leak's loud time and a person's, side by
+  side on the phone. §43's durations are declared lengths at one hangover.
+
+## §242 — scope: piece 3
+
+1. **Loud chunks.** The pump marks every chunk it publishes with the VAD's own
+   verdict — loud or quiet — so the coordinator judges by the same threshold
+   the VAD used (F-38).
+2. **The window judges loudness (R-4).** A barge candidate is accepted at the
+   first LOUD chunk that starts at or after its deadline, before its speech
+   ends; quiet chunks inside the hangover prove nothing. Its verdicts no
+   longer depend on the hangover.
+3. **The number, in loud time.** `BargeWindow.measured` is re-read for the
+   new meaning (F-39), its doc says what it now measures, and the hangover is
+   named as having no part in it.
+4. **Every candidate, measured.** Each barge candidate is reported — its
+   onset, how long it stayed loud, its loudest chunk, accepted or abandoned —
+   and the demo's shared log lists them (F-40): the phone's own numbers for
+   leaks against interruptions.
+
+## §243 — non-goals
+
+- **Telling a leak from a person by more than duration** — comparing the
+  microphone with what the voice is playing (the listening host taps it since
+  piece 1). A later piece, if §242/4's numbers show leaks and people overlap
+  in loud time.
+- **A bystander** (§74b: another person's "bye-bye" killed a pending answer
+  and was answered). Telling the person from someone else needs more than a
+  window — a later piece.
+- **A sound while THINKING** still opens the floor at once (D-071: nothing
+  plays, nothing echoes); §74b: 8 of 26 turns. Turn-taking, not echo.
+- F-30's 400 ms interruption, unless F-39's number meets it.
+
+## §244 — acceptance criteria (AC-355 … AC-362)
+
+- **AC-355 — the same audio, the same verdicts, at any hangover.** Scripted
+  audio events through the coordinator: hangovers of 300 ms and 700 ms give
+  the same accepted and abandoned candidates (R-4 AC-10).
+- **AC-356 — the diet app's numbers.** Hangover 700 ms, onset 100 ms, 20 ms
+  chunks, the window: a sound loud for 280 ms and then quiet, during a reply,
+  does not cut it (R-4 AC-11).
+- **AC-357 — still loud at the deadline cuts.** A sound loud at or after the
+  deadline cuts at the first loud chunk at or after it — also after a pause
+  inside the window, a person between two words (R-4 AC-12). ⑦ is the onset
+  → that chunk.
+- **AC-358 — an abandoned candidate starts nothing.** Its words never start
+  a turn, during the reply or after it (R-4 AC-13).
+- **AC-359 — unchanged:** a window of zero cuts at once; a sound while
+  thinking or idle opens the floor at once (R-4 AC-14); every older barge row
+  green.
+- **AC-360 — every candidate reported** — onset, loud time, loudest chunk,
+  verdict — exact on scripted audio; a reporter written for 0.5.0 compiles
+  unchanged (a defaulted hand-off).
+- **AC-361 — the phone.** One session of Ryad's: the candidates' loud times —
+  leaks against his interruptions — and every self-cut counted. The diet app
+  checks its own, on its pin.
+- **AC-362 — nothing else moved.** The suite green; the 20× loop 20 of 20;
+  lint zero; mutations on the loud-chunk verdict and the window; `api.sh`
+  additions only; the demo compiles.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-355 … AC-359 | `BargeWindowTests` (new rows) · scripted audio events, `ManualClock` | coordinator |
+| AC-355, F-38 | `AudioPumpTests` · "each published chunk carries the VAD's verdict" | pump, scripted VAD |
+| AC-360 | `BargeWindowTests` · "every candidate is reported, accepted or not" | coordinator |
+| AC-361 | Ryad's session | phone |
+| AC-362 | the suite, the 20× loop, lint, mutations, `api.sh`, `xcodebuild` | — |
+
+## §245 — the forks (Ryad rules)
+
+- **F-38 — where "loud" comes from.** **A:** the pump marks each chunk with
+  the VAD's own verdict (`AudioChunk` gains it; the VAD protocol gains a
+  defaulted way to say whether its last chunk was loud): one threshold, the
+  VAD's, for both the speech decision and the barge — additions only.
+  **B:** the coordinator measures each segment's loudness against a barge
+  level of its own: no change to the audio side, but two thresholds an app
+  must keep equal by hand. **Recommendation: A.**
+- **F-39 — the window's number, in loud time.** **A: 320 ms** — today's
+  behaviour at the demo's 300 ms hangover, kept: an interruption still takes
+  ~0.32 s, inside F-30's 0.4 s; but §73b's leak, loud for at least ~0.32 s,
+  may still cut. **B: 450 ms** — between §43's longest leak (0.22 s) and its
+  shortest speech (0.64 s): likely stops §73b's leak; an interruption takes
+  0.45 s, past F-30's line. **C: 600 ms** — today's constant, re-read: the
+  safest, and the slowest — 0.6 s of loud voice to interrupt. Whichever: the
+  phone's candidate numbers (§242/4) can move it, by a D-entry.
+  **Recommendation: A** — the diet app gets the protection Ryad's demo has
+  today, no interruption gets slower, and the phone measures what a better
+  number would be, instead of guessing it.
+- **F-40 — the candidates measured.** **A:** through `LatencyReporter`, a
+  new hand-off with a do-nothing default, one value per candidate — beside
+  the barge timeline it extends; the demo's log lists them. **B:** not
+  measured — only the fix. **Recommendation: A** (D-132: measure first).
+
+## §246 — definition of done (piece 3)
+
+Red before green; the suite green; mutations; the 20× loop 20 of 20; lint
+zero; `api.sh` additions only; the demo compiles; the Mac numbers (the
+harness's barge, unchanged at 300 ms); Ryad's phone session; the diet app
+told that R-4 is in (its own pin checks it); present → HALT.
+
+### §247 — results (piece 3), measured 2026-10-07 … 2026-10-08
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-355 the same verdicts at any hangover | **met** — 300 and 700 ms give the same cuts | `BargeLoudnessTests`, mutation M85 |
+| AC-356 the diet app's numbers | **met** — loud 280 ms then 700 ms of hangover: not a barge | `BargeLoudnessTests`, M85, M90, M91 |
+| AC-357 still loud at the deadline cuts | **met** — at the first LOUD chunk at or after it, also after a pause across it | `BargeLoudnessTests`, M85, M91 |
+| AC-358 an abandoned candidate starts nothing | **met** — and more than asked: its words no longer join the NEXT prompt, which they did ("Good morning. What's your name?") | `BargeLoudnessTests`, M89 |
+| AC-359 unchanged | **met** — a chunk with no verdict counts as loud; every older barge row green | `BargeWindowTests`, M86 |
+| AC-360 every candidate reported | **met** — loud time, peak, onset → verdict, cut or abandoned; the phone log and the harness list them | `BargeLoudnessTests`, M90, M91; harness runs 13–14 |
+| AC-361 the phone | **OWED** — one session of Ryad's | — |
+| AC-362 nothing else moved | **met** — the 20× loop 20 of 20 at `9bda538`; the suite 1 041 tests in 148 suites; strict lint zero; M85–M92 eight of eight killed; `api.sh`: additions and one ruled value (600 → 320 ms); the demo compiles | `stability-2026-10-08-piece3.txt`, `api-diff-2026-10-08-piece3.txt`, `mutations-2026-10-07-piece3-M85-M92.log` |
+
+**On this Mac** (INSTRUMENTS §75): ⑦ 600 → 320 ms for a person who keeps
+talking — the same protection, decided 280 ms sooner.
+
+**What it found that it did not plan to:**
+
+- **An abandoned leak's words reached the next prompt** — a real gap older
+  than piece 3, closed by it (AC-358).
+- **Two traps in the test bench**, both in the AC-358 row, both in the test:
+  a mouth reported finished before the reply's terminal (impossible for a real
+  mouth) stalled the next turn at random, and a wait written inside an
+  `#expect` around an `await` did not wait. Neither was the coordinator.
+- **The harness's 4B weights were removed** with `/tmp`, and the harness fell
+  back to its echo mind without stopping — seen at the head of runs 13–14.
+
+## §248 — the CI hunt (2026-10-08): the bench's second stop, found and fixed
+
+**Why.** PR 63's check was red, and 6 of this branch's 16 CI runs had gone
+red on the real-audio strand rows (D-141), against about 40 green runs
+before 5d. Ryad turned on Auto-fix for PR 63, which is standing permission to
+fix the red check (D-142). The full hunt:
+`docs/evidence/5d/ci-hunt-2026-10-08.md`.
+
+**The cause.** One row, `MLXBackgroundInstallTests` "expectedInstall makes
+one request…" (since 5a), stops its bench's server in the middle and again in
+its teardown. Since §233's fix (`e306520`; D-136 kept its wait), `stop()`
+waits up to 5 s for the accept thread, and that thread signals only once.
+So the second `stop()` held a thread of Swift's pool for the whole 5 s, and
+it closed the socket's number a second time (true since 5a). CI's runner has
+three pool threads, and the strand rows ran out of their 3 s drain under it.
+
+**Reproduced, then fixed.** On this Mac, on a one-thread pool
+(`LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`, the hammer skipped as on CI):
+
+| | THE CONTRAST | red runs |
+|---|---|---|
+| main (`f11dca4`) | 0.5–1.2 s | 0 of 6 |
+| this branch before the fix | 1.0 s, or 5–6 s | 4 of 6 |
+| after the fix (`6568619`) | 0.97–1.07 s | **0 of 10** |
+
+RED `df1e042` (two stops: two waits and two closes, 5.012 s), GREEN
+`6568619` (`stop()` acts once). The expectedInstall row: 5.0 s → 0.006 s.
+
+**Corrects §240.** §240 said this flake "CORRECTS `10d6dae`'s guess that the
+bench's 5 s stalls starved those rows: the stalls are gone". They were not all
+gone. The poke (D-136) ended the FIRST stop's wait. The second stop's wait
+stayed, in that one row. So `10d6dae`'s guess was right in kind, and §240's
+correction was wrong.
+
+**Not proven.** (1) CI's three-thread pool: only CI runs confirm it.
+(2) CONTROL's "played 0 of 4" in CI's last red run: "played" is counted by the
+audio engine's own callback, so a held pool thread does not explain it
+directly. CONTROL has always been close to its line on CI (4.6–7.3 s before
+5d). (3) The double close since 5a fits §233's "descriptor closed under its
+owner" family, which was never explained (D-135). It is not proven to be that
+family.
+
+## §249 — CONTROL, after §248: the barge rows wait for a verdict (D-143, F-42 A)
+
+**Why.** After §248's fix, CI went red twice more (`177f61b`, `38e9377`), both
+times on CONTROL: "played 0 of 4 · engine running · drained 3.0 s". CONTROL
+runs in the suite's first seconds. Before piece 3's tests landed it failed now
+and then; after, 3 of 3. Piece 3's rows had added three 2 s busy waits ("no
+barge" proven by spinning) to three older ones: about 12 s of a busy CPU in
+those seconds, on CI's three cores. **Not proven** to be CONTROL's cause.
+
+**Built (Ryad's ruling A).**
+- `BargeVerdict`: after a row's own events, a probe (an onset and its end
+  7 ms later) is judged only once every event before it has been judged; a
+  barge ends the wait too, because the reply is cut in the same actor step
+  that reports the verdict. The 13 barge rows take at most 8 ms (before: 2–4 s
+  on this Mac, 5–8 s on CI).
+- Mutations M85–M95: **11 of 11 killed**, M85–M92 as before and three new ones
+  aimed at "nothing happens after the end". M93 (a leak that ended keeps its
+  candidate) is killed by exactly the row whose point that is ("a leak that
+  ended cannot barge later"), so the probe does wait for the trailing audio.
+- CONTROL's story gains the player's own clock (how far it rendered since its
+  start), read on the run's queue while the player is attached.
+
+**A crash of mine, and what it left.** The clock's first version read the
+player without that guard, on a row that had passed and already given its
+player back. AVFAudio threw, and the whole test process died mid-run. It was
+never committed. Since then this Mac's download rows time out at 60 s, even
+alone. The likely reason is that the download daemon still holds the dead run's
+background sessions. Not proven. Without the download suites, 940 tests pass
+twice. Ryad ruled the daemon be restarted. SIP refused `launchctl kickstart`,
+so his user's `nsurlsessiond` was stopped and came back on demand. The
+download rows stayed slow (31–48 s each), and "a tap in the second life"
+failed. So the restart did not clear it, and the daemon theory is weaker. The
+download rows' code and tests did not change since this morning's 20 of 20
+(`6568619`), and they ran alone, so it is this Mac's state, not yet known
+which part.
+
+**CI: green on `9bfbc67`, one run.** CONTROL 4.2 s (8.5–8.6 s in the red
+runs, 4.6–7.3 s before 5d); THE HOLE 0.8 s, THE CONTRAST 0.7 s; the whole
+suite 5.7 s (10–14 s in the red runs). One run is not yet proof: before
+piece 3, CONTROL also passed most runs. If it fails again, its new story says
+whether the player rendered at all, and the next step is C, the real-audio
+rows alone in their own CI step (D-143).

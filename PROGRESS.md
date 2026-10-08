@@ -6,8 +6,16 @@ page only POINTS. Every row names where its fact is proven — a SPEC
 section (what was promised and measured), a D-entry (who ruled, and why),
 an evidence file, or a tag note (`git show <tag>`).*
 
-**As of 2026-09-30** · `main` at `bb31c40` · latest tag **0.5.0**
-(`e82533d`) · **next milestone: not ruled yet** — Ryad's call.
+**As of 2026-10-06** · `main` at `f11dca4` · latest tag **0.5.0**
+(`e82533d`) · **milestone 5d — the fast voice** (D-132), on
+`milestone/5d-fast-voice`: piece 1, the turn timeline, is measured on the
+Mac and on Ryad's phone (INSTRUMENTS §73, §73b) — the felt pause is ~3.3 s
+to the first word, and one reply was cut by its own echo. Piece 2, the voice
+(D-137, D-138), is built and measured on the Mac (§74): the quiet before the
+first word 325 → 40 ms, no silence over 300 ms inside any answer; Ryad's ear
+kept every number, and on his phone (§74b) the first sound halved (1 337 →
+660 ms) and the felt pause to the first word fell from ~3.3 to 2.3 s. Piece 3, the echo (D-140), is built and checked on the Mac (§75): a barge proves itself by staying LOUD 320 ms — the diet app's R-4 — decided 280 ms sooner than before; its phone row is owed.
+The download daemon's flake keeps "20 of 20" open (SPEC §233, D-139).
 
 ## The picture
 
@@ -68,6 +76,9 @@ work when Arabic was parked (D-100).
 
 | gap | what goes wrong | status | where |
 |---|---|---|---|
+| the conversation feels slow — after the person stops talking, when they interrupt, inside the answer, on the first turn — in every setup Ryad tried | measured on the Mac in his setup: the felt pause is 2.0–2.4 s warm (① 300 · ② ~140 · ③ 500 · ④ ~850 · ⑤ 300–500), the mind starting only after 800 ms of waiting; a silence over 300 ms inside every answer; a cold first turn of 13–14 s (the ear's first model load); an interruption needs 600 ms of voice | **open** — measured; the fixes are next, each a fork (SPEC §229) | D-132; SPEC §231; INSTRUMENTS §73 |
+| `AIRuntime.run` never returned when its observer returned on its own while a health seam was attached | the thermal watcher ends only when cancelled, and nothing cancelled it | **fixed** (2026-10-01): the runtime cancels what its stops cannot end | D-135; SPEC §232 |
+| the ear returns empty text for some short real sentences | those turns are never answered (3 of 20 per Mac run) | **open** | INSTRUMENTS §73 |
 | a barge while a tool's body runs drops that tool's record | the write stands, but the memory never learns it, so the next turn's model does not know it happened | **open** | SPEC §214 "Known limits" |
 | the yes binds to the tool's name | after a yes, the model's next call of that tool runs with whatever number it writes; B-iv (name plus arguments) would close it | **open** — ruled and recorded as a hole | D-110 F-10 B-ii; ARCHITECTURE § "The tool contract (4z)" |
 | a tool cannot take a list or an object | the door refuses it | **open** — a 4z non-goal | SPEC §194 |
@@ -109,6 +120,9 @@ work when Arabic was parked (D-100).
 | one CI run that never finished | **open** — not explained, not seen again | SPEC §214; `docs/evidence/5b/ci-hang-2026-09-29.md` |
 | a time limit on CI (`timeout-minutes`) | **proposed, not ruled** | — |
 | about ten test waits still poll (`Task.yield()` in a capped loop) where the rule is events | **open** | the TTS, transcription, pump and diagnostics tests |
+| 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **hunted** (D-135): two bench defects proven and fixed (D-136); after them, 59 of 60 — the bad descriptor and the empty helper words not seen again, causes not proven; the download daemon's resume family recurs (3 sightings) — Ryad's ruling | SPEC §221, §231, §233 |
+| real-audio rows of `PlaybackLeadStrandTests` flake on CI only (started, never finished within 3 s) | **found and fixed on this Mac** (D-142): 6 sightings; reproduced on a one-thread pool; the cause was the bench's server stopped twice by one row, a 5 s wait on a pool thread; after the fix 0 of 10 one-thread runs fail (4 of 6 before); **CI's confirmation owed**; CONTROL's "played 0" not explained | SPEC §240, §248 |
+| three copies of the old `Signals` test helper (one timed-out wait ends every later wait) | **open** — the ToolSpike copy is rebuilt | `AIRuntimeTests`, `AdmissionTests`, `ReplyContractTests` |
 | teach-back rows | **owed** (e.g. 4z's AC-287); 5b's was skipped by ruling | SPEC; D-127 |
 | stale lines in the docs | **open** — README's phase table stops at 4h, and its "two real mouths" paragraph predates Kokoro (D-084); ARCHITECTURE's front-door paragraph still says the runtime "cannot call a tool", false since 4z | README; ARCHITECTURE § "The front door" |
 

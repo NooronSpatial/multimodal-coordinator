@@ -1,6 +1,15 @@
 import Foundation
 import Synchronization
 
+/// The resume data at `url`, as a failing resume row's first words (5d,
+/// D-139): its size, or that there was none.
+func resumeDataLine(_ url: URL?) -> String {
+    guard let url, let size = try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? Int else {
+        return "NO resume data on disk"
+    }
+    return "resume data \(size) B on disk"
+}
+
 // THE LOOPBACK SERVER (5a, SPEC §203) — the instrument every downloader
 // row measures against.
 //
@@ -36,8 +45,20 @@ final class LoopbackFileServer: @unchecked Sendable {
         var firstRangeOffset: Int?
     }
 
+    /// One request, as the server lived it (5d, D-139): where it started,
+    /// what it sent, and how it ended — so a resume row that fails can say
+    /// what the download daemon actually did.
+    struct Served: Equatable {
+        /// The `Range` start asked for; nil for a whole-file request.
+        let offset: Int?
+        var sent = 0
+        var ending = "streaming"
+    }
+
     private struct State {
         var counts: [String: Counts] = [:]
+        /// Path → every request for it, in arrival order.
+        var served: [String: [Served]] = [:]
         /// Path → the byte count after which a connection parks.
         var holds: [String: Int] = [:]
         /// Path → the byte count after which the connection is dropped.
@@ -47,11 +68,23 @@ final class LoopbackFileServer: @unchecked Sendable {
         /// Who is waiting to hear that a connection has parked.
         var parkedWatchers: [CheckedContinuation<Void, Never>] = []
         var stopped = false
+        /// The accept thread has returned (5d §233: what `stop()` must wait for).
+        var acceptLoopEnded = false
+        /// `stop()` has closed the listening socket.
+        var socketClosed = false
+        /// The accept thread was still alive when the socket was closed.
+        var acceptEndedAfterClose = false
+        /// How many times `stop()` waited for the accept thread, and closed
+        /// the listening socket — once each, whoever calls it (the CI hunt).
+        var acceptWaits = 0
+        var socketCloses = 0
     }
 
     private let directory: URL
     private let socket: Int32
     private let state = Mutex(State())
+    /// Signalled by the accept thread as it returns (5d §233).
+    private let acceptDone = DispatchSemaphore(value: 0)
     let port: UInt16
 
     init(directory: URL) throws {
@@ -85,12 +118,65 @@ final class LoopbackFileServer: @unchecked Sendable {
 
     enum LoopbackFailure: Error { case couldNotListen(String) }
 
+    /// Stops serving. THE ORDER IS THE FIX (5d §233, D-136): the accept
+    /// thread is WOKEN by a poke, the thread is WAITED for, and only then is
+    /// the socket closed — so no thread of this server can call `accept` on
+    /// a number the system has already handed to another test's socket or
+    /// file. (`shutdown()` wakes nothing here: on this Mac a thread waiting
+    /// in `accept()` returns only for a connection or a `close()`.)
+    ///
+    /// ONCE (the CI hunt, 2026-10-08): a second call returns at once. It
+    /// used to wait the whole cap for a thread that had already ended, and
+    /// close the socket's number again — a number the system may already
+    /// have handed to another test.
     func stop() {
-        state.withLock { $0.stopped = true }
+        let stoppedBefore = state.withLock { state -> Bool in
+            let before = state.stopped
+            state.stopped = true
+            return before
+        }
+        guard !stoppedBefore else { return }
         release()
-        shutdown(socket, SHUT_RDWR)
+        let poke = Self.poke(port)
+        state.withLock { $0.acceptWaits += 1 }
+        _ = acceptDone.wait(timeout: .now() + 5)
+        state.withLock { $0.socketClosed = true; $0.socketCloses += 1 }
         close(socket)
+        if poke >= 0 { close(poke) }
     }
+
+    /// A connection to this server's own port — the poke. The kernel queues
+    /// it on the listening socket, so `accept()` returns it whether the
+    /// thread waits there already or arrives after. Non-blocking, so a full
+    /// backlog cannot hang the stop. Returns the socket for `stop()` to
+    /// close, or -1 when none could be made: the stop then sits out its cap,
+    /// and the hygiene rows count it.
+    private static func poke(_ port: UInt16) -> Int32 {
+        let poke = Darwin.socket(AF_INET, SOCK_STREAM, 0)
+        guard poke >= 0 else { return -1 }
+        _ = fcntl(poke, F_SETFL, O_NONBLOCK)
+        var address = sockaddr_in()
+        address.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        address.sin_family = sa_family_t(AF_INET)
+        address.sin_port = port.bigEndian
+        address.sin_addr.s_addr = inet_addr("127.0.0.1")
+        _ = withUnsafePointer(to: &address) { pointer in
+            pointer.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                connect(poke, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        return poke
+    }
+
+    /// Whether the accept thread has returned — read by the bench's own
+    /// hygiene test (5d §233).
+    var acceptLoopEnded: Bool { state.withLock { $0.acceptLoopEnded } }
+    /// Whether the accept thread outlived the socket's close (5d §233).
+    var acceptEndedAfterClose: Bool { state.withLock { $0.acceptEndedAfterClose } }
+    /// How many times `stop()` waited for the accept thread.
+    var acceptWaits: Int { state.withLock { $0.acceptWaits } }
+    /// How many times `stop()` closed the listening socket.
+    var socketCloses: Int { state.withLock { $0.socketCloses } }
 
     func url(for path: String) -> URL {
         URL(string: "http://127.0.0.1:\(port)/\(path)")!
@@ -98,6 +184,18 @@ final class LoopbackFileServer: @unchecked Sendable {
 
     func counts(for path: String) -> Counts {
         state.withLock { $0.counts[path] ?? Counts() }
+    }
+
+    /// Every request for `path`, one line each — what a failing resume row
+    /// prints, so the next sighting of the daemon's flake is evidence (D-139):
+    /// "#1 whole file · 131072 B · held, then the peer went away | #2 Range from 131072 · 917504 B · complete".
+    func story(for path: String) -> String {
+        let served = state.withLock { $0.served[path] ?? [] }
+        guard !served.isEmpty else { return "the server saw NO request for \(path)" }
+        return served.enumerated().map { index, request in
+            let from = request.offset.map { "Range from \($0)" } ?? "whole file"
+            return "#\(index + 1) \(from) · \(request.sent) B · \(request.ending)"
+        }.joined(separator: " | ")
     }
 
     /// The connection serving `path` sends `bytes` and then parks until
@@ -141,8 +239,21 @@ final class LoopbackFileServer: @unchecked Sendable {
     // MARK: - the threads
 
     private func acceptLoop() {
-        while !state.withLock({ $0.stopped }) {
+        defer {
+            state.withLock { state in
+                state.acceptLoopEnded = true
+                state.acceptEndedAfterClose = state.socketClosed
+            }
+            acceptDone.signal()
+        }
+        while true {
             let client = accept(socket, nil, nil)
+            // "Stopped?" is asked AFTER `accept` (D-136): the poke is what
+            // wakes a stopping server, and it is closed here, never served.
+            if state.withLock({ $0.stopped }) {
+                if client >= 0 { close(client) }
+                return
+            }
             guard client >= 0 else { continue }
             let thread = Thread { [weak self] in self?.serve(client) }
             thread.name = "loopback-file-server-connection"
@@ -172,7 +283,8 @@ final class LoopbackFileServer: @unchecked Sendable {
             status = "206 Partial Content"
             extra = "Content-Range: bytes \(start)-\(size - 1)/\(size)\r\n"
         }
-        state.withLock { state in
+        let entry = state.withLock { state -> Int in
+            state.served[path, default: []].append(Served(offset: request.range.map { _ in start }))
             var counts = state.counts[path, default: Counts()]
             counts.requests += 1
             if request.range != nil {
@@ -180,36 +292,52 @@ final class LoopbackFileServer: @unchecked Sendable {
                 if counts.firstRangeOffset == nil { counts.firstRangeOffset = start }
             }
             state.counts[path] = counts
+            return state.served[path, default: []].count - 1
         }
+        var ending = "the peer went away"
+        defer { state.withLock { $0.served[path]?[entry].ending = ending } }
         let head = "HTTP/1.1 \(status)\r\nContent-Length: \(size - start)\r\n\(extra)"
             + "Accept-Ranges: bytes\r\nETag: \"\(path)-v1\"\r\nContent-Type: application/octet-stream\r\n"
             + "Connection: close\r\n\r\n"
         guard write(client, head) else { return }
-        guard request.method != "HEAD" else { return }
+        guard request.method != "HEAD" else {
+            ending = "HEAD"
+            return
+        }
         try? handle.seek(toOffset: UInt64(start))
-        stream(handle, bytes: size - start, to: client, path: path)
+        ending = stream(handle, bytes: size - start, to: client, path: path, entry: entry)
     }
 
     /// The body, in 64 KB chunks — counted, held or dropped as the test
     /// asked.
-    private func stream(_ handle: FileHandle, bytes total: Int, to client: Int32, path: String) {
+    /// Returns how the body ended, for the request's story.
+    private func stream(_ handle: FileHandle, bytes total: Int, to client: Int32, path: String,
+                        entry: Int) -> String {
         var sent = 0
+        var held = false
         while sent < total {
-            guard let bytes = try? handle.read(upToCount: min(65_536, total - sent)), !bytes.isEmpty else { return }
-            guard write(client, bytes) else { return }
+            guard let bytes = try? handle.read(upToCount: min(65_536, total - sent)), !bytes.isEmpty else {
+                return "the file ran short"
+            }
+            guard write(client, bytes) else { return held ? "held, then the peer went away" : "the peer went away" }
             sent += bytes.count
-            state.withLock { $0.counts[path, default: Counts()].bytesSent += bytes.count }
+            state.withLock { state in
+                state.counts[path, default: Counts()].bytesSent += bytes.count
+                state.served[path]?[entry].sent += bytes.count
+            }
             if let dropAt = state.withLock({ $0.drops[path] }), sent >= dropAt {
                 state.withLock { $0.drops[path] = nil }
                 // A plain close mid-body: the reader sees the connection
                 // end short of Content-Length, which is what a lost
                 // network looks like.
-                return
+                return "dropped on purpose"
             }
             if let holdAt = state.withLock({ $0.holds[path] }), sent >= holdAt {
+                held = true
                 park()
             }
         }
+        return held ? "held, then complete" : "complete"
     }
 
     /// Parks this connection's thread until `release()`; tells anyone
@@ -225,7 +353,13 @@ final class LoopbackFileServer: @unchecked Sendable {
         for watcher in watchers { watcher.resume() }
         semaphore.wait()
     }
+}
 
+// MARK: - the wire
+
+/// HTTP in, bytes out — moved out of the class body to keep it under the
+/// type-length bound; `private` still reaches across a same-file extension.
+extension LoopbackFileServer {
     private struct Request {
         let method: String
         let target: String

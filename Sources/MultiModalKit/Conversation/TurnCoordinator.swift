@@ -14,23 +14,32 @@
 /// coordinator reacts to is merged into ONE stream and handled by ONE loop
 /// on the actor. Stage readers are group children that only forward into
 /// the merge; they never touch the actor.
-/// THE NUMBER 4k MEASURED, for an app that wants a barge window.
+/// THE NUMBER, for an app that wants a barge window — in LOUD time.
 ///
-/// 600 ms, ruled by Ryad on this evidence (INSTRUMENTS §43): across six
-/// field sessions every leak of the assistant's own voice died under 530 ms,
-/// and every real utterance lasted over 930. This sits 80 ms clear of the
-/// longest leak and 339 ms clear of the shortest speech.
+/// 320 ms of loudness at or after the onset (5d piece 3, D-140, F-39 A): a
+/// candidate cuts the reply only on a chunk the VAD judged LOUD at or after
+/// this deadline. **The app's hangover has no part in it** — the window once
+/// counted every chunk until the speech ended, so it measured loud part +
+/// hangover, and at a 700 ms hangover it filtered nothing (the diet app's R-4).
+///
+/// Why 320: it is what 4k's 600 ms meant at the 300 ms hangover it was
+/// measured at (INSTRUMENTS §43: every leak loud for at most ~220 ms, every
+/// real utterance for at least ~640), so no interruption got slower. Kept as
+/// D-140 ruled it until the phone's own candidate numbers say otherwise —
+/// a leak on Ryad's phone (§73b) stayed loud for at least ~320 ms.
 ///
 /// A named constant rather than a library default: the app that owns a
 /// device owns the policy (D-027).
 public enum BargeWindow {
-    public static let measured = Duration.milliseconds(600)
+    public static let measured = Duration.milliseconds(320)
 }
 
 public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// Everything that can wake the loop, in one type.
     enum Input: Sendable {
-        case audio(AudioEvent)
+        /// An audio event — and, for a speech end while latency is
+        /// measured, the instant it ARRIVED (5d, D-134).
+        case audio(AudioEvent, arrived: C.Instant?)
         case transcript(TranscriptEvent)
         case reply(turn: Int, ReplyUpdate)
         case synthesis(turn: Int, SynthesisUpdate)
@@ -51,6 +60,12 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// When this turn's final was accepted — the start of the pause the
         /// user feels. Captured only when a latency reporter is injected.
         var thinkingStart: C.Instant?
+        /// The turn timeline's other instants (5d, D-133): this
+        /// utterance's speech end as it ARRIVED (D-134), the reply
+        /// opened, its first token. Kept only while latency is measured.
+        var speechEnd: (utterance: Int, at: C.Instant)?
+        var openedAt: C.Instant?
+        var firstTokenAt: C.Instant?
         /// The input-side ticket (SPEC §31): the utterance whose final may
         /// drive this turn. Mirrored from the same event stream the session
         /// numbers from. A settled final from an EARLIER utterance (D-024)
@@ -284,8 +299,19 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         merge = input
 
         await withTaskGroup(of: Void.self) { group in
+            // THE ONE STAMP TAKEN OUTSIDE THE ACTOR (5d, D-134): a speech
+            // end is stamped as it arrives, before the queue. Handling it
+            // changes nothing anyone can see, so only here can its instant
+            // be proven; nothing shared is touched, and the instant
+            // travels with the event. Like every other stamp, it follows the
+            // clock: a clock comes with the reporter (R2's pair).
+            let endStamps = clock
             group.addTask {
-                for await event in audio { input.yield(.audio(event)) }
+                for await event in audio {
+                    var arrived: C.Instant?
+                    if case .speechEnded = event { arrived = endStamps?.now }
+                    input.yield(.audio(event, arrived: arrived))
+                }
                 input.yield(.audioEnded)
             }
             group.addTask {
@@ -316,8 +342,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         via input: AsyncStream<Input>.Continuation
     ) async -> Bool {
         switch item {
-        case .audio(let event):
-            await handleAudio(event, forwardingInto: &group, via: input)
+        case .audio(let event, let arrived):
+            await handleAudio(event, arrived: arrived, forwardingInto: &group, via: input)
         case .transcript(let event):
             await handleTranscript(event, forwardingInto: &group, via: input)
         case .reply(let turn, let update):
@@ -434,10 +460,22 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// An onset seen while speaking, waiting to prove it is a person.
     struct PendingBarge: Sendable {
         let utterance: Int
+        /// The person's first sound — where the window starts (5d, ⑦).
+        let onset: AudioTime
         /// The audio moment at which it becomes a barge.
         let deadline: AudioTime
+        /// The speaking turn it threatens (5d piece 3, F-40 A).
+        let turn: Int
+        /// The loud chunks it has shown since its onset, and its loudest.
+        var loudTime: Duration = .zero
+        var peak: Float = 0
     }
     var pendingBarge: PendingBarge?
+    /// Utterances whose barge candidate was ABANDONED — the reply's own echo
+    /// by the window's verdict. Their words are no one's to answer: they
+    /// never enter the ledger, whenever their final arrives (5d piece 3,
+    /// AC-358 — a leak's words reached the next prompt before).
+    var abandonedUtterances: Set<Int> = []
 
     /// The one place a turn dies of failure: event out, ticket dead, idle.
     func failTurn(_ turn: Int, with failure: TurnFailure) {

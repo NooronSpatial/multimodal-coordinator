@@ -5842,3 +5842,358 @@ fresh resume data — is exactly both cases: the unreadable file, and the
 daemon's race. What changed is the story told about it: SPEC §221 and the
 5c evidence README are corrected in the open, and #59's description (merged)
 carries a correction note.
+
+## D-132 — the voice first: a fast, natural speech-to-speech loop before the Runtime's next capability; measure first (process pivot, Milestone 5d)
+
+**Date:** 2026-09-30 · **Decided by:** Ryad · **Rulings:** (1) the next
+milestone is the voice itself — milestone 5d, "the fast voice"; (2) its
+order: measure first.
+
+**(1) The pivot.** *"Before we continue with the plan of the AI Runtime I
+want you to focus only in the voice feature speech to speech … fast …
+without echo problem … the switching between listening to thinking and
+speaking it has to go fast … when we have it so good, then we will continue
+with AI runtime development."* He feels the delay in every setup he tried —
+Whisper + the local 4B + Kokoro, and the Apple ear + the Apple mind + the
+Apple voice — and in all four places: after he stops talking, when he
+interrupts, inside the answer, and on the first turn. So the cause is
+sought first in the path every setup shares (SPEC §224), not in one engine.
+
+- *Rejected:* **vision next** — the builder's recommendation that same day
+  (PROGRESS.md: the first thing the name promises, and the biggest gap).
+  The Runtime's next capability waits for a conversation that feels
+  natural.
+
+**(2) The order: measure first.** Piece 1 is a turn timeline on the Mac
+and on the phone (SPEC §225); every fix after it is a fork ruled on those
+numbers (§229). The same discipline as D-054: measure instead of argue.
+
+- *Rejected:* **fix the obvious waits now** ("think during the gate") and
+  measure alongside — faster to a first win, but that fix would be chosen
+  before any number says it matters most, and nothing would prove it moved
+  the pause the person feels.
+
+**What this entry does NOT decide:** piece 1's six forks (F-25 … F-30) and
+the spec's sign-off — open until Ryad signs §224–§230.
+
+## D-133 — 5d piece 1 signed: the turn timeline, every fork as recommended; one amendment before code — the timeline is reported at the first sound (Milestone 5d)
+
+**Date:** 2026-09-30 · **Decided by:** Ryad ("Sign, all A"; then "(a) At
+the first sound") · **Rulings:** SPEC §224–§230 signed; **F-25 = A**
+(`LatencyReporter` gains `turnTimeline(_:)` and `bargeTimeline(_:)` with
+do-nothing defaults), **F-26 = A** (the speech-end decision plus the app's
+own hangover), **F-27 = A** (the pauses inside an answer measured from the
+sound the engine plays, above a threshold), **F-28 = A** (the scripted
+person cut from `Fixtures/ryad-en.wav`), **F-29 = A** (`--mouth=kokoro` in
+`audio-demo`), **F-30 = A** (the finish line: a median pause of 800 ms or
+less, an interruption to silence in 400 ms or less, no self-cut in twenty
+turns — on Ryad's phone, warm). The rejected options are in §228.
+
+**The amendment, found reading the coordinator before any code, and ruled
+the same day: the timeline is reported at the FIRST SOUND.** As signed,
+AC-335 ended the timeline at the reply's finish and AC-338 had a turn that
+died report none — so every answer the person interrupts would have
+dropped out of the pause numbers, and Ryad interrupts often. The pause is
+over at the first sound; the old `turnLatency` is reported there too; and
+the pauses inside the answer need no turn timeline (F-27 measures them
+from the sound itself).
+
+- AC-335 now ends at the first sound: speech end → final text → reply
+  opened → first token → first sound.
+- AC-338 now reads: a turn cut BEFORE its first sound reports no
+  spoken-turn timeline; one cut after it has already reported its pause.
+- *Rejected:* **(b) at the reply's end, as signed** — it holds the
+  speaking time too, but the pause numbers would leave out exactly the
+  turns the person cut short.
+
+## D-134 — the speech-end stamp is taken on arrival, by the coordinator's input reader: one stamp outside the actor, an exception to R2 (Milestone 5d)
+
+**Date:** 2026-09-30 · **Decided by:** Ryad ("On arrival") · **Ruling:**
+`AudioEvent.speechEnded` is stamped with the clock by the reader that
+forwards the audio into the coordinator's merged input — as it arrives,
+before the queue — and the stamp travels with the event. Every other stamp
+of the turn timeline stays inside the actor, as R2 (2026-08-12, the
+`LatencyReporter` seam) rules.
+
+**Why an exception.** R2 takes every instant inside the actor "so
+measurement can never race the thing it measures". But handling
+`speechEnded` changes nothing a test can see, so a test cannot know when
+the actor handled it — and a nonzero ② (the ear's finish) could never be
+proven through the coordinator. Stamped on arrival, the test hands the
+audio over one event at a time and knows the end is stamped before it
+moves the clock. The reader touches no shared state: nothing can race.
+
+- *Rejected:* **inside the actor, R2 as written** — ② proven through the
+  coordinator only when it is zero, a nonzero ② only on the Mac harness.
+
+## D-135 — two findings of 5d piece 1, ruled: the runtime's teardown bug is fixed now, as its own piece; the downloader bench's flake is hunted now (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("Fix now, own piece"; "Hunt
+it now") · **Rulings:** (1) the bug the Mac harness found in
+`AIRuntime.run` is fixed now, as its own piece of 5d (SPEC §232), in the
+shape offered: a red test first, then the runtime cancels its remaining
+children after the stops; (2) the flake of the 20× loop's run 16, in 5a's
+downloader test bench, is hunted now (SPEC §233): reproduced first, then
+the patterns read as suspects are fixed only where a test proves them.
+
+**(1) The bug.** `AIRuntime.run` promises that when its observer — "or any
+child" — ends, the actors are stopped and the scope drains. It stops the
+pump, the ear and the coordinator, but a health seam's thermal watcher is
+a child that ends only when CANCELLED ("cancelled with the group, never
+stop()ped"), and nothing cancels the group when the observer returns on its
+own. Both demos end the runtime by cancelling it, so neither met it; the
+harness's second run did.
+
+- *Rejected:* **later, after 5d** — no current app hits it, but the harness
+  already did, and a door whose own sentence is false is the kind of debt
+  this project refuses.
+- *Rejected (not offered, recorded for the reader):* stopping the
+  diagnostics seam in the runtime's stop sequence — the seam is app-owned
+  and lives across sessions; finishing its broadcast would end every health
+  listener with the session.
+
+**(2) The flake.** 5a's "two callers, one transfer" failed in its setup:
+writing the served file returned POSIX 9 (a bad file descriptor) — the
+signature of a descriptor closed by someone who no longer owned its number.
+Not 5d's code. The method's rule decides it: one flake means not done.
+
+- *Rejected:* **record it and move on** — AC-344 would stand at 19 of 20 with
+  a reason, and the bench would stay fragile under parallel load (5c's run 13
+  was a different flake in the same bench).
+
+## D-136 — F-31: the bench's server wakes its waiting accept thread with a POKE, a connection to its own port; §233's first server fix stands corrected (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("A — poke") · **Ruling:**
+`LoopbackFileServer.stop()` connects to the server's own port, so a thread
+waiting in `accept()` always returns; the thread checks "stopped" AFTER
+`accept`, closes what it got and ends; only then is the listening socket
+closed.
+
+**Why a fork at all.** §233's first fix (`e306520`) waited for the accept
+thread BEFORE closing, trusting `shutdown()` to wake it. On this Mac it does
+not — neither a thread already waiting in `accept()` nor one that arrives
+after; only `close()` does (`experiment-2026-10-01-accept-after-shutdown`).
+So every stop of a server that had served sat out its 5 s cap, and then the
+close woke the thread anyway: the order the fix claimed was never reached,
+and every bench teardown paid 5 s. Its row stopped each server at once,
+before its thread reached `accept`, and never saw it. The loop on that fix
+did (runs 2 and 3, 1 of 200 stops); a second RED reached the real case
+(`230c530`: 3 of 3). The first RED's row also over-claimed: a thread alive
+at the return but not yet at its "stopped" check ends without ever calling
+`accept`, which is harmless.
+
+- *Rejected:* **B — a wake pipe and `poll()`.** Race-free and classic, but
+  two more descriptors to own and close, a non-blocking listening socket,
+  and every accepted connection set back to blocking: more descriptor code,
+  in a hunt about descriptor hygiene.
+- *Rejected:* **C — a dispatch read source, no accept thread.** The
+  guarantee comes from libdispatch (no handler after the cancel handler,
+  which closes the socket — the watch fix's rule), but it is the biggest
+  change: the server's chosen shape (blocking threads, argued in its
+  header) goes, and the hygiene rows' flags change meaning.
+
+**The cost accepted.** A trick that needs its comment. If the poke cannot
+connect (no descriptor left, a full backlog), the stop falls back to its
+5 s cap and the hygiene rows count it — visible, never hidden.
+
+## D-137 — 5d piece 2 is the voice: trim the quiet Kokoro puts around every phrase, and start speaking on a short first phrase; the echo is piece 3 (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("A — the voice") · **Ruling:**
+piece 2 fixes the two causes piece 1's numbers found in the voice — the
+silence the model synthesizes around every phrase, and the wait for the
+WHOLE first phrase. The echo — the diet app's R-4 and the self-cut on
+Ryad's own phone — is piece 3, in the option's own words.
+
+**What the numbers said** (Ryad's phone session, 2026-10-01, INSTRUMENTS
+§73; Kokoro's captures on this Mac the same day):
+
+- The felt pause: median 3.0 s as logged, about 3.3 s to the first WORD.
+  ⑤, the voice, is the biggest stage (1 337 ms), and it follows the first
+  phrase's length (r = 0.75): 604 ms when the first phrase is 15
+  characters or fewer, 3 710 ms when it is over 60. Every turn over 5 s
+  had a long first phrase.
+- 16 of 22 replies held a pause over 300 ms — one at every phrase
+  boundary, ~0.75 s each. On this Mac, every Kokoro phrase is wrapped in
+  ~325 ms of quiet before its words and ~420 ms after, made by the model
+  (no exact zeros: the voice never fell behind), and the first sound is
+  stamped when the player starts, ~325 ms before the first word.
+- One self-cut: the session's first reply was cut by its own echo (shield
+  on, 300 ms hangover, 600 ms window). Ryad: "no I didn't talk but the
+  system hear itself — the echo problem." F-30's third line fails today.
+
+- *Rejected:* **B — the echo first** (R-4, and every barge candidate's
+  loud time and level logged on the phone). R-4 alone does not stop Ryad's
+  self-cut: that leak was loud for at least ~0.32 s, so a window long
+  enough to stop it makes a real interruption slower than F-30's 0.4 s; the
+  real fix needs more than duration, and leak numbers from the phone. Next,
+  as piece 3. **The cost accepted:** the diet app's self-cuts (two of three
+  replies at its 700 ms hangover) wait for piece 3.
+- *Rejected:* **C — think during the gate** (about −0.5 s per turn):
+  smaller than A's gain, wasted mind work for every turn the person goes on
+  (4 of 25 in the session), and a change to the coordinator's core.
+- *Rejected:* **D — a voice bake-off**, Kokoro against Piper or others.
+  Ryad asked: "do you think another model like piper can be better
+  solution?" Not first: a different voice fixes neither cause (it would
+  still wait for a whole phrase, and its output still needs trimming);
+  Piper turns text into sounds with espeak-ng, which is GPL-3.0 and fails
+  the dependency rule's licence question; its voices are likely less
+  natural (not measured here). Where it might help — synthesis on the CPU,
+  out of the 4B mind's way on the GPU — is a measurement for after A, if
+  the voice's own speed is still the big stage.
+
+**R-4, received the same day.** The diet app's requirement — the barge
+window must judge the LOUD part, not loud + hangover — was checked against
+the code before any reply: all three of its claims hold (the coordinator
+accepts any segment at or after the deadline; the pump publishes every
+chunk through the hangover, by D-013; §43's durations were measured at a
+300 ms hangover and nothing in the API says so). Placed in piece 3; its
+content, and the window's number in loud time, are not ruled here.
+
+**What this entry does NOT decide:** piece 2's spec and its forks — open
+until Ryad signs them.
+
+## D-138 — 5d piece 2 signed: the voice, every fork as recommended (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("Sign, all A") · **Ruling:**
+SPEC §234–§239 signed — AC-348 … AC-354, and the five forks:
+
+- **F-32 = A** — the trim finds the words by the audio, at the meter's
+  level (0.001), with a margin before the first loud sample: a pure rule in
+  the core, applied by the Kokoro decoder to each phrase. *Rejected:* B,
+  Kokoro's own token timestamps (a vendor field never used here, empty
+  without the misaki tokens, its accuracy at the edges unmeasured, Kokoro
+  only); C, both.
+- **F-33 = A** — the quiet kept after a phrase is Kokoro's own pause for
+  its closing mark, measured on this Mac inside whole sentences; a phrase
+  cut by a cap keeps only the margins. *Rejected:* B, one fixed pause (a
+  comma and a full stop would sound the same); C, trim only the first
+  phrase's lead-in (the ~0.75 s inside every answer would stay).
+- **F-34 = A** — growing caps: 20 characters, then 40, then the usual 120,
+  each cut at the last space before it, always at a clause mark if one
+  comes first; the numbers from the replay, confirmed by ear and on the
+  phone. *Rejected:* B, only the first phrase short (the replay shows the
+  voice running dry after the first words: 12 boundaries against 7); C, the
+  mind asked to open with a short phrase (the same opening every time, not
+  always obeyed, and the app's prompt rather than the voice).
+- **F-35 = A** — the listening host reports each reply's quiet before its
+  first audible sample; the logs print the felt pause to the first word.
+  *Rejected:* B, only writing the margin down.
+- **F-36 = A** — on by default for Kokoro, every number overridable.
+  *Rejected:* B, opt-in (a 0.75 s silence at every comma is the model's
+  padding, not a policy any app chose).
+
+## D-139 — F-37: the download daemon's resume flake is made to explain itself; AC-344 stays open with the family named (Milestone 5d)
+
+**Date:** 2026-10-01 · **Decided by:** Ryad ("A — make it explain itself")
+· **Ruling:** when one of the bench's resume rows fails, it prints what the
+daemon did — every request the loopback server saw for that file (its
+offset and the bytes sent), the resume data on disk, the error — so the
+next sighting is evidence, not a mystery. The flake is not hunted now;
+piece 2 goes on, and its own 20× loop meets the family again.
+
+**Why a ruling.** §233's hunt fixed two bench defects (D-136) and left a
+third family it never touched: the system's background download daemon,
+whose resume restarted from zero (or hung a delete) three times — 5c's run
+13, the trap loop's run 3, and run 11 of the 60× loop after the poke —
+always under the whole suite's parallel load. It keeps AC-344 at 59 of 60.
+
+- *Rejected:* **B — keep its rows apart** (the background-download suites
+  run one at a time, then a new loop): it tests the parallel-load guess,
+  but slows the suite and may not help — the daemon is shared by the whole
+  system — and it changes when tests run, not what they check.
+- *Rejected:* **C — hunt it now**: time away from the voice, which is 5d's
+  point (D-132).
+
+**The cost accepted:** the flake stays until a sighting explains it.
+
+## D-140 — 5d piece 3 signed: the echo — a barge proves itself by being LOUD, every candidate measured; every fork as recommended (Milestone 5d)
+
+**Date:** 2026-10-07 · **Decided by:** Ryad ("Sign, all A") · **Ruling:**
+SPEC §241–§246 signed — AC-355 … AC-362, and the three forks:
+
+- **F-38 = A** — the pump marks every chunk it publishes with the VAD's own
+  verdict, loud or quiet (`AudioChunk` gains it; the VAD protocol gains a
+  defaulted way to report its last chunk): one threshold for the speech
+  decision and the barge. *Rejected:* B, the coordinator measuring each
+  segment against a barge level of its own — two thresholds an app must keep
+  equal by hand.
+- **F-39 = A** — `BargeWindow.measured` becomes **320 ms of loud time**:
+  today's behaviour at the demo's 300 ms hangover, kept, so no interruption
+  gets slower (inside F-30's 0.4 s), and the diet app at its 700 ms hangover
+  gets the same protection. *Rejected:* B, 450 ms (likely stops §73b's leak,
+  but every interruption past F-30's line); C, 600 ms re-read (the safest
+  and the slowest). **The cost accepted:** §73b's leak stayed loud for at
+  least ~0.32 s and may still cut; the phone's candidate numbers can move
+  the number, by a D-entry.
+- **F-40 = A** — every barge candidate reported through `LatencyReporter`
+  (a new hand-off with a do-nothing default): onset, loud time, loudest
+  chunk, verdict; the demo's log lists them. *Rejected:* B, the fix alone,
+  unmeasured.
+
+## D-141 — F-41: the real-audio playback rows that flake on CI only are made to explain themselves (Milestone 5d)
+
+**Date:** 2026-10-07 · **Decided by:** Ryad ("A — explain itself") ·
+**Ruling:** when one of `PlaybackLeadStrandTests`' real-audio rows fails, it
+prints what happened — the buffers scheduled and played, whether the engine
+was running, its output rate, the time the drain waited — so the next CI
+failure says whether CI's audio device plays slower than real time or the
+reply really stuck. Done beside piece 3.
+
+**Why a ruling.** The rows ("CONTROL", "THE HOLE, CLOSED") play 400 ms of
+real audio and wait up to 3 s for `.finished`; on CI's virtual machine they
+sometimes never finish — `8952ee8`, `90dc27d`, `1a30ecd` — and never did in
+80 local runs. They correct the guess in `10d6dae` (§240). CI is the merge
+gate, so the flake reaches every PR.
+
+- *Rejected:* **B — hunt it now**: it happens on CI only; each try is a push
+  and a wait, and CI is not ours to loop.
+- *Rejected:* **C — skip the rows on CI**: green, but the gate would stop
+  checking real playback, and a real bug there would hide.
+
+**The cost accepted:** CI may still go red on these rows until a failure
+explains itself.
+
+## D-142 — PR 63's red check is hunted now, under Auto-fix: D-141's "not now" changes (Milestone 5d)
+
+**Date:** 2026-10-08 · **Decided by:** Ryad, by turning Auto-fix on for
+PR 63 (standing permission to fix what makes its check red, and to push the
+fix). The hunt and the fix are mine; they are presented for his review.
+
+**What changes.** D-141 rejected "B — hunt it now" (CI only, each try a push).
+The hunt then found a way to reproduce the failure on this Mac, so no push was
+needed: Swift's pool held to one thread (`LIBDISPATCH_COOPERATIVE_POOL_STRICT=1`).
+The cause is test code only: the download bench's server, stopped twice by one
+row, waited 5 s on the second stop (SPEC §248). The fix (`stop()` acts once)
+was red first. **No design fork arose**: a stop that does its work once has no
+defensible alternative that keeps the trap. Had the fix needed one, for
+example skipping the real-audio rows on CI (D-141's C) or a longer drain, it
+would have come to Ryad first.
+
+**D-141 stands.** The stories it added made the CI failures readable, and they
+stay. "played 0 of 4" in CONTROL is not yet explained (§248).
+
+## D-143 — F-42: the barge rows wait for the coordinator's verdict, not 2 s of nothing; CONTROL's story gains the engine's clock (Milestone 5d)
+
+**Date:** 2026-10-08 · **Decided by:** Ryad ("A — wait for the verdict") ·
+**Ruling:** the barge rows (`BargeLoudnessTests`, `BargeWindowTests`) stop
+proving "no barge" by spinning a CPU for 2 s. They wait for the coordinator's
+own verdict on the candidate, which piece 3 reports (AC-360): abandoned, or
+cut. The rows' mutations run again to show the proof is as strong. CONTROL's
+failure story also gains the engine's clock, so the next failure says
+whether audio moved at all. If CONTROL still fails, C is next.
+
+**Why a ruling.** After §248's fix, CI went red twice more, both times on
+CONTROL: "played 0 of 4 · engine running · drained 3.0 s". CONTROL runs in the
+suite's first seconds, when about a thousand tests start on CI's three cores.
+Before piece 3's tests landed, CONTROL failed now and then; after, 3 of 3.
+Piece 3 added three 2 s busy waits to the three older ones, about 12 s of a
+busy CPU in those seconds, against the house rule (events, not delays).
+**Not proven:** CPU load never stopped audio on this Mac; only CI can confirm.
+
+- *Rejected:* **B — keep the 2 s, sleep between looks**: the same proof on an
+  idle CPU, but still a wait for a delay, and still ~12 s of wall time.
+- *Rejected:* **C — the real-audio rows alone in their own CI step** (D-111's
+  shape): the surest green, but it isolates and fixes nothing; kept as the
+  fallback.
+- *Rejected:* **D — a 10 s drain**: hides how slow, and a stuck reply fails
+  only after 10 s.

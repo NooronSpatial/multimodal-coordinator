@@ -1,5 +1,6 @@
 import KokoroSwift
 import MLX
+import MultiModalKit
 
 /// THE SECOND REAL DECODER — and the only place KokoroSwift's API is
 /// named (4q, D-084; the seam is D-053 F-6's, finally paying for itself).
@@ -50,6 +51,9 @@ actor KokoroDecoder: TTSDecoding {
 
     private let engine: KokoroTTS
     private let voice: MLXArray
+    /// The quiet around each phrase, trimmed before the samples leave
+    /// (5d piece 2, D-138): nil hands the model's output on untouched.
+    private let quiet: PhraseQuiet?
 
     /// Loads the weights and one voice style from files already on disk.
     /// Nothing here reaches the network — that is `KokoroWeights.ensure`,
@@ -61,7 +65,7 @@ actor KokoroDecoder: TTSDecoding {
     /// that grows without a limit. The same value and the same reason as
     /// `LocalMind.cacheLimitBytes`, whose comment already says it drives a
     /// phone into jetsam.
-    init(weights: KokoroWeights, cacheLimitBytes: Int = 20 * 1024 * 1024) throws {
+    init(weights: KokoroWeights, quiet: PhraseQuiet? = nil, cacheLimitBytes: Int = 20 * 1024 * 1024) throws {
         MLX.Memory.cacheLimit = cacheLimitBytes
         let arrays = try MLX.loadArrays(url: weights.voiceFile)
         guard let style = arrays.values.first else {
@@ -72,6 +76,7 @@ actor KokoroDecoder: TTSDecoding {
         // and writes casts through a temporary name for exactly that.
         self.engine = KokoroTTS(modelPath: weights.modelFile, g2p: .misaki)
         self.voice = style
+        self.quiet = quiet
     }
 
     func decode(_ text: String,
@@ -86,9 +91,16 @@ actor KokoroDecoder: TTSDecoding {
         // `af_heart` is a US voice. The language comes from the caller,
         // never from the voice file — the vendor does not infer it.
         let (samples, _) = try engine.generateAudio(voice: voice, language: .enUS, text: text)
+        // THE QUIET AROUND THE PHRASE (5d piece 2, D-138): the model wraps
+        // every phrase in ~325 ms of quiet before its words and ~421 ms
+        // after (INSTRUMENTS §73b); a margin is kept before, and after the
+        // pause the phrase's closing mark calls for.
+        let kept = quiet.map {
+            $0.kept(samples, closingMark: PhraseQuiet.closingMark(of: text), sampleRate: Double(sampleRate))
+        } ?? samples.indices
         // ONE CALL. The whole phrase, once. The answer is recorded by the
         // run and cannot be acted on: see the one-shot note above.
-        _ = onStep(samples)
+        _ = onStep(Array(samples[kept]))
         // Housekeeping, after the samples are handed over and never
         // before: a caller timing this decode is timing Kokoro, not our
         // tidying.

@@ -115,6 +115,42 @@ struct PlaybackLeadStrandTests {
         return box.withLock { $0 }
     }
 
+    /// What a failing real-audio row says (5d, D-141): these rows flake on
+    /// CI only — started, never finished within the drain — and this line
+    /// tells whether the engine was still playing, or the reply stuck.
+    static func story(_ run: NeuralVoiceRun, _ host: AudioEnginePlaybackHost,
+                      updates: [SynthesisUpdate], drainedFor: Duration) -> String {
+        let counters = run.counters
+        return "updates \(updates) · scheduled \(counters.scheduled) · played \(counters.played)"
+            + " · in flight \(counters.phrasesInFlight) · tokens closed \(counters.tokensFinished)"
+            + " · engine running \(host.isRendering) · output \(Int(host.outputSampleRate)) Hz"
+            + " · \(playerClock(run)) · drained for \(drainedFor)"
+    }
+
+    /// THE ENGINE'S CLOCK (D-143): how far the player itself has rendered
+    /// since its start. CI's red CONTROL said "played 0 of 4" with the engine
+    /// running; this says whether audio moved at all — rendered and never
+    /// reported, or never rendered.
+    ///
+    /// Read on the run's own queue, where the player is given back, and only
+    /// while it is attached: a node with no engine THROWS (AVFAudio's
+    /// `_engine != nil`), and that ends the whole test process — the first
+    /// version of this line did, on a row that had passed.
+    static func playerClock(_ run: NeuralVoiceRun) -> String {
+        run.mouth.sync {
+            let player = run.player
+            guard player.engine != nil else { return "player given back" }
+            guard let nodeTime = player.lastRenderTime, nodeTime.isSampleTimeValid else {
+                return "player playing \(player.isPlaying) · no render time"
+            }
+            guard let playerTime = player.playerTime(forNodeTime: nodeTime) else {
+                return "player playing \(player.isPlaying) · rendered, no player time"
+            }
+            let milliseconds = Int((Double(playerTime.sampleTime) / playerTime.sampleRate * 1_000).rounded())
+            return "player playing \(player.isPlaying) · rendered \(milliseconds) ms since its start"
+        }
+    }
+
     /// Builds the run, or returns nil when this machine has no engine to
     /// render on — skipping honestly rather than failing for the wrong
     /// reason, the D-022 discipline.
@@ -137,10 +173,12 @@ struct PlaybackLeadStrandTests {
         #expect(await Self.until { decoder.finishedDecoding })
         await run.finishTokens()
 
+        let drainStart = ContinuousClock.now
         let updates = await Self.drainBounded(run, within: .seconds(3))
+        let story = Self.story(run, host, updates: updates, drainedFor: drainStart.duration(to: .now))
         #expect(updates.contains(.started))
         #expect(updates.contains(.finished),
-                "the configuration this library actually ships must never strand a reply")
+                "the configuration this library actually ships must never strand a reply — \(story)")
     }
 
     @Test("THE HOLE, CLOSED (D-055) — a lead larger than the reply, tokens closing last")
@@ -167,15 +205,17 @@ struct PlaybackLeadStrandTests {
 
         await run.finishTokens()
 
+        let drainStart = ContinuousClock.now
         let updates = await Self.drainBounded(run, within: .seconds(3))
+        let story = Self.story(run, host, updates: updates, drainedFor: drainStart.duration(to: .now))
         // THE FLIP. These two expectations asserted the BUG until D-055 was
         // ruled (= B, one funnel). They now assert the fix, and they are the
         // proof of it: before the funnel they fail here, exactly as the
         // measurement in INSTRUMENTS §21 recorded.
         #expect(updates.contains(.started),
-                "the funnel must release a lead the reply can never reach")
+                "the funnel must release a lead the reply can never reach — \(story)")
         #expect(updates.contains(.finished),
-                "and the turn must end rather than hang — D-055")
+                "and the turn must end rather than hang — D-055 — \(story)")
         await run.cancel()
     }
 

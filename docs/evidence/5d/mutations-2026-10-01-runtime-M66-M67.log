@@ -1,0 +1,20 @@
+# 5d §232 — mutations M66, M67 on the runtime's teardown (2026-10-01), filter AIRuntimeTests. Both killed.
+# M66 (no cancel: the bug itself) is killed by both rows; M67 (the tempting wrong fix: cancel AND finish the
+# health seam) is killed by AC-346 alone — the guard that the seam outlives the session earns its place.
+
+## M66 — the stops are not followed by a cancel (the bug itself)
+file: Sources/MultiModalKit/Runtime/AIRuntime.swift
+KILLED — red rows:
+  - the health seam outlives the session: a second session still hears it (AC-346)
+  - the observer ending on its own ends the run, with a health seam attached (AC-345)
+􀢄  Test run with 6 tests in 1 suite failed after 21.041 seconds with 2 issues.
+reverted: yes
+
+## M67 — the tempting wrong fix: cancel, AND finish the health seam
+file: Sources/MultiModalKit/Runtime/AIRuntime.swift
+KILLED — red rows:
+  - the health seam outlives the session: a second session still hears it (AC-346)
+􀢄  Test run with 6 tests in 1 suite failed after 10.581 seconds with 1 issue.
+reverted: yes
+
+source tree after the run: clean
