@@ -14,19 +14,22 @@
 /// coordinator reacts to is merged into ONE stream and handled by ONE loop
 /// on the actor. Stage readers are group children that only forward into
 /// the merge; they never touch the actor.
-/// THE NUMBER, for an app that wants a barge window — in LOUD time.
+/// THE NUMBER, for an app that wants a barge window — judged on LOUD chunks.
 ///
-/// 320 ms of loudness at or after the onset (5d piece 3, D-140, F-39 A): a
-/// candidate cuts the reply only on a chunk the VAD judged LOUD at or after
-/// this deadline. **The app's hangover has no part in it** — the window once
-/// counted every chunk until the speech ended, so it measured loud part +
-/// hangover, and at a 700 ms hangover it filtered nothing (the diet app's R-4).
+/// 320 ms after the onset (5d piece 3, D-140, F-39 A): a candidate cuts the
+/// reply on the first chunk the VAD judged LOUD at or after this deadline.
+/// Quiet chunks between the onset and the deadline do not stop it — a person
+/// may pause between two words — so it is NOT 320 ms of loudness in total.
+/// **The app's hangover has no part in it** — the window once counted every
+/// chunk until the speech ended, so it measured loud part + hangover, and at
+/// a 700 ms hangover it filtered nothing (the diet app's R-4).
 ///
 /// Why 320: it is what 4k's 600 ms meant at the 300 ms hangover it was
 /// measured at (INSTRUMENTS §43: every leak loud for at most ~220 ms, every
 /// real utterance for at least ~640), so no interruption got slower. Kept as
-/// D-140 ruled it until the phone's own candidate numbers say otherwise —
-/// a leak on Ryad's phone (§73b) stayed loud for at least ~320 ms.
+/// D-140 ruled it, and Ryad's phone kept it (INSTRUMENTS §75b): no echo was
+/// loud again after its deadline, and every interruption was — even one that
+/// the phone's echo cancelling left loud for only 100 ms.
 ///
 /// A named constant rather than a library default: the app that owns a
 /// device owns the policy (D-027).
