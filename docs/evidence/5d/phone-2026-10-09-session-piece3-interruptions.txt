@@ -1,0 +1,275 @@
+# Conversation log — MultiModalKit demo
+
+picker says: mind=Local · ear=Whisper · mouth=Neural · speaker shield=true · tools=off
+tools: off · the plain path, AC-227's baseline
+Apple ear (SpeechTranscriber) locales on this device: 30 total · Arabic: NONE
+local model: mlx-community/Qwen3-4B-4bit · installed: true · MLX runnable here: true
+memory headroom: 3653 MB before this app's limit
+voice loaded: true
+MLX memory now: active 2318 MB · peak 3062 MB
+local mind: warm: the weights are resident
+weights expected at: /var/mobile/Containers/Data/Application/4868811F-7FE8-4797-8BF2-F51E1CAD917C/Documents/Qwen3-4B-4bit
+
+NOTE: the `mind:` line under each turn is the brain that
+ACTUALLY answered, taken from the generator the coordinator
+held — not from the picker above. If they disagree, that is
+the finding.
+
+## turn 1
+mind: **Local (MLX)**
+
+heard: Good morning.
+
+reply: Good morning to you too!
+
+at 4 s · thermal serious · 3540 MB free
+
+first word 343 ms · total 670 ms · MLX peak 2491 MB
+
+tools: off
+
+voice: 1530 ms audio · RTF 0.577 · cushion 0 ms
+
+## turn 2
+mind: **Local (MLX)**
+
+heard: What's your name?
+
+reply: I am called Qwen.
+
+at 9 s · thermal serious · 3539 MB free
+
+first word 327 ms · total 578 ms · MLX peak 2552 MB
+
+tools: off
+
+voice: 1205 ms audio · RTF 0.566 · cushion 0 ms
+
+## turn 3
+mind: **Local (MLX)**
+
+heard: How old are you and who developed you?
+
+reply: I am 12 years old and was developed by Alibaba Cloud.
+
+at 17 s · thermal serious · 3550 MB free
+
+first word 432 ms · total 1084 ms · MLX peak 2575 MB
+
+tools: off
+
+## turn 4
+mind: **Local (MLX)**
+
+heard: What's the capital of Germany?
+
+reply: Berlin.
+
+at 22 s · thermal serious · 3563 MB free
+
+first word 454 ms · total 538 ms · MLX peak 2687 MB
+
+tools: off
+
+voice: 772 ms audio · RTF 0.454 · cushion 0 ms
+
+## turn 5
+mind: **Local (MLX)**
+
+heard: Can you tell me a little bit about the history of Germany?
+
+reply: Germany's history is complex, involving many events like World War I and II, the division during the Cold War, and reunification in 1
+
+at 30 s · thermal serious · 3554 MB free
+
+first word 554 ms · total 2493 ms · MLX peak 2687 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 6
+mind: **Local (MLX)**
+
+heard: I've changed my mind. Tell me something about Italy.
+
+reply: Italy is a country in Southern Europe, known for its art, history, and cuisine.
+
+at 35 s · thermal serious · 3542 MB free
+
+first word 722 ms · total 1895 ms · MLX peak 2817 MB
+
+tools: off
+
+## turn 7
+mind: **Local (MLX)**
+
+heard: Something to eat.
+
+reply: Pizza, pasta, gelato, and risotto are some popular Italian foods.
+
+at 46 s · thermal serious · 3539 MB free
+
+first word 702 ms · total 1890 ms · MLX peak 2817 MB
+
+tools: off
+
+## turn 8
+mind: **Local (MLX)**
+
+heard: something local because i'm making diet i want to lose weight
+
+reply: I'm not sure what "local" means in this context. Could you clarify?
+
+at 55 s · thermal serious · 3541 MB free
+
+first word 721 ms · total 1780 ms · MLX peak 2817 MB
+
+tools: off
+
+## turn 9
+mind: **Local (MLX)**
+
+heard: Lock low carb.
+
+reply: Low-carb foods in Italy include vegetables, fish, cheese, and olive oil. Enjoy!
+
+at 62 s · thermal serious · 3539 MB free
+
+first word 877 ms · total 2124 ms · MLX peak 2817 MB
+
+tools: off
+
+## turn 10
+mind: **Local (MLX)**
+
+heard: Not in Italy, I am based in Germany. and I will eat something that it's low carb because I want to lose weight.
+
+reply: In Germany, low-carb options include salads, grilled fish, eggs, and olive oil. Enjoy!
+
+at 76 s · thermal serious · 3537 MB free
+
+first word 698 ms · total 2325 ms · MLX peak 2817 MB
+
+tools: off
+
+## turn 11
+mind: **Local (MLX)**
+
+heard: How far is Italy from Germany?
+
+reply: The distance between Italy and Germany is approximately 1,200 kilometers (750 miles) by air.
+
+at 86 s · thermal serious · 3557 MB free
+
+first word 729 ms · total 2387 ms · MLX peak 2817 MB
+
+tools: off
+
+## turn 12
+mind: **Local (MLX)**
+
+heard: I think you're doing well.
+
+reply: _(no words)_
+
+at 93 s · thermal serious · 3327 MB free
+
+first word never · total 88 ms · MLX peak 3062 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 13
+mind: **Local (MLX)**
+
+heard: I think you're doing well. But sometimes you maybe there is some echo or or not. I don't know
+
+reply: I’m sorry to hear that. If you’re hearing echoes, please let me know so I can adjust. Otherwise, I’m here to help!
+
+at 102 s · thermal serious · 3540 MB free
+
+first word 709 ms · total 2924 ms · MLX peak 3062 MB
+
+tools: off
+
+voice: 6880 ms audio · RTF 0.438 · cushion 0 ms
+
+## turn 14
+mind: **Local (MLX)**
+
+heard: Probably not, I really don't know. But thank you for that.
+
+reply: You're welcome! If you need anything else, just say so.
+
+at 114 s · thermal serious · 3538 MB free
+
+first word 710 ms · total 1612 ms · MLX peak 3062 MB
+
+tools: off
+
+voice: 3142 ms audio · RTF 0.355 · cushion 0 ms
+
+
+## timeline (5d)
+
+```
+device: iPhone18,5 · Version 26.6.1 (Build 23G83)
+① silence wait: 300 ms (this app's VAD hangover)
+turn 0: ② 197 · ③ 507 · ④ 357 · ⑤ 659 → felt 2020 ms
+turn 1: ② 205 · ③ 507 · ④ 337 · ⑤ 689 → felt 2038 ms
+turn 3: ② 234 · ③ 501 · ④ 447 · ⑤ 919 → felt 2401 ms
+turn 4: ② 219 · ③ 501 · ④ 466 · ⑤ 368 → felt 1854 ms
+turn 5: ② 275 · ③ 510 · ④ 567 · ⑤ 736 → felt 2389 ms
+turn 6: ② 266 · ③ 501 · ④ 735 · ⑤ 806 → felt 2609 ms
+turn 7: ② 167 · ③ 504 · ④ 717 · ⑤ 602 → felt 2290 ms
+turn 8: ② 240 · ③ 502 · ④ 734 · ⑤ 752 → felt 2528 ms
+turn 9: ② 498 · ③ 504 · ④ 890 · ⑤ 906 → felt 3098 ms
+turn 10: ② 274 · ③ 503 · ④ 711 · ⑤ 663 → felt 2451 ms
+turn 11: ② 218 · ③ 502 · ④ 742 · ⑤ 645 → felt 2407 ms
+turn 14: ② 305 · ③ 502 · ④ 721 · ⑤ 816 → felt 2644 ms
+turn 15: ② 303 · ③ 505 · ④ 723 · ⑤ 689 → felt 2520 ms
+barge (turn 3 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 5 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 6 dies): ⑦ 420 · ⑧ 0 → 420 ms
+barge (turn 7 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 8 dies): ⑦ 400 · ⑧ 0 → 400 ms
+barge (turn 9 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 10 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 11 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 13 dies): ⑦ 0 · ⑧ 0 → 0 ms
+candidate over turn 0: loud 40 ms · peak 0.044 · onset → verdict 340 ms → abandoned
+candidate over turn 3: loud 340 ms · peak 0.387 · onset → verdict 320 ms → CUT
+candidate over turn 5: loud 320 ms · peak 0.405 · onset → verdict 320 ms → CUT
+candidate over turn 6: loud 240 ms · peak 0.346 · onset → verdict 420 ms → CUT
+candidate over turn 7: loud 340 ms · peak 0.209 · onset → verdict 320 ms → CUT
+candidate over turn 8: loud 340 ms · peak 0.435 · onset → verdict 400 ms → CUT
+candidate over turn 9: loud 340 ms · peak 0.202 · onset → verdict 320 ms → CUT
+candidate over turn 10: loud 300 ms · peak 0.428 · onset → verdict 320 ms → CUT
+candidate over turn 11: loud 300 ms · peak 0.254 · onset → verdict 320 ms → CUT
+reply #1: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #2: 0 pauses over 300 ms · longest 10 ms · quiet before the first word 40 ms
+reply #3: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #4: 0 pauses over 300 ms · longest 5 ms · quiet before the first word 40 ms
+reply #5: 0 pauses over 300 ms · longest 2 ms · quiet before the first word 40 ms
+reply #6: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #7: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #8: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #9: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #10: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #11: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #12: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #13: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+
+medians · 13 spoken turns · 9 barges · 13 replies
+② ear     median 240 · min 167 · max 498
+③ gate    median 503 · min 501 · max 510
+④ token   median 717 · min 337 · max 890
+⑤ sound   median 689 · min 368 · max 919
+FELT      median 2407 · min 1854 · max 3098
+1st-word quiet  median 40 · min 40 · max 40
+TO 1st WORD  median 2447 · min 1894 · max 3138
+⑦ window  median 320 · min 0 · max 420
+⑧ silent  median 0 · min 0 · max 0
+loud · cut        median 330 · min 240 · max 340
+loud · abandoned  median 40 · min 40 · max 40
+⑥ longest pause  median 137 · min 2 · max 185
+⑥ replies with a pause over 300 ms: 0
+```

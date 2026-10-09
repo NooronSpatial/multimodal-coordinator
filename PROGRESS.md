@@ -6,16 +6,16 @@ page only POINTS. Every row names where its fact is proven — a SPEC
 section (what was promised and measured), a D-entry (who ruled, and why),
 an evidence file, or a tag note (`git show <tag>`).*
 
-**As of 2026-10-06** · `main` at `f11dca4` · latest tag **0.5.0**
-(`e82533d`) · **milestone 5d — the fast voice** (D-132), on
-`milestone/5d-fast-voice`: piece 1, the turn timeline, is measured on the
-Mac and on Ryad's phone (INSTRUMENTS §73, §73b) — the felt pause is ~3.3 s
-to the first word, and one reply was cut by its own echo. Piece 2, the voice
-(D-137, D-138), is built and measured on the Mac (§74): the quiet before the
-first word 325 → 40 ms, no silence over 300 ms inside any answer; Ryad's ear
-kept every number, and on his phone (§74b) the first sound halved (1 337 →
-660 ms) and the felt pause to the first word fell from ~3.3 to 2.3 s. Piece 3, the echo (D-140), is built and checked on the Mac (§75): a barge proves itself by staying LOUD 320 ms — the diet app's R-4 — decided 280 ms sooner than before; its phone row is owed.
-The download daemon's flake keeps "20 of 20" open (SPEC §233, D-139).
+**As of 2026-10-09** · `main` at `9044628` · latest tag **0.5.0**
+(`e82533d`) · **milestone 5d — the fast voice** (D-132): pieces 1–3 are
+merged (PR 63), not tagged. Piece 1 measures the turn (INSTRUMENTS §73, §73b).
+Piece 2, the voice (D-138), halved the first sound on Ryad's phone and brought
+the felt pause to the first word from ~3.3 to 2.3 s (§74b). Piece 3, the echo
+(D-140, the diet app's R-4), cuts the voice on the first LOUD chunk at or
+after onset + 320 ms. On Ryad's phone (§75b) every one of 9 interruptions cut
+it, mostly in 320 ms, and no echo did, in 29 spoken turns. **Next:** the felt
+pause, 2.2 s against F-30's 0.8 s line. Open: this Mac's download rows, slow since 2026-10-08 (SPEC §249);
+CI's CONTROL row, green since D-143 and watched.
 
 ## The picture
 
@@ -121,7 +121,7 @@ work when Arabic was parked (D-100).
 | a time limit on CI (`timeout-minutes`) | **proposed, not ruled** | — |
 | about ten test waits still poll (`Task.yield()` in a capped loop) where the rule is events | **open** | the TTS, transcription, pump and diagnostics tests |
 | 5a's downloader test bench flakes under parallel load (5c's run 13; 5d's run 16, a bad file descriptor in its setup) | **hunted** (D-135): two bench defects proven and fixed (D-136); after them, 59 of 60 — the bad descriptor and the empty helper words not seen again, causes not proven; the download daemon's resume family recurs (3 sightings) — Ryad's ruling | SPEC §221, §231, §233 |
-| real-audio rows of `PlaybackLeadStrandTests` flake on CI only (started, never finished within 3 s) | **found and fixed on this Mac** (D-142): 6 sightings; reproduced on a one-thread pool; the cause was the bench's server stopped twice by one row, a 5 s wait on a pool thread; after the fix 0 of 10 one-thread runs fail (4 of 6 before); **CI's confirmation owed**; CONTROL's "played 0" not explained | SPEC §240, §248 |
+| real-audio rows of `PlaybackLeadStrandTests` flake on CI only (started, never finished within 3 s) | **fixed twice, watched** — the bench's second stop held a pool thread 5 s (D-142, SPEC §248); then CONTROL in the suite's first seconds, after piece 3's 2 s busy waits (D-143, §249); since then CI green 3 runs in a row (`9bfbc67`, `e294aff`, `main` `9044628`); CONTROL's "played 0 of 4" not explained — its story now carries the player's clock | SPEC §240, §248, §249 |
 | three copies of the old `Signals` test helper (one timed-out wait ends every later wait) | **open** — the ToolSpike copy is rebuilt | `AIRuntimeTests`, `AdmissionTests`, `ReplyContractTests` |
 | teach-back rows | **owed** (e.g. 4z's AC-287); 5b's was skipped by ruling | SPEC; D-127 |
 | stale lines in the docs | **open** — README's phase table stops at 4h, and its "two real mouths" paragraph predates Kokoro (D-084); ARCHITECTURE's front-door paragraph still says the runtime "cannot call a tool", false since 4z | README; ARCHITECTURE § "The front door" |

@@ -6181,3 +6181,71 @@ the head of both logs). The barge does not depend on the mind; ②–⑥ of runs
 and 14 are not comparable with runs 11 and 12, and are not used. Echo itself
 cannot happen here: the scripted person speaks into the ring. Leaks against a
 person, in loud time, are the phone's to measure (AC-361).
+
+### 75b. The phone — Ryad's two sessions after piece 3 (AC-361)
+
+**Machine and setup.** iPhone18,5, iOS 26.6.1 (23G83); the same picker as
+§74b: the Whisper ear, the local Qwen3-4B-4bit mind (warm), Kokoro, the
+speaker shield on, tools off; 300 · 500 · 320. Two sessions on 2026-10-09.
+The first was a normal conversation: 18 replies, 16 spoken, thermal "nominal".
+In the second, Ryad talked over the voice on purpose: 13 spoken, thermal
+"serious" throughout. The logs:
+`docs/evidence/5d/phone-2026-10-09-session-piece3.md`,
+`docs/evidence/5d/phone-2026-10-09-session-piece3-interruptions.txt`.
+
+**Every candidate** (a sound heard while the voice was speaking), loud time
+by the verdict:
+
+```
+loud time:  0 ──── 100 ──── 200 ──── 300 ──── 400 ms
+ignored:     ●  ●● ●  ●                              40, 80, 80, 120, 200
+Ryad:             ✂             ✂ ✂✂✂✂✂✂✂            100, then 240–340
+```
+
+| | session 1 | session 2 | both |
+|---|---|---|---|
+| Ryad talking over the voice | 1, cut | 8, cut | **9 of 9 cut** |
+| sounds ignored | 4 | 1 | 5 |
+| self-cuts (the voice cut by its own echo) | 0 | 0 | **0 in 29 spoken turns** |
+| ⑦ the voice stopped after he began | 360 ms | 320 ×6, 400, 420 | **8 of 9 within 0.4 s** |
+| ⑧ accepted → silent | 0 | 0 | 0 |
+
+Who was who comes from Ryad's own answers (2026-10-09). He said "How can you
+help me" over session 1's first reply; he did not talk during the two answers
+with ignored sounds (log turns 15 and 17); after each of session 2's eight
+cuts the log holds his own words. One thing is not known: session 1's 200 ms
+candidate, abandoned just before his interruption, may have been the start of
+his own words.
+
+**What it shows.**
+
+1. **Piece 3 does its job on the phone.** Every interruption cut the voice,
+   mostly in 320 ms. No echo cut it. In §73b, before piece 3, one reply in 21
+   was cut by its own echo, and the window was 600 ms.
+2. **Loud time alone does not separate a person from echo here.** With the
+   shield on, the phone's echo cancelling lowers a voice that talks over the
+   reply. Session 1's real interruption was loud for only 100 ms in its first
+   360 ms, which is inside the echoes' range (40–200 ms). Session 2's were loud
+   for 240–340 ms.
+3. **What separated them is the rule as built (§242/2): a LOUD chunk at or
+   after onset + 320 ms.** Session 1's interruption was loud again after
+   320 ms; the echoes were not. A rule of "loud for 320 ms in total" would
+   have missed it. **A correction:** §75 says "one must stay loud ~0.32 s", and
+   so did `BargeWindow.measured`'s doc and COMMANDS.md; I said it to Ryad too.
+   That is not the rule. The words are fixed with this section, and the
+   behaviour never changed.
+
+**The pause, again** (not piece 3's subject):
+
+| median, ms | §74b | session 1 | session 2 (warm phone) |
+|---|---:|---:|---:|
+| ④ the mind's first token | 547 | 542 | 717 |
+| ⑤ the voice's first sound | 660 | 589 | 689 |
+| **the felt pause, to the first word** | 2 323 | **2 218** | 2 447 |
+| replies with a silence over 300 ms | 2 of 22 | 5 of 18 | 0 of 13 (most cut short) |
+
+Session 2's slower mind is the heat ("serious"), as §73b's was.
+
+**Against F-30's line:** an interruption 320 ms median (line 0.4): met. No
+self-cut in 29 spoken turns: met. The felt pause to the first word 2.2 s
+(line 0.8): **not met**, the next speed piece.

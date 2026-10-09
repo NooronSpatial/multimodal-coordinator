@@ -8914,11 +8914,21 @@ told that R-4 is in (its own pin checks it); present → HALT.
 | AC-358 an abandoned candidate starts nothing | **met** — and more than asked: its words no longer join the NEXT prompt, which they did ("Good morning. What's your name?") | `BargeLoudnessTests`, M89 |
 | AC-359 unchanged | **met** — a chunk with no verdict counts as loud; every older barge row green | `BargeWindowTests`, M86 |
 | AC-360 every candidate reported | **met** — loud time, peak, onset → verdict, cut or abandoned; the phone log and the harness list them | `BargeLoudnessTests`, M90, M91; harness runs 13–14 |
-| AC-361 the phone | **OWED** — one session of Ryad's | — |
+| AC-361 the phone | **met** (2026-10-09) — two sessions: Ryad talked over the voice 9 times, 9 cut (⑦ 320 ms median, 8 of 9 within 0.4 s); 5 other sounds ignored; **0 self-cuts in 29 spoken turns** | INSTRUMENTS §75b; `phone-2026-10-09-session-piece3*` |
 | AC-362 nothing else moved | **met** — the 20× loop 20 of 20 at `9bda538`; the suite 1 041 tests in 148 suites; strict lint zero; M85–M92 eight of eight killed; `api.sh`: additions and one ruled value (600 → 320 ms); the demo compiles | `stability-2026-10-08-piece3.txt`, `api-diff-2026-10-08-piece3.txt`, `mutations-2026-10-07-piece3-M85-M92.log` |
 
 **On this Mac** (INSTRUMENTS §75): ⑦ 600 → 320 ms for a person who keeps
 talking — the same protection, decided 280 ms sooner.
+
+**On Ryad's phone** (INSTRUMENTS §75b, 2026-10-09): every interruption cut the
+voice, mostly in 320 ms, and no echo cut it. Loud time alone did not separate
+him from echo: with the shield on, one real interruption was loud for only
+100 ms, inside the echoes' 40–200 ms. The rule as built caught it, because a
+loud chunk came at or after onset + 320 ms. **A wording correction:** §75,
+`BargeWindow.measured`'s doc and COMMANDS.md said a voice must "stay loud"
+320 ms. The rule is a loud chunk at or after the deadline; the words are
+fixed, and the behaviour never changed. **320 ms stands** (D-140): the phone's
+numbers give no reason to move it.
 
 **What it found that it did not plan to:**
 
