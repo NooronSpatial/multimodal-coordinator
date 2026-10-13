@@ -9025,3 +9025,144 @@ suite 5.7 s (10–14 s in the red runs). One run is not yet proof: before
 piece 3, CONTROL also passed most runs. If it fails again, its new story says
 whether the player rendered at all, and the next step is C, the real-audio
 rows alone in their own CI step (D-143).
+
+# 5d piece 4 — think in the gate: the mind starts at the final, the voice still waits for the gate (proposed, NOT signed)
+
+## §250 — why: the gate and the mind wait one after the other
+
+```
+today (Ryad's phone, §75b session 1, medians, ms):
+
+ his last sound ─① 300─▶ end ─② 221─▶ final ─③ 505 gate─▶ mind opened ─④ 542─▶ token ─⑤ 589─▶ sound ─40─▶ word
+                                                                                    felt ≈ 2.2 s (line: 0.8 s)
+
+ piece 4:     the mind opens AT THE FINAL; its tokens are HELD until the gate ends
+                                        final ─③ 505 gate──────────▶ release
+                                        final ─④ 542 mind──────────────▶ token ─⑤ 589─▶ sound
+                                                                                    felt ≈ 1.7 s
+```
+
+- **③ and ④ are the same size**, and today they run one after the other. The
+  gate (AC-81) waits 0.5 s in case the person goes on; the mind could use
+  those 0.5 s. Per turn the saving is the smaller of the two: ~0.3–0.5 s.
+- **What the gate protects stays protected:** nothing is SAID before the gate
+  ends, and a person who goes on still kills the reply in silence. Only the
+  thinking moves earlier.
+- **Thinking the voice early too saves nothing today:** ④ (542) ≥ ③ (505), so
+  the first token comes after the gate anyway (F-43).
+- **Honest about the line:** 1.7 s is still twice F-30's 0.8 s. The other
+  stages (① ② the ear, ⑤ the voice, ④ the mind itself) are later pieces.
+
+## §251 — scope: piece 4
+
+1. **Open at the final.** With the gate on and the app's opt-in (F-45), the
+   reply opens when the final is accepted, not when the gate ends. The state
+   stays `listening`; the gate is unchanged.
+2. **Hold until the gate ends.** Everything the reply sends during the gate —
+   tokens, its terminal, a failure — is held: no `replyToken` event, no mouth,
+   no memory. At the gate's end the turn goes to `thinking`, and what was held
+   is passed on in order, as if it had just arrived.
+3. **A person who goes on.** An onset during the gate cancels the held reply
+   in the same actor step, and a reply ticket (raised in that step) stops
+   anything it still sends. Nothing of it reaches the app, the mouth or the
+   memory. The next final opens a new one, with the whole thought (AC-88).
+4. **The pause, measured honestly** (F-46). The timeline still sums to the
+   felt pause, and it says how much thinking ran inside the gate.
+5. **Waste, counted.** Every reply opened in the gate is reported kept or
+   cancelled, so the phone shows how often the early thinking is thrown away
+   (each throw costs the phone heat, and the mind's kept session, F-44).
+6. **Tools: never early** (F-47). A reply that may run a tool is not opened
+   in the gate.
+
+## §252 — non-goals
+
+- ① the hangover and ② the ear's finish, ⑤ the voice's first phrase, ④ the
+  mind's own speed: later pieces.
+- The gate's length (500 ms) and a smarter gate: the app's policy, unchanged.
+- A bystander, or a sound while thinking (§74b): unchanged.
+- Thinking the voice early (F-43 B), rolling the mind's session back (F-44 B).
+
+## §253 — acceptance criteria (AC-363 … AC-372)
+
+- **AC-363 — opened at the final, held.** Gate on, opt-in on: the reply opens
+  when the final is accepted. Until the gate ends, nothing it sends reaches
+  the app (`replyToken`), the mouth or the memory; the state stays `listening`.
+- **AC-364 — released at the gate's end.** At the gate's end (no onset since
+  the final): `thinking`, then every held token in order, exactly once; the
+  mouth opens on the first at once. A reply already finished in the gate
+  ("Berlin.") is spoken whole.
+- **AC-365 — the person goes on.** An onset during the gate cancels the held
+  reply; none of its tokens, its terminal or its failure ever reaches the app,
+  the mouth or the memory, even if it sends them after the cancel (the reply
+  ticket). The next final opens a new reply with the whole thought.
+- **AC-366 — a failure in the gate** is held: at the gate's end the turn fails
+  as it would have; if the person goes on, it disappears with its reply.
+- **AC-367 — the timeline under overlap** (F-46): ③ = final → the gate's end;
+  ④ = the gate's end → the first token passed on (zero when one was held);
+  ⑤ unchanged; ③ + ④ + ⑤ still equals `turnLatency` (AC-337); and a new
+  field says how long the mind had already worked when the gate ended.
+- **AC-368 — every early reply reported**, kept or cancelled, through
+  `LatencyReporter` (a defaulted hand-off); the demo's log lists them.
+- **AC-369 — tools never early** (F-47): a mind that may run a tool is opened
+  at the gate's end, exactly as today.
+- **AC-370 — off means today.** Opt-in off, or a zero gate: every existing
+  coordinator row green unchanged; the reply opens at the gate's end.
+- **AC-371 — measured.** The Mac harness with the REAL local 4B (its weights
+  are gone with `/tmp`: a ~2.3 GB download, asked separately), before and
+  after; then Ryad's phone: the felt pause before and after, and the early
+  replies kept and cancelled.
+- **AC-372 — nothing else moved.** The suite; the 20× loop 20 of 20; lint
+  zero; mutations (hold, release, the reply ticket, the tool rule); `api.sh`
+  additions only; the demo compiles.
+
+### Test matrix
+
+| criterion | planned test | kind |
+|---|---|---|
+| AC-363 … AC-366, AC-369, AC-370 | `ThinkInTheGateTests` (new) · scripted mind and mouth, `ManualClock` | coordinator |
+| AC-367 | `TurnTimelineTests` (new rows) | coordinator |
+| AC-368 | `ThinkInTheGateTests` · a recorder | coordinator |
+| AC-371 | the harness, then Ryad's session | Mac, phone |
+| AC-372 | the suite, the 20× loop, lint, mutations, `api.sh`, `xcodebuild` | — |
+
+## §254 — the forks (Ryad rules)
+
+- **F-43 — what starts in the gate.** **A:** the mind only; its tokens held.
+  **B:** the mind and the voice's first phrase, its audio held: needs a new
+  "prepare, do not play" in the mouth's seam, and saves nothing while ④ ≥ ③
+  (today 542 ≥ 505). **C:** nothing; shorten the gate instead: the app's
+  number, ~200 ms at 300 ms, and more replies started on a person's pause.
+  **Recommendation: A.**
+- **F-44 — the mind's kept session after an early reply is cancelled** (5b
+  keeps one session per conversation; AC-306: a cut answer's session is never
+  asked again). **A:** a cancelled early reply counts as cut: the next turn
+  re-seeds (one full prefill, a slower ④ on that turn). Correct, nothing new
+  in the mind, and counted (§251/5). **B:** the mind rolls its session back to
+  before the early prompt: no re-seed, but new work inside both minds.
+  **Recommendation: A**, and B later only if the phone's count says the
+  re-seeds cost real time.
+- **F-45 — who turns it on.** **A:** the app, with a new `Config` flag,
+  default off (D-027: the app that owns the device owns the policy, and it
+  pays the heat of every thrown-away reply); the demo turns it on. **B:**
+  always on whenever a gate is set. **Recommendation: A.**
+- **F-46 — the timeline under overlap.** **A:** the stages stay what the
+  person waits through (AC-367), plus a new field for the thinking done inside
+  the gate; the sum still equals `turnLatency`. **B:** ④ stays "opened → first
+  token", measured from the final: the stages overlap and no longer sum to the
+  pause (breaks AC-337). **Recommendation: A.**
+- **F-47 — tools.** An early reply that calls a tool would RUN it (a meal
+  logged) before the person has finished, and they may go on. **A:** never
+  early when the mind may run a tool: the mind's protocol gains a defaulted
+  "may act" (default: yes, so a mind that says nothing is never opened early;
+  ours say no when they have no tools). Safe; the diet app (tools on) gets no
+  speed-up from this piece. **B:** early always, and the tool door holds every
+  call until the gate ends: the speed-up everywhere, but new waiting inside
+  both minds' tool loops. **C:** early always; the app is warned in the docs.
+  **Recommendation: A.**
+
+## §255 — definition of done (piece 4)
+
+Red before green; the suite green; mutations; the 20× loop 20 of 20; lint
+zero; `api.sh` additions only; the demo compiles; the Mac numbers with the
+real 4B (Ryad's yes for the download); Ryad's phone session; one branch and
+one PR for this piece; present → HALT.
