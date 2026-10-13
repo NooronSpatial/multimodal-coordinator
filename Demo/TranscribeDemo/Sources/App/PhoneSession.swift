@@ -102,6 +102,12 @@ struct ThoughtWitness: ReplyGenerating {
     func endConversation() async {
         await wrapped.endConversation()
     }
+
+    /// PASSED ON, and WIDENED (5d piece 4, F-47 A): this witness hands the
+    /// mind the demo's tools PER CALL, and the mind itself is built with
+    /// none — so asking only the mind would say "no tools" while the switch
+    /// is on, and a meal could be logged inside the gate.
+    var mayActDuringReply: Bool { !toolsForTurn().isEmpty || wrapped.mayActDuringReply }
 }
 
 /// One turn, as it really happened, for sharing off the phone.
@@ -230,6 +236,8 @@ struct PhoneEchoReply: ReplyGenerating {
     /// own view, which is the only honest witness that 4c's ledger
     /// delivered everything (AC-91).
     let onThought: @Sendable (ReplyContext) -> Void
+    /// An echo only talks (5d piece 4, F-47 A).
+    var mayActDuringReply: Bool { false }
 
     func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         onThought(context)

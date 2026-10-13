@@ -7,12 +7,14 @@ extension TurnCoordinator {
     func handleReply(
         _ update: ReplyUpdate,
         turn: Int,
+        reply: Int,
         forwardingInto group: inout TaskGroup<Void>,
         via input: AsyncStream<Input>.Continuation
     ) async {
         // THE TICKET: checked in the same actor step that could retire it.
         // A dead turn's tokens stop at this line — defiant stages included.
-        guard let live = current, live.turn == turn else { return }
+        // Then the reply ticket and the hold (5d piece 4, `goesOnNow`).
+        guard let live = current, live.turn == turn, goesOnNow(update, reply: reply) else { return }
 
         switch update {
         case .token(let token):
@@ -150,7 +152,8 @@ extension TurnCoordinator {
                         earFinish: end.map { $0.duration(to: start) },
                         gate: start.duration(to: opened),
                         firstToken: opened.duration(to: token),
-                        firstSound: token.duration(to: now)))
+                        firstSound: token.duration(to: now),
+                        thoughtInTheGate: live.thoughtInTheGate))
                 }
             }
 

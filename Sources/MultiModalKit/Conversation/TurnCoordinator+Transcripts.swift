@@ -65,6 +65,9 @@ extension TurnCoordinator {
                     try? await clock.sleep(until: deadline, tolerance: nil)
                     input.yield(.gateExpired(turn: turn, utterance: armedFor))
                 }
+                // THINK IN THE GATE (5d piece 4, D-144): the mind may start
+                // NOW, and what it says is held until the gate runs out.
+                await openEarlyIfAsked(turn: turn, forwardingInto: &group, via: input)
                 return
             }
             transition(to: .thinking, turn: turn)
@@ -108,6 +111,13 @@ extension TurnCoordinator {
         else { return }
         current?.replyArmed = false
         transition(to: .thinking, turn: turn)
+        // An early reply is already thinking (5d piece 4): what it held goes
+        // on now. Its prompt is still the whole thought — anything the
+        // speaker added would have come with an onset, and thrown it away.
+        if live.held != nil {
+            await releaseHeld(turn: turn, forwardingInto: &group, via: input)
+            return
+        }
         // Built HERE, not when the gate was armed: anything the speaker
         // added during the gate belongs to the same thought.
         await openGeneration(of: ledger.text, turn: turn, forwardingInto: &group, via: input)
@@ -115,14 +125,16 @@ extension TurnCoordinator {
 
     /// Opens the generator for a turn already in `thinking` — the single
     /// path, whether the gate was zero or just expired.
+    /// - Parameter early: opened inside the gate (5d piece 4, D-144): ③ then
+    ///   ends at the gate's end, not here, and a failure is held, not acted on.
     func openGeneration(
-        of text: String, turn: Int,
+        of text: String, turn: Int, early: Bool = false,
         forwardingInto group: inout TaskGroup<Void>,
         via input: AsyncStream<Input>.Continuation
     ) async {
         // ③ ends here (5d, D-133): the reply is opened — right at the final,
         // or when the gate ran out. The mind's own time starts now.
-        if let clock { current?.openedAt = clock.now }
+        if !early, let clock { current?.openedAt = clock.now }
         do {
             // WHAT THE MIND IS GIVEN (4r, F-1 = B): this thought, and the
             // bounded past with the halves kept apart. Built HERE rather
@@ -131,15 +143,19 @@ extension TurnCoordinator {
             let run = try await replyGenerator.openReply(
                 to: ReplyContext(transcript: text, history: memory.turns))
             // Reentrancy law: a barge or stop() may have run while we
-            // awaited. The ticket answers.
-            guard !isStopped, current?.turn == turn else {
+            // awaited. The ticket answers — and an early reply must still be
+            // held for (nothing threw it away meanwhile).
+            guard !isStopped, current?.turn == turn, !early || current?.held != nil else {
                 await run.cancel()
                 return
             }
+            replyTickets += 1
+            let reply = replyTickets
+            current?.reply = reply
             current?.replyRun = run
             group.addTask {
                 for await update in run.updates {
-                    input.yield(.reply(turn: turn, update))
+                    input.yield(.reply(turn: turn, reply: reply, update))
                 }
             }
         } catch {
@@ -150,19 +166,26 @@ extension TurnCoordinator {
             // `.idle → .idle` transition AND a second terminal event for a
             // turn that is already dead. The ticket answers, as always.
             guard !isStopped, current?.turn == turn else { return }
-            // At the open, typed (5c, D-128 F-23 A): a TurnFailure passes
-            // through as it always did; a ReplyFailure — whatever the
-            // mind's door refused with — is the turn's failure as it
-            // is; anything else a generator throws keeps the words the
-            // string carried before, as `.engine` (`.unexplained` is the
-            // VENDOR's unnamed failure, and a caller's error is not that).
-            if let failure = error as? TurnFailure {
-                failTurn(turn, with: failure)
-            } else if let failure = error as? ReplyFailure {
-                failTurn(turn, with: .generationFailed(failure))
-            } else {
-                failTurn(turn, with: .generationFailed(.engine(String(describing: error))))
+            // Inside the gate the failure is HELD (AC-366): it fails the turn
+            // when the gate runs out, or goes with its reply if the person
+            // goes on.
+            if early {
+                if current?.held != nil { current?.heldOpenFailure = Self.turnFailure(at: error) }
+                return
             }
+            failTurn(turn, with: Self.turnFailure(at: error))
         }
+    }
+
+    /// An open's error, as the turn's failure. Typed (5c, D-128 F-23 A): a
+    /// TurnFailure passes through as it always did; a ReplyFailure —
+    /// whatever the mind's door refused with — is the turn's failure as it
+    /// is; anything else a generator throws keeps the words the string
+    /// carried before, as `.engine` (`.unexplained` is the VENDOR's unnamed
+    /// failure, and a caller's error is not that).
+    static func turnFailure(at error: any Error) -> TurnFailure {
+        if let failure = error as? TurnFailure { return failure }
+        if let failure = error as? ReplyFailure { return .generationFailed(failure) }
+        return .generationFailed(.engine(String(describing: error)))
     }
 }

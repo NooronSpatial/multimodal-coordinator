@@ -57,6 +57,8 @@ extension Duration {
 /// VERBATIM and never invents a space.
 struct PacedEchoReply: ReplyGenerating {
     let screen: Screen
+    /// An echo only talks (5d piece 4, F-47 A).
+    var mayActDuringReply: Bool { false }
 
     func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         let transcript = context.transcript

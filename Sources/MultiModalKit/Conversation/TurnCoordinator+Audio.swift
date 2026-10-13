@@ -36,6 +36,9 @@ extension TurnCoordinator {
             // the meaning, that guard is the proof.)
             current?.utterance = utterance
             current?.replyArmed = false
+            // …and a reply already thinking in the gate goes with it, in
+            // silence (5d piece 4, AC-365).
+            await throwAwayEarlyReply()
 
         case .thinking, .speaking:
             await barge(for: utterance, window: opening.window)

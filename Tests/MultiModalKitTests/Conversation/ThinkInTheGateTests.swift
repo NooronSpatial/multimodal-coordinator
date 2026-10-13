@@ -123,7 +123,13 @@ struct ThinkInTheGateTests {
     func thePersonGoesOn() async throws {
         let clock = ManualClock()
         let recorder = EarlyRecorder()
-        let bench = try Self.bench(.manual(replies: 3), utterances: 2, clock: clock, recorder: recorder)
+        // Reply 0 is DEFIANT: it ignores its cancel and keeps its stream open,
+        // so the stragglers forced below really reach the coordinator. (The
+        // first green run used a conformant reply here: its stream closed at
+        // the cancel, the stragglers never arrived, and the row waited for
+        // drops that could not happen — the test's mistake, not the code's.)
+        let generator = ScriptedReplyGenerator(plans: [.manual(ignoresCancel: true), .manual(), .manual()])
+        let bench = try Self.bench(generator, utterances: 2, clock: clock, recorder: recorder)
         let listener = await bench.coordinator.listen()
         await withTaskGroup(of: Void.self) { group in
             bench.start(in: &group, listener: listener)
