@@ -1,0 +1,86 @@
+## M96 — nothing is held: an early reply's words leave at once
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - a failure in the gate disappears with its reply when the person goes on
+  - a reply that fails in the gate fails the turn only when the gate runs out
+  - held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported
+  - the mind opens at the final; its words are held until the gate runs out, then go on in order, once
+  - the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought
+reverted: yes
+
+## M97 — no reply ticket: a thrown-away reply's stragglers get through
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought
+reverted: yes
+
+## M98 — the reply ticket is not raised when the early reply is thrown away
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought
+reverted: yes
+
+## M99 — a mind that may act is opened early anyway
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - a mind that may act — it has tools — is opened when the gate runs out, as today
+reverted: yes
+
+## M100 — the app's opt-in is ignored: always early
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - A stale final during the gate is dropped at the door; the armed reply survives it
+  - An onset during the gate kills the pending reply silently; the next final gates again
+  - An onset one tick before expiry wins the race
+  - The gate holds the generator shut, then expiry opens thinking at the exact instant
+  - off means today: the opt-in off, the mind opens when the gate runs out
+  - stop() during the gate: clean end, no generator, no sleeping child left behind
+reverted: yes
+
+## M101 — a held open failure is forgotten at the gate's end
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - a mind that cannot even open, inside the gate, fails the turn only when the gate runs out
+reverted: yes
+
+## M102 — ③ does not end at the gate's end
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - a first token after the gate's end: ④ is what was left to wait for it
+  - held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported
+reverted: yes
+
+## M103 — the timeline never says how long the mind thought in the gate
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - a first token after the gate's end: ④ is what was left to wait for it
+  - held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported
+reverted: yes
+
+## M104 — an onset in the gate does not throw the early reply away
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Audio.swift
+KILLED — red rows:
+  - a failure in the gate disappears with its reply when the person goes on
+  - the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought
+reverted: yes
+
+## M105 — a kept early reply is never reported
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+ThinkInTheGate.swift
+KILLED — red rows:
+  - the mind opens at the final; its words are held until the gate runs out, then go on in order, once
+  - the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought
+reverted: yes
+
+## M106 — the Apple mind says it never acts
+file: Sources/MultiModalKit/Conversation/AppleReplyGenerator.swift
+KILLED — red rows:
+  - the Apple mind may act exactly when it was given tools
+reverted: yes
+
+## M107 — the MLX mind says it always acts
+file: Sources/MultiModalKitMLX/MLXReplyGenerator.swift
+KILLED — red rows:
+  - the MLX mind may act exactly when its source was given tools
+reverted: yes
+
+source tree after the run: clean
