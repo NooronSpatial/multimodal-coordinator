@@ -239,6 +239,16 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// position, queryable the same "ask for now" way as the state.
     public var currentUtterance: Int { lastOnset }
 
+    /// THINK IN THE GATE, as facts a test can wait for (5d piece 4) —
+    /// internal, not API. Holding is invisible by design (nothing leaves the
+    /// coordinator), so a test that must prove "held, not merely not yet
+    /// arrived" reads it here.
+    /// What an early reply has said and the coordinator holds, the open's
+    /// own failure included.
+    var heldReplyUpdates: Int { 0 }
+    /// Updates from a reply already thrown away, stopped by the reply ticket.
+    var staleReplyUpdatesDropped: Int { 0 }
+
     /// The thought as it stands: everything the speaker has said that has
     /// not yet been answered (AC-85). Same "ask for now, replay nothing"
     /// pattern as `currentState` (D-030) — an app can show what the

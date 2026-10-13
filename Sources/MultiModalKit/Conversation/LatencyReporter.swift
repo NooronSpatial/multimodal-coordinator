@@ -35,6 +35,11 @@ public protocol LatencyReporter: Sendable {
     /// piece 3, F-40 A): how long it stayed loud, its loudest chunk, its
     /// verdict. Defaults to nothing; a wrapping reporter must forward it.
     func bargeCandidate(_ candidate: BargeCandidate)
+
+    /// Every reply opened early, inside the reply gate (5d piece 4, AC-368):
+    /// kept when the gate ran out, or thrown away because the person went
+    /// on. Defaults to nothing; a wrapping reporter must forward it.
+    func earlyReply(_ report: EarlyReply)
 }
 
 extension LatencyReporter {
@@ -44,4 +49,6 @@ extension LatencyReporter {
     public func bargeTimeline(_ timeline: BargeTimeline) {}
     /// Nothing: a reporter that never asked for candidates (5d piece 3).
     public func bargeCandidate(_ candidate: BargeCandidate) {}
+    /// Nothing: a reporter that never asked for early replies (5d piece 4).
+    public func earlyReply(_ report: EarlyReply) {}
 }
