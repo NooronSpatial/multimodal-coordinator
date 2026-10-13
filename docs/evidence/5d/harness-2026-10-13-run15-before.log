@@ -1,0 +1,299 @@
+warning: 'zipfoundation': /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Building for production...
+[Computing dependencies]
+[Provisioning 8 / 75]
+[Pre-planning 1 / 1512]
+[Planning deferred tasks]
+[Starting]
+[5 / 72] ArgmaxCore
+[31 / 120] ArgumentParserToolInfo
+[38 / 128]
+[42 / 128] yyjson
+[48 / 139]
+[51 / 139]
+[53 / 139]
+[54 / 139] EventSource
+[67 / 208]
+[79 / 260]
+[88 / 261]
+[101 / 258]
+[113 / 306] ArgumentParser
+[123 / 308]
+[134 / 320] ComplexModule
+[140 / 324]
+[142 / 320]
+[151 / 321]
+[160 / 321]
+[167 / 321]
+[177 / 321]
+[186 / 321]
+[192 / 321]
+[197 / 321]
+[201 / 321]
+[208 / 321]
+[212 / 321]
+[213 / 321]
+[214 / 321]
+[216 / 321]
+[223 / 321]
+[231 / 321]
+[233 / 321]
+[237 / 321]
+[238 / 321]
+[242 / 321]
+[247 / 321]
+[247 / 321] Crypto
+[254 / 321] EventSource
+[258 / 325]
+[260 / 325] Jinja
+[264 / 326] yyjson
+[264 / 326] HuggingFace
+[273 / 337]
+[274 / 337]
+[275 / 337]
+[276 / 337] ZIPFoundation
+[278 / 333] MultiModalKit
+/Users/ryad/Developer/multimodal-coordinator/Sources/MultiModalKit/Conversation/AppleReplyGenerator+Session.swift:180:33: [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m178 |[0;0m             sampling = .random(top: Self.seededTopK, seed: seed)
+[0;36m179 |[0;0m         }
+[0;36m180 |[0;0m         return FoundationModels.GenerationOptions(
+    [0;36m|[0;0m                                 |- [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+    [0;36m|[0;0m                                 `- [1;39mnote: [1;39muse 'init(samplingMode:temperature:maximumResponseTokens:)' instead[0;0m
+[0;36m181 |[0;0m             sampling: sampling,
+[0;36m182 |[0;0m             temperature: options.temperature.map(Double.init),
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[284 / 333] ArgumentParser
+[297 / 368]
+[302 / 368]
+[304 / 368] ArgmaxCore
+[313 / 383]
+[317 / 383]
+[320 / 383]
+[325 / 383]
+[327 / 383]
+[332 / 386]
+[334 / 386]
+[336 / 387] Cmlx
+[337 / 387] Cmlx
+[338 / 388] HuggingFace
+[340 / 384] Jinja
+[344 / 388] Hub
+[357 / 422]
+[365 / 422]
+[371 / 422]
+[372 / 422]
+[374 / 422]
+[377 / 422]
+[378 / 422]
+[379 / 422] TTSKit
+[381 / 418] Hub
+[385 / 422] Tokenizers
+[387 / 423] MLX
+[397 / 451] MLXFFT
+[410 / 459] MLXFFT
+[414 / 451] MultiModalKitWhisper
+[416 / 452] MLXUtilsLibrary
+[418 / 448] MultiModalKitWhisper
+[421 / 445] Tokenizers
+[425 / 449] MLXNN
+[431 / 461] Generation
+[438 / 465] Generation
+[446 / 473] Models
+[450 / 475] Models
+[452 / 471] MisakiSwift
+[456 / 475] KokoroSwift
+[458 / 476] KokoroSwift
+[461 / 478] MultiModalKitTTS
+[463 / 479] MultiModalKitTTS
+[466 / 476] MLXLMCommon
+[472 / 488] MLXHuggingFace
+[476 / 490] MLXHuggingFace
+[478 / 486] MLXLLM
+[481 / 488] MultiModalKitMLX
+[484 / 490] MultiModalKitMLX
+[490 / 492] MultiModalKitMLX
+[490 / 493] audio-demo-product
+[491 / 494] audio-demo-product
+[493 / 494] audio-demo-product
+[494 / 494] audio-demo-product
+Build complete! (77.11 sec)
+voice: Kokoro-82M · float16 · phrases ≤ 120 chars, opening at 20 and 40 · quiet trimmed (margin 40 ms)
+
+🧪 THE SCRIPTED PERSON — Fixtures/ryad-en.wav, 22 sentences, 20 turns, interrupting at [7, 14]
+    hangover 300 ms · gate 500 ms · window 320 ms · vad 0.02 · think in the gate off
+
+🗣  sentence 1/20 (1380 ms of audio)
+   · turn 0 listening
+   · turn 0 thinking
+   · turn 0 speaking
+⏱  turn 0: ① 300 · ② 10442 · ③ 505 · ④ 816 · ⑤ 5796  →  felt 17859 ms
+   · turn 0 completed
+   · turn 0 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 2/20 (2460 ms of audio)
+   · turn 1 listening
+   · turn 1 thinking
+   · turn 1 speaking
+⏱  turn 1: ① 300 · ② 176 · ③ 503 · ④ 949 · ⑤ 279  →  felt 2207 ms
+   · turn 1 completed
+   · turn 1 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 3/20 (1120 ms of audio)
+   · turn 2 listening
+   · turn 2 thinking
+   · turn 2 speaking
+⏱  turn 2: ① 300 · ② 131 · ③ 501 · ④ 521 · ⑤ 447  →  felt 1900 ms
+   · turn 2 completed
+   · turn 2 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 4/20 (1180 ms of audio)
+   · turn 3 listening
+   · turn 3 thinking
+   · turn 3 speaking
+⏱  turn 3: ① 300 · ② 112 · ③ 506 · ④ 616 · ⑤ 318  →  felt 1852 ms
+   · turn 3 completed
+   · turn 3 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 5/20 (1440 ms of audio)
+   · turn 4 listening
+   · turn 4 thinking
+   · turn 4 speaking
+⏱  turn 4: ① 300 · ② 128 · ③ 503 · ④ 719 · ⑤ 324  →  felt 1974 ms
+   · turn 4 completed
+   · turn 4 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 6/20 (2260 ms of audio)
+   · turn 5 listening
+   · turn 5 thinking
+   · turn 5 speaking
+⏱  turn 5: ① 300 · ② 130 · ③ 505 · ④ 991 · ⑤ 397  →  felt 2324 ms
+🗣  sentence 7/20 (2460 ms of audio) — OVER the answer
+🔊 candidate over turn 5: loud 340 ms · onset → verdict 320 ms → CUT
+✋ barge (turn 5 dies): ⑦ window 320 · ⑧ silence 0  →  320 ms from your first sound
+   · turn 5 BARGED
+   · turn 6 listening
+⏸  reply pauses: 0 over 300 ms · longest 80 ms · quiet before the first word 40 ms
+   · turn 6 thinking
+   · turn 6 speaking
+⏱  turn 6: ① 300 · ② 142 · ③ 507 · ④ 1264 · ⑤ 389  →  felt 2601 ms
+   · turn 6 completed
+   · turn 6 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 8/20 (1740 ms of audio)
+   · turn 7 listening
+   · turn 7 thinking
+   · turn 7 speaking
+⏱  turn 7: ① 300 · ② 295 · ③ 506 · ④ 936 · ⑤ 369  →  felt 2406 ms
+   · turn 7 completed
+   · turn 7 idle
+⏸  reply pauses: 0 over 300 ms · longest 173 ms · quiet before the first word 40 ms
+🗣  sentence 9/20 (1760 ms of audio)
+   · turn 8 listening
+   · turn 8 thinking
+   · turn 8 speaking
+⏱  turn 8: ① 300 · ② 108 · ③ 502 · ④ 1303 · ⑤ 388  →  felt 2602 ms
+   · turn 8 completed
+   · turn 8 idle
+⏸  reply pauses: 0 over 300 ms · longest 163 ms · quiet before the first word 40 ms
+🗣  sentence 10/20 (4880 ms of audio)
+   · turn 9 listening
+   · turn 9 thinking
+   · turn 9 speaking
+⏱  turn 9: ① 300 · ② 215 · ③ 507 · ④ 1017 · ⑤ 419  →  felt 2458 ms
+   · turn 9 completed
+   · turn 9 idle
+⏸  reply pauses: 0 over 300 ms · longest 197 ms · quiet before the first word 40 ms
+🗣  sentence 11/20 (1540 ms of audio)
+   · turn 10 listening
+   · turn 10 thinking
+   · turn 10 speaking
+⏱  turn 10: ① 300 · ② 143 · ③ 507 · ④ 948 · ⑤ 382  →  felt 2280 ms
+   · turn 10 completed
+   · turn 10 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 12/20 (1220 ms of audio)
+   · turn 11 listening
+   · turn 11 thinking
+   · turn 11 speaking
+⏱  turn 11: ① 300 · ② 130 · ③ 502 · ④ 833 · ⑤ 316  →  felt 2081 ms
+   · turn 11 completed
+   · turn 11 idle
+⏸  reply pauses: 0 over 300 ms · longest 140 ms · quiet before the first word 40 ms
+🗣  sentence 13/20 (980 ms of audio)
+   · turn 12 listening
+   · turn 12 idle
+🗣  sentence 14/20 (2260 ms of audio) — OVER the answer
+   · turn 13 listening
+   · turn 13 thinking
+   · turn 13 speaking
+⏱  turn 13: ① 300 · ② 145 · ③ 504 · ④ 940 · ⑤ 387  →  felt 2276 ms
+   · turn 13 completed
+   · turn 13 idle
+⏸  reply pauses: 0 over 300 ms · longest 174 ms · quiet before the first word 40 ms
+🗣  sentence 15/20 (1480 ms of audio)
+   · turn 14 listening
+   · turn 14 idle
+🗣  sentence 16/20 (1320 ms of audio)
+   · turn 15 listening
+   · turn 15 thinking
+   · turn 15 speaking
+⏱  turn 15: ① 300 · ② 236 · ③ 510 · ④ 829 · ⑤ 409  →  felt 2283 ms
+   · turn 15 completed
+   · turn 15 idle
+⏸  reply pauses: 0 over 300 ms · longest 109 ms · quiet before the first word 40 ms
+🗣  sentence 17/20 (2240 ms of audio)
+   · turn 16 listening
+   · turn 16 thinking
+   · turn 16 speaking
+⏱  turn 16: ① 300 · ② 142 · ③ 501 · ④ 720 · ⑤ 352  →  felt 2015 ms
+   · turn 16 completed
+   · turn 16 idle
+⏸  reply pauses: 0 over 300 ms · longest 162 ms · quiet before the first word 40 ms
+🗣  sentence 18/20 (920 ms of audio)
+   · turn 17 listening
+   · turn 17 idle
+🗣  sentence 19/20 (1120 ms of audio)
+   · turn 18 listening
+   · turn 18 thinking
+   · turn 18 speaking
+⏱  turn 18: ① 300 · ② 141 · ③ 505 · ④ 825 · ⑤ 316  →  felt 2087 ms
+   · turn 18 completed
+   · turn 18 idle
+⏸  reply pauses: 0 over 300 ms · longest 138 ms · quiet before the first word 40 ms
+🗣  sentence 20/20 (4480 ms of audio)
+   · turn 19 listening
+   · turn 19 thinking
+   · turn 19 speaking
+⏱  turn 19: ① 300 · ② 115 · ③ 502 · ④ 819 · ⑤ 309  →  felt 2044 ms
+   · turn 19 completed
+   · turn 19 idle
+⏸  reply pauses: 1 over 300 ms · longest 344 ms · quiet before the first word 40 ms
+
+(the runtime is down — teardown ran in order)
+
+════ THE TURN TIMELINE — 17 spoken turns, 1 barges ════
+  ① silence wait     300 ms (the app's hangover, every turn)
+  ② ear finish   median 142 ms · min 108 · max 10442 · n 17
+  ③ reply gate   median 505 ms · min 501 · max 510 · n 17
+  ④ first token  median 833 ms · min 521 · max 1303 · n 17
+  ⑤ first sound  median 382 ms · min 279 · max 5796 · n 17
+     FELT PAUSE   median 2276 ms · min 1852 · max 17859 · n 17
+     quiet before the 1st word  median 40 ms · min 40 · max 40 · n 17
+     FELT, TO THE FIRST WORD  median 2316 ms · min 1892 · max 17899 · n 17
+  ⑦ barge window  median 320 ms · min 320 · max 320 · n 1
+  ⑧ to silence   median 0 ms · min 0 · max 0 · n 1
+  loud · cut        median 340 ms · min 340 · max 340 · n 1
+  loud · abandoned  —
+  🧠 in the gate   —
+  🧠 early replies: 0 kept · 0 thrown away
+  ⑥ pauses inside answers: 1 over 300 ms in 17 replies · replies with one or more: 1
+  ⑥ longest pause  median 185 ms · min 80 · max 344 · n 17
