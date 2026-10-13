@@ -9026,7 +9026,7 @@ piece 3, CONTROL also passed most runs. If it fails again, its new story says
 whether the player rendered at all, and the next step is C, the real-audio
 rows alone in their own CI step (D-143).
 
-# 5d piece 4 — think in the gate: the mind starts at the final, the voice still waits for the gate (proposed, NOT signed)
+# 5d piece 4 — think in the gate: the mind starts at the final, the voice still waits for the gate (signed, D-144)
 
 ## §250 — why: the gate and the mind wait one after the other
 
