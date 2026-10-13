@@ -28,6 +28,10 @@ struct DemoFlags {
     let turns: Int
     /// `--interrupt-at=7,14`: the sentences said OVER the answer before them.
     let interruptAt: Set<Int>
+    /// `--think-in-gate`: the mind opens at the final, its words held until
+    /// the gate runs out (5d piece 4, D-144). Off without the flag — the
+    /// library's default — so one command measures before, the other after.
+    let thinksInTheGate: Bool
 
     init(arguments: [String]) {
         self.arguments = arguments
@@ -35,6 +39,7 @@ struct DemoFlags {
             : arguments.first { $0.hasPrefix("--person=") }.map { String($0.dropFirst("--person=".count)) }
         talk = arguments.contains("--talk") || personPath != nil
         windowMs = Self.number(after: "--window", in: arguments) ?? 0.0
+        thinksInTheGate = arguments.contains("--think-in-gate")
         turns = Self.number(after: "--turns", in: arguments) ?? 20
         interruptAt = Set((arguments.first { $0.hasPrefix("--interrupt-at=") }
             .map { String($0.dropFirst("--interrupt-at=".count)) } ?? "7,14")

@@ -7,6 +7,7 @@ import MultiModalKit
 //
 //   swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro \
 //       --hangover 300 --gate 500 --window 320      (judged on loud chunks since 5d piece 3, D-140)
+//       [--think-in-gate]                              (the mind opens at the final, 5d piece 4, D-144)
 //
 // No microphone: the person's voice reaches the ring directly, so this run
 // measures the pipeline and never an echo.
@@ -26,7 +27,8 @@ extension AudioDemo {
         print("\n🧪 THE SCRIPTED PERSON — \(path), \(script.sentences.count) sentences, \(script.turns) turns,"
               + " interrupting at \(script.interruptAt.sorted())")
         print("    hangover \(Int(flags.hangoverMs)) ms · gate \(Int(flags.gateMs)) ms"
-              + " · window \(Int(flags.windowMs)) ms · vad \(flags.vadThreshold)\n")
+              + " · window \(Int(flags.windowMs)) ms · vad \(flags.vadThreshold)"
+              + " · think in the gate \(flags.thinksInTheGate ? "ON" : "off")\n")
         await converseAndMeasure(harness)
     }
 

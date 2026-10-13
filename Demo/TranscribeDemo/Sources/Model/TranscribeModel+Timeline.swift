@@ -36,6 +36,8 @@ extension TranscribeModel {
 
     func record(candidate: BargeCandidate) { bargeCandidates.append(candidate) }
 
+    func record(early: EarlyReply) { earlyReplies.append(early) }
+
     func record(pauses: ReplyPauses) { replyPauses.append(pauses) }
 
     /// The log's timeline section: every row, then the medians.
@@ -48,7 +50,14 @@ extension TranscribeModel {
             let ear = timeline.earFinish.map(Self.ms) ?? "?"
             let felt = timeline.felt(hangover: hangover).map(Self.ms) ?? "?"
             out += "turn \(timeline.turn): ② \(ear) · ③ \(Self.ms(timeline.gate)) · ④ \(Self.ms(timeline.firstToken))"
-            out += " · ⑤ \(Self.ms(timeline.firstSound)) → felt \(felt) ms\n"
+            out += " · ⑤ \(Self.ms(timeline.firstSound)) → felt \(felt) ms"
+            let inGate = timeline.thoughtInTheGate
+            out += inGate > .zero ? " · thought in the gate \(Self.ms(inGate))\n" : "\n"
+        }
+        // 5d piece 4 (AC-368): every reply the mind started inside the gate.
+        for early in earlyReplies {
+            out += "early reply over turn \(early.turn): thought \(Self.ms(early.thought)) ms → "
+                + (early.kept ? "kept" : "thrown away") + "\n"
         }
         for barge in barges {
             out += "barge (turn \(barge.turn) dies): ⑦ \(Self.ms(barge.window)) · ⑧ \(Self.ms(barge.silence))"
@@ -78,6 +87,8 @@ extension TranscribeModel {
         out += Self.medianLine("⑧ silent", barges.map(\.silence))
         out += Self.medianLine("loud · cut      ", bargeCandidates.filter(\.accepted).map(\.loudTime))
         out += Self.medianLine("loud · abandoned", bargeCandidates.filter { !$0.accepted }.map(\.loudTime))
+        out += "early replies: \(earlyReplies.filter(\.kept).count) kept"
+            + " · \(earlyReplies.filter { !$0.kept }.count) thrown away\n"
         out += Self.medianLine("⑥ longest pause", replyPauses.map(\.longest))
         out += "⑥ replies with a pause over 300 ms: \(replyPauses.filter { $0.gaps > 0 }.count)\n```\n"
         return out

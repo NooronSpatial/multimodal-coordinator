@@ -12,6 +12,7 @@ final class HarnessLatency: LatencyReporter, Sendable {
         var barges: [BargeTimeline] = []
         var pauses: [ReplyPauses] = []
         var candidates: [BargeCandidate] = []
+        var early: [EarlyReply] = []
     }
 
     /// ① — the app's own silence wait (F-26 A): the person's sound stopped
@@ -29,8 +30,17 @@ final class HarnessLatency: LatencyReporter, Sendable {
         kept.withLock { $0.timelines.append(timeline) }
         let ear = timeline.earFinish.map { $0.ms } ?? "  ?"
         let felt = timeline.felt(hangover: hangover).map { $0.ms } ?? "?"
+        let inGate = timeline.thoughtInTheGate
+        let thought = inGate > .zero ? " · 🧠 thought in the gate \(inGate.ms)" : ""
         print("⏱  turn \(timeline.turn): ① \(hangover.ms) · ② \(ear) · ③ \(timeline.gate.ms)"
-              + " · ④ \(timeline.firstToken.ms) · ⑤ \(timeline.firstSound.ms)  →  felt \(felt) ms")
+              + " · ④ \(timeline.firstToken.ms) · ⑤ \(timeline.firstSound.ms)  →  felt \(felt) ms" + thought)
+    }
+
+    /// Every reply opened early, inside the gate (5d piece 4, AC-368).
+    func earlyReply(_ report: EarlyReply) {
+        kept.withLock { $0.early.append(report) }
+        print("🧠 early reply over turn \(report.turn): thought \(report.thought.ms) ms → "
+              + (report.kept ? "kept" : "thrown away"))
     }
 
     func bargeTimeline(_ timeline: BargeTimeline) {
@@ -75,6 +85,9 @@ final class HarnessLatency: LatencyReporter, Sendable {
         lines.append(row("⑧ to silence ", kept.barges.map(\.silence)))
         lines.append(row("loud · cut      ", kept.candidates.filter(\.accepted).map(\.loudTime)))
         lines.append(row("loud · abandoned", kept.candidates.filter { !$0.accepted }.map(\.loudTime)))
+        lines.append(row("🧠 in the gate ", spoken.map(\.thoughtInTheGate).filter { $0 > .zero }))
+        lines.append("  🧠 early replies: \(kept.early.filter(\.kept).count) kept"
+                     + " · \(kept.early.filter { !$0.kept }.count) thrown away")
         let gaps = kept.pauses.map(\.gaps)
         lines.append("  ⑥ pauses inside answers: \(gaps.reduce(0, +)) over 300 ms in \(gaps.count) replies"
                      + " · replies with one or more: \(gaps.filter { $0 > 0 }.count)")

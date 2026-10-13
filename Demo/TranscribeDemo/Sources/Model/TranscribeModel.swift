@@ -384,6 +384,8 @@ final class TranscribeModel {
     var barges: [BargeTimeline] = []
     /// Every barge candidate, as the window judged it (5d piece 3, F-40 A).
     var bargeCandidates: [BargeCandidate] = []
+    /// Every reply opened early, inside the gate (5d piece 4, AC-368).
+    var earlyReplies: [EarlyReply] = []
     var replyPauses: [ReplyPauses] = []
     /// The platform took the audio away. Nothing resumes by itself
     /// (F-5 = B): a person decides when a microphone turns back on.

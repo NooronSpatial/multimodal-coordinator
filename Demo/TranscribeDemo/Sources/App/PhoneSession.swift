@@ -271,6 +271,11 @@ struct PhoneLatency: LatencyReporter {
         Task { @MainActor in model?.record(candidate: candidate) }
     }
 
+    func earlyReply(_ report: EarlyReply) {
+        let model = model
+        Task { @MainActor in model?.record(early: report) }
+    }
+
     func cancelLatency(_ duration: Duration, turn: Int) {
         // The barge number is the Mac demo's story; the phone's screen
         // stays quiet about it rather than growing a row nobody reads.
