@@ -1,0 +1,22 @@
+# the 20x loop at 45dbd3e — 2026-10-14-piece4. swift test --skip-build, this Mac, 10 cores.
+run 1: 􁁛  Test run with 1054 tests in 150 suites passed after 31.282 seconds.
+run 2: 􁁛  Test run with 1054 tests in 150 suites passed after 46.208 seconds.
+run 3: 􀢄  Test run with 1054 tests in 150 suites failed after 72.906 seconds with 3 issues.
+run 4: 􁁛  Test run with 1054 tests in 150 suites passed after 87.079 seconds.
+run 5: 􁁛  Test run with 1054 tests in 150 suites passed after 66.438 seconds.
+run 6: 􀢄  Test run with 1054 tests in 150 suites failed after 128.001 seconds with 10 issues.
+run 7: 􁁛  Test run with 1054 tests in 150 suites passed after 32.863 seconds.
+run 8: 􀢄  Test run with 1054 tests in 150 suites failed after 122.044 seconds with 2 issues.
+run 9: 􀢄  Test run with 1054 tests in 150 suites failed after 205.072 seconds with 5 issues.
+run 10: 􀢄  Test run with 1054 tests in 150 suites failed after 94.848 seconds with 2 issues.
+run 11: 􀢄  Test run with 1054 tests in 150 suites failed after 123.000 seconds with 4 issues.
+run 12: 􁁛  Test run with 1054 tests in 150 suites passed after 41.259 seconds.
+run 13: 􀢄  Test run with 1054 tests in 150 suites failed after 82.150 seconds with 1 issue.
+run 14: 􁁛  Test run with 1054 tests in 150 suites passed after 37.695 seconds.
+run 15: 􁁛  Test run with 1054 tests in 150 suites passed after 22.782 seconds.
+run 16: 􁁛  Test run with 1054 tests in 150 suites passed after 58.906 seconds.
+run 17: 􀢄  Test run with 1054 tests in 150 suites failed after 200.827 seconds with 1 issue.
+run 18: 􀢄  Test run with 1054 tests in 150 suites failed after 258.988 seconds with 19 issues.
+run 19: 􀢄  Test run with 1054 tests in 150 suites failed after 170.274 seconds with 7 issues.
+run 20: 􀢄  Test run with 1054 tests in 150 suites failed after 219.525 seconds with 6 issues.
+done 10:55:38

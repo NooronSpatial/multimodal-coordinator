@@ -6249,3 +6249,61 @@ Session 2's slower mind is the heat ("serious"), as §73b's was.
 **Against F-30's line:** an interruption 320 ms median (line 0.4): met. No
 self-cut in 29 spoken turns: met. The felt pause to the first word 2.2 s
 (line 0.8): **not met**, the next speed piece.
+
+## 76. The mind that thinks in the gate — piece 4 on this Mac (5d, AC-371)
+
+**What changed** (D-144): with the app's opt-in, the reply opens at the final
+instead of when the 500 ms reply gate runs out; what it says is held until the
+gate ends, and a person who goes on throws it away in silence.
+
+**Machine and setup.** This Mac; the harness (`audio-demo whisper --person`,
+the scripted person, 20 turns, two interruptions); the real local
+Qwen3-4B-4bit, fetched again to `~/Developer/models` (its old copy under `/tmp`
+was removed); Kokoro; 300 · 500 · 320. "Greedy" runs ask the mind for
+temperature 0 (`--greedy`), so before and after give the same answers word for
+word. Every log is under `docs/evidence/5d/harness-2026-10-1[34]-run1*`/`run2*`.
+
+| run | | ④ first token | ⑤ first sound | **felt, to the first word** | replies paused > 300 ms |
+|---|---|---:|---:|---:|---:|
+| 15 | before | 833 | 382 | 2 316 | 1 of 17 |
+| 17 | before | 815 | 311 | 2 208 | 0 of 17 |
+| 19 | before, greedy | 1 079 | 395 | 2 527 | 1 of 18 |
+| 16 | **after** | 312 | 345 | **1 697** | **12 of 17** |
+| 18 | **after** | 548 | 390 | **1 977** | 0 of 18 |
+| 20 | **after**, greedy | — | — | killed (see below) | — |
+| 21 | **after**, greedy | 441 | 362 | **1 793** | 0 of 18 |
+| 22 | **after**, greedy | 514 | 365 | **1 916** | 0 of 18 |
+
+Medians, ms. ① 300 and ③ ~505 in every run; ② ~150 apart from each run's first
+turn (the ear's cold start).
+
+**What it shows.**
+
+1. **The felt pause falls 0.4–0.7 s**, in every pair: 2.2–2.5 s → 1.7–2.0 s.
+   The greedy pair, same answers word for word: 2 527 → 1 793 ms. ③ is
+   unchanged; the mind had already thought ~500 ms when the gate ran out, so
+   ④ after the gate fell from 815–1 079 ms to 312–548 ms. In 1–2 turns per
+   run a token was already held at the gate's end (④ = 0).
+2. **No early reply was thrown away here**: the scripted person never goes on
+   during a gate. The throw-away is proven by the tests (AC-365) and counted on
+   the phone (AC-371).
+
+**What it does not explain.**
+
+- **Run 16: 12 of 17 replies held a pause over 300 ms** (its longest median
+  452 ms), against 0–1 in every other run, before or after. The harness did not
+  print the answers then, so their content is unknown, and the mind's answers
+  differ from run to run (in run 18 it repeated one 3.9 s answer 13 times). The
+  three later "after" runs (18, 21, 22) held none.
+- **Run 20 never ended.** Its last turn showed no end within 30 s, and the
+  process was killed by its 25-minute limit. Its output went to a file through
+  a buffer, so its last lines are lost. In run 19 (before, the same answers)
+  the same turn was the run's heaviest: first token 2.3 s, voice RTF 0.77.
+  Runs 21 and 22 ran through a pseudo-terminal under a watchdog that samples the
+  process after 120 s of silence; neither went silent.
+
+**The harness, improved by this hunt:** `--greedy`; each reply's text printed
+when its turn ends; each reply's voice margin (audio, decoding, RTF).
+
+**Against F-30's line:** the felt pause to the first word ~1.8 s on this Mac
+(line 0.8): better, **not met**.
