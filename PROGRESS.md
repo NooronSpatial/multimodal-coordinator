@@ -18,8 +18,9 @@ the gate (D-144), on `milestone/5d-piece4-think-in-the-gate`: the mind opens at
 the final and its words wait for the gate; on this Mac (INSTRUMENTS §76) the
 felt pause to the first word fell 0.4–0.7 s, to ~1.8 s; its phone row is owed.
 **Next:** the rest of the felt pause, against F-30's 0.8 s line. Open: CI's
-CONTROL row, green since D-143 and watched. (This Mac's download rows, slow
-after 2026-10-08, pass again since 2026-10-13; the cause was never found.)
+CONTROL row, green since D-143 and watched; this Mac's download rows (the
+daemon family, D-139), red after 2026-10-08, green on 2026-10-13, red again on
+2026-10-14 (11 of 20 loop runs) — the cause was never found.
 
 ## The picture
 
