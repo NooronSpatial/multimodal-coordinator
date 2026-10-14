@@ -33,7 +33,10 @@ final class HarnessLatency: LatencyReporter, Sendable {
         let ear = timeline.earFinish.map { $0.ms } ?? "  ?"
         let felt = timeline.felt(hangover: hangover).map { $0.ms } ?? "?"
         let inGate = timeline.thoughtInTheGate
-        let thought = inGate > .zero ? " · 🧠 thought in the gate \(inGate.ms)" : ""
+        var thought = inGate > .zero ? " · 🧠 thought in the gate \(inGate.ms)" : ""
+        if let parts = timeline.firstSoundParts, let rest = timeline.firstSoundRest {
+            thought += "  ⑤ = words \(parts.words.ms) + decode \(parts.decode.ms) + rest \(rest.ms)"
+        }
         print("⏱  turn \(timeline.turn): ① \(hangover.ms) · ② \(ear) · ③ \(timeline.gate.ms)"
               + " · ④ \(timeline.firstToken.ms) · ⑤ \(timeline.firstSound.ms)  →  felt \(felt) ms" + thought)
     }
@@ -91,6 +94,9 @@ final class HarnessLatency: LatencyReporter, Sendable {
         lines.append(row("③ reply gate ", spoken.map(\.gate)))
         lines.append(row("④ first token", spoken.map(\.firstToken)))
         lines.append(row("⑤ first sound", spoken.map(\.firstSound)))
+        lines.append(row("   ⑤a words  ", spoken.compactMap { $0.firstSoundParts?.words }))
+        lines.append(row("   ⑤b decode ", spoken.compactMap { $0.firstSoundParts?.decode }))
+        lines.append(row("   ⑤c rest   ", spoken.compactMap(\.firstSoundRest)))
         lines.append(row("   FELT PAUSE ", spoken.compactMap { $0.felt(hangover: hangover) }))
         lines.append(contentsOf: Self.toTheFirstWord(spoken, kept.pauses, hangover: hangover, row: row))
         lines.append(row("⑦ barge window", kept.barges.map(\.window)))

@@ -52,7 +52,12 @@ extension TranscribeModel {
             out += "turn \(timeline.turn): ② \(ear) · ③ \(Self.ms(timeline.gate)) · ④ \(Self.ms(timeline.firstToken))"
             out += " · ⑤ \(Self.ms(timeline.firstSound)) → felt \(felt) ms"
             let inGate = timeline.thoughtInTheGate
-            out += inGate > .zero ? " · thought in the gate \(Self.ms(inGate))\n" : "\n"
+            out += inGate > .zero ? " · thought in the gate \(Self.ms(inGate))" : ""
+            // 5d piece 5 (D-146): ⑤ in its parts, as the voice measured them.
+            if let parts = timeline.firstSoundParts, let rest = timeline.firstSoundRest {
+                out += " · ⑤ = \(Self.ms(parts.words)) + \(Self.ms(parts.decode)) + \(Self.ms(rest))"
+            }
+            out += "\n"
         }
         // 5d piece 4 (AC-368): every reply the mind started inside the gate.
         for early in earlyReplies {
@@ -81,6 +86,9 @@ extension TranscribeModel {
         out += Self.medianLine("③ gate  ", timelines.map(\.gate))
         out += Self.medianLine("④ token ", timelines.map(\.firstToken))
         out += Self.medianLine("⑤ sound ", timelines.map(\.firstSound))
+        out += Self.medianLine("⑤a words ", timelines.compactMap { $0.firstSoundParts?.words })
+        out += Self.medianLine("⑤b decode", timelines.compactMap { $0.firstSoundParts?.decode })
+        out += Self.medianLine("⑤c rest  ", timelines.compactMap(\.firstSoundRest))
         out += Self.medianLine("FELT    ", timelines.compactMap { $0.felt(hangover: hangover) })
         out += firstWordLines(hangover: hangover)
         out += Self.medianLine("⑦ window", barges.map(\.window))
