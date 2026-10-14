@@ -1,5 +1,6 @@
 import Foundation
 import MultiModalKit
+import MultiModalKitTTS
 import Synchronization
 
 // THE HARNESS'S REPORTER (5d, SPEC §225/4, AC-342): every turn's timeline and
@@ -13,6 +14,7 @@ final class HarnessLatency: LatencyReporter, Sendable {
         var pauses: [ReplyPauses] = []
         var candidates: [BargeCandidate] = []
         var early: [EarlyReply] = []
+        var margins: [DecodeMargin] = []
     }
 
     /// ① — the app's own silence wait (F-26 A): the person's sound stopped
@@ -56,6 +58,16 @@ final class HarnessLatency: LatencyReporter, Sendable {
               + " \(candidate.window.ms) ms → \(candidate.accepted ? "CUT" : "abandoned")")
     }
 
+    /// One reply's decode, as the voice reports it when the run ends: its
+    /// audio, its wall time, the real-time factor (wall ÷ audio; above 1 the
+    /// voice decodes slower than it plays).
+    func margin(_ margin: DecodeMargin) {
+        kept.withLock { $0.margins.append(margin) }
+        let steady = margin.steadyRealTimeFactor.map { String(format: " · steady %.2f", $0) } ?? ""
+        print(String(format: "🎙  voice: %.0f ms audio · %.0f ms decoding · RTF %.2f",
+                     margin.audioMilliseconds, margin.wallMilliseconds, margin.realTimeFactor) + steady)
+    }
+
     /// `ListeningHost`'s `heard`: one reply's pauses, when its node is given back.
     func heard(_ pauses: ReplyPauses) {
         kept.withLock { $0.pauses.append(pauses) }
@@ -88,6 +100,11 @@ final class HarnessLatency: LatencyReporter, Sendable {
         lines.append(row("🧠 in the gate ", spoken.map(\.thoughtInTheGate).filter { $0 > .zero }))
         lines.append("  🧠 early replies: \(kept.early.filter(\.kept).count) kept"
                      + " · \(kept.early.filter { !$0.kept }.count) thrown away")
+        let rtf = kept.margins.map(\.realTimeFactor).sorted()
+        if !rtf.isEmpty {
+            lines.append(String(format: "  🎙 voice RTF  median %.2f · min %.2f · max %.2f · n %d",
+                                rtf[rtf.count / 2], rtf[0], rtf[rtf.count - 1], rtf.count))
+        }
         let gaps = kept.pauses.map(\.gaps)
         lines.append("  ⑥ pauses inside answers: \(gaps.reduce(0, +)) over 300 ms in \(gaps.count) replies"
                      + " · replies with one or more: \(gaps.filter { $0 > 0 }.count)")

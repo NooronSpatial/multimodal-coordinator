@@ -1,5 +1,6 @@
 import Foundation
 import MultiModalKit
+import MultiModalKitTTS
 
 // `audio-demo --person` (5d, SPEC §225/4; F-28 A, AC-342): the pipeline in
 // Ryad's phone setup, spoken to by the scripted person, measured stage by
@@ -52,6 +53,12 @@ extension AudioDemo {
         }
         let latency = HarnessLatency(hangover: .milliseconds(Int(flags.hangoverMs)))
         guard let mouth = await preparedMouth(flags.arguments, heard: { latency.heard($0) }) else { return nil }
+        // Each reply's decode, beside its pauses (5d piece 4): a pause inside
+        // an answer is the player running dry, and the margin says whether the
+        // voice decoded slower than it played.
+        if let voice = mouth as? any SpokenVoice {
+            await voice.reportMargins { latency.margin($0) }
+        }
         let (producer, consumer) = AudioRing.create(minimumCapacity: Int(cut.rate))
         do {
             let runtime = try AIRuntime(configuration(

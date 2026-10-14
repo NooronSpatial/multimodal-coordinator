@@ -51,7 +51,7 @@ extension AudioDemo {
             // a real mind and mouth behind the same seams the scripted
             // organs proved. Without it, listen-only (F-3 = B): no mind,
             // no mouth, no coordinator.
-            mind: flags.talk ? chosenMind(flags.arguments, screen: screen) : nil,
+            mind: flags.talk ? greedyIfAsked(chosenMind(flags.arguments, screen: screen), flags.arguments) : nil,
             mouth: flags.talk ? machine.mouth : nil,
             pump: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
                         chunkFrames: chunkFrames, preRollChunks: 10),
