@@ -1,0 +1,244 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-335…AC-340 · the turn timeline" started.
+􀟈  Suite DecodeStepRecordTests started.
+􀟈  Suite "AC-363…AC-370 · think in the gate" started.
+􀟈  Suite "F-47 · who may act, mind by mind" started.
+􀟈  Suite "AC-373 · the first sound in its parts" started.
+􀟈  Suite TurnCoordinatorTests started.
+􀟈  Suite TurnHealthTests started.
+􀟈  Test "one entry per step, carrying the audio that step produced" started.
+􀟈  Test "a mind that may act — it has tools — is opened when the gate runs out, as today" started.
+􀟈  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" started.
+􀟈  Test "off means today: the opt-in off, the mind opens when the gate runs out" started.
+􀟈  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" started.
+􀟈  Test "the Apple mind may act exactly when it was given tools" started.
+􀟈  Test "a mind that cannot even open, inside the gate, fails the turn only when the gate runs out" started.
+􀟈  Test "the scripted mind may act exactly when it has tools" started.
+􀟈  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" started.
+􀟈  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" started.
+􀟈  Test "a first token after the gate's end: ④ is what was left to wait for it" started.
+􀟈  Test "a failure in the gate disappears with its reply when the person goes on" started.
+􀟈  Test "a reply that fails in the gate fails the turn only when the gate runs out" started.
+􀟈  Test "A failed turn keeps its words — nothing answered them (AC-89)" started.
+􀟈  Test "the MLX mind may act exactly when its source was given tools" started.
+􀟈  Test "the voice's parts reach the timeline, and the rest is what is left of ⑤" started.
+􀟈  Test "A whitespace-only final produces no reply: back to idle, generator untouched" started.
+􀟈  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" started.
+􀟈  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" started.
+􀟈  Test "run() returns after an interruption even when the inputs ended first" started.
+􀟈  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" started.
+􀟈  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" started.
+􀟈  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" started.
+􀟈  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" started.
+􀟈  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" started.
+􀟈  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" started.
+􀟈  Test "A barge moves the thought into the conversation, not into the next question (D-089)" started.
+􀟈  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" started.
+􀟈  Test "an interruption keeps the conversation and drops the thought (AC-196)" started.
+􀟈  Test "A final STASHED before an interruption is not replayed after resume" started.
+􀟈  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" started.
+􀟈  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" started.
+􀟈  Test "a reply of no tokens is answered, and not remembered" started.
+􀟈  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" started.
+􀟈  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" started.
+􀟈  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" started.
+􀟈  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" started.
+􀟈  Test "a failed turn is never remembered, and keeps its words (AC-194)" started.
+􀟈  Test "The refused final contributes content and still triggers nothing (AC-87)" started.
+􀟈  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" started.
+􀟈  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" started.
+􀟈  Test "A stale final during the gate is dropped at the door; the armed reply survives it" started.
+􀟈  Test "clearMemory() forgets the past and leaves the thought alone" started.
+􀟈  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" started.
+􀟈  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" started.
+􀟈  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" started.
+􀟈  Test "The app's context bound reaches the ledger and drops the oldest through the loop" started.
+􀟈  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" started.
+􀟈  Test "An onset one tick before expiry wins the race" started.
+􀟈  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" started.
+􀟈  Test "stop() ends the conversation's memory (F-4 = A)" started.
+􀟈  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" started.
+􀟈  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" started.
+􀟈  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" started.
+􀟈  Test "completion forgets and remembers in the same step (AC-195)" started.
+􀟈  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" started.
+􀟈  Test "An interruption ends the live turn like a failure — not a barge" started.
+􀟈  Test "An onset during the gate kills the pending reply silently; the next final gates again" started.
+􀟈  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" started.
+􀟈  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" started.
+􁁛  Test "the Apple mind may act exactly when it was given tools" passed after 0.001 seconds.
+􀟈  Test "the coordinator passes the default options (AC-231)" started.
+􀟈  Test "A dead turn cannot speak after an interruption — defiant stages included" started.
+􀟈  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" started.
+􀟈  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" started.
+􀟈  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" started.
+􀟈  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" started.
+􀟈  Test "Every adjacent state pair across a multi-turn run is in the legal table" started.
+􀟈  Test "a barge before the first token loses nothing (F-5 = A)" started.
+􀟈  Test "Interrupting while idle publishes nothing at all" started.
+􀟈  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" started.
+􀟈  Test "The context bound is the app's number, and its default is stated" started.
+􀟈  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" started.
+􀟈  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" started.
+􁁛  Test "the MLX mind may act exactly when its source was given tools" passed after 0.001 seconds.
+􁁛  Suite "F-47 · who may act, mind by mind" passed after 0.002 seconds.
+􁁛  Test "the scripted mind may act exactly when it has tools" passed after 0.003 seconds.
+􁁛  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" passed after 0.003 seconds.
+􁁛  Test "The context bound is the app's number, and its default is stated" passed after 0.002 seconds.
+􁁛  Test "A whitespace-only final produces no reply: back to idle, generator untouched" passed after 0.005 seconds.
+􁁛  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" passed after 0.005 seconds.
+􁁛  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" passed after 0.005 seconds.
+􁁛  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" passed after 0.005 seconds.
+􁁛  Suite TurnHealthTests passed after 0.006 seconds.
+􁁛  Test "a reply of no tokens is answered, and not remembered" passed after 0.005 seconds.
+􁁛  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" passed after 0.004 seconds.
+􁁛  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" passed after 0.005 seconds.
+􁁛  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" passed after 0.005 seconds.
+􁁛  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" passed after 0.005 seconds.
+􁁛  Test "An interruption ends the live turn like a failure — not a barge" passed after 0.005 seconds.
+􁁛  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" passed after 0.005 seconds.
+􁁛  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" passed after 0.004 seconds.
+􁁛  Test "A failed turn keeps its words — nothing answered them (AC-89)" passed after 0.005 seconds.
+􁁛  Test "a failed turn is never remembered, and keeps its words (AC-194)" passed after 0.005 seconds.
+􁁛  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" passed after 0.005 seconds.
+􁁛  Test "completion forgets and remembers in the same step (AC-195)" passed after 0.005 seconds.
+􁁛  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" passed after 0.005 seconds.
+􁁛  Test "the coordinator passes the default options (AC-231)" passed after 0.005 seconds.
+􁁛  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" passed after 0.005 seconds.
+􁁛  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" passed after 0.005 seconds.
+􁁛  Test "a barge before the first token loses nothing (F-5 = A)" passed after 0.005 seconds.
+􁁛  Test "stop() ends the conversation's memory (F-4 = A)" passed after 0.005 seconds.
+􁁛  Test "A barge moves the thought into the conversation, not into the next question (D-089)" passed after 0.006 seconds.
+􁁛  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" passed after 0.005 seconds.
+􁁛  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" passed after 0.005 seconds.
+􁁛  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" passed after 0.006 seconds.
+􁁛  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" passed after 0.006 seconds.
+􁁛  Test "The app's context bound reaches the ledger and drops the oldest through the loop" passed after 0.005 seconds.
+􁁛  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" passed after 0.006 seconds.
+􁁛  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" passed after 0.006 seconds.
+􁁛  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" passed after 0.005 seconds.
+􁁛  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" passed after 0.006 seconds.
+􁁛  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" passed after 0.006 seconds.
+􁁛  Test "clearMemory() forgets the past and leaves the thought alone" passed after 0.006 seconds.
+􁁛  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" passed after 0.005 seconds.
+􁁛  Test "an interruption keeps the conversation and drops the thought (AC-196)" passed after 0.006 seconds.
+􁁛  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" passed after 0.006 seconds.
+􁁛  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" passed after 0.006 seconds.
+􁁛  Test "Every adjacent state pair across a multi-turn run is in the legal table" passed after 0.005 seconds.
+􁁛  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" passed after 0.006 seconds.
+􁁛  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" passed after 0.006 seconds.
+􁁛  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" passed after 0.005 seconds.
+􁁛  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" passed after 0.006 seconds.
+􁁛  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" passed after 0.006 seconds.
+􁁛  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" passed after 0.006 seconds.
+􁁛  Test "a mind that cannot even open, inside the gate, fails the turn only when the gate runs out" passed after 0.007 seconds.
+􁁛  Test "a reply that fails in the gate fails the turn only when the gate runs out" passed after 0.007 seconds.
+􁁛  Test "off means today: the opt-in off, the mind opens when the gate runs out" passed after 0.007 seconds.
+􁁛  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" passed after 0.007 seconds.
+􁁛  Test "a mind that may act — it has tools — is opened when the gate runs out, as today" passed after 0.007 seconds.
+􁁛  Test "a failure in the gate disappears with its reply when the person goes on" passed after 0.007 seconds.
+􁁛  Test "A stale final during the gate is dropped at the door; the armed reply survives it" passed after 0.007 seconds.
+􁁛  Test "An onset one tick before expiry wins the race" passed after 0.007 seconds.
+􁁛  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" passed after 0.007 seconds.
+􁁛  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" passed after 0.008 seconds.
+􁁛  Test "a first token after the gate's end: ④ is what was left to wait for it" passed after 0.008 seconds.
+􁁛  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" passed after 0.008 seconds.
+􁁛  Suite "AC-363…AC-370 · think in the gate" passed after 0.008 seconds.
+􁁛  Test "An onset during the gate kills the pending reply silently; the next final gates again" passed after 0.007 seconds.
+􁁛  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" passed after 0.009 seconds.
+􀟈  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" started.
+􀢄  Test "the voice's parts reach the timeline, and the rest is what is left of ⑤" recorded an issue at FirstSoundPartsTests.swift:51:9: Expectation failed: timeline.firstSoundParts == parts
+􀄵  (a) and (b), as the voice measured them
+􀄵  timeline.firstSoundParts == parts → false
+􀄵    timeline.firstSoundParts → nil
+􀄵    parts → FirstSoundParts(words: 0.1 seconds, decode: 0.15 seconds)
+􀄵      words → 0.1 seconds
+􀄵        _low → 100000000000000000
+􀄵        _high → 0
+􀄵      decode → 0.15 seconds
+􀄵        _low → 150000000000000000
+􀄵        _high → 0
+􀢄  Test "the voice's parts reach the timeline, and the rest is what is left of ⑤" recorded an issue at FirstSoundPartsTests.swift:52:9: Expectation failed: timeline.firstSoundRest == .milliseconds(50)
+􀄵  (c) = ⑤ − (a) − (b)
+􀄵  timeline.firstSoundRest == .milliseconds(50) → false
+􀄵    timeline.firstSoundRest → nil
+􀄵    .milliseconds(50) → 0.05 seconds
+􀄵      some → 0.05 seconds
+􀄵        _low → 50000000000000000
+􀄵        _high → 0
+􀢄  Test "the voice's parts reach the timeline, and the rest is what is left of ⑤" failed after 0.009 seconds with 2 issues.
+􀟈  Test "a voice that says nothing keeps a single ⑤" started.
+􁁛  Test "a voice that says nothing keeps a single ⑤" passed after 0.001 seconds.
+􀟈  Test "the neural voice reports the wait for its first phrase and that phrase's decode" started.
+􁁛  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" passed after 0.001 seconds.
+􀟈  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" started.
+􁁛  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" passed after 0.001 seconds.
+􀟈  Test "no gate: the stage is zero, and the others are untouched (AC-336)" started.
+􁁛  Test "no gate: the stage is zero, and the others are untouched (AC-336)" passed after 0.001 seconds.
+􀟈  Test "an end the coordinator never saw leaves earFinish empty, not zero" started.
+􁁛  Test "an end the coordinator never saw leaves earFinish empty, not zero" passed after 0.001 seconds.
+􀟈  Test "a person who went on: the older utterance's end is not this one's" started.
+􁁛  Test "a person who went on: the older utterance's end is not this one's" passed after 0.001 seconds.
+􀟈  Test "an ear that finishes before the end decision reports a negative earFinish" started.
+􁁛  Test "an ear that finishes before the end decision reports a negative earFinish" passed after 0.001 seconds.
+􀟈  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" started.
+􁁛  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" passed after 0.001 seconds.
+􀟈  Test "a barge with the window off: the window is zero (AC-338)" started.
+􁁛  Test "a barge with the window off: the window is zero (AC-338)" passed after 0.001 seconds.
+􀟈  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" started.
+􁁛  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" passed after 0.001 seconds.
+􀟈  Test "an empty final reports no timeline (AC-339)" started.
+􁁛  Test "an empty final reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a failed ear reports no timeline (AC-339)" started.
+􁁛  Test "a failed ear reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" started.
+􁁛  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a mind that chose silence reports no timeline (AC-339)" started.
+􁁛  Test "a mind that chose silence reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" started.
+􁁛  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" passed after 0.001 seconds.
+􀟈  Test "the felt pause is the app's hangover plus every stage" started.
+􁁛  Test "the felt pause is the app's hangover plus every stage" passed after 0.001 seconds.
+􁁛  Suite "AC-335…AC-340 · the turn timeline" passed after 0.018 seconds.
+􁁛  Test "Interrupting while idle publishes nothing at all" passed after 0.017 seconds.
+􁁛  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" passed after 0.018 seconds.
+􁁛  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" passed after 0.018 seconds.
+􁁛  Test "A final STASHED before an interruption is not replayed after resume" passed after 0.018 seconds.
+􁁛  Test "A dead turn cannot speak after an interruption — defiant stages included" passed after 0.017 seconds.
+􁁛  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" passed after 0.017 seconds.
+􁁛  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" passed after 0.018 seconds.
+􁁛  Test "run() returns after an interruption even when the inputs ended first" passed after 0.018 seconds.
+􁁛  Test "The refused final contributes content and still triggers nothing (AC-87)" passed after 0.018 seconds.
+􁁛  Suite TurnCoordinatorTests passed after 0.019 seconds.
+􁁛  Test "one entry per step, carrying the audio that step produced" passed after 1.920 seconds.
+􀟈  Test "the margin carries the first step's audio beside its wall time" started.
+􁁛  Test "the margin carries the first step's audio beside its wall time" passed after 0.415 seconds.
+􀟈  Test "the record finds a peak the old rule reads as zero" started.
+􁁛  Test "the record finds a peak the old rule reads as zero" passed after 0.010 seconds.
+􀟈  Test "a decode that produces nothing records nothing to size from" started.
+􁁛  Test "a decode that produces nothing records nothing to size from" passed after 0.001 seconds.
+􁁛  Suite DecodeStepRecordTests passed after 2.346 seconds.
+􀢄  Test "the neural voice reports the wait for its first phrase and that phrase's decode" recorded an issue at FirstSoundPartsTests.swift:81:9: Expectation failed: measured
+􀄵  the first audio is out: the parts are known
+􀄵  measured → <not evaluated>
+􀢄  Test "the neural voice reports the wait for its first phrase and that phrase's decode" recorded an issue at FirstSoundPartsTests.swift:82:9: Expectation failed: run.firstSoundParts == FirstSoundParts(words: .milliseconds(30), decode: .milliseconds(50))
+􀄵  run.firstSoundParts == FirstSoundParts(words: .milliseconds(30), decode: .milliseconds(50)) → false
+􀄵    run.firstSoundParts → nil
+􀄵    FirstSoundParts(words: .milliseconds(30), decode: .milliseconds(50)) → FirstSoundParts(words: 0.03 seconds, decode: 0.05 seconds)
+􀄵      words → 0.03 seconds
+􀄵        _low → 30000000000000000
+􀄵        _high → 0
+􀄵      decode → 0.05 seconds
+􀄵        _low → 50000000000000000
+􀄵        _high → 0
+􀢄  Test "the neural voice reports the wait for its first phrase and that phrase's decode" failed after 11.894 seconds with 2 issues.
+􀄵  /// The neural voice measures them from stamps it already keeps: its
+􀄵  /// birth (the first token), the first decode asked for, its first audio.
+􀢄  Suite "AC-373 · the first sound in its parts" failed after 11.905 seconds with 4 issues.
+􀢄  Test run with 95 tests in 7 suites failed after 11.905 seconds with 4 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
