@@ -9204,3 +9204,68 @@ one PR for this piece; present → HALT.
 - **One test mistake**, in the RED: the person-goes-on row first used a reply
   that closes its stream when cancelled, so the stragglers it forced never
   arrived. It now uses a defiant one.
+
+# 5d piece 5 — the first sound: ⑤ measured in its parts (proposed, NOT signed)
+
+## §257 — why
+
+```
+⑤ today (Ryad's phone, warm, §76b): 708 ms median, 444–1 417
+
+  first token ─(a) the first phrase's words─▶ cut ─(b) the voice decodes it─▶ audio ─(c) the player starts─▶ SOUND
+```
+
+- ⑤ is now the biggest block of the felt pause (D-145).
+- **A hint, not a measurement:** on the warm phone the mind wrote ~46
+  characters a second (turn 24: 196 characters in 4.2 s), and the first phrase
+  is cut at a clause mark or at 20 characters (piece 2's opening cap), so (a)
+  alone may be 0.3–0.4 s. (b) is Kokoro's one-shot decode of that phrase;
+  nobody has timed it on the phone. (c) should be small.
+- Piece 1 split the whole pause into stages; this splits ⑤ the same way, so
+  piece 5's fix is ruled on numbers, not guesses.
+
+## §258 — scope
+
+1. **⑤ in three parts**, for every spoken reply: (a) the first token → the
+   first phrase cut; (b) the cut → the first phrase's audio ready; (c) audio
+   ready → the first sound. (a) + (b) + (c) = ⑤ exactly.
+2. **Both logs show them**: the Mac harness and the phone demo, per turn and as
+   medians.
+3. **Measured**: the harness on this Mac (the real 4B), then Ryad's phone.
+4. **Nothing changes in behaviour.** The fix is the next step, by a new
+   spec and Ryad's rulings on these numbers.
+
+## §259 — non-goals
+
+- Changing ⑤: the first phrase's length, a faster decode, a warmer voice.
+- ⑥ (the pauses inside long answers on a hot phone) — seen in §76b, later.
+
+## §260 — acceptance criteria (AC-373 … AC-376)
+
+- **AC-373 — ⑤ in three parts.** On scripted words and a scripted voice, the
+  three parts are stamped exactly and sum to ⑤; a reply with no words reports
+  none.
+- **AC-374 — shown.** The harness and the phone demo print the parts per turn
+  and as medians.
+- **AC-375 — measured.** The harness on this Mac, then one session of Ryad's.
+- **AC-376 — nothing else moved.** The suite; the 20× loop (the download
+  family excepted, as named in §256); lint zero; mutations on the stamps;
+  `api.sh` additions only; the demo builds.
+
+## §261 — the fork (Ryad rules)
+
+- **F-48 — where the parts are stamped.** **A:** in the voice, where they
+  happen: the voice reports, per reply, when it cut the first phrase and when
+  that phrase's audio was ready, through a defaulted hand-off beside the one
+  that reports pauses; the coordinator already stamps the first token and the
+  first sound. Exact on every voice that reports; a voice that says nothing
+  keeps today's single ⑤. **B:** estimated in the demos from what already
+  exists (the mind's token rate, the voice's decode totals): no library
+  change, but (a) and (b) become guesses with an error nobody knows.
+  **Recommendation: A** (D-132: measure, do not estimate).
+
+## §262 — definition of done (piece 5, the measurement)
+
+Red before green; the suite; mutations; the 20× loop; lint; `api.sh`; the demo
+builds; the Mac numbers; Ryad's phone session; one branch, one PR; present →
+HALT. Then piece 5's fix: a new spec, ruled on these numbers.
