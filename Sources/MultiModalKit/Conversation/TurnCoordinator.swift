@@ -44,7 +44,10 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// measured, the instant it ARRIVED (5d, D-134).
         case audio(AudioEvent, arrived: C.Instant?)
         case transcript(TranscriptEvent)
-        case reply(turn: Int, ReplyUpdate)
+        /// A reply's update, stamped with its turn AND its reply number —
+        /// the reply ticket (5d piece 4): an early reply thrown away in the
+        /// gate leaves its turn alive, so the turn alone cannot stop it.
+        case reply(turn: Int, reply: Int, ReplyUpdate)
         case synthesis(turn: Int, SynthesisUpdate)
         /// The reply gate ran out (AC-81). Stamped with the turn AND the
         /// utterance it was armed for: both doors are checked on arrival,
@@ -81,6 +84,20 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
         /// reply dies unspoken.
         var replyArmed = false
         var replyRun: (any ReplyRun)?
+        /// THE REPLY TICKET (5d piece 4, D-144): the number of the one reply
+        /// this turn listens to. Raised in the same actor step that throws
+        /// an early reply away, so nothing it sends afterwards gets past
+        /// `handleReply` — the turn ticket cannot do it, the turn lives on.
+        var reply = 0
+        /// THINK IN THE GATE (D-144): what an early reply has said while the
+        /// gate runs — nil when nothing is held (no early reply, or released).
+        var held: [ReplyUpdate]?
+        /// The early open's own failure, held the same way (AC-366).
+        var heldOpenFailure: TurnFailure?
+        /// When the early reply was opened, and how long it had thought when
+        /// the gate ran out (the timeline's `thoughtInTheGate`).
+        var earlyOpenedAt: C.Instant?
+        var thoughtInTheGate: Duration = .zero
         var synthesisRun: (any SynthesisRun)?
         var tokensFinished = false
         /// The reply as it is BORN, kept so this turn can be remembered
@@ -239,6 +256,18 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// position, queryable the same "ask for now" way as the state.
     public var currentUtterance: Int { lastOnset }
 
+    /// THINK IN THE GATE, as facts a test can wait for (5d piece 4) —
+    /// internal, not API. Holding is invisible by design (nothing leaves the
+    /// coordinator), so a test that must prove "held, not merely not yet
+    /// arrived" reads it here.
+    /// What an early reply has said and the coordinator holds, the open's
+    /// own failure included.
+    var heldReplyUpdates: Int {
+        (current?.held?.count ?? 0) + (current?.heldOpenFailure == nil ? 0 : 1)
+    }
+    /// Updates from a reply already thrown away, stopped by the reply ticket.
+    var staleReplyUpdatesDropped: Int { staleRepliesDropped }
+
     /// The thought as it stands: everything the speaker has said that has
     /// not yet been answered (AC-85). Same "ask for now, replay nothing"
     /// pattern as `currentState` (D-030) — an app can show what the
@@ -349,8 +378,8 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
             await handleAudio(event, arrived: arrived, forwardingInto: &group, via: input)
         case .transcript(let event):
             await handleTranscript(event, forwardingInto: &group, via: input)
-        case .reply(let turn, let update):
-            await handleReply(update, turn: turn, forwardingInto: &group, via: input)
+        case .reply(let turn, let reply, let update):
+            await handleReply(update, turn: turn, reply: reply, forwardingInto: &group, via: input)
         case .synthesis(let turn, let update):
             await handleSynthesis(update, turn: turn)
         case .gateExpired(let turn, let utterance):
@@ -479,6 +508,11 @@ public actor TurnCoordinator<C: Clock> where C.Duration == Duration {
     /// never enter the ledger, whenever their final arrives (5d piece 3,
     /// AC-358 — a leak's words reached the next prompt before).
     var abandonedUtterances: Set<Int> = []
+    /// The last reply number given out (5d piece 4) — the reply ticket's
+    /// source, monotonic for the coordinator's life.
+    var replyTickets = 0
+    /// How many updates the reply ticket has stopped (a fact for tests).
+    var staleRepliesDropped = 0
 
     /// The one place a turn dies of failure: event out, ticket dead, idle.
     func failTurn(_ turn: Int, with failure: TurnFailure) {

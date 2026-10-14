@@ -33,14 +33,22 @@ public struct TurnTimeline: Sendable, Equatable {
     public let firstToken: Duration
     /// ⑤ The first token → the first sound.
     public let firstSound: Duration
+    /// How long the mind had already been thinking when the gate ran out —
+    /// zero unless the reply was opened early, at the final (5d piece 4,
+    /// F-46 A). It overlaps ③, so it is NOT part of `sinceFinal`: when it is
+    /// non-zero, ③ ends at the gate's end and ④ is what was still left to
+    /// wait for the first token there (zero when one was already held).
+    public let thoughtInTheGate: Duration
 
     public init(turn: Int, earFinish: Duration?, gate: Duration,
-                firstToken: Duration, firstSound: Duration) {
+                firstToken: Duration, firstSound: Duration,
+                thoughtInTheGate: Duration = .zero) {
         self.turn = turn
         self.earFinish = earFinish
         self.gate = gate
         self.firstToken = firstToken
         self.firstSound = firstSound
+        self.thoughtInTheGate = thoughtInTheGate
     }
 
     /// ③ + ④ + ⑤ — exactly what `LatencyReporter.turnLatency` reports
@@ -90,6 +98,29 @@ public struct BargeCandidate: Sendable, Equatable {
         self.loudTime = loudTime
         self.peak = peak
         self.accepted = accepted
+    }
+}
+
+/// ONE REPLY OPENED EARLY, inside the reply gate (5d piece 4, AC-368).
+///
+///     the final ─▶ the reply opened at once, its words HELD
+///                    ├─ the gate runs out  ─▶ kept: the words go on
+///                    └─ the person goes on ─▶ thrown away, in silence
+///
+/// Each thrown-away reply cost the device its thinking, and the mind its
+/// kept session (D-144, F-44 A), so an app can see how often it happens.
+public struct EarlyReply: Sendable, Equatable {
+    /// The turn the reply was opened for.
+    public let turn: Int
+    /// True: the gate ran out and the reply went on. False: thrown away.
+    public let kept: Bool
+    /// The reply's open → the gate's end, or → the onset that threw it away.
+    public let thought: Duration
+
+    public init(turn: Int, kept: Bool, thought: Duration) {
+        self.turn = turn
+        self.kept = kept
+        self.thought = thought
     }
 }
 

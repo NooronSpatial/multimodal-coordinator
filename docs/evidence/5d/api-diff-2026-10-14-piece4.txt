@@ -1,0 +1,33 @@
+# 5d piece 4 — AC-372: the public surface on main (b2a7cfb) against this branch (45dbd3e).
+# sh Scripts/api.sh, each without its commit line; main read from git archive. 14 lines added, 2 changed, 0 removed.
+# The 2 changed lines are initialisers that gained a DEFAULTED parameter (Config.thinksInTheGate = false,
+# TurnTimeline.thoughtInTheGate = .zero): every call on main compiles unchanged. ReplyGenerating gains
+# mayActDuringReply with a default (yes), so every mind written before compiles unchanged — and is never
+# opened early. No behaviour changes unless an app opts in (F-45 A).
+
+173a174
+>   Conversation/AppleReplyGenerator.swift: public var mayActDuringReply: Bool
+207a209
+>   Conversation/LatencyReporter.swift: public func earlyReply(_ report: EarlyReply)
+377a380
+>   Conversation/TurnCoordination.swift: public var mayActDuringReply: Bool
+389c392,393
+<   Conversation/TurnCoordinator+Config.swift: public init( listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity, replyGate: Duration = .zero, maxContextPieces: Int = 16, bargeWindow: Duration = .zero, maxMemoryTurns: Int = 8, maxMemoryCharacters: Int = 600 )
+---
+>   Conversation/TurnCoordinator+Config.swift: public var thinksInTheGate: Bool
+>   Conversation/TurnCoordinator+Config.swift: public init( listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity, replyGate: Duration = .zero, maxContextPieces: Int = 16, bargeWindow: Duration = .zero, maxMemoryTurns: Int = 8, maxMemoryCharacters: Int = 600, thinksInTheGate: Bool = false )
+414c418,419
+<   Conversation/TurnTimeline.swift: public init(turn: Int, earFinish: Duration?, gate: Duration, firstToken: Duration, firstSound: Duration)
+---
+>   Conversation/TurnTimeline.swift: public let thoughtInTheGate: Duration
+>   Conversation/TurnTimeline.swift: public init(turn: Int, earFinish: Duration?, gate: Duration, firstToken: Duration, firstSound: Duration, thoughtInTheGate: Duration = .zero)
+423a429,433
+>   Conversation/TurnTimeline.swift: public struct EarlyReply: Sendable, Equatable
+>   Conversation/TurnTimeline.swift: public let turn: Int
+>   Conversation/TurnTimeline.swift: public let kept: Bool
+>   Conversation/TurnTimeline.swift: public let thought: Duration
+>   Conversation/TurnTimeline.swift: public init(turn: Int, kept: Bool, thought: Duration)
+612a623
+>   MLXReplyGenerator.swift: public var mayActDuringReply: Bool
+862a874
+>   ScriptedReplyGenerator.swift: public var mayActDuringReply: Bool

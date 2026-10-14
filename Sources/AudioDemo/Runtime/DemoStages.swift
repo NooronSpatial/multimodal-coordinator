@@ -55,8 +55,34 @@ extension Duration {
 /// FEELS generated — slow enough to barge into. Tokens carry their own
 /// spacing (the way real generators emit them): the phraser concatenates
 /// VERBATIM and never invents a space.
+/// The mind, made greedy when `--greedy` is given.
+func greedyIfAsked(_ mind: any ReplyGenerating, _ arguments: [String]) -> any ReplyGenerating {
+    arguments.contains("--greedy") ? GreedyMind(wrapped: mind) : mind
+}
+
+/// `--greedy` (5d piece 4): temperature 0 on every call, so the same
+/// question and the same memory give the same reply, and a before/after pair
+/// of harness runs compares like with like. A WRAPPER, so it passes on what a
+/// wrapper must: the end of the conversation (D-117) and whether the mind
+/// may act (F-47 A) — without the second, the mind would never think early.
+struct GreedyMind: ReplyGenerating {
+    let wrapped: any ReplyGenerating
+
+    func openReply(to context: ReplyContext) async throws -> any ReplyRun {
+        var options = context.options
+        options.temperature = 0
+        return try await wrapped.openReply(to: ReplyContext(
+            transcript: context.transcript, history: context.history, options: options))
+    }
+
+    func endConversation() async { await wrapped.endConversation() }
+    var mayActDuringReply: Bool { wrapped.mayActDuringReply }
+}
+
 struct PacedEchoReply: ReplyGenerating {
     let screen: Screen
+    /// An echo only talks (5d piece 4, F-47 A).
+    var mayActDuringReply: Bool { false }
 
     func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         let transcript = context.transcript

@@ -133,6 +133,9 @@ public struct MLXReplyGenerator: ReplyGenerating {
         self.clock = clock
     }
 
+    /// May act exactly when its source was given tools (5d piece 4, F-47 A).
+    public var mayActDuringReply: Bool { !source.tools.isEmpty }
+
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         // THE CALL'S TABLE, CHECKED FIRST (4z piece 2b, AC-289, D-110
         // F-13 d): a schema that cannot be built throws where it is built

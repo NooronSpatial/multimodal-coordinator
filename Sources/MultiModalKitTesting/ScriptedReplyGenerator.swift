@@ -214,6 +214,9 @@ public final class ScriptedReplyGenerator: ReplyGenerating, Sendable {
 
     // MARK: - ReplyGenerating
 
+    /// May act exactly when it was given tools (5d piece 4, F-47 A).
+    public var mayActDuringReply: Bool { !tools.isEmpty }
+
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         // THE DOOR (4y, AC-260, D-107 F-2 = A): the policy is asked FIRST,
         // with the thermometer's state right now, before a plan is

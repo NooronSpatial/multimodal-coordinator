@@ -127,6 +127,9 @@ final class TurnWatch: Sendable {
         var waiters: [UInt64: Waiter] = [:]
         var cancelled: Set<UInt64> = []
         var nextID: UInt64 = 0
+        /// Each turn's reply as it was born, printed when the turn ends —
+        /// so two runs can be compared on what the mind actually said.
+        var replies: [Int: String] = [:]
     }
     private let state = Mutex(State())
 
@@ -136,6 +139,7 @@ final class TurnWatch: Sendable {
     func record(_ event: TurnEvent) {
         let answered = state.withLock { state -> [(CheckedContinuation<(TurnEvent, Int)?, Never>, Int)] in
             state.seen.append(event)
+            if case .replyToken(let token, let turn) = event { state.replies[turn, default: ""] += token }
             let index = state.seen.count - 1
             let keys = state.waiters.filter { $0.value.from <= index && $0.value.match(event) }.map(\.key)
             return keys.compactMap { key in state.waiters.removeValue(forKey: key).map { ($0.continuation, index) } }
@@ -143,6 +147,12 @@ final class TurnWatch: Sendable {
         for (waiter, index) in answered { waiter.resume(returning: (event, index)) }
         if case .replyToken = event { return }          // a reply's words would flood the trace
         print("   · \(Self.describe(event))")
+        switch event {
+        case .turnCompleted(let turn), .turnBarged(let turn):
+            let said = state.withLock { $0.replies[turn] ?? "" }
+            print("   💬 \(said.count) chars: \"\(said.prefix(140))\(said.count > 140 ? "…" : "")\"")
+        default: break
+        }
     }
 
     /// The first event at or after `from` that `match` accepts — or nil once

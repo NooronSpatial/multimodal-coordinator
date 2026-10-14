@@ -308,6 +308,10 @@ public final class AppleReplyGenerator: ReplyGenerating {
     /// `ReplyFailure.tooHot(state)`, thrown here so no run exists and no
     /// session was born; the state rides on the case so a counting
     /// caller sees WHERE an app's stricter policy refused.
+    /// May act exactly when it was given tools (5d piece 4, F-47 A): a mind
+    /// with no tools only talks, so its reply may be opened early, in the gate.
+    public var mayActDuringReply: Bool { !tools.isEmpty }
+
     public func openReply(to context: ReplyContext) async throws -> any ReplyRun {
         // A PER-CALL table no mind can show is refused first, before the
         // heat and the verdict, on the reply seam's catch-all (F-13 d,

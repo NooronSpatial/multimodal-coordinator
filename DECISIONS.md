@@ -6197,3 +6197,33 @@ busy CPU in those seconds, against the house rule (events, not delays).
   fallback.
 - *Rejected:* **D — a 10 s drain**: hides how slow, and a stuck reply fails
   only after 10 s.
+
+## D-144 — 5d piece 4 signed: think in the gate, every fork as recommended (Milestone 5d)
+
+**Date:** 2026-10-13 · **Decided by:** Ryad ("Sign, all A") ·
+**Ruling:** SPEC §250–§255 as written. The reply opens at the final and its
+tokens are held until the gate ends; a person who goes on throws it away in
+silence. On his phone ③ (505 ms) and ④ (542 ms) ran one after the other; the
+saving is the smaller of the two, ~0.5 s a turn (felt ≈ 2.2 → 1.7 s).
+
+- **F-43 = A — the mind only.** *Rejected:* B, the voice's first phrase too
+  (a new "prepare, do not play" in the mouth's seam, and nothing saved while
+  ④ ≥ ③); C, a shorter gate (the app's number, and more replies started on a
+  pause).
+- **F-44 = A — a cancelled early reply counts as cut;** the mind's kept
+  session re-seeds on the next turn (AC-306), and it is counted. *Rejected:*
+  B, rolling the session back (new work inside both minds) — later, if the
+  phone's count says the re-seeds cost real time.
+- **F-45 = A — opt-in, off by default** (D-027: the app owns the policy and
+  pays the heat of each thrown-away reply); the demo turns it on.
+  *Rejected:* B, always on with a gate.
+- **F-46 = A — the stages stay what the person waits through**, plus a new
+  field for the thinking done inside the gate; the sum still equals
+  `turnLatency` (AC-337). *Rejected:* B, ④ from the final (the stages would
+  overlap and stop summing to the pause).
+- **F-47 = A — never early when the mind may run a tool**: the mind's
+  protocol gains a defaulted "may act" (default yes). *Rejected:* B, the tool
+  door holds every call until the gate ends (new waiting in both minds' tool
+  loops); C, a warning in the docs (a meal could be logged before the person
+  finished). **The cost accepted:** the diet app, which uses tools, gets no
+  speed-up from this piece.

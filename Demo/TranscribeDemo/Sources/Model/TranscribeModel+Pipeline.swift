@@ -263,7 +263,14 @@ extension TranscribeModel {
                 // starts. The character budget keeps the library's
                 // default (D-092) — this phone's mind has no 4096-token
                 // ceiling, and the depth is the axis that was measured.
-                maxMemoryTurns: memoryDepth),
+                maxMemoryTurns: memoryDepth,
+                // THINK IN THE GATE (5d piece 4, D-144): the mind starts at
+                // the final and its words wait for the gate — ~0.5 s less
+                // to wait on this phone (③ 505, ④ 542). This app's choice
+                // (F-45 A): each reply thrown away when the person goes on
+                // costs the phone some heat, and the log counts them. With
+                // the tools switch on, the mind may act and never starts early.
+                thinksInTheGate: true),
             clock: ContinuousClock(),
             diagnostics: diagnostics,
             // THIS APP's ruling (D-027/D-028): on a hot phone, sacrifice

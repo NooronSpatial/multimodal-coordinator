@@ -139,11 +139,23 @@ public protocol ReplyGenerating: Sendable {
     /// on**: the default would swallow it, and the wrapped mind would
     /// keep a conversation that ended.
     func endConversation() async
+
+    /// Whether a reply may ACT in the world while it is generated — run a
+    /// tool (5d piece 4, F-47 A). A reply that may act is never opened
+    /// early, inside the reply gate: its act could happen before the person
+    /// has finished, and they may go on.
+    ///
+    /// The default is YES, so a mind that says nothing is never opened
+    /// early. A mind with no tools says no. **A generator that WRAPS another
+    /// must pass this on**, or the wrapped mind is never opened early.
+    var mayActDuringReply: Bool { get }
 }
 
 extension ReplyGenerating {
     /// Nothing kept, nothing to let go of.
     public func endConversation() async {}
+    /// Assume it may act: never opened early (5d piece 4, F-47 A).
+    public var mayActDuringReply: Bool { true }
 }
 
 extension ReplyGenerating {

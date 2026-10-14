@@ -51,15 +51,17 @@ extension AudioDemo {
             // a real mind and mouth behind the same seams the scripted
             // organs proved. Without it, listen-only (F-3 = B): no mind,
             // no mouth, no coordinator.
-            mind: flags.talk ? chosenMind(flags.arguments, screen: screen) : nil,
+            mind: flags.talk ? greedyIfAsked(chosenMind(flags.arguments, screen: screen), flags.arguments) : nil,
             mouth: flags.talk ? machine.mouth : nil,
             pump: .init(sampleRate: sampleRate, pollInterval: .milliseconds(10),
                         chunkFrames: chunkFrames, preRollChunks: 10),
             transcription: .init(format: .init(sampleRate: sampleRate, channels: 1)),
             // `--gate <ms>`: the AC-81 reply gate, this machine's to earn.
             // `--window <ms>`: the barge window (D-071), the phone's 600 (5d).
+            // `--think-in-gate`: the mind opens at the final (5d piece 4, D-144).
             turns: .init(replyGate: .milliseconds(Int(flags.gateMs)),
-                         bargeWindow: .milliseconds(Int(flags.windowMs))),
+                         bargeWindow: .milliseconds(Int(flags.windowMs)),
+                         thinksInTheGate: flags.thinksInTheGate),
             clock: ContinuousClock(),
             // Field forensics (the 08-13 --talk investigation): the demo
             // was BLIND to listener overflow — the pump's broadcast drops

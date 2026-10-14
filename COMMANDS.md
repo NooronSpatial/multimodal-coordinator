@@ -124,6 +124,8 @@ disagreeing. Typing a number re-opens that hole by hand.
 | `--hangover` | `--hangover 700` | `700` (D-028/D-036) | how long silence must last before the turn ends |
 | `--gate` | `--gate 250` | `0` | AC-81's reply gate — how long to wait before answering |
 | `--window` | `--window 320` | `0` | the barge window (D-071), judged on LOUD chunks since 5d piece 3 (D-140) — a voice over the reply interrupts it on its first loud chunk at or after this long since its onset (not loud for this long in total); the hangover has no part in it; the phone runs 320 (`BargeWindow.measured`) |
+| `--think-in-gate` | `--think-in-gate` | off | think in the gate (5d piece 4, D-144): the mind opens at the final and its words wait for the gate; a person who goes on throws the early reply away. Run once without it and once with it: before and after. |
+| `--greedy` | `--greedy` | off | the mind at temperature 0 on every call (5d piece 4): the same question and memory give the same reply, so a before/after pair compares like with like. Each reply's text is printed when its turn ends, and each reply's voice margin (audio, decoding, RTF). |
 | `--no-aec` | bare | AEC **on** (D-038) | turns echo cancellation off |
 
 These four values are printed in the startup banner (`AudioDemo.swift:182`),

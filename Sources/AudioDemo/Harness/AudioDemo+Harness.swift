@@ -1,5 +1,6 @@
 import Foundation
 import MultiModalKit
+import MultiModalKitTTS
 
 // `audio-demo --person` (5d, SPEC §225/4; F-28 A, AC-342): the pipeline in
 // Ryad's phone setup, spoken to by the scripted person, measured stage by
@@ -7,6 +8,7 @@ import MultiModalKit
 //
 //   swift run -c release audio-demo whisper --person --mind=local --mouth=kokoro \
 //       --hangover 300 --gate 500 --window 320      (judged on loud chunks since 5d piece 3, D-140)
+//       [--think-in-gate]                              (the mind opens at the final, 5d piece 4, D-144)
 //
 // No microphone: the person's voice reaches the ring directly, so this run
 // measures the pipeline and never an echo.
@@ -26,7 +28,8 @@ extension AudioDemo {
         print("\n🧪 THE SCRIPTED PERSON — \(path), \(script.sentences.count) sentences, \(script.turns) turns,"
               + " interrupting at \(script.interruptAt.sorted())")
         print("    hangover \(Int(flags.hangoverMs)) ms · gate \(Int(flags.gateMs)) ms"
-              + " · window \(Int(flags.windowMs)) ms · vad \(flags.vadThreshold)\n")
+              + " · window \(Int(flags.windowMs)) ms · vad \(flags.vadThreshold)"
+              + " · think in the gate \(flags.thinksInTheGate ? "ON" : "off")\n")
         await converseAndMeasure(harness)
     }
 
@@ -50,6 +53,12 @@ extension AudioDemo {
         }
         let latency = HarnessLatency(hangover: .milliseconds(Int(flags.hangoverMs)))
         guard let mouth = await preparedMouth(flags.arguments, heard: { latency.heard($0) }) else { return nil }
+        // Each reply's decode, beside its pauses (5d piece 4): a pause inside
+        // an answer is the player running dry, and the margin says whether the
+        // voice decoded slower than it played.
+        if let voice = mouth as? any SpokenVoice {
+            await voice.reportMargins { latency.margin($0) }
+        }
         let (producer, consumer) = AudioRing.create(minimumCapacity: Int(cut.rate))
         do {
             let runtime = try AIRuntime(configuration(

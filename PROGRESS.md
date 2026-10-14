@@ -6,16 +6,23 @@ page only POINTS. Every row names where its fact is proven — a SPEC
 section (what was promised and measured), a D-entry (who ruled, and why),
 an evidence file, or a tag note (`git show <tag>`).*
 
-**As of 2026-10-09** · `main` at `9044628` · latest tag **0.5.0**
+**As of 2026-10-14** · `main` at `b2a7cfb` · latest tag **0.5.0**
 (`e82533d`) · **milestone 5d — the fast voice** (D-132): pieces 1–3 are
 merged (PR 63), not tagged. Piece 1 measures the turn (INSTRUMENTS §73, §73b).
 Piece 2, the voice (D-138), halved the first sound on Ryad's phone and brought
 the felt pause to the first word from ~3.3 to 2.3 s (§74b). Piece 3, the echo
 (D-140, the diet app's R-4), cuts the voice on the first LOUD chunk at or
 after onset + 320 ms. On Ryad's phone (§75b) every one of 9 interruptions cut
-it, mostly in 320 ms, and no echo did, in 29 spoken turns. **Next:** the felt
-pause, 2.2 s against F-30's 0.8 s line. Open: this Mac's download rows, slow since 2026-10-08 (SPEC §249);
-CI's CONTROL row, green since D-143 and watched.
+it, mostly in 320 ms, and no echo did, in 29 spoken turns. Piece 4, think in
+the gate (D-144), on `milestone/5d-piece4-think-in-the-gate`: the mind opens at
+the final and its words wait for the gate; on this Mac (INSTRUMENTS §76) the
+felt pause to the first word fell 0.4–0.7 s, to ~1.8 s, and on Ryad's phone
+(§76b) to 1.9 s (2.4 s on a warm phone before); one early reply in three was
+thrown away when he went on.
+**Next:** the rest of the felt pause, against F-30's 0.8 s line. Open: CI's
+CONTROL row, green since D-143 and watched; this Mac's download rows (the
+daemon family, D-139), red after 2026-10-08, green on 2026-10-13, red again on
+2026-10-14 (11 of 20 loop runs) — the cause was never found.
 
 ## The picture
 

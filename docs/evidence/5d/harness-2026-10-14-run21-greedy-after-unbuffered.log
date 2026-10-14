@@ -1,0 +1,243 @@
+^D[2K[33m[1mwarning: [0m'zipfoundation': /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Building for production...
+[2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Using on-disk description][2K[1 / 1][2K[1 / 1][2K[1 / 2] KokoroSwift_KokoroSwift[2K[1 / 57] RealModule[2K[1 / 31] MisakiSwift
+
+Build complete! (2.14 sec)
+voice: Kokoro-82M · float16 · phrases ≤ 120 chars, opening at 20 and 40 · quiet trimmed (margin 40 ms)
+
+🧪 THE SCRIPTED PERSON — Fixtures/ryad-en.wav, 22 sentences, 20 turns, interrupting at [7, 14]
+    hangover 300 ms · gate 500 ms · window 320 ms · vad 0.02 · think in the gate ON
+
+🗣  sentence 1/20 (1380 ms of audio)
+   · turn 0 listening
+🧠 early reply over turn 0: thought 501 ms → kept
+   · turn 0 thinking
+   · turn 0 speaking
+⏱  turn 0: ① 300 · ② 17526 · ③ 501 · ④ 419 · ⑤ 1917  →  felt 20663 ms · 🧠 thought in the gate 501
+🎙  voice: 3054 ms audio · 1961 ms decoding · RTF 0.64 · steady 0.11
+   · turn 0 completed
+   💬 42 chars: "Hello, Riyadh. How can I assist you today?"
+   · turn 0 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 2/20 (2460 ms of audio)
+   · turn 1 listening
+🧠 early reply over turn 1: thought 503 ms → kept
+   · turn 1 thinking
+   · turn 1 speaking
+⏱  turn 1: ① 300 · ② 156 · ③ 503 · ④ 421 · ⑤ 308  →  felt 1689 ms · 🧠 thought in the gate 503
+🎙  voice: 3301 ms audio · 611 ms decoding · RTF 0.19 · steady 0.13
+   · turn 1 completed
+   💬 59 chars: "I'm listening. What are you testing the speech engines for?"
+   · turn 1 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 3/20 (1120 ms of audio)
+   · turn 2 listening
+🧠 early reply over turn 2: thought 501 ms → kept
+   · turn 2 thinking
+   · turn 2 speaking
+⏱  turn 2: ① 300 · ② 136 · ③ 501 · ④ 0 · ⑤ 302  →  felt 1239 ms · 🧠 thought in the gate 501
+🎙  voice: 4429 ms audio · 754 ms decoding · RTF 0.17 · steady 0.13
+   · turn 2 completed
+   💬 74 chars: "I see. Are you testing the speech engines for accuracy or another purpose?"
+   · turn 2 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 4/20 (1180 ms of audio)
+   · turn 3 listening
+🧠 early reply over turn 3: thought 506 ms → kept
+   · turn 3 thinking
+   · turn 3 speaking
+⏱  turn 3: ① 300 · ② 121 · ③ 506 · ④ 82 · ⑤ 317  →  felt 1325 ms · 🧠 thought in the gate 506
+🎙  voice: 4535 ms audio · 778 ms decoding · RTF 0.17 · steady 0.13
+   · turn 3 completed
+   💬 86 chars: "I'm listening. Are you testing the speech engines for audio quality or something else?"
+   · turn 3 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 5/20 (1440 ms of audio)
+   · turn 4 listening
+   · turn 4 thinking
+🧠 early reply over turn 4: thought 500 ms → kept
+   · turn 4 speaking
+⏱  turn 4: ① 300 · ② 135 · ③ 500 · ④ 425 · ⑤ 271  →  felt 1632 ms · 🧠 thought in the gate 500
+🎙  voice: 5057 ms audio · 759 ms decoding · RTF 0.15 · steady 0.12
+   · turn 4 completed
+   💬 93 chars: "I'm listening. Are you testing the speech engines for travel-related audio or something else?"
+   · turn 4 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 6/20 (2260 ms of audio)
+   · turn 5 listening
+   · turn 5 thinking
+🧠 early reply over turn 5: thought 504 ms → kept
+   · turn 5 speaking
+⏱  turn 5: ① 300 · ② 110 · ③ 504 · ④ 315 · ⑤ 280  →  felt 1509 ms · 🧠 thought in the gate 504
+🗣  sentence 7/20 (2460 ms of audio) — OVER the answer
+🔊 candidate over turn 5: loud 340 ms · onset → verdict 320 ms → CUT
+   · turn 5 BARGED
+   💬 99 chars: "I'm listening. Are you testing the speech engines for a travel-related ring buffer and pump system?"
+   · turn 6 listening
+✋ barge (turn 5 dies): ⑦ window 320 · ⑧ silence 0  →  320 ms from your first sound
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🧠 early reply over turn 6: thought 505 ms → kept
+   · turn 6 thinking
+   · turn 6 speaking
+⏱  turn 6: ① 300 · ② 157 · ③ 505 · ④ 405 · ⑤ 265  →  felt 1631 ms · 🧠 thought in the gate 505
+🎙  voice: 5574 ms audio · 819 ms decoding · RTF 0.15 · steady 0.12
+   · turn 6 completed
+   💬 99 chars: "I'm listening. Are you testing the speech engines for a travel-related ring buffer and pump system?"
+   · turn 6 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 8/20 (1740 ms of audio)
+   · turn 7 listening
+   · turn 7 thinking
+🧠 early reply over turn 7: thought 502 ms → kept
+   · turn 7 speaking
+⏱  turn 7: ① 300 · ② 285 · ③ 502 · ④ 320 · ⑤ 312  →  felt 1719 ms · 🧠 thought in the gate 502
+🎙  voice: 4748 ms audio · 778 ms decoding · RTF 0.16 · steady 0.12
+   · turn 7 completed
+   💬 88 chars: "I'm listening. Are you testing the speech engines for splitting audio into small chunks?"
+   · turn 7 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 9/20 (1760 ms of audio)
+   · turn 8 listening
+🧠 early reply over turn 8: thought 506 ms → kept
+   · turn 8 thinking
+   · turn 8 speaking
+⏱  turn 8: ① 300 · ② 100 · ③ 506 · ④ 296 · ⑤ 359  →  felt 1562 ms · 🧠 thought in the gate 506
+🎙  voice: 4847 ms audio · 852 ms decoding · RTF 0.18 · steady 0.13
+   · turn 8 completed
+   💬 84 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking?"
+   · turn 8 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 10/20 (4880 ms of audio)
+   · turn 9 listening
+   · turn 9 thinking
+🧠 early reply over turn 9: thought 505 ms → kept
+   · turn 9 speaking
+⏱  turn 9: ① 300 · ② 153 · ③ 505 · ④ 592 · ⑤ 412  →  felt 1962 ms · 🧠 thought in the gate 505
+🎙  voice: 6058 ms audio · 1039 ms decoding · RTF 0.17 · steady 0.12
+   · turn 9 completed
+   💬 106 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector?"
+   · turn 9 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 11/20 (1540 ms of audio)
+   · turn 10 listening
+🧠 early reply over turn 10: thought 502 ms → kept
+   · turn 10 thinking
+   · turn 10 speaking
+⏱  turn 10: ① 300 · ② 246 · ③ 503 · ④ 539 · ⑤ 415  →  felt 2002 ms · 🧠 thought in the gate 502
+🎙  voice: 7376 ms audio · 1328 ms decoding · RTF 0.18 · steady 0.14
+   · turn 10 completed
+   💬 125 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector and engine writing?"
+   · turn 10 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 12/20 (1220 ms of audio)
+   · turn 11 listening
+   · turn 11 thinking
+🧠 early reply over turn 11: thought 501 ms → kept
+   · turn 11 speaking
+⏱  turn 11: ① 300 · ② 108 · ③ 501 · ④ 463 · ⑤ 404  →  felt 1776 ms · 🧠 thought in the gate 501
+🎙  voice: 8250 ms audio · 1300 ms decoding · RTF 0.16 · steady 0.12
+   · turn 11 completed
+   💬 140 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector and engine writing the final text?"
+   · turn 11 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 13/20 (980 ms of audio)
+   · turn 12 listening
+   · turn 12 idle
+🗣  sentence 14/20 (2260 ms of audio) — OVER the answer
+   · turn 13 listening
+   · turn 13 thinking
+🧠 early reply over turn 13: thought 502 ms → kept
+   · turn 13 speaking
+⏱  turn 13: ① 300 · ② 144 · ③ 502 · ④ 608 · ⑤ 439  →  felt 1993 ms · 🧠 thought in the gate 502
+🎙  voice: 9521 ms audio · 1589 ms decoding · RTF 0.17 · steady 0.13
+   · turn 13 completed
+   💬 169 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector, engine writing the final text, an…"
+   · turn 13 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 15/20 (1480 ms of audio)
+   · turn 14 listening
+   · turn 14 thinking
+🧠 early reply over turn 14: thought 505 ms → kept
+⏱  turn 14: ① 300 · ② 532 · ③ 505 · ④ 542 · ⑤ 364  →  felt 2244 ms · 🧠 thought in the gate 505
+   · turn 14 speaking
+🎙  voice: 10952 ms audio · 1881 ms decoding · RTF 0.17 · steady 0.15
+   · turn 14 completed
+   💬 195 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector, engine writing the final text, ri…"
+   · turn 14 idle
+⏸  reply pauses: 0 over 300 ms · longest 188 ms · quiet before the first word 40 ms
+🗣  sentence 16/20 (1320 ms of audio)
+   · turn 15 listening
+   · turn 15 thinking
+🧠 early reply over turn 15: thought 503 ms → kept
+   · turn 15 speaking
+⏱  turn 15: ① 300 · ② 215 · ③ 503 · ④ 498 · ⑤ 393  →  felt 1909 ms · 🧠 thought in the gate 503
+🎙  voice: 11923 ms audio · 2016 ms decoding · RTF 0.17 · steady 0.15
+   · turn 15 completed
+   💬 208 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector, engine writing the final text, ri…"
+   · turn 15 idle
+⏸  reply pauses: 0 over 300 ms · longest 188 ms · quiet before the first word 40 ms
+🗣  sentence 17/20 (2240 ms of audio)
+   · turn 16 listening
+   · turn 16 thinking
+🧠 early reply over turn 16: thought 504 ms → kept
+   · turn 16 speaking
+⏱  turn 16: ① 300 · ② 138 · ③ 504 · ④ 457 · ⑤ 331  →  felt 1731 ms · 🧠 thought in the gate 504
+🎙  voice: 13922 ms audio · 2195 ms decoding · RTF 0.16 · steady 0.14
+   · turn 16 completed
+   💬 246 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector, engine writing the final text, ri…"
+   · turn 16 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 18/20 (920 ms of audio)
+   · turn 17 listening
+   · turn 17 idle
+🗣  sentence 19/20 (1120 ms of audio)
+   · turn 18 listening
+   · turn 18 thinking
+🧠 early reply over turn 18: thought 502 ms → kept
+⏱  turn 18: ① 300 · ② 187 · ③ 502 · ④ 522 · ⑤ 440  →  felt 1952 ms · 🧠 thought in the gate 502
+   · turn 18 speaking
+🎙  voice: 14996 ms audio · 2566 ms decoding · RTF 0.17 · steady 0.15
+   · turn 18 completed
+   💬 260 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector, engine writing the final text, ri…"
+   · turn 18 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 20/20 (4480 ms of audio)
+   · turn 19 listening
+🧠 early reply over turn 19: thought 500 ms → kept
+   · turn 19 thinking
+   · turn 19 speaking
+⏱  turn 19: ① 300 · ② 113 · ③ 500 · ④ 580 · ⑤ 388  →  felt 1881 ms · 🧠 thought in the gate 500
+🎙  voice: 14997 ms audio · 2419 ms decoding · RTF 0.16 · steady 0.14
+   · turn 19 completed
+   💬 260 chars: "I'm listening. Are you testing the speech engines for 20-millisecond audio chunking with a voice detector, engine writing the final text, ri…"
+   · turn 19 idle
+⏸  reply pauses: 0 over 300 ms · longest 188 ms · quiet before the first word 40 ms
+
+(the runtime is down — teardown ran in order)
+
+════ THE TURN TIMELINE — 18 spoken turns, 1 barges ════
+  ① silence wait     300 ms (the app's hangover, every turn)
+  ② ear finish   median 148 ms · min 100 · max 17526 · n 18
+  ③ reply gate   median 503 ms · min 500 · max 506 · n 18
+  ④ first token  median 441 ms · min 0 · max 608 · n 18
+  ⑤ first sound  median 362 ms · min 265 · max 1917 · n 18
+     FELT PAUSE   median 1753 ms · min 1239 · max 20663 · n 18
+     quiet before the 1st word  median 40 ms · min 40 · max 40 · n 18
+     FELT, TO THE FIRST WORD  median 1793 ms · min 1279 · max 20703 · n 18
+  ⑦ barge window  median 320 ms · min 320 · max 320 · n 1
+  ⑧ to silence   median 0 ms · min 0 · max 0 · n 1
+  loud · cut        median 340 ms · min 340 · max 340 · n 1
+  loud · abandoned  —
+  🧠 in the gate   median 503 ms · min 500 · max 506 · n 18
+  🧠 early replies: 18 kept · 0 thrown away
+  🎙 voice RTF  median 0.17 · min 0.15 · max 0.64 · n 17
+  ⑥ pauses inside answers: 0 over 300 ms in 18 replies · replies with one or more: 0
+  ⑥ longest pause  median 185 ms · min 185 · max 188 · n 18

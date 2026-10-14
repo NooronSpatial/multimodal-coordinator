@@ -1,0 +1,406 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-363…AC-370 · think in the gate" started.
+􀟈  Suite "AC-335…AC-340 · the turn timeline" started.
+􀟈  Suite "AC-125 · the ids come from the model, not from me" started.
+􀟈  Suite TurnHealthTests started.
+􀟈  Suite "AC-355…AC-360 · a barge proves itself by being loud" started.
+􀟈  Suite "the barge window" started.
+􀟈  Test "a mind that may act — it has tools — is opened when the gate runs out, as today" started.
+􀟈  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" started.
+􀟈  Suite TurnCoordinatorTests started.
+􀟈  Test "a reply that fails in the gate fails the turn only when the gate runs out" started.
+􀟈  Test "a mind that cannot even open, inside the gate, fails the turn only when the gate runs out" started.
+􀟈  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" started.
+􀟈  Test "a first token after the gate's end: ④ is what was left to wait for it" started.
+􀟈  Test "off means today: the opt-in off, the mind opens when the gate runs out" started.
+􀟈  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" started.
+􀟈  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" started.
+􀟈  Test "a model that does not reason out loud is nil, not an error" started.
+􀟈  Suite "AC-125 · the think gate" started.
+􀟈  Test "HALF a vocabulary throws rather than guesses" started.
+􀟈  Test "the REAL model's config yields 151667/151668 (model config; skips if absent)" started.
+􀟈  Test "a leak that ended cannot barge later on somebody else's audio" started.
+􀟈  Test "just under the window does not barge" started.
+􀟈  Test "a file that is not a tokenizer configuration is refused" started.
+􀟈  Test "both markers present — the two ids are read from the vocabulary" started.
+􀟈  Test "just over the window barges — it opens, it does not merely delay" started.
+􀟈  Test "a 1160 ms utterance — the shortest real one ever logged — DOES barge" started.
+􀟈  Test "a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)" started.
+􀟈  Test "a chunk the VAD said nothing about still counts as loud — the old rule, unchanged (AC-359)" started.
+􀟈  Test "the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)" started.
+􀟈  Test "the measured window is 320 ms of LOUD time (D-140, F-39 A)" started.
+􀟈  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" started.
+􀟈  Test "an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)" started.
+􀟈  Test "a 480 ms burst — the echo's exact fingerprint — does NOT barge" started.
+􀟈  Test "a failure in the gate disappears with its reply when the person goes on" started.
+􀟈  Test "zero window is the old behaviour — the first onset kills the reply" started.
+􀟈  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" started.
+􀟈  Test "A whitespace-only final produces no reply: back to idle, generator untouched" started.
+􀟈  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" started.
+􀟈  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" started.
+􀟈  Test "a barge before the first token loses nothing (F-5 = A)" started.
+􀟈  Test "hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)" started.
+􀟈  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" started.
+􀟈  Test "the scripted mind may act exactly when it has tools" started.
+􀟈  Test "An onset one tick before expiry wins the race" started.
+􀟈  Test "the measured window cannot swallow the shortest real utterance" started.
+􀟈  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" started.
+􀟈  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" started.
+􀟈  Test "run() returns after an interruption even when the inputs ended first" started.
+􀟈  Test "clearMemory() forgets the past and leaves the thought alone" started.
+􀟈  Test "A stale final during the gate is dropped at the door; the armed reply survives it" started.
+􀟈  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" started.
+􀟈  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" started.
+􀟈  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" started.
+􀟈  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" started.
+􀟈  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" started.
+􀟈  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" started.
+􀟈  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" started.
+􀟈  Test "completion forgets and remembers in the same step (AC-195)" started.
+􀟈  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" started.
+􀟈  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" started.
+􀟈  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" started.
+􀟈  Test "The app's context bound reaches the ledger and drops the oldest through the loop" started.
+􀟈  Test "The context bound is the app's number, and its default is stated" started.
+􀟈  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" started.
+􀟈  Test "An interruption ends the live turn like a failure — not a barge" started.
+􀟈  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" started.
+􀟈  Test "the coordinator passes the default options (AC-231)" started.
+􀟈  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" started.
+􀟈  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" started.
+􀟈  Test "A barge moves the thought into the conversation, not into the next question (D-089)" started.
+􀟈  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" started.
+􀟈  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" started.
+􀟈  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" started.
+􀟈  Test "A final STASHED before an interruption is not replayed after resume" started.
+􀟈  Test "The refused final contributes content and still triggers nothing (AC-87)" started.
+􀟈  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" started.
+􀟈  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" started.
+􀟈  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" started.
+􀟈  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" started.
+􀟈  Test "a failed turn is never remembered, and keeps its words (AC-194)" started.
+􀟈  Test "A dead turn cannot speak after an interruption — defiant stages included" started.
+􀟈  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" started.
+􀟈  Test "a reply of no tokens is answered, and not remembered" started.
+􀟈  Test "Interrupting while idle publishes nothing at all" started.
+􀟈  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" started.
+􀟈  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" started.
+􀟈  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" started.
+􀟈  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" started.
+􀟈  Test "An onset during the gate kills the pending reply silently; the next final gates again" started.
+􀟈  Test "A failed turn keeps its words — nothing answered them (AC-89)" started.
+􀟈  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" started.
+􀟈  Test "stop() ends the conversation's memory (F-4 = A)" started.
+􀟈  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" started.
+􀟈  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" started.
+􀟈  Test "Every adjacent state pair across a multi-turn run is in the legal table" started.
+􀟈  Test "an interruption keeps the conversation and drops the thought (AC-196)" started.
+􀟈  Test "an unclosed thought swallows to the end, and SAYS that it is still holding" started.
+􀟈  Test "a stray close with no open is harmless, not a crash" started.
+􀟈  Test "the removed-gate control — a foreign vocabulary lets the reasoning through" started.
+􀟈  Test "the markers themselves never reach the mouth — punctuation, not words" started.
+􀟈  Test "a template that already opened the thought starts inside it" started.
+􀟈  Test "a DEFIANT <think> is swallowed — layer 1 is a convention, this is the net" started.
+􁁛  Test "the REAL model's config yields 151667/151668 (model config; skips if absent)" passed after 0.004 seconds.
+􁁛  Test "the measured window cannot swallow the shortest real utterance" passed after 0.005 seconds.
+􁁛  Test "a stray close with no open is harmless, not a crash" passed after 0.001 seconds.
+􁁛  Test "a template that already opened the thought starts inside it" passed after 0.001 seconds.
+􁁛  Test "an unclosed thought swallows to the end, and SAYS that it is still holding" passed after 0.001 seconds.
+􁁛  Test "the markers themselves never reach the mouth — punctuation, not words" passed after 0.001 seconds.
+􁁛  Test "a DEFIANT <think> is swallowed — layer 1 is a convention, this is the net" passed after 0.001 seconds.
+􁁛  Test "the removed-gate control — a foreign vocabulary lets the reasoning through" passed after 0.001 seconds.
+􁁛  Suite "AC-125 · the think gate" passed after 0.008 seconds.
+􁁛  Test "The default gate is zero — 4a byte for byte (the untouched suite is the proof; this pins the default)" passed after 0.008 seconds.
+􁁛  Test "the measured window is 320 ms of LOUD time (D-140, F-39 A)" passed after 0.009 seconds.
+􁁛  Test "The context bound is the app's number, and its default is stated" passed after 0.008 seconds.
+􁁛  Test "both markers present — the two ids are read from the vocabulary" passed after 0.010 seconds.
+􁁛  Test "a model that does not reason out loud is nil, not an error" passed after 0.011 seconds.
+􁁛  Test "a file that is not a tokenizer configuration is refused" passed after 0.011 seconds.
+􁁛  Test "A whitespace-only final produces no reply: back to idle, generator untouched" passed after 0.011 seconds.
+􁁛  Test "Lifecycle negative space: a second run() returns at once; stop() is idempotent; after stop the state is idle and listeners finish immediately" passed after 0.011 seconds.
+􁁛  Test "a failed turn reaches the HEALTH stream, typed, with its turn number" passed after 0.011 seconds.
+􁁛  Test "HALF a vocabulary throws rather than guesses" passed after 0.012 seconds.
+􁁛  Test "a leak that ended cannot barge later on somebody else's audio" passed after 0.012 seconds.
+􁁛  Test "The interrupted thought SURVIVES — nothing answered it (D-040 F-2 inherited)" passed after 0.011 seconds.
+􁁛  Test "a reply of no tokens is answered, and not remembered" passed after 0.011 seconds.
+􁁛  Test "stop() during the gate: clean end, no generator, no sleeping child left behind" passed after 0.011 seconds.
+􁁛  Test "An interruption ends the live turn like a failure — not a barge" passed after 0.011 seconds.
+􁁛  Test "THE DESYNC REGRESSION (D-034): an onset this listener never saw cannot corrupt later turns" passed after 0.011 seconds.
+􁁛  Test "MEMBERSHIP (AC-86): partials, ceilings and failures put nothing in the thought" passed after 0.011 seconds.
+􁁛  Suite TurnHealthTests passed after 0.012 seconds.
+􁁛  Test "stop() mid-speaking: streams finish, both stage runs are cancelled, nothing publishes after" passed after 0.011 seconds.
+􁁛  Test "A reply that finishes with zero tokens completes the turn; speaking never happens" passed after 0.011 seconds.
+􁁛  Suite "AC-125 · the ids come from the model, not from me" passed after 0.012 seconds.
+􁁛  Test "resume() forgets the thought — a call is a break in the conversation (F-5)" passed after 0.011 seconds.
+􁁛  Test "a 480 ms burst — the echo's exact fingerprint — does NOT barge" passed after 0.012 seconds.
+􁁛  Test "A stale settled final never opens thinking; a future final waits for its onset — identity decides, deterministically" passed after 0.011 seconds.
+􁁛  Test "stop() mid-accumulation ends clean and publishes nothing after (AC-90)" passed after 0.012 seconds.
+􁁛  Test "A failed turn keeps its words — nothing answered them (AC-89)" passed after 0.011 seconds.
+􁁛  Test "A synthesizer failure mid-speech ends the turn; the reply run AND the mouth are cancelled" passed after 0.012 seconds.
+􁁛  Test "a 1160 ms utterance — the shortest real one ever logged — DOES barge" passed after 0.012 seconds.
+􁁛  Test "completion forgets and remembers in the same step (AC-195)" passed after 0.012 seconds.
+􁁛  Test "the coordinator passes the default options (AC-231)" passed after 0.012 seconds.
+􁁛  Test "a failed turn is never remembered, and keeps its words (AC-194)" passed after 0.011 seconds.
+􁁛  Test "A ZERO-TOKEN reply also forgets the thought — F-2's second clear site" passed after 0.011 seconds.
+􁁛  Test "a barge before the first token loses nothing (F-5 = A)" passed after 0.012 seconds.
+􁁛  Test "Input exhaustion ends the loop gracefully: run() returns and listeners finish, no stop() needed" passed after 0.012 seconds.
+􁁛  Test "just under the window does not barge" passed after 0.013 seconds.
+􁁛  Test "zero window is the old behaviour — the first onset kills the reply" passed after 0.012 seconds.
+􁁛  Test "stop() ends the conversation's memory (F-4 = A)" passed after 0.012 seconds.
+􁁛  Test "THE MILESTONE: a thought spoken in two sentences reaches the generator whole" passed after 0.012 seconds.
+􁁛  Test "just over the window barges — it opens, it does not merely delay" passed after 0.013 seconds.
+􁁛  Test "A final arriving BEFORE its own speechStarted waits, then drives the turn; a duplicate final is dropped at the door" passed after 0.012 seconds.
+􁁛  Test "A completed reply forgets the thought; the next turn starts clean (AC-89)" passed after 0.012 seconds.
+􁁛  Test "A barge moves the thought into the conversation, not into the next question (D-089)" passed after 0.012 seconds.
+􁁛  Suite "the barge window" passed after 0.014 seconds.
+􁁛  Test "THE MILESTONE: the second turn is shown the first, in roles (AC-190/AC-191)" passed after 0.012 seconds.
+􁁛  Test "A defiant token AFTER the reply finished is dropped: not published, not fed to the mouth" passed after 0.012 seconds.
+􁁛  Test "One full turn: listening → thinking → speaking → idle, tokens included, exact sequence" passed after 0.012 seconds.
+􁁛  Test "The app's context bound reaches the ledger and drops the oldest through the loop" passed after 0.012 seconds.
+􁁛  Test "The user's utterance itself fails to become text: the turn ends as transcriptionFailed, the loop lives on" passed after 0.012 seconds.
+􁁛  Test "clearMemory() forgets the past and leaves the thought alone" passed after 0.013 seconds.
+􁁛  Test "A generator failure ends the turn, not the coordinator; the next turn runs clean" passed after 0.013 seconds.
+􁁛  Test "an interruption keeps the conversation and drops the thought (AC-196)" passed after 0.009 seconds.
+􁁛  Test "The synthesizer refuses to open: turnFailed with the reason, the reply run is cancelled, the next turn runs clean" passed after 0.013 seconds.
+􁁛  Test "Barge-in MID-GENERATION: tokens flowing, mouth open but still silent — both runs die; a ghost 'started' cannot flip the new turn" passed after 0.012 seconds.
+􁁛  Test "REGRESSION: a final that beat its own onset is answered ONCE, never twice" passed after 0.012 seconds.
+􁁛  Test "Barge-in during thinking, before any token: the dead turn's ghost tokens never surface" passed after 0.012 seconds.
+􁁛  Test "Barge-in during speaking: defiant synthesizer's late 'finished' cannot complete the dead turn" passed after 0.013 seconds.
+􁁛  Test "A reply that fails MID-STREAM while speaking: turnFailed, the mouth is cancelled, the next turn runs clean" passed after 0.013 seconds.
+􁁛  Test "Rapid double barge: two dead turns, the third completes; exact event sequence" passed after 0.013 seconds.
+􁁛  Test "Every adjacent state pair across a multi-turn run is in the legal table" passed after 0.013 seconds.
+􁁛  Test "a person between two words — a pause across the deadline — cuts at the next LOUD chunk (AC-357)" passed after 0.014 seconds.
+􁁛  Test "Cancel latency is exactly zero in mock time — teardown has no clock waits; a dead turn reports nothing" passed after 0.013 seconds.
+􁁛  Test "hangover 700 ms: a sound loud for 280 ms, then quiet, does NOT cut the reply (AC-356)" passed after 0.014 seconds.
+􁁛  Test "Turn latency = final accepted → the started evidence: exact on a manual clock" passed after 0.014 seconds.
+􁁛  Test "off means today: the opt-in off, the mind opens when the gate runs out" passed after 0.015 seconds.
+􁁛  Test "a mind that may act — it has tools — is opened when the gate runs out, as today" passed after 0.015 seconds.
+􁁛  Test "an abandoned candidate's words, arriving after the reply, never join the next prompt (AC-358)" passed after 0.014 seconds.
+􁁛  Test "A stale final during the gate is dropped at the door; the armed reply survives it" passed after 0.014 seconds.
+􁁛  Test "The gate holds the generator shut, then expiry opens thinking at the exact instant" passed after 0.015 seconds.
+􁁛  Test "An onset one tick before expiry wins the race" passed after 0.015 seconds.
+􁁛  Test "a chunk the VAD said nothing about still counts as loud — the old rule, unchanged (AC-359)" passed after 0.015 seconds.
+􁁛  Test "An onset during the gate kills the pending reply silently; the next final gates again" passed after 0.015 seconds.
+􁁛  Test "a spoken turn reports every stage, exact, at its first sound (AC-335)" passed after 0.017 seconds.
+􀟈  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" started.
+􁁛  Test "turnLatency did not move: it is the timeline's stages since the final (AC-337)" passed after 0.002 seconds.
+􀟈  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" started.
+􁁛  Test "the same sound gives the same verdict at a 300 ms and a 700 ms hangover (AC-355)" passed after 0.020 seconds.
+􁁛  Suite "AC-355…AC-360 · a barge proves itself by being loud" passed after 0.021 seconds.
+􁁛  Test "the gate is its own stage: 500 ms in, 500 ms out (AC-336)" passed after 0.001 seconds.
+􀟈  Test "no gate: the stage is zero, and the others are untouched (AC-336)" started.
+􁁛  Test "no gate: the stage is zero, and the others are untouched (AC-336)" passed after 0.001 seconds.
+􀟈  Test "an end the coordinator never saw leaves earFinish empty, not zero" started.
+􁁛  Test "an end the coordinator never saw leaves earFinish empty, not zero" passed after 0.001 seconds.
+􀟈  Test "a person who went on: the older utterance's end is not this one's" started.
+􁁛  Test "a person who went on: the older utterance's end is not this one's" passed after 0.001 seconds.
+􀟈  Test "an ear that finishes before the end decision reports a negative earFinish" started.
+􁁛  Test "an ear that finishes before the end decision reports a negative earFinish" passed after 0.001 seconds.
+􀟈  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" started.
+􁁛  Test "a barge while speaking: the window, then the silence; the pause was already reported (AC-338)" passed after 0.001 seconds.
+􀟈  Test "a barge with the window off: the window is zero (AC-338)" started.
+􁁛  Test "a barge with the window off: the window is zero (AC-338)" passed after 0.001 seconds.
+􀟈  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" started.
+􁁛  Test "a barge while thinking: no window, and no pause timeline — the turn never spoke (AC-338)" passed after 0.001 seconds.
+􀟈  Test "an empty final reports no timeline (AC-339)" started.
+􁁛  Test "an empty final reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a failed ear reports no timeline (AC-339)" started.
+􁁛  Test "a failed ear reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" started.
+􁁛  Test "a reply killed inside the gate by a person who goes on reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a mind that chose silence reports no timeline (AC-339)" started.
+􁁛  Test "a mind that chose silence reports no timeline (AC-339)" passed after 0.001 seconds.
+􀟈  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" started.
+􁁛  Test "a reporter written for 0.5.0 still conforms, and the new hand-offs default to nothing (AC-340)" passed after 0.001 seconds.
+􀟈  Test "the felt pause is the app's hangover plus every stage" started.
+􁁛  Test "the felt pause is the app's hangover plus every stage" passed after 0.001 seconds.
+􁁛  Suite "AC-335…AC-340 · the turn timeline" passed after 0.031 seconds.
+􀢄  Test "the scripted mind may act exactly when it has tools" recorded an issue at ThinkInTheGateTests.swift:381:9: Expectation failed: !ScriptedReplyGenerator.manual(replies: 1).mayActDuringReply
+􀄵  !ScriptedReplyGenerator.manual(replies: 1).mayActDuringReply → true
+􀄵    ScriptedReplyGenerator.manual(replies: 1).mayActDuringReply → false
+􀄵      ScriptedReplyGenerator.manual(replies: 1) → MultiModalKitTesting.ScriptedReplyGenerator
+􀄵        plans → [MultiModalKitTesting.ScriptedReplyGenerator.Plan.manual(ignoresCancel: false)]
+􀄵        tools → ToolTable(tools: [], records: [])
+􀄵          tools → []
+􀄵          records → []
+􀄵        thermal → MultiModalKitTesting.ScriptedThermalProvider
+􀄵          continuation → Continuation(storage: Swift.AsyncStream<MultiModalKit.ThermalState>._Storage)
+􀄵            some → Continuation(storage: Swift.AsyncStream<MultiModalKit.ThermalState>._Storage)
+􀄵              storage → Swift.AsyncStream<MultiModalKit.ThermalState>._Storage
+􀄵                state → State(continuations: [], pending: Deque<ThermalState>([]), limit: Swift.AsyncStream<MultiModalKit.ThermalState>.Continuation.BufferingPolicy.unbounded, onTermination: nil, terminal: false)
+􀄵                  continuations → []
+􀄵                  pending → []
+􀄵                  limit → unbounded
+􀄵                  onTermination → nil
+􀄵                  terminal → false
+􀄵          state → .nominal
+􀄵          stream → AsyncStream<ThermalState>(context: Swift.AsyncStream<MultiModalKit.ThermalState>._Context)
+􀄵            context → Swift.AsyncStream<MultiModalKit.ThermalState>._Context
+􀄵              storage → Swift.AsyncStream<MultiModalKit.ThermalState>._Storage
+􀄵                some → Swift.AsyncStream<MultiModalKit.ThermalState>._Storage
+􀄵                  state → State(continuations: [], pending: Deque<ThermalState>([]), limit: Swift.AsyncStream<MultiModalKit.ThermalState>.Continuation.BufferingPolicy.unbounded, onTermination: nil, terminal: false)
+􀄵                    continuations → []
+􀄵                    pending → []
+􀄵                    limit → unbounded
+􀄵                    onTermination → nil
+􀄵                    terminal → false
+􀄵        thermalPolicy → DefaultGenerationThermalPolicy()
+􀄵        clock → ContinuousClock()
+􀄵        state → ()
+􀄵      mayActDuringReply → true
+􀢄  Test "the scripted mind may act exactly when it has tools" failed after 0.031 seconds with 1 issue.
+􁁛  Test "Interrupting while idle publishes nothing at all" passed after 0.033 seconds.
+􁁛  Test "CRITICAL: a generator that throws AFTER an interruption must not fail the turn twice" passed after 0.033 seconds.
+􁁛  Test "run() returns after an interruption even when the inputs ended first" passed after 0.034 seconds.
+􁁛  Test "An empty final is NOT rescued into a reply by a full ledger (AC-87)" passed after 0.033 seconds.
+􁁛  Test "CRITICAL: a synthesizer that throws AFTER an interruption must not fail the turn twice" passed after 0.034 seconds.
+􁁛  Test "A pre-interruption final arriving AFTER resume must not rejoin the thought" passed after 0.033 seconds.
+􁁛  Test "A dead turn cannot speak after an interruption — defiant stages included" passed after 0.033 seconds.
+􁁛  Test "A final STASHED before an interruption is not replayed after resume" passed after 0.033 seconds.
+􁁛  Test "The refused final contributes content and still triggers nothing (AC-87)" passed after 0.033 seconds.
+􁁛  Suite TurnCoordinatorTests passed after 0.035 seconds.
+􀢄  Test "a first token after the gate's end: ④ is what was left to wait for it" recorded an issue at ThinkInTheGateTests.swift:351:13: Expectation failed: openedEarly
+􀄵  openedEarly → <not evaluated>
+􀢄  Test "a reply that fails in the gate fails the turn only when the gate runs out" recorded an issue at ThinkInTheGateTests.swift:196:13: Expectation failed: openedEarly
+􀄵  openedEarly → <not evaluated>
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" recorded an issue at ThinkInTheGateTests.swift:351:13: Expectation failed: openedEarly
+􀄵  openedEarly → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:134:13: Expectation failed: openedEarly
+􀄵  openedEarly → <not evaluated>
+􀢄  Test "a mind that cannot even open, inside the gate, fails the turn only when the gate runs out" recorded an issue at ThinkInTheGateTests.swift:224:13: Expectation failed: held
+􀄵  the open's failure must be held while the gate runs
+􀄵  held → <not evaluated>
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:95:13: Expectation failed: openedEarly
+􀄵  the mind was not opened at the final
+􀄵  openedEarly → <not evaluated>
+􀢄  Test "a failure in the gate disappears with its reply when the person goes on" recorded an issue at ThinkInTheGateTests.swift:248:13: Expectation failed: openedEarly
+􀄵  openedEarly → <not evaluated>
+􀢄  Test "a mind that cannot even open, inside the gate, fails the turn only when the gate runs out" failed after 10.015 seconds with 1 issue.
+􀢄  Test "a first token after the gate's end: ④ is what was left to wait for it" recorded an issue at ThinkInTheGateTests.swift:332:9: Expectation failed: timeline.timelines == [TurnTimeline(
+            turn: 0, earFinish: nil, gate: .milliseconds(500), firstToken: .milliseconds(300),
+            firstSound: .milliseconds(200), thoughtInTheGate: .milliseconds(500))]
+􀄵  timeline.timelines == [TurnTimeline(
+               turn: 0, earFinish: nil, gate: .milliseconds(500), firstToken: .milliseconds(300),
+               firstSound: .milliseconds(200), thoughtInTheGate: .milliseconds(500))] → false
+􀄵    timeline.timelines → [MultiModalKit.TurnTimeline(turn: 0, earFinish: nil, gate: 0.5 seconds, firstToken: 0.3 seconds, firstSound: 0.2 seconds, thoughtInTheGate: 0.0 seconds)]
+􀄵    [TurnTimeline(
+                 turn: 0, earFinish: nil, gate: .milliseconds(500), firstToken: .milliseconds(300),
+                 firstSound: .milliseconds(200), thoughtInTheGate: .milliseconds(500))] → [MultiModalKit.TurnTimeline(turn: 0, earFinish: nil, gate: 0.5 seconds, firstToken: 0.3 seconds, firstSound: 0.2 seconds, thoughtInTheGate: 0.5 seconds)]
+􀢄  Test "a first token after the gate's end: ④ is what was left to wait for it" failed after 10.023 seconds with 2 issues.
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:137:13: Expectation failed: held
+􀄵  held → <not evaluated>
+􀢄  Test "a reply that fails in the gate fails the turn only when the gate runs out" recorded an issue at ThinkInTheGateTests.swift:199:13: Expectation failed: held
+􀄵  the failure must be held while the gate runs
+􀄵  held → <not evaluated>
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" recorded an issue at ThinkInTheGateTests.swift:356:17: Expectation failed: held
+􀄵  held → <not evaluated>
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:101:13: Expectation failed: held
+􀄵  two tokens and the terminal must be HELD while the gate runs
+􀄵  held → <not evaluated>
+􀢄  Test "a failure in the gate disappears with its reply when the person goes on" recorded an issue at ThinkInTheGateTests.swift:251:13: Expectation failed: held
+􀄵  held → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:142:13: Expectation failed: cancelled
+􀄵  the onset must cancel the early reply
+􀄵  cancelled → <not evaluated>
+􀢄  Test "a reply that fails in the gate fails the turn only when the gate runs out" recorded an issue at ThinkInTheGateTests.swift:204:13: Expectation failed: failed
+􀄵  the gate ran out and the held failure never failed the turn
+􀄵  failed → <not evaluated>
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" recorded an issue at ThinkInTheGateTests.swift:366:13: Expectation failed: mouth
+􀄵  mouth → <not evaluated>
+􀢄  Test "a reply that fails in the gate fails the turn only when the gate runs out" failed after 30.009 seconds with 3 issues.
+􀢄  Test "a failure in the gate disappears with its reply when the person goes on" recorded an issue at ThinkInTheGateTests.swift:257:13: Expectation failed: reopened
+􀄵  reopened → <not evaluated>
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:107:13: Expectation failed: mouth
+􀄵  the gate ran out and the mouth never opened
+􀄵  mouth → <not evaluated>
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" recorded an issue at ThinkInTheGateTests.swift:370:13: Expectation failed: reported
+􀄵  reported → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:149:13: Expectation failed: dropped
+􀄵  the reply ticket must stop both stragglers
+􀄵  dropped → <not evaluated>
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:72:9: Expectation failed: finished
+􀄵  the mouth was never told the words were over
+􀄵  finished → <not evaluated>
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" recorded an issue at ThinkInTheGateTests.swift:323:9: Expectation failed: timeline.timelines == [TurnTimeline(
+            turn: 0, earFinish: nil, gate: .milliseconds(500), firstToken: .zero,
+            firstSound: .milliseconds(200), thoughtInTheGate: .milliseconds(500))]
+􀄵  timeline.timelines == [TurnTimeline(
+               turn: 0, earFinish: nil, gate: .milliseconds(500), firstToken: .zero,
+               firstSound: .milliseconds(200), thoughtInTheGate: .milliseconds(500))] → false
+􀄵    timeline.timelines → []
+􀄵    [TurnTimeline(
+                 turn: 0, earFinish: nil, gate: .milliseconds(500), firstToken: .zero,
+                 firstSound: .milliseconds(200), thoughtInTheGate: .milliseconds(500))] → [MultiModalKit.TurnTimeline(turn: 0, earFinish: nil, gate: 0.5 seconds, firstToken: 0.0 seconds, firstSound: 0.2 seconds, thoughtInTheGate: 0.5 seconds)]
+􀢄  Test "a failure in the gate disappears with its reply when the person goes on" recorded an issue at ThinkInTheGateTests.swift:72:9: Expectation failed: finished
+􀄵  the mouth was never told the words were over
+􀄵  finished → <not evaluated>
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" recorded an issue at ThinkInTheGateTests.swift:326:9: Expectation failed: timeline.latencies == [.milliseconds(700)]
+􀄵  ③ + ④ + ⑤ is still the felt pause (AC-337)
+􀄵  timeline.latencies == [.milliseconds(700)] → false
+􀄵    timeline.latencies → []
+􀄵    [.milliseconds(700)] → [0.7 seconds]
+􀢄  Test "held at the gate's end: ③ is the gate, ④ is zero, and the thinking inside the gate is reported" failed after 40.023 seconds with 6 issues.
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:153:13: Expectation failed: reopened
+􀄵  the next final opens a new early reply
+􀄵  reopened → <not evaluated>
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:78:9: Expectation failed: completed
+􀄵  the turn never completed
+􀄵  completed → <not evaluated>
+􀢄  Test "a failure in the gate disappears with its reply when the person goes on" recorded an issue at ThinkInTheGateTests.swift:78:9: Expectation failed: completed
+􀄵  the turn never completed
+􀄵  completed → <not evaluated>
+􀢄  Test "a failure in the gate disappears with its reply when the person goes on" failed after 50.010 seconds with 5 issues.
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:154:13: Expectation failed: bench.generator.record(ofReply: 1)?.transcript == "the user was not done now I am done"
+􀄵  the whole thought (AC-88)
+􀄵  bench.generator.record(ofReply: 1)?.transcript == "the user was not done now I am done" → false
+􀄵    bench.generator.record(ofReply: 1)?.transcript → nil
+􀄵      some → "the user was not done now I am done"
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:109:13: Expectation failed: bench.synthesizer.record(ofUtterance: 0)?.fedTokens.joined() == "Berlin."
+􀄵  the held words reach the mouth whole, in order
+􀄵  bench.synthesizer.record(ofUtterance: 0)?.fedTokens.joined() == "Berlin." → false
+􀄵    bench.synthesizer.record(ofUtterance: 0)?.fedTokens.joined() → nil
+􀄵      some → "Berlin."
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:116:9: Expectation failed: Self.tokens(events) == ["Ber", "lin."]
+􀄵  each held word, exactly once
+􀄵  Self.tokens(events) == ["Ber", "lin."] → false
+􀄵    Self.tokens(events) → []
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" recorded an issue at ThinkInTheGateTests.swift:117:9: Expectation failed: recorder.early == [EarlyReply(turn: 0, kept: true, thought: .milliseconds(500))]
+􀄵  recorder.early == [EarlyReply(turn: 0, kept: true, thought: .milliseconds(500))] → false
+􀄵    recorder.early → []
+􀄵    [EarlyReply(turn: 0, kept: true, thought: .milliseconds(500))] → [MultiModalKit.EarlyReply(turn: 0, kept: true, thought: 0.5 seconds)]
+􀢄  Test "the mind opens at the final; its words are held until the gate runs out, then go on in order, once" failed after 50.013 seconds with 8 issues.
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:159:13: Expectation failed: heldAgain
+􀄵  heldAgain → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:122:6: Time limit was exceeded: 60.000 seconds
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:72:9: Expectation failed: finished
+􀄵  the mouth was never told the words were over
+􀄵  finished → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:78:9: Expectation failed: completed
+􀄵  the turn never completed
+􀄵  completed → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:166:13: Expectation failed: third
+􀄵  third → <not evaluated>
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:167:13: Expectation failed: bench.generator.record(ofReply: 2)?.history.map(\.replied) == ["Okay."]
+􀄵  the memory holds the spoken reply only
+􀄵  bench.generator.record(ofReply: 2)?.history.map(\.replied) == ["Okay."] → false
+􀄵    bench.generator.record(ofReply: 2)?.history.map(\.replied) → nil
+􀄵      some → ["Okay."]
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:173:9: Expectation failed: Self.tokens(events) == ["Okay."]
+􀄵  no thrown-away word ever reached the app
+􀄵  Self.tokens(events) == ["Okay."] → false
+􀄵    Self.tokens(events) → []
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" recorded an issue at ThinkInTheGateTests.swift:174:9: Expectation failed: recorder.early.prefix(2) == [EarlyReply(turn: 0, kept: false, thought: .milliseconds(200)),
+                                             EarlyReply(turn: 0, kept: true, thought: .milliseconds(500))]
+􀄵  recorder.early.prefix(2) == [EarlyReply(turn: 0, kept: false, thought: .milliseconds(200)),
+                                                EarlyReply(turn: 0, kept: true, thought: .milliseconds(500))] → false
+􀄵    recorder.early.prefix(2) → []
+􀄵    [EarlyReply(turn: 0, kept: false, thought: .milliseconds(200)),
+                                                  EarlyReply(turn: 0, kept: true, thought: .milliseconds(500))] → [MultiModalKit.EarlyReply(turn: 0, kept: false, thought: 0.2 seconds), MultiModalKit.EarlyReply(turn: 0, kept: true, thought: 0.5 seconds)]
+􀢄  Test "the person goes on: the early reply is thrown away in silence, stragglers too; next, the whole thought" failed after 90.014 seconds with 14 issues.
+􀢄  Suite "AC-363…AC-370 · think in the gate" failed after 90.015 seconds with 40 issues.
+􀢄  Test run with 110 tests in 8 suites failed after 90.016 seconds with 40 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)

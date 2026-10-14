@@ -58,6 +58,17 @@ extension TurnCoordinator {
         /// ~408 ms and ~243 MB. Set `maxMemoryTurns` to 0 and the memory
         /// is genuinely off; the app owns both numbers (D-027).
         public var maxMemoryCharacters: Int
+        /// THINK IN THE GATE (5d piece 4, D-144): open the reply at the final
+        /// instead of when the reply gate runs out, and HOLD everything it
+        /// says until then. Nothing is said earlier, and a person who goes on
+        /// still throws the reply away in silence; only the thinking moves.
+        ///
+        /// **Off by default** (F-45 A, D-027): each thrown-away reply costs
+        /// the device its thinking — heat — and the mind its kept session
+        /// (F-44 A), and that cost is the app's to choose. A mind that may
+        /// act (`ReplyGenerating.mayActDuringReply`) is never opened early.
+        /// No effect without a gate.
+        public var thinksInTheGate: Bool
 
         public init(
             listenerBufferCapacity: Int = Broadcast<TurnEvent>.defaultBufferCapacity,
@@ -65,7 +76,8 @@ extension TurnCoordinator {
             maxContextPieces: Int = 16,
             bargeWindow: Duration = .zero,
             maxMemoryTurns: Int = 8,
-            maxMemoryCharacters: Int = 600
+            maxMemoryCharacters: Int = 600,
+            thinksInTheGate: Bool = false
         ) {
             self.listenerBufferCapacity = listenerBufferCapacity
             self.replyGate = replyGate
@@ -73,6 +85,7 @@ extension TurnCoordinator {
             self.bargeWindow = bargeWindow
             self.maxMemoryTurns = maxMemoryTurns
             self.maxMemoryCharacters = maxMemoryCharacters
+            self.thinksInTheGate = thinksInTheGate
         }
 
         /// The numbers this config carries are the app's (D-027, D-092),
