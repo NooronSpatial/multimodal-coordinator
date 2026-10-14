@@ -16,7 +16,9 @@ after onset + 320 ms. On Ryad's phone (§75b) every one of 9 interruptions cut
 it, mostly in 320 ms, and no echo did, in 29 spoken turns. Piece 4, think in
 the gate (D-144), on `milestone/5d-piece4-think-in-the-gate`: the mind opens at
 the final and its words wait for the gate; on this Mac (INSTRUMENTS §76) the
-felt pause to the first word fell 0.4–0.7 s, to ~1.8 s; its phone row is owed.
+felt pause to the first word fell 0.4–0.7 s, to ~1.8 s, and on Ryad's phone
+(§76b) to 1.9 s (2.4 s on a warm phone before); one early reply in three was
+thrown away when he went on.
 **Next:** the rest of the felt pause, against F-30's 0.8 s line. Open: CI's
 CONTROL row, green since D-143 and watched; this Mac's download rows (the
 daemon family, D-139), red after 2026-10-08, green on 2026-10-13, red again on

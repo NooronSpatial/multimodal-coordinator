@@ -6307,3 +6307,48 @@ when its turn ends; each reply's voice margin (audio, decoding, RTF).
 
 **Against F-30's line:** the felt pause to the first word ~1.8 s on this Mac
 (line 0.8): better, **not met**.
+
+### 76b. The phone — Ryad's session with piece 4 (AC-371)
+
+**Machine and setup.** iPhone18,5, iOS 26.6.1; the same picker as §75b (the
+Whisper ear, the local Qwen3-4B-4bit mind, Kokoro, the shield on, tools off;
+300 · 500 · 320), and thinking in the gate ON. 2026-10-14, 70 replies opened,
+45 spoken turns, 16 barges. **Thermal "serious" for 63 of 70 turns** (from
+53 s on): a warm phone, like §75b's session 2. The log:
+`docs/evidence/5d/phone-2026-10-14-session-piece4.txt`.
+
+| median, ms | §75b session 1 (cool) | §75b session 2 (warm) | **piece 4 (warm)** |
+|---|---:|---:|---:|
+| ③ the gate | 505 | 503 | 503 |
+| ④ the first token, after the gate | 542 | 717 | **149** |
+| ⑤ the first sound | 589 | 689 | 708 |
+| **the felt pause, to the first word** | 2 218 | 2 447 | **1 894** |
+| replies with a pause over 300 ms | 5 of 18 | 0 of 13 | 8 of 47 |
+
+**What it shows.**
+
+1. **The mind's wait is mostly hidden in the gate.** ④ after the gate fell to
+   149 ms (0 in several turns: a token was already held). The felt pause to the
+   first word is 1.9 s, against 2.4 s on a warm phone before (−0.55 s) and
+   2.2 s on a cool one.
+2. **One early reply in three was thrown away**: 47 kept, 23 thrown away. Ryad
+   spoke in pieces, pausing mid-sentence ("I will memorize every day one page,
+   so 150 words. … So I want from you to tell me. … usually …"), and each
+   pause long enough for a final opened a reply that the next piece threw away,
+   in silence, as designed. Each one cost the phone some thinking (F-44 A). The
+   phone ran warm throughout, as §75b's second session did without piece 4, so
+   the heat is not proven to come from it.
+3. **The barge, again:** every one of his interruptions over the voice cut it,
+   ⑦ 320 ms (one 340); the sounds ignored were loud for 20–80 ms. His own
+   words: "he listened to me every time when I talk over".
+4. **His verdict:** "talking really good, really fast … I like it so much, the
+   current version". He also noted the 4B mind's thin knowledge of his topics:
+   the mind, outside 5d.
+
+**What it found that is not piece 4's.** Eight replies held a pause over
+300 ms, two of them long (2 225 and 1 061 ms). They fall in long answers on a
+hot phone, where the voice decoded at RTF 0.80–0.83 (turns 44 and 50): the
+voice barely kept up. That is ⑥, the voice under heat, for a later piece.
+
+**Against F-30's line:** the felt pause to the first word 1.9 s (line 0.8):
+better, **not met**. An interruption 320 ms: met. No self-cut reported.

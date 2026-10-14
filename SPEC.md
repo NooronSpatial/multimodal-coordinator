@@ -9179,7 +9179,7 @@ one PR for this piece; present → HALT.
 | AC-368 every early reply reported | **met** — kept or thrown away, with how long it thought; both demos' logs list them | `ThinkInTheGateTests`, M105; harness runs 16–22 |
 | AC-369 tools never early | **met** — a mind with tools opens at the gate's end; the scripted, Apple and MLX minds answer from their tools; the demo's witness also counts the tools it adds per call | `ThinkInTheGateTests`, `MayActTests`, M99, M106, M107 |
 | AC-370 off means today | **met** — the opt-in off: no early reply, every older coordinator row green | `ThinkInTheGateTests`, M100 |
-| AC-371 measured | **the Mac: met** (INSTRUMENTS §76): the felt pause to the first word 2.2–2.5 s → 1.7–2.0 s in every pair; **the phone: OWED** | §76; Ryad's session |
+| AC-371 measured | **met** — the Mac (INSTRUMENTS §76): the felt pause to the first word 2.2–2.5 s → 1.7–2.0 s in every pair; **the phone** (§76b, 2026-10-14, warm): ④ 149 ms, the felt pause to the first word 1.9 s (2.4 s on a warm phone before); 47 early replies kept, 23 thrown away | §76, §76b |
 | AC-372 nothing else moved | **met for piece 4's code; the full loop red on this Mac's download rows** — the 20× loop **9 of 20**: all failures in the eight download suites (the daemon family, D-139; this Mac's trouble of 2026-10-08 back today); without those suites **20 of 20**. The suite 1 054 tests; strict lint zero; M96–M107 twelve of twelve; `api.sh` additions only; the demo builds for iOS | `stability-2026-10-14-piece4*.txt`, `api-diff-2026-10-14-piece4.txt` |
 
 **What it found that it did not plan to:**
