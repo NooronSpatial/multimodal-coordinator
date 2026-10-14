@@ -9205,7 +9205,7 @@ one PR for this piece; present → HALT.
   that closes its stream when cancelled, so the stragglers it forced never
   arrived. It now uses a defiant one.
 
-# 5d piece 5 — the first sound: ⑤ measured in its parts (proposed, NOT signed)
+# 5d piece 5 — the first sound: ⑤ measured in its parts (signed, D-146)
 
 ## §257 — why
 

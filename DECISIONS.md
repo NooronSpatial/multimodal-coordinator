@@ -6242,3 +6242,17 @@ decode of that phrase, and the player's start.
   away in §76b), so a shorter gate would answer him before he finished.
 - *Rejected:* **C — the ear (① ②)**: the app's silence wait and the ear's
   finish; a shorter wait means more fragments, a faster finish a streaming ear.
+
+## D-146 — 5d piece 5 signed: ⑤ measured in its parts, stamped in the voice (F-48 A) (Milestone 5d)
+
+**Date:** 2026-10-14 · **Decided by:** Ryad ("Sign, F-48 A") · **Ruling:**
+SPEC §257–§262 as written. The voice reports, per reply, when it cut the first
+phrase and when that phrase's audio was ready, through a defaulted hand-off;
+⑤ splits into (a) the words, (b) the decode and (c) the rest. Nothing changes in
+behaviour; the fix is a later spec, ruled on these numbers.
+
+- *Rejected:* **F-48 B — estimated in the demos** from the mind's token rate
+  and the voice's decode totals: no library change, but (a) and (b) would be
+  guesses with an error nobody knows (D-132: measure, do not estimate).
+- *Rejected:* **skipping the measurement** for a fix ruled on the hint in
+  §257 (~46 characters a second on a warm phone): the hint is one reading.
