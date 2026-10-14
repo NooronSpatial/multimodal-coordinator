@@ -9269,3 +9269,18 @@ one PR for this piece; present → HALT.
 Red before green; the suite; mutations; the 20× loop; lint; `api.sh`; the demo
 builds; the Mac numbers; Ryad's phone session; one branch, one PR; present →
 HALT. Then piece 5's fix: a new spec, ruled on these numbers.
+
+### §263 — results (piece 5, the measurement), measured 2026-10-14
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-373 ⑤ in three parts | **met** — the voice's (a) and (b) reach the timeline exactly; (c) = ⑤ − (a) − (b); a voice that says nothing keeps one ⑤; the neural voice measures them from stamps it already kept (birth, the first decode asked for, its first audio) | `FirstSoundPartsTests`, M108–M111 |
+| AC-374 shown | **met** — the harness and the phone demo print the parts per turn and their medians | run 23; the phone demo builds |
+| AC-375 measured | **the Mac: met** (INSTRUMENTS §77): ⑤ 317 = (a) 59 + (b) 249 + (c) 8; **the phone: OWED** | §77 |
+| AC-376 nothing else moved | **met for piece 5's code; the full loop red on this Mac's download rows** — the 20× loop **8 of 20**, every failure in the download suites (the daemon family, as in §256); without them **20 of 20**. The suite 1 057; strict lint zero; M108–M111 four of four; `api.sh` additions only; the demo builds for iOS | `stability-2026-10-14-piece5*.txt`, `api-diff-2026-10-14-piece5.txt` |
+
+**A difference from the words of §258/1, named:** (a) ends when the first
+decode is ASKED for, not at the phraser's cut itself; between the two is only
+the hop to the decoder's worker. Stamping the cut would have added a clock read
+and shifted every scripted-time test's plan; the run already stamped the ask
+(D-087).

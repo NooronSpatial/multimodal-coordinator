@@ -18,7 +18,10 @@ the gate (D-144), on `milestone/5d-piece4-think-in-the-gate`: the mind opens at
 the final and its words wait for the gate; on this Mac (INSTRUMENTS §76) the
 felt pause to the first word fell 0.4–0.7 s, to ~1.8 s, and on Ryad's phone
 (§76b) to 1.9 s (2.4 s on a warm phone before); one early reply in three was
-thrown away when he went on.
+thrown away when he went on (merged, PR 65). Piece 5 (D-145, D-146), on
+`milestone/5d-piece5-the-first-sound`, splits ⑤ into its parts before fixing
+it: on this Mac (§77) ⑤ 317 ms = words 59 + decode 249 + rest 8; the phone's
+split is owed and decides the fix.
 **Next:** the rest of the felt pause, against F-30's 0.8 s line. Open: CI's
 CONTROL row, green since D-143 and watched; this Mac's download rows (the
 daemon family, D-139), red after 2026-10-08, green on 2026-10-13, red again on

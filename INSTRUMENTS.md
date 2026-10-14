@@ -6352,3 +6352,31 @@ voice barely kept up. That is ⑥, the voice under heat, for a later piece.
 
 **Against F-30's line:** the felt pause to the first word 1.9 s (line 0.8):
 better, **not met**. An interruption 320 ms: met. No self-cut reported.
+
+## 77. The first sound, in its parts — piece 5 on this Mac (5d, AC-375)
+
+**What changed** (D-146): nothing in behaviour. The neural voice now reports,
+per reply, two parts of ⑤ from stamps it already kept, and the timeline
+carries them:
+
+```
+the first token ─(a) words─▶ the first decode asked for ─(b) decode─▶ its first audio ─(c) rest─▶ SOUND
+```
+
+**Machine and setup.** This Mac; the harness, greedy, thinking in the gate on
+(as the phone runs it); the real local 4B; Kokoro; 300 · 500 · 320. Run 23:
+`docs/evidence/5d/harness-2026-10-14-run23-first-sound-parts.log`.
+
+| median, ms | ⑤ | (a) words | (b) decode | (c) rest |
+|---|---:|---:|---:|---:|
+| run 23, 17 spoken turns | 317 | 59 | **249** | 8 |
+| turn 0 (the voice's cold start) | 1 004 | 177 | 746 | 81 |
+
+**What it shows.** On this Mac, **(b) the decode of the first phrase is ~80 %
+of ⑤**. (a) is short because the greedy answers open with a short phrase cut
+at a clause mark ("I'm listening.", "Hello, Riyadh."). (c), the player's start
+and the hops, is ~10 ms.
+
+**What it does not show.** The phone. Its mind writes ~46 characters a second
+when warm (§257), so (a) may be larger there, and Kokoro decodes slower. The
+fix is ruled on the phone's numbers (AC-375).
