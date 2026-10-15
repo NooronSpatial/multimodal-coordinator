@@ -24,8 +24,9 @@ voice decodes its first phrase. On this Mac (§78) it cut that decode by 67–74
 ms in two pairs of three (⑤ ~295 → ~220 ms); the first pair is unexplained;
 the phone is owed.
 **Next:** the rest of the felt pause, against F-30's 0.8 s line. Open: this
-Mac's download rows (the daemon family, D-139), red in every full loop since
-2026-10-14 — the cause was never found; the 4y live MLX rows, red on this Mac
+Mac's download rows (the daemon family, D-139): red in the full loops of
+2026-10-14, green again in all 20 runs of 2026-10-15 — the cause was never
+found; the 4y live MLX rows, red on this Mac
 with the vendor's loop and ours alike (SPEC §269).
 
 ## The picture
