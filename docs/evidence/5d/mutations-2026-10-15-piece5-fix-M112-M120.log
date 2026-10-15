@@ -1,0 +1,59 @@
+## M112 — the floor never makes anyone wait
+file: Sources/MultiModalKit/Audio/VoiceFloor.swift
+KILLED — red rows:
+  - a cancel while the loop waits for the floor ends it at once
+  - a cancel while waiting ends the wait at once, and leaves no waiter behind
+  - taken: the mind waits until the hold is given back
+  - two holds: free only when both are given back; a second giveBack counts once
+  - with the floor taken, no new token after the one in hand; given back, it goes on
+reverted: yes
+
+## M113 — a cancel does not end a wait
+file: Sources/MultiModalKit/Audio/VoiceFloor.swift
+NO VERDICT — no summary line
+reverted: yes
+
+## M114 — a hold given back twice counts twice
+file: Sources/MultiModalKit/Audio/VoiceFloor.swift
+KILLED — red rows:
+  - two holds: free only when both are given back; a second giveBack counts once
+reverted: yes
+
+## M115 — the loop does not wait for the floor
+file: Sources/MultiModalKitMLX/TokenLoop.swift
+KILLED — red rows:
+  - a cancel while the loop waits for the floor ends it at once
+  - with the floor taken, no new token after the one in hand; given back, it goes on
+reverted: yes
+
+## M116 — the loop speaks the stop token
+file: Sources/MultiModalKitMLX/TokenLoop.swift
+KILLED — red rows:
+  - every token once, in order; a stop token ends it with .stop, unspoken and discarded
+reverted: yes
+
+## M117 — the budget reads as cancelled
+file: Sources/MultiModalKitMLX/TokenLoop.swift
+KILLED — red rows:
+  - the budget ends it with .length
+reverted: yes
+
+## M118 — the voice takes the floor for every decode
+file: Sources/MultiModalKitTTS/Decode/NeuralVoiceRun+Render.swift
+KILLED — red rows:
+  - the first phrase decodes with the floor taken; the second does not; then it is free
+reverted: yes
+
+## M119 — the voice never gives the floor back
+file: Sources/MultiModalKitTTS/Decode/NeuralVoiceRun+Render.swift
+KILLED — red rows:
+  - a first decode that fails gives the floor back
+  - the first phrase decodes with the floor taken; the second does not; then it is free
+reverted: yes
+
+## M120 — the local mind forgets the floor (expected to SURVIVE: no unit row reaches LocalMind)
+file: Sources/MultiModalKitMLX/LocalMind.swift
+SURVIVED — every row green
+reverted: yes
+
+source tree after the run: clean

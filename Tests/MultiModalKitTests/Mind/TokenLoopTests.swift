@@ -105,6 +105,7 @@ struct TokenLoopTests {
         let hold = Mutex<FloorHold?>(nil)
         let handed = Handed()
         let calls = Mutex(0)
+        let done = VoiceFloorTests.Flag()
         let task = Task { () -> GenerateStopReason in
             var tokens = ScriptedLoopTokens([1, 2, 3])
             let reason = await TokenLoop.run(&tokens, isStop: { $0 == Self.stopToken }, floor: floor, each: { token in
@@ -113,12 +114,18 @@ struct TokenLoopTests {
                 if token == 1 { hold.withLock { $0 = floor.take() } }
             })
             calls.withLock { $0 = tokens.calls.count }
+            done.set()
             return reason
         }
         let parked = await TurnCoordinatorTests.until { floor.waiting == 1 }
         #expect(parked, "the loop waits on the floor after the token in hand")
         #expect(handed.tokens == [1], "and asks for nothing more meanwhile")
         hold.withLock { $0?.giveBack() }
+        // Waited on the fact, bounded; a loop that never goes on is cancelled,
+        // so a red row fails in seconds instead of hanging the process.
+        let ended = await TurnCoordinatorTests.until { done.isSet }
+        #expect(ended, "given back: the loop goes on to its end")
+        if !ended { task.cancel() }
         let reason = await task.value
         #expect(handed.tokens == [1, 2, 3], "given back: every token, once, in order")
         #expect(reason == .stop || reason == .cancelled || reason == .length)
@@ -130,17 +137,24 @@ struct TokenLoopTests {
         let floor = VoiceFloor()
         let hold = floor.take()
         let handed = Handed()
+        let done = VoiceFloorTests.Flag()
         let task = Task { () -> GenerateStopReason in
             var tokens = ScriptedLoopTokens([1, 2, 3])
-            return await TokenLoop.run(&tokens, isStop: { $0 == Self.stopToken }, floor: floor,
-                                         each: { handed.add($0) })
+            let reason = await TokenLoop.run(&tokens, isStop: { $0 == Self.stopToken }, floor: floor,
+                                             each: { handed.add($0) })
+            done.set()
+            return reason
         }
         let parked = await TurnCoordinatorTests.until { floor.waiting == 1 }
         #expect(parked, "taken before the first token: the loop waits before asking")
         task.cancel()
+        let ended = await TurnCoordinatorTests.until { done.isSet }
+        #expect(ended, "a cancelled loop returns although the floor is still taken")
+        // Given back only now: it also frees a loop that ignored the cancel, so
+        // a red row fails in seconds instead of hanging the process (M113).
+        hold.giveBack()
         let reason = await task.value
         #expect(reason == .cancelled)
         #expect(handed.tokens.isEmpty)
-        hold.giveBack()
     }
 }

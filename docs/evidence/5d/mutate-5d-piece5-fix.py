@@ -37,7 +37,10 @@ def run(cmd, timeout=900):
         os.killpg(proc.pid, signal.SIGKILL); out, _ = proc.communicate(); out = "TIMED OUT\n" + (out or "")
     return proc.returncode, re.sub(r"\x1b\[[0-9;]*m", "", out or "")
 log = []
+# An optional second argument names the mutations to run ("M113,M115"); the default is all.
+ONLY = set(sys.argv[2].split(",")) if len(sys.argv) > 2 else None
 for name, what, path, old, new in MUTATIONS:
+    if ONLY and name not in ONLY: continue
     full = f"{REPO}/{path}"; text = open(full).read()
     if text.count(old) != 1:
         log.append(f"## {name} — {what}\nSKIPPED: anchor matched {text.count(old)} times\n"); continue
