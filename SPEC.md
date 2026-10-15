@@ -9285,6 +9285,10 @@ the hop to the decoder's worker. Stamping the cut would have added a clock read
 and shifted every scripted-time test's plan; the run already stamped the ask
 (D-087).
 
+**Added 2026-10-15 — AC-375 on the phone: met** (INSTRUMENTS §77b): ⑤ 714 ms =
+(a) 127 + (b) 578 + (c) 16, warm; the decode is ~80 % of ⑤ there too. These
+numbers ruled the fix (D-147).
+
 # 5d piece 5, the fix — the voice goes first (signed, D-148)
 
 ## §264 — why
@@ -9369,3 +9373,42 @@ the voice goes first:   mind  ▓▓▓▓▓▓▓▓·········▓▓�
 The experiment first (it may end the piece); red before green; the suite;
 mutations; the loop; lint; `api.sh`; the demo builds; the Mac numbers; Ryad's
 phone; one branch, one PR; present → HALT.
+
+### §269 — results (piece 5's fix), measured 2026-10-15
+
+```
+the first phrase's decode (⑤b), median ms, this Mac, greedy, thinking in the gate on
+
+ pair   ran first            ran second           the floor saves
+ 1      no floor   210       voice first 213        —   (see below)
+ 2      voice first 148      no floor   222        74
+ 3      no floor   231       voice first 164        67
+```
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-377 the experiment | **met** — Kokoro's first decode under the 4B's writing is **×1.58** slower than alone (153 → 242 ms, 20 pairs); a first run gave ×1.56; the run with the voice-first column ×1.72 (127 / 219). Over the 1.5 line, narrowly: the floor was built | `decode-under-load-2026-10-15.txt`, INSTRUMENTS §78 |
+| AC-378 the mind waits, exactly | **met** — taken, the waiter waits; given back, it goes on; two holds count as two, a second `giveBack` as none; a cancel ends a wait at once and leaves no waiter behind. On the real 4B (the experiment): the mind writes **1 token during the decode instead of 6**, and the decode falls to 149 ms (127 alone) | `VoiceFloorTests`; M112–M114 |
+| AC-379 the voice takes the floor | **met** — the run's first decode only (F-51 A); given back when that decode returns or throws (a `defer` around it, so every way out gives it back) | `VoiceFirstTests`; M118, M119 |
+| AC-380 measured | **the Mac: met, with one pair unexplained** (INSTRUMENTS §78). In two pairs of three the floor cut ⑤b by 67–74 ms (⑤ ~295 → ~220 ms), whichever ran first. In the first pair the median did not move (210 → 213): its first five turns decoded in 133–146 ms, then from the sixth turn on ④ **and** the decode rose together (④ 714–879 ms, twice the other runs) — the whole Mac slower; the cause was not found. **⑥: no later phrase starved** — 0 pauses over 300 ms in every run with the floor (0/18, 0/17, 0/18), against 7/16, 0/17, 1/17 without. **The phone: OWED** | `harness-2026-10-15-run24…29-*.log` |
+| AC-381 nothing else moved | **met for this piece's code; the full loop: see below** — the 20× loop without the download suites **20 of 20** (1 020 tests); strict lint zero; M112–M120: eight killed, M120 survives by design; `api.sh` 7 lines added, 3 initialisers gained a defaulted `floor:`, nothing removed; the demo builds for iOS | `stability-2026-10-15-piece5-fix*.txt`, `api-diff-2026-10-15-piece5-fix.txt`, `mutations-2026-10-15-piece5-fix-*.log` |
+| AC-382 our loop keeps the vendor's promises | **met on scripted tokens; on the real 4B, through the harness only** — every token once, in order; a stop token ends with `.stop`, unspoken and discarded; the budget with `.length`; a cancel at a token as cancelled (M116, M117). The real 4B answered every turn of runs 24–29 through our loop. **The 4y live rows (`MMK_MLX_MODEL`) are red on this Mac on BOTH loops**, the vendor's and ours, the same rows the same way ("the reply ended without a terminal"): not caused by this piece, not explained; owed | `TokenLoopTests`; `live-2026-10-15-*.log` |
+| AC-383 the loop waits for the floor | **met** — taken, no new token after the one in hand; given back, it goes on; a cancel while it waits ends it at once | `TokenLoopTests`; M113, M115 |
+
+**Named, on the way:**
+
+- **M113 hung the test process.** With "a cancel does not end a wait", the token
+  loop's cancel row passed its one-minute time limit and the process never
+  exited: Swift Testing records the time limit but cannot end a task that
+  ignores its cancel, and the row awaited that task. The runner printed NO
+  VERDICT. The two floor rows of `TokenLoopTests` now wait on a fact, bounded,
+  and free the loop before they end; M113, rerun, is killed in seconds (and
+  M112, M115 rerun with it, killed).
+- **M120 survives by design.** No unit row reaches the local mind's real
+  stream (it needs the 4B); the harness's `--voice-first` runs are where a
+  forgotten floor would show (⑤b back to ~220 ms).
+- **The loop's skip list is written out now** (`loop20.sh --without-downloads`):
+  the seven download suites red on this Mac and the bench-hygiene suite that
+  drives the same file server. The earlier loops' list was not recorded.
+- `VendorLoop.swift` is no longer used by the local mind; its tests stay until
+  a cleanup piece removes both.
