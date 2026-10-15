@@ -149,6 +149,9 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
 
     let temperature: Float?
     let onMargin: (@Sendable (DecodeMargin) -> Void)?
+    /// THE VOICE GOES FIRST (5d piece 5, D-148): taken for the first phrase's
+    /// decode, so the mind writes no new token meanwhile. Nil: nobody shares.
+    let floor: VoiceFloor?
 
     /// The sample rate comes from the DECODER, not from a parameter beside
     /// it. It used to be passed in — always as `Double(kit.sampleRate)`,
@@ -167,8 +170,10 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
          lead: PlaybackLead, temperature: Float? = nil,
          phrasing: SpeechPhraser.Config = SpeechPhraser.Config(),
          onMargin: (@Sendable (DecodeMargin) -> Void)? = nil,
+         floor: VoiceFloor? = nil,
          now: @escaping @Sendable () -> ContinuousClock.Instant
             = { ContinuousClock().now }) throws {
+        self.floor = floor
         self.now = now
         self.birth = now()
         self.onMargin = onMargin

@@ -1,0 +1,158 @@
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "4y · the vendor's task is cancelled on every cut of the drain" started.
+􀟈  Suite NeuralVoiceFailurePathTests started.
+􀟈  Suite "D-148 · the floor the voice takes and the mind waits for" started.
+􀟈  Suite "AC-373 · the first sound in its parts" started.
+􀟈  Test "a stream that ends on its own is drained whole, awaited, and reported as not cut" started.
+􀟈  Suite "AC-382, AC-383 · our own token loop" started.
+􀟈  Suite "AC-379 · the voice takes the floor for its first phrase" started.
+􀟈  Test "a cancel that lands while the body runs still cancels the vendor's task, and the drain returns" started.
+􀟈  Test "free: the mind goes on at once" started.
+􀟈  Test "a cancel while waiting ends the wait at once, and leaves no waiter behind" started.
+􀟈  Suite DecodeStepRecordTests started.
+􀟈  Test "a cancel that lands while next() is parked cancels the vendor's task too" started.
+􀟈  Test "a throwing decode reports failed once, terminal, and ends the stream" started.
+􀟈  Test "with the floor taken, no new token after the one in hand; given back, it goes on" started.
+􀟈  Test "a cancel at a token ends it as cancelled, asking for no more" started.
+􀟈  Test "two holds: free only when both are given back; a second giveBack counts once" started.
+􀟈  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" started.
+􀟈  Test "the first phrase decodes with the floor taken; the second does not; then it is free" started.
+􀟈  Test "a cancel while the loop waits for the floor ends it at once" started.
+􀟈  Test "taken: the mind waits until the hold is given back" started.
+􀟈  Test "the voice's parts reach the timeline, and the rest is what is left of ⑤" started.
+􀟈  Test "the budget ends it with .length" started.
+􀟈  Test "one entry per step, carrying the audio that step produced" started.
+􁁛  Test "free: the mind goes on at once" passed after 0.001 seconds.
+􁁛  Test "a cancel at a token ends it as cancelled, asking for no more" passed after 0.001 seconds.
+􁁛  Test "a cancel that lands while the body runs still cancels the vendor's task, and the drain returns" passed after 0.001 seconds.
+􁁛  Test "a stream that ends on its own is drained whole, awaited, and reported as not cut" passed after 0.001 seconds.
+􁁛  Test "a cancel that lands while next() is parked cancels the vendor's task too" passed after 0.001 seconds.
+􁁛  Suite "4y · the vendor's task is cancelled on every cut of the drain" passed after 0.001 seconds.
+􀢄  Test "taken: the mind waits until the hold is given back" recorded an issue at VoiceFloorTests.swift:40:9: Expectation failed: floor.isTaken
+􀄵  floor.isTaken → false
+􀄵    floor → MultiModalKit.VoiceFloor
+􀄵    isTaken → false
+􀢄  Test "the budget ends it with .length" recorded an issue at TokenLoopTests.swift:80:9: Expectation failed: handed.tokens == [1, 2, 3]
+􀄵  handed.tokens == [1, 2, 3] → false
+􀄵    handed.tokens → []
+􁁛  Test "the voice's parts reach the timeline, and the rest is what is left of ⑤" passed after 0.001 seconds.
+􀢄  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" recorded an issue at TokenLoopTests.swift:68:9: Expectation failed: handed.tokens == [1, 2, 3]
+􀄵  handed.tokens == [1, 2, 3] → false
+􀄵    handed.tokens → []
+􀟈  Test "a voice that says nothing keeps a single ⑤" started.
+􀢄  Test "the budget ends it with .length" recorded an issue at TokenLoopTests.swift:81:9: Expectation failed: reason == .length
+􀄵  reason == .length → false
+􀄵    reason → .cancelled
+􀢄  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" recorded an issue at TokenLoopTests.swift:69:9: Expectation failed: reason == .stop
+􀄵  reason == .stop → false
+􀄵    reason → .cancelled
+􁁛  Test "a voice that says nothing keeps a single ⑤" passed after 0.001 seconds.
+􀢄  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" recorded an issue at TokenLoopTests.swift:70:9: Expectation failed: tokens.discarded == 1
+􀄵  the stop token is dropped from the iterator, as the vendor does
+􀄵  tokens.discarded == 1 → false
+􀄵    tokens.discarded → 0
+􀟈  Test "the neural voice reports the wait for its first phrase and that phrase's decode" started.
+􀢄  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" recorded an issue at TokenLoopTests.swift:71:9: Expectation failed: tokens.calls.count == 4
+􀄵  nothing asked for after the stop
+􀄵  tokens.calls.count == 4 → false
+􀄵    tokens.calls.count → 0
+􀢄  Test "the budget ends it with .length" failed after 0.001 seconds with 2 issues.
+􀢄  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" failed after 0.002 seconds with 4 issues.
+􀢄  Test "the first phrase decodes with the floor taken; the second does not; then it is free" recorded an issue at VoiceFirstTests.swift:48:9: Expectation failed: decoder.takenAtEachDecode == [true, false]
+􀄵  F-51 A: the first phrase only
+􀄵  decoder.takenAtEachDecode == [true, false] → false
+􀄵    decoder.takenAtEachDecode → [false, false]
+􀢄  Test "the first phrase decodes with the floor taken; the second does not; then it is free" failed after 0.024 seconds with 1 issue.
+􁁛  Test "a throwing decode reports failed once, terminal, and ends the stream" passed after 0.024 seconds.
+􀟈  Test "a first decode that fails gives the floor back" started.
+􀟈  Test "a terminal RETIRES the run: a phrase queued behind the failure is never decoded" started.
+􀢄  Test "a first decode that fails gives the floor back" recorded an issue at VoiceFirstTests.swift:62:9: Expectation failed: decoder.takenAtEachDecode == [true]
+􀄵  decoder.takenAtEachDecode == [true] → false
+􀄵    decoder.takenAtEachDecode → [false]
+􀢄  Test "a first decode that fails gives the floor back" failed after 0.001 seconds with 1 issue.
+􁁛  Test "a terminal RETIRES the run: a phrase queued behind the failure is never decoded" passed after 0.001 seconds.
+􀟈  Test "a voice given no floor decodes as before" started.
+􀟈  Test "an unspeakable phrase is never decoded, and the reply still finishes" started.
+􁁛  Test "a voice given no floor decodes as before" passed after 0.128 seconds.
+􀢄  Suite "AC-379 · the voice takes the floor for its first phrase" failed after 0.154 seconds with 2 issues.
+􁁛  Test "an unspeakable phrase is never decoded, and the reply still finishes" passed after 0.128 seconds.
+􀟈  Test "cancel during a decode stops it through the decode's own channel" started.
+􁁛  Test "cancel during a decode stops it through the decode's own channel" passed after 0.001 seconds.
+􀟈  Test "a decode that throws after a cancel reports nothing" started.
+􁁛  Test "a decode that throws after a cancel reports nothing" passed after 0.001 seconds.
+􀟈  Test "a host that refuses to render makes the run fail loudly at construction" started.
+􁁛  Test "a host that refuses to render makes the run fail loudly at construction" passed after 0.001 seconds.
+􀟈  Test "feed hands off rather than decoding — no model needed" started.
+􁁛  Test "feed hands off rather than decoding — no model needed" passed after 0.001 seconds.
+􀟈  Test "the run's render format comes from the decoder, not from the host" started.
+􁁛  Test "the run's render format comes from the decoder, not from the host" passed after 0.001 seconds.
+􀟈  Test "shutdown is safe on a voice that never spoke, and safe twice" started.
+􁁛  Test "shutdown is safe on a voice that never spoke, and safe twice" passed after 0.027 seconds.
+􀟈  Test "a one-shot decode cannot be stopped in flight, and still publishes nothing" started.
+􁁛  Test "a one-shot decode cannot be stopped in flight, and still publishes nothing" passed after 0.001 seconds.
+􁁛  Suite NeuralVoiceFailurePathTests passed after 0.184 seconds.
+􁁛  Test "one entry per step, carrying the audio that step produced" passed after 0.245 seconds.
+􀟈  Test "the margin carries the first step's audio beside its wall time" started.
+􁁛  Test "the neural voice reports the wait for its first phrase and that phrase's decode" passed after 0.245 seconds.
+􁁛  Suite "AC-373 · the first sound in its parts" passed after 0.247 seconds.
+􁁛  Test "the margin carries the first step's audio beside its wall time" passed after 0.438 seconds.
+􀟈  Test "the record finds a peak the old rule reads as zero" started.
+􁁛  Test "the record finds a peak the old rule reads as zero" passed after 0.031 seconds.
+􀟈  Test "a decode that produces nothing records nothing to size from" started.
+􁁛  Test "a decode that produces nothing records nothing to size from" passed after 0.001 seconds.
+􁁛  Suite DecodeStepRecordTests passed after 0.716 seconds.
+􀢄  Test "two holds: free only when both are given back; a second giveBack counts once" recorded an issue at VoiceFloorTests.swift:59:9: Expectation failed: parked
+􀄵  parked → <not evaluated>
+􀢄  Test "a cancel while the loop waits for the floor ends it at once" recorded an issue at TokenLoopTests.swift:139:9: Expectation failed: parked
+􀄵  taken before the first token: the loop waits before asking
+􀄵  parked → <not evaluated>
+􀢄  Test "a cancel while waiting ends the wait at once, and leaves no waiter behind" recorded an issue at VoiceFloorTests.swift:76:9: Expectation failed: parked
+􀄵  parked → <not evaluated>
+􀢄  Test "taken: the mind waits until the hold is given back" recorded an issue at VoiceFloorTests.swift:43:9: Expectation failed: parked
+􀄵  the waiter must be parked on the floor
+􀄵  parked → <not evaluated>
+􀢄  Test "with the floor taken, no new token after the one in hand; given back, it goes on" recorded an issue at TokenLoopTests.swift:119:9: Expectation failed: parked
+􀄵  the loop waits on the floor after the token in hand
+􀄵  parked → <not evaluated>
+􀢄  Test "two holds: free only when both are given back; a second giveBack counts once" recorded an issue at VoiceFloorTests.swift:62:9: Expectation failed: floor.isTaken
+􀄵  one hold is still out
+􀄵  floor.isTaken → false
+􀄵    floor → MultiModalKit.VoiceFloor
+􀄵    isTaken → false
+􀢄  Test "a cancel while waiting ends the wait at once, and leaves no waiter behind" failed after 10.059 seconds with 1 issue.
+􀢄  Test "a cancel while the loop waits for the floor ends it at once" failed after 10.061 seconds with 1 issue.
+􀢄  Test "with the floor taken, no new token after the one in hand; given back, it goes on" recorded an issue at TokenLoopTests.swift:120:9: Expectation failed: handed.tokens == [1]
+􀄵  and asks for nothing more meanwhile
+􀄵  handed.tokens == [1] → false
+􀄵    handed.tokens → []
+􀢄  Test "with the floor taken, no new token after the one in hand; given back, it goes on" recorded an issue at TokenLoopTests.swift:123:9: Expectation failed: handed.tokens == [1, 2, 3]
+􀄵  given back: every token, once, in order
+􀄵  handed.tokens == [1, 2, 3] → false
+􀄵    handed.tokens → []
+􀢄  Test "with the floor taken, no new token after the one in hand; given back, it goes on" recorded an issue at TokenLoopTests.swift:125:9: Expectation failed: calls.withLock { $0 } == 4
+􀄵  three tokens and the end
+􀄵  calls.withLock { $0 } == 4 → false
+􀄵    calls.withLock { $0 } → 0
+􀢄  Test "with the floor taken, no new token after the one in hand; given back, it goes on" failed after 10.068 seconds with 4 issues.
+􀢄  Suite "AC-382, AC-383 · our own token loop" failed after 10.069 seconds with 11 issues.
+􀢄  Test "two holds: free only when both are given back; a second giveBack counts once" recorded an issue at VoiceFloorTests.swift:63:9: Expectation failed: !done.isSet
+􀄵  !done.isSet → true
+􀄵    done.isSet → false
+􀄵      done → MultiModalKitTests.VoiceFloorTests.Flag
+􀄵        value → ()
+􀄵      isSet → true
+􀢄  Test "taken: the mind waits until the hold is given back" recorded an issue at VoiceFloorTests.swift:44:9: Expectation failed: !done.isSet
+􀄵  and not past it
+􀄵  !done.isSet → true
+􀄵    done.isSet → false
+􀄵      done → MultiModalKitTests.VoiceFloorTests.Flag
+􀄵        value → ()
+􀄵      isSet → true
+􀢄  Test "two holds: free only when both are given back; a second giveBack counts once" failed after 10.102 seconds with 3 issues.
+􀢄  Test "taken: the mind waits until the hold is given back" failed after 10.102 seconds with 3 issues.
+􀢄  Suite "D-148 · the floor the voice takes and the mind waits for" failed after 10.102 seconds with 7 issues.
+􀢄  Test run with 32 tests in 7 suites failed after 10.102 seconds with 20 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
