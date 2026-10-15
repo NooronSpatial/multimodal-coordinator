@@ -67,7 +67,7 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
         let mind: MLXReplyGenerator
         do {
             mind = try MLXReplyGenerator(model: LocalMindModel(weights: weights),
-                                         instructions: spoken, maxTokens: 160)
+                                         instructions: spoken, maxTokens: 160, floor: demoFloor)
         } catch {
             // 4z (AC-289): a default table no mind can show throws HERE,
             // where it is handed over — the same refusal as the others
@@ -81,6 +81,12 @@ func chosenMind(_ arguments: [String], screen: Screen) -> any ReplyGenerating {
         return PacedEchoReply(screen: screen)
     }
 }
+
+/// `--voice-first` (5d piece 5, D-148): one floor, shared by the local mind and
+/// the neural voice — the mind waits while the voice decodes its first phrase.
+/// Without the flag, nil: the library's own default, so one command measures
+/// before and the other after.
+let demoFloor: VoiceFloor? = CommandLine.arguments.contains("--voice-first") ? VoiceFloor() : nil
 
 /// `--mouth=apple|neural|kokoro` (default: apple)
 ///
@@ -128,7 +134,7 @@ func preparedMouth(_ arguments: [String],
         exit(2)
     }
     if want == "kokoro" { levers.voice = .kokoro }
-    let voice = levers.makeSpokenVoice()
+    let voice = levers.makeSpokenVoice(floor: demoFloor)
     await voice.render(on: ListeningHost(wrapping: AudioEnginePlaybackHost(), heard: heard))
     if !(await voice.modelInstalled()) {
         print("⏬ \(voice.inForce): the model is not on this Mac — downloading …")

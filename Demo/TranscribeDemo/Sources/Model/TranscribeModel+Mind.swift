@@ -93,7 +93,11 @@ extension TranscribeModel {
                                   // presented with this piece.
                                   // Since 4z the table rides on the CALL
                                   // (F-2 = A): see `ThoughtWitness`.
-                                  tools: .empty)
+                                  tools: .empty,
+                                  // THE VOICE GOES FIRST (5d piece 5, D-148):
+                                  // the mind waits while the voice decodes its
+                                  // first phrase.
+                                  floor: Self.voiceFloor)
         }
     }
 

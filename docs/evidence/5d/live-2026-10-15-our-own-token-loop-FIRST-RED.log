@@ -1,0 +1,335 @@
+warning: 'zipfoundation': /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+􀟈  Test run started.
+􀄵  Testing Library Version: 2084
+􀄵  Target Platform: arm64e-apple-macos14.0
+􀟈  Suite "AC-236 · a prompt longer than the window is refused before generation" started.
+􀟈  Suite "AC-125 · the think gate" started.
+􀟈  Suite "AC-128/129 · the real model, when this machine has one" started.
+􀟈  Suite "4v · the local mind honours the contract, when this machine has the model" started.
+􀟈  Suite "AC-232 · the resolved instruction becomes the .system message" started.
+􀟈  Suite "AC-233/AC-234 · the resolved settings become the vendor's parameters" started.
+􀟈  Suite "AC-125 · the ids come from the model, not from me" started.
+􀟈  Suite "AC-312 · prewarm() raises the ask before its hop" started.
+􀟈  Suite "AC-235 · the vendor's stop reason maps to the seam's StopReason" started.
+􀟈  Suite "4y · admission, pressure and the deadline against the real model, when this machine has it" started.
+􀟈  Suite "AC-312 · the warm's end is an event" started.
+􀟈  Suite "4w · AC-222: the local mind asks the session tool and speaks the answer, when this machine has the model" started.
+􀟈  Suite "AC-382, AC-383 · our own token loop" started.
+􀟈  Test "the removed-gate control — a foreign vocabulary lets the reasoning through" started.
+􀟈  Test "an unclosed thought swallows to the end, and SAYS that it is still holding" started.
+􀟈  Suite "AC-272 · the plain path's whole prompt is the same bytes before and after 4z, when this machine has the model" started.
+􀟈  Test "a stray close with no open is harmless, not a crash" started.
+􀟈  Test "a DEFIANT <think> is swallowed — layer 1 is a convention, this is the net" started.
+􀟈  Test "a template that already opened the thought starts inside it" started.
+􀟈  Test "no window number means no refusal — the library does not refuse on a number it lacks" started.
+􀟈  Test "the markers themselves never reach the mouth — punctuation, not words" started.
+􀟈  Suite "AC-312 · a real warm's end, when this machine has the model" started.
+􀟈  Test "WARM, the first token is fast — the cold 1.9 s is the load, not the model" started.
+􀟈  Test "in prewarm(), the ask comes before the Task that hops to the model" started.
+􀟈  Test "a missing model is refused at the door, not discovered mid-reply" started.
+􀟈  Test "temperature and seed reach the vendor when the caller gives them" started.
+􀟈  Test "the model reports honestly whether it is installed — asking triggers nothing" started.
+􀟈  Test "the window is read from config.json's max_position_embeddings, and absent is nil" started.
+􀟈  Test ".stop is .complete — the model ended its own turn" started.
+􀟈  Test "nil per-call instructions leave the source's own as the system message" started.
+􀟈  Test "a REAL reply: tokens then one terminal, and NO reasoning is spoken" started.
+􀟈  Test "a prompt that fills or exceeds the window is refused — nothing could be said" started.
+􀟈  Test "a cancelled REAL reply ends without a terminal" started.
+􀟈  Test "the runtime guard answers, and says WHERE it found the shaders" started.
+􀟈  Suite "AC-232..234 · per-call options resolve against the source's own settings" started.
+􀟈  Test "the REAL source is wired to the door — it refuses what is not installed" started.
+􀟈  Test "temperature 0 travels as 0 — the greedy path, not a nil that becomes 0.6" started.
+􀟈  Test "a REAL reply that ends on its own is .finished(.complete)" started.
+􀟈  Test "the caller's per-call instruction is the system message — Aura's G1" started.
+􀟈  Test "a prompt that leaves room for one reply token fits" started.
+􀟈  Test "the budget reaches maxTokens, and nothing else is invented" started.
+􀟈  Test "the past arrives in roles, and a barged reply ends in the ellipsis" started.
+􀟈  Test "nil on both sides is NO system message at all — the voice path, unchanged" started.
+􀟈  Test ".cancelled is nil — a cancelled run has no terminal to report" started.
+􀟈  Test ".length is .tokenBudget — the cap cut it" started.
+􀟈  Test "a model that does not reason out loud is nil, not an error" started.
+􀟈  Test "admit(needing:) on this Mac reads no headroom, admits, and the weights are resident after" started.
+􀟈  Test "false when the warm ends without the weights — the spinner always stops (D-124 F-21 B)" started.
+􀟈  Test "false at once when nothing is resident and nothing is loading (D-124 F-21 B)" started.
+􀟈  Test "the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)" started.
+􀟈  Test "HALF a vocabulary throws rather than guesses" started.
+􀟈  Test "a file that is not a tokenizer configuration is refused" started.
+􀟈  Test "the REAL model calls `session` and its reply carries the session's numbers" started.
+􀟈  Test "returns at once when the weights are already resident (AC-312)" started.
+􀟈  Test "the REAL model's config yields 151667/151668 (model config; skips if absent)" started.
+􀟈  Test "after a retire the weights are gone: false at once (AC-312)" started.
+􀟈  Test "both markers present — the two ids are read from the vocabulary" started.
+􀟈  Test "a waiter is answered true when the load in flight ends with the weights (AC-312)" started.
+􀟈  Test "the model's retire tells the watch: resident, retired, false (AC-312)" started.
+􀟈  Test "cancellable: a cancelled wait returns at once, with what is true then (AC-312)" started.
+􀟈  Test "the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)" started.
+􀟈  Test "an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)" started.
+􀟈  Test "resident while a warm is still asked for: true at once, not after the warm (AC-312)" started.
+􀟈  Test "a load in flight with no warm asked — a turn's own — is waited for too (AC-312)" started.
+􀟈  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" started.
+􀟈  Test "the budget ends it with .length" started.
+􀟈  Test "a cancel at a token ends it as cancelled, asking for no more" started.
+􀟈  Test "a cancel while the loop waits for the floor ends it at once" started.
+􀟈  Test "with the floor taken, no new token after the one in hand; given back, it goes on" started.
+􀟈  Test "no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after" started.
+􀟈  Test "prewarm(), then whenWarm(): true once the real weights are resident — and at once after (AC-312)" started.
+􁁛  Test "no window number means no refusal — the library does not refuse on a number it lacks" passed after 0.002 seconds.
+􁁛  Test ".stop is .complete — the model ended its own turn" passed after 0.002 seconds.
+􁁛  Test "the markers themselves never reach the mouth — punctuation, not words" passed after 0.002 seconds.
+􁁛  Test "temperature and seed reach the vendor when the caller gives them" passed after 0.002 seconds.
+􁁛  Test "an unclosed thought swallows to the end, and SAYS that it is still holding" passed after 0.002 seconds.
+􁁛  Test "a DEFIANT <think> is swallowed — layer 1 is a convention, this is the net" passed after 0.002 seconds.
+􁁛  Test "a template that already opened the thought starts inside it" passed after 0.003 seconds.
+􀟈  Test "nil maxTokens keeps the source's default — 1024 since F-6 = A" started.
+􀟈  Test "nil on both sides means NO system message, as before 4v" started.
+􀟈  Test "per-call instructions replace the source's own for that call" started.
+􀟈  Test "per-call maxTokens replaces the source's own" started.
+􀟈  Test "nil instructions keep the source's own" started.
+􁁛  Test "a stray close with no open is harmless, not a crash" passed after 0.003 seconds.
+􀟈  Test "temperature and seed travel; nil leaves the vendor's default untouched" started.
+􁁛  Test "temperature 0 travels as 0 — the greedy path, not a nil that becomes 0.6" passed after 0.003 seconds.
+􀟈  Test "the whole resolution is one Equatable value — the door hands it on, whole" started.
+􁁛  Test "the removed-gate control — a foreign vocabulary lets the reasoning through" passed after 0.003 seconds.
+􁁛  Test "the budget reaches maxTokens, and nothing else is invented" passed after 0.003 seconds.
+􁁛  Test "a prompt that leaves room for one reply token fits" passed after 0.003 seconds.
+􁁛  Test "a prompt that fills or exceeds the window is refused — nothing could be said" passed after 0.004 seconds.
+􁁛  Test "nil per-call instructions leave the source's own as the system message" passed after 0.004 seconds.
+􁁛  Test "the caller's per-call instruction is the system message — Aura's G1" passed after 0.004 seconds.
+􁁛  Test ".cancelled is nil — a cancelled run has no terminal to report" passed after 0.004 seconds.
+􁁛  Test "the past arrives in roles, and a barged reply ends in the ellipsis" passed after 0.004 seconds.
+􁁛  Test ".length is .tokenBudget — the cap cut it" passed after 0.004 seconds.
+􁁛  Test "nil on both sides is NO system message at all — the voice path, unchanged" passed after 0.006 seconds.
+􁁛  Test "the REAL model's config yields 151667/151668 (model config; skips if absent)" passed after 0.006 seconds.
+􁁛  Test "both markers present — the two ids are read from the vocabulary" passed after 0.006 seconds.
+􁁛  Test "a model that does not reason out loud is nil, not an error" passed after 0.006 seconds.
+􁁛  Test "a file that is not a tokenizer configuration is refused" passed after 0.006 seconds.
+􁁛  Test "the window is read from config.json's max_position_embeddings, and absent is nil" passed after 0.007 seconds.
+􁁛  Test "HALF a vocabulary throws rather than guesses" passed after 0.006 seconds.
+􁁛  Test "in prewarm(), the ask comes before the Task that hops to the model" passed after 0.007 seconds.
+􁁛  Suite "AC-235 · the vendor's stop reason maps to the seam's StopReason" passed after 0.420 seconds.
+􁁛  Suite "AC-125 · the think gate" passed after 0.420 seconds.
+􁁛  Suite "AC-233/AC-234 · the resolved settings become the vendor's parameters" passed after 0.420 seconds.
+􁁛  Test "nil maxTokens keeps the source's default — 1024 since F-6 = A" passed after 0.417 seconds.
+􁁛  Test "nil on both sides means NO system message, as before 4v" passed after 0.417 seconds.
+􁁛  Test "per-call instructions replace the source's own for that call" passed after 0.417 seconds.
+􁁛  Test "per-call maxTokens replaces the source's own" passed after 0.417 seconds.
+􁁛  Test "nil instructions keep the source's own" passed after 0.417 seconds.
+􁁛  Test "temperature and seed travel; nil leaves the vendor's default untouched" passed after 0.417 seconds.
+􁁛  Test "the whole resolution is one Equatable value — the door hands it on, whole" passed after 0.417 seconds.
+􁁛  Suite "AC-232 · the resolved instruction becomes the .system message" passed after 0.420 seconds.
+􁁛  Suite "AC-125 · the ids come from the model, not from me" passed after 0.421 seconds.
+􁁛  Suite "AC-236 · a prompt longer than the window is refused before generation" passed after 0.421 seconds.
+􁁛  Suite "AC-312 · prewarm() raises the ask before its hop" passed after 0.421 seconds.
+􁁛  Suite "AC-232..234 · per-call options resolve against the source's own settings" passed after 0.422 seconds.
+􁁛  Test "the model reports honestly whether it is installed — asking triggers nothing" passed after 0.422 seconds.
+􁁛  Test "the budget ends it with .length" passed after 0.421 seconds.
+􁁛  Test "every token once, in order; a stop token ends it with .stop, unspoken and discarded" passed after 0.421 seconds.
+􁁛  Test "the runtime guard answers, and says WHERE it found the shaders" passed after 0.422 seconds.
+􁁛  Test "false at once when nothing is resident and nothing is loading (D-124 F-21 B)" passed after 0.422 seconds.
+􁁛  Test "returns at once when the weights are already resident (AC-312)" passed after 0.422 seconds.
+􁁛  Test "after a retire the weights are gone: false at once (AC-312)" passed after 0.422 seconds.
+􁁛  Test "resident while a warm is still asked for: true at once, not after the warm (AC-312)" passed after 0.422 seconds.
+􁁛  Test "the model: nothing warming and nothing resident answers false at once (D-124 F-21 B)" passed after 0.422 seconds.
+􁁛  Test "a cancel at a token ends it as cancelled, asking for no more" passed after 0.421 seconds.
+􁁛  Test "the REAL source is wired to the door — it refuses what is not installed" passed after 0.422 seconds.
+􁁛  Test "a cancel while the loop waits for the floor ends it at once" passed after 0.421 seconds.
+􁁛  Test "the model's retire tells the watch: resident, retired, false (AC-312)" passed after 0.422 seconds.
+􁁛  Test "with the floor taken, no new token after the one in hand; given back, it goes on" passed after 0.422 seconds.
+􁁛  Test "a waiter is answered true when the load in flight ends with the weights (AC-312)" passed after 0.422 seconds.
+􁁛  Test "a cancelled REAL reply ends without a terminal" passed after 0.423 seconds.
+􁁛  Test "cancellable: a cancelled wait returns at once, with what is true then (AC-312)" passed after 0.422 seconds.
+􁁛  Test "an ask keeps the answer waiting until its warm is over, not only a load (D-124 F-21 B)" passed after 0.422 seconds.
+􁁛  Test "a load in flight with no warm asked — a turn's own — is waited for too (AC-312)" passed after 0.422 seconds.
+􁁛  Suite "AC-382, AC-383 · our own token loop" passed after 0.423 seconds.
+􁁛  Test "false when the warm ends without the weights — the spinner always stops (D-124 F-21 B)" passed after 0.423 seconds.
+􁁛  Test "a missing model is refused at the door, not discovered mid-reply" passed after 0.423 seconds.
+􁁛  Test "the model's warm consumes its ask: a warm that fails at the door answers its waiter false (AC-312)" passed after 0.423 seconds.
+􁁛  Suite "AC-312 · the warm's end is an event" passed after 0.423 seconds.
+AC-258 Mac · resident after admit: 12262.3 MB
+􁁛  Test "admit(needing:) on this Mac reads no headroom, admits, and the weights are resident after" passed after 52.562 seconds.
+􀟈  Test "with a KNOWN short headroom the mind's own door refuses on the app's number, and loads when it is gone" started.
+􁁛  Test "prewarm(), then whenWarm(): true once the real weights are resident — and at once after (AC-312)" passed after 99.284 seconds.
+􁁛  Suite "AC-312 · a real warm's end, when this machine has the model" passed after 99.288 seconds.
+AC-272 live · the plain prompt: tokens: 23, 138 bytes
+AC-272 live · before == after == this render: true
+􁁛  Test "no table on the call, none on the generator: the prompt is the bytes captured before 4z, and after" passed after 101.652 seconds.
+􁁛  Suite "AC-272 · the plain path's whole prompt is the same bytes before and after 4z, when this machine has the model" passed after 101.654 seconds.
+􁁛  Test "with a KNOWN short headroom the mind's own door refuses on the app's number, and loads when it is gone" passed after 53.307 seconds.
+􀟈  Test "a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed" started.
+AC-128 WARM · model load 56.296666458999994 seconds · first token 77.146883042 seconds · said: 
+AC-128 · first token in n/a · said: 
+􀢄  Test "WARM, the first token is fast — the cold 1.9 s is the load, not the model" recorded an issue at MLXMindLiveTests.swift:150:9: Expectation failed: !spoken.isEmpty
+􀄵  !spoken.isEmpty → true
+􀄵    spoken.isEmpty → false
+􀄵      spoken → ""
+􀄵      isEmpty → true
+􀢄  Test "a REAL reply: tokens then one terminal, and NO reasoning is spoken" recorded an issue at MLXMindLiveTests.swift:106:9: Expectation failed: terminals.count == 1
+􀄵  exactly one terminal: []
+􀄵  terminals.count == 1 → false
+􀄵    terminals.count → 0
+􀢄  Test "the REAL model calls `session` and its reply carries the session's numbers" recorded an issue at MLXToolLiveTests.swift:74:6: Caught error: the reply ended without a terminal
+􀢄  Test "a REAL reply that ends on its own is .finished(.complete)" recorded an issue at MLXContractLiveTests.swift:38:6: Caught error: the reply ended without a terminal
+􀢄  Test "a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed" recorded an issue at MLXAdmissionLiveTests.swift:134:6: Caught error: the reply ended without a terminal
+􀢄  Test "the REAL model calls `session` and its reply carries the session's numbers" failed after 134.091 seconds with 1 issue.
+􀢄  Test "a REAL reply: tokens then one terminal, and NO reasoning is spoken" recorded an issue at MLXMindLiveTests.swift:111:9: Expectation failed: !spoken.isEmpty
+􀄵  a real reply has words in it
+􀄵  !spoken.isEmpty → true
+􀄵    spoken.isEmpty → false
+􀄵      spoken → ""
+􀄵      isEmpty → true
+􀢄  Test "a REAL reply that ends on its own is .finished(.complete)" failed after 134.095 seconds with 1 issue.
+􀢄  Test "WARM, the first token is fast — the cold 1.9 s is the load, not the model" failed after 134.095 seconds with 1 issue.
+􀄵  /// The number the demo actually lives or dies by: how long the first
+􀄵  /// word takes once the weights are already resident.
+􀢄  Test "a REAL reply with a 200 ms deadline ends .finished(.deadline) with partial text, and the prefill is freed" failed after 28.201 seconds with 1 issue.
+􀟈  Test "a .warning during a REAL generation ends it with no terminal, and the memory falls back" started.
+􀟈  Test "asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is ToolCallParsingTests'" started.
+􀟈  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" started.
+􀢄  Test "a REAL reply: tokens then one terminal, and NO reasoning is spoken" failed after 134.103 seconds with 2 issues.
+􀄵  /// THE ONE THAT MATTERS. A real reply, from real weights, through the
+􀄵  /// real seam — tokens, then exactly one terminal.
+􀢄  Suite "AC-128/129 · the real model, when this machine has one" failed after 134.104 seconds with 3 issues.
+􀄵  /// AC-128: a REAL token, from the REAL model, inside `swift test`.
+􀄵  ///
+􀄵  /// Gated twice, on purpose, and the second gate is the one D-061 forced:
+􀄵  ///
+􀄵  /// 1. `MMK_MLX_MODEL` must point at the weights — the house pattern for
+􀄵  ///    "model required; skips if absent".
+􀄵  /// 2. `MLXRuntime.isAvailable` must be true. Without a `default.metallib`
+􀄵  ///    MLX does not fail a test, it **aborts the process** — so this is
+􀄵  ///    not politeness, it is the difference between a skipped test and a
+􀄵  ///    dead runner that cannot say which test killed it (AC-129).
+􀢄  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" recorded an issue at MLXContractLiveTests.swift:50:6: Caught error: the reply ended without a terminal
+􀢄  Test "asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is ToolCallParsingTests'" recorded an issue at MLXToolLiveTests.swift:152:6: Caught error: the reply ended without a terminal
+􀢄  Test "a REAL reply cut by a 3-token budget is .finished(.tokenBudget)" failed after 161.504 seconds with 1 issue.
+􀢄  Test "asked BY NAME to record 83.5, the 0.6B calls `log_reading` and the body's typed accessor reads 83.5 through the per-call door — the model's spelling (number or text) is not claimed; the parse by kind is ToolCallParsingTests'" failed after 161.506 seconds with 1 issue.
+􀄵  /// The contract's own live row: a tool WITH a parameter, a question
+􀄵  /// that says a decimal, and the tool's recorder holding that number
+􀄵  /// as a `.number` — the value, not its text. The question NAMES the
+􀄵  /// tool and the number, the only shape the 0.6B follows (the suite
+􀄵  /// note above: it calls a tool when the person asks for it by name,
+􀄵  /// and not on an instruction alone); greedy, so the same prompt
+􀄵  /// gives the same bytes and a pass is a fact.
+􀄵  ///
+􀄵  /// WHAT IS CLAIMED: the number arrives at the body as `.number`. The
+􀄵  /// door reads text as a number too (F-8 C), so this row proves the
+􀄵  /// value's PATH — the model's call, parsed by kind, through the door,
+􀄵  /// to the body — and prints what arrived; whether the 0.6B spelled
+􀄵  /// it as JSON's 83.5 or as "83.5" is the door's `coerced` count,
+􀄵  /// which the run does not surface, so it is not claimed here. The
+􀄵  /// VALUE is asserted only because the 0.6B wrote it under greedy on
+􀄵  /// this Mac when the row was written (the number printed beside the
+􀄵  /// call); if a later run shows a different number, the honest
+􀄵  /// change is to the assertion, not to the model.
+􀟈  Test "a per-call instruction overrides the source's own on the REAL model" started.
+􀟈  Test "the no-tool baseline for the same weights is measured beside it" started.
+􀢄  Test "the no-tool baseline for the same weights is measured beside it" recorded an issue at MLXToolLiveTests.swift:194:6: Caught error: the reply ended without a terminal
+􀢄  Test "the no-tool baseline for the same weights is measured beside it" failed after 26.050 seconds with 1 issue.
+􀄵  /// The same weights, no tool, the plain question — the Mac's
+􀄵  /// baseline for the round trip above (AC-228's phone row is Ryad's,
+􀄵  /// §172c). Printed, not asserted: a wall-clock number is evidence,
+􀄵  /// not a contract.
+􀟈  Test "the spec's prefill cost is measured: tokens and characters, with and without the tool" started.
+􀢄  Test "a per-call instruction overrides the source's own on the REAL model" recorded an issue at MLXContractLiveTests.swift:69:6: Caught error: the reply ended without a terminal
+􀢄  Test "a per-call instruction overrides the source's own on the REAL model" failed after 26.508 seconds with 1 issue.
+􀄵  /// Aura's G1, end to end — the half the 4v review found proven
+􀄵  /// nowhere. The source is built for SPEECH and the CALL asks for
+􀄵  /// something else; the model must obey the call. The word is nonsense
+􀄵  /// on purpose: no question about a capital city can produce it by
+􀄵  /// accident, so the only path to it is the `.system` message the
+􀄵  /// builder made from `options.instructions`.
+􀟈  Test "temperature 0 twice, and seed 7 twice, are byte-identical" started.
+AC-228 prefill · without the spec: 38 tokens / 190 chars; with: 147 tokens / 721 chars; the spec adds 109 tokens / 531 chars
+􁁛  Test "the spec's prefill cost is measured: tokens and characters, with and without the tool" passed after 26.495 seconds.
+􀢄  Suite "4w · AC-222: the local mind asks the session tool and speaks the answer, when this machine has the model" failed after 348.177 seconds with 3 issues.
+􀄵  /// AC-222 against the REAL model: the local mind is given Aura's session
+􀄵  /// read (F-3 = C), asked for today's session, and must CALL the tool and
+􀄵  /// speak its answer. Gated exactly as `MLXContractLiveTests` is — on
+􀄵  /// `MMK_MLX_MODEL` and on `MLXRuntime.isAvailable` — because without a
+􀄵  /// metallib MLX aborts the process (D-061), and a skip that says so is
+􀄵  /// the least dishonest thing available.
+􀄵  ///
+􀄵  /// WHAT A 0.6B MODEL CAN BE RELIED ON TO DO, measured before this row
+􀄵  /// was written (eight prompt shapes, then the passing one three times
+􀄵  /// greedy and twice at the vendor's temperature; the run's own record
+􀄵  /// is printed by each test):
+􀄵  ///
+􀄵  /// - It calls `session` when the USER'S turn names the tool ("use the
+􀄵  ///   session tool…") and there is NO system instruction: 3/3 greedy,
+􀄵  ///   2/2 at 0.6, every reply carrying the answer's numbers.
+􀄵  /// - It does NOT call when only a system instruction asks it to —
+􀄵  ///   "always call the session tool", "you MUST first call…" — 0/4; it
+􀄵  ///   answers "I don't have access to today's session".
+􀄵  /// - It does NOT call when ANY app instruction is present beside the
+􀄵  ///   naming question, even "answer in one sentence of plain prose":
+􀄵  ///   0/3 — it parrots the question back.
+􀄵  ///
+􀄵  /// So this row uses the shape that holds, under greedy so the same
+􀄵  /// prompt gives the same bytes (AC-234) and a pass is a fact, not a
+􀄵  /// hope. What is NOT claimed, and is the honest finding for the
+􀄵  /// contract milestone: on this size the tool is a thing the PERSON
+􀄵  /// must ask for by name, and the app's instruction (D-027) and the tool
+􀄵  /// do not yet coexist. The spike's question (§169/2) is narrower — the
+􀄵  /// call crosses the seam and the reply continues — and that is what
+􀄵  /// this row proves on real weights.
+AC-261 live · warning after 3 tokens · active before 4355.6 MB · during 4392.7 MB · peak 4492.0 MB · after 4355.6 MB · cache after 20.0 MB
+AC-234 greedy · Paris, Berlin, and Madrid.
+􁁛  Test "a .warning during a REAL generation ends it with no terminal, and the memory falls back" passed after 220.402 seconds.
+􀟈  Test "a run cancelled at birth never prefills: the active memory never rises above the floor" started.
+AC-234 seeded · Paris, Berlin, and Rome.
+􁁛  Test "temperature 0 twice, and seed 7 twice, are byte-identical" passed after 33.916 seconds.
+􀟈  Test "a prompt longer than the model's window is .failed(.contextWindowExceeded), no token spoken" started.
+AC-236 · the window is 40960 tokens
+AC-261 dead-at-birth · active before 4319.7 MB · peak during 0.0 MB · after 4319.7 MB
+􁁛  Test "a run cancelled at birth never prefills: the active memory never rises above the floor" passed after 1.867 seconds.
+􀟈  Test "a .critical during a REAL generation retires the weights, and the next reply reloads them" started.
+􁁛  Test "a prompt longer than the model's window is .failed(.contextWindowExceeded), no token spoken" passed after 2.116 seconds.
+􀟈  Test "with the weights on disk and MLX runnable, the verdict is nil and the door opens" started.
+􁁛  Test "with the weights on disk and MLX runnable, the verdict is nil and the door opens" passed after 0.005 seconds.
+􀢄  Suite "4v · the local mind honours the contract, when this machine has the model" failed after 358.151 seconds with 3 issues.
+􀄵  /// 4v's contract against the REAL model (AC-234, AC-235, AC-236, AC-238):
+􀄵  /// the stop reason read from the vendor's `.info` event, the sampling
+􀄵  /// levers reaching the sampler, the window refusal before generation,
+􀄵  /// and the typed door. Gated exactly as `MLXMindLiveTests` is — on
+􀄵  /// `MMK_MLX_MODEL` and on `MLXRuntime.isAvailable` — because without a
+􀄵  /// metallib MLX aborts the process (D-061), and a skip that says so is
+􀄵  /// the least dishonest thing available.
+AC-262 live · resident 2159.9 MB · after critical, idle: 0.1 MB
+AC-262 live · after reload, said: The capital of Italy is Rome.
+􁁛  Test "a .critical during a REAL generation retires the weights, and the next reply reloads them" passed after 4.047 seconds.
+􀢄  Suite "4y · admission, pressure and the deadline against the real model, when this machine has it" failed after 360.414 seconds with 1 issue.
+􀄵  /// 4y against the REAL model (AC-258/259's Mac row, AC-261, AC-262,
+􀄵  /// AC-264): a real admission on this Mac's own headroom, a real reply
+􀄵  /// cut by a memory warning and by a 200 ms deadline, and MLX's own
+􀄵  /// `activeMemory` before and after each cut — the numbers INSTRUMENTS
+􀄵  /// §68 records. Gated exactly as `MLXContractLiveTests` is — on
+􀄵  /// `MMK_MLX_MODEL` and on `MLXRuntime.isAvailable` — because without a
+􀄵  /// metallib MLX aborts the process (D-061), and the skip says so loudly.
+􀄵  ///
+􀄵  /// The pressure source is SCRIPTED even here: the kernel's own warning
+􀄵  /// cannot be asked for, and a test that waited for a real one would wait
+􀄵  /// for the Mac to run out of memory. What is real is everything the
+􀄵  /// level then reaches — the vendor's task, its KV cache, the allocator.
+􀄵  ///
+􀄵  /// THE NUMBERS ARE PROCESS-GLOBAL. `activeMemory` counts every model
+􀄵  /// this process holds, and the other live suites load and retire their
+􀄵  /// own beside this one when the whole suite runs with `MMK_MLX_MODEL`
+􀄵  /// set: measured once in twenty full runs, another suite's 0.6B landed
+􀄵  /// between a row's `before` and `after` (639.7 → 959.6 MB — one model,
+􀄵  /// to the megabyte) and the release claim went red for a reason that
+􀄵  /// was not a leak. Alone (`--filter MLXAdmissionLiveTests`, the way
+􀄵  /// INSTRUMENTS §68 was measured) the rows read `after == before` to
+􀄵  /// 0.1 MB, twenty of twenty. CI never sets the variable. Whether the
+􀄵  /// live suites should be serialised against each other is an open
+􀄵  /// question, not one this file answers.
+􀢄  Test run with 75 tests in 16 suites failed after 360.415 seconds with 10 issues.
+Note: Some test targets reported failures:
+  - MultiModalKitTests (Swift Testing)
