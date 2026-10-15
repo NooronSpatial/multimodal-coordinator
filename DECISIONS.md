@@ -6287,3 +6287,24 @@ piece (AC-377: on only at ≥ 1.5×).
 - **F-51 = A — the first phrase only.** *Rejected:* B, every phrase — it may help
   ⑥ on a hot phone, but holds the mind on every phrase; its own measured step if
   ⑥ needs it.
+
+## D-149 — the mind's pause needs our own token loop: the local mind drives the vendor's iterator itself (amends D-148) (Milestone 5d)
+
+**Date:** 2026-10-15 · **Decided by:** Ryad ("A — our own token loop") ·
+**Finding:** D-148 assumed the mind could wait "between tokens". It cannot by
+reading slower: the vendor's loop (`generateTokensTask`) runs in its own task,
+writes every token into an unbounded stream and never waits for its reader, so
+pausing our reading pauses nothing on the GPU. The vendor's `TokenIterator` and
+its per-token callback are public; the loop that drives them is private.
+**Ruling:** the local mind drives the public iterator in its own loop and
+waits for the floor between tokens. The loop keeps what 4y made it promise —
+cancellation at every token, the prompt's memory freed when the loop ends, the
+deadline, the vendor's stop reasons (AC-235), the think gate and the tool
+sieve — re-proven by the 4y live rows on the real 4B and by new mutations.
+
+- *Rejected:* **B — block inside the vendor's loop** (its per-token callback
+  waits while the floor is taken): little code, but a thread blocked for up to
+  ~0.6 s each turn, the pattern that froze CI (D-142), and the end of the task
+  variant 4y chose.
+- *Rejected:* **C — stop the fix**: the experiment measured ×1.56–1.58, and on
+  the phone that may be ~200 ms of ⑤.
