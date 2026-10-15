@@ -9285,7 +9285,7 @@ the hop to the decoder's worker. Stamping the cut would have added a clock read
 and shifted every scripted-time test's plan; the run already stamped the ask
 (D-087).
 
-# 5d piece 5, the fix — the voice goes first (proposed, NOT signed)
+# 5d piece 5, the fix — the voice goes first (signed, D-148)
 
 ## §264 — why
 

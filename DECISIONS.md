@@ -6273,3 +6273,17 @@ the mind waits — it is far ahead of the speech (~46 characters a second agains
 - *Rejected:* **C — both at once**: two changes measured together cannot be
   judged one by one.
 - *Rejected:* **D — leave ⑤**: it is the biggest block left.
+
+## D-148 — 5d piece 5's fix signed: a shared floor, taken by the voice for the first phrase (F-50 A, F-51 A) (Milestone 5d)
+
+**Date:** 2026-10-15 · **Decided by:** Ryad ("Sign, F-50 A and F-51 A") ·
+**Ruling:** SPEC §264–§268 as written. The experiment runs first and may end the
+piece (AC-377: on only at ≥ 1.5×).
+
+- **F-50 = A — a small shared "floor"** handed to both organs: the voice takes
+  it while it decodes, the mind waits for it between tokens; the coordinator
+  does not change. *Rejected:* B, the coordinator in the middle (new hooks on
+  both seams, new states in the coordinator).
+- **F-51 = A — the first phrase only.** *Rejected:* B, every phrase — it may help
+  ⑥ on a hot phone, but holds the mind on every phrase; its own measured step if
+  ⑥ needs it.
