@@ -10,6 +10,8 @@
 //   UNDER LOAD   the real 4B is writing a long answer (its first tokens out),
 //                and Kokoro decodes the same phrase meanwhile — in one process,
 //                on one GPU, as the app does it
+//   VOICE FIRST  the same, with the floor taken for the decode (D-148): the
+//                mind, built with that floor, waits between its tokens
 //
 // It prints both medians and their ratio. SPEC §266: the fix is built only if
 // the ratio is at least 1.5; below that, the GPU is not the cause.
@@ -49,9 +51,11 @@ func runDecodeUnderLoad(_ arguments: [String]) async {
     }
     MLX.Memory.cacheLimit = 20 * 1024 * 1024
     let engine = KokoroTTS(modelPath: kokoroModel, g2p: .misaki)
+    let floor = VoiceFloor()
     let mind: MLXReplyGenerator
     do {
-        mind = try MLXReplyGenerator(model: LocalMindModel(weights: URL(filePath: modelPath)), maxTokens: 400)
+        mind = try MLXReplyGenerator(model: LocalMindModel(weights: URL(filePath: modelPath)), maxTokens: 400,
+                                     floor: floor)
     } catch {
         print("the mind could not be built: \(error)")
         exit(1)
@@ -61,8 +65,16 @@ func runDecodeUnderLoad(_ arguments: [String]) async {
     _ = decodeMilliseconds(engine, style, "Hello there.")
     if let warm = try? await mind.openReply(to: "hi") { for await _ in warm.updates {} }
 
-    var alone: [Double] = []
-    var loaded: [Double] = []
+    let columns = await measureDraws(draws, engine: engine, style: style, mind: mind, floor: floor)
+    printVerdict(columns.alone, columns.loaded, columns.first)
+    exit(0)
+}
+
+/// Every draw: each first phrase alone, under the mind's writing, and with the
+/// voice first — back to back, so heat drifts across all three alike.
+private func measureDraws(_ draws: Int, engine: KokoroTTS, style: MLXArray, mind: MLXReplyGenerator,
+                          floor: VoiceFloor) async -> Columns {
+    var columns = Columns()
     for draw in 1...draws {
         for phrase in firstPhrases {
             let lone = decodeMilliseconds(engine, style, phrase)
@@ -70,15 +82,24 @@ func runDecodeUnderLoad(_ arguments: [String]) async {
                 print("  draw \(draw) · \"\(phrase)\" — the mind did not start writing; skipped")
                 continue
             }
-            alone.append(lone)
-            loaded.append(busy)
-            print(String(format: "  draw %d · %-22@ alone %4.0f ms · under load %4.0f ms · ×%.2f",
-                         draw, "\"\(phrase)\"" as NSString, lone, busy, busy / lone)
-                  + " · \(during) tokens written meanwhile")
+            guard let (held, heldDuring) = await decodeWhileWriting(engine, style, phrase, mind: mind,
+                                                                    floor: floor) else { continue }
+            columns.alone.append(lone)
+            columns.loaded.append(busy)
+            columns.first.append(held)
+            print(String(format: "  draw %d · %-22@ alone %4.0f · under load %4.0f · voice first %4.0f ms",
+                         draw, "\"\(phrase)\"" as NSString, lone, busy, held)
+                  + " · tokens meanwhile \(during) / \(heldDuring)")
         }
     }
-    printVerdict(alone, loaded)
-    exit(0)
+    return columns
+}
+
+/// The three columns of the experiment, in milliseconds.
+private struct Columns {
+    var alone: [Double] = []
+    var loaded: [Double] = []
+    var first: [Double] = []
 }
 
 /// One Kokoro decode of `text`, straight through the vendor, in milliseconds.
@@ -95,7 +116,7 @@ private func decodeMilliseconds(_ engine: KokoroTTS, _ style: MLXArray, _ text: 
 /// tokens out (steady writing), the decode timed, the reply cancelled. Nil when
 /// the mind wrote nothing within ten seconds.
 private func decodeWhileWriting(_ engine: KokoroTTS, _ style: MLXArray, _ text: String,
-                                mind: MLXReplyGenerator) async -> (Double, Int)? {
+                                mind: MLXReplyGenerator, floor: VoiceFloor? = nil) async -> (Double, Int)? {
     guard let run = try? await mind.openReply(to: longPrompt) else { return nil }
     let written = Mutex(0)
     let reader = Task { for await update in run.updates { if case .token = update { written.withLock { $0 += 1 } } } }
@@ -106,14 +127,16 @@ private func decodeWhileWriting(_ engine: KokoroTTS, _ style: MLXArray, _ text: 
     }
     guard written.withLock({ $0 }) >= 5 else { await run.cancel(); reader.cancel(); return nil }
     let before = written.withLock { $0 }
+    let hold = floor?.take()
     let milliseconds = decodeMilliseconds(engine, style, text)
+    hold?.giveBack()
     let during = written.withLock { $0 } - before
     await run.cancel()
     reader.cancel()
     return (milliseconds, during)
 }
 
-private func printVerdict(_ alone: [Double], _ loaded: [Double]) {
+private func printVerdict(_ alone: [Double], _ loaded: [Double], _ first: [Double]) {
     func median(_ values: [Double]) -> Double {
         let sorted = values.sorted()
         return sorted.isEmpty ? 0 : sorted[sorted.count / 2]
@@ -124,6 +147,8 @@ private func printVerdict(_ alone: [Double], _ loaded: [Double]) {
                  median(alone), alone.min() ?? 0, alone.max() ?? 0))
     print(String(format: "  under load   median %4.0f ms · min %4.0f · max %4.0f",
                  median(loaded), loaded.min() ?? 0, loaded.max() ?? 0))
+    print(String(format: "  voice first  median %4.0f ms · min %4.0f · max %4.0f",
+                 median(first), first.min() ?? 0, first.max() ?? 0))
     print(String(format: "  ratio        ×%.2f — %@", ratio,
                  (ratio >= 1.5 ? "at or over 1.5: the GPU is shared enough; build the floor (SPEC §266)"
                                : "under 1.5: the GPU is not the cause; the piece stops here and reports") as NSString))
