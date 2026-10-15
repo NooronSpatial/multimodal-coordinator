@@ -1,0 +1,22 @@
+# the 20x loop at 8e62843 — 2026-10-15-piece5-fix-without-downloads. swift test --skip-build --skip MLXBackgroundInstallTests --skip ModelDownloaderTests --skip KokoroInstallTests --skip WhisperInstallTests --skip NeuralVoiceInstallTests --skip ModelDownloaderReentryTests --skip ModelDownloaderStaleResumeTests --skip DownloadBenchHygieneTests, this Mac, 10 cores.
+run 1: 􁁛  Test run with 1020 tests in 146 suites passed after 12.095 seconds.
+run 2: 􁁛  Test run with 1020 tests in 146 suites passed after 5.030 seconds.
+run 3: 􁁛  Test run with 1020 tests in 146 suites passed after 5.114 seconds.
+run 4: 􁁛  Test run with 1020 tests in 146 suites passed after 5.059 seconds.
+run 5: 􁁛  Test run with 1020 tests in 146 suites passed after 5.212 seconds.
+run 6: 􁁛  Test run with 1020 tests in 146 suites passed after 5.108 seconds.
+run 7: 􁁛  Test run with 1020 tests in 146 suites passed after 5.163 seconds.
+run 8: 􁁛  Test run with 1020 tests in 146 suites passed after 5.119 seconds.
+run 9: 􁁛  Test run with 1020 tests in 146 suites passed after 5.043 seconds.
+run 10: 􁁛  Test run with 1020 tests in 146 suites passed after 5.196 seconds.
+run 11: 􁁛  Test run with 1020 tests in 146 suites passed after 5.088 seconds.
+run 12: 􁁛  Test run with 1020 tests in 146 suites passed after 5.056 seconds.
+run 13: 􁁛  Test run with 1020 tests in 146 suites passed after 5.147 seconds.
+run 14: 􁁛  Test run with 1020 tests in 146 suites passed after 5.068 seconds.
+run 15: 􁁛  Test run with 1020 tests in 146 suites passed after 5.032 seconds.
+run 16: 􁁛  Test run with 1020 tests in 146 suites passed after 5.116 seconds.
+run 17: 􁁛  Test run with 1020 tests in 146 suites passed after 5.058 seconds.
+run 18: 􁁛  Test run with 1020 tests in 146 suites passed after 5.137 seconds.
+run 19: 􁁛  Test run with 1020 tests in 146 suites passed after 5.066 seconds.
+run 20: 􁁛  Test run with 1020 tests in 146 suites passed after 5.043 seconds.
+done 14:30:48
