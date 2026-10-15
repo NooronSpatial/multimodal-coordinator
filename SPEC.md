@@ -9353,6 +9353,17 @@ the voice goes first:   mind  ▓▓▓▓▓▓▓▓·········▓▓�
   is held for every phrase, and its total time grows. **Recommendation: A**, and
   B as its own measured step if ⑥ needs it.
 
+### §266b — added by D-149: our own token loop (AC-382, AC-383)
+
+- **AC-382 — our loop keeps the vendor's promises.** Every token once, in order;
+  a stop token ends the reply with `.stop` and is never spoken; the budget ends
+  it with `.length`; a cancel at any token ends it as cancelled, with no
+  terminal upstream, and the prompt's memory is freed when the loop ends. Proven
+  on scripted tokens (`TokenLoop`), and on the real 4B by the 4y live rows.
+- **AC-383 — the loop waits for the floor.** With the floor taken, the loop asks
+  for no new token after the one in hand; given back, it goes on at once; a
+  cancel while it waits ends it at once.
+
 ## §268 — definition of done
 
 The experiment first (it may end the piece); red before green; the suite;
