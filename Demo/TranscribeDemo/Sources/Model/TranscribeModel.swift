@@ -73,7 +73,10 @@ final class TranscribeModel {
     /// `any SpokenVoice` (4q, Ryad's ruling A). It used to be a concrete
     /// `NeuralVoice`, which meant a second mouth could be BUILT and never
     /// CHOSEN — D-078's hole, in the mouths this time.
-    var neuralVoice: any SpokenVoice = TranscribeModel.storedLevers.makeSpokenVoice()
+    var neuralVoice: any SpokenVoice = TranscribeModel.storedLevers.makeSpokenVoice(floor: TranscribeModel.voiceFloor)
+    /// THE VOICE GOES FIRST (5d piece 5, D-148): one floor, shared by the local
+    /// mind and every neural voice this app builds.
+    static let voiceFloor = VoiceFloor()
 
     /// THE FOUR LEVERS, on the phone (AC-143).
     ///

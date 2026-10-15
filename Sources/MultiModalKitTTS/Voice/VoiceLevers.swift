@@ -1,4 +1,5 @@
 import Foundation
+import MultiModalKit
 import TTSKit
 
 /// The four settings a person can turn, as a value.
@@ -112,8 +113,12 @@ public struct VoiceLevers: Sendable, Equatable {
     /// `makeVoice()` below stays and stays concrete: the bake-off
     /// instruments sweep QWEN's levers, and a tool that measures
     /// `.fused` against `.stepped` is entitled to say so in its types.
+    /// - Parameter floor: shared with the mind (5d piece 5, D-148) — Kokoro
+    ///   decodes each reply's first phrase with it taken. The Qwen3 voice takes
+    ///   no floor yet: no demo speaks with it.
     public func makeSpokenVoice(
-        kokoroWeights: KokoroWeights = .inApplicationSupport()
+        kokoroWeights: KokoroWeights = .inApplicationSupport(),
+        floor: VoiceFloor? = nil
     ) -> any SpokenVoice {
         switch voice {
         case .kokoro:
@@ -121,7 +126,7 @@ public struct VoiceLevers: Sendable, Equatable {
             // zero rather than "derive one". At RTF 0.20 there is nothing
             // to cushion — and D-084 keeps the cushion apparatus in place
             // regardless, unused rather than deleted.
-            KokoroVoice(weights: kokoroWeights, lead: lead ?? .zero)
+            KokoroVoice(weights: kokoroWeights, lead: lead ?? .zero, floor: floor)
         case .qwen3:
             makeVoice()
         }

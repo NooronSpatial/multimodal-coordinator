@@ -1,0 +1,249 @@
+^D[2K[33m[1mwarning: [0m'swift-jinja': failed storing manifest for 'swift-jinja' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'misakiswift': failed storing manifest for 'misakiswift' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'swift-numerics': failed storing manifest for 'swift-numerics' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'swift-argument-parser': failed storing manifest for 'swift-argument-parser' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'swift-collections': failed storing manifest for 'swift-collections' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'swift-huggingface': failed storing manifest for 'swift-huggingface' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'swift-crypto': failed storing manifest for 'swift-crypto' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'yyjson': failed storing manifest for 'yyjson' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'swift-syntax': failed storing manifest for 'swift-syntax' in cache: disk I/O error
+[2K[33m[1mwarning: [0m'zipfoundation': /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Building for production...
+[2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Computing dependencies][2K[Using on-disk description][2K[13 / 108][2K[22 / 111] ArgumentParserToolInfo[2K[28 / 114] yyjson[2K[29 / 114] EventSource[2K[35 / 117] Crypto[2K[39 / 119] RealModule[2K[45 / 124] ArgumentParserToolInfo[2K[57 / 124] ComplexModule[2K[62 / 133] OrderedCollections[2K[67 / 131] EventSource[2K[71 / 135] HuggingFace[2K[73 / 136] OrderedCollections[2K[77 / 140] Jinja[2K[80 / 141] ZIPFoundation[2K[81 / 137] yyjson[2K[82 / 137] MultiModalKit[2K/Users/ryad/Developer/multimodal-coordinator/Sources/MultiModalKit/Conversation/AppleReplyGenerator+Session.swift:180:33: [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m178 |[0;0m             sampling = .random(top: Self.seededTopK, seed: seed)
+[0;36m179 |[0;0m         }
+[0;36m180 |[0;0m         return FoundationModels.GenerationOptions(
+    [0;36m|[0;0m                                 |- [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+    [0;36m|[0;0m                                 `- [1;39mnote: [1;39muse 'init(samplingMode:temperature:maximumResponseTokens:)' instead[0;0m
+[0;36m181 |[0;0m             sampling: sampling,
+[0;36m182 |[0;0m             temperature: options.temperature.map(Double.init),
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[2K[84 / 133] ArgmaxCore[2K[88 / 144] TTSKit[2K[90 / 145] ArgumentParser[2K[93 / 141] mlx-swift_Cmlx[2K[94 / 147] Cmlx[2K[94 / 146][2K[94 / 147] TTSKit[2K[98 / 149] MLX[2K[100 / 150] HuggingFace[2K[102 / 146] Jinja[2K[106 / 150] Hub[2K[108 / 152][2K[109 / 152] TTSKit[2K[111 / 148] Hub[2K[115 / 152] Tokenizers[2K[117 / 153] WhisperKit[2K[120 / 155] MLX[2K[130 / 183] MultiModalKitWhisper[2K[132 / 184] MLXRandom[2K[140 / 188] MLXFFT[2K[144 / 180] MultiModalKitWhisper[2K[146 / 176] MLXUtilsLibrary[2K[148 / 172] Tokenizers[2K[152 / 176] Generation[2K[154 / 177] Generation[2K[158 / 181] Models[2K[160 / 182] MLXNN[2K[166 / 194] MLXOptimizers[2K[170 / 196] Models[2K[172 / 192] MLXOptimizers[2K[176 / 196] MLXLMCommon[2K[178 / 197] MisakiSwift[2K[182 / 201] KokoroSwift[2K[184 / 202] KokoroSwift[2K[187 / 204] MultiModalKitTTS[2K[189 / 205] MultiModalKitTTS[2K[191 / 201] MLXLMCommon[2K[197 / 213] MLXHuggingFace[2K[201 / 215] MLXHuggingFace[2K[203 / 211] MLXLLM[2K[206 / 213] MultiModalKitMLX[2K[209 / 215] MultiModalKitMLX[2K[212 / 215] audio-demo-product[2K[213 / 216] audio-demo-product[2K[215 / 216] audio-demo-product[2K[216 / 216] audio-demo-product
+
+Build complete! (81.04 sec)
+voice: Kokoro-82M · float16 · phrases ≤ 120 chars, opening at 20 and 40 · quiet trimmed (margin 40 ms)
+
+🧪 THE SCRIPTED PERSON — Fixtures/ryad-en.wav, 22 sentences, 20 turns, interrupting at [7, 14]
+    hangover 300 ms · gate 500 ms · window 320 ms · vad 0.02 · think in the gate ON · voice first off
+
+🗣  sentence 1/20 (1380 ms of audio)
+   · turn 0 listening
+   · turn 0 thinking
+🧠 early reply over turn 0: thought 502 ms → kept
+   · turn 0 speaking
+⏱  turn 0: ① 300 · ② 9853 · ③ 502 · ④ 0 · ⑤ 1001  →  felt 11657 ms · 🧠 thought in the gate 502  ⑤ = words 160 + decode 770 + rest 71
+🎙  voice: 3040 ms audio · 1222 ms decoding · RTF 0.40 · steady 0.12
+   · turn 0 completed
+   💬 42 chars: "Hello, Riyadh. How can I assist you today?"
+   · turn 0 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 2/20 (2460 ms of audio)
+   · turn 1 listening
+   · turn 1 thinking
+🧠 early reply over turn 1: thought 501 ms → kept
+   · turn 1 speaking
+⏱  turn 1: ① 300 · ② 156 · ③ 501 · ④ 0 · ⑤ 219  →  felt 1177 ms · 🧠 thought in the gate 501  ⑤ = words 2 + decode 214 + rest 4
+🎙  voice: 3298 ms audio · 486 ms decoding · RTF 0.15 · steady 0.11
+   · turn 1 completed
+   💬 59 chars: "I'm listening. What are you testing the speech engines for?"
+   · turn 1 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 3/20 (1120 ms of audio)
+   · turn 2 listening
+🧠 early reply over turn 2: thought 506 ms → kept
+   · turn 2 thinking
+   · turn 2 speaking
+⏱  turn 2: ① 300 · ② 109 · ③ 506 · ④ 0 · ⑤ 251  →  felt 1165 ms · 🧠 thought in the gate 506  ⑤ = words 25 + decode 215 + rest 11
+🎙  voice: 4429 ms audio · 686 ms decoding · RTF 0.15 · steady 0.12
+   · turn 2 completed
+   💬 74 chars: "I see. Are you testing the speech engines for accuracy or another purpose?"
+   · turn 2 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 4/20 (1180 ms of audio)
+   · turn 3 listening
+   · turn 3 thinking
+🧠 early reply over turn 3: thought 507 ms → kept
+   · turn 3 speaking
+⏱  turn 3: ① 300 · ② 110 · ③ 507 · ④ 91 · ⑤ 272  →  felt 1281 ms · 🧠 thought in the gate 507  ⑤ = words 60 + decode 205 + rest 7
+🎙  voice: 4534 ms audio · 776 ms decoding · RTF 0.17 · steady 0.14
+   · turn 3 completed
+   💬 86 chars: "I'm listening. Are you testing the speech engines for audio quality or something else?"
+   · turn 3 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 5/20 (1440 ms of audio)
+   · turn 4 listening
+   · turn 4 thinking
+🧠 early reply over turn 4: thought 502 ms → kept
+   · turn 4 speaking
+⏱  turn 4: ① 300 · ② 107 · ③ 502 · ④ 200 · ⑤ 276  →  felt 1385 ms · 🧠 thought in the gate 502  ⑤ = words 59 + decode 212 + rest 5
+🎙  voice: 5062 ms audio · 757 ms decoding · RTF 0.15 · steady 0.12
+   · turn 4 completed
+   💬 93 chars: "I'm listening. Are you testing the speech engines for travel-related audio or something else?"
+   · turn 4 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 6/20 (2260 ms of audio)
+   · turn 5 listening
+   · turn 5 thinking
+🧠 early reply over turn 5: thought 501 ms → kept
+   · turn 5 speaking
+⏱  turn 5: ① 300 · ② 115 · ③ 501 · ④ 295 · ⑤ 274  →  felt 1485 ms · 🧠 thought in the gate 501  ⑤ = words 59 + decode 210 + rest 5
+🗣  sentence 7/20 (2460 ms of audio) — OVER the answer
+🔊 candidate over turn 5: loud 340 ms · onset → verdict 320 ms → CUT
+   · turn 5 BARGED
+   💬 99 chars: "I'm listening. Are you testing the speech engines for a travel-related ring buffer and pump system?"
+✋ barge (turn 5 dies): ⑦ window 320 · ⑧ silence 0  →  320 ms from your first sound
+   · turn 6 listening
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+   · turn 6 thinking
+🧠 early reply over turn 6: thought 501 ms → kept
+   · turn 6 speaking
+⏱  turn 6: ① 300 · ② 109 · ③ 501 · ④ 412 · ⑤ 280  →  felt 1603 ms · 🧠 thought in the gate 501  ⑤ = words 59 + decode 210 + rest 11
+🎙  voice: 5573 ms audio · 803 ms decoding · RTF 0.14 · steady 0.12
+   · turn 6 completed
+   💬 99 chars: "I'm listening. Are you testing the speech engines for a travel-related ring buffer and pump system?"
+   · turn 6 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 8/20 (1740 ms of audio)
+   · turn 7 listening
+   · turn 7 idle
+🗣  sentence 9/20 (1760 ms of audio)
+   · turn 8 listening
+   · turn 8 thinking
+🧠 early reply over turn 8: thought 502 ms → kept
+   · turn 8 speaking
+⏱  turn 8: ① 300 · ② 91 · ③ 502 · ④ 301 · ⑤ 268  →  felt 1462 ms · 🧠 thought in the gate 502  ⑤ = words 60 + decode 199 + rest 10
+🎙  voice: 5724 ms audio · 885 ms decoding · RTF 0.15 · steady 0.13
+   · turn 8 completed
+   💬 99 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system?"
+   · turn 8 idle
+⏸  reply pauses: 0 over 300 ms · longest 185 ms · quiet before the first word 40 ms
+🗣  sentence 10/20 (4880 ms of audio)
+   · turn 9 listening
+🧠 early reply over turn 9: thought 502 ms → kept
+   · turn 9 thinking
+   · turn 9 speaking
+⏱  turn 9: ① 300 · ② 190 · ③ 502 · ④ 414 · ⑤ 278  →  felt 1684 ms · 🧠 thought in the gate 502  ⑤ = words 59 + decode 211 + rest 8
+🎙  voice: 9815 ms audio · 1311 ms decoding · RTF 0.13 · steady 0.12
+   · turn 9 completed
+   💬 167 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 9 idle
+⏸  reply pauses: 1 over 300 ms · longest 339 ms · quiet before the first word 40 ms
+🗣  sentence 11/20 (1540 ms of audio)
+   · turn 10 listening
+   · turn 10 thinking
+🧠 early reply over turn 10: thought 500 ms → kept
+   · turn 10 speaking
+⏱  turn 10: ① 300 · ② 121 · ③ 500 · ④ 195 · ⑤ 276  →  felt 1393 ms · 🧠 thought in the gate 500  ⑤ = words 57 + decode 210 + rest 9
+🎙  voice: 11587 ms audio · 1573 ms decoding · RTF 0.14 · steady 0.12
+   · turn 10 completed
+   💬 204 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 10 idle
+⏸  reply pauses: 1 over 300 ms · longest 339 ms · quiet before the first word 40 ms
+🗣  sentence 12/20 (1220 ms of audio)
+   · turn 11 listening
+   · turn 11 thinking
+🧠 early reply over turn 11: thought 502 ms → kept
+   · turn 11 speaking
+⏱  turn 11: ① 300 · ② 112 · ③ 502 · ④ 301 · ⑤ 304  →  felt 1519 ms · 🧠 thought in the gate 502  ⑤ = words 57 + decode 240 + rest 7
+🎙  voice: 11829 ms audio · 1601 ms decoding · RTF 0.14 · steady 0.12
+   · turn 11 completed
+   💬 205 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 11 idle
+⏸  reply pauses: 1 over 300 ms · longest 344 ms · quiet before the first word 40 ms
+🗣  sentence 13/20 (980 ms of audio)
+   · turn 12 listening
+   · turn 12 idle
+🗣  sentence 14/20 (2260 ms of audio) — OVER the answer
+   · turn 13 listening
+   · turn 13 thinking
+🧠 early reply over turn 13: thought 500 ms → kept
+   · turn 13 speaking
+⏱  turn 13: ① 300 · ② 137 · ③ 500 · ④ 194 · ⑤ 279  →  felt 1411 ms · 🧠 thought in the gate 500  ⑤ = words 59 + decode 213 + rest 6
+🎙  voice: 12638 ms audio · 1777 ms decoding · RTF 0.14 · steady 0.13
+   · turn 13 completed
+   💬 219 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 13 idle
+⏸  reply pauses: 1 over 300 ms · longest 343 ms · quiet before the first word 40 ms
+🗣  sentence 15/20 (1480 ms of audio)
+   · turn 14 listening
+   · turn 14 idle
+🗣  sentence 16/20 (1320 ms of audio)
+   · turn 15 listening
+   · turn 15 thinking
+🧠 early reply over turn 15: thought 504 ms → kept
+   · turn 15 speaking
+⏱  turn 15: ① 300 · ② 297 · ③ 504 · ④ 185 · ⑤ 272  →  felt 1559 ms · 🧠 thought in the gate 504  ⑤ = words 58 + decode 207 + rest 7
+🎙  voice: 13768 ms audio · 1777 ms decoding · RTF 0.13 · steady 0.12
+   · turn 15 completed
+   💬 238 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 15 idle
+⏸  reply pauses: 1 over 300 ms · longest 339 ms · quiet before the first word 40 ms
+🗣  sentence 17/20 (2240 ms of audio)
+   · turn 16 listening
+   · turn 16 thinking
+🧠 early reply over turn 16: thought 508 ms → kept
+   · turn 16 speaking
+⏱  turn 16: ① 300 · ② 171 · ③ 508 · ④ 205 · ⑤ 256  →  felt 1439 ms · 🧠 thought in the gate 508  ⑤ = words 59 + decode 192 + rest 5
+🎙  voice: 16823 ms audio · 2112 ms decoding · RTF 0.13 · steady 0.12
+   · turn 16 completed
+   💬 289 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 16 idle
+⏸  reply pauses: 1 over 300 ms · longest 340 ms · quiet before the first word 40 ms
+🗣  sentence 18/20 (920 ms of audio)
+   · turn 17 listening
+   · turn 17 idle
+🗣  sentence 19/20 (1120 ms of audio)
+   · turn 18 listening
+   · turn 18 thinking
+🧠 early reply over turn 18: thought 500 ms → kept
+   · turn 18 speaking
+⏱  turn 18: ① 300 · ② 147 · ③ 500 · ④ 209 · ⑤ 280  →  felt 1436 ms · 🧠 thought in the gate 500  ⑤ = words 59 + decode 211 + rest 10
+🎙  voice: 18200 ms audio · 2232 ms decoding · RTF 0.12 · steady 0.11
+   · turn 18 completed
+   💬 310 chars: "I'm listening. Are you testing the speech engines for a 20-millisecond ring buffer and pump system with a voice detector that closes the utt…"
+   · turn 18 idle
+⏸  reply pauses: 1 over 300 ms · longest 339 ms · quiet before the first word 40 ms
+🗣  sentence 20/20 (4480 ms of audio)
+   · turn 19 listening
+   · turn 19 thinking
+🧠 early reply over turn 19: thought 503 ms → kept
+   · turn 19 speaking
+⏱  turn 19: ① 300 · ② 129 · ③ 503 · ④ 0 · ⑤ 221  →  felt 1153 ms · 🧠 thought in the gate 503  ⑤ = words 20 + decode 193 + rest 7
+🎙  voice: 4538 ms audio · 623 ms decoding · RTF 0.14 · steady 0.11
+   · turn 19 completed
+   💬 70 chars: "Yes, the paragraph you provided has exactly the same words every time."
+   · turn 19 idle
+⏸  reply pauses: 0 over 300 ms · longest 137 ms · quiet before the first word 40 ms
+
+(the runtime is down — teardown ran in order)
+
+════ THE TURN TIMELINE — 16 spoken turns, 1 barges ════
+  ① silence wait     300 ms (the app's hangover, every turn)
+  ② ear finish   median 125 ms · min 91 · max 9853 · n 16
+  ③ reply gate   median 502 ms · min 500 · max 508 · n 16
+  ④ first token  median 198 ms · min 0 · max 414 · n 16
+  ⑤ first sound  median 275 ms · min 219 · max 1001 · n 16
+     ⑤a words    median 59 ms · min 2 · max 160 · n 16
+     ⑤b decode   median 210 ms · min 192 · max 770 · n 16
+     ⑤c rest     median 7 ms · min 4 · max 71 · n 16
+     FELT PAUSE   median 1438 ms · min 1153 · max 11657 · n 16
+     quiet before the 1st word  median 40 ms · min 40 · max 40 · n 16
+     FELT, TO THE FIRST WORD  median 1478 ms · min 1193 · max 11697 · n 16
+  ⑦ barge window  median 320 ms · min 320 · max 320 · n 1
+  ⑧ to silence   median 0 ms · min 0 · max 0 · n 1
+  loud · cut        median 340 ms · min 340 · max 340 · n 1
+  loud · abandoned  —
+  🧠 in the gate   median 502 ms · min 500 · max 508 · n 16
+  🧠 early replies: 16 kept · 0 thrown away
+  🎙 voice RTF  median 0.14 · min 0.12 · max 0.40 · n 15
+  ⑥ pauses inside answers: 7 over 300 ms in 16 replies · replies with one or more: 7
+  ⑥ longest pause  median 185 ms · min 137 · max 344 · n 16

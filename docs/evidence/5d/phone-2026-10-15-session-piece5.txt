@@ -1,0 +1,392 @@
+# Conversation log — MultiModalKit demo
+
+picker says: mind=Local · ear=Whisper · mouth=Neural · speaker shield=true · tools=off
+tools: off · the plain path, AC-227's baseline
+Apple ear (SpeechTranscriber) locales on this device: 30 total · Arabic: NONE
+local model: mlx-community/Qwen3-4B-4bit · installed: true · MLX runnable here: true
+memory headroom: 3624 MB before this app's limit
+voice loaded: true
+MLX memory now: active 2318 MB · peak 3398 MB
+local mind: warm: the weights are resident
+weights expected at: /var/mobile/Containers/Data/Application/F6518DFE-E166-4755-81A1-F0F1ACDBDA37/Documents/Qwen3-4B-4bit
+
+NOTE: the `mind:` line under each turn is the brain that
+ACTUALLY answered, taken from the generator the coordinator
+held — not from the picker above. If they disagree, that is
+the finding.
+
+## turn 1
+mind: **Local (MLX)**
+
+heard: Good morning.
+
+reply: Good morning! How can I assist you today?
+
+at 3 s · thermal serious · 3542 MB free
+
+first word 294 ms · total 762 ms · MLX peak 2628 MB
+
+tools: off
+
+voice: 2450 ms audio · RTF 0.312 · cushion 0 ms
+
+## turn 2
+mind: **Local (MLX)**
+
+heard: Thermodynamic Please.
+
+reply: I’m here to help with any thermodynamic questions you have. What would you like to know?
+
+at 14 s · thermal serious · 3555 MB free
+
+first word 397 ms · total 1684 ms · MLX peak 2628 MB
+
+tools: off
+
+voice: 4816 ms audio · RTF 0.343 · cushion 0 ms
+
+## turn 3
+mind: **Local (MLX)**
+
+heard: Yeah, I want that you explain for me the first law.
+
+reply: The first law of thermodynamics states that energy cannot be created or destroyed, only converted from one form to another.
+
+at 24 s · thermal serious · 3553 MB free
+
+first word 417 ms · total 2139 ms · MLX peak 2691 MB
+
+tools: off
+
+voice: 6913 ms audio · RTF 0.335 · cushion 0 ms
+
+## turn 4
+mind: **Local (MLX)**
+
+heard: What about the second loaf?
+
+reply: I think you meant the second law, not "loaf." The second law of thermodynamics states that the total entropy of an isolated system can never decrease over time, and it tends to increase.
+
+at 37 s · thermal serious · 3556 MB free
+
+first word 554 ms · total 3354 ms · MLX peak 2707 MB
+
+tools: off
+
+voice: 11831 ms audio · RTF 0.347 · cushion 0 ms
+
+## turn 5
+mind: **Local (MLX)**
+
+heard: Details how the car engine works.
+
+reply: A car engine works by converting chemical energy from fuel into mechanical energy through combustion, which drives the pistons and turns the crankshaft, ultimately powering the wheels.
+
+at 63 s · thermal serious · 3511 MB free
+
+first word 777 ms · total 6551 ms · MLX peak 3398 MB
+
+tools: off
+
+## turn 6
+mind: **Local (MLX)**
+
+heard: Okay, it's fine. Let's explain a little bit about the airplane construction.
+
+reply: An airplane is built with a fuselage, wings, and tail, using lightweight materials like aluminum and composites, and is designed to generate lift, control direction, and withstand aerodynamic forces.
+
+at 76 s · thermal serious · 3493 MB free
+
+first word 544 ms · total 4999 ms · MLX peak 3398 MB
+
+tools: off
+
+## turn 7
+mind: **Local (MLX)**
+
+heard: 747.
+
+reply: The Boeing 747 is a large, four-engine jet airliner with a hinged tail, a long fuselage, and a distinctive hump on the upper deck, used for long-haul passenger and cargo flights.
+
+at 96 s · thermal serious · 3493 MB free
+
+first word 540 ms · total 4527 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 11670 ms audio · RTF 0.426 · cushion 0 ms
+
+## turn 8
+mind: **Local (MLX)**
+
+heard: such airplane.
+
+reply: I see. Would you like to know more about it?
+
+at 112 s · thermal serious · 3547 MB free
+
+first word 530 ms · total 1266 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 2405 ms audio · RTF 0.362 · cushion 0 ms
+
+## turn 9
+mind: **Local (MLX)**
+
+heard: One like this.
+
+reply: I understand. Would you like to know more about it?
+
+at 120 s · thermal serious · 3509 MB free
+
+first word 676 ms · total 1450 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 2635 ms audio · RTF 0.363 · cushion 0 ms
+
+## turn 10
+mind: **Local (MLX)**
+
+heard: How long time they do need to build an airplane?
+
+reply: The time to build an airplane can vary, but typically ranges from several months to a couple of years, depending on the complexity and scale of the project.
+
+at 133 s · thermal serious · 3529 MB free
+
+first word 644 ms · total 3187 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 8489 ms audio · RTF 0.336 · cushion 0 ms
+
+## turn 11
+mind: **Local (MLX)**
+
+heard: Okay, can you tell me what's the capital of Norwegian?
+
+reply: The capital of Norway is Oslo.
+
+at 150 s · thermal serious · 3496 MB free
+
+first word 648 ms · total 1007 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 2154 ms audio · RTF 0.281 · cushion 0 ms
+
+## turn 12
+mind: **Local (MLX)**
+
+heard: Let's be about the history please.
+
+reply: The history of Norway includes the Viking Age, the Christianization in the 11th century, the formation of the Kingdom of Norway in the 13th century, and the establishment of the Norwegian monarchy.
+
+at 171 s · thermal serious · 3495 MB free
+
+first word 771 ms · total 7517 ms · MLX peak 3398 MB
+
+tools: off
+
+## turn 13
+mind: **Local (MLX)**
+
+heard: Okay, now Denmark.
+
+reply: The capital of Denmark is Copenhagen.
+
+at 174 s · thermal serious · 3495 MB free
+
+first word 984 ms · total 1464 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 2493 ms audio · RTF 0.483 · cushion 0 ms
+
+## turn 14
+mind: **Local (MLX)**
+
+heard: and about the history.
+
+reply: The history of Denmark includes the Viking Age, the Christianization in the 12th century
+
+at 182 s · thermal serious · 3512 MB free
+
+first word 668 ms · total 2223 ms · MLX peak 3398 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 15
+mind: **Local (MLX)**
+
+heard: How much the population are in Denmark?
+
+reply: The population of Denmark is around 5.8 million people.
+
+at 187 s · thermal serious · 3530 MB free
+
+first word 755 ms · total 2037 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 3184 ms audio · RTF 0.678 · cushion 0 ms
+
+## turn 16
+mind: **Local (MLX)**
+
+heard: Okay, really interesting.
+
+reply: Thank you! Let me know if you'd like to learn more.
+
+at 196 s · thermal serious · 3511 MB free
+
+first word 666 ms · total 1494 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 2937 ms audio · RTF 0.416 · cushion 0 ms
+
+## turn 17
+mind: **Local (MLX)**
+
+heard: Oh, who found the algebra?
+
+reply: The concept of algebra was developed by the Persian mathematician Muhammad ibn Musa al-Khwarizmi in the 9th century.
+
+at 206 s · thermal serious · 3529 MB free
+
+first word 665 ms · total 2593 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 7290 ms audio · RTF 0.454 · cushion 0 ms
+
+## turn 18
+mind: **Local (MLX)**
+
+heard: Wow, really?
+
+reply: Yes, he's often considered the father of algebra.
+
+at 217 s · thermal serious · 3488 MB free
+
+first word 666 ms · total 1413 ms · MLX peak 3398 MB
+
+tools: off
+
+voice: 3278 ms audio · RTF 0.332 · cushion 0 ms
+
+
+## timeline (5d)
+
+```
+device: iPhone18,5 · Version 26.6.1 (Build 23G83)
+① silence wait: 300 ms (this app's VAD hangover)
+turn 0: ② 203 · ③ 503 · ④ 0 · ⑤ 483 → felt 1489 ms · thought in the gate 503 · ⑤ = 1 + 479 + 3
+turn 1: ② 546 · ③ 504 · ④ 0 · ⑤ 782 → felt 2132 ms · thought in the gate 504 · ⑤ = 101 + 659 + 22
+turn 2: ② 261 · ③ 503 · ④ 0 · ⑤ 679 → felt 1743 ms · thought in the gate 503 · ⑤ = 87 + 575 + 17
+turn 3: ② 236 · ③ 508 · ④ 53 · ⑤ 1030 → felt 2127 ms · thought in the gate 508 · ⑤ = 173 + 833 + 24
+turn 4: ② 222 · ③ 505 · ④ 279 · ⑤ 1469 → felt 2776 ms · thought in the gate 505 · ⑤ = 207 + 1258 + 4
+turn 5: ② 299 · ③ 508 · ④ 42 · ⑤ 782 → felt 1931 ms · thought in the gate 508 · ⑤ = 165 + 596 + 21
+turn 6: ② 143 · ③ 502 · ④ 45 · ⑤ 1232 → felt 2223 ms · thought in the gate 502 · ⑤ = 331 + 877 + 24
+turn 7: ② 162 · ③ 504 · ④ 33 · ⑤ 606 → felt 1605 ms · thought in the gate 504 · ⑤ = 127 + 454 + 25
+turn 8: ② 149 · ③ 504 · ④ 178 · ⑤ 640 → felt 1771 ms · thought in the gate 504 · ⑤ = 125 + 496 + 19
+turn 10: ② 215 · ③ 500 · ④ 150 · ⑤ 717 → felt 1883 ms · thought in the gate 500 · ⑤ = 206 + 501 + 10
+turn 12: ② 227 · ③ 504 · ④ 151 · ⑤ 610 → felt 1792 ms · thought in the gate 504 · ⑤ = 127 + 468 + 15
+turn 14: ② 210 · ③ 511 · ④ 266 · ⑤ 1143 → felt 2429 ms · thought in the gate 511 · ⑤ = 151 + 987 + 5
+turn 15: ② 188 · ③ 500 · ④ 492 · ⑤ 949 → felt 2428 ms · thought in the gate 500 · ⑤ = 159 + 789 + 1
+turn 16: ② 185 · ③ 500 · ④ 175 · ⑤ 678 → felt 1838 ms · thought in the gate 500 · ⑤ = 126 + 543 + 9
+turn 17: ② 135 · ③ 510 · ④ 250 · ⑤ 1030 → felt 2226 ms · thought in the gate 510 · ⑤ = 133 + 879 + 18
+turn 18: ② 159 · ③ 508 · ④ 164 · ⑤ 587 → felt 1718 ms · thought in the gate 508 · ⑤ = 125 + 457 + 5
+turn 19: ② 473 · ③ 503 · ④ 165 · ⑤ 710 → felt 2152 ms · thought in the gate 503 · ⑤ = 125 + 581 + 4
+turn 20: ② 197 · ③ 502 · ④ 172 · ⑤ 544 → felt 1715 ms · thought in the gate 502 · ⑤ = 85 + 438 + 21
+early reply over turn 0: thought 503 ms → kept
+early reply over turn 1: thought 504 ms → kept
+early reply over turn 2: thought 503 ms → kept
+early reply over turn 3: thought 508 ms → kept
+early reply over turn 4: thought 505 ms → kept
+early reply over turn 5: thought 508 ms → kept
+early reply over turn 6: thought 502 ms → kept
+early reply over turn 7: thought 504 ms → kept
+early reply over turn 8: thought 504 ms → kept
+early reply over turn 10: thought 500 ms → kept
+early reply over turn 12: thought 504 ms → kept
+early reply over turn 14: thought 511 ms → kept
+early reply over turn 15: thought 500 ms → kept
+early reply over turn 16: thought 500 ms → kept
+early reply over turn 17: thought 510 ms → kept
+early reply over turn 18: thought 508 ms → kept
+early reply over turn 19: thought 503 ms → kept
+early reply over turn 20: thought 502 ms → kept
+barge (turn 4 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 5 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 14 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 16 dies): ⑦ 320 · ⑧ 0 → 320 ms
+candidate over turn 2: loud 20 ms · peak 0.021 · onset → verdict 320 ms → abandoned
+candidate over turn 3: loud 20 ms · peak 0.022 · onset → verdict 320 ms → abandoned
+candidate over turn 4: loud 40 ms · peak 0.028 · onset → verdict 400 ms → abandoned
+candidate over turn 4: loud 40 ms · peak 0.029 · onset → verdict 360 ms → abandoned
+candidate over turn 4: loud 60 ms · peak 0.023 · onset → verdict 400 ms → abandoned
+candidate over turn 4: loud 320 ms · peak 0.246 · onset → verdict 320 ms → CUT
+candidate over turn 5: loud 60 ms · peak 0.063 · onset → verdict 360 ms → abandoned
+candidate over turn 5: loud 40 ms · peak 0.029 · onset → verdict 340 ms → abandoned
+candidate over turn 5: loud 20 ms · peak 0.022 · onset → verdict 320 ms → abandoned
+candidate over turn 5: loud 40 ms · peak 0.047 · onset → verdict 340 ms → abandoned
+candidate over turn 5: loud 80 ms · peak 0.051 · onset → verdict 400 ms → abandoned
+candidate over turn 5: loud 320 ms · peak 0.289 · onset → verdict 320 ms → CUT
+candidate over turn 6: loud 60 ms · peak 0.041 · onset → verdict 360 ms → abandoned
+candidate over turn 6: loud 80 ms · peak 0.056 · onset → verdict 440 ms → abandoned
+candidate over turn 6: loud 40 ms · peak 0.024 · onset → verdict 340 ms → abandoned
+candidate over turn 6: loud 40 ms · peak 0.023 · onset → verdict 340 ms → abandoned
+candidate over turn 7: loud 340 ms · peak 0.338 · onset → verdict 320 ms → CUT
+candidate over turn 14: loud 60 ms · peak 0.024 · onset → verdict 360 ms → abandoned
+candidate over turn 14: loud 40 ms · peak 0.033 · onset → verdict 340 ms → abandoned
+candidate over turn 14: loud 180 ms · peak 0.041 · onset → verdict 620 ms → abandoned
+candidate over turn 14: loud 40 ms · peak 0.035 · onset → verdict 340 ms → abandoned
+candidate over turn 14: loud 260 ms · peak 0.262 · onset → verdict 320 ms → CUT
+candidate over turn 15: loud 60 ms · peak 0.022 · onset → verdict 460 ms → abandoned
+candidate over turn 15: loud 60 ms · peak 0.025 · onset → verdict 520 ms → abandoned
+candidate over turn 15: loud 140 ms · peak 0.091 · onset → verdict 560 ms → abandoned
+candidate over turn 16: loud 140 ms · peak 0.118 · onset → verdict 320 ms → CUT
+candidate over turn 17: loud 40 ms · peak 0.032 · onset → verdict 340 ms → abandoned
+candidate over turn 17: loud 40 ms · peak 0.045 · onset → verdict 340 ms → abandoned
+candidate over turn 17: loud 40 ms · peak 0.040 · onset → verdict 340 ms → abandoned
+reply #1: 0 pauses over 300 ms · longest 109 ms · quiet before the first word 40 ms
+reply #2: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #3: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #4: 2 pauses over 300 ms · longest 1146 ms · quiet before the first word 40 ms
+reply #5: 1 pauses over 300 ms · longest 784 ms · quiet before the first word 40 ms
+reply #6: 1 pauses over 300 ms · longest 1189 ms · quiet before the first word 40 ms
+reply #7: 0 pauses over 300 ms · longest 191 ms · quiet before the first word 40 ms
+reply #8: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #9: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #10: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #11: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #12: 2 pauses over 300 ms · longest 1006 ms · quiet before the first word 40 ms
+reply #13: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #14: 0 pauses over 300 ms · longest 1 ms · quiet before the first word 40 ms
+reply #15: 1 pauses over 300 ms · longest 303 ms · quiet before the first word 40 ms
+reply #16: 0 pauses over 300 ms · longest 109 ms · quiet before the first word 40 ms
+reply #17: 0 pauses over 300 ms · longest 153 ms · quiet before the first word 40 ms
+reply #18: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+
+medians · 18 spoken turns · 4 barges · 18 replies
+② ear     median 206 · min 135 · max 546
+③ gate    median 504 · min 500 · max 511
+④ token   median 157 · min 0 · max 492
+⑤ sound   median 714 · min 483 · max 1469
+⑤a words   median 127 · min 1 · max 331
+⑤b decode  median 578 · min 438 · max 1258
+⑤c rest    median 16 · min 1 · max 25
+FELT      median 1907 · min 1489 · max 2776
+1st-word quiet  median 40 · min 40 · max 40
+TO 1st WORD  median 1947 · min 1529 · max 2816
+⑦ window  median 320 · min 320 · max 320
+⑧ silent  median 0 · min 0 · max 0
+loud · cut        median 320 · min 140 · max 340
+loud · abandoned  median 40 · min 20 · max 180
+early replies: 18 kept · 0 thrown away
+⑥ longest pause  median 169 · min 1 · max 1189
+⑥ replies with a pause over 300 ms: 5
+```

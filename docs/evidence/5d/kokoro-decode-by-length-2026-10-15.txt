@@ -1,0 +1,138 @@
+Building for production...
+[Computing dependencies]
+[Pre-planning 1 / 1628]
+[Planning deferred tasks]
+[Starting]
+[20 / 113] ZIPFoundation
+[21 / 118]
+[30 / 122] ArgumentParserToolInfo
+[36 / 124] yyjson
+[37 / 124] EventSource
+[51 / 133] ComplexModule
+[53 / 134] ArgumentParserToolInfo
+[65 / 146] OrderedCollections
+[73 / 145] Crypto
+[75 / 141] EventSource
+[79 / 145] HuggingFace
+[81 / 146] OrderedCollections
+[85 / 150] Jinja
+[87 / 151] ZIPFoundation
+[89 / 147] yyjson
+/Users/ryad/Developer/multimodal-coordinator/Sources/MultiModalKit/Conversation/AppleReplyGenerator+Session.swift:180:33: [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+[0;36m178 |[0;0m             sampling = .random(top: Self.seededTopK, seed: seed)
+[0;36m179 |[0;0m         }
+[0;36m180 |[0;0m         return FoundationModels.GenerationOptions(
+    [0;36m|[0;0m                                 |- [1;33mwarning: [1;39m'init(sampling:temperature:maximumResponseTokens:)' is deprecated: replaced by 'init(samplingMode:temperature:maximumResponseTokens:)'[0;0m [#]8;;https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration\DeprecatedDeclaration]8;;\]
+    [0;36m|[0;0m                                 `- [1;39mnote: [1;39muse 'init(samplingMode:temperature:maximumResponseTokens:)' instead[0;0m
+[0;36m181 |[0;0m             sampling: sampling,
+[0;36m182 |[0;0m             temperature: options.temperature.map(Double.init),
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+[90 / 147] MultiModalKit
+[96 / 154] MultiModalKitBench
+[99 / 156] ArgmaxCore
+[105 / 168] TTSKit
+[109 / 170] MultiModalKitBench
+[110 / 169] ArgumentParser
+[115 / 172] MLX
+[117 / 173] MultiModalKitTesting
+[123 / 173] HuggingFace
+[125 / 169] TTSKit
+[131 / 169] Hub
+[133 / 171]
+[134 / 171] Hub
+[141 / 177] Tokenizers
+[145 / 179] MLX
+[155 / 207] MLXRandom
+[163 / 211] MLXFFT
+[167 / 203] MultiModalKitWhisper
+[170 / 200] MLXUtilsLibrary
+[172 / 196] Tokenizers
+[182 / 212] MLXOptimizers
+[188 / 215] MLXOptimizers
+[196 / 223] MLXLMCommon
+[200 / 225] Models
+[202 / 221] MisakiSwift
+[206 / 225] KokoroSwift
+[208 / 226] KokoroSwift
+[211 / 228] MultiModalKitTTS
+[213 / 229] MultiModalKitTTS
+[216 / 226] MLXLMCommon
+[222 / 238] MLXHuggingFace
+[226 / 240] MLXHuggingFace
+[228 / 236] MLXLLM
+[231 / 238] MultiModalKitMLX
+[233 / 240]
+[234 / 240] MultiModalKitMLX
+[239 / 242] bakeoff-product
+[241 / 243] bakeoff-product
+[243 / 245] bakeoff-product
+[244 / 245] bakeoff-product
+Build complete! (75.43 sec)
+
+🗣  VOICE-KOKORO (AC-183 + AC-184) — one engine per draw, release build
+    speak → capture at the mixer → exact-zero runs ≥20 ms → transcribe → WER
+    weights: /Users/ryad/Library/Application Support/Kokoro/ · float16
+  text1 draw 1 · 1.6 s · first audio 133 ms · decode RTF 0.10 · 1st decode 126 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text1 draw 2 · 1.5 s · first audio 120 ms · decode RTF 0.09 · 1st decode 114 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text1 draw 3 · 1.5 s · first audio 123 ms · decode RTF 0.09 · 1st decode 118 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text2 draw 1 · 1.6 s · first audio 116 ms · decode RTF 0.08 · 1st decode 113 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text2 draw 2 · 1.6 s · first audio 125 ms · decode RTF 0.09 · 1st decode 122 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text2 draw 3 · 1.6 s · first audio 125 ms · decode RTF 0.08 · 1st decode 121 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text3 draw 1 · 2.0 s · first audio 147 ms · decode RTF 0.08 · 1st decode 143 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text3 draw 2 · 2.1 s · first audio 262 ms · decode RTF 0.15 · 1st decode 258 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text3 draw 3 · 2.0 s · first audio 145 ms · decode RTF 0.08 · 1st decode 135 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text4 draw 1 · 3.1 s · first audio 243 ms · decode RTF 0.09 · 1st decode 242 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text4 draw 2 · 3.1 s · first audio 298 ms · decode RTF 0.10 · 1st decode 288 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text4 draw 3 · 3.0 s · first audio 222 ms · decode RTF 0.08 · 1st decode 218 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text5 draw 1 · 5.9 s · first audio 415 ms · decode RTF 0.08 · 1st decode 413 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text5 draw 2 · 5.9 s · first audio 414 ms · decode RTF 0.08 · 1st decode 409 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text5 draw 3 · 5.9 s · first audio 424 ms · decode RTF 0.08 · 1st decode 420 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text6 draw 1 · 9.0 s · first audio 639 ms · decode RTF 0.08 · 1st decode 630 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text6 draw 2 · 8.9 s · first audio 614 ms · decode RTF 0.07 · 1st decode 606 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+  text6 draw 3 · 9.0 s · first audio 680 ms · decode RTF 0.08 · 1st decode 670 ms · silence 0 runs, 0.0 ms/s · WER 0.000
+
+| fixture | draw | audio s | first audio ms | decode RTF | 1st decode ms | silence runs | silence ms/s | WER | warm-up ms |
+|---|---|---|---|---|---|---|---|---|---|
+| text1 | 1 | 1.6 | 133 | 0.10 | 126 | 0 | 0.0 | 0.000 | 814 |
+| text1 | 2 | 1.5 | 120 | 0.09 | 114 | 0 | 0.0 | 0.000 | 789 |
+| text1 | 3 | 1.5 | 123 | 0.09 | 118 | 0 | 0.0 | 0.000 | 662 |
+| text2 | 1 | 1.6 | 116 | 0.08 | 113 | 0 | 0.0 | 0.000 | 570 |
+| text2 | 2 | 1.6 | 125 | 0.09 | 122 | 0 | 0.0 | 0.000 | 645 |
+| text2 | 3 | 1.6 | 125 | 0.08 | 121 | 0 | 0.0 | 0.000 | 720 |
+| text3 | 1 | 2.0 | 147 | 0.08 | 143 | 0 | 0.0 | 0.000 | 601 |
+| text3 | 2 | 2.1 | 262 | 0.15 | 258 | 0 | 0.0 | 0.000 | 814 |
+| text3 | 3 | 2.0 | 145 | 0.08 | 135 | 0 | 0.0 | 0.000 | 660 |
+| text4 | 1 | 3.1 | 243 | 0.09 | 242 | 0 | 0.0 | 0.000 | 1496 |
+| text4 | 2 | 3.1 | 298 | 0.10 | 288 | 0 | 0.0 | 0.000 | 658 |
+| text4 | 3 | 3.0 | 222 | 0.08 | 218 | 0 | 0.0 | 0.000 | 592 |
+| text5 | 1 | 5.9 | 415 | 0.08 | 413 | 0 | 0.0 | 0.000 | 622 |
+| text5 | 2 | 5.9 | 414 | 0.08 | 409 | 0 | 0.0 | 0.000 | 599 |
+| text5 | 3 | 5.9 | 424 | 0.08 | 420 | 0 | 0.0 | 0.000 | 644 |
+| text6 | 1 | 9.0 | 639 | 0.08 | 630 | 0 | 0.0 | 0.000 | 581 |
+| text6 | 2 | 8.9 | 614 | 0.07 | 606 | 0 | 0.0 | 0.000 | 742 |
+| text6 | 3 | 9.0 | 680 | 0.08 | 670 | 0 | 0.0 | 0.000 | 759 |
+
+heard, per row:
+  text1 draw 1: "Hello."
+  text1 draw 2: "Hello."
+  text1 draw 3: "Hello."
+  text2 draw 1: "Good morning."
+  text2 draw 2: "Good morning."
+  text2 draw 3: "Good morning."
+  text3 draw 1: "The first law states."
+  text3 draw 2: "The first law states."
+  text3 draw 3: "The first law states."
+  text4 draw 1: "The first law of thermodynamics says that."
+  text4 draw 2: "The first law of thermodynamics says that."
+  text4 draw 3: "The first law of thermodynamics says that."
+  text5 draw 1: "The first law of thermodynamics says that energy cannot be created or destroyed."
+  text5 draw 2: "The first law of thermodynamics says that energy cannot be created or destroyed."
+  text5 draw 3: "The first law of thermodynamics says that energy cannot be created or destroyed."
+  text6 draw 1: "The first law of thermodynamics says that energy cannot be created or destroyed, only changed from one form to another."
+  text6 draw 2: "The first law of thermodynamics says that energy cannot be created or destroyed, only changed from one form to another."
+  text6 draw 3: "The first law of thermodynamics says that energy cannot be created or destroyed, only changed from one form to another."
+
+18 of 18 graded draws had ZERO exact-silence runs at lead .zero (AC-183).
+median WER across graded draws: 0.000 (AC-184)
+median decode RTF: 0.08 (wall ÷ audio, from the run's margin)

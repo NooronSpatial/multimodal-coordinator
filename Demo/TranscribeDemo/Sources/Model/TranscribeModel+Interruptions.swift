@@ -176,7 +176,7 @@ extension TranscribeModel {
     private func retireVoiceIfOnGPU() async {
         guard levers.voice == .kokoro else { return }
         let retiring = neuralVoice
-        neuralVoice = levers.makeSpokenVoice()
+        neuralVoice = levers.makeSpokenVoice(floor: Self.voiceFloor)
         // AND SAY SO. The replacement is unloaded, so leaving `.ready` on
         // screen would be the state lying about the object that will
         // speak — AC-143's fault, in the one window where nobody is

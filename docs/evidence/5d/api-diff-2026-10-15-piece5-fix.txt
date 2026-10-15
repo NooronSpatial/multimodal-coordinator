@@ -1,0 +1,26 @@
+# 5d piece 5's fix — AC-381: the public surface on main (e4fa1b8) against this branch (1d34046).
+# sh Scripts/api.sh, each without its commit line; main read from git archive. 7 lines added, 3 changed, 0 removed.
+# The added lines are the floor (VoiceFloor, FloorHold). The three changed lines are initialisers that gained a
+# DEFAULTED parameter, floor: VoiceFloor? = nil (the local mind, Kokoro, makeSpokenVoice): every call on main
+# compiles unchanged, and without a floor the mind and the voice behave as before (F-50 A: off unless the app shares one).
+
+128a129,135
+>   Audio/VoiceFloor.swift: public final class VoiceFloor: Sendable
+>   Audio/VoiceFloor.swift: public init()
+>   Audio/VoiceFloor.swift: public func take() -> FloorHold
+>   Audio/VoiceFloor.swift: public var isTaken: Bool
+>   Audio/VoiceFloor.swift: public func waitWhileTaken() async
+>   Audio/VoiceFloor.swift: public final class FloorHold: Sendable
+>   Audio/VoiceFloor.swift: public func giveBack()
+602c609
+<   LocalMind.swift: public init(model: LocalMindModel, instructions: String? = nil, maxTokens: Int = 1024, tools: ToolTable = .empty, thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError)
+---
+>   LocalMind.swift: public init(model: LocalMindModel, instructions: String? = nil, maxTokens: Int = 1024, tools: ToolTable = .empty, floor: VoiceFloor? = nil, thermal: any ThermalStateProviding = SystemThermalProvider(), thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(), clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError)
+729c736
+<   Voice/KokoroVoice.swift: public init(weights: KokoroWeights, lead: Duration = .zero, phraseCharacters: Int = KokoroVoice.phraseCharacters, openingCaps: [Int] = KokoroVoice.openingCaps, quiet: PhraseQuiet.Config? = .kokoro)
+---
+>   Voice/KokoroVoice.swift: public init(weights: KokoroWeights, lead: Duration = .zero, phraseCharacters: Int = KokoroVoice.phraseCharacters, openingCaps: [Int] = KokoroVoice.openingCaps, quiet: PhraseQuiet.Config? = .kokoro, floor: VoiceFloor? = nil)
+796c803
+<   Voice/VoiceLevers.swift: public func makeSpokenVoice( kokoroWeights: KokoroWeights = .inApplicationSupport() ) -> any SpokenVoice
+---
+>   Voice/VoiceLevers.swift: public func makeSpokenVoice( kokoroWeights: KokoroWeights = .inApplicationSupport(), floor: VoiceFloor? = nil ) -> any SpokenVoice

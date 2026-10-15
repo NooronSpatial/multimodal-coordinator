@@ -1,0 +1,22 @@
+# the 20x loop at 7c28f1e — 2026-10-15-piece5-fix. swift test --skip-build, this Mac, 10 cores.
+run 1: 􁁛  Test run with 1069 tests in 154 suites passed after 51.948 seconds.
+run 2: 􁁛  Test run with 1069 tests in 154 suites passed after 14.506 seconds.
+run 3: 􁁛  Test run with 1069 tests in 154 suites passed after 34.997 seconds.
+run 4: 􁁛  Test run with 1069 tests in 154 suites passed after 19.147 seconds.
+run 5: 􁁛  Test run with 1069 tests in 154 suites passed after 33.908 seconds.
+run 6: 􁁛  Test run with 1069 tests in 154 suites passed after 28.512 seconds.
+run 7: 􁁛  Test run with 1069 tests in 154 suites passed after 9.341 seconds.
+run 8: 􁁛  Test run with 1069 tests in 154 suites passed after 33.710 seconds.
+run 9: 􁁛  Test run with 1069 tests in 154 suites passed after 19.335 seconds.
+run 10: 􁁛  Test run with 1069 tests in 154 suites passed after 17.717 seconds.
+run 11: 􁁛  Test run with 1069 tests in 154 suites passed after 18.654 seconds.
+run 12: 􁁛  Test run with 1069 tests in 154 suites passed after 19.807 seconds.
+run 13: 􁁛  Test run with 1069 tests in 154 suites passed after 17.680 seconds.
+run 14: 􁁛  Test run with 1069 tests in 154 suites passed after 19.479 seconds.
+run 15: 􁁛  Test run with 1069 tests in 154 suites passed after 54.643 seconds.
+run 16: 􁁛  Test run with 1069 tests in 154 suites passed after 5.592 seconds.
+run 17: 􁁛  Test run with 1069 tests in 154 suites passed after 16.828 seconds.
+run 18: 􁁛  Test run with 1069 tests in 154 suites passed after 19.477 seconds.
+run 19: 􁁛  Test run with 1069 tests in 154 suites passed after 18.163 seconds.
+run 20: 􁁛  Test run with 1069 tests in 154 suites passed after 18.407 seconds.
+done 14:41:35

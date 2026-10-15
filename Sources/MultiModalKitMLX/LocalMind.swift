@@ -437,13 +437,17 @@ struct MLXTokenSource: ReplyTokenStreaming {
     /// the loop (AC-227): the spec is only passed when there is one, and
     /// the call parser is only built when there is one.
     let tools: ToolTable
+    /// THE VOICE GOES FIRST (5d piece 5, D-148): waited for between tokens.
+    /// Nil: this mind shares no floor.
+    let floor: VoiceFloor?
 
     init(model: LocalMindModel, instructions: String?, maxTokens: Int,
-         tools: ToolTable = .empty) {
+         tools: ToolTable = .empty, floor: VoiceFloor? = nil) {
         self.model = model
         self.instructions = instructions
         self.maxTokens = maxTokens
         self.tools = tools
+        self.floor = floor
     }
 
     var unavailable: ReplyFailure? {
@@ -602,7 +606,8 @@ struct MLXTokenSource: ReplyTokenStreaming {
                     filters: TokenFilters(
                         gate: gateTokens.map { ThinkGate($0) },
                         detokenizer: NaiveStreamingDetokenizer(tokenizer: model.tokenizer),
-                        sieve: sieve),
+                        sieve: sieve,
+                        floor: floor),
                     into: continuation)
             }
             // No `.stopped` here: the reason came from the `.info`
@@ -616,78 +621,70 @@ struct MLXTokenSource: ReplyTokenStreaming {
         }
     }
 
-    /// The vendor's loop, gated at the token — the body `tokens(for:)`
-    /// ran inline until 4w gave it a second path. Runs INSIDE the
-    /// container's `perform`, because `ModelContext` is not Sendable.
+    /// OUR OWN TOKEN LOOP over the vendor's public iterator (5d piece 5, D-149)
+    /// — the body `tokens(for:)` ran inline until 4w gave it a second path, and
+    /// the vendor's own loop task until 5d. Runs INSIDE the container's
+    /// `perform`, because `ModelContext` is not Sendable.
+    ///
+    /// WHY OUR OWN: the vendor's loop runs in its own task and never waits for
+    /// its reader, so nothing could hold it while the voice decodes its first
+    /// phrase (D-149). This one waits for the floor between tokens, and keeps
+    /// what 4y made the vendor's loop promise: a cancel at any token ends it
+    /// (AC-261, AC-264); the iterator — and the KV cache it owns, the
+    /// prefill's product — is a local of THIS function, so it is gone when the
+    /// function returns, a fact rather than "some time later" (the vendor's
+    /// doc); a cut empties the buffer pool too.
     private static func stream(
         input: LMInput, settings: MLXGenerationSettings, model: ModelContext,
         filters initialFilters: TokenFilters,
         into continuation: AsyncThrowingStream<TokenEvent, any Error>.Continuation
     ) async throws {
         var filters = initialFilters
-        // THE TASK VARIANT (4y, AC-261, AC-264), and the reason: the
-        // vendor's loop runs in its own task, and "if the stream is
-        // terminated early ... computation will continue ... for some
-        // time" (its doc). The `TokenIterator` that owns the KV cache —
-        // the prefill's product — lives in that task. Before 4y this
-        // source used `generateTokens`, which DROPS the task, so a cut
-        // generation's memory was freed at a moment nobody could name.
-        // Now the task is awaited below, and the free is a fact.
-        //
-        // THE LAST LOOK BEFORE THE PREFILL (the review of this piece):
-        // the vendor's lock ignores cancellation — a cancelled task waits
-        // its turn and enters — so a run cut while it was parked on the
-        // lock arrives here alive, and this line is what keeps its
-        // prefill from happening. WHAT IS MEASURED AND WHAT IS NOT (the
-        // re-attack): the live row goes red only when BOTH checks are
-        // removed; either one alone keeps it green. With this check
-        // removed, the first catches the run before the lock; with the
-        // first removed, the run parks on the lock the row holds, enters
-        // when the row lets go, and this check catches it here. Neither
-        // half is proven alone: there is no hook for "parked on the
-        // lock" to build a row from, so this check is justified by
-        // reading the vendor's AsyncMutex. The pair is what is proven.
+        // THE LAST LOOK BEFORE THE PREFILL (the 4y review): the vendor's lock
+        // ignores cancellation — a cancelled task waits its turn and enters —
+        // so a run cut while it was parked on the lock arrives here alive, and
+        // this line keeps its prefill from happening (the iterator's init
+        // prefills synchronously). The pair with the check before the lock is
+        // what the live rows prove; neither half alone is.
         try Task.checkCancellation()
-        let (events, vendor) = try generateTokensTask(
-            input: input,
-            parameters: GenerateParameters(settings),
-            context: model)
-        // THE DRAIN is `VendorLoop.drain`'s (the review of this piece):
-        // the loop, the cut, the vendor's cancel and the await that makes
-        // "the KV cache is gone" a fact live there, where a scripted
-        // producer can prove them. The first cut relied on the stream's
-        // termination to cancel the vendor — true when the cancel lands
-        // in `next()`, FALSE when it lands in the body and the loop leaves
-        // by `break`: the vendor then ran to `maxTokens`.
-        let cut = await VendorLoop.drain(events, vendor: vendor) { event in
-            switch event {
-            case .token(let id):
-                for event in filters.admit(id) { continuation.yield(event) }
-            case .info(let info):
-                // A call the model finished with its turn
-                // (the tags closed on the last token) is
-                // flushed HERE, before the stop — the order
-                // the vendor's own text loop keeps.
-                for event in filters.finish() { continuation.yield(event) }
-                // AC-235: the event this loop used to DROP
-                // (`guard let id = event.token else { continue }`).
-                // The vendor says why it stopped; the seam
-                // says it in its own word. `.cancelled` maps
-                // to nothing — a cancelled run ends with no
-                // terminal, by contract.
-                if let reason = StopReason(vendor: info.stopReason) {
-                    continuation.yield(.stopped(reason))
-                }
-            }
+        var iterator = try TokenIterator(
+            input: input, model: model.model, cache: nil, parameters: GenerateParameters(settings))
+        let stops = stopTokens(model)
+        let unknown = model.tokenizer.unknownTokenId
+        let reason = await TokenLoop.run(&iterator, isStop: { $0 == unknown || stops.contains($0) },
+                                         floor: filters.floor, each: { id in
+            for event in filters.admit(id) { continuation.yield(event) }
+        })
+        // The vendor's own last step: its work on the GPU stream is finished.
+        Stream().synchronize()
+        // A CUT (a barge, a memory warning, the deadline) ends here, as the
+        // vendor's drain did: no flush, no terminal — a cancelled run ends with
+        // none, by contract — and the buffer pool emptied (`freePrefill`'s
+        // note has the allocator's rule). A generation that ended on its own
+        // keeps the pool, because the next reply reuses it.
+        guard !Task.isCancelled else {
+            MLX.Memory.clearCache()
+            return
         }
-        // WHAT FREES THE PREFILL (AC-261, AC-264). The drain above ends
-        // only once the vendor's task has — the iterator that owns the
-        // KV cache is a local of that task. A generation that was CUT (a
-        // barge, a warning, the deadline) then empties the vendor's
-        // buffer pool as well (`freePrefill`'s note has the allocator's
-        // rule); one that ended on its own keeps the pool, because the
-        // next reply reuses it.
-        if cut { MLX.Memory.clearCache() }
+        // A call the model finished with its turn (the tags closed on the last
+        // token) is flushed HERE, before the stop — the order the vendor's own
+        // text loop keeps.
+        for event in filters.finish() { continuation.yield(event) }
+        // AC-235: the vendor's reason, in the seam's own word. `.cancelled`
+        // maps to nothing.
+        if let stop = StopReason(vendor: reason) { continuation.yield(.stopped(stop)) }
+    }
+
+    /// The vendor's stop tokens (`buildStopTokenIds`, private there): the
+    /// model's EOS ids, the tokenizer's, and every extra EOS the configuration
+    /// names.
+    private static func stopTokens(_ model: ModelContext) -> Set<Int> {
+        var stops = model.configuration.eosTokenIds
+        if let eos = model.tokenizer.eosTokenId { stops.insert(eos) }
+        for token in model.configuration.extraEOSTokens {
+            if let id = model.tokenizer.convertTokenToId(token) { stops.insert(id) }
+        }
+        return stops
     }
 }
 
@@ -699,6 +696,10 @@ struct TokenFilters {
     var gate: ThinkGate?
     var detokenizer: NaiveStreamingDetokenizer
     let sieve: ToolCallSieve?
+    /// THE VOICE GOES FIRST (5d piece 5, D-148): not a filter of tokens but a
+    /// wait BETWEEN them — kept here because it rides the same path from the
+    /// source to the loop. Nil: this mind shares no floor.
+    var floor: VoiceFloor?
 
     /// One token ID in; the seam's events out — usually none or one.
     mutating func admit(_ id: Int) -> [TokenEvent] {
@@ -795,13 +796,15 @@ extension MLXReplyGenerator {
                 instructions: String? = nil,
                 maxTokens: Int = 1024,
                 tools: ToolTable = .empty,
+                floor: VoiceFloor? = nil,
                 thermal: any ThermalStateProviding = SystemThermalProvider(),
                 thermalPolicy: any GenerationThermalPolicy = DefaultGenerationThermalPolicy(),
                 clock: any Clock<Duration> = ContinuousClock()) throws(ToolDeclarationError) {
         try self.init(source: MLXTokenSource(model: model,
                                              instructions: instructions,
                                              maxTokens: maxTokens,
-                                             tools: tools),
+                                             tools: tools,
+                                             floor: floor),
                       thermal: thermal,
                       thermalPolicy: thermalPolicy,
                       clock: clock)

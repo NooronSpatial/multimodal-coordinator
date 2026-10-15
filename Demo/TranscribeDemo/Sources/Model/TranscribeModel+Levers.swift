@@ -87,7 +87,7 @@ extension TranscribeModel {
         if wasListening { await stopAndWait() }
 
         let retiring = neuralVoice
-        neuralVoice = levers.makeSpokenVoice()
+        neuralVoice = levers.makeSpokenVoice(floor: Self.voiceFloor)
         voiceState = .checking
         await retiring.retire()
         await checkVoice()
@@ -143,7 +143,7 @@ extension TranscribeModel {
         }
         guard previous != levers else { return }
         leverRefusal = "\(describe(levers)) was refused — \(reason)"
-        neuralVoice = previous.makeSpokenVoice()
+        neuralVoice = previous.makeSpokenVoice(floor: Self.voiceFloor)
         revertingLevers = true
         levers = previous
         revertingLevers = false

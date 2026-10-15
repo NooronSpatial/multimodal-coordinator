@@ -6380,3 +6380,80 @@ and the hops, is ~10 ms.
 **What it does not show.** The phone. Its mind writes ~46 characters a second
 when warm (§257), so (a) may be larger there, and Kokoro decodes slower. The
 fix is ruled on the phone's numbers (AC-375).
+
+### 77b. The phone, and what a decode costs by length (5d, AC-375; 2026-10-15)
+
+**The phone** — Ryad's session, the local 4B warm, Whisper, Kokoro, 18 spoken
+turns (`docs/evidence/5d/phone-2026-10-15-session-piece5.txt`):
+
+| median, ms | ⑤ | (a) words | (b) decode | (c) rest |
+|---|---:|---:|---:|---:|
+| the phone, warm | 714 | 127 | **578** | 16 |
+| this Mac, run 23 (§77) | 317 | 59 | 249 | 8 |
+
+On the phone too, **the decode is ~80 % of ⑤**. (a) is twice the Mac's: the
+warm phone's mind writes slower. The felt pause to the first word: 1.9 s.
+
+**A decode by length** — this Mac, `bakeoff voice-kokoro --untrimmed`, three
+draws per text (`kokoro-decode-by-length-2026-10-15.txt`): 5 characters 118 ms,
+20 characters 143, 117 characters 630 — about **110 ms fixed + 4.5 ms a
+character**. The first phrase is already short (§74's opening caps): cutting
+it shorter saves little, because the fixed part dominates. What is left is
+the decode itself — and the GPU it shares with the mind (§78).
+
+## 78. The voice goes first — piece 5's fix on this Mac (5d, AC-377, AC-380)
+
+**What changed** (D-148, D-149): a shared floor. The voice takes it for each
+reply's first decode; the local mind, which now writes through our own token
+loop, waits for it between tokens.
+
+```
+before:   mind   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓      both on one GPU
+          voice        ░░░░░░░░░░ decode ─▶ SOUND
+after:    mind   ▓▓▓▓▓▓·········▓▓▓▓▓▓▓▓▓▓▓▓▓      waits ~150 ms, one token in hand
+          voice        ░░░░░░ decode ─▶ SOUND     sooner
+```
+
+**1 — The experiment** (`bakeoff decode-under-load`, the real 4B writing a long
+answer, 4 first phrases × 5 draws, back to back so heat drifts alike):
+
+| median, ms | alone | under the 4B's writing | voice first | ratio |
+|---|---:|---:|---:|---:|
+| run 1 (`decode-under-load-2026-10-15.txt`) | 153 | 242 | — | ×1.58 |
+| run 2 (`…-voice-first-2026-10-15.txt`) | 127 | 219 | **149** | ×1.72 |
+
+Under load the mind wrote **6 tokens** during each decode; with the voice first,
+**1** — the token already in hand. The floor wins back ~70 ms of the ~90 ms the
+GPU cost; the rest is the one token and the hand-over.
+
+**2 — The harness** (the person's recording, the real 4B, Kokoro, greedy,
+thinking in the gate on, 300 · 500 · 320; with and without `--voice-first`,
+in pairs, the order swapped):
+
+| run | floor | ran | ④ | ⑤ | ⑤b decode | felt, to the first word | ⑥ pauses > 300 ms |
+|---|---|---|---:|---:|---:|---:|---|
+| 24 | off | first | 198 | 275 | 210 | 1 478 | 7 in 16 replies |
+| 25 | **on** | second | 454 | 280 | 213 | 1 737 | 0 in 18 |
+| 26 | **on** | first | 313 | 216 | **148** | 1 557 | 0 in 17 |
+| 27 | off | second | 311 | 292 | 222 | 1 590 | 0 in 17 |
+| 28 | off | first | 312 | 299 | 231 | 1 626 | 1 in 17 |
+| 29 | **on** | second | 247 | 226 | **164** | 1 469 | 0 in 18 |
+
+**What it shows.** In pairs 2 and 3 the floor cuts the first decode by 67–74 ms
+and ⑤ from ~295 to ~220 ms, whichever ran first. The turn-by-turn decodes
+agree (the cold turn 0 left out): with the floor on in runs 26 and 29, **27 of
+33 turns** decoded in 138–175 ms; with it off in runs 24, 27 and 28, **none of
+47** did. And no later phrase starved: with the floor, no pause over 300 ms
+inside an answer.
+
+**What it does not explain.** Pair 1. Run 25's first five turns decoded in
+133–146 ms, as the floor should; from the sixth turn on, ④ (714–879 ms, twice
+the other runs) **and** the decode rose together — the whole Mac was slower,
+the mind as much as the voice. The floor holds the mind only during a first
+decode, so it cannot raise the next turn's ④; the cause was not found.
+
+**What it does not show.** The felt pause moves less cleanly than ⑤: it carries
+the gate, the ear and the mind, and its medians wander ±150 ms between runs of
+the same setup. And the phone: its decode is 578 ms (§77b), so the share the
+GPU takes there is the number that decides whether the floor is worth it
+(AC-380, owed).
