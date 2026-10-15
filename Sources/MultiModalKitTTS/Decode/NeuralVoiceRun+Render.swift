@@ -36,7 +36,17 @@ extension NeuralVoiceRun {
                 // first decode is stamped — that is the one the cold-start
                 // question is about.
                 let decodeStart = now()
-                stepTotals.withLock { if $0.firstDecodeStart == nil { $0.firstDecodeStart = decodeStart } }
+                let isFirst = stepTotals.withLock { totals -> Bool in
+                    guard totals.firstDecodeStart == nil else { return false }
+                    totals.firstDecodeStart = decodeStart
+                    return true
+                }
+                // THE VOICE GOES FIRST (5d piece 5, D-148, F-51 A): the run's
+                // FIRST decode takes the floor, so the mind starts no new token
+                // until it is done — its audio out, or a throw, or a stop after
+                // a cancel. Given back on every one of those ways out.
+                let hold = isFirst ? floor?.take() : nil
+                defer { hold?.giveBack() }
                 try await decoder.decode(
                     text, temperature: temperature
                 ) { [weak self] samples in

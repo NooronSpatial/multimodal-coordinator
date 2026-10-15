@@ -29,6 +29,22 @@ enum TokenLoop {
         _ tokens: inout Tokens, isStop: (Int) -> Bool, floor: VoiceFloor?,
         each: (Int) -> Void
     ) async -> GenerateStopReason {
-        .cancelled
+        while true {
+            // THE VOICE GOES FIRST: before asking the GPU for the next token.
+            if let floor { await floor.waitWhileTaken() }
+            if Task.isCancelled { return .cancelled }
+            guard let token = tokens.next() else { break }
+            // The vendor's check, after the step: a cancel that landed during
+            // it drops the token it made.
+            if Task.isCancelled { return .cancelled }
+            if isStop(token) {
+                tokens.discardGeneratedToken()
+                return .stop
+            }
+            each(token)
+        }
+        // The vendor's rule for an iterator that simply ended.
+        if let maxTokens = tokens.maxTokens, tokens.tokenCount >= maxTokens { return .length }
+        return .cancelled
     }
 }
