@@ -6256,3 +6256,20 @@ behaviour; the fix is a later spec, ruled on these numbers.
   guesses with an error nobody knows (D-132: measure, do not estimate).
 - *Rejected:* **skipping the measurement** for a fix ruled on the hint in
   §257 (~46 characters a second on a warm phone): the hint is one reading.
+
+## D-147 — 5d piece 5's fix: the voice goes first — the mind pauses while the first phrase decodes (Milestone 5d)
+
+**Date:** 2026-10-15 · **Decided by:** Ryad ("A — the voice goes first") ·
+**Ruling:** ⑤'s decode is ~80 % of it on the Mac and on his phone (§77,
+`phone-2026-10-15-session-piece5.txt`: 714 = 127 + 578 + 16). Alone on this
+Mac, Kokoro decodes a ~20-character phrase in ~140 ms; inside a turn, with the
+mind still writing on the same GPU, 249 ms. The fix: while the voice decodes,
+the mind waits — it is far ahead of the speech (~46 characters a second against
+~15 spoken). First an experiment proves the cause; then the build.
+
+- *Rejected:* **B — a shorter first phrase**: the decode is ~110 ms fixed +
+  ~4.5 ms a character, so 20 → 10 characters saves ~20–40 ms of decode; and an
+  opening that short risks sounding choppy.
+- *Rejected:* **C — both at once**: two changes measured together cannot be
+  judged one by one.
+- *Rejected:* **D — leave ⑤**: it is the biggest block left.

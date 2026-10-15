@@ -9284,3 +9284,77 @@ decode is ASKED for, not at the phraser's cut itself; between the two is only
 the hop to the decoder's worker. Stamping the cut would have added a clock read
 and shifted every scripted-time test's plan; the run already stamped the ask
 (D-087).
+
+# 5d piece 5, the fix — the voice goes first (proposed, NOT signed)
+
+## §264 — why
+
+```
+inside a turn, today:   mind ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  (writing the rest of the answer)
+                        voice         ░░░░░░░░░ decode the first phrase  ─▶ SOUND
+                                      └ both on one GPU: 249 ms (Mac), 578 ms (phone, warm)
+
+the voice goes first:   mind  ▓▓▓▓▓▓▓▓·········▓▓▓▓▓▓▓▓▓▓  (waits while the voice decodes)
+                        voice         ░░░░ decode alone ─▶ SOUND  (~140 ms alone on the Mac)
+```
+
+- The mind writes ~46 characters a second on the warm phone; the voice speaks
+  ~15. A pause of a few hundred milliseconds is never heard later.
+- **Not proven yet:** that the GPU is shared enough to matter. §266/1 proves it
+  or stops the piece.
+
+## §265 — scope
+
+1. **The experiment, first** (AC-377). A bakeoff instrument: Kokoro decodes the
+   same first phrase alone, and while the real 4B writes a long answer, on this
+   Mac. The build goes on only if, under load, the decode is at least 1.5×
+   slower than alone. If it is not, the piece stops here and reports.
+2. **A shared signal: the voice takes the floor** (F-50). While the voice
+   decodes, the mind does not start its next token; it goes on the moment the
+   voice is done. Nothing is lost or doubled; a cancel while waiting ends the
+   reply as it would have.
+3. **Which decodes** (F-51): the first phrase only, or every phrase.
+4. **Off for every other mind and voice**: a mind that cannot wait (the Apple
+   mind, whose model runs in the system) and a voice that does not take the
+   floor behave exactly as today.
+5. **Measured**: the harness before and after (⑤b), then Ryad's phone.
+
+## §266 — acceptance criteria (AC-377 … AC-381)
+
+- **AC-377 — the experiment.** Kokoro's first-phrase decode alone and under the
+  4B's writing, several draws each, on this Mac; the ratio printed. Go on only at
+  ≥ 1.5×.
+- **AC-378 — the mind waits, exactly.** With the floor taken, the MLX mind's run
+  starts no new token; released, it goes on where it stopped: every token once,
+  in order. A cancel while it waits ends the reply at once; the floor can never
+  leave it waiting forever (it is released on every way a decode ends).
+- **AC-379 — the voice takes the floor** for the decodes F-51 rules, and gives
+  it back when that decode's audio is out — or when it fails, is cancelled, or
+  the turn dies.
+- **AC-380 — measured.** The harness: ⑤b before and after, the felt pause, and
+  the pauses inside answers (⑥) — the mind waiting must not starve the later
+  phrases; then Ryad's phone.
+- **AC-381 — nothing else moved.** The suite; the loop (the download family
+  excepted, as named); lint; mutations (the wait, the release on every end, the
+  order of tokens); `api.sh` additions only; the demo builds.
+
+## §267 — the forks (Ryad rules)
+
+- **F-50 — where the signal lives.** **A: a small shared "floor"** handed to
+  both the mind and the voice when the app builds them: the voice takes it while
+  it decodes, the mind waits for it between tokens. The coordinator does not
+  change; one simple thing hides the rule. **B: the coordinator in the middle**:
+  the voice reports "decoding" and "audio out", and the coordinator pauses and
+  resumes the reply: new hooks on both seams and new states in the coordinator.
+  **Recommendation: A.**
+- **F-51 — which decodes take the floor.** **A: the first phrase only** — the
+  piece's goal is ⑤, and the mind is held the least. **B: every phrase** — it may
+  also shorten the long pauses inside answers on a hot phone (§76b), but the mind
+  is held for every phrase, and its total time grows. **Recommendation: A**, and
+  B as its own measured step if ⑥ needs it.
+
+## §268 — definition of done
+
+The experiment first (it may end the piece); red before green; the suite;
+mutations; the loop; lint; `api.sh`; the demo builds; the Mac numbers; Ryad's
+phone; one branch, one PR; present → HALT.
