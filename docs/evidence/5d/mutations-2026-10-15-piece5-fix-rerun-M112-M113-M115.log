@@ -1,0 +1,25 @@
+## M112 — the floor never makes anyone wait
+file: Sources/MultiModalKit/Audio/VoiceFloor.swift
+KILLED — red rows:
+  - a cancel while the loop waits for the floor ends it at once
+  - a cancel while waiting ends the wait at once, and leaves no waiter behind
+  - taken: the mind waits until the hold is given back
+  - two holds: free only when both are given back; a second giveBack counts once
+  - with the floor taken, no new token after the one in hand; given back, it goes on
+reverted: yes
+
+## M113 — a cancel does not end a wait
+file: Sources/MultiModalKit/Audio/VoiceFloor.swift
+KILLED — red rows:
+  - a cancel while the loop waits for the floor ends it at once
+  - a cancel while waiting ends the wait at once, and leaves no waiter behind
+reverted: yes
+
+## M115 — the loop does not wait for the floor
+file: Sources/MultiModalKitMLX/TokenLoop.swift
+KILLED — red rows:
+  - a cancel while the loop waits for the floor ends it at once
+  - with the floor taken, no new token after the one in hand; given back, it goes on
+reverted: yes
+
+source tree after the run: clean
