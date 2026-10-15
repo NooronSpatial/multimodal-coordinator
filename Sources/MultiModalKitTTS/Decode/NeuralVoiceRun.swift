@@ -291,6 +291,17 @@ final class NeuralVoiceRun: SynthesisRun, @unchecked Sendable {
     /// Apple's mouth never had the fault, and its shape is copied here:
     /// take the text, put it somewhere, return. The work happens
     /// elsewhere.
+    /// ⑤ IN ITS PARTS (5d piece 5, D-146), from stamps this run already keeps:
+    /// its birth (the reply's first token), the first decode asked for (the
+    /// first phrase was cut), and that decode's first audio. Nil until the
+    /// first audio is out.
+    var firstSoundParts: FirstSoundParts? {
+        stepTotals.withLock { totals in
+            guard let asked = totals.firstDecodeStart, let audio = totals.firstStep else { return nil }
+            return FirstSoundParts(words: birth.duration(to: asked), decode: asked.duration(to: audio))
+        }
+    }
+
     func feed(_ token: String) async {
         let startDrain = state.withLock { guarded -> Bool in
             guard !guarded.cancelled else { return false }

@@ -153,7 +153,9 @@ extension TurnCoordinator {
                         gate: start.duration(to: opened),
                         firstToken: opened.duration(to: token),
                         firstSound: token.duration(to: now),
-                        thoughtInTheGate: live.thoughtInTheGate))
+                        thoughtInTheGate: live.thoughtInTheGate,
+                        // ⑤ in its parts, as the voice measured them (5d piece 5).
+                        firstSoundParts: live.synthesisRun?.firstSoundParts))
                 }
             }
 

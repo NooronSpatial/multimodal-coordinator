@@ -23,6 +23,9 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
         public var fedTokens: [String] = []
         public var tokensFinished = false
         public var cancelled = false
+        /// What this utterance reports as ⑤'s parts (5d piece 5) — set by the
+        /// test, before it reports `started`. Nil: the voice says nothing.
+        public var firstSoundParts: FirstSoundParts?
     }
 
     private struct State {
@@ -51,6 +54,14 @@ public final class ScriptedSynthesizer: SpeechSynthesizing, Sendable {
             return state.openGate.take()
         }
         waiting?.resume()
+    }
+
+    /// The parts of ⑤ this utterance will report (5d piece 5, D-146): what a
+    /// real voice measures, scripted.
+    public func setFirstSoundParts(_ parts: FirstSoundParts, utterance index: Int) {
+        state.withLock { state in
+            if index < state.records.count { state.records[index].firstSoundParts = parts }
+        }
     }
 
     // MARK: - the record
@@ -159,4 +170,5 @@ private struct ScriptedUtterance: SynthesisRun {
         let ignores = if case .manual(let flag) = plan { flag } else { false }
         synthesizer.cancel(utterance: index, ignoresCancel: ignores)
     }
+    var firstSoundParts: FirstSoundParts? { synthesizer.record(ofUtterance: index)?.firstSoundParts }
 }

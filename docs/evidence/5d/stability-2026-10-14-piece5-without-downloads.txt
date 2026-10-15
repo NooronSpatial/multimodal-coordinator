@@ -1,0 +1,22 @@
+# the 20x loop at c681317 without the download suites (the daemon family, red on this Mac: stability-2026-10-14-piece5.txt). swift test --skip-build --skip <the eight download suites>, 10 cores.
+run 1: 􁁛  Test run with 1008 tests in 143 suites passed after 5.164 seconds.
+run 2: 􁁛  Test run with 1008 tests in 143 suites passed after 4.954 seconds.
+run 3: 􁁛  Test run with 1008 tests in 143 suites passed after 4.953 seconds.
+run 4: 􁁛  Test run with 1008 tests in 143 suites passed after 4.979 seconds.
+run 5: 􁁛  Test run with 1008 tests in 143 suites passed after 5.052 seconds.
+run 6: 􁁛  Test run with 1008 tests in 143 suites passed after 5.062 seconds.
+run 7: 􁁛  Test run with 1008 tests in 143 suites passed after 5.016 seconds.
+run 8: 􁁛  Test run with 1008 tests in 143 suites passed after 5.046 seconds.
+run 9: 􁁛  Test run with 1008 tests in 143 suites passed after 5.012 seconds.
+run 10: 􁁛  Test run with 1008 tests in 143 suites passed after 5.000 seconds.
+run 11: 􁁛  Test run with 1008 tests in 143 suites passed after 4.971 seconds.
+run 12: 􁁛  Test run with 1008 tests in 143 suites passed after 4.985 seconds.
+run 13: 􁁛  Test run with 1008 tests in 143 suites passed after 4.900 seconds.
+run 14: 􁁛  Test run with 1008 tests in 143 suites passed after 5.036 seconds.
+run 15: 􁁛  Test run with 1008 tests in 143 suites passed after 4.966 seconds.
+run 16: 􁁛  Test run with 1008 tests in 143 suites passed after 5.059 seconds.
+run 17: 􁁛  Test run with 1008 tests in 143 suites passed after 5.014 seconds.
+run 18: 􁁛  Test run with 1008 tests in 143 suites passed after 5.019 seconds.
+run 19: 􁁛  Test run with 1008 tests in 143 suites passed after 5.104 seconds.
+run 20: 􁁛  Test run with 1008 tests in 143 suites passed after 5.031 seconds.
+done 16:00:45

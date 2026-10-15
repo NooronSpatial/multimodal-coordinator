@@ -39,16 +39,28 @@ public struct TurnTimeline: Sendable, Equatable {
     /// non-zero, ③ ends at the gate's end and ④ is what was still left to
     /// wait for the first token there (zero when one was already held).
     public let thoughtInTheGate: Duration
+    /// ⑤ in its parts, as the voice measured them (5d piece 5, D-146) —
+    /// nil when the voice does not say. See `firstSoundRest` for the third.
+    public let firstSoundParts: FirstSoundParts?
 
     public init(turn: Int, earFinish: Duration?, gate: Duration,
                 firstToken: Duration, firstSound: Duration,
-                thoughtInTheGate: Duration = .zero) {
+                thoughtInTheGate: Duration = .zero,
+                firstSoundParts: FirstSoundParts? = nil) {
         self.turn = turn
         self.earFinish = earFinish
         self.gate = gate
         self.firstToken = firstToken
         self.firstSound = firstSound
         self.thoughtInTheGate = thoughtInTheGate
+        self.firstSoundParts = firstSoundParts
+    }
+
+    /// ⑤'s third part, (c): what is left of ⑤ after the words and the decode —
+    /// the player's start, and the hops to and from the voice. Nil when the
+    /// voice did not report its parts. By construction (a) + (b) + (c) = ⑤.
+    public var firstSoundRest: Duration? {
+        firstSoundParts.map { firstSound - $0.words - $0.decode }
     }
 
     /// ③ + ④ + ⑤ — exactly what `LatencyReporter.turnLatency` reports
@@ -98,6 +110,26 @@ public struct BargeCandidate: Sendable, Equatable {
         self.loudTime = loudTime
         self.peak = peak
         self.accepted = accepted
+    }
+}
+
+/// ⑤ IN ITS PARTS (5d piece 5, D-146), as the voice itself measured them:
+///
+///     the first token ─(a) words─▶ the first decode asked for ─(b) decode─▶ its first audio ─(c)─▶ SOUND
+///
+/// (a) is the wait for the first phrase's words (the voice cannot decode a
+/// phrase until the phraser cuts it), plus the hop to the decoder; (b) is the
+/// decode of that phrase until its first audio. (c) is the timeline's
+/// `firstSoundRest`.
+public struct FirstSoundParts: Sendable, Equatable {
+    /// (a) The voice was handed the first token → it asked for the first decode.
+    public let words: Duration
+    /// (b) The first decode asked for → its first audio.
+    public let decode: Duration
+
+    public init(words: Duration, decode: Duration) {
+        self.words = words
+        self.decode = decode
     }
 }
 

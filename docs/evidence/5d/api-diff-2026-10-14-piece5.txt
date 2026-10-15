@@ -1,0 +1,23 @@
+# 5d piece 5 — AC-376: the public surface on main (d407108) against this branch (dc4360e).
+# sh Scripts/api.sh, each without its commit line; main read from git archive. 9 lines added, 1 changed, 0 removed.
+# The changed line is TurnTimeline's initialiser, which gained a DEFAULTED parameter (firstSoundParts = nil):
+# every call on main compiles unchanged. SynthesisRun gains firstSoundParts with a default (nil), so every
+# voice written before compiles unchanged and keeps a single ⑤. No behaviour changes.
+
+383a384
+>   Conversation/TurnCoordination.swift: public var firstSoundParts: FirstSoundParts?
+419c420,422
+<   Conversation/TurnTimeline.swift: public init(turn: Int, earFinish: Duration?, gate: Duration, firstToken: Duration, firstSound: Duration, thoughtInTheGate: Duration = .zero)
+---
+>   Conversation/TurnTimeline.swift: public let firstSoundParts: FirstSoundParts?
+>   Conversation/TurnTimeline.swift: public init(turn: Int, earFinish: Duration?, gate: Duration, firstToken: Duration, firstSound: Duration, thoughtInTheGate: Duration = .zero, firstSoundParts: FirstSoundParts? = nil)
+>   Conversation/TurnTimeline.swift: public var firstSoundRest: Duration?
+428a432,435
+>   Conversation/TurnTimeline.swift: public struct FirstSoundParts: Sendable, Equatable
+>   Conversation/TurnTimeline.swift: public let words: Duration
+>   Conversation/TurnTimeline.swift: public let decode: Duration
+>   Conversation/TurnTimeline.swift: public init(words: Duration, decode: Duration)
+882a890
+>   ScriptedSynthesizer.swift: public var firstSoundParts: FirstSoundParts?
+885a894
+>   ScriptedSynthesizer.swift: public func setFirstSoundParts(_ parts: FirstSoundParts, utterance index: Int)

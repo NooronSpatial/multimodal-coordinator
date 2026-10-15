@@ -1,0 +1,25 @@
+## M108 — the coordinator drops the voice's parts
+file: Sources/MultiModalKit/Conversation/TurnCoordinator+Stages.swift
+KILLED — red rows:
+  - the voice's parts reach the timeline, and the rest is what is left of ⑤
+reverted: yes
+
+## M109 — (a) runs to the first audio, not to the decode asked for
+file: Sources/MultiModalKitTTS/Decode/NeuralVoiceRun.swift
+KILLED — red rows:
+  - the neural voice reports the wait for its first phrase and that phrase's decode
+reverted: yes
+
+## M110 — (b) is measured from the birth
+file: Sources/MultiModalKitTTS/Decode/NeuralVoiceRun.swift
+KILLED — red rows:
+  - the neural voice reports the wait for its first phrase and that phrase's decode
+reverted: yes
+
+## M111 — the rest forgets the decode
+file: Sources/MultiModalKit/Conversation/TurnTimeline.swift
+KILLED — red rows:
+  - the voice's parts reach the timeline, and the rest is what is left of ⑤
+reverted: yes
+
+source tree after the run: clean

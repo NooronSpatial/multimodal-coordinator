@@ -192,6 +192,15 @@ public protocol SynthesisRun: Sendable {
     func finishTokens() async
     /// Abandon the utterance mid-speech. Same contract as `ReplyRun.cancel`.
     func cancel() async
+    /// ⑤ in its parts, once the first sound is out (5d piece 5, D-146): the
+    /// coordinator reads it when this run reports `.started`. Nil by default:
+    /// a voice that does not measure them keeps a single ⑤.
+    var firstSoundParts: FirstSoundParts? { get }
+}
+
+extension SynthesisRun {
+    /// Not measured: a voice written before 5d piece 5 says nothing.
+    public var firstSoundParts: FirstSoundParts? { nil }
 }
 
 /// A factory for spoken utterances.

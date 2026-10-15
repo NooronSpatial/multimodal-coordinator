@@ -6227,3 +6227,32 @@ saving is the smaller of the two, ~0.5 s a turn (felt ≈ 2.2 → 1.7 s).
   loops); C, a warning in the docs (a meal could be logged before the person
   finished). **The cost accepted:** the diet app, which uses tools, gets no
   speed-up from this piece.
+
+## D-145 — 5d piece 5 is the voice's first sound (⑤), measured in its parts first (Milestone 5d)
+
+**Date:** 2026-10-14 · **Decided by:** Ryad ("A — the voice's first sound") ·
+**Ruling:** after piece 4 the felt pause on his phone is ~1.9 s: ① 300 ·
+② 202 · ③ 503 · ④ 149 · **⑤ 708** · 40 (§76b). ⑤, the first token → the first
+sound, is the biggest block left. As D-132 asks, it is measured in its parts
+before anything is changed: the wait for the first phrase's words, the voice's
+decode of that phrase, and the player's start.
+
+- *Rejected:* **B — a smarter gate (③)**: a short gate when the sentence is
+  clearly finished; but Ryad pauses mid-sentence often (23 early replies thrown
+  away in §76b), so a shorter gate would answer him before he finished.
+- *Rejected:* **C — the ear (① ②)**: the app's silence wait and the ear's
+  finish; a shorter wait means more fragments, a faster finish a streaming ear.
+
+## D-146 — 5d piece 5 signed: ⑤ measured in its parts, stamped in the voice (F-48 A) (Milestone 5d)
+
+**Date:** 2026-10-14 · **Decided by:** Ryad ("Sign, F-48 A") · **Ruling:**
+SPEC §257–§262 as written. The voice reports, per reply, when it cut the first
+phrase and when that phrase's audio was ready, through a defaulted hand-off;
+⑤ splits into (a) the words, (b) the decode and (c) the rest. Nothing changes in
+behaviour; the fix is a later spec, ruled on these numbers.
+
+- *Rejected:* **F-48 B — estimated in the demos** from the mind's token rate
+  and the voice's decode totals: no library change, but (a) and (b) would be
+  guesses with an error nobody knows (D-132: measure, do not estimate).
+- *Rejected:* **skipping the measurement** for a fix ruled on the hint in
+  §257 (~46 characters a second on a warm phone): the hint is one reading.
