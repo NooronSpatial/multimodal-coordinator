@@ -1,0 +1,441 @@
+# Conversation log — MultiModalKit demo
+
+picker says: mind=Local · ear=Whisper · mouth=Neural · speaker shield=true · tools=off
+tools: off · the plain path, AC-227's baseline
+Apple ear (SpeechTranscriber) locales on this device: 45 total · Arabic: NONE
+local model: mlx-community/Qwen3-4B-4bit · installed: true · MLX runnable here: true
+memory headroom: 3487 MB before this app's limit
+voice loaded: true
+MLX memory now: active 2318 MB · peak 3288 MB
+local mind: warm: the weights are resident
+weights expected at: /var/mobile/Containers/Data/Application/5637055D-40A5-4675-9634-EFF08FC6AC89/Documents/Qwen3-4B-4bit
+
+NOTE: the `mind:` line under each turn is the brain that
+ACTUALLY answered, taken from the generator the coordinator
+held — not from the picker above. If they disagree, that is
+the finding.
+
+## turn 1
+mind: **Local (MLX)**
+
+heard: Good morning, my friend. How are you?
+
+reply: I'm doing well, thank you. How about you?
+
+at 6 s · thermal nominal · 3379 MB free
+
+first word 303 ms · total 1154 ms · MLX peak 2585 MB
+
+tools: off
+
+voice: 2793 ms audio · RTF 0.418 · cushion 0 ms
+
+## turn 2
+mind: **Local (MLX)**
+
+heard: I'm doing well, thank you.
+
+reply: _(no words)_
+
+at 12 s · thermal nominal · 3224 MB free
+
+first word never · total 258 ms · MLX peak 2585 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 3
+mind: **Local (MLX)**
+
+heard: I'm doing well, thank you. Can you explain to me the speed of the life in detail?
+
+reply: I cannot explain the speed of life in detail.
+
+at 17 s · thermal nominal · 3424 MB free
+
+first word 427 ms · total 1184 ms · MLX peak 2618 MB
+
+tools: off
+
+voice: 2797 ms audio · RTF 0.372 · cushion 0 ms
+
+## turn 4
+mind: **Local (MLX)**
+
+heard: Why not?
+
+reply: Because I don't have the ability to explain abstract concepts like the "speed of life" in detail.
+
+at 30 s · thermal nominal · 3440 MB free
+
+first word 422 ms · total 2046 ms · MLX peak 2717 MB
+
+tools: off
+
+voice: 5456 ms audio · RTF 0.356 · cushion 0 ms
+
+## turn 5
+mind: **Local (MLX)**
+
+heard: Can you explain me how the car engines work step by step and in detail?
+
+reply: Yes, I can explain how car engines work step by step.
+
+at 43 s · thermal nominal · 3420 MB free
+
+first word 734 ms · total 1626 ms · MLX peak 2717 MB
+
+tools: off
+
+voice: 3694 ms audio · RTF 0.378 · cushion 0 ms
+
+## turn 6
+mind: **Local (MLX)**
+
+heard: Explain it to me please.
+
+reply: Sure. Here's a simple explanation of how a car engine works:  
+
+1. The engine's piston moves up and down in the cylinder.  
+2. The spark plug ignites the air-fuel mixture, causing an explosion.  
+3. The explosion pushes the piston down, turning the crankshaft.  
+4. The crankshaft converts the piston's motion into rotational motion.  
+5. The rotational motion turns the wheels, which move the car.
+
+at 60 s · thermal nominal · 3380 MB free
+
+first word 535 ms · total 9575 ms · MLX peak 3012 MB
+
+tools: off
+
+voice: 25303 ms audio · RTF 0.382 · cushion 0 ms
+
+## turn 7
+mind: **Local (MLX)**
+
+heard: Tell me the history of the telephone.
+
+reply: The telephone was invented in the 19th century by Alexander Graham Bell, who demonstrated his device in 1876, revolutionizing communication by allowing people to talk across long distances.
+
+at 86 s · thermal nominal · 3398 MB free
+
+first word 623 ms · total 3927 ms · MLX peak 3012 MB
+
+tools: off
+
+voice: 12655 ms audio · RTF 0.327 · cushion 0 ms
+
+## turn 8
+mind: **Local (MLX)**
+
+heard: Damit, he has believed the Internet.
+
+reply: I don't understand your question. Could you please clarify what you mean by "he has believed the Internet"?
+
+at 102 s · thermal nominal · 3430 MB free
+
+first word 395 ms · total 1886 ms · MLX peak 3062 MB
+
+tools: off
+
+voice: 5834 ms audio · RTF 0.365 · cushion 0 ms
+
+## turn 9
+mind: **Local (MLX)**
+
+heard: No, tell me the history of the Internet.
+
+reply: The Internet was developed in the 20th century, starting with ARPANET in the 1960s, and evolved through the 1980s and 1990s into a global network connecting millions of computers, enabling instant communication and information sharing.
+
+at 115 s · thermal nominal · 3378 MB free
+
+first word 523 ms · total 4526 ms · MLX peak 3062 MB
+
+tools: off
+
+voice: 15973 ms audio · RTF 0.349 · cushion 0 ms
+
+## turn 10
+mind: **Local (MLX)**
+
+heard: Explain me step by step and in detail how languages how the language develops.
+
+reply: Languages develop through a combination of social interaction, cultural transmission, and natural selection, with changes over time due to factors like migration, technology, and environmental pressures.
+
+at 145 s · thermal nominal · 3394 MB free
+
+first word 521 ms · total 3445 ms · MLX peak 3288 MB
+
+tools: off
+
+## turn 11
+mind: **Local (MLX)**
+
+heard: Baby, you can tell me something about the history of the Arabic language in detail.
+
+reply: The Arabic language has its roots in the 3rd century CE, originating from the Arabian Peninsula, and has evolved through various stages, including the Classical Arabic period, the Ottoman Arabization, and the modern era, with the Quran being a key milestone in its development.
+
+at 164 s · thermal nominal · 3393 MB free
+
+first word 528 ms · total 5575 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 15452 ms audio · RTF 0.375 · cushion 0 ms
+
+## turn 12
+mind: **Local (MLX)**
+
+heard: Okay, can you explain me the history of Germany since 1000 years?
+
+reply: _(no words)_
+
+at 184 s · thermal nominal · 3246 MB free
+
+first word never · total 387 ms · MLX peak 3288 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 13
+mind: **Local (MLX)**
+
+heard: Okay, can you explain me the history of Germany since 1000 years? Indeed.
+
+reply: Sure, here's a brief overview: Germany has a long history since the 11th century, marked by the rise of the Holy Roman Empire, the Reformation, industrialization, two World Wars, the division during the Cold War, and reunification in 1990.
+
+at 191 s · thermal nominal · 3370 MB free
+
+first word 512 ms · total 5706 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 15435 ms audio · RTF 0.382 · cushion 0 ms
+
+## turn 14
+mind: **Local (MLX)**
+
+heard: What about the Roman Empire?
+
+reply: The Roman Empire had a significant influence on Germany, as it was part of the Western Roman Empire until its fall in 476 AD. After that, the area became part of the Holy Roman Empire and later the German Empire.
+
+at 209 s · thermal fair · 3424 MB free
+
+first word 525 ms · total 4516 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 14442 ms audio · RTF 0.331 · cushion 0 ms
+
+## turn 15
+mind: **Local (MLX)**
+
+heard: Can you explain me the nature of the light?
+
+reply: The nature of light is that it is a form of electromagnetic radiation, which can exhibit both wave-like and particle-like properties, depending on the context in which it is observed.
+
+at 230 s · thermal fair · 3389 MB free
+
+first word 636 ms · total 3813 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 10615 ms audio · RTF 0.342 · cushion 0 ms
+
+## turn 16
+mind: **Local (MLX)**
+
+heard: What is the speed of the light?
+
+reply: The speed of light in a vacuum is approximately 299,792 kilometers per second.
+
+at 244 s · thermal fair · 3406 MB free
+
+first word 518 ms · total 1852 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 7637 ms audio · RTF 0.302 · cushion 0 ms
+
+## turn 17
+mind: **Local (MLX)**
+
+heard: Who is the first one that's figured out? and measure the speed of the light.
+
+reply: The first person to measure the speed of light was Ole Christensen Rømer, a Danish astronomer.
+
+at 260 s · thermal fair · 3371 MB free
+
+first word 651 ms · total 2385 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 5427 ms audio · RTF 0.429 · cushion 0 ms
+
+## turn 18
+mind: **Local (MLX)**
+
+heard: What about Ibn Al-Haisam?
+
+reply: Ibn Al-Haytham, a 10th-century Arab scholar, proposed that light travels at a finite speed, but he did not measure it.
+
+at 272 s · thermal fair · 3390 MB free
+
+first word 540 ms · total 3207 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 7055 ms audio · RTF 0.391 · cushion 0 ms
+
+## turn 19
+mind: **Local (MLX)**
+
+heard: Mmm, okay. Who is the first one that figure out that the Earth? turn around the sun and not the opposite.
+
+reply: The first person to propose that the Earth orbits the Sun was Nicolaus Copernicus.
+
+at 291 s · thermal fair · 3390 MB free
+
+first word 633 ms · total 2156 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 4962 ms audio · RTF 0.377 · cushion 0 ms
+
+## turn 20
+mind: **Local (MLX)**
+
+heard: When he did this?
+
+reply: Nicolaus Copernicus proposed his heliocentric model in the 16th century, specifically in 1543 with his work "De revolutionibus orbium coelestium."
+
+at 301 s · thermal fair · 3390 MB free
+
+first word 634 ms · total 3516 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 10392 ms audio · RTF 0.395 · cushion 0 ms
+
+## turn 21
+mind: **Local (MLX)**
+
+heard: How he measured this or how he did this?
+
+reply: Copernicus did not perform experiments or measurements; he formulated his theory based on observations and mathematical reasoning.
+
+at 316 s · thermal fair · 3390 MB free
+
+first word 638 ms · total 2280 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 7994 ms audio · RTF 0.292 · cushion 0 ms
+
+## turn 22
+mind: **Local (MLX)**
+
+heard: Wow, that's really strong. Okay, thank you very much.
+
+reply: You're welcome! If you have more questions, feel free to ask.
+
+at 335 s · thermal fair · 3351 MB free
+
+first word 640 ms · total 1627 ms · MLX peak 3288 MB
+
+tools: off
+
+voice: 3516 ms audio · RTF 0.399 · cushion 0 ms
+
+
+## timeline (5d)
+
+```
+device: iPhone18,5 · Version 27.0.1 (Build 24A446)
+① silence wait: 300 ms (this app's VAD hangover)
+turn 0: ② 273 · ③ 504 · ④ 0 · ⑤ 363 → felt 1441 ms · thought in the gate 504 · ⑤ = 16 + 336 + 12
+turn 1: ② 249 · ③ 505 · ④ 0 · ⑤ 478 → felt 1532 ms · thought in the gate 505 · ⑤ = 95 + 378 + 5
+turn 3: ② 191 · ③ 506 · ④ 0 · ⑤ 492 → felt 1489 ms · thought in the gate 506 · ⑤ = 132 + 354 + 6
+turn 4: ② 290 · ③ 502 · ④ 237 · ⑤ 386 → felt 1715 ms · thought in the gate 502 · ⑤ = 83 + 288 + 14
+turn 5: ② 205 · ③ 502 · ④ 41 · ⑤ 376 → felt 1425 ms · thought in the gate 502 · ⑤ = 89 + 280 + 7
+turn 6: ② 241 · ③ 503 · ④ 128 · ⑤ 498 → felt 1669 ms · thought in the gate 503 · ⑤ = 125 + 365 + 8
+turn 7: ② 419 · ③ 505 · ④ 0 · ⑤ 424 → felt 1648 ms · thought in the gate 505 · ⑤ = 57 + 358 + 9
+turn 8: ② 190 · ③ 501 · ④ 29 · ⑤ 497 → felt 1517 ms · thought in the gate 501 · ⑤ = 126 + 361 + 10
+turn 10: ② 194 · ③ 507 · ④ 22 · ⑤ 471 → felt 1494 ms · thought in the gate 507 · ⑤ = 84 + 379 + 7
+turn 11: ② 333 · ③ 501 · ④ 32 · ⑤ 512 → felt 1678 ms · thought in the gate 501 · ⑤ = 130 + 381 + 1
+turn 13: ② 139 · ③ 508 · ④ 11 · ⑤ 388 → felt 1347 ms · thought in the gate 508 · ⑤ = 84 + 284 + 19
+turn 14: ② 242 · ③ 503 · ④ 30 · ⑤ 551 → felt 1626 ms · thought in the gate 503 · ⑤ = 167 + 366 + 17
+turn 15: ② 197 · ③ 502 · ④ 139 · ⑤ 536 → felt 1674 ms · thought in the gate 502 · ⑤ = 167 + 358 + 12
+turn 16: ② 252 · ③ 501 · ④ 24 · ⑤ 531 → felt 1608 ms · thought in the gate 501 · ⑤ = 168 + 343 + 20
+turn 17: ② 198 · ③ 502 · ④ 158 · ⑤ 590 → felt 1747 ms · thought in the gate 502 · ⑤ = 166 + 404 + 19
+turn 18: ② 225 · ③ 509 · ④ 38 · ⑤ 757 → felt 1829 ms · thought in the gate 509 · ⑤ = 337 + 405 + 16
+turn 19: ② 207 · ③ 506 · ④ 136 · ⑤ 573 → felt 1721 ms · thought in the gate 506 · ⑤ = 166 + 394 + 13
+turn 20: ② 198 · ③ 502 · ④ 140 · ⑤ 693 → felt 1833 ms · thought in the gate 501 · ⑤ = 250 + 432 + 12
+turn 21: ② 195 · ③ 506 · ④ 137 · ⑤ 631 → felt 1769 ms · thought in the gate 506 · ⑤ = 211 + 399 + 22
+turn 23: ② 203 · ③ 502 · ④ 147 · ⑤ 504 → felt 1656 ms · thought in the gate 502 · ⑤ = 166 + 323 + 14
+early reply over turn 0: thought 504 ms → kept
+early reply over turn 1: thought 266 ms → thrown away
+early reply over turn 1: thought 505 ms → kept
+early reply over turn 3: thought 506 ms → kept
+early reply over turn 4: thought 502 ms → kept
+early reply over turn 5: thought 502 ms → kept
+early reply over turn 6: thought 503 ms → kept
+early reply over turn 7: thought 505 ms → kept
+early reply over turn 8: thought 501 ms → kept
+early reply over turn 10: thought 507 ms → kept
+early reply over turn 11: thought 501 ms → kept
+early reply over turn 13: thought 393 ms → thrown away
+early reply over turn 13: thought 508 ms → kept
+early reply over turn 14: thought 503 ms → kept
+early reply over turn 15: thought 502 ms → kept
+early reply over turn 16: thought 501 ms → kept
+early reply over turn 17: thought 502 ms → kept
+early reply over turn 18: thought 509 ms → kept
+early reply over turn 19: thought 506 ms → kept
+early reply over turn 20: thought 501 ms → kept
+early reply over turn 21: thought 506 ms → kept
+early reply over turn 23: thought 502 ms → kept
+barge (turn 10 dies): ⑦ 320 · ⑧ 0 → 320 ms
+candidate over turn 7: loud 220 ms · peak 0.229 · onset → verdict 540 ms → abandoned
+candidate over turn 8: loud 20 ms · peak 0.021 · onset → verdict 320 ms → abandoned
+candidate over turn 10: loud 340 ms · peak 0.210 · onset → verdict 320 ms → CUT
+candidate over turn 11: loud 40 ms · peak 0.027 · onset → verdict 340 ms → abandoned
+candidate over turn 20: loud 20 ms · peak 0.022 · onset → verdict 320 ms → abandoned
+reply #1: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #2: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #3: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #4: 0 pauses over 300 ms · longest 279 ms · quiet before the first word 40 ms
+reply #5: 1 pauses over 300 ms · longest 450 ms · quiet before the first word 40 ms
+reply #6: 0 pauses over 300 ms · longest 198 ms · quiet before the first word 40 ms
+reply #7: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #8: 0 pauses over 300 ms · longest 252 ms · quiet before the first word 40 ms
+reply #9: 0 pauses over 300 ms · longest 182 ms · quiet before the first word 40 ms
+reply #10: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #11: 0 pauses over 300 ms · longest 214 ms · quiet before the first word 40 ms
+reply #12: 0 pauses over 300 ms · longest 208 ms · quiet before the first word 40 ms
+reply #13: 0 pauses over 300 ms · longest 146 ms · quiet before the first word 40 ms
+reply #14: 1 pauses over 300 ms · longest 692 ms · quiet before the first word 40 ms
+reply #15: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #16: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #17: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #18: 0 pauses over 300 ms · longest 253 ms · quiet before the first word 40 ms
+reply #19: 0 pauses over 300 ms · longest 206 ms · quiet before the first word 40 ms
+reply #20: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+
+medians · 20 spoken turns · 1 barges · 20 replies
+② ear     median 206 · min 139 · max 419
+③ gate    median 503 · min 501 · max 509
+④ token   median 35 · min 0 · max 237
+⑤ sound   median 501 · min 363 · max 757
+⑤a words   median 131 · min 16 · max 337
+⑤b decode  median 363 · min 280 · max 432
+⑤c rest    median 12 · min 1 · max 22
+FELT      median 1652 · min 1347 · max 1833
+1st-word quiet  median 40 · min 40 · max 40
+TO 1st WORD  median 1692 · min 1387 · max 1873
+⑦ window  median 320 · min 320 · max 320
+⑧ silent  median 0 · min 0 · max 0
+loud · cut        median 340 · min 340 · max 340
+loud · abandoned  median 30 · min 20 · max 220
+early replies: 20 kept · 2 thrown away
+⑥ longest pause  median 185 · min 80 · max 692
+⑥ replies with a pause over 300 ms: 2
+```

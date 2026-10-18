@@ -9412,3 +9412,11 @@ the first phrase's decode (⑤b), median ms, this Mac, greedy, thinking in the g
   drives the same file server. The earlier loops' list was not recorded.
 - `VendorLoop.swift` is no longer used by the local mind; its tests stay until
   a cleanup piece removes both.
+
+**Added 2026-10-18 — AC-380 on Ryad's phone** (INSTRUMENTS §78b): two sessions
+with the floor. The first decode, like with like (heat "serious"): **578 → 400 ms**
+(the noisy session's hot turns); in a quiet, cooler session 363. The felt pause
+to the first word 1.9 → 1.75 → 1.65 s. **⑥: in the quiet session, no later phrase
+starved** (longest 0.7 s). **Not explained:** the noisy session's two silences
+of 4.4 and 4.8 s (heat, noise and the change were all present; the quiet
+session removed two of them at once, and ran on a new iOS).

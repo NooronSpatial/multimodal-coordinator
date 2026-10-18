@@ -6457,3 +6457,38 @@ the gate, the ear and the mind, and its medians wander ±150 ms between runs of
 the same setup. And the phone: its decode is 578 ms (§77b), so the share the
 GPU takes there is the number that decides whether the floor is worth it
 (AC-380, owed).
+
+### 78b. The phone — Ryad's two sessions with the floor (AC-380; 2026-10-15, 2026-10-18)
+
+| Ryad's phone, median | before (§77b) | with the floor, noisy room | with the floor, quiet room |
+|---|---:|---:|---:|
+| heat | serious, all 18 turns | nominal → serious from 42 s (11 of 16 turns) | nominal → fair from 209 s; never serious |
+| iOS | 26.6.1 | 26.6.1 | **27.0.1** (updated between sessions) |
+| ⑤b, the first decode | **578** ms (438–1 258) | **400** (301–1 252) | **363** (280–432) |
+| ⑤, the first sound | 714 | 581 | 501 |
+| the felt pause, to the first word | 1.9 s | 1.75 s | 1.65 s |
+| voice RTF, per reply | 0.28–0.68 | 0.43–**0.97** | 0.29–0.43 |
+| ⑥ replies with a pause > 300 ms | 5 of 18, longest 1.2 s | 4 of 12, longest **4.8 s** | 2 of 20, longest 0.7 s |
+
+Files: `phone-2026-10-15-session-piece5.txt`, `phone-2026-10-15-session-piece5-fix-noisy.txt`,
+`phone-2026-10-18-session-piece5-fix-quiet.txt`.
+
+**What it shows.** The first decode falls on the phone, more than on the Mac
+(§78: ~70 ms). Like with like, heat "serious" in both: before, 17 of 18 first
+decodes were over 450 ms; in the noisy session's hot turns, 9 of 9 were 301–444
+(median 400) — **about 180 ms saved**. In the quiet session, cooler: 358 ms
+median while "nominal", 394 while "fair". And in a quiet, cool room, no long
+silence inside an answer.
+
+**What it does not explain.** The noisy session's two silences of 4.4 and 4.8 s,
+in replies whose voice ran at RTF 0.75–0.97. Three things were true at once:
+heat "serious", children and others talking (the ear working during replies),
+and the change. The quiet session removed the noise AND the heat, so it cannot
+say which one it was. The floor itself is an unlikely cause: it holds the mind
+only during the first decode, ~400 ms before the first sound, and the silences
+came seconds later, while the voice was decoding slower than it spoke. And the
+quiet session ran on a new iOS (27.0.1), a fourth difference.
+
+**What would separate them.** A hot, quiet session — the phone warmed first —
+with the floor; long silences there would point at heat (with our loop), none
+at the noise.
