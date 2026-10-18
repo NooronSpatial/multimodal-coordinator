@@ -321,6 +321,21 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
         return try await decodeBody(pipeline, samples)
     }
 
+    /// Whisper emits non-speech CONTROL tokens in two shapes: bracketed
+    /// `[BLANK_AUDIO]` / `[MUSIC]` and parenthesized `(baby babbling)` /
+    /// `(laughter)`. Neither is a word a person said — strip both so the mind
+    /// never receives them as a student turn (the phone wrote "(baby
+    /// babbling)" into a real session trace, 2026-10-18).
+    static func stripNonSpeechTokens(_ text: String) -> String {
+        let stripped = text.replacingOccurrences(
+            of: #"\[[A-Za-z_ ]+\]|\([A-Za-z_ ]+\)"#,
+            with: "",
+            options: .regularExpression)
+        return stripped
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespaces)
+    }
+
     private func decodeBody(_ pipeline: WhisperKit, _ samples: [Float]) async throws -> String {
         do {
             // The hint travels as WhisperKit's own option. `nil` here is
@@ -330,14 +345,7 @@ public actor WhisperEngine: TranscriptionEngine, ModelBacked {
             let results = try await pipeline.transcribe(audioArray: samples,
                                                         decodeOptions: options)
             let joined = results.map(\.text).joined(separator: " ")
-            // Whisper emits non-speech CONTROL tokens like [BLANK_AUDIO] or
-            // [MUSIC]; they are markers, not words a person said — stripped
-            // here so no consumer ever mistakes them for transcription.
-            let stripped = joined.replacingOccurrences(
-                of: #"\[[A-Za-z_ ]+\]"#, with: "", options: .regularExpression)
-            return stripped
-                .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
-                .trimmingCharacters(in: .whitespaces)
+            return Self.stripNonSpeechTokens(joined)
         } catch {
             throw TranscriptionFailure.engineFailed(String(describing: error))
         }
