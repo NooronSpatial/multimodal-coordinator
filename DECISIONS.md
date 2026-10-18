@@ -6308,3 +6308,25 @@ sieve — re-proven by the 4y live rows on the real 4B and by new mutations.
   variant 4y chose.
 - *Rejected:* **C — stop the fix**: the experiment measured ×1.56–1.58, and on
   the phone that may be ~200 ms of ⑤.
+
+## D-150 — piece 5's fix merges with one open item: the noisy session's long silences (Milestone 5d)
+
+**Date:** 2026-10-18 · **Decided by:** Ryad ("A — Merge when CI is green") ·
+**Finding:** on Ryad's phone (INSTRUMENTS §78b) the first decode fell ~180 ms
+like with like (578 → 399 ms, heat "serious"), 363 ms in a quiet, cooler
+session; the felt pause to the first word 1.9 → 1.65 s; in the quiet room no
+pause inside an answer over 0.7 s. But the noisy session had two silences of
+4.4 and 4.8 s, with heat, noise and the change all present, and the quiet
+session removed two of them at once (and ran on iOS 27.0.1).
+**Ruling:** PR 67 merges when CI is green. The silences stay an open item
+(SPEC §269); a hot, quiet session — the phone warmed first — is measured in the
+next piece, the voice under heat (⑥). Also named here, not met: D-149 said our
+loop would be "re-proven by the 4y live rows on the real 4B"; those rows are
+red on this Mac with the vendor's loop and ours alike (SPEC §269). The real
+4B's evidence for our loop is the harness (runs 24–29), the experiment and the
+two phone sessions.
+
+- *Rejected:* **B — one more session first** (a warmed phone, a quiet room,
+  before the merge): it would separate heat from noise, but the piece's goal,
+  ⑤b, is already met on the phone, and the question belongs to the next piece's
+  subject anyway.
