@@ -9467,3 +9467,11 @@ voice; the phone.
 
 The numbers in INSTRUMENTS §79; AC-385 checked; present → HALT. Then the clean
 Piper's spec, ruled on these numbers.
+
+### §274 — results (Piper, the measurement), measured 2026-10-18
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-384 the numbers | **met** — the first phrase, median of 20: Kokoro 140 alone / **218** under the 4B's writing (×1.56); Piper 101 / **118** (×1.16). The mind wrote 8 tokens during Piper's decode, 6 during Kokoro's: Piper does not slow it, and needs no floor | INSTRUMENTS §79; `piper-vs-kokoro-2026-10-18-run1.txt`, `-run3.txt` |
+| AC-385 clean | **met** — this repository gains no Piper, espeak-ng or ONNX code (the only matches for those words are inside words like "areSpeakable"); only the numbers and the method are committed. The other project: this session only read and copied; its piper-objc tree has the same fingerprint before and after. **Named:** three commits by Ryad landed there during the run (10:32–10:36) — his own work, not this session's | `git status`, fingerprints in the session |
+| AC-386 named | **met** — the voice measured (en_US-lessac) is research and non-commercial only; the Mac only; quality not measured; Kokoro's RTF here is untrimmed | §79 |
