@@ -6475,8 +6475,9 @@ Files: `phone-2026-10-15-session-piece5.txt`, `phone-2026-10-15-session-piece5-f
 
 **What it shows.** The first decode falls on the phone, more than on the Mac
 (§78: ~70 ms). Like with like, heat "serious" in both: before, 17 of 18 first
-decodes were over 450 ms; in the noisy session's hot turns, 9 of 9 were 301–444
-(median 400) — **about 180 ms saved**. In the quiet session, cooler: 358 ms
+decodes were over 450 ms; in the noisy session's 7 turns while "serious", 7 of 7
+were 301–444 (median 399) — **about 180 ms saved**. (Its two "fair" turns: 389,
+409.) In the quiet session, cooler: 358 ms
 median while "nominal", 394 while "fair". And in a quiet, cool room, no long
 silence inside an answer.
 
