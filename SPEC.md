@@ -9420,3 +9420,58 @@ to the first word 1.9 → 1.75 → 1.65 s. **⑥: in the quiet session, no later
 starved** (longest 0.7 s). **Not explained:** the noisy session's two silences
 of 4.4 and 4.8 s (heat, noise and the change were all present; the quiet
 session removed two of them at once, and ran on a new iOS).
+
+# 5d — Piper, step 1: the measurement (signed by F-53 A, D-152)
+
+## §270 — why
+
+```
+Piper today:  text ─▶ espeak-ng ─▶ libpiper ─▶ ONNX Runtime (CPU, 1 thread) ─▶ audio
+                      GPL-3.0      GPL-3.0     MIT
+a clean Piper (F-52 A):
+              text ─▶ OUR sounds ─▶ OUR glue ─▶ ONNX Runtime (CPU)          ─▶ audio
+```
+
+- Ryad's other project measured first words in 0.26–0.37 s on his iPhone, in
+  8 languages. Its voice model runs on the CPU, so it would not share the GPU
+  with the 4B mind, the cause piece 5's fix fought (§264).
+- Building the clean Piper is real work (the sounds, one language at a time).
+  Before it, a number on this Mac, beside our own mind.
+
+## §271 — scope
+
+1. A measuring tool in a scratch folder **outside both repositories**, built
+   from **copies** of the other project's piper-objc, its packages and its
+   voices: no download, nothing changed there, no GPL file in this repository.
+2. **Piper against Kokoro** on the four first phrases of `decode-under-load`
+   (§78): each phrase's decode time and RTF, **alone and while the 4B writes**,
+   back to back, several draws.
+3. **Only the numbers are committed** (with the method that made them).
+
+## §272 — acceptance criteria (AC-384 … AC-386)
+
+- **AC-384 — the numbers.** For Piper and for Kokoro: the median decode of the
+  four first phrases alone and under the 4B's writing, their ratio, and RTF;
+  the same phrases and draws, back to back.
+- **AC-385 — clean.** The other project's tree is unchanged (its `git status`
+  before and after); this repository gains no GPL file and no reference to the
+  scratch tool; only numbers and the method are committed.
+- **AC-386 — named.** The English voice measured (en_US-lessac) is research
+  and non-commercial only: measured, never shipped. The Mac only; the phone
+  is not asked for here.
+
+**Non-goals:** any Piper code in the library; our own sounds step; choosing a
+voice; the phone.
+
+## §273 — definition of done
+
+The numbers in INSTRUMENTS §79; AC-385 checked; present → HALT. Then the clean
+Piper's spec, ruled on these numbers.
+
+### §274 — results (Piper, the measurement), measured 2026-10-18
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-384 the numbers | **met** — the first phrase, median of 20: Kokoro 140 alone / **218** under the 4B's writing (×1.56); Piper 101 / **118** (×1.16). The mind wrote 8 tokens during Piper's decode, 6 during Kokoro's: Piper does not slow it, and needs no floor | INSTRUMENTS §79; `piper-vs-kokoro-2026-10-18-run1.txt`, `-run3.txt` |
+| AC-385 clean | **met** — this repository gains no Piper, espeak-ng or ONNX code (the only matches for those words are inside words like "areSpeakable"); only the numbers and the method are committed. The other project: this session only read and copied; its piper-objc tree has the same fingerprint before and after. **Named:** three commits by Ryad landed there during the run (10:32–10:36) — his own work, not this session's | `git status`, fingerprints in the session |
+| AC-386 named | **met** — the voice measured (en_US-lessac) is research and non-commercial only; the Mac only; quality not measured; Kokoro's RTF here is untrimmed | §79 |

@@ -1,0 +1,36 @@
+# Piper against Kokoro, run 3 (2026-10-18, this Mac; SPEC §271, AC-384) — the run that counts. A scratch tool OUTSIDE this repository (D-152):
+# copies of the other project's piper-objc packages (libpiper + espeak-ng, GPL-3.0; ONNX Runtime 1.22, MIT) and its en_US-lessac-medium voice
+# (research / non-commercial: measured, never shipped); Kokoro through KokoroSwift (kokoro-float16, af_heart) as decode-under-load does;
+# the mind = MLXReplyGenerator over Qwen3-4B-4bit, no floor. Each phrase: Kokoro alone, Piper alone, then each while the mind writes
+# (reply open, 5 tokens out, decode timed, reply cancelled). Decode = text in -> every sample out. Audio = samples / rate (Kokoro 24 kHz, untrimmed;
+# Piper 22.05 kHz). Stdout unbuffered.
+
+⚖️  PIPER AGAINST KOKORO — the first phrase, alone and under the 4B's writing (SPEC §271, AC-384)
+    kokoro: /Users/ryad/Library/Application Support/Kokoro · piper: /private/tmp/claude-501/-Users-ryad-Developer-multimodal-coordinator/587f10e3-db9a-48fc-bc84-515008a496b8/scratchpad/piper-measure/voices/en_US-lessac-medium.onnx · mind: /Users/ryad/Developer/models/Qwen3-4B-4bit · 5 draws
+  draw 1 · "I'm listening." kokoro  227 /  227 ms · piper   74 /   97 ms (alone / under load) · audio k 1600 p  813 ms · tokens meanwhile k 7 / p 6
+  draw 1 · "The first law states" kokoro  141 /  221 ms · piper  121 /  136 ms (alone / under load) · audio k 1825 p 1405 ms · tokens meanwhile k 6 / p 9
+  draw 1 · "Good morning!" kokoro  127 /  200 ms · piper   73 /   91 ms (alone / under load) · audio k 1550 p  882 ms · tokens meanwhile k 6 / p 6
+  draw 1 · "Sure, here is how" kokoro  147 /  245 ms · piper  103 /  123 ms (alone / under load) · audio k 1775 p 1254 ms · tokens meanwhile k 8 / p 8
+  draw 2 · "I'm listening." kokoro  131 /  200 ms · piper   74 /   86 ms (alone / under load) · audio k 1600 p  882 ms · tokens meanwhile k 6 / p 6
+  draw 2 · "The first law states" kokoro  153 /  225 ms · piper  107 /  141 ms (alone / under load) · audio k 1825 p 1347 ms · tokens meanwhile k 6 / p 9
+  draw 2 · "Good morning!" kokoro  121 /  217 ms · piper   77 /   87 ms (alone / under load) · audio k 1550 p  940 ms · tokens meanwhile k 7 / p 6
+  draw 2 · "Sure, here is how" kokoro  144 /  232 ms · piper  111 /  133 ms (alone / under load) · audio k 1775 p 1416 ms · tokens meanwhile k 7 / p 8
+  draw 3 · "I'm listening." kokoro  118 /  222 ms · piper   69 /   89 ms (alone / under load) · audio k 1600 p  801 ms · tokens meanwhile k 7 / p 6
+  draw 3 · "The first law states" kokoro  150 /  222 ms · piper  115 /  118 ms (alone / under load) · audio k 1825 p 1405 ms · tokens meanwhile k 6 / p 8
+  draw 3 · "Good morning!" kokoro  130 /  200 ms · piper   67 /   87 ms (alone / under load) · audio k 1550 p  789 ms · tokens meanwhile k 6 / p 6
+  draw 3 · "Sure, here is how" kokoro  144 /  227 ms · piper  110 /  136 ms (alone / under load) · audio k 1775 p 1416 ms · tokens meanwhile k 7 / p 9
+  draw 4 · "I'm listening." kokoro  129 /  191 ms · piper   71 /   79 ms (alone / under load) · audio k 1600 p  813 ms · tokens meanwhile k 5 / p 5
+  draw 4 · "The first law states" kokoro  150 /  222 ms · piper  102 /  129 ms (alone / under load) · audio k 1825 p 1254 ms · tokens meanwhile k 6 / p 8
+  draw 4 · "Good morning!" kokoro  123 /  199 ms · piper   62 /   79 ms (alone / under load) · audio k 1550 p  731 ms · tokens meanwhile k 6 / p 5
+  draw 4 · "Sure, here is how" kokoro  140 /  214 ms · piper  106 /  133 ms (alone / under load) · audio k 1775 p 1335 ms · tokens meanwhile k 6 / p 9
+  draw 5 · "I'm listening." kokoro  129 /  201 ms · piper   59 /   88 ms (alone / under load) · audio k 1600 p  708 ms · tokens meanwhile k 6 / p 6
+  draw 5 · "The first law states" kokoro  150 /  218 ms · piper  101 /  126 ms (alone / under load) · audio k 1825 p 1265 ms · tokens meanwhile k 6 / p 8
+  draw 5 · "Good morning!" kokoro  121 /  201 ms · piper   67 /   81 ms (alone / under load) · audio k 1550 p  813 ms · tokens meanwhile k 6 / p 5
+  draw 5 · "Sure, here is how" kokoro  140 /  214 ms · piper  110 /  127 ms (alone / under load) · audio k 1775 p 1382 ms · tokens meanwhile k 6 / p 8
+════ THE FIRST PHRASE — 20 phrases per column ════
+  kokoro alone decode median  140 ms · min  118 · max  227 · RTF median 0.08
+  kokoro under load decode median  218 ms · min  191 · max  245 · RTF median 0.13
+  piper alone decode median  101 ms · min   59 · max  121 · RTF median 0.08
+  piper under load decode median  118 ms · min   79 · max  141 · RTF median 0.10
+  ratio under load / alone: kokoro ×1.56 · piper ×1.16
+  the mind's tokens during the decode, median: kokoro 6 · piper 8

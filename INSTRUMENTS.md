@@ -6493,3 +6493,52 @@ quiet session ran on a new iOS (27.0.1), a fourth difference.
 **What would separate them.** A hot, quiet session — the phone warmed first —
 with the floor; long silences there would point at heat (with our loop), none
 at the noise.
+
+## 79. Piper against Kokoro — the first phrase, alone and while the 4B writes (5d, AC-384; 2026-10-18)
+
+**Why** (D-152): Ryad's other project runs Piper fast on his iPhone, and its
+model runs on the CPU. Before we build a clean Piper (F-52 A), a number beside
+our own mind, on this Mac.
+
+**Method.** A scratch tool **outside this repository**, built from copies of
+the other project's Piper (libpiper + espeak-ng, GPL-3.0; ONNX Runtime 1.22,
+MIT; on the CPU, one thread) and its `en_US-lessac-medium` voice (research and
+non-commercial only: measured, never shipped). Kokoro through KokoroSwift
+(`kokoro-float16`, `af_heart`), exactly as `decode-under-load` (§78). The mind:
+the real 4B, **no floor**. For each of the four first phrases, in one draw:
+Kokoro alone, Piper alone, then each while the mind writes (a reply open, its
+first 5 tokens out, the decode timed, the reply cancelled). 5 draws, 20 phrases
+a column. Decode = text in → every sample out.
+
+| the first phrase, median ms | alone | while the 4B writes | ratio | the mind's tokens during the decode |
+|---|---:|---:|---:|---:|
+| Kokoro | 140 | 218 | ×1.56 | 6 |
+| Kokoro + the floor (§78's run) | 127 | 149 | — | 1 — the mind waits |
+| **Piper** | **101** | **118** | **×1.16** | **8** — the mind does not wait |
+
+Run 3: `docs/evidence/5d/piper-vs-kokoro-2026-10-18-run3.txt`; run 1 agrees
+(Kokoro 138 / 216, Piper 102 / 115): `…-run1.txt`.
+
+**What it shows.** Under load, **Piper's first decode is ~100 ms faster than
+Kokoro's** and ~30 ms faster than Kokoro with the floor — **while the mind
+keeps writing**: 8 tokens during Piper's 118 ms, against 6 during Kokoro's
+218 ms. The CPU and the GPU work side by side; Piper barely notices the mind
+(×1.16), and the mind barely notices Piper. With Piper, the floor is not
+needed.
+
+**What it does not show.**
+- **Our clean Piper.** These 101 ms include espeak-ng turning the text into
+  sounds. Our own permissive step (F-52 A) will cost what it costs; the model
+  part should be the same for any "medium" Piper voice (~63 MB, same shape).
+- **Quality.** Not measured. The other project's own README calls Piper
+  "slightly less natural than Kokoro". And the voice measured cannot ship.
+- **RTF, like with like.** Kokoro's audio here is untrimmed (its quiet
+  included, §74), so its RTF looks better than in our pipeline; Piper's has
+  no such padding. The decode times are the fair comparison.
+- **The phone.** Its CPU is not the Mac's. The other project measured first
+  words in 0.26–0.37 s there, whole sentences into a file — another measure.
+- **More threads.** libpiper runs ONNX Runtime on one thread; more were not
+  tried.
+- The tool crashed on exit in 2 of 3 runs, after printing (the mind's
+  teardown, the same open item as `decode-under-load`); run 2's numbers were
+  lost to it (buffered output).

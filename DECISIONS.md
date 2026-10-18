@@ -6330,3 +6330,46 @@ two phone sessions.
   before the merge): it would separate heat from noise, but the piece's goal,
   ⑤b, is already met on the phone, and the question belongs to the next piece's
   subject anyway.
+
+## D-151 — piece 5's fix: the teach-back is skipped (process, Milestone 5d)
+
+**Date:** 2026-10-18 · **Decided by:** Ryad ("skip teach-back") · **Ruling:**
+piece 5's fix (D-148, D-149) is closed without the teach-back gate of the
+working method (§3.6). It merged as PR 67 the same day. The floor and our own
+token loop stay on the list of pieces Ryad has not yet explained back; a later
+teach-back may pick them up.
+
+- *Rejected:* **the teach-back before the next piece**, as the method asks.
+  Ryad's call: Piper comes first.
+
+## D-152 — Piper, a clean one, measured first (amends D-137's rejected D) (Milestone 5d)
+
+**Date:** 2026-10-18 · **Decided by:** Ryad ("A — clean Piper", "A — measure
+first") · **Finding:** Ryad ran Piper in another project of his: first words
+0.26–0.37 s on his iPhone, voices in 8 languages. Read there, without changing
+anything: its chain is piper-objc → piper1-gpl (libpiper) → espeak-ng →
+ONNX Runtime. The first three are **GPL-3.0**; ONNX Runtime is **MIT**, and the
+voice model runs in it **on the CPU, one thread** — out of the 4B mind's way
+on the GPU. Each voice has its own licence: en_US-lessac is research and
+non-commercial only, ar_JO-kareem states none, de_DE-thorsten is CC0.
+**Ruling (F-52 A):** Piper enters the library only as a **clean Piper**: our
+own Swift glue, ONNX Runtime, and our own permissive text-to-sounds step,
+English first, then one language at a time; only voices whose licence allows
+shipping. D-016's four questions stand. **Ruling (F-53 A):** first a
+measurement on this Mac, in a scratch folder outside both repositories, with
+copies of that project's Piper and voices: Piper against Kokoro on the same
+first phrases, alone and while the 4B writes. Only the numbers are committed;
+the clean Piper's spec is written on them.
+
+- *Rejected:* **B — Piper as it is** (the GPL chain in an optional product):
+  every language at once, but D-016's licence question fails, every app using
+  it would have to be GPL-3.0 and publish its source, and two of the three
+  voices could not ship anyway.
+- *Rejected:* **C — not Piper**: its speed and its CPU home are worth a number
+  first.
+- *Rejected:* **build first**, on the other project's numbers: they were taken
+  beside a different mind (llama.cpp), whole sentences into a file, not our
+  first phrase beside the 4B.
+- D-137 rejected "a voice bake-off, Kokoro against Piper" on 2026-10-01 for the
+  licence; this entry changes that: the bake-off is the measurement, and the
+  licence is answered by building the GPL parts ourselves.
