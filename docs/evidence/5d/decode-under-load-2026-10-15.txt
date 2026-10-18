@@ -1,0 +1,35 @@
+Building for production...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 2] multimodal-coordinator_MultiModalKit
+[1 / 73] Crypto
+Build complete! (1.48 sec)
+
+⚖️  DECODE-UNDER-LOAD (5d piece 5's fix, AC-377) — the first phrase, alone and under the 4B's writing
+    kokoro: /Users/ryad/Library/Application Support/Kokoro/kokoro-float16.safetensors · mind: /Users/ryad/Developer/models/Qwen3-4B-4bit · 5 draws
+  draw 1 · "I'm listening." alone  258 ms · under load  260 ms · ×1.01 · 7 tokens written meanwhile
+  draw 1 · "The first law states" alone  165 ms · under load  284 ms · ×1.72 · 8 tokens written meanwhile
+  draw 1 · "Good morning!" alone  143 ms · under load  233 ms · ×1.63 · 7 tokens written meanwhile
+  draw 1 · "Sure, here is how" alone  150 ms · under load  320 ms · ×2.13 · 7 tokens written meanwhile
+  draw 2 · "I'm listening." alone  194 ms · under load  226 ms · ×1.16 · 6 tokens written meanwhile
+  draw 2 · "The first law states" alone  168 ms · under load  282 ms · ×1.68 · 7 tokens written meanwhile
+  draw 2 · "Good morning!" alone  140 ms · under load  223 ms · ×1.60 · 7 tokens written meanwhile
+  draw 2 · "Sure, here is how" alone  153 ms · under load  286 ms · ×1.87 · 9 tokens written meanwhile
+  draw 3 · "I'm listening." alone  130 ms · under load  215 ms · ×1.65 · 6 tokens written meanwhile
+  draw 3 · "The first law states" alone  166 ms · under load  248 ms · ×1.50 · 7 tokens written meanwhile
+  draw 3 · "Good morning!" alone  130 ms · under load  236 ms · ×1.82 · 7 tokens written meanwhile
+  draw 3 · "Sure, here is how" alone  147 ms · under load  242 ms · ×1.64 · 7 tokens written meanwhile
+  draw 4 · "I'm listening." alone  177 ms · under load  224 ms · ×1.27 · 7 tokens written meanwhile
+  draw 4 · "The first law states" alone  152 ms · under load  326 ms · ×2.15 · 8 tokens written meanwhile
+  draw 4 · "Good morning!" alone  306 ms · under load  338 ms · ×1.10 · 7 tokens written meanwhile
+  draw 4 · "Sure, here is how" alone  180 ms · under load  259 ms · ×1.44 · 7 tokens written meanwhile
+  draw 5 · "I'm listening." alone  135 ms · under load  230 ms · ×1.70 · 7 tokens written meanwhile
+  draw 5 · "The first law states" alone  153 ms · under load  226 ms · ×1.48 · 6 tokens written meanwhile
+  draw 5 · "Good morning!" alone  135 ms · under load  209 ms · ×1.56 · 6 tokens written meanwhile
+  draw 5 · "Sure, here is how" alone  145 ms · under load  230 ms · ×1.58 · 6 tokens written meanwhile
+
+════ THE FIRST DECODE, ALONE AND UNDER LOAD — 20 pairs ════
+  alone        median  153 ms · min  130 · max  306
+  under load   median  242 ms · min  209 · max  338
+  ratio        ×1.58 — at or over 1.5: the GPU is shared enough; build the floor (SPEC §266)
+-[AGXG14XFamilyCommandBuffer tryCoalescingPreviousComputeCommandEncoderWithConfig:nextEncoderClass:]:1094: failed assertion `A command encoder is already encoding to this command buffer'

@@ -1,0 +1,322 @@
+# Conversation log — MultiModalKit demo
+
+picker says: mind=Local · ear=Whisper · mouth=Neural · speaker shield=true · tools=off
+tools: off · the plain path, AC-227's baseline
+Apple ear (SpeechTranscriber) locales on this device: 30 total · Arabic: NONE
+local model: mlx-community/Qwen3-4B-4bit · installed: true · MLX runnable here: true
+memory headroom: 3600 MB before this app's limit
+voice loaded: true
+MLX memory now: active 2318 MB · peak 3319 MB
+local mind: warm: the weights are resident
+weights expected at: /var/mobile/Containers/Data/Application/C6AFBD26-A47E-460B-989A-D5F39E698B4A/Documents/Qwen3-4B-4bit
+
+NOTE: the `mind:` line under each turn is the brain that
+ACTUALLY answered, taken from the generator the coordinator
+held — not from the picker above. If they disagree, that is
+the finding.
+
+## turn 1
+mind: **Local (MLX)**
+
+heard: Good morning my friend.
+
+reply: Good morning to you too!
+
+at 5 s · thermal nominal · 3541 MB free
+
+first word 435 ms · total 1081 ms · MLX peak 2588 MB
+
+tools: off
+
+voice: 1534 ms audio · RTF 0.540 · cushion 0 ms
+
+## turn 2
+mind: **Local (MLX)**
+
+heard: What's your name and what you can do for me?
+
+reply: I am Qwen, and I can help you with various tasks and answer questions.
+
+at 13 s · thermal nominal · 3516 MB free
+
+first word 411 ms · total 2697 ms · MLX peak 2588 MB
+
+tools: off
+
+## turn 3
+mind: **Local (MLX)**
+
+heard: And what you can do for me?
+
+reply: I can help you with various tasks
+
+at 17 s · thermal nominal · 3507 MB free
+
+first word 428 ms · total 883 ms · MLX peak 2661 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 4
+mind: **Local (MLX)**
+
+heard: I'm waiting.
+
+reply: I'm here to help you. What do you need?
+
+at 23 s · thermal fair · 3516 MB free
+
+first word 448 ms · total 1364 ms · MLX peak 2661 MB
+
+tools: off
+
+voice: 2558 ms audio · RTF 0.489 · cushion 0 ms
+
+## turn 5
+mind: **Local (MLX)**
+
+heard: what you can do for me.
+
+reply: I can assist you with answering questions, providing information, and helping with various tasks. What do you need help with?
+
+at 30 s · thermal fair · 3550 MB free
+
+first word 590 ms · total 2814 ms · MLX peak 2661 MB
+
+tools: off
+
+voice: 6839 ms audio · RTF 0.454 · cushion 0 ms
+
+## turn 6
+mind: **Local (MLX)**
+
+heard: Okay, then explain me the first law of thermodynamic, please.
+
+reply: The first law of thermodynamics states that energy cannot be created or destroyed, only transformed from one form to another.
+
+at 42 s · thermal serious · 3494 MB free
+
+first word 685 ms · total 2591 ms · MLX peak 2730 MB
+
+tools: off
+
+voice: 6975 ms audio · RTF 0.430 · cushion 0 ms
+
+## turn 7
+mind: **Local (MLX)**
+
+heard: What about the second law?
+
+reply: The second law of thermodynamics states that the total entropy of an isolated system can never decrease over time, meaning that energy tends to disperse and become less available for doing work.
+
+at 56 s · thermal serious · 3489 MB free
+
+first word 702 ms · total 6227 ms · MLX peak 2963 MB
+
+tools: off
+
+voice: 11329 ms audio · RTF 0.749 · cushion 0 ms
+
+## turn 8
+mind: **Local (MLX)**
+
+heard: Leave me!
+
+reply: _(no words)_
+
+at 67 s · thermal serious · 3311 MB free
+
+first word never · total 414 ms · MLX peak 2965 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 9
+mind: **Local (MLX)**
+
+heard: Leave me! Can you explain me the equation of Einstein?
+
+reply: Einstein's equation is E=mc², which states that energy (E) is equal to mass (m) multiplied by the speed of light (c) squared.
+
+at 75 s · thermal serious · 3510 MB free
+
+first word 646 ms · total 4413 ms · MLX peak 2965 MB
+
+tools: off
+
+voice: 7711 ms audio · RTF 0.974 · cushion 0 ms
+
+## turn 10
+mind: **Local (MLX)**
+
+heard: Find the light speed.
+
+reply: The speed of light in a vacuum is approximately 3 × 10⁸ meters per second.
+
+at 91 s · thermal serious · 3489 MB free
+
+first word 704 ms · total 2164 ms · MLX peak 3152 MB
+
+tools: off
+
+## turn 11
+mind: **Local (MLX)**
+
+heard: Bye bye bye bye.
+
+reply: _(no words)_
+
+at 94 s · thermal serious · 3415 MB free
+
+first word never · total 630 ms · MLX peak 3152 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 12
+mind: **Local (MLX)**
+
+heard: Bye bye bye bye. - Bye-bye!
+
+reply: _(no words)_
+
+at 96 s · thermal serious · 3354 MB free
+
+first word never · total 1431 ms · MLX peak 3152 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 13
+mind: **Local (MLX)**
+
+heard: Bye bye bye bye. - Bye-bye! No, no, no, no.
+
+reply: _(no words)_
+
+at 97 s · thermal serious · 3540 MB free
+
+first word never · total 0 ms · MLX peak 3152 MB · BARGED IN (no terminal — expected on interrupt)
+
+tools: off
+
+## turn 14
+mind: **Local (MLX)**
+
+heard: Bye bye bye bye. - Bye-bye! No, no, no, no. Keep explaining me the speed of light and who find it.
+
+reply: The speed of light in a vacuum is exactly 299,792,458 meters per second, a value determined by the definition of the meter and the second in the International System of Units (SI). It was first measured experimentally by Ole Rømer in the 17th century, and later more precisely by Albert Michelson in the late 19th century. The speed of light is a fundamental constant in physics and is the maximum speed at which all energy, matter, and information in the universe can travel.
+
+at 123 s · thermal serious · 3491 MB free
+
+first word 700 ms · total 21668 ms · MLX peak 3319 MB
+
+tools: off
+
+voice: 32840 ms audio · RTF 0.747 · cushion 0 ms
+
+## turn 15
+mind: **Local (MLX)**
+
+heard: Okay, can you explain me the super strength here please?
+
+reply: Sure. Super strength refers to the ability to exert force far beyond what is normally possible for a human, often depicted in fiction as a supernatural or superhuman power.
+
+at 149 s · thermal serious · 3287 MB free
+
+first word 670 ms · total 3801 ms · MLX peak 3319 MB
+
+tools: off
+
+## turn 16
+mind: **Local (MLX)**
+
+heard: Are you here?
+
+reply: Yes, I'm here. How can I assist you?
+
+at 165 s · thermal serious · 3539 MB free
+
+first word 762 ms · total 1844 ms · MLX peak 3319 MB
+
+tools: off
+
+
+## timeline (5d)
+
+```
+device: iPhone18,5 · Version 26.6.1 (Build 23G83)
+① silence wait: 300 ms (this app's VAD hangover)
+turn 0: ② 212 · ③ 506 · ④ 0 · ⑤ 540 → felt 1558 ms · thought in the gate 506 · ⑤ = 111 + 417 + 12
+turn 1: ② 245 · ③ 504 · ④ 0 · ⑤ 1387 → felt 2436 ms · thought in the gate 504 · ⑤ = 125 + 1252 + 9
+turn 6: ② 157 · ③ 510 · ④ 0 · ⑤ 614 → felt 1582 ms · thought in the gate 510 · ⑤ = 202 + 389 + 23
+turn 7: ② 195 · ③ 501 · ④ 96 · ⑤ 582 → felt 1675 ms · thought in the gate 501 · ⑤ = 171 + 409 + 3
+turn 8: ② 298 · ③ 505 · ④ 187 · ⑤ 567 → felt 1858 ms · thought in the gate 505 · ⑤ = 166 + 387 + 14
+turn 9: ② 196 · ③ 501 · ④ 207 · ⑤ 582 → felt 1786 ms · thought in the gate 501 · ⑤ = 168 + 399 + 15
+turn 11: ② 195 · ③ 503 · ④ 151 · ⑤ 642 → felt 1790 ms · thought in the gate 502 · ⑤ = 181 + 444 + 17
+turn 12: ② 154 · ③ 505 · ④ 207 · ⑤ 579 → felt 1745 ms · thought in the gate 505 · ⑤ = 169 + 400 + 11
+turn 15: ② 217 · ③ 502 · ④ 206 · ⑤ 581 → felt 1806 ms · thought in the gate 501 · ⑤ = 169 + 403 + 9
+turn 16: ② 256 · ③ 500 · ④ 177 · ⑤ 391 → felt 1625 ms · thought in the gate 500 · ⑤ = 86 + 301 + 4
+turn 19: ② 186 · ③ 505 · ④ 264 · ⑤ 417 → felt 1672 ms · thought in the gate 505 · ⑤ = 86 + 325 + 6
+early reply over turn 0: thought 506 ms → kept
+early reply over turn 1: thought 504 ms → kept
+early reply over turn 3: thought 501 ms → kept
+early reply over turn 6: thought 510 ms → kept
+early reply over turn 7: thought 501 ms → kept
+early reply over turn 8: thought 505 ms → kept
+early reply over turn 9: thought 501 ms → kept
+early reply over turn 11: thought 422 ms → thrown away
+early reply over turn 11: thought 502 ms → kept
+early reply over turn 12: thought 505 ms → kept
+early reply over turn 13: thought 501 ms → kept
+early reply over turn 14: thought 501 ms → kept
+early reply over turn 15: thought 7 ms → thrown away
+early reply over turn 15: thought 501 ms → kept
+early reply over turn 16: thought 500 ms → kept
+early reply over turn 19: thought 505 ms → kept
+barge (turn 1 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 3 dies): ⑦ 0 · ⑧ 0 → 0 ms
+barge (turn 12 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 13 dies): ⑦ 0 · ⑧ 0 → 0 ms
+barge (turn 14 dies): ⑦ 0 · ⑧ 0 → 0 ms
+barge (turn 16 dies): ⑦ 320 · ⑧ 0 → 320 ms
+barge (turn 19 dies): ⑦ 340 · ⑧ 0 → 340 ms
+candidate over turn 0: loud 180 ms · peak 0.077 · onset → verdict 480 ms → abandoned
+candidate over turn 1: loud 260 ms · peak 0.094 · onset → verdict 320 ms → CUT
+candidate over turn 9: loud 100 ms · peak 0.056 · onset → verdict 520 ms → abandoned
+candidate over turn 9: loud 40 ms · peak 0.028 · onset → verdict 340 ms → abandoned
+candidate over turn 9: loud 100 ms · peak 0.038 · onset → verdict 480 ms → abandoned
+candidate over turn 12: loud 280 ms · peak 0.038 · onset → verdict 320 ms → CUT
+candidate over turn 15: loud 20 ms · peak 0.023 · onset → verdict 320 ms → abandoned
+candidate over turn 15: loud 40 ms · peak 0.037 · onset → verdict 340 ms → abandoned
+candidate over turn 15: loud 20 ms · peak 0.020 · onset → verdict 320 ms → abandoned
+candidate over turn 16: loud 340 ms · peak 0.274 · onset → verdict 320 ms → CUT
+candidate over turn 19: loud 220 ms · peak 0.204 · onset → verdict 340 ms → CUT
+reply #1: 0 pauses over 300 ms · longest 80 ms · quiet before the first word 40 ms
+reply #2: 0 pauses over 300 ms · longest 4 ms · quiet before the first word 40 ms
+reply #3: 0 pauses over 300 ms · longest 0 ms · never sounded
+reply #4: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #5: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+reply #6: 0 pauses over 300 ms · longest 137 ms · quiet before the first word 40 ms
+reply #7: 1 pauses over 300 ms · longest 1485 ms · quiet before the first word 40 ms
+reply #8: 1 pauses over 300 ms · longest 4420 ms · quiet before the first word 40 ms
+reply #9: 0 pauses over 300 ms · longest 23 ms · quiet before the first word 40 ms
+reply #10: 1 pauses over 300 ms · longest 4832 ms · quiet before the first word 40 ms
+reply #11: 1 pauses over 300 ms · longest 657 ms · quiet before the first word 40 ms
+reply #12: 0 pauses over 300 ms · longest 185 ms · quiet before the first word 40 ms
+
+medians · 11 spoken turns · 7 barges · 12 replies
+② ear     median 196 · min 154 · max 298
+③ gate    median 504 · min 500 · max 510
+④ token   median 177 · min 0 · max 264
+⑤ sound   median 581 · min 391 · max 1387
+⑤a words   median 168 · min 86 · max 202
+⑤b decode  median 400 · min 301 · max 1252
+⑤c rest    median 11 · min 3 · max 23
+FELT      median 1745 · min 1558 · max 2436
+1st-word quiet  median 40 · min 40 · max 40
+TO 1st WORD  median 1785 · min 1598 · max 2476
+⑦ window  median 320 · min 0 · max 340
+⑧ silent  median 0 · min 0 · max 0
+loud · cut        median 270 · min 220 · max 340
+loud · abandoned  median 40 · min 20 · max 180
+early replies: 14 kept · 2 thrown away
+⑥ longest pause  median 185 · min 0 · max 4832
+⑥ replies with a pause over 300 ms: 4
+```

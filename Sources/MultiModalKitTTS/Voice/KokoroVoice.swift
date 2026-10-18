@@ -137,6 +137,9 @@ public actor KokoroVoice: SpokenVoice {
     private nonisolated let phraseCharacters: Int
     private nonisolated let openingCaps: [Int]
     private nonisolated let quiet: PhraseQuiet.Config?
+    /// THE VOICE GOES FIRST (5d piece 5, D-148): each reply's first phrase
+    /// decodes with this floor taken. Nil: this voice shares none.
+    private nonisolated let floor: VoiceFloor?
 
     private var decoder: KokoroDecoder?
     private var providedHost: (any PlaybackHost)?
@@ -174,12 +177,14 @@ public actor KokoroVoice: SpokenVoice {
                 lead: Duration = .zero,
                 phraseCharacters: Int = KokoroVoice.phraseCharacters,
                 openingCaps: [Int] = KokoroVoice.openingCaps,
-                quiet: PhraseQuiet.Config? = .kokoro) {
+                quiet: PhraseQuiet.Config? = .kokoro,
+                floor: VoiceFloor? = nil) {
         self.weights = weights
         self.lead = lead
         self.phraseCharacters = phraseCharacters
         self.openingCaps = openingCaps
         self.quiet = quiet
+        self.floor = floor
     }
 
     /// 20, then 40: from the replay of Ryad's 21 phone replies
@@ -398,7 +403,8 @@ public actor KokoroVoice: SpokenVoice {
             onMargin: { [weak self] margin in
                 self?.recordColdStart(margin)
                 listener?(margin)
-            })
+            },
+            floor: floor)
         speaking = run
         return run
     }

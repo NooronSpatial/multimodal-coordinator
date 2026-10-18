@@ -6380,3 +6380,116 @@ and the hops, is ~10 ms.
 **What it does not show.** The phone. Its mind writes ~46 characters a second
 when warm (§257), so (a) may be larger there, and Kokoro decodes slower. The
 fix is ruled on the phone's numbers (AC-375).
+
+### 77b. The phone, and what a decode costs by length (5d, AC-375; 2026-10-15)
+
+**The phone** — Ryad's session, the local 4B warm, Whisper, Kokoro, 18 spoken
+turns (`docs/evidence/5d/phone-2026-10-15-session-piece5.txt`):
+
+| median, ms | ⑤ | (a) words | (b) decode | (c) rest |
+|---|---:|---:|---:|---:|
+| the phone, warm | 714 | 127 | **578** | 16 |
+| this Mac, run 23 (§77) | 317 | 59 | 249 | 8 |
+
+On the phone too, **the decode is ~80 % of ⑤**. (a) is twice the Mac's: the
+warm phone's mind writes slower. The felt pause to the first word: 1.9 s.
+
+**A decode by length** — this Mac, `bakeoff voice-kokoro --untrimmed`, three
+draws per text (`kokoro-decode-by-length-2026-10-15.txt`): 5 characters 118 ms,
+20 characters 143, 117 characters 630 — about **110 ms fixed + 4.5 ms a
+character**. The first phrase is already short (§74's opening caps): cutting
+it shorter saves little, because the fixed part dominates. What is left is
+the decode itself — and the GPU it shares with the mind (§78).
+
+## 78. The voice goes first — piece 5's fix on this Mac (5d, AC-377, AC-380)
+
+**What changed** (D-148, D-149): a shared floor. The voice takes it for each
+reply's first decode; the local mind, which now writes through our own token
+loop, waits for it between tokens.
+
+```
+before:   mind   ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓      both on one GPU
+          voice        ░░░░░░░░░░ decode ─▶ SOUND
+after:    mind   ▓▓▓▓▓▓·········▓▓▓▓▓▓▓▓▓▓▓▓▓      waits ~150 ms, one token in hand
+          voice        ░░░░░░ decode ─▶ SOUND     sooner
+```
+
+**1 — The experiment** (`bakeoff decode-under-load`, the real 4B writing a long
+answer, 4 first phrases × 5 draws, back to back so heat drifts alike):
+
+| median, ms | alone | under the 4B's writing | voice first | ratio |
+|---|---:|---:|---:|---:|
+| run 1 (`decode-under-load-2026-10-15.txt`) | 153 | 242 | — | ×1.58 |
+| run 2 (`…-voice-first-2026-10-15.txt`) | 127 | 219 | **149** | ×1.72 |
+
+Under load the mind wrote **6 tokens** during each decode; with the voice first,
+**1** — the token already in hand. The floor wins back ~70 ms of the ~90 ms the
+GPU cost; the rest is the one token and the hand-over.
+
+**2 — The harness** (the person's recording, the real 4B, Kokoro, greedy,
+thinking in the gate on, 300 · 500 · 320; with and without `--voice-first`,
+in pairs, the order swapped):
+
+| run | floor | ran | ④ | ⑤ | ⑤b decode | felt, to the first word | ⑥ pauses > 300 ms |
+|---|---|---|---:|---:|---:|---:|---|
+| 24 | off | first | 198 | 275 | 210 | 1 478 | 7 in 16 replies |
+| 25 | **on** | second | 454 | 280 | 213 | 1 737 | 0 in 18 |
+| 26 | **on** | first | 313 | 216 | **148** | 1 557 | 0 in 17 |
+| 27 | off | second | 311 | 292 | 222 | 1 590 | 0 in 17 |
+| 28 | off | first | 312 | 299 | 231 | 1 626 | 1 in 17 |
+| 29 | **on** | second | 247 | 226 | **164** | 1 469 | 0 in 18 |
+
+**What it shows.** In pairs 2 and 3 the floor cuts the first decode by 67–74 ms
+and ⑤ from ~295 to ~220 ms, whichever ran first. The turn-by-turn decodes
+agree (the cold turn 0 left out): with the floor on in runs 26 and 29, **27 of
+33 turns** decoded in 138–175 ms; with it off in runs 24, 27 and 28, **none of
+47** did. And no later phrase starved: with the floor, no pause over 300 ms
+inside an answer.
+
+**What it does not explain.** Pair 1. Run 25's first five turns decoded in
+133–146 ms, as the floor should; from the sixth turn on, ④ (714–879 ms, twice
+the other runs) **and** the decode rose together — the whole Mac was slower,
+the mind as much as the voice. The floor holds the mind only during a first
+decode, so it cannot raise the next turn's ④; the cause was not found.
+
+**What it does not show.** The felt pause moves less cleanly than ⑤: it carries
+the gate, the ear and the mind, and its medians wander ±150 ms between runs of
+the same setup. And the phone: its decode is 578 ms (§77b), so the share the
+GPU takes there is the number that decides whether the floor is worth it
+(AC-380, owed).
+
+### 78b. The phone — Ryad's two sessions with the floor (AC-380; 2026-10-15, 2026-10-18)
+
+| Ryad's phone, median | before (§77b) | with the floor, noisy room | with the floor, quiet room |
+|---|---:|---:|---:|
+| heat | serious, all 18 turns | nominal → serious from 42 s (11 of 16 turns) | nominal → fair from 209 s; never serious |
+| iOS | 26.6.1 | 26.6.1 | **27.0.1** (updated between sessions) |
+| ⑤b, the first decode | **578** ms (438–1 258) | **400** (301–1 252) | **363** (280–432) |
+| ⑤, the first sound | 714 | 581 | 501 |
+| the felt pause, to the first word | 1.9 s | 1.75 s | 1.65 s |
+| voice RTF, per reply | 0.28–0.68 | 0.43–**0.97** | 0.29–0.43 |
+| ⑥ replies with a pause > 300 ms | 5 of 18, longest 1.2 s | 4 of 12, longest **4.8 s** | 2 of 20, longest 0.7 s |
+
+Files: `phone-2026-10-15-session-piece5.txt`, `phone-2026-10-15-session-piece5-fix-noisy.txt`,
+`phone-2026-10-18-session-piece5-fix-quiet.txt`.
+
+**What it shows.** The first decode falls on the phone, more than on the Mac
+(§78: ~70 ms). Like with like, heat "serious" in both: before, 17 of 18 first
+decodes were over 450 ms; in the noisy session's 7 turns while "serious", 7 of 7
+were 301–444 (median 399) — **about 180 ms saved**. (Its two "fair" turns: 389,
+409.) In the quiet session, cooler: 358 ms
+median while "nominal", 394 while "fair". And in a quiet, cool room, no long
+silence inside an answer.
+
+**What it does not explain.** The noisy session's two silences of 4.4 and 4.8 s,
+in replies whose voice ran at RTF 0.75–0.97. Three things were true at once:
+heat "serious", children and others talking (the ear working during replies),
+and the change. The quiet session removed the noise AND the heat, so it cannot
+say which one it was. The floor itself is an unlikely cause: it holds the mind
+only during the first decode, ~400 ms before the first sound, and the silences
+came seconds later, while the voice was decoding slower than it spoke. And the
+quiet session ran on a new iOS (27.0.1), a fourth difference.
+
+**What would separate them.** A hot, quiet session — the phone warmed first —
+with the floor; long silences there would point at heat (with our loop), none
+at the noise.

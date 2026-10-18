@@ -6256,3 +6256,77 @@ behaviour; the fix is a later spec, ruled on these numbers.
   guesses with an error nobody knows (D-132: measure, do not estimate).
 - *Rejected:* **skipping the measurement** for a fix ruled on the hint in
   §257 (~46 characters a second on a warm phone): the hint is one reading.
+
+## D-147 — 5d piece 5's fix: the voice goes first — the mind pauses while the first phrase decodes (Milestone 5d)
+
+**Date:** 2026-10-15 · **Decided by:** Ryad ("A — the voice goes first") ·
+**Ruling:** ⑤'s decode is ~80 % of it on the Mac and on his phone (§77,
+`phone-2026-10-15-session-piece5.txt`: 714 = 127 + 578 + 16). Alone on this
+Mac, Kokoro decodes a ~20-character phrase in ~140 ms; inside a turn, with the
+mind still writing on the same GPU, 249 ms. The fix: while the voice decodes,
+the mind waits — it is far ahead of the speech (~46 characters a second against
+~15 spoken). First an experiment proves the cause; then the build.
+
+- *Rejected:* **B — a shorter first phrase**: the decode is ~110 ms fixed +
+  ~4.5 ms a character, so 20 → 10 characters saves ~20–40 ms of decode; and an
+  opening that short risks sounding choppy.
+- *Rejected:* **C — both at once**: two changes measured together cannot be
+  judged one by one.
+- *Rejected:* **D — leave ⑤**: it is the biggest block left.
+
+## D-148 — 5d piece 5's fix signed: a shared floor, taken by the voice for the first phrase (F-50 A, F-51 A) (Milestone 5d)
+
+**Date:** 2026-10-15 · **Decided by:** Ryad ("Sign, F-50 A and F-51 A") ·
+**Ruling:** SPEC §264–§268 as written. The experiment runs first and may end the
+piece (AC-377: on only at ≥ 1.5×).
+
+- **F-50 = A — a small shared "floor"** handed to both organs: the voice takes
+  it while it decodes, the mind waits for it between tokens; the coordinator
+  does not change. *Rejected:* B, the coordinator in the middle (new hooks on
+  both seams, new states in the coordinator).
+- **F-51 = A — the first phrase only.** *Rejected:* B, every phrase — it may help
+  ⑥ on a hot phone, but holds the mind on every phrase; its own measured step if
+  ⑥ needs it.
+
+## D-149 — the mind's pause needs our own token loop: the local mind drives the vendor's iterator itself (amends D-148) (Milestone 5d)
+
+**Date:** 2026-10-15 · **Decided by:** Ryad ("A — our own token loop") ·
+**Finding:** D-148 assumed the mind could wait "between tokens". It cannot by
+reading slower: the vendor's loop (`generateTokensTask`) runs in its own task,
+writes every token into an unbounded stream and never waits for its reader, so
+pausing our reading pauses nothing on the GPU. The vendor's `TokenIterator` and
+its per-token callback are public; the loop that drives them is private.
+**Ruling:** the local mind drives the public iterator in its own loop and
+waits for the floor between tokens. The loop keeps what 4y made it promise —
+cancellation at every token, the prompt's memory freed when the loop ends, the
+deadline, the vendor's stop reasons (AC-235), the think gate and the tool
+sieve — re-proven by the 4y live rows on the real 4B and by new mutations.
+
+- *Rejected:* **B — block inside the vendor's loop** (its per-token callback
+  waits while the floor is taken): little code, but a thread blocked for up to
+  ~0.6 s each turn, the pattern that froze CI (D-142), and the end of the task
+  variant 4y chose.
+- *Rejected:* **C — stop the fix**: the experiment measured ×1.56–1.58, and on
+  the phone that may be ~200 ms of ⑤.
+
+## D-150 — piece 5's fix merges with one open item: the noisy session's long silences (Milestone 5d)
+
+**Date:** 2026-10-18 · **Decided by:** Ryad ("A — Merge when CI is green") ·
+**Finding:** on Ryad's phone (INSTRUMENTS §78b) the first decode fell ~180 ms
+like with like (578 → 399 ms, heat "serious"), 363 ms in a quiet, cooler
+session; the felt pause to the first word 1.9 → 1.65 s; in the quiet room no
+pause inside an answer over 0.7 s. But the noisy session had two silences of
+4.4 and 4.8 s, with heat, noise and the change all present, and the quiet
+session removed two of them at once (and ran on iOS 27.0.1).
+**Ruling:** PR 67 merges when CI is green. The silences stay an open item
+(SPEC §269); a hot, quiet session — the phone warmed first — is measured in the
+next piece, the voice under heat (⑥). Also named here, not met: D-149 said our
+loop would be "re-proven by the 4y live rows on the real 4B"; those rows are
+red on this Mac with the vendor's loop and ours alike (SPEC §269). The real
+4B's evidence for our loop is the harness (runs 24–29), the experiment and the
+two phone sessions.
+
+- *Rejected:* **B — one more session first** (a warmed phone, a quiet room,
+  before the merge): it would separate heat from noise, but the piece's goal,
+  ⑤b, is already met on the phone, and the question belongs to the next piece's
+  subject anyway.

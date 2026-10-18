@@ -1,0 +1,45 @@
+warning: 'zipfoundation': /Users/ryad/Developer/multimodal-coordinator/.build/checkouts/ZIPFoundation/Package@swift-5.9.swift:23:61: warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+21 |     name: "ZIPFoundation",
+22 |     platforms: [
+23 |         .macOS(.v10_13), .iOS(.v12), .tvOS(.v12), .watchOS(.v4), .visionOS(.v1)
+   |                                                             `- warning: 'v4' is deprecated: watchOS 9.0 is the oldest supported version [#DeprecatedDeclaration]
+24 |     ],
+25 |     products: [
+
+[#DeprecatedDeclaration]: <https://docs.swift.org/compiler/documentation/diagnostics/deprecated-declaration>
+Building for production...
+[Computing dependencies]
+[Using on-disk description]
+[1 / 2] swift-transformers_Hub
+[1 / 72] ArgumentParserToolInfo
+[1 / 31] MLXUtilsLibrary
+Build complete! (1.72 sec)
+
+⚖️  DECODE-UNDER-LOAD (5d piece 5's fix, AC-377) — the first phrase, alone and under the 4B's writing
+    kokoro: /Users/ryad/Library/Application Support/Kokoro/kokoro-float16.safetensors · mind: /Users/ryad/Developer/models/Qwen3-4B-4bit · 5 draws
+  draw 1 · "I'm listening." alone  237 · under load  377 · voice first  316 ms · tokens meanwhile 6 / 1
+  draw 1 · "The first law states" alone  156 · under load  658 · voice first  255 ms · tokens meanwhile 7 / 1
+  draw 1 · "Good morning!" alone  120 · under load  243 · voice first  145 ms · tokens meanwhile 7 / 1
+  draw 1 · "Sure, here is how" alone  132 · under load  215 · voice first  149 ms · tokens meanwhile 6 / 1
+  draw 2 · "I'm listening." alone  115 · under load  218 · voice first  141 ms · tokens meanwhile 7 / 1
+  draw 2 · "The first law states" alone  135 · under load  229 · voice first  160 ms · tokens meanwhile 6 / 1
+  draw 2 · "Good morning!" alone  111 · under load  200 · voice first  140 ms · tokens meanwhile 6 / 1
+  draw 2 · "Sure, here is how" alone  131 · under load  221 · voice first  157 ms · tokens meanwhile 6 / 1
+  draw 3 · "I'm listening." alone  113 · under load  208 · voice first  144 ms · tokens meanwhile 6 / 1
+  draw 3 · "The first law states" alone  132 · under load  221 · voice first  163 ms · tokens meanwhile 6 / 1
+  draw 3 · "Good morning!" alone  110 · under load  203 · voice first  140 ms · tokens meanwhile 6 / 1
+  draw 3 · "Sure, here is how" alone  129 · under load  214 · voice first  161 ms · tokens meanwhile 6 / 1
+  draw 4 · "I'm listening." alone  116 · under load  209 · voice first  136 ms · tokens meanwhile 6 / 1
+  draw 4 · "The first law states" alone  148 · under load  225 · voice first  160 ms · tokens meanwhile 6 / 1
+  draw 4 · "Good morning!" alone  111 · under load  205 · voice first  140 ms · tokens meanwhile 6 / 1
+  draw 4 · "Sure, here is how" alone  127 · under load  219 · voice first  157 ms · tokens meanwhile 6 / 1
+  draw 5 · "I'm listening." alone  115 · under load  204 · voice first  141 ms · tokens meanwhile 6 / 1
+  draw 5 · "The first law states" alone  134 · under load  220 · voice first  149 ms · tokens meanwhile 6 / 1
+  draw 5 · "Good morning!" alone  112 · under load  203 · voice first  141 ms · tokens meanwhile 6 / 1
+  draw 5 · "Sure, here is how" alone  127 · under load  219 · voice first  153 ms · tokens meanwhile 6 / 1
+
+════ THE FIRST DECODE, ALONE AND UNDER LOAD — 20 pairs ════
+  alone        median  127 ms · min  110 · max  237
+  under load   median  219 ms · min  200 · max  658
+  voice first  median  149 ms · min  136 · max  316
+  ratio        ×1.72 — at or over 1.5: the GPU is shared enough; build the floor (SPEC §266)

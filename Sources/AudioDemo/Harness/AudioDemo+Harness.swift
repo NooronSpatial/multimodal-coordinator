@@ -29,7 +29,8 @@ extension AudioDemo {
               + " interrupting at \(script.interruptAt.sorted())")
         print("    hangover \(Int(flags.hangoverMs)) ms · gate \(Int(flags.gateMs)) ms"
               + " · window \(Int(flags.windowMs)) ms · vad \(flags.vadThreshold)"
-              + " · think in the gate \(flags.thinksInTheGate ? "ON" : "off")\n")
+              + " · think in the gate \(flags.thinksInTheGate ? "ON" : "off")"
+              + " · voice first \(demoFloor != nil ? "ON" : "off")\n")
         await converseAndMeasure(harness)
     }
 

@@ -9284,3 +9284,139 @@ decode is ASKED for, not at the phraser's cut itself; between the two is only
 the hop to the decoder's worker. Stamping the cut would have added a clock read
 and shifted every scripted-time test's plan; the run already stamped the ask
 (D-087).
+
+**Added 2026-10-15 — AC-375 on the phone: met** (INSTRUMENTS §77b): ⑤ 714 ms =
+(a) 127 + (b) 578 + (c) 16, warm; the decode is ~80 % of ⑤ there too. These
+numbers ruled the fix (D-147).
+
+# 5d piece 5, the fix — the voice goes first (signed, D-148)
+
+## §264 — why
+
+```
+inside a turn, today:   mind ▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓  (writing the rest of the answer)
+                        voice         ░░░░░░░░░ decode the first phrase  ─▶ SOUND
+                                      └ both on one GPU: 249 ms (Mac), 578 ms (phone, warm)
+
+the voice goes first:   mind  ▓▓▓▓▓▓▓▓·········▓▓▓▓▓▓▓▓▓▓  (waits while the voice decodes)
+                        voice         ░░░░ decode alone ─▶ SOUND  (~140 ms alone on the Mac)
+```
+
+- The mind writes ~46 characters a second on the warm phone; the voice speaks
+  ~15. A pause of a few hundred milliseconds is never heard later.
+- **Not proven yet:** that the GPU is shared enough to matter. §266/1 proves it
+  or stops the piece.
+
+## §265 — scope
+
+1. **The experiment, first** (AC-377). A bakeoff instrument: Kokoro decodes the
+   same first phrase alone, and while the real 4B writes a long answer, on this
+   Mac. The build goes on only if, under load, the decode is at least 1.5×
+   slower than alone. If it is not, the piece stops here and reports.
+2. **A shared signal: the voice takes the floor** (F-50). While the voice
+   decodes, the mind does not start its next token; it goes on the moment the
+   voice is done. Nothing is lost or doubled; a cancel while waiting ends the
+   reply as it would have.
+3. **Which decodes** (F-51): the first phrase only, or every phrase.
+4. **Off for every other mind and voice**: a mind that cannot wait (the Apple
+   mind, whose model runs in the system) and a voice that does not take the
+   floor behave exactly as today.
+5. **Measured**: the harness before and after (⑤b), then Ryad's phone.
+
+## §266 — acceptance criteria (AC-377 … AC-381)
+
+- **AC-377 — the experiment.** Kokoro's first-phrase decode alone and under the
+  4B's writing, several draws each, on this Mac; the ratio printed. Go on only at
+  ≥ 1.5×.
+- **AC-378 — the mind waits, exactly.** With the floor taken, the MLX mind's run
+  starts no new token; released, it goes on where it stopped: every token once,
+  in order. A cancel while it waits ends the reply at once; the floor can never
+  leave it waiting forever (it is released on every way a decode ends).
+- **AC-379 — the voice takes the floor** for the decodes F-51 rules, and gives
+  it back when that decode's audio is out — or when it fails, is cancelled, or
+  the turn dies.
+- **AC-380 — measured.** The harness: ⑤b before and after, the felt pause, and
+  the pauses inside answers (⑥) — the mind waiting must not starve the later
+  phrases; then Ryad's phone.
+- **AC-381 — nothing else moved.** The suite; the loop (the download family
+  excepted, as named); lint; mutations (the wait, the release on every end, the
+  order of tokens); `api.sh` additions only; the demo builds.
+
+## §267 — the forks (Ryad rules)
+
+- **F-50 — where the signal lives.** **A: a small shared "floor"** handed to
+  both the mind and the voice when the app builds them: the voice takes it while
+  it decodes, the mind waits for it between tokens. The coordinator does not
+  change; one simple thing hides the rule. **B: the coordinator in the middle**:
+  the voice reports "decoding" and "audio out", and the coordinator pauses and
+  resumes the reply: new hooks on both seams and new states in the coordinator.
+  **Recommendation: A.**
+- **F-51 — which decodes take the floor.** **A: the first phrase only** — the
+  piece's goal is ⑤, and the mind is held the least. **B: every phrase** — it may
+  also shorten the long pauses inside answers on a hot phone (§76b), but the mind
+  is held for every phrase, and its total time grows. **Recommendation: A**, and
+  B as its own measured step if ⑥ needs it.
+
+### §266b — added by D-149: our own token loop (AC-382, AC-383)
+
+- **AC-382 — our loop keeps the vendor's promises.** Every token once, in order;
+  a stop token ends the reply with `.stop` and is never spoken; the budget ends
+  it with `.length`; a cancel at any token ends it as cancelled, with no
+  terminal upstream, and the prompt's memory is freed when the loop ends. Proven
+  on scripted tokens (`TokenLoop`), and on the real 4B by the 4y live rows.
+- **AC-383 — the loop waits for the floor.** With the floor taken, the loop asks
+  for no new token after the one in hand; given back, it goes on at once; a
+  cancel while it waits ends it at once.
+
+## §268 — definition of done
+
+The experiment first (it may end the piece); red before green; the suite;
+mutations; the loop; lint; `api.sh`; the demo builds; the Mac numbers; Ryad's
+phone; one branch, one PR; present → HALT.
+
+### §269 — results (piece 5's fix), measured 2026-10-15
+
+```
+the first phrase's decode (⑤b), median ms, this Mac, greedy, thinking in the gate on
+
+ pair   ran first            ran second           the floor saves
+ 1      no floor   210       voice first 213        —   (see below)
+ 2      voice first 148      no floor   222        74
+ 3      no floor   231       voice first 164        67
+```
+
+| criterion | status | evidence |
+|---|---|---|
+| AC-377 the experiment | **met** — Kokoro's first decode under the 4B's writing is **×1.58** slower than alone (153 → 242 ms, 20 pairs); a first run gave ×1.56; the run with the voice-first column ×1.72 (127 / 219). Over the 1.5 line, narrowly: the floor was built | `decode-under-load-2026-10-15.txt`, INSTRUMENTS §78 |
+| AC-378 the mind waits, exactly | **met** — taken, the waiter waits; given back, it goes on; two holds count as two, a second `giveBack` as none; a cancel ends a wait at once and leaves no waiter behind. On the real 4B (the experiment): the mind writes **1 token during the decode instead of 6**, and the decode falls to 149 ms (127 alone) | `VoiceFloorTests`; M112–M114 |
+| AC-379 the voice takes the floor | **met** — the run's first decode only (F-51 A); given back when that decode returns or throws (a `defer` around it, so every way out gives it back) | `VoiceFirstTests`; M118, M119 |
+| AC-380 measured | **the Mac: met, with one pair unexplained** (INSTRUMENTS §78). In two pairs of three the floor cut ⑤b by 67–74 ms (⑤ ~295 → ~220 ms), whichever ran first. In the first pair the median did not move (210 → 213): its first five turns decoded in 133–146 ms, then from the sixth turn on ④ **and** the decode rose together (④ 714–879 ms, twice the other runs) — the whole Mac slower; the cause was not found. **⑥: no later phrase starved** — 0 pauses over 300 ms in every run with the floor (0/18, 0/17, 0/18), against 7/16, 0/17, 1/17 without. **The phone: OWED** | `harness-2026-10-15-run24…29-*.log` |
+| AC-381 nothing else moved | **met** — the 20× loop **20 of 20 with every suite** (1 069 tests; the download suites green on this Mac again, for the first time since 2026-10-14 — their cause still not found), and 20 of 20 without them (1 020); strict lint zero; M112–M120: eight killed, M120 survives by design; `api.sh` 7 lines added, 3 initialisers gained a defaulted `floor:`, nothing removed; the demo builds for iOS | `stability-2026-10-15-piece5-fix*.txt`, `api-diff-2026-10-15-piece5-fix.txt`, `mutations-2026-10-15-piece5-fix-*.log` |
+| AC-382 our loop keeps the vendor's promises | **met on scripted tokens; on the real 4B, through the harness only** — every token once, in order; a stop token ends with `.stop`, unspoken and discarded; the budget with `.length`; a cancel at a token as cancelled (M116, M117). The real 4B answered every turn of runs 24–29 through our loop. **The 4y live rows (`MMK_MLX_MODEL`) are red on this Mac on BOTH loops**, the vendor's and ours, the same rows the same way ("the reply ended without a terminal"): not caused by this piece, not explained; owed | `TokenLoopTests`; `live-2026-10-15-*.log` |
+| AC-383 the loop waits for the floor | **met** — taken, no new token after the one in hand; given back, it goes on; a cancel while it waits ends it at once | `TokenLoopTests`; M113, M115 |
+
+**Named, on the way:**
+
+- **M113 hung the test process.** With "a cancel does not end a wait", the token
+  loop's cancel row passed its one-minute time limit and the process never
+  exited: Swift Testing records the time limit but cannot end a task that
+  ignores its cancel, and the row awaited that task. The runner printed NO
+  VERDICT. The two floor rows of `TokenLoopTests` now wait on a fact, bounded,
+  and free the loop before they end; M113, rerun, is killed in seconds (and
+  M112, M115 rerun with it, killed).
+- **M120 survives by design.** No unit row reaches the local mind's real
+  stream (it needs the 4B); the harness's `--voice-first` runs are where a
+  forgotten floor would show (⑤b back to ~220 ms).
+- **The loop's skip list is written out now** (`loop20.sh --without-downloads`):
+  the seven download suites red on this Mac and the bench-hygiene suite that
+  drives the same file server. The earlier loops' list was not recorded.
+- `VendorLoop.swift` is no longer used by the local mind; its tests stay until
+  a cleanup piece removes both.
+
+**Added 2026-10-18 — AC-380 on Ryad's phone** (INSTRUMENTS §78b): two sessions
+with the floor. The first decode, like with like (heat "serious"): **578 → 399 ms**
+(the noisy session's 7 turns while "serious"); in a quiet, cooler session 363. The felt pause
+to the first word 1.9 → 1.75 → 1.65 s. **⑥: in the quiet session, no later phrase
+starved** (longest 0.7 s). **Not explained:** the noisy session's two silences
+of 4.4 and 4.8 s (heat, noise and the change were all present; the quiet
+session removed two of them at once, and ran on a new iOS).

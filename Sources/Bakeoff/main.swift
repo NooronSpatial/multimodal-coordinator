@@ -36,6 +36,7 @@ if arguments.count > 1, arguments[1] == "cushion-sweep" { await runCushionSweep(
 if arguments.count > 1, arguments[1] == "voice-install" { await runVoiceInstall() }
 if arguments.count > 1, arguments[1] == "voice-kokoro" { await runVoiceKokoro(arguments) }
 if arguments.count > 1, arguments[1] == "kokoro-pauses" { await runKokoroPauses(arguments) }
+if arguments.count > 1, arguments[1] == "decode-under-load" { await runDecodeUnderLoad(arguments) }
 if arguments.count > 1, arguments[1] == "graph-probe" { await runGraphProbe(arguments) }
 if arguments.count > 1, arguments[1] == "downloads" { await runDownloads(arguments) }
 if arguments.count > 1, arguments[1] == "session" {
